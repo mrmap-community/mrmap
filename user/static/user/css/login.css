@@ -1,0 +1,31 @@
+@import "base.css";
+
+body{
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 100px;
+}
+
+.login-article{
+    max-width: 30%;
+}
+.login-article article{
+    color: gray;
+}
+
+.login-frame{
+    display: flex;
+    margin: 0 0 0 50px;
+    padding: 100px;
+    box-shadow: 0 0 0 1px #e5e5e5;
+}
+
+.login-logo{
+    max-width: 150px;
+    max-height: 150px;
+}
+
+.login-form{
+    margin: 0 0 0 20px;
+}

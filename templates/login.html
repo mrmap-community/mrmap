@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+{% load i18n static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MapSkinner - Login</title>
+    <link rel="stylesheet" type="text/css" href="{% static '/user/css/login.css' %}" media="all" />
+    <script type="text/javascript" src="{% static '/user/js/jquery-3.3.1.min.js' %}"></script>
+</head>
+<body>
+<div class="login-article">
+    <h1>{{ login_article_title }}</h1>
+    <article>{{ login_article }}</article>
+</div>
+<div class="login-frame">
+    <img class="login-logo" src="{% static '/user/images/mr_map.png' %}">
+    <div class="login-form">
+        {{ login_form }}
+    </div>
+</div>
+
+</body>
+</html>

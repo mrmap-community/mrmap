@@ -1,0 +1,67 @@
+@import "colour_schema.css";
+
+html{
+    font-family: 'Helvetica';
+}
+
+body{
+    margin: 0;
+}
+
+.navigation-bar{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 10px 0 0 20px;
+    height: 50px;
+    background-color: var(--primary-color);
+    font-size: 1.0em;
+    z-index: 10;
+    position: relative;
+}
+
+.navigation-bar-left, .navigation-bar-right{
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+.navigation-menu{
+}
+
+.navigation-title{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid white;
+    height: 100%;
+    width: 100px;
+    color: white;
+    font-weight: bold;
+    padding: 10px;
+}
+.navigation-title:hover{
+    cursor: pointer;
+}
+
+.navigation-element-list{
+    display: none;
+    background-color: var(--secondary-color);
+}
+
+.navigation-element{
+    color: white;
+    padding: 10px;
+    border-top: 1px solid white;
+    text-align: center;
+}
+.navigation-element:hover{
+    cursor: pointer;
+    background-color: var(--secondary-color-hover);
+}
+
+#logout-button{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

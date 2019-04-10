@@ -1,0 +1,15 @@
+
+/*
+Declaration of used colours.
+For best harmonizing colours use https://htmlcolorcodes.com/color-picker/
+*/
+
+:root{
+    --primary-color: #91a3ff;
+    --primary-color-hover: #c8d1ff;
+
+    --secondary-color: #576199;
+    --secondary-color-hover: #454d7a;
+
+    --background-color: white;
+}

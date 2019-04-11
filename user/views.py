@@ -1,5 +1,5 @@
 from django.http import HttpRequest
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.utils.translation import gettext_lazy as _
 
 from user.forms import LoginForm
@@ -22,6 +22,12 @@ def organizations(request:HttpRequest):
 
 def login(request:HttpRequest):
     template = "login.html"
+    login_form = LoginForm(request.POST)
+    if login_form.is_valid():
+        username = login_form.cleaned_data.get("username")
+        password = login_form.cleaned_data.get("password")
+        # ToDo: Check in database for user! If found and credentials are correct --> redirect!
+        return redirect('user:index')
     login_form = LoginForm()
     params = {
         "login_form": login_form,

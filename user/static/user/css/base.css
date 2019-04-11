@@ -12,7 +12,7 @@ body{
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    padding: 10px 0 0 20px;
+    padding: 0 0 0 20px;
     height: 50px;
     background-color: var(--primary-color);
     font-size: 1.0em;
@@ -20,10 +20,16 @@ body{
     position: relative;
 }
 
-.navigation-bar-left, .navigation-bar-right{
+.navigation-bar-left{
     display: flex;
     flex-direction: row;
     align-items: flex-start;
+}
+.navigation-bar-right{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
 }
 
 .navigation-menu{
@@ -61,10 +67,20 @@ body{
 }
 
 #logout-button{
+    padding: 10px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    text-decoration: none;
+    color: white;
 }
+#logout-button:hover{
+    background-color: var(--secondary-color);
+    border-radius: 3px;
+}
+#logout-img{
+    margin: 0 0 0 10px;
+}
+
 
 
 .button{

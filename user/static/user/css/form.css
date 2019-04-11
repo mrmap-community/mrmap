@@ -1,0 +1,27 @@
+@import "colour_schema.css";
+
+.form-table{
+    color: gray;
+}
+
+.field-label{
+    font-size: 1.2em;
+}
+
+.field input{
+    color: gray;
+    background-color: white;
+    border: 1px solid gray;
+    border-radius: 0.25rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.field input:focus{
+    -webkit-box-shadow: 0 0 10px var(--primary-color);
+    -moz-box-shadow: 0 0 10px var(--primary-color);
+    box-shadow: 0 0 10px var(--primary-color);
+}
+
+.form-submit-area{
+    padding: 20px 0;
+}

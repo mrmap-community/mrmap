@@ -65,3 +65,16 @@ body{
     align-items: center;
     justify-content: center;
 }
+
+
+.button{
+    padding: 10px;
+    background-color: var(--secondary-color);
+    color: white;
+    border-radius: 5px;
+    text-align: center;
+}
+.button:hover{
+    cursor:pointer;
+    background-color: var(--secondary-color-hover);
+}

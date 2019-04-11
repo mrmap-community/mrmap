@@ -4,7 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <title>MapSkinner - Login</title>
+    <link rel="stylesheet" type="text/css" href="{% static '/user/css/base.css' %}" media="all" />
     <link rel="stylesheet" type="text/css" href="{% static '/user/css/login.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/user/css/form.css' %}" media="all" />
     <script type="text/javascript" src="{% static '/user/js/jquery-3.3.1.min.js' %}"></script>
 </head>
 <body>
@@ -15,7 +17,21 @@
 <div class="login-frame">
     <img class="login-logo" src="{% static '/user/images/mr_map.png' %}">
     <div class="login-form">
-        {{ login_form }}
+        <form action="{% url 'user:login' %}" method="post">
+            <table class="form-table">
+                {% for field in login_form %}
+                <tr>
+                    <td class="field-label">{{ field.label_tag }}</td>
+                </tr>
+                <tr>
+                    <td class="field">{{ field }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+            <div class="form-submit-area">
+                <div class="button">{% trans 'Sign in' %}</div>
+            </div>
+        </form>
     </div>
 </div>
 

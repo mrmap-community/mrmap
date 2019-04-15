@@ -1,5 +1,78 @@
 {% extends 'base.html' %}
+{% load i18n static %}
 
 {% block body %}
-INDEX SERVICES
+<div class="overview">
+    <h1>{% trans 'Overview services' %}</h1>
+    <div class="overview-title-actions-container">
+        <h2>{% trans 'WMS' %}</h2>
+        <div class="overview-action">
+            <span class="action-button" title="{% trans 'Register new' %}">
+                +
+            </span>
+        </div>
+    </div>
+    <table class="overview-table">
+        <tr>
+            <th class="table-header">
+                {% trans 'Name' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Created' %}
+            </th>
+        </tr>{% for organization in organizations %}
+        <tr>
+            <td class="table-cell">
+                {{ organization.name }}
+            </td>
+            <td class="table-cell">
+                {{ organization.createdOn }}
+            </td>
+        </tr>{% endfor %}
+        <tr>
+            <td class="table-cell">
+                Test
+            </td>
+            <td class="table-cell">
+                Test
+            </td>
+        </tr>
+        <tr>
+            <td class="table-cell">
+                Test
+            </td>
+            <td class="table-cell">
+                Test
+            </td>
+        </tr>
+    </table>
+
+    <div class="overview-title-actions-container">
+        <h2>{% trans 'WFS' %}</h2>
+        <div class="overview-action">
+            <span class="action-button" title="{% trans 'Register new' %}">
+                +
+            </span>
+        </div>
+    </div>
+    <table class="overview-table">
+        <tr>
+            <th class="table-header">
+                {% trans 'Name' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Created' %}
+            </th>
+        </tr>{% for organization in organizations %}
+        <tr>
+            <td class="table-cell">
+                {{ organization.name }}
+            </td>
+            <td class="table-cell">
+                {{ organization.createdOn }}
+            </td>
+        </tr>{% endfor %}
+    </table>
+
+</div>
 {% endblock %}

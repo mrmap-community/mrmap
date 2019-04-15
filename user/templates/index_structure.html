@@ -1,5 +1,65 @@
 {% extends 'base.html' %}
-
+{% load i18n %}
 {% block body %}
-INDEX STRUCTURE
+<div class="overview">
+    <h1>{% trans 'Overview structure' %}</h1>
+    <div class="overview-title-actions-container">
+        <h2>{% trans 'Organizations' %}</h2>
+        <div class="overview-action">
+            <span class="action-button" title="{% trans 'Register new' %}">
+                +
+            </span>
+        </div>
+    </div>
+    <table class="overview-table">
+        <tr>
+            <th class="overview-table-header">
+                {% trans 'Name' %}
+            </th>
+            <th class="overview-table-header">
+                {% trans 'Created' %}
+            </th>
+        </tr>
+        {% for organization in organizations %}
+            <tr>
+                <td class="overview-table-cell">
+                    {{ organization.name }}
+                </td>
+                <td class="overview-table-cell">
+                    {{ organization.createdOn }}
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+
+    <div class="overview-title-actions-container">
+        <h2>{% trans 'Groups' %}</h2>
+        <div class="overview-action">
+            <span class="action-button" title="{% trans 'Register new' %}">
+                +
+            </span>
+        </div>
+    </div>
+    <table class="overview-table">
+        <tr>
+            <td class="overview-table-header">
+                {% trans 'Name' %}
+            </td>
+            <td class="overview-table-header">
+                {% trans 'Created' %}
+            </td>
+        </tr>
+        {% for organization in organizations %}
+            <tr>
+                <td class="overview-table-cell">
+                    {{ organization.name }}
+                </td>
+                <td class="overview-table-cell">
+                    {{ organization.createdOn }}
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+
+</div>
 {% endblock %}

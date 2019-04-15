@@ -8,6 +8,10 @@ body{
     margin: 0;
 }
 
+#body-content{
+    padding: 0 1vw 0 1vw;
+}
+
 .navigation-bar{
     display: flex;
     flex-direction: row;
@@ -61,9 +65,10 @@ body{
     border-top: 1px solid white;
     text-align: center;
 }
+
 .navigation-element:hover{
     cursor: pointer;
-    background-color: var(--secondary-color-hover);
+    background-color: var(--secondary-color-light);
 }
 
 #logout-button{
@@ -73,25 +78,47 @@ body{
     text-decoration: none;
     color: white;
 }
+
 #logout-button:hover{
     background-color: var(--secondary-color);
     border-radius: 3px;
 }
+
 #logout-img{
     margin: 0 0 0 10px;
 }
 
+table{
+    border-collapse: collapse;
+    width: 100%;
+}
 
+th{
+    text-align: left;
+}
+
+tr:nth-child(even){
+    background-color: var(--primary-color-light);
+}
+tr:hover{
+    cursor: pointer;
+    background-color: var(--primary-color);
+}
+
+.table-header{
+    font-weight: bold;
+}
 
 .button{
     padding: 10px;
-    border: 1px solid var(--secondary-color-hover);
+    border: 1px solid var(--secondary-color-light);
     background-color: var(--secondary-color);
     color: white;
     border-radius: 5px;
     text-align: center;
 }
+
 .button:hover{
     cursor:pointer;
-    background-color: var(--secondary-color-hover);
+    background-color: var(--secondary-color-light);
 }

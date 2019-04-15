@@ -6,10 +6,11 @@ For best harmonizing colours use https://htmlcolorcodes.com/color-picker/
 
 :root{
     --primary-color: #91a3ff;
-    --primary-color-hover: #c8d1ff;
+    --primary-color-light: #c8d1ff;
+    --primary-color-dark: #6572b2;
 
     --secondary-color: #576199;
-    --secondary-color-hover: #454d7a;
+    --secondary-color-light: #454d7a;
 
     --background-color: white;
 }

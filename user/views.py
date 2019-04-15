@@ -6,21 +6,52 @@ from user.forms import LoginForm
 
 
 def index(request: HttpRequest):
+    """ Renders an overview of all organization and groups
+
+    Args:
+        request (HttpRequest): The incoming request
+    Returns:
+         A view
+    """
     template = "index_structure.html"
     params = {}
     return render(request=request, template_name=template, context=params)
 
-def groups(request:HttpRequest):
+
+def groups(request: HttpRequest):
+    """ Renders an overview of all groups
+
+    Args:
+        request (HttpRequest): The incoming request
+    Returns:
+         A view
+    """
     template = "index_structure.html"
     params = {}
     return render(request=request, template_name=template, context=params)
 
-def organizations(request:HttpRequest):
+
+def organizations(request: HttpRequest):
+    """ Renders an overview of all organization
+
+    Args:
+        request (HttpRequest): The incoming request
+    Returns:
+         A view
+    """
     template = "index_structure.html"
     params = {}
     return render(request=request, template_name=template, context=params)
 
-def login(request:HttpRequest):
+
+def login(request: HttpRequest):
+    """ Logs the user in and redirects to overview
+
+    Args:
+        request (HttpRequest): The incoming request
+    Returns:
+         A view
+    """
     template = "login.html"
     login_form = LoginForm(request.POST)
     if login_form.is_valid():
@@ -35,3 +66,15 @@ def login(request:HttpRequest):
         "login_article": _("Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. ")
     }
     return render(request=request, template_name=template, context=params)
+
+
+def logout(request: HttpRequest):
+    """ Logs the user out and redirects to login view
+
+    Args:
+        request (HttpRequest): The incoming request
+    Returns:
+         A view
+    """
+    # ToDo: Set functionality to indicate user logged out
+    return redirect('user:login')

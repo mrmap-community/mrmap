@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.gis.db import models
-from user.models import User, Group, UserGroupRoleRel, Organization
+from structure.models import User, Group, UserGroupRoleRel, Organization
 
 class Category(models.Model):
     title_DE = models.CharField(max_length=100, unique=True)

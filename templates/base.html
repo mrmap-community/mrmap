@@ -4,25 +4,25 @@
 <head>
     <meta charset="UTF-8">
     <title>MapSkinner</title>
-    <link rel="stylesheet" type="text/css" href="{% static '/user/css/base.css' %}" media="all" />
-    <link rel="stylesheet" type="text/css" href="{% static '/user/css/overview.css' %}" media="all" />
-    <script type="text/javascript" src="{% static '/user/js/jquery-3.3.1.min.js' %}"></script>
-    <script type="text/javascript" src="{% static '/user/js/base.js' %}"></script>
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/overview.css' %}" media="all" />
+    <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
+    <script type="text/javascript" src="{% static '/structure/js/base.js' %}"></script>
 </head>
 <header>
     <nav class="navigation-bar">
         <div class="navigation-bar-left">
             <div class="navigation-menu">
-                <a class="navigation-title" href="{% url 'user:index' %}">
+                <a class="navigation-title" href="{% url 'structure:index' %}">
                     {% trans 'Structure' %}
                 </a>
                 <div class="navigation-element-list">
-                    <a href="{% url 'user:organizations' %}">
+                    <a href="{% url 'structure:organizations' %}">
                         <div class="navigation-element">
                             {% trans 'Organizations' %}
                         </div>
                     </a>
-                    <a href="{% url 'user:groups' %}">
+                    <a href="{% url 'structure:groups' %}">
                         <div class="navigation-element">
                             {% trans 'Groups' %}
                         </div>
@@ -49,9 +49,9 @@
 
         </div>
         <div class="navigation-bar-right">
-            <a id="logout-button" href="{% url 'user:logout' %}">
+            <a id="logout-button" href="{% url 'structure:logout' %}">
                 {% trans 'Logout' %}
-                <img id="logout-img" src="{% static '/user/images/logout.png' %}">
+                <img id="logout-img" src="{% static '/structure/images/logout.png' %}">
             </a>
         </div>
     </nav>

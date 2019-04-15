@@ -2,7 +2,7 @@ from django.http import HttpRequest
 from django.shortcuts import render, redirect
 from django.utils.translation import gettext_lazy as _
 
-from user.forms import LoginForm
+from structure.forms import LoginForm
 
 
 def index(request: HttpRequest):
@@ -45,7 +45,7 @@ def organizations(request: HttpRequest):
 
 
 def login(request: HttpRequest):
-    """ Logs the user in and redirects to overview
+    """ Logs the structure in and redirects to overview
 
     Args:
         request (HttpRequest): The incoming request
@@ -58,7 +58,7 @@ def login(request: HttpRequest):
         username = login_form.cleaned_data.get("username")
         password = login_form.cleaned_data.get("password")
         # ToDo: Check in database for user! If found and credentials are correct --> redirect!
-        return redirect('user:index')
+        return redirect('structure:index')
     login_form = LoginForm()
     params = {
         "login_form": login_form,
@@ -69,7 +69,7 @@ def login(request: HttpRequest):
 
 
 def logout(request: HttpRequest):
-    """ Logs the user out and redirects to login view
+    """ Logs the structure out and redirects to login view
 
     Args:
         request (HttpRequest): The incoming request
@@ -77,4 +77,4 @@ def logout(request: HttpRequest):
          A view
     """
     # ToDo: Set functionality to indicate user logged out
-    return redirect('user:login')
+    return redirect('structure:login')

@@ -4,10 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <title>MapSkinner - Login</title>
-    <link rel="stylesheet" type="text/css" href="{% static '/user/css/base.css' %}" media="all" />
-    <link rel="stylesheet" type="text/css" href="{% static '/user/css/login.css' %}" media="all" />
-    <link rel="stylesheet" type="text/css" href="{% static '/user/css/form.css' %}" media="all" />
-    <script type="text/javascript" src="{% static '/user/js/jquery-3.3.1.min.js' %}"></script>
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/login.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/form.css' %}" media="all" />
+    <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
 </head>
 <body>
 <div class="login-article">
@@ -15,9 +15,9 @@
     <article>{{ login_article }}</article>
 </div>
 <div class="login-frame">
-    <img class="login-logo" src="{% static '/user/images/mr_map.png' %}">
+    <img class="login-logo" src="{% static '/structure/images/mr_map.png' %}">
     <div class="login-form">
-        <form action="{% url 'user:login' %}" method="post">
+        <form action="{% url 'structure:login' %}" method="post">
             {% csrf_token %}
             <table class="form-table">
                 {% for field in login_form %}

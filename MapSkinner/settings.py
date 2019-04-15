@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.postgres',
     'django.contrib.gis',
     'service',
-    'user',
+    'structure',
     'django_extensions',
 ]
 

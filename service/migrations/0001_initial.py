@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('user', '__first__'),
+        ('structure', '__first__'),
     ]
 
     operations = [
@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
                 ('symbol', models.CharField(max_length=100, unique=True)),
                 ('is_active', models.BooleanField()),
                 ('created', models.DateTimeField()),
-                ('created_by', models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='user.User')),
+                ('created_by', models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='structure.User')),
             ],
         ),
         migrations.CreateModel(
@@ -80,7 +80,7 @@ class Migration(migrations.Migration):
                 ('is_open_data', models.BooleanField()),
                 ('fees', models.CharField(max_length=100)),
                 ('created', models.DateTimeField()),
-                ('created_by', models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='user.User')),
+                ('created_by', models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='structure.User')),
             ],
         ),
         migrations.CreateModel(
@@ -189,12 +189,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='wms',
             name='created_by',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='user.Group'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='structure.Group'),
         ),
         migrations.AddField(
             model_name='wms',
             name='published_for',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='user.Organization'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='structure.Organization'),
         ),
         migrations.AddField(
             model_name='wms',
@@ -209,12 +209,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='wfs',
             name='created_by',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='user.Group'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='structure.Group'),
         ),
         migrations.AddField(
             model_name='wfs',
             name='published_for',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='user.Organization'),
+            field=models.ForeignKey(on_delete=django.db.models.deletion.DO_NOTHING, to='structure.Organization'),
         ),
         migrations.AddField(
             model_name='wfs',

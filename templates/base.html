@@ -13,9 +13,9 @@
     <nav class="navigation-bar">
         <div class="navigation-bar-left">
             <div class="navigation-menu">
-                <div class="navigation-title">
+                <a class="navigation-title" href="{% url 'user:index' %}">
                     {% trans 'Structure' %}
-                </div>
+                </a>
                 <div class="navigation-element-list">
                     <a href="{% url 'user:organizations' %}">
                         <div class="navigation-element">
@@ -30,9 +30,9 @@
                 </div>
             </div>
             <div class="navigation-menu">
-                <div class="navigation-title">
+                <a class="navigation-title" href="{% url 'service:index' %}">
                     {% trans 'Services' %}
-                </div>
+                </a>
                 <div class="navigation-element-list">
                     <a href="{% url 'service:wms' %}">
                         <div class="navigation-element">

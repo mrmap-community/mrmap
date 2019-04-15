@@ -1,4 +1,4 @@
-function openNavigationMenu(elem){
+function toggleNavigationMenu(elem){
     elem.slideToggle("fast");
 }
 
@@ -6,12 +6,16 @@ function openNavigationMenu(elem){
 $(document).ready(function(){
     $(".navigation-title").on("mouseover",function(){
         var list = $(this).siblings(".navigation-element-list");
-        openNavigationMenu(list);
+        if(list.is(":hidden")){
+            toggleNavigationMenu(list);
+        }
     });
 
     $(".navigation-menu").on("mouseleave",function(){
         var elem = $(this).find(".navigation-element-list");
-        openNavigationMenu(elem);
+        if(!elem.is(":hidden")){
+            toggleNavigationMenu(elem);
+        }
     });
 
 });

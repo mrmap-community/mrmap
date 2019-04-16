@@ -1,0 +1,36 @@
+
+{% load i18n static %}
+
+{% block head %}
+<link rel="stylesheet" type="text/css" href="{% static '/structure/css/form.css' %}" media="all" />
+<link rel="stylesheet" type="text/css" href="{% static '/structure/css/new_service_uri_form.css' %}" media="all" />
+{% endblock %}
+
+{% block body %}
+
+<div class="modal-dialog">
+    <div class="modal-close" title="{% trans 'Close' %}">
+        x
+    </div>
+    <form class="form-table" action="/service/new/" method="post">
+        {% csrf_token %}
+        <div class="field">
+            {% for field in form %}
+                <div class="field-label">{{ field.label_tag }}</div>
+                <div id="request-uri" class="field">{{ field }}</div>
+            {% endfor %}
+        </div>
+        <div id="new-service-register-button" class="button" title="{% trans 'Start registration' %}">{% trans 'Register' %}</div>
+    </form>
+</div>
+<script>
+    $(".modal-close").click(function(){
+        toggleOverlay("");
+    });
+
+    $("#new-service-register-button").click(function(){
+        checkServiceRequestURI();
+    });
+</script>
+
+{% endblock %}

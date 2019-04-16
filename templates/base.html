@@ -8,6 +8,9 @@
     <link rel="stylesheet" type="text/css" href="{% static '/structure/css/overview.css' %}" media="all" />
     <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
     <script type="text/javascript" src="{% static '/structure/js/base.js' %}"></script>
+    {% block head %}
+    
+    {% endblock %}
 </head>
 <header>
     <nav class="navigation-bar">
@@ -59,6 +62,8 @@
 
 <body>
 <div id="body-content">
+    <div id="overlay">
+    </div>
 {% block body %}
 
 {% endblock %}

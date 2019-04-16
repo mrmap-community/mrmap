@@ -16,6 +16,7 @@ class Category(models.Model):
 class ServiceType(models.Model):
     name = models.CharField(max_length=100)
     version = models.CharField(max_length=100)
+    specification = models.URLField(blank=False, null=False)
 
 class Service(models.Model):
     title = models.CharField(max_length=100, unique=True)

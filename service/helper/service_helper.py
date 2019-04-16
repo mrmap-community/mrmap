@@ -6,6 +6,7 @@ Created on: 16.04.19
 
 """
 import urllib
+from lxml import etree
 
 from MapSkinner.settings import DEFAULT_SERVICE_VERSION
 from service.helper.enums import VersionTypes, ServiceTypes
@@ -62,3 +63,17 @@ def split_service_uri(uri):
             ret_dict["base_uri"] += param_key + "=" + param_val
 
     return ret_dict
+
+
+def parse_xml(xml: str):
+    """ Returns the xml as iterable object
+
+    Args:
+        xml(str): The xml as string
+    Returns:
+        nothing
+    """
+    xml_bytes = xml.encode("UTF-8")
+    xml_obj = etree.ElementTree(etree.fromstring(xml_bytes))
+    return xml_obj
+

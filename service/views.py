@@ -7,13 +7,9 @@ from django.shortcuts import render
 from django.template.loader import render_to_string
 
 from MapSkinner.responses import BackendAjaxResponse
-from MapSkinner.settings import DEFAULT_SERVICE_VERSION
 from service.forms import NewServiceURIForm
-from service.helper.common_connector import CommonConnector
-from service.helper.enums import ConnectionType
-from service.helper.ogc.ows import OGCWebService
 from service.helper import service_helper
-from service.helper.ogc.wms import OGCWebMapService, OGCWebMapService_1_1_1
+from service.helper.ogc.wms import OGCWebMapService_1_1_1
 
 
 def index(request: HttpRequest):
@@ -65,8 +61,8 @@ def register_form(request: HttpRequest):
         params = {
             "error": error,
             "uri": url_dict["base_uri"],
-            "version": url_dict["version"],
-            "service_type": url_dict["service"],
+            "version": url_dict["version"].value,
+            "service_type": url_dict["service"].value,
             "request_action": url_dict["request"],
             "full_uri": cap_url,
         }

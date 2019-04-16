@@ -12,6 +12,8 @@ from service.helper.ogc.layer import OGCLayer
 from lxml import etree
 import re
 
+from service.helper import service_helper
+
 class OGCWebMapService(OGCWebService):
     """Base class for OGC WebMapServices."""
     # declare common attributes
@@ -90,7 +92,54 @@ class OGCWebMapService(OGCWebService):
         sub_layer.rgt = right
         
         return right + 1"""
-    
+
+    def __get_layers_recursive(self, layers, parent=None, position=0):
+        for layer in layers:
+            # iterate over all top level layer and find their children
+            layer_obj = OGCWebMapServiceLayer()
+            layer_obj.parent = parent
+            layer_obj.position = position
+            try:
+                bbox = layer.xpath("./LatLonBoundingBox")[0]
+                bbox = [
+                    bbox.get("minx"),
+                    bbox.get("miny"),
+                    bbox.get("maxx"),
+                    bbox.get("maxy"),
+                ]
+                layer_obj.latlon_extent = bbox
+            except IndexError:
+                pass
+            try:
+                name = layer.xpath("./Name")[0].text
+                layer_obj.name = name
+            except IndexError:
+                pass
+            try:
+                abstract = layer.xpath("./Abstract")[0].text
+                layer_obj.abstract = abstract
+            except IndexError:
+                pass
+            try:
+                title = layer.xpath("./Title")[0].text
+                layer_obj.title = title
+            except IndexError:
+                pass
+            self.layers.append(layer_obj)
+            sublayers = layer.xpath("./Layer")
+            position += 1
+            self.__get_layers_recursive(layers=sublayers, parent=layer_obj, position=position)
+
+
+
+    def get_layers(self, xml_obj):
+        # get most upper parent layer, which normally lives directly in <Capability>
+        layers = xml_obj.xpath("//Capability/Layer")
+        self.__get_layers_recursive(layers)
+        i = 0
+
+
+
     # define layers as array of OGCWebMapServiceLayer objects
     layers = []
     
@@ -116,41 +165,47 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
     #    pass
         
     def create_from_capabilities(self):
-        root = etree.XML(str.encode(self.service_capabilities_xml))
-        
-        tree = etree.ElementTree(root)
-        #service metadata
-        r = tree.xpath('/WMT_MS_Capabilities/Service/Title')
-        self.service_identification_title = r[0].text
-        r = tree.xpath('/WMT_MS_Capabilities/Service/Abstract')
-        self.service_identification_abstract = r[0].text
-        r = tree.xpath('/WMT_MS_Capabilities/Service/Keywords')
-        for keyword in r:
-            self.service_identification_keywords.append(keyword.text)
-        #r = tree.xpath('/WMT_MS_Capabilities/Service/Fees')
-        #self.service_identification_fees = r[0].text
-        #r = tree.xpath('/WMT_MS_Capabilities/Service/AccessConstraints')
-        #self.service_identification_accessconstraints = r[0].text
-        #parse layer objects recursive
-        layers = tree.xpath('/WMT_MS_Capabilities/Capability/Layer')
-        #number_of_layers = len(tree.xpath('//Layer'))
-        
-        for layer in layers:
-            self.parse_layers_recursive(etree.tostring(layer), 0, 1)
-            
-        #generate mptt attributes
-        #self.recursive_generate_mptt_attributes(None, 1)
-        #debug output
-        for layer in self.layers:
-            print(layer.position, layer.parent, layer.lft, layer.rgt, layer.title)
-        
+        # get xml as iterable object
+        xml_obj = service_helper.parse_xml(xml=self.service_capabilities_xml)
+        self.get_service_metadata(xml_obj=xml_obj)
+        self.get_layers(xml_obj=xml_obj)
 
-        #self.xml_version = tree.docinfo.xml_version
-        #print(self.xml_version)
-        
-        
-        #self.xml_version = tree.docinfo.xml_version
-        #print(self.xml_version)
+        # ARMIN______________________________________________________________________
+        # root = etree.XML(str.encode(self.service_capabilities_xml))
+        #
+        # tree = etree.ElementTree(root)
+        # #service metadata
+        # r = tree.xpath('/WMT_MS_Capabilities/Service/Title')
+        # self.service_identification_title = r[0].text
+        # r = tree.xpath('/WMT_MS_Capabilities/Service/Abstract')
+        # self.service_identification_abstract = r[0].text
+        # r = tree.xpath('/WMT_MS_Capabilities/Service/Keywords')
+        # for keyword in r:
+        #     self.service_identification_keywords.append(keyword.text)
+        # #r = tree.xpath('/WMT_MS_Capabilities/Service/Fees')
+        # #self.service_identification_fees = r[0].text
+        # #r = tree.xpath('/WMT_MS_Capabilities/Service/AccessConstraints')
+        # #self.service_identification_accessconstraints = r[0].text
+        # #parse layer objects recursive
+        # layers = tree.xpath('/WMT_MS_Capabilities/Capability/Layer')
+        # #number_of_layers = len(tree.xpath('//Layer'))
+        #
+        # for layer in layers:
+        #     self.parse_layers_recursive(etree.tostring(layer), 0, 1)
+        #
+        # #generate mptt attributes
+        # #self.recursive_generate_mptt_attributes(None, 1)
+        # #debug output
+        # for layer in self.layers:
+        #     print(layer.position, layer.parent, layer.lft, layer.rgt, layer.title)
+        #
+#
+        # #self.xml_version = tree.docinfo.xml_version
+        # #print(self.xml_version)
+        #
+        #
+        # #self.xml_version = tree.docinfo.xml_version
+        # #print(self.xml_version)
 
 class OGCWebMapService_1_3_0(OGCWebMapService):
             

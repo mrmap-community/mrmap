@@ -1,5 +1,7 @@
 # common classes for handling of OWS (OGC Webservices)
 # for naming conventions see http://portal.opengeospatial.org/files/?artifact_id=38867
+from lxml import objectify
+
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
 
@@ -33,9 +35,9 @@ class OGCWebService:
         self.service_provider_contact_contactinstructions = None
         self.service_provider_onlineresource_linkage = None
         
-        self.service_provider_address_deliveryPoint = []
+        self.service_provider_address = []
         self.service_provider_address_city = None
-        self.service_provider_address_administrativearea = None
+        self.service_provider_address_state_or_province = None
         self.service_provider_address_postalcode = []
         self.service_provider_address_country = []
         self.service_provider_address_electronicmailaddress = []
@@ -91,8 +93,98 @@ class OGCWebService:
     def check_ogc_exception(self):
         pass
     
-    def get_service_metadata(self):
-        pass
+    def get_service_metadata(self, xml_obj):
+        """ Returns the xml as iterable object
+
+        Args:
+            xml_obj: The xml as iterable object
+        Returns:
+            nothing
+        """
+
+        # Since it may be possible that data providers do not put information where they have to be, we need to
+        # build these ugly try catches and always check for list structures where lists could happen
+
+        try:
+            self.service_identification_abstract = xml_obj.xpath("//Service/Abstract")[0].text
+        except IndexError:
+            pass
+        try:
+            self.service_identification_title = xml_obj.xpath("//Service/Title")[0].text
+        except IndexError:
+            pass
+        try:
+            self.service_identification_fees = xml_obj.xpath("//Service/Fees")[0].text
+        except IndexError:
+            pass
+        try:
+            self.service_identification_accessconstraints = xml_obj.xpath("//Service/AccessConstraints")[0].text
+        except IndexError:
+            pass
+        try:
+            self.service_provider_providername = xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactOrganization")[0].text
+        except IndexError:
+            pass
+        try:
+            self.service_provider_contact_contactinstructions = xml_obj.xpath("//Service/ContactInformation")[0]
+        except IndexError:
+            pass
+        try:
+            self.service_provider_responsibleparty_individualname = xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactPerson")[0].text
+        except IndexError:
+            pass
+        try:
+            self.service_provider_responsibleparty_positionname = xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactPosition")[0].text
+        except IndexError:
+            pass
+        try:
+            self.service_provider_telephone_voice = xml_obj.xpath("//Service/ContactInformation/ContactVoiceTelephone")[0].text
+        except IndexError:
+            pass
+        try:
+            self.service_provider_telephone_facsimile = xml_obj.xpath("//Service/ContactInformation/ContactFacsimileTelephone")[0].text
+        except IndexError:
+            pass
+        try:
+            self.service_provider_address_electronicmailaddress = xml_obj.xpath("//Service/ContactInformation/ContactElectronicMailAddress")[0].text
+        except IndexError:
+            pass
+        try:
+            keywords = xml_obj.xpath("//Service/KeywordList/Keyword")
+            kw = []
+            for keyword in keywords:
+                kw.append(keyword.text)
+            self.service_identification_keywords = kw
+        except IndexError:
+            pass
+        try:
+            elements = xml_obj.xpath("//Service/OnlineResource")
+            ors = []
+            for element in elements:
+                ors.append(element.get("{http://www.w3.org/1999/xlink}href"))
+            self.service_provider_onlineresource_linkage = ors
+        except IndexError:
+            pass
+        try:
+            self.service_provider_address_country = xml_obj.xpath("//Service/ContactInformation/ContactAddress/Country")[0].text
+        except IndexError:
+            pass
+        try:
+            self.service_provider_address_postalcode = xml_obj.xpath("//Service/ContactInformation/ContactAddress/PostCode")[0].text
+        except IndexError:
+            pass
+        try:
+            self.service_provider_address_city = xml_obj.xpath("//Service/ContactInformation/ContactAddress/City")[0].text
+        except IndexError:
+            pass
+        try:
+            self.service_provider_address_state_or_province = xml_obj.xpath("//Service/ContactInformation/ContactAddress/StateOrProvince")[0].text
+        except IndexError:
+            pass
+        try:
+            self.service_provider_address = xml_obj.xpath("//Service/ContactInformation/ContactAddress/Address")[0].text
+        except IndexError:
+            pass
 
 
 class OWSServiceMetadata:

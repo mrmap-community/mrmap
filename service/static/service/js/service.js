@@ -27,14 +27,20 @@ function startServiceRegistration(uri){
         type: 'post',
         dataType: 'json',
         success: function(data){
-            console.log(data["html"]);
+            changeOverlayContent(data["html"]);
         }
     });
 
 }
 
 function checkServiceRequestURI(){
-    var uri = $("#request-uri input").val();
+    var uri = $("#request-uri input").val().trim();
+    if (uri.length == 0){
+        return
+    }
+    if (!uri.startsWith("http://")){
+        uri = "http://" + uri;
+    }
     $.ajax({
         url: "/service/new/register-form",
         headers:{

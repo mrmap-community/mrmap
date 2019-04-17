@@ -46,6 +46,7 @@ class OGCWebService:
         self.service_provider_telephone_voice = []
         self.service_provider_telephone_facsimile = []
 
+
         # initialize service from url
         if service_capabilities_xml is not None:
             # load from given xml

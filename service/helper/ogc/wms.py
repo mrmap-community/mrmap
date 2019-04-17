@@ -42,7 +42,9 @@ class OGCWebMapService(OGCWebService):
     """Base class for OGC WebMapServices."""
 
     # define layers as array of OGCWebMapServiceLayer objects
-    layers = []
+    # Using None here to avoid mutable appending of infinite layers (python specific)
+    # For further details read: http://effbot.org/zone/default-values.htm
+    layers = None
 
     class Meta:
         abstract = True
@@ -123,20 +125,15 @@ class OGCWebMapService(OGCWebService):
             layer_obj.parent = parent
             layer_obj.position = position
             try:
-                bbox = layer.xpath("./LatLonBoundingBox")[0]
-                bbox = [
-                    bbox.get("minx"),
-                    bbox.get("miny"),
-                    bbox.get("maxx"),
-                    bbox.get("maxy"),
-                ]
-                layer_obj.latlon_extent = bbox
-            except IndexError:
-                pass
-            try:
                 name = layer.xpath("./Name")[0].text
                 layer_obj.identifier = name
             except IndexError:
+                pass
+            try:
+                keywords = layer.xpath("./KeywordList/Keyword")
+                for keyword in keywords:
+                    layer_obj.capability_keywords.append(keyword.text)
+            except AttributeError:
                 pass
             try:
                 abstract = layer.xpath("./Abstract")[0].text
@@ -146,6 +143,42 @@ class OGCWebMapService(OGCWebService):
             try:
                 title = layer.xpath("./Title")[0].text
                 layer_obj.title = title
+            except IndexError:
+                pass
+            try:
+                srs = layer.xpath("./SRS")
+                for elem in srs:
+                    layer_obj.capability_srs.append(elem.text)
+            except IndexError:
+                pass
+            try:
+                bbox = layer.xpath("./LatLonBoundingBox")[0]
+                attrs = ["minx", "miny", "maxx", "maxy"]
+                for attr in attrs:
+                    layer_obj.capability_bbox_lat_lon[attr] = bbox.get(attr)
+            except IndexError:
+                pass
+            try:
+                bboxs = layer.xpath("./BoundingBox")
+                for bbox in bboxs:
+                    srs = bbox.get("SRS")
+                    srs_dict = {
+                        "minx": "",
+                        "miny": "",
+                        "maxx": "",
+                        "maxy": "",
+                    }
+                    attrs = ["minx", "miny", "maxx", "maxy"]
+                    for attr in attrs:
+                        srs_dict[attr] = bbox.get(attr)
+                    layer_obj.capability_bbox_srs[srs] = srs_dict
+            except IndexError:
+                pass
+            try:
+                scales = layer.xpath("./ScaleHint")[0]
+                attrs = ["min", "max"]
+                for attr in attrs:
+                    layer_obj.capability_scale_hint[attr] = scales.get(attr)
             except IndexError:
                 pass
             try:
@@ -175,6 +208,8 @@ class OGCWebMapService(OGCWebService):
                 layer_obj.is_cascaded = is_opaque
             except AttributeError:
                 pass
+            if self.layers is None:
+                self.layers = []
             self.layers.append(layer_obj)
             sublayers = layer.xpath("./Layer")
             position += 1
@@ -214,28 +249,27 @@ class OGCWebMapService(OGCWebService):
 
 
 class OGCWebMapServiceLayer(OGCLayer):
-    pass
+    """ The OGCWebMapServiceLayer class
+
+    """
 
 
 class OGCWebMapService_1_0_0(OGCWebMapService):
     """ The WMS class for standard version 1.0.0
 
     """
-    pass
 
 
 class OGCWebMapService_1_1_0(OGCWebMapService):
     """ The WMS class for standard version 1.1.0
 
     """
-    pass
 
 
 class OGCWebMapService_1_1_1(OGCWebMapService):
     """ The WMS class for standard version 1.1.1
 
     """
-    pass
 
 
 class OGCWebMapService_1_3_0(OGCWebMapService):

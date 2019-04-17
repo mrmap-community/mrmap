@@ -97,14 +97,18 @@ def new_service(request: HttpRequest):
     web_service = wms_factory.get_ogc_wms(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
     # let it load it's capabilities
     web_service.create_from_capabilities()
+    # check quality of metadata
+    # ToDo: :3
     params = {
+        "wms": web_service,
     }
 
-    template = "register_new_service.html"
+    # Persist object to database
+    # ToDo: :3
+
+    template = "check_metadata_form.html"
     html = render_to_string(template_name=template, request=request, context=params)
-
     return BackendAjaxResponse(html=html).get_response()
-
 
 
 def wfs(request:HttpRequest):

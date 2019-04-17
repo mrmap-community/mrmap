@@ -2,15 +2,30 @@
 
 
 class OGCLayer:
-    def __init__(self, identifier=None, position=0, parent=None, title=None,
-                 latlon_extent="(-90.0,-180.0,90.0,180.0)", queryable=False, opaque=False, cascaded=False, abstract=None):
+    def __init__(self, identifier=None, position=0, parent=None, title=None, queryable=False, opaque=False,
+                 cascaded=False, abstract=None):
         self.identifier = identifier
         self.position = position
         self.parent = parent
-        self.latlon_extent = latlon_extent
         self.is_queryable = queryable
         self.is_opaque = opaque
         self.is_cascaded = cascaded
         self.title = title
         self.abstract = abstract
+
+        # capabilities
+        self.capability_keywords = []
+        self.capability_online_resource = None
+        self.capability_srs = []
+        self.capability_scale_hint = {
+            "min": 0,
+            "max": 0,
+        }
+        self.capability_bbox_lat_lon = {
+            "minx": 0,
+            "miny": 0,
+            "maxx": 0,
+            "maxy": 0,
+        }
+        self.capability_bbox_srs = {}
     pass

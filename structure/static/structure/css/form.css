@@ -2,9 +2,11 @@
 
 .form-table{
     color: gray;
+    max-height: 30vh;
+    overflow-y: auto;
 }
 
-.field-label{
+.field-label, .field{
     font-size: 1.2em;
 }
 

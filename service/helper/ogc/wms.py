@@ -14,12 +14,16 @@ import re
 
 from service.helper import service_helper
 
+
 class OGCWebMapService(OGCWebService):
     """Base class for OGC WebMapServices."""
-    # declare common attributes
-    # self.layer
-    # self.layers = [OGCWebMapServiceLayer()]
-    # testurl with 1.400 layers "http://srss-ows.landgate.wa.gov.au/wxs/firewatch.php?"
+
+    # define layers as array of OGCWebMapServiceLayer objects
+    layers = []
+
+    class Meta:
+        abstract = True
+
     def parse_layers_recursive(self, layers_string, layer_position=0, layer_parent=None, layer_lft=None):
         """Recursive function to create and add OGCWebMapServiceLayer objects to the OGCWebMapService object.
         The information is extracted from a given nested Layer-part of a OGC WMS Capabilities document.
@@ -78,22 +82,18 @@ class OGCWebMapService(OGCWebService):
         layer.rgt = layer_rght
 
         return layer_position, layer_rght+1
-    
-    """def recursive_generate_mptt_attributes(self, parent, left):
-        #https://www.sitepoint.com/hierarchical-data-database-3/
-        right = left + 1
-        #
-        #print('type: ')
-        #print(type(self.layers))
-        for sub_layer in next(filter(lambda x: x.parent == parent, self.layers)):
-            right = self.recursive_generate_mptt_attributes(sub_layer.position, right)
-            
-        sub_layer.lft = left
-        sub_layer.rgt = right
-        
-        return right + 1"""
 
     def __get_layers_recursive(self, layers, parent=None, position=0):
+        """ Recursive Iteration over all children and subchildren.
+
+        Creates OGCWebMapLayer objects for each xml layer and fills it with the layer content.
+
+        Args:
+            layers: An array of layers (In fact the children of the parent layer)
+            parent: The parent layer. If no parent exist it means we are in the root layer
+            position: The position inside the layer tree, which is more like an order number
+        :return:
+        """
         for layer in layers:
             # iterate over all top level layer and find their children
             layer_obj = OGCWebMapServiceLayer()
@@ -112,7 +112,7 @@ class OGCWebMapService(OGCWebService):
                 pass
             try:
                 name = layer.xpath("./Name")[0].text
-                layer_obj.name = name
+                layer_obj.identifier = name
             except IndexError:
                 pass
             try:
@@ -125,97 +125,98 @@ class OGCWebMapService(OGCWebService):
                 layer_obj.title = title
             except IndexError:
                 pass
+            try:
+                is_queryable = layer.get("queryable")
+                if is_queryable is None:
+                    is_queryable = False
+                else:
+                    is_queryable = service_helper.resolve_boolean_attribute_val(is_queryable)
+                layer_obj.is_queryable = is_queryable
+            except AttributeError:
+                pass
+            try:
+                is_opaque = layer.get("opaque")
+                if is_opaque is None:
+                    is_opaque = False
+                else:
+                    is_opaque = service_helper.resolve_boolean_attribute_val(is_opaque)
+                layer_obj.is_opaque = is_opaque
+            except AttributeError:
+                pass
+            try:
+                is_opaque = layer.get("cascaded")
+                if is_opaque is None:
+                    is_opaque = False
+                else:
+                    is_opaque = service_helper.resolve_boolean_attribute_val(is_opaque)
+                layer_obj.is_cascaded = is_opaque
+            except AttributeError:
+                pass
             self.layers.append(layer_obj)
             sublayers = layer.xpath("./Layer")
             position += 1
             self.__get_layers_recursive(layers=sublayers, parent=layer_obj, position=position)
 
-
-
     def get_layers(self, xml_obj):
+        """ Parses all layers of a service and creates objects for it.
+
+        Uses recursion on the inside to get all children.
+
+        Args:
+            xml_obj: The iterable xml tree
+        Returns:
+             nothing
+        """
         # get most upper parent layer, which normally lives directly in <Capability>
         layers = xml_obj.xpath("//Capability/Layer")
         self.__get_layers_recursive(layers)
-        i = 0
 
-
-
-    # define layers as array of OGCWebMapServiceLayer objects
-    layers = []
-    
-    class Meta:
-        abstract = True
 
 class OGCWebMapServiceLayer(OGCLayer):
-    #declare common attributes
-        pass
-    #self. 
+    pass
 
 class OGCWebMapService_1_0_0(OGCWebMapService):
+    """ The WMS class for standard version 1.0.0
+
+    """
     pass
+
 
 class OGCWebMapService_1_1_0(OGCWebMapService):
+    """ The WMS class for standard version 1.1.0
+
+    """
     pass
 
+
 class OGCWebMapService_1_1_1(OGCWebMapService):
-    
-    xml_version = None
-    # def __init__(self):
-    #    self.create_from_xml()
-    #    pass
-        
+    """ The WMS class for standard version 1.1.1
+
+    """
     def create_from_capabilities(self):
+        """ Fills the object with data from the capabilities document
+
+        Returns:
+             nothing
+        """
         # get xml as iterable object
         xml_obj = service_helper.parse_xml(xml=self.service_capabilities_xml)
         self.get_service_metadata(xml_obj=xml_obj)
         self.get_layers(xml_obj=xml_obj)
 
-        # ARMIN______________________________________________________________________
-        # root = etree.XML(str.encode(self.service_capabilities_xml))
-        #
-        # tree = etree.ElementTree(root)
-        # #service metadata
-        # r = tree.xpath('/WMT_MS_Capabilities/Service/Title')
-        # self.service_identification_title = r[0].text
-        # r = tree.xpath('/WMT_MS_Capabilities/Service/Abstract')
-        # self.service_identification_abstract = r[0].text
-        # r = tree.xpath('/WMT_MS_Capabilities/Service/Keywords')
-        # for keyword in r:
-        #     self.service_identification_keywords.append(keyword.text)
-        # #r = tree.xpath('/WMT_MS_Capabilities/Service/Fees')
-        # #self.service_identification_fees = r[0].text
-        # #r = tree.xpath('/WMT_MS_Capabilities/Service/AccessConstraints')
-        # #self.service_identification_accessconstraints = r[0].text
-        # #parse layer objects recursive
-        # layers = tree.xpath('/WMT_MS_Capabilities/Capability/Layer')
-        # #number_of_layers = len(tree.xpath('//Layer'))
-        #
-        # for layer in layers:
-        #     self.parse_layers_recursive(etree.tostring(layer), 0, 1)
-        #
-        # #generate mptt attributes
-        # #self.recursive_generate_mptt_attributes(None, 1)
-        # #debug output
-        # for layer in self.layers:
-        #     print(layer.position, layer.parent, layer.lft, layer.rgt, layer.title)
-        #
-#
-        # #self.xml_version = tree.docinfo.xml_version
-        # #print(self.xml_version)
-        #
-        #
-        # #self.xml_version = tree.docinfo.xml_version
-        # #print(self.xml_version)
 
 class OGCWebMapService_1_3_0(OGCWebMapService):
+    """ The WMS class for standard version 1.3.0
+
+    """
             
-    #https://stackoverflow.com/questions/34009992/python-elementtree-default-namespace
+    # https://stackoverflow.com/questions/34009992/python-elementtree-default-namespace
     def create_from_capabilities(self):
         # Remove the default namespace definition (xmlns="http://some/namespace")
         xmlstring = re.sub(r'\sxmlns="[^"]+"', '', self.service_capabilities_xml, count=1) 
         root = etree.XML(str.encode(xmlstring))
         tree = etree.ElementTree(root)
-        #service metadata
+        # service metadata
         r = tree.xpath('/WMS_Capabilities/Service/Title')
         self.service_identification_title = r[0].text
         r = tree.xpath('/WMS_Capabilities/Service/Abstract')
@@ -223,18 +224,18 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         r = tree.xpath('/WMS_Capabilities/Service/KeywordList/Keyword')
         for keyword in r:
             self.service_identification_keywords.append(keyword.text)
-            #print(keyword.text)
+            # print(keyword.text)
         r = tree.xpath('/WMS_Capabilities/Service/Fees')
         self.service_identification_fees = r[0].text
         r = tree.xpath('/WMS_Capabilities/Service/AccessConstraints')
         self.service_identification_accessconstraints = r[0].text
         
-        #parse layer objects recursive
+        #p arse layer objects recursive
         layers = tree.xpath('/WMS_Capabilities/Capability/Layer')
         for layer in layers:
             self.parse_layers_recursive(etree.tostring(layer), 0)
-        #transform to mptt
+        # transform to mptt
         
-        #debug output
+        # debug output
         for layer in self.layers:
             print(layer.position, layer.parent, layer.title)

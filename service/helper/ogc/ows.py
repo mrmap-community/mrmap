@@ -1,13 +1,14 @@
 # common classes for handling of OWS (OGC Webservices)
 # for naming conventions see http://portal.opengeospatial.org/files/?artifact_id=38867
-from lxml import objectify
-
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
 
 
 class OGCWebService:
-    def __init__(self, service_connect_url=None, service_type=ServiceTypes.WMS, service_version=VersionTypes.V_1_1_1, auth=None, service_capabilities_xml = None):
+    """ The base class for all derived web services
+
+    """
+    def __init__(self, service_connect_url=None, service_type=ServiceTypes.WMS, service_version=VersionTypes.V_1_1_1, auth=None, service_capabilities_xml=None):
         self.service_connect_url = service_connect_url
         self.service_type = service_type  # wms, wfs, wcs, ...
         self.service_version = service_version  # 1.0.0, 1.1.0, ...
@@ -56,14 +57,19 @@ class OGCWebService:
         if self.service_type is ServiceTypes.WMS and self.service_version is VersionTypes.V_1_1_1:
                 # self.service_object = OGCWebMapService_1_1_1(self.service_capabilities_xml)
                 pass
-            
-        # First test for exceptions
-        # If no OGC exceptions are thrown parse Capabilities document
-        
+
         class Meta:
             abstract = True
             
     def get_capabilities(self):
+        """ Start a network call to retrieve the original capabilities xml document.
+
+        Using the connector class, this function will GET the capabilities xml document as string.
+        No file will be downloaded and stored on the storage. The string will be stored in the OGCWebService instance.
+
+        Returns:
+             nothing
+        """
         # if (self.auth != None and self.auth.auth_user != None and self.auth.auth_password != None):
         #    auth = {"auth_user":self.auth_user, "auth_password":self.auth_password, "auth_type":self.auth_type}
         # auth = self.auth

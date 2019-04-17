@@ -12,7 +12,7 @@ from MapSkinner.settings import DEFAULT_SERVICE_VERSION
 from service.helper.enums import VersionTypes, ServiceTypes
 
 
-def resolveVersionEnum(version:str):
+def resolve_version_enum(version:str):
     """ Returns the matching Enum for a given version as string
 
     Args:
@@ -25,7 +25,8 @@ def resolveVersionEnum(version:str):
             return enum
     return None
 
-def resolveServiceEnum(service:str):
+
+def resolve_service_enum(service:str):
     """ Returns the matching Enum for a given service as string
 
     Args:
@@ -52,9 +53,9 @@ def split_service_uri(uri):
 
     cap_url_dict = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(uri).query))
     cap_url_query = urllib.parse.urlsplit(uri).query
-    ret_dict["service"] = resolveServiceEnum(cap_url_dict.get("SERVICE", None))
+    ret_dict["service"] = resolve_service_enum(cap_url_dict.get("SERVICE", None))
     ret_dict["request"] = cap_url_dict.get("REQUEST", None)
-    ret_dict["version"] = resolveVersionEnum(cap_url_dict.get("VERSION", DEFAULT_SERVICE_VERSION))
+    ret_dict["version"] = resolve_version_enum(cap_url_dict.get("VERSION", DEFAULT_SERVICE_VERSION))
     ret_dict["base_uri"] = uri.replace(cap_url_query, "")
     service_keywords = ["REQUEST", "SERVICE", "VERSION"]
     for param_key, param_val in cap_url_dict.items():
@@ -77,3 +78,19 @@ def parse_xml(xml: str):
     xml_obj = etree.ElementTree(etree.fromstring(xml_bytes))
     return xml_obj
 
+
+def resolve_boolean_attribute_val(val):
+    """ To avoid boolean values to be handled as strings, this function returns the boolean value of a string.
+
+    If the provided parameter is not resolvable it will be returned as it was.
+
+    Args:
+        val:
+    Returns:
+         val
+    """
+    try:
+        val = bool(int(val))
+    except TypeError:
+        pass
+    return val

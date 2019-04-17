@@ -90,8 +90,8 @@ def new_service(request: HttpRequest):
     url_dict = service_helper.split_service_uri(cap_url)
 
     web_service = OGCWebMapService_1_1_1(service_connect_url=url_dict["base_uri"],
-                                   service_version=url_dict["version"],
-                                   service_type=url_dict["service"])
+                                         service_version=url_dict["version"],
+                                         service_type=url_dict["service"])
     web_service.create_from_capabilities()
     params = {
     }

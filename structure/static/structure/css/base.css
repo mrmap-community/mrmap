@@ -155,10 +155,12 @@ th{
 tr:nth-child(even){
     background-color: var(--primary-color-light);
 }
+/*
 tr:hover{
     cursor: pointer;
     background-color: var(--primary-color);
 }
+*/
 
 .table-header{
     font-weight: bold;

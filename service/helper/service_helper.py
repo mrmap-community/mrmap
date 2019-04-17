@@ -6,10 +6,14 @@ Created on: 16.04.19
 
 """
 import urllib
+
+import datetime
 from lxml import etree
 
 from MapSkinner.settings import DEFAULT_SERVICE_VERSION
 from service.helper.enums import VersionTypes, ServiceTypes
+from service.helper.ogc.wms import OGCWebMapService
+from service.models import ServiceType, Service, WMS, ServiceMetadata, ContentMetadata, Layer
 
 
 def resolve_version_enum(version:str):
@@ -94,3 +98,64 @@ def resolve_boolean_attribute_val(val):
     except TypeError:
         pass
     return val
+
+
+def __convert_layer_recursive(layers, service_type):
+    # iterate over all layers
+    for layer_obj in layers:
+        layer = Layer()
+        layer.title = layer_obj.title
+        layer.servicetype = service_type
+        layer.created_on = datetime.time()
+        layer.abstract = layer_obj.abstract
+        layer.is_available = False
+        layer.availability = 0.0
+        layer.hits = 0
+        layer.parent = None
+        layer.is_queryable = layer_obj.is_queryable
+        layer.is_cascaded = layer_obj.is_cascaded
+        layer.is_opaque = layer_obj.is_opaque
+        layer.scale_min = layer_obj.capability_scale_hint.get("min")
+        layer.scale_max = layer_obj.capability_scale_hint.get("max")
+
+
+
+def convert_wms_to_model(wms_obj: OGCWebMapService):
+    # create all needed database models
+    service_type = ServiceType()
+    service = WMS()
+    service_metadata = ServiceMetadata()
+    content_metadata = ContentMetadata()
+    reference_systems = []
+    layers = []
+    keywords = []
+
+    # fill objects
+    service_type.version = wms_obj.service_version.value
+    service_type.name = wms_obj.service_type.value
+
+    service.title = wms_obj.service_identification_title
+    service.abstract = wms_obj.service_identification_abstract
+    service.created_on = datetime.time()
+    service.availability = 0.0
+    service.is_available = False
+    service.servicetype = service_type
+    # service.published_for = 0
+
+    service_metadata.contact_person = wms_obj.service_provider_responsibleparty_individualname
+    service_metadata.contact_email = wms_obj.service_provider_address_electronicmailaddress
+    service_metadata.contact_organization = ""
+    service_metadata.contact_person_position = wms_obj.service_provider_responsibleparty_positionname
+    service_metadata.contact_phone = wms_obj.service_provider_telephone_voice
+    service_metadata.city = wms_obj.service_provider_address_city
+    service_metadata.address = wms_obj.service_provider_address
+    service_metadata.post_code = wms_obj.service_provider_address_postalcode
+    service_metadata.state_or_province = wms_obj.service_provider_address_state_or_province
+    service_metadata.access_constraints = wms_obj.service_identification_accessconstraints
+    service_metadata.created = datetime.time()
+    service_metadata.is_active = False
+    service_metadata.service_wms = service
+
+    __convert_layer_recursive(layers=wms_obj.layers, service_type=service_type)
+
+

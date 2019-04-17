@@ -23,8 +23,8 @@ class Service(models.Model):
     abstract = models.CharField(max_length=1000)
     created_on = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(Group, on_delete=models.DO_NOTHING)
-    published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING)
-    #supportedVersions = models.CharField(max_length=1000) # json encoded
+    # published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING)
+    # supportedVersions = models.CharField(max_length=1000) # json encoded
     servicetype = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING)
     categories = models.ManyToManyField(Category)
 
@@ -40,6 +40,16 @@ class Layer(WMS):
     preview_image = models.CharField(max_length=100)
     preview_extend = models.CharField(max_length=100)
     preview_legend = models.CharField(max_length=100)
+    parent = models.ForeignKey("self", on_delete=models.DO_NOTHING)
+    position = models.IntegerField()
+    is_queryable = models.BooleanField()
+    is_opaque = models.BooleanField()
+    is_cascaded = models.BooleanField()
+    scale_min = models.FloatField()
+    scale_max = models.FloatField()
+    bbox_lat_lon = models.CharField(max_length=255)
+    #bbox_srs = models.CharField(max)
+
 
 class WFS(Service):
     availability = models.DecimalField(decimal_places=2, max_digits=4)
@@ -89,7 +99,7 @@ class ServiceMetadata(Metadata):
     last_change = models.DateTimeField()
     status = models.IntegerField()
     last_harvest_successful = models.BooleanField()
-    last_harvest_exception  = models.CharField(max_length=200)
+    last_harvest_exception = models.CharField(max_length=200)
     export_to_csw = models.BooleanField()
     spatial_res_type = models.CharField(max_length=100)
     spatial_res_value = models.CharField(max_length=100)

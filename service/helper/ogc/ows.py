@@ -98,8 +98,14 @@ class OGCWebService:
     
     def check_ogc_exception(self):
         pass
-    
-    def get_service_metadata(self, xml_obj):
+
+    def get_service_metadata_v100(self, xml_obj):
+        pass
+
+    def get_service_metadata_v110(self, xml_obj):
+        pass
+
+    def get_service_metadata_v111(self, xml_obj):
         """ Returns the xml as iterable object
 
         Args:
@@ -192,6 +198,8 @@ class OGCWebService:
         except IndexError:
             pass
 
+    def get_service_metadata_v130(self, xml_obj):
+        pass
 
 class OWSServiceMetadata:
     def __init__(self):

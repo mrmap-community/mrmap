@@ -9,7 +9,7 @@ from django.template.loader import render_to_string
 from MapSkinner.responses import BackendAjaxResponse
 from service.forms import NewServiceURIForm
 from service.helper import service_helper
-from service.helper.ogc.wms import OGCWebMapService_1_1_1
+from service.helper.ogc.wms import OGCWebMapService_1_1_1, OGCWebMapServiceFactory
 
 
 def index(request: HttpRequest):
@@ -89,9 +89,13 @@ def new_service(request: HttpRequest):
     cap_url = POST_params.get("uri", "")
     url_dict = service_helper.split_service_uri(cap_url)
 
-    web_service = OGCWebMapService_1_1_1(service_connect_url=url_dict["base_uri"],
-                                         service_version=url_dict["version"],
-                                         service_type=url_dict["service"])
+    # create WMS object
+    # web_service = OGCWebMapService_1_1_1(service_connect_url=url_dict["base_uri"],
+    #                                      service_version=url_dict["version"],
+    #                                      service_type=url_dict["service"])
+    wms_factory = OGCWebMapServiceFactory()
+    web_service = wms_factory.get_ogc_wms(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
+    # let it load it's capabilities
     web_service.create_from_capabilities()
     params = {
     }

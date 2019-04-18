@@ -27,6 +27,7 @@ class OGCWebService:
         
         # service_provider
         self.service_provider_providername = None
+        self.service_provider_url = None
         
         self.service_provider_responsibleparty_individualname = None
         self.service_provider_responsibleparty_positionname = None
@@ -136,6 +137,10 @@ class OGCWebService:
             pass
         try:
             self.service_provider_providername = xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactOrganization")[0].text
+        except IndexError:
+            pass
+        try:
+            self.service_provider_url = xml_obj.xpath("//AuthorityURL")[0].get("xlink:href")
         except IndexError:
             pass
         try:

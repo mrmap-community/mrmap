@@ -1,8 +1,52 @@
 {% load i18n static %}
-{% block head %}
-<link rel="stylesheet" type="text/css" href="{% static '/structure/css/form.css' %}" media="all" />
-<link rel="stylesheet" type="text/css" href="{% static '/service/css/new_service_uri_form.css' %}" media="all" />
-{% endblock %}
+<style>
+
+    .form-table{
+        color: gray;
+        max-height: 30vh;
+        overflow-y: auto;
+    }
+
+    .field-label, .field{
+        font-size: 1.2em;
+    }
+
+    .field input{
+        color: gray;
+        background-color: white;
+        border: 1px solid gray;
+        border-radius: 0.25rem;
+        padding: 0.375rem 0.75rem;
+    }
+
+    .field input:focus{
+        -webkit-box-shadow: 0 0 10px var(--primary-color);
+        -moz-box-shadow: 0 0 10px var(--primary-color);
+        box-shadow: 0 0 10px var(--primary-color);
+    }
+
+    .form-submit-area{
+        padding: 20px 0;
+    }
+
+
+    #capabilities-uri{
+        width: 80%;
+    }
+
+    .form-table{
+        font-size: 0.9em !important;
+        color: black;
+    }
+    .form-table tbody{
+        border: 1px solid var(--primary-color-light);
+        border-radius: 10px;
+        padding: 10px;
+    }
+    .form-table td{
+
+    }
+</style>
 
 {% block body %}
 <div class="modal-dialog">

@@ -103,7 +103,7 @@ def new_service(request: HttpRequest):
         "wms": web_service,
     }
     # convert object to database-model object
-    service_helper.convert_wms_to_model(web_service)
+    service_helper.persist_wms(web_service)
     # Persist object to database
     # ToDo: :3
 

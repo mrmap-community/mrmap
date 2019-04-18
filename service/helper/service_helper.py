@@ -5,15 +5,21 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 16.04.19
 
 """
+import json
 import urllib
 
 import datetime
+import uuid
+
+from django.db import transaction
 from lxml import etree
 
 from MapSkinner.settings import DEFAULT_SERVICE_VERSION
 from service.helper.enums import VersionTypes, ServiceTypes
-from service.helper.ogc.wms import OGCWebMapService
-from service.models import ServiceType, Service, WMS, ServiceMetadata, ContentMetadata, Layer
+from service.helper.ogc.wms import OGCWebMapService, OGCWebMapServiceLayer
+from service.models import ServiceType, Service, Layer, Keyword, Metadata, KeywordToMetadata, ReferenceSystem, \
+    ReferenceSystemToMetadata
+from structure.models import Organization, User, Group
 
 
 def resolve_version_enum(version:str):
@@ -99,63 +105,112 @@ def resolve_boolean_attribute_val(val):
         pass
     return val
 
+def __find_parent_in_list(list, parent):
+    if parent is None:
+        return parent
+    for elem in list:
+        if isinstance(elem, Layer):
+            if elem.identifier == parent.identifier:
+                return elem
+        else:
+            continue
 
-def __convert_layer_recursive(layers, service_type):
+
+def __persist_layers(layers: list, service_type: ServiceType, wms: Service,
+                              parent: OGCWebMapServiceLayer, creator: Group, publisher: Organization,
+                              published_for: Organization):
+    save_candidates = []
     # iterate over all layers
     for layer_obj in layers:
         layer = Layer()
-        layer.title = layer_obj.title
+        metadata = Metadata()
+        metadata.title = layer_obj.title
+        metadata.uuid = uuid.uuid4()
+        metadata.abstract = layer_obj.abstract
+        metadata.save()
+
+        layer.identifier = layer_obj.identifier
         layer.servicetype = service_type
-        layer.created_on = datetime.time()
-        layer.abstract = layer_obj.abstract
-        layer.is_available = False
-        layer.availability = 0.0
-        layer.hits = 0
-        layer.parent = None
+        layer.parent_layer = __find_parent_in_list(save_candidates, layer_obj.parent)
         layer.is_queryable = layer_obj.is_queryable
         layer.is_cascaded = layer_obj.is_cascaded
         layer.is_opaque = layer_obj.is_opaque
         layer.scale_min = layer_obj.capability_scale_hint.get("min")
         layer.scale_max = layer_obj.capability_scale_hint.get("max")
+        layer.metadata = metadata
+        layer.bbox_lat_lon = json.dumps(layer_obj.capability_bbox_lat_lon)
+        layer.created_by = creator
+        layer.published_for = published_for
+        layer.service = wms
+        save_candidates.append(layer)
+
+        # handle keywords of this layer
+        for kw in layer_obj.capability_keywords:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            kw_2_md = KeywordToMetadata()
+            kw_2_md.metadata = metadata
+            kw_2_md.keyword = keyword
+            # kw_2_md.save()
+            save_candidates.append(kw_2_md)
+
+        # handle reference systems
+        for sys in layer_obj.capability_srs:
+            ref_sys = ReferenceSystem.objects.get_or_create(name=sys)[0]
+            ref_sys_2_md = ReferenceSystemToMetadata()
+            ref_sys_2_md.metadata = metadata
+            ref_sys_2_md.reference_system = ref_sys
+            # ref_sys_2_md.save()
+            save_candidates.append(ref_sys_2_md)
+
+    for candidate in save_candidates:
+        candidate.save()
 
 
 
-def convert_wms_to_model(wms_obj: OGCWebMapService):
-    # create all needed database models
-    service_type = ServiceType()
-    service = WMS()
-    service_metadata = ServiceMetadata()
-    content_metadata = ContentMetadata()
-    reference_systems = []
-    layers = []
-    keywords = []
+def persist_wms(wms_obj: OGCWebMapService):
+    orga_published_for = Organization.objects.get(name="Testorganization")
+    orga_publisher = Organization.objects.get(name="Testorganization")
+
+    group = Group.objects.get(name="Testgroup")
 
     # fill objects
-    service_type.version = wms_obj.service_version.value
-    service_type.name = wms_obj.service_type.value
+    service_type = ServiceType.objects.get_or_create(
+        name=wms_obj.service_type.value,
+        version=wms_obj.service_version.value
+    )[0]
 
-    service.title = wms_obj.service_identification_title
-    service.abstract = wms_obj.service_identification_abstract
-    service.created_on = datetime.time()
+    service = Service()
+    service.created_on = datetime.datetime.now()
     service.availability = 0.0
     service.is_available = False
     service.servicetype = service_type
-    # service.published_for = 0
+    service.published_for = orga_published_for
+    service.created_by = group
+    service.save()
 
-    service_metadata.contact_person = wms_obj.service_provider_responsibleparty_individualname
-    service_metadata.contact_email = wms_obj.service_provider_address_electronicmailaddress
-    service_metadata.contact_organization = ""
-    service_metadata.contact_person_position = wms_obj.service_provider_responsibleparty_positionname
-    service_metadata.contact_phone = wms_obj.service_provider_telephone_voice
-    service_metadata.city = wms_obj.service_provider_address_city
-    service_metadata.address = wms_obj.service_provider_address
-    service_metadata.post_code = wms_obj.service_provider_address_postalcode
-    service_metadata.state_or_province = wms_obj.service_provider_address_state_or_province
-    service_metadata.access_constraints = wms_obj.service_identification_accessconstraints
-    service_metadata.created = datetime.time()
-    service_metadata.is_active = False
-    service_metadata.service_wms = service
+    # metadata
+    metadata = Metadata()
+    metadata.service = service
+    metadata.uuid = uuid.uuid4()
+    metadata.title = wms_obj.service_identification_title
+    metadata.abstract = wms_obj.service_identification_abstract
+    metadata.online_resource = wms_obj.service_provider_onlineresource_linkage
+    ## contact
+    metadata.contact_person = wms_obj.service_provider_responsibleparty_individualname
+    metadata.contact_email = wms_obj.service_provider_address_electronicmailaddress
+    metadata.contact_organization = orga_publisher
+    metadata.contact_person_position = wms_obj.service_provider_responsibleparty_positionname
+    metadata.contact_phone = wms_obj.service_provider_telephone_voice
+    metadata.city = wms_obj.service_provider_address_city
+    metadata.address = wms_obj.service_provider_address
+    metadata.post_code = wms_obj.service_provider_address_postalcode
+    metadata.state_or_province = wms_obj.service_provider_address_state_or_province
+    ## other
+    metadata.access_constraints = wms_obj.service_identification_accessconstraints
+    metadata.is_active = False
+    metadata.save()
 
-    __convert_layer_recursive(layers=wms_obj.layers, service_type=service_type)
+    __persist_layers(layers=wms_obj.layers, service_type=service_type, wms=service, parent=None, creator=group,
+                              publisher=orga_publisher, published_for=orga_published_for)
 
 

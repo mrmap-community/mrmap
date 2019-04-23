@@ -19,36 +19,40 @@
     <table class="overview-table">
         <tr>
             <th class="table-header">
-                {% trans 'Name' %}
+                {% trans 'Title' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Abstract' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Active' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Organization' %}
             </th>
             <th class="table-header">
                 {% trans 'Created' %}
             </th>
-        </tr>{% for organization in organizations %}
-        <tr>
-            <td class="table-cell">
-                {{ organization.name }}
-            </td>
-            <td class="table-cell">
-                {{ organization.createdOn }}
-            </td>
-        </tr>{% endfor %}
-        <tr>
-            <td class="table-cell">
-                Test
-            </td>
-            <td class="table-cell">
-                Test
-            </td>
         </tr>
-        <tr>
-            <td class="table-cell">
-                Test
-            </td>
-            <td class="table-cell">
-                Test
-            </td>
-        </tr>
+        {% for md in metadata_list %}
+            <tr>
+                <td class="table-cell">
+                    <a href="{% url 'service:detail-wms' id=md.id %}">{{ md.title }}</a>
+                </td>
+                <td class="table-cell">
+                    {{ md.abstract }}
+                </td>
+                <td class="table-cell">
+                    {{ wms.is_active }}
+                </td>
+                <td class="table-cell">
+                    {{ md.contact_organization }}
+                </td>
+                <td class="table-cell">
+                    {{ md.created }}
+                </td>
+            </tr>
+        {% endfor %}
     </table>
 
     <div class="overview-title-actions-container">
@@ -62,18 +66,18 @@
     <table class="overview-table">
         <tr>
             <th class="table-header">
-                {% trans 'Name' %}
+                {% trans 'Title' %}
             </th>
             <th class="table-header">
                 {% trans 'Created' %}
             </th>
-        </tr>{% for organization in organizations %}
+        </tr>{% for wfs in wfs_list %}
         <tr>
             <td class="table-cell">
-                {{ organization.name }}
+                {{ wfs.title }}
             </td>
             <td class="table-cell">
-                {{ organization.createdOn }}
+                {{ wfs.createdOn }}
             </td>
         </tr>{% endfor %}
     </table>

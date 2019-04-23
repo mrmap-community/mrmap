@@ -116,33 +116,46 @@ def __find_parent_in_list(list, parent):
             continue
 
 
-def __persist_layers(layers: list, service_type: ServiceType, wms: Service,
-                              parent: OGCWebMapServiceLayer, creator: Group, publisher: Organization,
-                              published_for: Organization):
-    save_candidates = []
+def __persist_layers(layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
+                              published_for: Organization, root_md: Metadata):
+    pers_list = []
     # iterate over all layers
     for layer_obj in layers:
         layer = Layer()
-        metadata = Metadata()
-        metadata.title = layer_obj.title
-        metadata.uuid = uuid.uuid4()
-        metadata.abstract = layer_obj.abstract
-        metadata.save()
-
         layer.identifier = layer_obj.identifier
         layer.servicetype = service_type
-        layer.parent_layer = __find_parent_in_list(save_candidates, layer_obj.parent)
+        layer.parent_layer = __find_parent_in_list(pers_list, layer_obj.parent)
         layer.is_queryable = layer_obj.is_queryable
         layer.is_cascaded = layer_obj.is_cascaded
         layer.is_opaque = layer_obj.is_opaque
         layer.scale_min = layer_obj.capability_scale_hint.get("min")
         layer.scale_max = layer_obj.capability_scale_hint.get("max")
-        layer.metadata = metadata
         layer.bbox_lat_lon = json.dumps(layer_obj.capability_bbox_lat_lon)
         layer.created_by = creator
         layer.published_for = published_for
+        layer.published_by = publisher
         layer.service = wms
-        save_candidates.append(layer)
+        layer.save()
+        pers_list.append(layer)
+
+        metadata = Metadata()
+        metadata.title = layer_obj.title
+        metadata.uuid = uuid.uuid4()
+        metadata.abstract = layer_obj.abstract
+        metadata.online_resource = root_md.online_resource
+        metadata.service = layer
+        metadata.contact_phone = root_md.contact_phone
+        metadata.contact_person_position = root_md.contact_person_position
+        metadata.contact_person = root_md.contact_person
+        metadata.contact_organization = root_md.contact_organization
+        metadata.contact_email = root_md.contact_email
+        metadata.city = root_md.city
+        metadata.post_code = root_md.post_code
+        metadata.address = root_md.address
+        metadata.state_or_province = root_md.state_or_province
+        metadata.access_constraints = root_md.access_constraints
+        metadata.is_active = False
+        metadata.save()
 
         # handle keywords of this layer
         for kw in layer_obj.capability_keywords:
@@ -150,8 +163,7 @@ def __persist_layers(layers: list, service_type: ServiceType, wms: Service,
             kw_2_md = KeywordToMetadata()
             kw_2_md.metadata = metadata
             kw_2_md.keyword = keyword
-            # kw_2_md.save()
-            save_candidates.append(kw_2_md)
+            kw_2_md.save()
 
         # handle reference systems
         for sys in layer_obj.capability_srs:
@@ -159,12 +171,7 @@ def __persist_layers(layers: list, service_type: ServiceType, wms: Service,
             ref_sys_2_md = ReferenceSystemToMetadata()
             ref_sys_2_md.metadata = metadata
             ref_sys_2_md.reference_system = ref_sys
-            # ref_sys_2_md.save()
-            save_candidates.append(ref_sys_2_md)
-
-    for candidate in save_candidates:
-        candidate.save()
-
+            ref_sys_2_md.save()
 
 
 def persist_wms(wms_obj: OGCWebMapService):
@@ -190,11 +197,12 @@ def persist_wms(wms_obj: OGCWebMapService):
 
     # metadata
     metadata = Metadata()
-    metadata.service = service
     metadata.uuid = uuid.uuid4()
     metadata.title = wms_obj.service_identification_title
     metadata.abstract = wms_obj.service_identification_abstract
     metadata.online_resource = wms_obj.service_provider_onlineresource_linkage
+    metadata.service = service
+    metadata.is_root = True
     ## contact
     metadata.contact_person = wms_obj.service_provider_responsibleparty_individualname
     metadata.contact_email = wms_obj.service_provider_address_electronicmailaddress
@@ -210,7 +218,7 @@ def persist_wms(wms_obj: OGCWebMapService):
     metadata.is_active = False
     metadata.save()
 
-    __persist_layers(layers=wms_obj.layers, service_type=service_type, wms=service, parent=None, creator=group,
-                              publisher=orga_publisher, published_for=orga_published_for)
+    __persist_layers(layers=wms_obj.layers, service_type=service_type, wms=service, creator=group, root_md=metadata,
+                     publisher=orga_publisher, published_for=orga_published_for)
 
 

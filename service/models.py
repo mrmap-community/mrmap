@@ -14,8 +14,9 @@ class Keyword(models.Model):
 class Metadata(models.Model):
     uuid = models.CharField(max_length=255)
     title = models.CharField(max_length=255)
-    abstract = models.CharField(max_length=1000)
-    online_resource = models.CharField(max_length=255)
+    abstract = models.CharField(max_length=1000, null=True, blank=True)
+    online_resource = models.CharField(max_length=255, null=True)
+    is_root = models.BooleanField(default=False)
     # Service md
     service = models.ForeignKey('Service', null=True, blank=True, on_delete=models.CASCADE)
     contact_person = models.CharField(max_length=100, null=True)
@@ -64,7 +65,7 @@ class KeywordToMetadata(models.Model):
 
 
 class TermsOfUse(models.Model):
-    service = models.ForeignKey('Service', on_delete=models.DO_NOTHING)
+    #service = models.ForeignKey('Service', on_delete=models.DO_NOTHING)
     name = models.CharField(max_length=100)
     symbol_url = models.CharField(max_length=100)
     description = models.CharField(max_length=100)
@@ -99,18 +100,17 @@ class ServiceType(models.Model):
 
 
 class Service(models.Model):
-    # metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
     created = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(Group, on_delete=models.DO_NOTHING)
-    published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING)
+    published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for")
+    #published_by = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_by")
     servicetype = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
     categories = models.ManyToManyField(Category)
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
-    # terms_of_use = models.ForeignKey(TermsOfUse, on_delete=models.DO_NOTHING)
 
     def __str__(self):
-        return self.servicetype.name
+        return str(self.id)
 
 
 class Layer(Service):

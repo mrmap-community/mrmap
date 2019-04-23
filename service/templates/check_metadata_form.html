@@ -53,8 +53,7 @@
     <div class="modal-close" title="{% trans 'Close' %}">
         x
     </div>
-    {% trans 'This is an extract from the service metadata. Please check if these are correct.' %} <br>
-    {% trans 'Do you want to continue?' %}
+    {% trans 'The service has been registered. The following is an extract from the metadata.' %} <br>
     <form class="form-table" action="/service/new/" method="post">
         {% csrf_token %}
         <h4>{% trans 'Service:' %}</h4>
@@ -98,7 +97,7 @@
             </tr>
         </table>
     </form>
-    <div class="submit-button button">{% trans 'Continue' %}</div>
+    <div class="submit-button button">{% trans 'Finish' %}</div>
 </div>
 
 <script>
@@ -106,8 +105,8 @@
         toggleOverlay("");
     });
     $(".submit-button").click(function(){
-        replaceButtonWithSpinner($(this));
-        //startServiceRegistration('{{ full_uri }}');
+        toggleOverlay("");
+        location.reload();
     });
 </script>
 

@@ -1,7 +1,7 @@
 import urllib
 
 from django.http import HttpRequest
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 
 # Create your views here.
 from django.template.loader import render_to_string
@@ -9,7 +9,8 @@ from django.template.loader import render_to_string
 from MapSkinner.responses import BackendAjaxResponse
 from service.forms import NewServiceURIForm
 from service.helper import service_helper
-from service.helper.ogc.wms import OGCWebMapService_1_1_1, OGCWebMapServiceFactory
+from service.helper.ogc.wms import OGCWebMapServiceFactory
+from service.models import Metadata, Layer
 
 
 def index(request: HttpRequest):
@@ -21,7 +22,10 @@ def index(request: HttpRequest):
          A view
     """
     template = "index.html"
-    params = {}
+    md_list = Metadata.objects.filter(is_root=True)
+    params = {
+        "metadata_list": md_list,
+    }
     return render(request=request, template_name=template, context=params)
 
 
@@ -90,22 +94,21 @@ def new_service(request: HttpRequest):
     url_dict = service_helper.split_service_uri(cap_url)
 
     # create WMS object
-    # web_service = OGCWebMapService_1_1_1(service_connect_url=url_dict["base_uri"],
-    #                                      service_version=url_dict["version"],
-    #                                      service_type=url_dict["service"])
     wms_factory = OGCWebMapServiceFactory()
     web_service = wms_factory.get_ogc_wms(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
+
     # let it load it's capabilities
     web_service.create_from_capabilities()
+
     # check quality of metadata
     # ToDo: :3
+
     params = {
         "wms": web_service,
     }
-    # convert object to database-model object
+
+    # persist data
     service_helper.persist_wms(web_service)
-    # Persist object to database
-    # ToDo: :3
 
     template = "check_metadata_form.html"
     html = render_to_string(template_name=template, request=request, context=params)
@@ -122,4 +125,23 @@ def wfs(request:HttpRequest):
     """
     template = "index.html"
     params = {}
+    return render(request=request, template_name=template, context=params)
+
+
+def detail(request: HttpRequest, id):
+    template = "service_detail.html"
+    service_md = get_object_or_404(Metadata, id=id)
+    layers = Layer.objects.filter(service=service_md.service)
+    layers_md_list = []
+    for layer in layers:
+        res = {}
+        md = get_object_or_404(Metadata, service=layer)
+        res["metadata"] = md
+        res["layer"] = layer
+        layers_md_list.append(res)
+
+    params = {
+        "root_metadata": service_md,
+        "layer_list": layers_md_list,
+    }
     return render(request=request, template_name=template, context=params)

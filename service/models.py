@@ -187,7 +187,8 @@ class Dataset(models.Model):
 
 class ServiceToFormat(models.Model):
     service = models.ForeignKey(Service, on_delete=models.CASCADE)
-    format = models.CharField(max_length=500)
+    action = models.CharField(max_length=255, null=True)
+    mime_type = models.CharField(max_length=500)
 
     def __str__(self):
-        return self.format
+        return self.mime_type

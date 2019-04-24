@@ -87,7 +87,8 @@
         <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
         {{ layer.layer.identifier }}
     </h3>
-    <table class="hidden">
+    <div class="layer-content hidden">
+    <table>
         <tr>
             <th>{% trans 'Identifier' %}</th>
             <td>{{ layer.layer.identifier }}</td>
@@ -104,9 +105,9 @@
             <th>{% trans 'Is available' %}</th>
             <td>
                 {% if layer.layer.is_available %}
-                <img src="{% static 'service/images/icn_true.png' %}">
+                <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
                 {% else %}
-                <img src="{% static 'service/images/icn_false.png' %}">
+                <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
                 {% endif %}
             </td>
         </tr>
@@ -114,9 +115,9 @@
             <th>{% trans 'Is queryable' %}</th>
             <td>
                 {% if layer.layer.is_queryable %}
-                <img src="{% static 'service/images/icn_true.png' %}">
+                <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
                 {% else %}
-                <img src="{% static 'service/images/icn_false.png' %}">
+                <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
                 {% endif %}
             </td>
         </tr>
@@ -124,9 +125,9 @@
             <th>{% trans 'Is opaque' %}</th>
             <td>
                 {% if layer.layer.is_opaque %}
-                <img src="{% static 'service/images/icn_true.png' %}">
+                <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
                 {% else %}
-                <img src="{% static 'service/images/icn_false.png' %}">
+                <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
                 {% endif %}
             </td>
         </tr>
@@ -134,15 +135,11 @@
             <th>{% trans 'Is cascaded' %}</th>
             <td>
                 {% if layer.layer.is_cascaded %}
-                <img src="{% static 'service/images/icn_true.png' %}">
+                <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
                 {% else %}
-                <img src="{% static 'service/images/icn_false.png' %}">
+                <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
                 {% endif %}
             </td>
-        </tr>
-        <tr>
-            <th>{% trans 'Supported formats' %}</th>
-            <td>{{ layer.formats }}</td>
         </tr>
         <tr>
             <th>{% trans 'Scale range' %}</th>
@@ -150,13 +147,37 @@
         </tr>
         <tr>
             <th>{% trans 'Bounding box (lat lon)' %}</th>
-            <td>{{ layer.layer.bbox_lat_lon }}</td>
+            <td>
+                {% for lat_lon_key, lat_lon_val in layer.layer.bbox_lat_lon.items %}
+                    {{ lat_lon_key }} = {{ lat_lon_val }} <br>
+                {% endfor %}
+            </td>
         </tr>
         <tr>
             <th>{% trans 'Uuid' %}</th>
             <td>{{ layer.metadata.uuid }}</td>
         </tr>
+        <tr>
+            <th>{% trans 'Mime types:' %}</th>
+            <td>
+                <table>
+                {% for action, mime_type_list in layer.formats.items %}
+                <tr>
+                    <th>{{ action }}</th>
+                    <td>
+                        {% for mime_type in mime_type_list %}
+                            {{ mime_type }} <br>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+
+                </table>
+            </td>
+        </tr>
     </table>
+
+    </div>
 </div>
 {% endfor %}
 {% endif %}

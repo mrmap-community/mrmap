@@ -47,6 +47,10 @@ class LayerAdmin(admin.ModelAdmin):
     pass
 
 
+class ServiceToFormatAdmin(admin.ModelAdmin):
+    pass
+
+
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(ServiceType, ServiceTypeAdmin)
 admin.site.register(Module, ModuleAdmin)
@@ -56,4 +60,5 @@ admin.site.register(Metadata, MetadataAdmin)
 admin.site.register(TermsOfUse, TermsOfUseAdmin)
 admin.site.register(ReferenceSystem, ReferenceSystemAdmin)
 admin.site.register(Service, ServiceAdmin)
+admin.site.register(ServiceToFormat, ServiceToFormatAdmin)
 admin.site.register(Layer, LayerAdmin)

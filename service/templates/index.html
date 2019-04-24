@@ -53,9 +53,9 @@
                 </td>
                 <td class="table-cell">
                     {% if wms.is_active %}
-                    <img src="{% static 'service/images/icn_true.png' %}">
+                    <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
                     {% else %}
-                    <img src="{% static 'service/images/icn_false.png' %}">
+                    <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
                     {% endif %}
                 </td>
                 <td class="table-cell">

@@ -150,8 +150,13 @@ table{
     width: 100%;
 }
 
+th, td{
+    padding: 5px 0 0 10px;
+}
+
 th{
     text-align: left;
+    border-right: 1px solid var(--primary-color);
 }
 
 tr:nth-child(even){

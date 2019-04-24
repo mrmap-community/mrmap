@@ -45,6 +45,7 @@ class OGCWebMapServiceFactory:
 class OGCWebMapService(OGCWebService):
     """Base class for OGC WebMapServices."""
 
+
     # define layers as array of OGCWebMapServiceLayer objects
     # Using None here to avoid mutable appending of infinite layers (python specific)
     # For further details read: http://effbot.org/zone/default-values.htm
@@ -179,14 +180,17 @@ class OGCWebMapService(OGCWebService):
             pass
 
     def __parse_formats(self, layer, layer_obj):
-        try:
-            format_list = layer.xpath("//GetMap/Format")
-            f_l = []
-            for format in format_list:
-                f_l.append(format.text)
-            layer_obj.format_list = f_l
-        except AttributeError:
-            pass
+        actions = ["GetMap", "GetCapabilities", "GetFeatureInfo", "DescribeLayer", "GetLegendGraphic", "GetStyles"]
+        results = {}
+        for action in actions:
+            try:
+                results[action] = []
+                format_list = layer.xpath("//" + action + "/Format")
+                for format in format_list:
+                    results[action].append(format.text)
+            except AttributeError:
+                pass
+        layer_obj.format_list = results
 
 
     def __get_layers_recursive(self, layers, parent=None, position=0):
@@ -274,24 +278,33 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
     """ The WMS class for standard version 1.0.0
 
     """
+    def __init__(self, service_connect_url):
+        super().__init__(service_connect_url=service_connect_url)
 
 
 class OGCWebMapService_1_1_0(OGCWebMapService):
     """ The WMS class for standard version 1.1.0
 
     """
+    def __init__(self, service_connect_url):
+        super().__init__(service_connect_url=service_connect_url)
 
 
 class OGCWebMapService_1_1_1(OGCWebMapService):
     """ The WMS class for standard version 1.1.1
 
     """
+    def __init__(self, service_connect_url):
+        super().__init__(service_connect_url=service_connect_url)
 
 
 class OGCWebMapService_1_3_0(OGCWebMapService):
     """ The WMS class for standard version 1.3.0
 
     """
+
+    def __init__(self, service_connect_url):
+        super().__init__(service_connect_url=service_connect_url)
             
     # https://stackoverflow.com/questions/34009992/python-elementtree-default-namespace
     # def create_from_capabilities(self):

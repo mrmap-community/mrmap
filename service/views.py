@@ -193,9 +193,12 @@ def detail(request: HttpRequest, id):
         res = {}
         md = get_object_or_404(Metadata, service=layer)
         formats = list(ServiceToFormat.objects.filter(service=layer))
-        f_l = []
+        f_l = {}
         for _format in formats:
-            f_l.append(_format.format)
+            if f_l.get(_format.action, None) is None:
+                f_l[_format.action] = []
+            f_l[_format.action].append(_format.mime_type)
+        layer.bbox_lat_lon = json.loads(layer.bbox_lat_lon)
         res["metadata"] = md
         res["layer"] = layer
         res["formats"] = f_l

@@ -106,6 +106,13 @@ def resolve_boolean_attribute_val(val):
     return val
 
 def __find_parent_in_list(list, parent):
+    """ A helper function which returns the parent of a layer from a given list
+
+    Args:
+        list:
+        parent:
+    Returns:
+    """
     if parent is None:
         return parent
     for elem in list:
@@ -118,6 +125,18 @@ def __find_parent_in_list(list, parent):
 
 def __persist_layers(layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
                               published_for: Organization, root_md: Metadata):
+    """ Iterates over all layers given by the service and persist them, including additional data like metadata and so on.
+
+    Args:
+        layers (list): A list of layers
+        service_type (ServiceType): The type of the service this function has to deal with
+        wms (Service): The root or parent service which holds all these layers
+        creator (Group): The group that started the registration process
+        publisher (Organization): The organization that publishes the service
+        published_for (Organization): The organization for which the first organization publishes this data (e.g. 'in the name of')
+        root_md (Metadata): The metadata of the root service (parameter 'wms')
+    Returns:
+    """
     pers_list = []
     # iterate over all layers
     for layer_obj in layers:
@@ -143,12 +162,15 @@ def __persist_layers(layers: list, service_type: ServiceType, wms: Service, crea
         layer.describe_layer_uri = layer_obj.describe_layer_uri
         layer.get_capabilities_uri = layer_obj.get_capabilities_uri
         layer.save()
-        # iterate over all available formats
-        for _format in layer_obj.format_list:
-            service_to_format = ServiceToFormat()
-            service_to_format.service = layer
-            service_to_format.format = _format
-            service_to_format.save()
+
+        # iterate over all available mime types and actions
+        for action, format_list in layer_obj.format_list.items():
+            for _format in format_list:
+                service_to_format = ServiceToFormat()
+                service_to_format.service = layer
+                service_to_format.action = action
+                service_to_format.mime_type = _format
+                service_to_format.save()
         # to keep an eye on all handled layers we need to store them in a temporary list
         pers_list.append(layer)
 
@@ -189,6 +211,12 @@ def __persist_layers(layers: list, service_type: ServiceType, wms: Service, crea
 
 
 def persist_wms(wms_obj: OGCWebMapService):
+    """ Persists the web map service and all of its related content and data
+
+    Args:
+        wms_obj (OGCWebMapService): The non-database object, that holds all the wms data
+    Returns:
+    """
     orga_published_for = Organization.objects.get(name="Testorganization")
     orga_publisher = Organization.objects.get(name="Testorganization")
 

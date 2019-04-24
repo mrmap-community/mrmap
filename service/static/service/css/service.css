@@ -35,3 +35,9 @@
     -webkit-filter: invert(1.0);
     filter: invert(1.0);
 }
+
+.layer-content{
+    border: 1px solid var(--primary-color);
+    padding: 5px;
+    margin: 0 0 0 5vw;
+}

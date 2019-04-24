@@ -11,7 +11,7 @@ from MapSkinner.responses import BackendAjaxResponse
 from service.forms import NewServiceURIForm
 from service.helper import service_helper
 from service.helper.ogc.wms import OGCWebMapServiceFactory
-from service.models import Metadata, Layer, Service
+from service.models import Metadata, Layer, Service, ServiceToFormat
 
 
 def index(request: HttpRequest):
@@ -173,8 +173,13 @@ def detail(request: HttpRequest, id):
     for layer in layers:
         res = {}
         md = get_object_or_404(Metadata, service=layer)
+        formats = list(ServiceToFormat.objects.filter(service=layer))
+        f_l = []
+        for _format in formats:
+            f_l.append(_format.format)
         res["metadata"] = md
         res["layer"] = layer
+        res["formats"] = f_l
         layers_md_list.append(res)
 
     params = {

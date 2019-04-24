@@ -28,4 +28,11 @@ class OGCLayer:
             "maxy": 0,
         }
         self.capability_bbox_srs = {}
-    pass
+
+        self.format_list = []
+        self.get_capabilities_uri = None
+        self.get_map_uri = None
+        self.get_feature_info_uri = None
+        self.describe_layer_uri = None
+        self.get_legend_graphic_uri = None
+        self.get_styles_uri = None

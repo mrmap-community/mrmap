@@ -159,6 +159,36 @@ class OGCWebMapService(OGCWebService):
             except AttributeError:
                 pass
 
+    def __parse_request_uris(self, layer, layer_obj):
+        try:
+            get_capabilities_uri = layer.xpath("//GetCapabilities/DCPType/HTTP/Get/OnlineResource")[0].get("{http://www.w3.org/1999/xlink}href")
+            get_map_uri = layer.xpath("//GetMap/DCPType/HTTP/Get/OnlineResource")[0].get("{http://www.w3.org/1999/xlink}href")
+            get_feature_info_uri = layer.xpath("//GetFeatureInfo/DCPType/HTTP/Get/OnlineResource")[0].get("{http://www.w3.org/1999/xlink}href")
+            describe_layer_uri = layer.xpath("//DescribeLayer/DCPType/HTTP/Get/OnlineResource")[0].get("{http://www.w3.org/1999/xlink}href")
+            get_legend_graphic_uri = layer.xpath("//GetLegendGraphic/DCPType/HTTP/Get/OnlineResource")[0].get("{http://www.w3.org/1999/xlink}href")
+            get_styles_uri = layer.xpath("//GetStyles/DCPType/HTTP/Get/OnlineResource")[0].get("{http://www.w3.org/1999/xlink}href")
+
+            layer_obj.get_capabilities_uri = get_capabilities_uri
+            layer_obj.get_map_uri = get_map_uri
+            layer_obj.get_feature_info_uri = get_feature_info_uri
+            layer_obj.describe_layer_uri = describe_layer_uri
+            layer_obj.get_legend_graphic_uri = get_legend_graphic_uri
+            layer_obj.get_styles_uri = get_styles_uri
+
+        except AttributeError:
+            pass
+
+    def __parse_formats(self, layer, layer_obj):
+        try:
+            format_list = layer.xpath("//GetMap/Format")
+            f_l = []
+            for format in format_list:
+                f_l.append(format.text)
+            layer_obj.format_list = f_l
+        except AttributeError:
+            pass
+
+
     def __get_layers_recursive(self, layers, parent=None, position=0):
         """ Recursive Iteration over all children and subchildren.
 
@@ -188,6 +218,8 @@ class OGCWebMapService(OGCWebService):
                 self.__parse_queryable,
                 self.__parse_opaque,
                 self.__parse_cascaded,
+                self.__parse_request_uris,
+                self.__parse_formats,
             ]
             for func in parse_functions:
                 func(layer=layer, layer_obj=layer_obj)

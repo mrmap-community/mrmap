@@ -18,7 +18,7 @@ from MapSkinner.settings import DEFAULT_SERVICE_VERSION
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.ogc.wms import OGCWebMapService, OGCWebMapServiceLayer
 from service.models import ServiceType, Service, Layer, Keyword, Metadata, KeywordToMetadata, ReferenceSystem, \
-    ReferenceSystemToMetadata
+    ReferenceSystemToMetadata, ServiceToFormat
 from structure.models import Organization, User, Group
 
 
@@ -136,7 +136,20 @@ def __persist_layers(layers: list, service_type: ServiceType, wms: Service, crea
         layer.published_for = published_for
         layer.published_by = publisher
         layer.parent_service = wms
+        layer.get_styles_uri = layer_obj.get_styles_uri
+        layer.get_legend_graphic_uri = layer_obj.get_legend_graphic_uri
+        layer.get_feature_info_uri = layer_obj.get_feature_info_uri
+        layer.get_map_uri = layer_obj.get_map_uri
+        layer.describe_layer_uri = layer_obj.describe_layer_uri
+        layer.get_capabilities_uri = layer_obj.get_capabilities_uri
         layer.save()
+        # iterate over all available formats
+        for _format in layer_obj.format_list:
+            service_to_format = ServiceToFormat()
+            service_to_format.service = layer
+            service_to_format.format = _format
+            service_to_format.save()
+        # to keep an eye on all handled layers we need to store them in a temporary list
         pers_list.append(layer)
 
         metadata = Metadata()

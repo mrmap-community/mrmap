@@ -1,6 +1,8 @@
 import datetime
 from django.db import models
 from django.contrib.gis.db import models
+from django.shortcuts import get_object_or_404
+
 from structure.models import User, Group, UserGroupRoleRel, Organization
 
 
@@ -102,7 +104,7 @@ class ServiceType(models.Model):
 class Service(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(Group, on_delete=models.DO_NOTHING)
-    parent_service = models.ForeignKey('self', on_delete=models.DO_NOTHING, related_name="child_service", null=True)
+    parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True)
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for")
     #published_by = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_by")
     servicetype = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
@@ -119,6 +121,23 @@ class Service(models.Model):
     def __str__(self):
         return str(self.id)
 
+    # def delete(self, using=None, keep_parents=False):
+    #     # make sure everything that is related to the service gets deleted
+    #     stf = ServiceToFormat.objects.filter(service=self)
+    #     for _format in stf:
+    #         _format.delete()
+    #     layers = Service.objects.filter(parent_service=self)
+    #     for layer in layers:
+    #         md = get_object_or_404(Metadata, service=layer)
+    #         md.delete()
+    #         stf = ServiceToFormat.objects.filter(service=layer)
+    #         for _format in stf:
+    #             _format.delete()
+    #         layer.delete()
+#
+    #     md = get_object_or_404(Metadata, service=self)
+    #     md.delete()
+#
 
 class Layer(Service):
     identifier = models.CharField(max_length=500, null=True)
@@ -126,7 +145,7 @@ class Layer(Service):
     preview_image = models.CharField(max_length=100)
     preview_extend = models.CharField(max_length=100)
     preview_legend = models.CharField(max_length=100)
-    parent_layer = models.ForeignKey("self", on_delete=models.DO_NOTHING, null=True, related_name="child_layer")
+    parent_layer = models.ForeignKey("self", on_delete=models.CASCADE, null=True, related_name="child_layer")
     position = models.IntegerField(default=0)
     is_queryable = models.BooleanField(default=False)
     is_opaque = models.BooleanField(default=False)

@@ -15,3 +15,23 @@
     opacity: 0.75;
     cursor: pointer;
 }
+
+.remove-service-container{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    background-color: red;
+    color: white;
+    font-weight: bold;
+}
+.remove-service-container:hover{
+    cursor: pointer;
+    opacity: 0.75;
+}
+
+.remove-service-container img{
+    padding: 0 10px 0 0;
+    -webkit-filter: invert(1.0);
+    filter: invert(1.0);
+}

@@ -15,6 +15,31 @@ function changeOverlayContent(html){
     overlay.html(html);
 }
 
+function removeService(id, confirmed){
+    $.ajax({
+        url: "/service/remove",
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        data:{
+            "id": id,
+            "confirmed": confirmed
+        },
+        type: 'get',
+        dataType: 'json',
+        success: function(data){
+            var html = data["html"];
+            toggleOverlay(html);
+            console.log(data);
+            if(data["redirect"] !== null){
+                window.open(data["redirect"], "_self");
+            }
+
+        }
+    })
+
+}
+
 function startServiceRegistration(uri){
     $.ajax({
         url: "/service/new/",
@@ -65,6 +90,13 @@ function toggleCollapsibleSymbol(elem){
 }
 
 $(document).ready(function(){
+    $(".remove-service-container").click(function(){
+        var id = $(this).attr("data-parent");
+        // call remove form, but indicate that the remove process was not confirmed yet by the user
+        removeService(id, false);
+    });
+
+
     $("#service-display-selector").change(function(){
         var val = $(this).val();
         $.ajax({

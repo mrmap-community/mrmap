@@ -2,7 +2,7 @@ import json
 import urllib
 
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 
 # Create your views here.
 from django.template.loader import render_to_string
@@ -36,6 +36,25 @@ def index(request: HttpRequest):
         "select_default": request.session.get("displayServices", None)
     }
     return render(request=request, template_name=template, context=params)
+
+
+def remove(request: HttpRequest):
+    template = "remove_service_confirmation.html"
+    service_id = request.GET.dict().get("id")
+    confirmed = request.GET.dict().get("confirmed")
+    service = get_object_or_404(Service, id=service_id)
+    metadata = get_object_or_404(Metadata, service=service)
+    if confirmed == 'false':
+        params = {
+            "service": service,
+            "metadata": metadata
+        }
+        html = render_to_string(template_name=template, context=params, request=request)
+        return BackendAjaxResponse(html=html).get_response()
+    else:
+        # remove service and all of the related content
+        service.delete()
+        return BackendAjaxResponse(html="", redirect="/service").get_response()
 
 
 def session(request: HttpRequest):

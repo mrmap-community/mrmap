@@ -6,10 +6,12 @@ html{
 
 body{
     margin: 0;
+    padding: 0 0 5vh 0;
 }
 
 a{
     text-decoration: none;
+    outline: 0;
 }
 
 #body-content{
@@ -155,12 +157,10 @@ th{
 tr:nth-child(even){
     background-color: var(--primary-color-light);
 }
-/*
-tr:hover{
-    cursor: pointer;
-    background-color: var(--primary-color);
+
+.hidden{
+    display: none;
 }
-*/
 
 .table-header{
     font-weight: bold;

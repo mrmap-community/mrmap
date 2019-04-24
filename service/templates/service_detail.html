@@ -1,6 +1,150 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block head %}
+    <script type="text/javascript" src="{% static '/service/js/service.js' %}"></script>
+    <link rel="stylesheet" type="text/css" href="{% static '/service/css/service.css' %}" media="all" />
+{% endblock %}
+
 {% block body %}
-To do
-To do
-To do to do to do to doooooooooo
-Todododo
+<a href="{% url 'service:index' %}">
+    <h3 class="back-title">
+        <img src="{% static 'service/images/icn_back.png' %}">
+        {% trans 'Back' %}
+    </h3>
+</a>
+<hr>
+
+<h2>{% trans 'Service Metadata' %}</h2>
+<table>
+    <tr>
+        <th>{% trans 'Abstract' %}</th>
+        <td>{{ root_metadata.abstract }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Online resource' %}</th>
+        <td>{{ root_metadata.online_resource }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Access Constraints' %}</th>
+        <td>{{ root_metadata.access_constraints }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Responsible Person' %}</th>
+        <td>{{ root_metadata.contact_person }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Organization' %}</th>
+        <td>{{ root_metadata.contact_organization }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Phone' %}</th>
+        <td>{{ root_metadata.contact_phone }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'E-Mail' %}</th>
+        <td>{{ root_metadata.contact_email }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'State or province' %}</th>
+        <td>{{ root_metadata.state_or_province }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Address' %}</th>
+        <td>{{ root_metadata.address }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'City' %}</th>
+        <td>{{ root_metadata.city }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Post code' %}</th>
+        <td>{{ root_metadata.post_code }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Uuid' %}</th>
+        <td>{{ root_metadata.uuid }}</td>
+    </tr>
+</table>
+
+{% if layer_list|length > 0 %}
+<hr>
+<h2>{% trans 'Containing layers' %}</h2>
+{% for layer in layer_list %}
+<div class="collapsible-table">
+    <hr>
+    <h3 class="layer-title" title="{% trans 'Click to expand' %}">
+        <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+        {{ layer.layer.identifier }}
+    </h3>
+    <table class="hidden">
+        <tr>
+            <th>{% trans 'Identifier' %}</th>
+            <td>{{ layer.layer.identifier }}</td>
+        </tr>
+        <tr>
+            <th>{% trans 'Abstract' %}</th>
+            <td>{{ layer.metadata.abstract }}</td>
+        </tr>
+        <tr>
+            <th>{% trans 'Hits' %}</th>
+            <td>{{ layer.layer.hits }}</td>
+        </tr>
+        <tr>
+            <th>{% trans 'Is available' %}</th>
+            <td>
+                {% if layer.layer.is_available %}
+                <img src="{% static 'service/images/icn_true.png' %}">
+                {% else %}
+                <img src="{% static 'service/images/icn_false.png' %}">
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>{% trans 'Is queryable' %}</th>
+            <td>
+                {% if layer.layer.is_queryable %}
+                <img src="{% static 'service/images/icn_true.png' %}">
+                {% else %}
+                <img src="{% static 'service/images/icn_false.png' %}">
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>{% trans 'Is opaque' %}</th>
+            <td>
+                {% if layer.layer.is_opaque %}
+                <img src="{% static 'service/images/icn_true.png' %}">
+                {% else %}
+                <img src="{% static 'service/images/icn_false.png' %}">
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>{% trans 'Is cascaded' %}</th>
+            <td>
+                {% if layer.layer.is_cascaded %}
+                <img src="{% static 'service/images/icn_true.png' %}">
+                {% else %}
+                <img src="{% static 'service/images/icn_false.png' %}">
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th>{% trans 'Scale range' %}</th>
+            <td>[{{ layer.layer.scale_min }}, {{ layer.layer.scale_max }}]</td>
+        </tr>
+        <tr>
+            <th>{% trans 'Bounding box (lat lon)' %}</th>
+            <td>{{ layer.layer.bbox_lat_lon }}</td>
+        </tr>
+        <tr>
+            <th>{% trans 'Uuid' %}</th>
+            <td>{{ layer.metadata.uuid }}</td>
+        </tr>
+    </table>
+</div>
+{% endfor %}
+{% endif %}
+
 {% endblock %}

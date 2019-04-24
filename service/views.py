@@ -1,6 +1,7 @@
+import json
 import urllib
 
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404
 
 # Create your views here.
@@ -10,7 +11,7 @@ from MapSkinner.responses import BackendAjaxResponse
 from service.forms import NewServiceURIForm
 from service.helper import service_helper
 from service.helper.ogc.wms import OGCWebMapServiceFactory
-from service.models import Metadata, Layer
+from service.models import Metadata, Layer, Service
 
 
 def index(request: HttpRequest):
@@ -22,11 +23,36 @@ def index(request: HttpRequest):
          A view
     """
     template = "index.html"
-    md_list = Metadata.objects.filter(is_root=True)
+    param_GET = request.GET.dict()
+    display_service_type = request.session.get("displayServices", None)
+    is_root = True
+    if display_service_type is not None:
+        if display_service_type == 'layers':
+            # show single layers instead of service grouped
+            is_root = False
+    md_list = Metadata.objects.filter(is_root=is_root)
     params = {
         "metadata_list": md_list,
+        "select_default": request.session.get("displayServices", None)
     }
     return render(request=request, template_name=template, context=params)
+
+
+def session(request: HttpRequest):
+    """ Can set a value to the django session
+
+    Args:
+        request:
+    Returns:
+    """
+    param_GET = request.GET.dict()
+    _session = param_GET.get("session", None)
+    if _session is None:
+        return BackendAjaxResponse(html="").get_response()
+    _session = json.loads(_session)
+    for _session_key, _session_val in _session.items():
+        request.session[_session_key] = _session_val
+    return BackendAjaxResponse(html="").get_response()
 
 
 def wms(request:HttpRequest):
@@ -129,9 +155,20 @@ def wfs(request:HttpRequest):
 
 
 def detail(request: HttpRequest, id):
+    """ Renders a detail view of the selected service
+
+    Args:
+        request: The incoming request
+        id: The id of the selected service
+    Returns:
+    """
     template = "service_detail.html"
     service_md = get_object_or_404(Metadata, id=id)
-    layers = Layer.objects.filter(service=service_md.service)
+    service = get_object_or_404(Service, id=service_md.service.id)
+    layers = Layer.objects.filter(parent_service=service_md.service)
+    if len(layers) == 0:
+        # happens only when not the parent service but the layer itself is selected
+        layers = Layer.objects.filter(id=service_md.service.id)
     layers_md_list = []
     for layer in layers:
         res = {}
@@ -142,6 +179,7 @@ def detail(request: HttpRequest, id):
 
     params = {
         "root_metadata": service_md,
+        "root_service": service,
         "layer_list": layers_md_list,
     }
     return render(request=request, template_name=template, context=params)

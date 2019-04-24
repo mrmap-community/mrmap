@@ -124,6 +124,7 @@ def __persist_layers(layers: list, service_type: ServiceType, wms: Service, crea
         layer = Layer()
         layer.identifier = layer_obj.identifier
         layer.servicetype = service_type
+        layer.position = layer_obj.position
         layer.parent_layer = __find_parent_in_list(pers_list, layer_obj.parent)
         layer.is_queryable = layer_obj.is_queryable
         layer.is_cascaded = layer_obj.is_cascaded
@@ -134,7 +135,7 @@ def __persist_layers(layers: list, service_type: ServiceType, wms: Service, crea
         layer.created_by = creator
         layer.published_for = published_for
         layer.published_by = publisher
-        layer.service = wms
+        layer.parent_service = wms
         layer.save()
         pers_list.append(layer)
 

@@ -102,6 +102,7 @@ class ServiceType(models.Model):
 class Service(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(Group, on_delete=models.DO_NOTHING)
+    parent_service = models.ForeignKey('self', on_delete=models.DO_NOTHING, related_name="child_service", null=True)
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for")
     #published_by = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_by")
     servicetype = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
@@ -119,7 +120,6 @@ class Layer(Service):
     preview_image = models.CharField(max_length=100)
     preview_extend = models.CharField(max_length=100)
     preview_legend = models.CharField(max_length=100)
-    service = models.ForeignKey(Service, on_delete=models.DO_NOTHING, related_name="+", null=True)
     parent_layer = models.ForeignKey("self", on_delete=models.DO_NOTHING, null=True, related_name="child_layer")
     position = models.IntegerField(default=0)
     is_queryable = models.BooleanField(default=False)

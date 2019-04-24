@@ -57,7 +57,37 @@ function checkServiceRequestURI(){
     });
 }
 
+function toggleCollapsibleSymbol(elem){
+    var src = elem.attr("src");
+    var toggle = elem.attr("data-toggle");
+    elem.attr("src", toggle);
+    elem.attr("data-toggle", src);
+}
+
 $(document).ready(function(){
+    $("#service-display-selector").change(function(){
+        var val = $(this).val();
+        $.ajax({
+            url: "/service/session",
+            headers: {
+                "X-CSRFToken": getCookie("csrftoken")
+            },
+            data:{
+                "session": JSON.stringify({
+                    "displayServices": val
+                })
+            },
+            type: 'get',
+            dataType: 'json',
+            success: function(data){
+                location.reload();
+            }
+
+        });
+
+
+    });
+
     $(".action-button").click(function(){
         $.ajax({
             url: "/service/new/register-form",
@@ -72,6 +102,14 @@ $(document).ready(function(){
                 toggleOverlay(html);
             }
         });
+    });
+
+    $(".layer-title").click(function(){
+        var elem = $(this);
+        var table = elem.siblings("table");
+        table.toggle("fast");
+        var img = elem.find("img");
+        toggleCollapsibleSymbol(img);
     });
 
 });

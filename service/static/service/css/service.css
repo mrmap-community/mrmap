@@ -1,0 +1,17 @@
+.collapsible-table{
+    padding: 0 0 0 5vw;
+}
+
+.layer-title, .back-title{
+    display: flex;
+    align-items: center;
+}
+.layer-title img, .back-title img{
+    padding: 0 10px 0 0;
+    filter: opacity(0.5);
+}
+
+.layer-title:hover, .back-title{
+    opacity: 0.75;
+    cursor: pointer;
+}

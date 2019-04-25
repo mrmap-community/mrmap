@@ -163,6 +163,8 @@ tr:nth-child(even){
     background-color: var(--primary-color-light);
 }
 
+
+
 .hidden{
     display: none;
 }

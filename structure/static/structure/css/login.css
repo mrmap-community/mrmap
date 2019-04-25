@@ -1,4 +1,3 @@
-@import "base.css";
 
 body{
     display: flex;
@@ -31,4 +30,7 @@ body{
 
 .login-form{
     margin: 0 0 0 20px;
+}
+.login-form-tr{
+    background-color: white !important;
 }

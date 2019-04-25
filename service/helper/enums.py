@@ -19,6 +19,10 @@ class VersionTypes(Enum):
     V_1_1_1 = "1.1.1"
     V_1_3_0 = "1.3.0"
 
+    # wfs specific
+    V_2_0_0 = "2.0.0"
+    V_2_0_2 = "2.0.2"
+
 
 class ServiceTypes(Enum):
     """ Defines all supported service types

@@ -5,16 +5,9 @@
 .. moduleauthor:: Armin Retterath <armin.retterath@gmail.com>
 
 """
-import time
-from threading import Thread
-
-from MapSkinner.utils import execute_threads
 from service.helper.enums import VersionTypes
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
-
-from lxml import etree
-import re
 
 from service.helper import service_helper
 

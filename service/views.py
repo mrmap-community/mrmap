@@ -10,6 +10,8 @@ from django.template.loader import render_to_string
 from MapSkinner.responses import BackendAjaxResponse
 from service.forms import NewServiceURIForm
 from service.helper import service_helper
+from service.helper.enums import ServiceTypes
+from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Metadata, Layer, Service, ServiceToFormat
 
@@ -143,22 +145,30 @@ def new_service(request: HttpRequest):
     cap_url = POST_params.get("uri", "")
     url_dict = service_helper.split_service_uri(cap_url)
 
-    # create WMS object
-    wms_factory = OGCWebMapServiceFactory()
-    web_service = wms_factory.get_ogc_wms(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
+    if url_dict.get("service") is ServiceTypes.WMS:
+        # create WMS object
+        wms_factory = OGCWebMapServiceFactory()
+        web_service = wms_factory.get_ogc_wms(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
 
-    # let it load it's capabilities
-    web_service.create_from_capabilities()
+        # let it load it's capabilities
+        web_service.create_from_capabilities()
 
-    # check quality of metadata
-    # ToDo: :3
+        # check quality of metadata
+        # ToDo: :3
 
-    params = {
-        "wms": web_service,
-    }
+        params = {
+            "wms": web_service,
+        }
 
-    # persist data
-    service_helper.persist_wms(web_service)
+        # persist data
+        service_helper.persist_wms(web_service)
+    elif url_dict.get("service") is ServiceTypes.WFS:
+        # create WFS object
+        wfs_factory = OGCWebFeatureServiceFactory()
+        wfs = wfs_factory.get_ogc_wfs(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
+
+        # load capabilities
+        i = 0
 
     template = "check_metadata_form.html"
     html = render_to_string(template_name=template, request=request, context=params)

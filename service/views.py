@@ -159,7 +159,6 @@ def new_service(request: HttpRequest):
         params = {
             "wms": web_service,
         }
-
         # persist data
         service_helper.persist_wms(web_service)
     elif url_dict.get("service") is ServiceTypes.WFS:
@@ -168,7 +167,7 @@ def new_service(request: HttpRequest):
         wfs = wfs_factory.get_ogc_wfs(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
 
         # load capabilities
-        i = 0
+        wfs.create_from_capabilities()
 
     template = "check_metadata_form.html"
     html = render_to_string(template_name=template, request=request, context=params)

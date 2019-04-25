@@ -85,9 +85,41 @@ def parse_xml(xml: str):
     Returns:
         nothing
     """
+
     xml_bytes = xml.encode("UTF-8")
-    xml_obj = etree.ElementTree(etree.fromstring(xml_bytes))
+    parser = etree.XMLParser(recover=True)
+    xml_obj = etree.ElementTree(etree.fromstring(parser=parser, text=xml_bytes))
     return xml_obj
+
+
+def resolve_keywords_array_string(keywords: str):
+    """ Transforms the incoming keywords string into its single keywords and returns them in a list
+
+    Args:
+        keywords(str): The keywords as one string. Sometimes separates by ',', sometimes only by ' '
+    Returns:
+        The keywords in a nice list
+    """
+    # first make sure no commas are left
+    keywords = keywords.replace(",", " ")
+    key_list = keywords.split(" ")
+    for key in key_list:
+        key = key.strip()
+    return key_list
+
+
+def resolve_none_string(val: str):
+    """ To avoid 'none' or 'NONE' as strings, we need to resolve this to the NoneType
+
+    Args:
+        val(str): The potential none value as string
+    Returns:
+        None if the string is resolvable to None or the input parameter itself
+    """
+    val_u = val.upper()
+    if val_u == "NONE":
+        return None
+    return val
 
 
 def resolve_boolean_attribute_val(val):

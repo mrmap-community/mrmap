@@ -402,13 +402,13 @@ class OGCWebMapService(OGCWebService):
         # get xml as iterable object
         xml_obj = service_helper.parse_xml(xml=self.service_capabilities_xml)
         if self.service_version is VersionTypes.V_1_0_0:
-            self.get_service_metadata_v100(xml_obj=xml_obj)
+            self.get_service_metadata_v100(xml_obj=xml_obj, service_type=self.service_type)
         if self.service_version is VersionTypes.V_1_1_0:
-            self.get_service_metadata_v110(xml_obj=xml_obj)
+            self.get_service_metadata_v110(xml_obj=xml_obj, service_type=self.service_type)
         if self.service_version is VersionTypes.V_1_1_1:
-            self.get_service_metadata_v111(xml_obj=xml_obj)
+            self.get_service_metadata_v111(xml_obj=xml_obj, service_type=self.service_type)
         if self.service_version is VersionTypes.V_1_3_0:
-            self.get_service_metadata_v130(xml_obj=xml_obj)
+            self.get_service_metadata_v130(xml_obj=xml_obj, service_type=self.service_type)
         self.get_layers(xml_obj=xml_obj)
 
 
@@ -424,6 +424,7 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
     """
     def __init__(self, service_connect_url):
         super().__init__(service_connect_url=service_connect_url)
+        self.service_version = VersionTypes.V_1_0_0
 
 
 class OGCWebMapService_1_1_0(OGCWebMapService):
@@ -432,6 +433,7 @@ class OGCWebMapService_1_1_0(OGCWebMapService):
     """
     def __init__(self, service_connect_url):
         super().__init__(service_connect_url=service_connect_url)
+        self.service_version = VersionTypes.V_1_1_0
 
 
 class OGCWebMapService_1_1_1(OGCWebMapService):
@@ -440,6 +442,7 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
     """
     def __init__(self, service_connect_url):
         super().__init__(service_connect_url=service_connect_url)
+        self.service_version = VersionTypes.V_1_1_1
 
 
 class OGCWebMapService_1_3_0(OGCWebMapService):
@@ -449,6 +452,7 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
 
     def __init__(self, service_connect_url):
         super().__init__(service_connect_url=service_connect_url)
+        self.service_version = VersionTypes.V_1_3_0
             
     # https://stackoverflow.com/questions/34009992/python-elementtree-default-namespace
     # def create_from_capabilities(self):

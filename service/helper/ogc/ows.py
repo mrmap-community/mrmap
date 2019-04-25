@@ -2,6 +2,7 @@
 # for naming conventions see http://portal.opengeospatial.org/files/?artifact_id=38867
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
+from service.helper import service_helper
 
 
 class OGCWebService:
@@ -106,8 +107,32 @@ class OGCWebService:
     def check_ogc_exception(self):
         pass
 
-    def _get_service_metadata(self, xml_obj):
-        """ This private function holds the main parsable elements which are part of every specification starting at 1.0.0
+    def _get_service_metadata_wfs(self, xml_obj):
+        ## Todo: Get this shit to work!
+        self.service_identification_title = service_helper.try_get_text_from_xml_element("//Service/Title", xml_obj)
+        self.service_identification_abstract = service_helper.try_get_text_from_xml_element("//Service/Abstract", xml_obj)
+        self.service_identification_fees = service_helper.resolve_none_string(
+            service_helper.try_get_text_from_xml_element(
+                "//Service/Fees",
+                xml_obj
+            )
+        )
+        self.service_identification_accessconstraints = service_helper.resolve_none_string(
+            service_helper.try_get_text_from_xml_element(
+                "//Service/AccessConstraints",
+                xml_obj
+            )
+        )
+        self.service_identification_keywords = service_helper.resolve_keywords_array_string(
+            service_helper.try_get_element_from_xml(
+                "//Service/Keywords",
+                xml_obj
+            )
+        )
+
+
+    def _get_service_metadata_wms(self, xml_obj):
+        """ This private function holds the main parsable elements which are part of every wms specification starting at 1.0.0
 
         Args:
             xml_obj: The iterable xml object tree
@@ -202,7 +227,7 @@ class OGCWebService:
         except (IndexError, AttributeError) as error:
             pass
 
-    def get_service_metadata_v100(self, xml_obj):
+    def get_service_metadata_v100(self, xml_obj, service_type):
         """ This function calls the main parser function and adds version specific parsing
 
         Args:
@@ -210,9 +235,16 @@ class OGCWebService:
         Returns:
              Nothing
         """
-        self._get_service_metadata(xml_obj)
+        # the general structures of WMS and WFS are too different.
+        # we need to distinguish between them and use own functions on each
+        if service_type is ServiceTypes.WMS:
+            self._get_service_metadata_wms(xml_obj)
+        elif service_type is ServiceTypes.WFS:
+            self._get_service_metadata_wfs(xml_obj)
+        else:
+            pass
 
-    def get_service_metadata_v110(self, xml_obj):
+    def get_service_metadata_v110(self, xml_obj, service_type):
         """ This function calls the main parser function and adds version specific parsing
 
         Args:
@@ -220,9 +252,16 @@ class OGCWebService:
         Returns:
              Nothing
         """
-        self._get_service_metadata(xml_obj)
+        # the general structures of WMS and WFS are too different.
+        # we need to distinguish between them and use own functions on each
+        if service_type is ServiceTypes.WMS:
+            self._get_service_metadata_wms(xml_obj)
+        elif service_type is ServiceTypes.WFS:
+            self._get_service_metadata_wfs(xml_obj)
+        else:
+            pass
 
-    def get_service_metadata_v111(self, xml_obj):
+    def get_service_metadata_v111(self, xml_obj, service_type):
         """ This function calls the main parser function and adds version specific parsing
 
         Args:
@@ -230,9 +269,16 @@ class OGCWebService:
         Returns:
              Nothing
         """
-        self._get_service_metadata(xml_obj)
+        # the general structures of WMS and WFS are too different.
+        # we need to distinguish between them and use own functions on each
+        if service_type is ServiceTypes.WMS:
+            self._get_service_metadata_wms(xml_obj)
+        elif service_type is ServiceTypes.WFS:
+            self._get_service_metadata_wfs(xml_obj)
+        else:
+            pass
 
-    def get_service_metadata_v130(self, xml_obj):
+    def get_service_metadata_v130(self, xml_obj, service_type):
         """ This function calls the main parser function and adds version specific parsing
 
         Args:
@@ -241,7 +287,14 @@ class OGCWebService:
              Nothing
         """
         # first try to parse all default elements
-        self._get_service_metadata(xml_obj)
+        # the general structures of WMS and WFS are too different.
+        # we need to distinguish between them and use own functions on each
+        if service_type is ServiceTypes.WMS:
+            self._get_service_metadata_wms(xml_obj)
+        elif service_type is ServiceTypes.WFS:
+            self._get_service_metadata_wfs(xml_obj)
+        else:
+            pass
         # layer limit is new
         try:
             layer_limit = xml_obj.xpath("//LayerLimit")[0].text

@@ -11,15 +11,14 @@ import urllib
 import datetime
 import uuid
 
-from django.db import transaction
 from lxml import etree
 
 from MapSkinner.settings import DEFAULT_SERVICE_VERSION
 from service.helper.enums import VersionTypes, ServiceTypes
-from service.helper.ogc.wms import OGCWebMapService, OGCWebMapServiceLayer
+from service.helper.ogc.wms import OGCWebMapService
 from service.models import ServiceType, Service, Layer, Keyword, Metadata, KeywordToMetadata, ReferenceSystem, \
     ReferenceSystemToMetadata, ServiceToFormat, Dimension
-from structure.models import Organization, User, Group
+from structure.models import Organization, Group
 
 
 def resolve_version_enum(version:str):
@@ -107,6 +106,37 @@ def resolve_boolean_attribute_val(val):
         pass
     return val
 
+def try_get_element_from_xml(elem: str, xml_elem):
+    """ Wraps a try-except call to fetch elements from an xml element
+
+    Args:
+        elem:
+        xml_elem:
+    Returns:
+         ret_val: The found element(s), otherwise None
+    """
+    ret_val = None
+    try:
+        ret_val = xml_elem.xpath(elem)
+    except AttributeError:
+        pass
+    return ret_val
+
+def try_get_text_from_xml_element(elem: str, xml_elem):
+    """ Returns the text of an xml element
+
+    Args:
+        elem:
+        xml_elem:
+    Returns:
+        A string if text was found, otherwise None
+    """
+    tmp = try_get_element_from_xml(elem=elem, xml_elem=xml_elem)
+    try:
+        return tmp[0].text
+    except IndexError:
+        return None
+
 def __find_parent_in_list(list, parent):
     """ A helper function which returns the parent of a layer from a given list
 
@@ -163,7 +193,7 @@ def __persist_layers(layers: list, service_type: ServiceType, wms: Service, crea
         layer.get_map_uri = layer_obj.get_map_uri
         layer.describe_layer_uri = layer_obj.describe_layer_uri
         layer.get_capabilities_uri = layer_obj.get_capabilities_uri
-        if layer_obj.dimension is not None:
+        if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
             dim = Dimension()
             dim.layer = layer
             dim.name = layer_obj.dimension.get("name")

@@ -203,3 +203,19 @@ class Dimension(models.Model):
     current = models.CharField(max_length=255)
     extent = models.CharField(max_length=500)
     inherited = models.BooleanField()
+
+    def __str__(self):
+        return self.layer.name + ": " + self.name
+
+
+class Style(models.Model):
+    layer = models.ForeignKey(Layer, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    title = models.CharField(max_length=255)
+    uri = models.CharField(max_length=500)
+    height = models.IntegerField()
+    width = models.IntegerField()
+    mime_type = models.CharField(max_length=500)
+
+    def __str__(self):
+        return self.layer.name + ": " + self.name

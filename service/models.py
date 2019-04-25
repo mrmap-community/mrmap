@@ -192,3 +192,14 @@ class ServiceToFormat(models.Model):
 
     def __str__(self):
         return self.mime_type
+
+
+class Dimension(models.Model):
+    layer = models.ForeignKey(Layer, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    units = models.CharField(max_length=255)
+    default = models.CharField(max_length=255)
+    nearest_value = models.CharField(max_length=255)
+    current = models.CharField(max_length=255)
+    extent = models.CharField(max_length=500)
+    inherited = models.BooleanField()

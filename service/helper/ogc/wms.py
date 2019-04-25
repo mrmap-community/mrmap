@@ -83,15 +83,27 @@ class OGCWebMapService(OGCWebService):
             except IndexError:
                 pass
 
-    def __parse_srs(self, layer, layer_obj):
+    def __parse_projection_system(self, layer, layer_obj):
+        # try 'SRS' at first, the element has been renamed in newer versions.
+        # if 'SRS' is not found, look for 'CRS'
             try:
                 srs = layer.xpath("./SRS")
                 for elem in srs:
-                    layer_obj.capability_srs.append(elem.text)
+                    layer_obj.capability_projection_system.append(elem.text)
             except IndexError:
                 pass
+            except AttributeError:
+                try:
+                    crs = layer.xpath("./CRS")
+                    for elem in crs:
+                        layer_obj.capability_projection_system.append(elem.text)
+                except (IndexError, AttributeError) as error:
+                    pass
 
     def __parse_lat_lon_bounding_box(self, layer, layer_obj):
+        # the first try contains the old specification for wms
+        # if this fails since 'LatLonBoundingBox' was renamed to 'EX_GeographicBoundingBox', we need to try the
+        # second version
             try:
                 bbox = layer.xpath("./LatLonBoundingBox")[0]
                 attrs = ["minx", "miny", "maxx", "maxy"]
@@ -99,12 +111,34 @@ class OGCWebMapService(OGCWebService):
                     layer_obj.capability_bbox_lat_lon[attr] = bbox.get(attr)
             except IndexError:
                 pass
+            except AttributeError:
+                try:
+                    bbox = layer.xpath("./EX_GeographicBoundingBox")[0]
+                    attrs = {
+                        "westBoundLongitude": "minx",
+                        "eastBoundLongitude": "maxx",
+                        "southBoundLatitude": "miny",
+                        "northBoundLatitude": "maxy",
+                    }
+                    for key, val in attrs.items():
+                        layer_obj.capability_bbox_lat_lon[val] = bbox.get(key)
+                except (AttributeError, IndexError) as error:
+                    pass
+
 
     def __parse_bounding_box(self, layer, layer_obj):
             try:
                 bboxs = layer.xpath("./BoundingBox")
                 for bbox in bboxs:
-                    srs = bbox.get("SRS")
+                    # 'SRS' has been renamed in newer versions of the wms standard
+                    # If 'SRS' fails, try to look for 'CRS'
+                    try:
+                        srs = bbox.get("SRS")
+                    except AttributeError:
+                        try:
+                            srs = bbox.get("CRS")
+                        except AttributeError:
+                            pass
                     srs_dict = {
                         "minx": "",
                         "miny": "",
@@ -161,23 +195,28 @@ class OGCWebMapService(OGCWebService):
                 pass
 
     def __parse_request_uris(self, layer, layer_obj):
-        try:
-            get_capabilities_uri = layer.xpath("//GetCapabilities/DCPType/HTTP/Get/OnlineResource")[0].get("{http://www.w3.org/1999/xlink}href")
-            get_map_uri = layer.xpath("//GetMap/DCPType/HTTP/Get/OnlineResource")[0].get("{http://www.w3.org/1999/xlink}href")
-            get_feature_info_uri = layer.xpath("//GetFeatureInfo/DCPType/HTTP/Get/OnlineResource")[0].get("{http://www.w3.org/1999/xlink}href")
-            describe_layer_uri = layer.xpath("//DescribeLayer/DCPType/HTTP/Get/OnlineResource")[0].get("{http://www.w3.org/1999/xlink}href")
-            get_legend_graphic_uri = layer.xpath("//GetLegendGraphic/DCPType/HTTP/Get/OnlineResource")[0].get("{http://www.w3.org/1999/xlink}href")
-            get_styles_uri = layer.xpath("//GetStyles/DCPType/HTTP/Get/OnlineResource")[0].get("{http://www.w3.org/1999/xlink}href")
+        attributes = {
+            "cap": "//GetCapabilities/DCPType/HTTP/Get/OnlineResource",
+            "map": "//GetMap/DCPType/HTTP/Get/OnlineResource",
+            "feat": "//GetFeatureInfo/DCPType/HTTP/Get/OnlineResource",
+            "desc": "//DescribeLayer/DCPType/HTTP/Get/OnlineResource",
+            "leg": "//GetLegendGraphic/DCPType/HTTP/Get/OnlineResource",
+            "style": "//GetStyles/DCPType/HTTP/Get/OnlineResource",
+        }
+        for key, val in attributes.items():
+            try:
+                tmp = layer.xpath(val)[0].get("{http://www.w3.org/1999/xlink}href")
+                attributes[key] = tmp
+            except (AttributeError, IndexError) as error:
+                attributes[key] = None
 
-            layer_obj.get_capabilities_uri = get_capabilities_uri
-            layer_obj.get_map_uri = get_map_uri
-            layer_obj.get_feature_info_uri = get_feature_info_uri
-            layer_obj.describe_layer_uri = describe_layer_uri
-            layer_obj.get_legend_graphic_uri = get_legend_graphic_uri
-            layer_obj.get_styles_uri = get_styles_uri
+        layer_obj.get_capabilities_uri = attributes.get("cap")
+        layer_obj.get_map_uri = attributes.get("map")
+        layer_obj.get_feature_info_uri = attributes.get("feat")
+        layer_obj.describe_layer_uri = attributes.get("desc")
+        layer_obj.get_legend_graphic_uri = attributes.get("leg")
+        layer_obj.get_styles_uri = attributes.get("style")
 
-        except AttributeError:
-            pass
 
     def __parse_formats(self, layer, layer_obj):
         actions = ["GetMap", "GetCapabilities", "GetFeatureInfo", "DescribeLayer", "GetLegendGraphic", "GetStyles"]
@@ -192,6 +231,29 @@ class OGCWebMapService(OGCWebService):
                 pass
         layer_obj.format_list = results
 
+    def __parse_dimension(self, layer, layer_obj):
+        # pre 1.3.0
+            try:
+                dim = layer.xpath("./Dimension")[0]
+                ext = layer.xpath("./Extent")[0]
+                dim_dict = {
+                    "name": dim.get("name"),
+                    "units": dim.get("units"),
+                    "default": ext.get("default"),
+                    "extent": ext.text
+                }
+            except (IndexError, AttributeError) as error:
+                # post 1.3.0
+                try:
+                    dim = layer.xpath("./Dimension")[0]
+                    dim_dict = {
+                        "name": dim.get("name"),
+                        "units": dim.get("units"),
+                        "default": dim.get("default"),
+                        "extent": dim.text
+                    }
+                except (IndexError, AttributeError) as error:
+                    pass
 
     def __get_layers_recursive(self, layers, parent=None, position=0):
         """ Recursive Iteration over all children and subchildren.
@@ -215,7 +277,7 @@ class OGCWebMapService(OGCWebService):
                 self.__parse_keywords,
                 self.__parse_abstract,
                 self.__parse_title,
-                self.__parse_srs,
+                self.__parse_projection_system,
                 self.__parse_lat_lon_bounding_box,
                 self.__parse_bounding_box,
                 self.__parse_scale_hint,

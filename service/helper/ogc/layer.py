@@ -16,7 +16,7 @@ class OGCLayer:
         # capabilities
         self.capability_keywords = []
         self.capability_online_resource = None
-        self.capability_srs = []
+        self.capability_projection_system = []
         self.capability_scale_hint = {
             "min": 0,
             "max": 0,
@@ -36,3 +36,4 @@ class OGCLayer:
         self.describe_layer_uri = None
         self.get_legend_graphic_uri = None
         self.get_styles_uri = None
+        self.dimension = None

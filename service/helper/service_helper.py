@@ -18,7 +18,7 @@ from MapSkinner.settings import DEFAULT_SERVICE_VERSION
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.ogc.wms import OGCWebMapService, OGCWebMapServiceLayer
 from service.models import ServiceType, Service, Layer, Keyword, Metadata, KeywordToMetadata, ReferenceSystem, \
-    ReferenceSystemToMetadata, ServiceToFormat
+    ReferenceSystemToMetadata, ServiceToFormat, Dimension
 from structure.models import Organization, User, Group
 
 
@@ -36,7 +36,7 @@ def resolve_version_enum(version:str):
     return None
 
 
-def resolve_service_enum(service:str):
+def resolve_service_enum(service: str):
     """ Returns the matching Enum for a given service as string
 
     Args:
@@ -44,6 +44,8 @@ def resolve_service_enum(service:str):
     Returns:
          The matching enum, otherwise None
     """
+    if service is None:
+        return None
     for enum in ServiceTypes:
         if str(enum.value).upper() == service.upper():
             return enum
@@ -161,6 +163,15 @@ def __persist_layers(layers: list, service_type: ServiceType, wms: Service, crea
         layer.get_map_uri = layer_obj.get_map_uri
         layer.describe_layer_uri = layer_obj.describe_layer_uri
         layer.get_capabilities_uri = layer_obj.get_capabilities_uri
+        if layer_obj.dimension is not None:
+            dim = Dimension()
+            dim.layer = layer
+            dim.name = layer_obj.dimension.get("name")
+            dim.units = layer_obj.dimension.get("units")
+            dim.default = layer_obj.dimension.get("default")
+            dim.extent = layer_obj.dimension.get("extent")
+            # ToDo: Refine for inherited and nearest_value and so on
+            dim.save()
         layer.save()
 
         # iterate over all available mime types and actions
@@ -202,7 +213,7 @@ def __persist_layers(layers: list, service_type: ServiceType, wms: Service, crea
             kw_2_md.save()
 
         # handle reference systems
-        for sys in layer_obj.capability_srs:
+        for sys in layer_obj.capability_projection_system:
             ref_sys = ReferenceSystem.objects.get_or_create(name=sys)[0]
             ref_sys_2_md = ReferenceSystemToMetadata()
             ref_sys_2_md.metadata = metadata

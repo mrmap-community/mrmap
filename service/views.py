@@ -107,14 +107,19 @@ def register_form(request: HttpRequest):
             # not allowed!
             error = True
 
-        params = {
-            "error": error,
-            "uri": url_dict["base_uri"],
-            "version": url_dict["version"].value,
-            "service_type": url_dict["service"].value,
-            "request_action": url_dict["request"],
-            "full_uri": cap_url,
-        }
+        try:
+            params = {
+                "error": error,
+                "uri": url_dict["base_uri"],
+                "version": url_dict["version"].value,
+                "service_type": url_dict["service"].value,
+                "request_action": url_dict["request"],
+                "full_uri": cap_url,
+            }
+        except AttributeError:
+            params = {
+                "error": error,
+            }
 
         template = "register_new_service.html"
     else:

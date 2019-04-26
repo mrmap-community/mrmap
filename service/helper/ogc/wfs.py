@@ -273,6 +273,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
 
     def persist(self):
         # ToDo: Implement this!
+        pass
 
 class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
     def __init__(self, service_connect_url):

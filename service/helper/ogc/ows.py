@@ -1,5 +1,8 @@
 # common classes for handling of OWS (OGC Webservices)
 # for naming conventions see http://portal.opengeospatial.org/files/?artifact_id=38867
+from abc import abstractmethod
+from xml.dom.minidom import Text
+
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
 from service.helper import service_helper
@@ -107,29 +110,38 @@ class OGCWebService:
     def check_ogc_exception(self):
         pass
 
-    def _get_service_metadata_wfs(self, xml_obj):
-        ## Todo: Get this shit to work!
-        self.service_identification_title = service_helper.try_get_text_from_xml_element("//Service/Title", xml_obj)
-        self.service_identification_abstract = service_helper.try_get_text_from_xml_element("//Service/Abstract", xml_obj)
-        self.service_identification_fees = service_helper.resolve_none_string(
-            service_helper.try_get_text_from_xml_element(
-                "//Service/Fees",
-                xml_obj
-            )
-        )
-        self.service_identification_accessconstraints = service_helper.resolve_none_string(
-            service_helper.try_get_text_from_xml_element(
-                "//Service/AccessConstraints",
-                xml_obj
-            )
-        )
-        self.service_identification_keywords = service_helper.resolve_keywords_array_string(
-            service_helper.try_get_element_from_xml(
-                "//Service/Keywords",
-                xml_obj
-            )
-        )
+    def get_service_metadata_wfs(self, xml_obj):
+        ############    SERVICE     ############
+        service_node = xml_obj.getElementsByTagName("Service")
+        # TITLE
+        title_node = service_helper.get_node_from_node_list(service_node, "Title")
+        self.service_identification_title = service_helper.get_text_from_node(title_node)
 
+        # ABSTRACT
+        abstract_node = service_helper.get_node_from_node_list(service_node, "Abstract")
+        self.service_identification_abstract = service_helper.get_text_from_node(abstract_node)
+
+        # FEES
+        fees_node = service_helper.get_node_from_node_list(service_node, "Fees")
+        self.service_identification_fees = service_helper.get_text_from_node(fees_node)
+
+        # ACCESS CONSTRAINTS
+        ac_node = service_helper.get_node_from_node_list(service_node, "AccessConstraints")
+        self.service_identification_accessconstraints = service_helper.get_text_from_node(ac_node)
+
+        # KEYWORDS
+        keywords_node = service_helper.get_node_from_node_list(service_node, "Keywords")
+        keywords_str = service_helper.get_text_from_node(keywords_node)
+        self.service_identification_keywords = service_helper.resolve_keywords_array_string(keywords_str)
+
+        # ONLINE RESOURCE
+        or_node = service_helper.get_node_from_node_list(service_node, "OnlineResource")
+        self.service_provider_onlineresource_linkage = service_helper.get_text_from_node(or_node)
+
+        ############    CAPABILITY     ############
+        cap_node = xml_obj.getElementsByTagName("Capability")
+        # GET CAPABILITIES
+        get_cap_node = service_helper.find_node_recursive(cap_node, "Get")
 
     def _get_service_metadata_wms(self, xml_obj):
         """ This private function holds the main parsable elements which are part of every wms specification starting at 1.0.0
@@ -141,7 +153,6 @@ class OGCWebService:
         """
         # Since it may be possible that data providers do not put information where they have to be, we need to
         # build these ugly try catches and always check for list structures where lists could happen
-
         try:
             self.service_identification_abstract = xml_obj.xpath("//Service/Abstract")[0].text
         except (IndexError, AttributeError) as error:
@@ -227,6 +238,7 @@ class OGCWebService:
         except (IndexError, AttributeError) as error:
             pass
 
+
     def get_service_metadata_v100(self, xml_obj, service_type):
         """ This function calls the main parser function and adds version specific parsing
 
@@ -240,7 +252,7 @@ class OGCWebService:
         if service_type is ServiceTypes.WMS:
             self._get_service_metadata_wms(xml_obj)
         elif service_type is ServiceTypes.WFS:
-            self._get_service_metadata_wfs(xml_obj)
+            self.get_service_metadata_wfs(xml_obj)
         else:
             pass
 
@@ -257,7 +269,7 @@ class OGCWebService:
         if service_type is ServiceTypes.WMS:
             self._get_service_metadata_wms(xml_obj)
         elif service_type is ServiceTypes.WFS:
-            self._get_service_metadata_wfs(xml_obj)
+            self.get_service_metadata_wfs(xml_obj)
         else:
             pass
 
@@ -274,7 +286,7 @@ class OGCWebService:
         if service_type is ServiceTypes.WMS:
             self._get_service_metadata_wms(xml_obj)
         elif service_type is ServiceTypes.WFS:
-            self._get_service_metadata_wfs(xml_obj)
+            self.get_service_metadata_wfs(xml_obj)
         else:
             pass
 
@@ -292,7 +304,7 @@ class OGCWebService:
         if service_type is ServiceTypes.WMS:
             self._get_service_metadata_wms(xml_obj)
         elif service_type is ServiceTypes.WFS:
-            self._get_service_metadata_wfs(xml_obj)
+            self.get_service_metadata_wfs(xml_obj)
         else:
             pass
         # layer limit is new

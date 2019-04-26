@@ -11,6 +11,10 @@ import urllib
 import datetime
 import uuid
 
+from xml.dom import minidom
+from xml.dom.minicompat import NodeList
+from xml.dom.minidom import Element, Text
+
 from lxml import etree
 
 from MapSkinner.settings import DEFAULT_SERVICE_VERSION
@@ -77,6 +81,48 @@ def split_service_uri(uri):
     return ret_dict
 
 
+def get_xml_dom(xml: str):
+    """ Creates a dom object from xml string
+
+    This is needed for wrongly formatted input
+
+    Args:
+        xml: The xml string
+    Returns:
+    """
+    dom = minidom.parseString(xml)
+    return dom
+
+
+def get_text_from_node(node):
+    text = []
+    for child in node.childNodes:
+        if isinstance(child, Text):
+            text.append(child.data)
+    return " ".join(text)
+
+
+def get_node_from_node_list(node_list, string):
+    for element in node_list:
+        if isinstance(element, Element):
+            n_l = element.getElementsByTagName(string)
+            if len(n_l) == 1:
+                return n_l[0]
+            else:
+                return Element("None")
+
+
+def find_node_recursive(node_list: list, string):
+    for node in node_list:
+        if node.tagName == string:
+            return node
+        elif len(node.childNodes) > 0:
+            return find_node_recursive(node_list=node.childNodes, string=string)
+
+    return Element("None")
+
+
+
 def parse_xml(xml: str):
     """ Returns the xml as iterable object
 
@@ -85,10 +131,8 @@ def parse_xml(xml: str):
     Returns:
         nothing
     """
-
     xml_bytes = xml.encode("UTF-8")
-    parser = etree.XMLParser(recover=True)
-    xml_obj = etree.ElementTree(etree.fromstring(parser=parser, text=xml_bytes))
+    xml_obj = etree.ElementTree(etree.fromstring(text=xml_bytes))
     return xml_obj
 
 
@@ -100,12 +144,16 @@ def resolve_keywords_array_string(keywords: str):
     Returns:
         The keywords in a nice list
     """
+
     # first make sure no commas are left
     keywords = keywords.replace(",", " ")
     key_list = keywords.split(" ")
+    ret_list = []
     for key in key_list:
         key = key.strip()
-    return key_list
+        if len(key) > 0:
+            ret_list.append(key)
+    return ret_list
 
 
 def resolve_none_string(val: str):
@@ -149,7 +197,8 @@ def try_get_element_from_xml(elem: str, xml_elem):
     """
     ret_val = None
     try:
-        ret_val = xml_elem.xpath(elem)
+        t = ".//ows:Title"
+        ret_val = xml_elem.xpath(t)
     except AttributeError:
         pass
     return ret_val

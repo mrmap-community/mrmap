@@ -169,6 +169,12 @@ def new_service(request: HttpRequest):
         # load capabilities
         wfs.create_from_capabilities()
 
+        params = {
+            "wfs": wfs,
+        }
+    else:
+        params = {}
+
     template = "check_metadata_form.html"
     html = render_to_string(template_name=template, request=request, context=params)
     return BackendAjaxResponse(html=html).get_response()

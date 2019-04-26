@@ -121,23 +121,6 @@ class Service(models.Model):
     def __str__(self):
         return str(self.id)
 
-    # def delete(self, using=None, keep_parents=False):
-    #     # make sure everything that is related to the service gets deleted
-    #     stf = ServiceToFormat.objects.filter(service=self)
-    #     for _format in stf:
-    #         _format.delete()
-    #     layers = Service.objects.filter(parent_service=self)
-    #     for layer in layers:
-    #         md = get_object_or_404(Metadata, service=layer)
-    #         md.delete()
-    #         stf = ServiceToFormat.objects.filter(service=layer)
-    #         for _format in stf:
-    #             _format.delete()
-    #         layer.delete()
-#
-    #     md = get_object_or_404(Metadata, service=self)
-    #     md.delete()
-#
 
 class Layer(Service):
     identifier = models.CharField(max_length=500, null=True)
@@ -219,3 +202,8 @@ class Style(models.Model):
 
     def __str__(self):
         return self.layer.name + ": " + self.name
+
+
+class FeatureType(models.Model):
+    # ToDo: Implement this!
+    pass

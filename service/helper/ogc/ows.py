@@ -118,6 +118,10 @@ class OGCWebService:
     def get_version_specific_metadata(self, xml_obj):
         pass
 
+    @abstractmethod
+    def persist(self):
+        pass
+
 
 class OWSServiceMetadata:
     def __init__(self):

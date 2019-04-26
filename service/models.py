@@ -205,5 +205,19 @@ class Style(models.Model):
 
 
 class FeatureType(models.Model):
-    # ToDo: Implement this!
-    pass
+    name = models.CharField(max_length=255)
+    title = models.CharField(max_length=255)
+    abstract = models.TextField()
+    searchable = models.BooleanField(default=False)
+    inspire_download = models.BooleanField(default=False)
+    bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
+
+
+class KeywordToFeatureType(models.Model):
+    feature_type = models.ForeignKey(FeatureType, on_delete=models.CASCADE)
+    keyword = models.ForeignKey(Keyword, on_delete=models.CASCADE)
+
+
+class ReferenceSystemToFeatureType(models.Model):
+    feature_type = models.ForeignKey(FeatureType, on_delete=models.CASCADE)
+    reference_system = models.ForeignKey(ReferenceSystem, on_delete=models.CASCADE)

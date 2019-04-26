@@ -149,6 +149,8 @@ def find_node_recursive(node_list: list, name):
          Returns the element if found, None otherwise
     """
     for node in node_list:
+        if isinstance(node, Text):
+            continue
         if node.tagName == name:
             return node
         n = find_node_recursive(node_list=node.childNodes, name=name)

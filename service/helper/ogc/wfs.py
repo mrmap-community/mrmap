@@ -1,10 +1,12 @@
 #common classes for handling of WFS (OGC WebFeatureServices)
 #http://www.opengeospatial.org/standards/wf
+import json
 from abc import abstractmethod
 
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper
+from service.models import FeatureType, Keyword, ReferenceSystem, ReferenceSystemToFeatureType, KeywordToFeatureType
 
 
 class OGCWebFeatureService(OGCWebService):
@@ -41,7 +43,7 @@ class OGCWebFeatureService(OGCWebService):
             "post": None,
         }
 
-        self.feature_type_list = []
+        self.feature_type_list = {}
 
     class Meta:
         abstract = True
@@ -58,6 +60,7 @@ class OGCWebFeatureService(OGCWebService):
         # parse service metadata
         self.get_service_metadata(xml_obj=xml_obj)
         self.get_capability_metadata(xml_obj=xml_obj)
+        self.get_feature_type_metadata(xml_obj=xml_obj)
 
 
     @abstractmethod
@@ -72,6 +75,26 @@ class OGCWebFeatureService(OGCWebService):
 
     @abstractmethod
     def get_capability_metadata(self, xml_obj):
+        """ Implementation has to be in the wfs classes directly since they are too different from version to version.
+        No common method is implementable.
+
+        :param xml_obj:
+        :return:
+        """
+        pass
+
+    @abstractmethod
+    def get_feature_type_metadata(self, xml_obj):
+        """ Implementation has to be in the wfs classes directly since they are too different from version to version.
+        No common method is implementable.
+
+        :param xml_obj:
+        :return:
+        """
+        pass
+
+    @abstractmethod
+    def persist(self):
         """ Implementation has to be in the wfs classes directly since they are too different from version to version.
         No common method is implementable.
 
@@ -161,19 +184,20 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         Returns:
              Nothing
         """
-        cap_node = xml_obj.getElementsByTagName("Capability")
+        cap_node = xml_obj.getElementsByTagName("Capability")[0]
         actions = ["GetCapabilities", "DescribeFeatureType", "GetFeature", "Transaction", "LockFeature",
                    "GetFeatureWithLock"]
         get = {}
         post = {}
         for action in actions:
-            node = service_helper.find_node_recursive(cap_node, action)
+            node = cap_node.getElementsByTagName(action)[0]
             get[action] = service_helper.get_attributes_from_node(
-                service_helper.find_node_recursive(node_list=[node], name="Get")
+                node.getElementsByTagName("Get")[0]
             ).get("onlineResource", None)
             post[action] = service_helper.get_attributes_from_node(
-                service_helper.find_node_recursive(node_list=[node], name="Post")
+                node.getElementsByTagName("Post")[0]
             ).get("onlineResource", None)
+        del cap_node
 
         self.get_capabilities_uri["get"] = get.get("GetCapabilities")
         self.get_capabilities_uri["post"] = post.get("GetCapabilities")
@@ -193,7 +217,62 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         self.get_feature_with_lock_uri["get"] = get.get("GetFeatureWithLock")
         self.get_feature_with_lock_uri["post"] = post.get("GetFeatureWithLock")
 
+    def get_feature_type_metadata(self, xml_obj):
+        """ Parse the wfs <Service> metadata into the self object
 
+        Args:
+            xml_obj: A minidom object which holds the xml content
+        Returns:
+             Nothing
+        """
+        feat_nodes = xml_obj.getElementsByTagName("FeatureType")
+        for node in feat_nodes:
+            feature_type = FeatureType()
+            feature_type.name = service_helper.get_text_from_node(node.getElementsByTagName("Name")[0])
+            feature_type.title = service_helper.get_text_from_node(node.getElementsByTagName("Title")[0])
+            feature_type.abstract = service_helper.get_text_from_node(node.getElementsByTagName("Abstract")[0])
+            keywords = service_helper.resolve_keywords_array_string(
+                service_helper.get_text_from_node(
+                    node.getElementsByTagName("Keywords")[0]
+                )
+            )
+            # keywords
+            # append only the ...ToFeatureType objects, since the keywords will be created automatically
+            kw_list = []
+            for keyword in keywords:
+                kw = Keyword.objects.get_or_create(keyword=keyword)[0]
+                kw_to_feature_type = KeywordToFeatureType()
+                kw_to_feature_type.keyword = kw
+                kw_to_feature_type.feature_type = feature_type
+                kw_list.append(kw_to_feature_type)
+
+            # lat lon bounding box
+            bbox = service_helper.get_attributes_from_node(service_helper.find_node_recursive([node], "LatLongBoundingBox"))
+            bbox = json.dumps(bbox)
+            feature_type.bbox_lat_lon = bbox
+
+            # reference systems
+            # append only the ...ToFeatureType objects, since the reference systems will be created automatically
+            srs_list = node.getElementsByTagName("SRS")
+            srs_model_list = []
+            for srs in srs_list:
+                srs_val = service_helper.get_text_from_node(srs)
+                srs_model = ReferenceSystem.objects.get_or_create(name=srs_val)[0]
+                srs_to_feature_type = ReferenceSystemToFeatureType()
+                srs_to_feature_type.feature_type = feature_type
+                srs_to_feature_type.reference_system = srs_model
+                srs_model_list.append(srs_to_feature_type)
+
+            # put the feature types objects with keywords and reference systems into the dict for the persisting process
+            # will happen later
+            self.feature_type_list[feature_type.name] = {
+                "feature_type": feature_type,
+                "keyword_list": kw_list,
+                "srs_list": srs_model_list,
+            }
+
+    def persist(self):
+        # ToDo: Implement this!
 
 class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
     def __init__(self, service_connect_url):

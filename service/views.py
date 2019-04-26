@@ -160,7 +160,8 @@ def new_service(request: HttpRequest):
             "wms": web_service,
         }
         # persist data
-        service_helper.persist_wms(web_service)
+        service_helper.persist_wms(web_service) # ToDo: Move the persisting from service helper to wms class!
+
     elif url_dict.get("service") is ServiceTypes.WFS:
         # create WFS object
         wfs_factory = OGCWebFeatureServiceFactory()
@@ -168,6 +169,9 @@ def new_service(request: HttpRequest):
 
         # load capabilities
         wfs.create_from_capabilities()
+
+        # persist wfs
+        wfs.persist()
 
         params = {
             "wfs": wfs,

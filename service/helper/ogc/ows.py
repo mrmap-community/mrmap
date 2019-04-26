@@ -1,11 +1,9 @@
 # common classes for handling of OWS (OGC Webservices)
 # for naming conventions see http://portal.opengeospatial.org/files/?artifact_id=38867
 from abc import abstractmethod
-from xml.dom.minidom import Text
 
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
-from service.helper import service_helper
 
 
 class OGCWebService:
@@ -50,11 +48,6 @@ class OGCWebService:
         
         self.service_provider_telephone_voice = []
         self.service_provider_telephone_facsimile = []
-
-        # v.1.3.0.0
-        self.layer_limit = None
-        self.max_width = None
-        self.max_height = None
 
 
         # initialize service from url
@@ -110,220 +103,20 @@ class OGCWebService:
     def check_ogc_exception(self):
         pass
 
-    def get_service_metadata_wfs(self, xml_obj):
-        ############    SERVICE     ############
-        service_node = xml_obj.getElementsByTagName("Service")
-        # TITLE
-        title_node = service_helper.get_node_from_node_list(service_node, "Title")
-        self.service_identification_title = service_helper.get_text_from_node(title_node)
+    """
+    Methods that have to be implemented in the sub classes
+    """
+    @abstractmethod
+    def create_from_capabilities(self):
+        pass
 
-        # ABSTRACT
-        abstract_node = service_helper.get_node_from_node_list(service_node, "Abstract")
-        self.service_identification_abstract = service_helper.get_text_from_node(abstract_node)
+    @abstractmethod
+    def get_service_metadata(self, xml_obj):
+        pass
 
-        # FEES
-        fees_node = service_helper.get_node_from_node_list(service_node, "Fees")
-        self.service_identification_fees = service_helper.get_text_from_node(fees_node)
-
-        # ACCESS CONSTRAINTS
-        ac_node = service_helper.get_node_from_node_list(service_node, "AccessConstraints")
-        self.service_identification_accessconstraints = service_helper.get_text_from_node(ac_node)
-
-        # KEYWORDS
-        keywords_node = service_helper.get_node_from_node_list(service_node, "Keywords")
-        keywords_str = service_helper.get_text_from_node(keywords_node)
-        self.service_identification_keywords = service_helper.resolve_keywords_array_string(keywords_str)
-
-        # ONLINE RESOURCE
-        or_node = service_helper.get_node_from_node_list(service_node, "OnlineResource")
-        self.service_provider_onlineresource_linkage = service_helper.get_text_from_node(or_node)
-
-        ############    CAPABILITY     ############
-        cap_node = xml_obj.getElementsByTagName("Capability")
-        # GET CAPABILITIES
-        get_cap_node = service_helper.find_node_recursive(cap_node, "Get")
-
-    def _get_service_metadata_wms(self, xml_obj):
-        """ This private function holds the main parsable elements which are part of every wms specification starting at 1.0.0
-
-        Args:
-            xml_obj: The iterable xml object tree
-        Returns:
-            Nothing
-        """
-        # Since it may be possible that data providers do not put information where they have to be, we need to
-        # build these ugly try catches and always check for list structures where lists could happen
-        try:
-            self.service_identification_abstract = xml_obj.xpath("//Service/Abstract")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_identification_title = xml_obj.xpath("//Service/Title")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_identification_fees = xml_obj.xpath("//Service/Fees")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_identification_accessconstraints = xml_obj.xpath("//Service/AccessConstraints")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_providername = xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactOrganization")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_url = xml_obj.xpath("//AuthorityURL")[0].get("xlink:href")
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_contact_contactinstructions = xml_obj.xpath("//Service/ContactInformation")[0]
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_responsibleparty_individualname = xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactPerson")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_responsibleparty_positionname = xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactPosition")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_telephone_voice = xml_obj.xpath("//Service/ContactInformation/ContactVoiceTelephone")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_telephone_facsimile = xml_obj.xpath("//Service/ContactInformation/ContactFacsimileTelephone")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_electronicmailaddress = xml_obj.xpath("//Service/ContactInformation/ContactElectronicMailAddress")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            keywords = xml_obj.xpath("//Service/KeywordList/Keyword")
-            kw = []
-            for keyword in keywords:
-                kw.append(keyword.text)
-            self.service_identification_keywords = kw
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            elements = xml_obj.xpath("//Service/OnlineResource")
-            ors = []
-            for element in elements:
-                ors.append(element.get("{http://www.w3.org/1999/xlink}href"))
-            self.service_provider_onlineresource_linkage = ors
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_country = xml_obj.xpath("//Service/ContactInformation/ContactAddress/Country")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_postalcode = xml_obj.xpath("//Service/ContactInformation/ContactAddress/PostCode")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_city = xml_obj.xpath("//Service/ContactInformation/ContactAddress/City")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_state_or_province = xml_obj.xpath("//Service/ContactInformation/ContactAddress/StateOrProvince")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address = xml_obj.xpath("//Service/ContactInformation/ContactAddress/Address")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-
-
-    def get_service_metadata_v100(self, xml_obj, service_type):
-        """ This function calls the main parser function and adds version specific parsing
-
-        Args:
-            xml_obj: The iterable xml object tree
-        Returns:
-             Nothing
-        """
-        # the general structures of WMS and WFS are too different.
-        # we need to distinguish between them and use own functions on each
-        if service_type is ServiceTypes.WMS:
-            self._get_service_metadata_wms(xml_obj)
-        elif service_type is ServiceTypes.WFS:
-            self.get_service_metadata_wfs(xml_obj)
-        else:
-            pass
-
-    def get_service_metadata_v110(self, xml_obj, service_type):
-        """ This function calls the main parser function and adds version specific parsing
-
-        Args:
-            xml_obj: The iterable xml object tree
-        Returns:
-             Nothing
-        """
-        # the general structures of WMS and WFS are too different.
-        # we need to distinguish between them and use own functions on each
-        if service_type is ServiceTypes.WMS:
-            self._get_service_metadata_wms(xml_obj)
-        elif service_type is ServiceTypes.WFS:
-            self.get_service_metadata_wfs(xml_obj)
-        else:
-            pass
-
-    def get_service_metadata_v111(self, xml_obj, service_type):
-        """ This function calls the main parser function and adds version specific parsing
-
-        Args:
-            xml_obj: The iterable xml object tree
-        Returns:
-             Nothing
-        """
-        # the general structures of WMS and WFS are too different.
-        # we need to distinguish between them and use own functions on each
-        if service_type is ServiceTypes.WMS:
-            self._get_service_metadata_wms(xml_obj)
-        elif service_type is ServiceTypes.WFS:
-            self.get_service_metadata_wfs(xml_obj)
-        else:
-            pass
-
-    def get_service_metadata_v130(self, xml_obj, service_type):
-        """ This function calls the main parser function and adds version specific parsing
-
-        Args:
-            xml_obj: The iterable xml object tree
-        Returns:
-             Nothing
-        """
-        # first try to parse all default elements
-        # the general structures of WMS and WFS are too different.
-        # we need to distinguish between them and use own functions on each
-        if service_type is ServiceTypes.WMS:
-            self._get_service_metadata_wms(xml_obj)
-        elif service_type is ServiceTypes.WFS:
-            self.get_service_metadata_wfs(xml_obj)
-        else:
-            pass
-        # layer limit is new
-        try:
-            layer_limit = xml_obj.xpath("//LayerLimit")[0].text
-            self.layer_limit = layer_limit
-        except (IndexError, AttributeError) as error:
-            pass
-        # max height and width is new
-        try:
-            max_width = xml_obj.xpath("//MaxWidth")[0].text
-            self.max_width = max_width
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            max_height = xml_obj.xpath("//MaxHeight")[0].text
-            self.max_height = max_height
-        except (IndexError, AttributeError) as error:
-            pass
+    @abstractmethod
+    def get_version_specific_metadata(self, xml_obj):
+        pass
 
 
 class OWSServiceMetadata:

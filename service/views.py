@@ -172,8 +172,8 @@ def new_service(request: HttpRequest):
         params = {
             "wfs": wfs,
         }
-    else:
-        params = {}
+    # else:
+    #     params = {}
 
     template = "check_metadata_form.html"
     html = render_to_string(template_name=template, request=request, context=params)

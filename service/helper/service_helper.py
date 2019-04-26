@@ -13,7 +13,7 @@ import uuid
 
 from xml.dom import minidom
 from xml.dom.minicompat import NodeList
-from xml.dom.minidom import Element, Text
+from xml.dom.minidom import Element, Text, Node
 
 from lxml import etree
 
@@ -93,8 +93,27 @@ def get_xml_dom(xml: str):
     dom = minidom.parseString(xml)
     return dom
 
+def get_attributes_from_node(node: Node):
+    """ Returns a dict containing all attributes of a given node
 
-def get_text_from_node(node):
+    Args:
+        node (Node): The given node
+    Returns:
+         A dict containing all attributes found in the node
+    """
+    ret_dict = {}
+    for attr_key, attr_val in node._attrs.items():
+        ret_dict[attr_key] = attr_val.value
+    return ret_dict
+
+def get_text_from_node(node: Node):
+    """ Get the text data from a node element
+
+    Args:
+        node (Node): The node
+    Returns:
+         The text of the node
+    """
     text = []
     for child in node.childNodes:
         if isinstance(child, Text):
@@ -102,25 +121,40 @@ def get_text_from_node(node):
     return " ".join(text)
 
 
-def get_node_from_node_list(node_list, string):
+def get_node_from_node_list(node_list, name):
+    """ Returns a single node from a given list of nodes
+
+    Args:
+        node_list: The list of nodes that shall be searched through
+        name: The tag name of the node we are looking for
+    Returns:
+         The node if found, otherwise None
+    """
     for element in node_list:
         if isinstance(element, Element):
-            n_l = element.getElementsByTagName(string)
+            n_l = element.getElementsByTagName(name)
             if len(n_l) == 1:
                 return n_l[0]
             else:
                 return Element("None")
 
 
-def find_node_recursive(node_list: list, string):
+def find_node_recursive(node_list: list, name):
+    """ Searches in the given node_list recursively for an element that matches the tag name of the parameter name
+
+    Args:
+        node_list (list): The list of the initial nodes. Normally you will put a single node (e.g. the root) inside a list in here
+        name: The name of the element we are looking for
+    Returns:
+         Returns the element if found, None otherwise
+    """
     for node in node_list:
-        if node.tagName == string:
+        if node.tagName == name:
             return node
-        elif len(node.childNodes) > 0:
-            return find_node_recursive(node_list=node.childNodes, string=string)
-
+        n = find_node_recursive(node_list=node.childNodes, name=name)
+        if n.tagName != "None":
+            return n
     return Element("None")
-
 
 
 def parse_xml(xml: str):
@@ -197,8 +231,7 @@ def try_get_element_from_xml(elem: str, xml_elem):
     """
     ret_val = None
     try:
-        t = ".//ows:Title"
-        ret_val = xml_elem.xpath(t)
+        ret_val = xml_elem.xpath(elem)
     except AttributeError:
         pass
     return ret_val

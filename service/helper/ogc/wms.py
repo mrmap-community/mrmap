@@ -5,6 +5,8 @@
 .. moduleauthor:: Armin Retterath <armin.retterath@gmail.com>
 
 """
+from abc import abstractmethod
+
 from service.helper.enums import VersionTypes
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
@@ -66,28 +68,15 @@ class OGCWebMapService(OGCWebService):
         layer_obj.title = service_helper.try_get_text_from_xml_element("./Title", layer)
 
     ### SRS/CRS     PROJECTION SYSTEM ###
-    def __parse_projection_system_1_1_1(self, layer, layer_obj):
+    @abstractmethod
+    def __parse_projection_system(self, layer, layer_obj):
         srs = service_helper.try_get_element_from_xml("./SRS", layer)
         for elem in srs:
             layer_obj.capability_projection_system.append(elem.text)
 
-    def __parse_projection_system_1_3_0(self, layer, layer_obj):
-        crs = service_helper.try_get_element_from_xml("./CRS", layer)
-        for elem in crs:
-            layer_obj.capability_projection_system.append(elem.text)
-
-    def __parse_projection_system(self, layer, layer_obj):
-        if self.service_version is VersionTypes.V_1_0_0:
-            self.__parse_projection_system_1_1_1(layer=layer, layer_obj=layer_obj)
-        if self.service_version is VersionTypes.V_1_1_0:
-            self.__parse_projection_system_1_1_1(layer=layer, layer_obj=layer_obj)
-        if self.service_version is VersionTypes.V_1_1_1:
-            self.__parse_projection_system_1_1_1(layer=layer, layer_obj=layer_obj)
-        if self.service_version is VersionTypes.V_1_3_0:
-            self.__parse_projection_system_1_3_0(layer=layer, layer_obj=layer_obj)
-
     ### BOUNDING BOX    LAT LON ###
-    def __parse_lat_lon_bounding_box_1_1_1(self, layer, layer_obj):
+    @abstractmethod
+    def __parse_lat_lon_bounding_box(self, layer, layer_obj):
         try:
             bbox = service_helper.try_get_element_from_xml("./LatLonBoundingBox", layer)[0]
             attrs = ["minx", "miny", "maxx", "maxy"]
@@ -95,30 +84,6 @@ class OGCWebMapService(OGCWebService):
                 layer_obj.capability_bbox_lat_lon[attr] = bbox.get(attr)
         except IndexError:
             pass
-
-    def __parse_lat_lon_bounding_box_1_3_0(self, layer, layer_obj):
-        try:
-            bbox = service_helper.try_get_element_from_xml("./EX_GeographicBoundingBox", layer)[0]
-            attrs = {
-                "westBoundLongitude": "minx",
-                "eastBoundLongitude": "maxx",
-                "southBoundLatitude": "miny",
-                "northBoundLatitude": "maxy",
-            }
-            for key, val in attrs.items():
-                layer_obj.capability_bbox_lat_lon[val] = bbox.get(key)
-        except IndexError:
-            pass
-
-    def __parse_lat_lon_bounding_box(self, layer, layer_obj):
-        if self.service_version is VersionTypes.V_1_0_0:
-            self.__parse_lat_lon_bounding_box_1_1_1(layer=layer, layer_obj=layer_obj)
-        if self.service_version is VersionTypes.V_1_1_0:
-            self.__parse_lat_lon_bounding_box_1_1_1(layer=layer, layer_obj=layer_obj)
-        if self.service_version is VersionTypes.V_1_1_1:
-            self.__parse_lat_lon_bounding_box_1_1_1(layer=layer, layer_obj=layer_obj)
-        if self.service_version is VersionTypes.V_1_3_0:
-            self.__parse_lat_lon_bounding_box_1_3_0(layer=layer, layer_obj=layer_obj)
 
     ### BOUNDING BOX ###
     def __parse_bounding_box_generic(self, layer, layer_obj, elem_name):
@@ -223,7 +188,8 @@ class OGCWebMapService(OGCWebService):
         layer_obj.get_styles_uri = attributes.get("style")
 
     ### FORMATS ###
-    def __parse_formats_1_1_1(self, layer, layer_obj):
+    @abstractmethod
+    def __parse_formats(self, layer, layer_obj):
         actions = ["GetMap", "GetCapabilities", "GetFeatureInfo", "DescribeLayer", "GetLegendGraphic", "GetStyles"]
         results = {}
         for action in actions:
@@ -236,39 +202,9 @@ class OGCWebMapService(OGCWebService):
                 pass
         layer_obj.format_list = results
 
-    def __parse_formats_1_0_0(self, layer, layer_obj):
-        # ToDo: Find wms 1.0.0 for testing!!!!
-        actions = ["Map", "Capabilities", "FeatureInfo"]
-        results = {}
-        for action in actions:
-            try:
-                results[action] = []
-                format_list = layer.xpath("//Request/" + action + "/Format").getchildren()
-                for format in format_list:
-                    results[action].append(format.text)
-            except AttributeError:
-                pass
-        layer_obj.format_list = results
-
-    def __parse_formats(self, layer, layer_obj):
-        # switch between versions
-        if self.service_version is VersionTypes.V_1_0_0:
-            # do 1.0.0 stuff
-            self.__parse_formats_1_0_0(layer_obj=layer_obj, layer=layer)
-        if self.service_version is VersionTypes.V_1_1_0:
-            # do 1.1.0 stuff
-            # no difference to 1.1.1
-            self.__parse_formats_1_1_1(layer_obj=layer_obj, layer=layer)
-        if self.service_version is VersionTypes.V_1_1_1:
-            # do 1.1.1 stuff
-            self.__parse_formats_1_1_1(layer_obj=layer_obj, layer=layer)
-        if self.service_version is VersionTypes.V_1_3_0:
-            # do 1.3.0 stuff
-            # no difference to 1.1.1
-            self.__parse_formats_1_1_1(layer_obj=layer_obj, layer=layer)
-
     ### DIMENSIONS ###
-    def __parse_dimension_1_1_1(self, layer, layer_obj):
+    @abstractmethod
+    def __parse_dimension(self, layer, layer_obj):
         dims_list = []
         try:
             dim = layer.xpath("./Dimension")[0]
@@ -283,33 +219,6 @@ class OGCWebMapService(OGCWebService):
         except (IndexError, AttributeError) as error:
             pass
         layer_obj.dimension = dims_list
-
-    def __parse_dimension_1_3_0(self, layer, layer_obj):
-        dims_list = []
-        try:
-            dims = layer.xpath("./Dimension")
-            for dim in dims:
-                dim_dict = {
-                    "name": dim.get("name"),
-                    "units": dim.get("units"),
-                    "default": dim.get("default"),
-                    "extent": dim.text,
-                    "nearestValue": dim.get("nearestValue"),
-                }
-                dims_list.append(dim_dict)
-        except (IndexError, AttributeError) as error:
-            pass
-        layer_obj.dimension = dims_list
-
-    def __parse_dimension(self, layer, layer_obj):
-        if self.service_version is VersionTypes.V_1_0_0:
-            self.__parse_dimension_1_1_1(layer=layer, layer_obj=layer_obj)
-        if self.service_version is VersionTypes.V_1_1_0:
-            self.__parse_dimension_1_1_1(layer=layer, layer_obj=layer_obj)
-        if self.service_version is VersionTypes.V_1_1_1:
-            self.__parse_dimension_1_1_1(layer=layer, layer_obj=layer_obj)
-        if self.service_version is VersionTypes.V_1_3_0:
-            self.__parse_dimension_1_3_0(layer=layer, layer_obj=layer_obj)
 
 
     ### STYLES ###
@@ -402,14 +311,120 @@ class OGCWebMapService(OGCWebService):
         # get xml as iterable object
         xml_obj = service_helper.parse_xml(xml=self.service_capabilities_xml)
         if self.service_version is VersionTypes.V_1_0_0:
-            self.get_service_metadata_v100(xml_obj=xml_obj, service_type=self.service_type)
+            self.get_service_metadata(xml_obj=xml_obj)
         if self.service_version is VersionTypes.V_1_1_0:
-            self.get_service_metadata_v110(xml_obj=xml_obj, service_type=self.service_type)
+            self.get_service_metadata(xml_obj=xml_obj)
         if self.service_version is VersionTypes.V_1_1_1:
-            self.get_service_metadata_v111(xml_obj=xml_obj, service_type=self.service_type)
+            self.get_service_metadata(xml_obj=xml_obj)
         if self.service_version is VersionTypes.V_1_3_0:
-            self.get_service_metadata_v130(xml_obj=xml_obj, service_type=self.service_type)
+            self.get_service_metadata(xml_obj=xml_obj)
+            self.get_version_specific_metadata(xml_obj=xml_obj)
         self.get_layers(xml_obj=xml_obj)
+
+    def get_service_metadata(self, xml_obj):
+        """ This private function holds the main parsable elements which are part of every wms specification starting at 1.0.0
+        Args:
+            xml_obj: The iterable xml object tree
+        Returns:
+            Nothing
+        """
+        # Since it may be possible that data providers do not put information where they have to be, we need to
+        # build these ugly try catches and always check for list structures where lists could happen
+        try:
+            self.service_identification_abstract = xml_obj.xpath("//Service/Abstract")[0].text
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_identification_title = xml_obj.xpath("//Service/Title")[0].text
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_identification_fees = xml_obj.xpath("//Service/Fees")[0].text
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_identification_accessconstraints = xml_obj.xpath("//Service/AccessConstraints")[0].text
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_provider_providername = \
+            xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactOrganization")[0].text
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_provider_url = xml_obj.xpath("//AuthorityURL")[0].get("xlink:href")
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_provider_contact_contactinstructions = xml_obj.xpath("//Service/ContactInformation")[0]
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_provider_responsibleparty_individualname = \
+            xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactPerson")[0].text
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_provider_responsibleparty_positionname = \
+            xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactPosition")[0].text
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_provider_telephone_voice = \
+            xml_obj.xpath("//Service/ContactInformation/ContactVoiceTelephone")[0].text
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_provider_telephone_facsimile = \
+            xml_obj.xpath("//Service/ContactInformation/ContactFacsimileTelephone")[0].text
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_provider_address_electronicmailaddress = \
+            xml_obj.xpath("//Service/ContactInformation/ContactElectronicMailAddress")[0].text
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            keywords = xml_obj.xpath("//Service/KeywordList/Keyword")
+            kw = []
+            for keyword in keywords:
+                kw.append(keyword.text)
+            self.service_identification_keywords = kw
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            elements = xml_obj.xpath("//Service/OnlineResource")
+            ors = []
+            for element in elements:
+                ors.append(element.get("{http://www.w3.org/1999/xlink}href"))
+            self.service_provider_onlineresource_linkage = ors
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_provider_address_country = \
+            xml_obj.xpath("//Service/ContactInformation/ContactAddress/Country")[0].text
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_provider_address_postalcode = \
+            xml_obj.xpath("//Service/ContactInformation/ContactAddress/PostCode")[0].text
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_provider_address_city = xml_obj.xpath("//Service/ContactInformation/ContactAddress/City")[
+                0].text
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_provider_address_state_or_province = \
+            xml_obj.xpath("//Service/ContactInformation/ContactAddress/StateOrProvince")[0].text
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            self.service_provider_address = xml_obj.xpath("//Service/ContactInformation/ContactAddress/Address")[
+                0].text
+        except (IndexError, AttributeError) as error:
+            pass
 
 
 class OGCWebMapServiceLayer(OGCLayer):
@@ -426,6 +441,23 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
         super().__init__(service_connect_url=service_connect_url)
         self.service_version = VersionTypes.V_1_0_0
 
+    def __parse_formats(self, layer, layer_obj):
+        # ToDo: Find wms 1.0.0 for testing!!!!
+        actions = ["Map", "Capabilities", "FeatureInfo"]
+        results = {}
+        for action in actions:
+            try:
+                results[action] = []
+                format_list = layer.xpath("//Request/" + action + "/Format").getchildren()
+                for format in format_list:
+                    results[action].append(format.text)
+            except AttributeError:
+                pass
+        layer_obj.format_list = results
+
+    def get_version_specific_metadata(self, xml_obj):
+        pass
+
 
 class OGCWebMapService_1_1_0(OGCWebMapService):
     """ The WMS class for standard version 1.1.0
@@ -434,6 +466,9 @@ class OGCWebMapService_1_1_0(OGCWebMapService):
     def __init__(self, service_connect_url):
         super().__init__(service_connect_url=service_connect_url)
         self.service_version = VersionTypes.V_1_1_0
+
+    def get_version_specific_metadata(self, xml_obj):
+        pass
 
 
 class OGCWebMapService_1_1_1(OGCWebMapService):
@@ -444,6 +479,10 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
         super().__init__(service_connect_url=service_connect_url)
         self.service_version = VersionTypes.V_1_1_1
 
+    def get_version_specific_metadata(self, xml_obj):
+        pass
+
+
 
 class OGCWebMapService_1_3_0(OGCWebMapService):
     """ The WMS class for standard version 1.3.0
@@ -453,33 +492,62 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
     def __init__(self, service_connect_url):
         super().__init__(service_connect_url=service_connect_url)
         self.service_version = VersionTypes.V_1_3_0
-            
-    # https://stackoverflow.com/questions/34009992/python-elementtree-default-namespace
-    # def create_from_capabilities(self):
-    #     # Remove the default namespace definition (xmlns="http://some/namespace")
-    #     xmlstring = re.sub(r'\sxmlns="[^"]+"', '', self.service_capabilities_xml, count=1)
-    #     root = etree.XML(str.encode(xmlstring))
-    #     tree = etree.ElementTree(root)
-    #     # service metadata
-    #     r = tree.xpath('/WMS_Capabilities/Service/Title')
-    #     self.service_identification_title = r[0].text
-    #     r = tree.xpath('/WMS_Capabilities/Service/Abstract')
-    #     self.service_identification_abstract = r[0].text
-    #     r = tree.xpath('/WMS_Capabilities/Service/KeywordList/Keyword')
-    #     for keyword in r:
-    #         self.service_identification_keywords.append(keyword.text)
-    #         # print(keyword.text)
-    #     r = tree.xpath('/WMS_Capabilities/Service/Fees')
-    #     self.service_identification_fees = r[0].text
-    #     r = tree.xpath('/WMS_Capabilities/Service/AccessConstraints')
-    #     self.service_identification_accessconstraints = r[0].text
-    #
-    #     #p arse layer objects recursive
-    #     layers = tree.xpath('/WMS_Capabilities/Capability/Layer')
-    #     for layer in layers:
-    #         self.parse_layers_recursive(etree.tostring(layer), 0)
-    #     # transform to mptt
-    #
-    #     # debug output
-    #     for layer in self.layers:
-    #         print(layer.position, layer.parent, layer.title)
+        self.layer_limit = None
+        self.max_width = None
+        self.max_height = None
+
+    def __parse_lat_lon_bounding_box(self, layer, layer_obj):
+        try:
+            bbox = service_helper.try_get_element_from_xml("./EX_GeographicBoundingBox", layer)[0]
+            attrs = {
+                "westBoundLongitude": "minx",
+                "eastBoundLongitude": "maxx",
+                "southBoundLatitude": "miny",
+                "northBoundLatitude": "maxy",
+            }
+            for key, val in attrs.items():
+                layer_obj.capability_bbox_lat_lon[val] = bbox.get(key)
+        except IndexError:
+            pass
+
+    def __parse_projection_system(self, layer, layer_obj):
+        crs = service_helper.try_get_element_from_xml("./CRS", layer)
+        for elem in crs:
+            layer_obj.capability_projection_system.append(elem.text)
+
+    def __parse_dimension(self, layer, layer_obj):
+        dims_list = []
+        try:
+            dims = layer.xpath("./Dimension")
+            for dim in dims:
+                dim_dict = {
+                    "name": dim.get("name"),
+                    "units": dim.get("units"),
+                    "default": dim.get("default"),
+                    "extent": dim.text,
+                    "nearestValue": dim.get("nearestValue"),
+                }
+                dims_list.append(dim_dict)
+        except (IndexError, AttributeError) as error:
+            pass
+        layer_obj.dimension = dims_list
+
+    def get_version_specific_service_metadata(self, xml_obj):
+        # layer limit is new
+        try:
+            layer_limit = xml_obj.xpath("//LayerLimit")[0].text
+            self.layer_limit = layer_limit
+        except (IndexError, AttributeError) as error:
+            pass
+        # max height and width is new
+        try:
+            max_width = xml_obj.xpath("//MaxWidth")[0].text
+            self.max_width = max_width
+        except (IndexError, AttributeError) as error:
+            pass
+        try:
+            max_height = xml_obj.xpath("//MaxHeight")[0].text
+            self.max_height = max_height
+        except (IndexError, AttributeError) as error:
+            pass
+        self.get_layers(xml_obj=xml_obj)

@@ -12,7 +12,7 @@ from xml.dom.minidom import Element, Text, Node
 
 from lxml import etree
 
-from MapSkinner.settings import DEFAULT_SERVICE_VERSION
+from MapSkinner.settings import DEFAULT_SERVICE_VERSION, XML_NAMESPACES
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.models import Layer
 
@@ -64,10 +64,12 @@ def split_service_uri(uri):
     ret_dict["version"] = resolve_version_enum(cap_url_dict.get("VERSION", DEFAULT_SERVICE_VERSION))
     ret_dict["base_uri"] = uri.replace(cap_url_query, "")
     service_keywords = ["REQUEST", "SERVICE", "VERSION"]
+    additional_params = []
     for param_key, param_val in cap_url_dict.items():
         if param_key not in service_keywords:
             # append it back on the base uri
-            ret_dict["base_uri"] += param_key + "=" + param_val
+            additional_params.append(param_key + "=" + param_val)
+    ret_dict["base_uri"] += "&".join(additional_params)
 
     return ret_dict
 
@@ -216,6 +218,26 @@ def resolve_boolean_attribute_val(val):
     return val
 
 
+def try_get_single_element_from_xml(elem: str, xml_elem):
+    """ Wraps a try-except call to fetch a single element from an xml element
+
+    Returns the first element of a result set. If the programmer knows what he/she does there should be only on element.
+    Returns None if there are none
+
+    Args:
+        elem:
+        xml_elem:
+    Returns:
+         ret_val: The found element(s), otherwise None
+    """
+
+    tmp = try_get_element_from_xml(elem=elem, xml_elem=xml_elem)
+    try:
+        return tmp[0]
+    except IndexError:
+        return None
+
+
 def try_get_element_from_xml(elem: str, xml_elem):
     """ Wraps a try-except call to fetch elements from an xml element
 
@@ -227,10 +249,27 @@ def try_get_element_from_xml(elem: str, xml_elem):
     """
     ret_val = None
     try:
-        ret_val = xml_elem.xpath(elem)
+        ret_val = xml_elem.xpath(elem, namespaces=XML_NAMESPACES)
     except AttributeError:
         pass
     return ret_val
+
+
+def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str):
+    """ Returns the requested attribute of an xml element
+
+    Args:
+        attribute:
+        xml_elem:
+        elem:
+    Returns:
+        A string if attribute was found, otherwise None
+    """
+    tmp = try_get_element_from_xml(elem=elem, xml_elem=xml_elem)
+    try:
+        return tmp[0].get(attribute)
+    except (IndexError, AttributeError) as e:
+        return None
 
 
 def try_get_text_from_xml_element(elem: str, xml_elem):

@@ -55,6 +55,9 @@ function startServiceRegistration(uri, button){
         success: function(data){
             changeOverlayContent(data["html"]);
             button.html(oldHtml);
+        },
+        always: function(data){
+            button.html(oldHtml);
         }
     });
 

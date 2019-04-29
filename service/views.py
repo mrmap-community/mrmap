@@ -11,6 +11,7 @@ from MapSkinner.responses import BackendAjaxResponse
 from service.forms import NewServiceURIForm
 from service.helper import service_helper
 from service.helper.enums import ServiceTypes
+from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Metadata, Layer, Service, ServiceToFormat
@@ -153,6 +154,8 @@ def new_service(request: HttpRequest):
     POST_params = request.POST.dict()
     cap_url = POST_params.get("uri", "")
     url_dict = service_helper.split_service_uri(cap_url)
+    epsg_api = EpsgApi()
+    epsg_api.resolve_crs_identifier("EPSG:25832")
 
     if url_dict.get("service") is ServiceTypes.WMS:
         # create WMS object

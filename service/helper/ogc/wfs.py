@@ -3,6 +3,7 @@
 import json
 from abc import abstractmethod
 
+from MapSkinner.settings import XML_NAMESPACES
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper
@@ -44,6 +45,8 @@ class OGCWebFeatureService(OGCWebService):
         }
 
         self.feature_type_list = {}
+
+        XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs", "")
 
     class Meta:
         abstract = True
@@ -199,23 +202,23 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             ).get("onlineResource", None)
         del cap_node
 
-        self.get_capabilities_uri["get"] = get.get("GetCapabilities")
-        self.get_capabilities_uri["post"] = post.get("GetCapabilities")
+        self.get_capabilities_uri["get"] = get.get("GetCapabilities", None)
+        self.get_capabilities_uri["post"] = post.get("GetCapabilities", None)
 
-        self.describe_feature_type_uri["get"] = get.get("DescribeFeatureType")
-        self.describe_feature_type_uri["post"] = post.get("DescribeFeatureType")
+        self.describe_feature_type_uri["get"] = get.get("DescribeFeatureType", None)
+        self.describe_feature_type_uri["post"] = post.get("DescribeFeatureType", None)
 
-        self.get_feature_uri["get"] = get.get("GetFeature")
-        self.get_feature_uri["post"] = post.get("GetFeature")
+        self.get_feature_uri["get"] = get.get("GetFeature", None)
+        self.get_feature_uri["post"] = post.get("GetFeature", None)
 
-        self.transaction_uri["get"] = get.get("Transaction")
-        self.transaction_uri["post"] = post.get("Transaction")
+        self.transaction_uri["get"] = get.get("Transaction", None)
+        self.transaction_uri["post"] = post.get("Transaction", None)
 
-        self.lock_feature_uri["get"] = get.get("LockFeature")
-        self.lock_feature_uri["post"] = post.get("LockFeature")
+        self.lock_feature_uri["get"] = get.get("LockFeature", None)
+        self.lock_feature_uri["post"] = post.get("LockFeature", None)
 
-        self.get_feature_with_lock_uri["get"] = get.get("GetFeatureWithLock")
-        self.get_feature_with_lock_uri["post"] = post.get("GetFeatureWithLock")
+        self.get_feature_with_lock_uri["get"] = get.get("GetFeatureWithLock", None)
+        self.get_feature_with_lock_uri["post"] = post.get("GetFeatureWithLock", None)
 
     def get_feature_type_metadata(self, xml_obj):
         """ Parse the wfs <Service> metadata into the self object
@@ -275,6 +278,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         # ToDo: Implement this!
         pass
 
+
 class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
     def __init__(self, service_connect_url):
         super().__init__(
@@ -282,6 +286,135 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
             service_version=VersionTypes.V_1_1_0,
             service_type=ServiceTypes.WFS,
         )
+        self.get_gml_object_uri = {
+            "get": None,
+            "post": None,
+        }
+
+    def get_service_metadata(self, xml_obj):
+        """ Parse the wfs <Service> metadata into the self object
+
+        PLEASE NOTICE:
+        In here we do not use minidom parsing. Yes, this function takes the xml_obj dom object as a parameter
+        but the xml xpath parsable object will be retrieved internal. So there is no usage of xml_obj in here.
+        This will be fixed one day.
+
+        Args:
+            xml_obj: A minidom object which holds the xml content
+        Returns:
+             Nothing
+        """
+        xml_xpath = service_helper.parse_xml(self.service_capabilities_xml)
+        self.service_identification_title = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:ServiceIdentification/ows:Title")
+        self.service_identification_abstract = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:ServiceIdentification/ows:Abstract")
+        self.service_identification_fees = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:ServiceIdentification/ows:Fees")
+        self.service_identification_accessconstraints = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:ServiceIdentification/ows:AccessConstraints")
+        keywords = service_helper.try_get_element_from_xml(xml_elem=xml_xpath, elem="//ows:ServiceIdentification/ows:Keywords/ows:Keyword")
+        kw = []
+        for keyword in keywords:
+            try:
+                kw.append(keyword.text)
+            except AttributeError:
+                pass
+        self.service_identification_keywords = kw
+
+        self.service_provider_providername = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:ProviderName")
+        self.service_provider_url = service_helper.try_get_attribute_from_xml_element(xml_elem=xml_xpath, attribute="{http://www.w3.org/1999/xlink}href", elem="//ows:ProviderSite")
+        self.service_provider_responsibleparty_individualname = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:IndividualName")
+        self.service_provider_responsibleparty_positionname = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:PositionName")
+        self.service_provider_telephone_voice = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:Voice")
+        self.service_provider_telephone_facsimile = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:Facsimile")
+        self.service_provider_address = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:DeliveryPoint")
+        self.service_provider_address_city = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:City")
+        self.service_provider_address_state_or_province = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:AdministrativeArea")
+        self.service_provider_address_postalcode = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:PostalCode")
+        self.service_provider_address_country = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:Country")
+        self.service_provider_address_electronicmailaddress = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:ElectronicMailAddress")
+        self.service_provider_onlineresource_linkage = service_helper.try_get_attribute_from_xml_element(xml_elem=xml_xpath, elem="//ows:OnlineResource", attribute="{http://www.w3.org/1999/xlink}href")
+        self.service_provider_contact_hoursofservice = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:HoursOfService")
+        self.service_provider_contact_contactinstructions = service_helper.try_get_text_from_xml_element(xml_elem=xml_xpath, elem="//ows:ContactInstructions")
+
+    def get_capability_metadata(self, xml_obj):
+        """ Parse the wfs <Capability> metadata into the self object
+
+        PLEASE NOTICE:
+        In here we do not use minidom parsing. Yes, this function takes the xml_obj dom object as a parameter
+        but the xml xpath parsable object will be retrieved internal. So there is no usage of xml_obj in here.
+        This will be fixed one day.
+
+        Args:
+            xml_obj: A minidom object which holds the xml content
+        Returns:
+             Nothing
+        """
+        xml_xpath = service_helper.parse_xml(self.service_capabilities_xml)
+        operation_metadata = service_helper.try_get_element_from_xml("//ows:OperationsMetadata", xml_xpath)[0]
+        actions = ["GetCapabilities", "DescribeFeatureType", "GetFeature", "Transaction", "LockFeature",
+                   "GetFeatureWithLock", "GetGMLObject"]
+        get = {}
+        post = {}
+        for action in actions:
+            xpath_str = './ows:Operation[@name="' + action + '"]'
+            operation = service_helper.try_get_single_element_from_xml(xml_elem=operation_metadata, elem=xpath_str)
+            if operation is None:
+                continue
+            _get = service_helper.try_get_attribute_from_xml_element(
+                xml_elem=operation,
+                attribute="{http://www.w3.org/1999/xlink}href",
+                elem=".//ows:Get"
+            )
+            _post = service_helper.try_get_attribute_from_xml_element(
+                xml_elem=operation,
+                attribute="{http://www.w3.org/1999/xlink}href",
+                elem=".//ows:Post"
+            )
+            get[action] = _get
+            post[action] = _post
+        self.get_capabilities_uri["get"] = get.get("GetCapabilities", None)
+        self.get_capabilities_uri["post"] = post.get("GetCapabilities", None)
+
+        self.describe_feature_type_uri["get"] = get.get("DescribeFeatureType", None)
+        self.describe_feature_type_uri["post"] = post.get("DescribeFeatureType", None)
+
+        self.get_feature_uri["get"] = get.get("GetFeature", None)
+        self.get_feature_uri["post"] = post.get("GetFeature", None)
+
+        self.transaction_uri["get"] = get.get("Transaction", None)
+        self.transaction_uri["post"] = post.get("Transaction", None)
+
+        self.lock_feature_uri["get"] = get.get("LockFeature", None)
+        self.lock_feature_uri["post"] = post.get("LockFeature", None)
+
+        self.get_feature_with_lock_uri["get"] = get.get("GetFeatureWithLock", None)
+        self.get_feature_with_lock_uri["post"] = post.get("GetFeatureWithLock", None)
+
+        self.get_gml_object_uri["get"] = get.get("GetGMLObject", None)
+        self.get_gml_object_uri["post"] = post.get("GetGMLObject", None)
+
+    def get_feature_type_metadata(self, xml_obj):
+        xml_xpath = service_helper.parse_xml(self.service_capabilities_xml)
+        feature_type_list = service_helper.try_get_element_from_xml(elem="//wfs:FeatureType", xml_elem=xml_xpath)
+
+        # Feature types
+        for feature_type in feature_type_list:
+            f_t = FeatureType()
+            f_t.title = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem="//wfs:Title")
+            f_t.name = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem="//wfs:Name")
+            f_t.abstract = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem="//wfs:Abstract")
+
+            # Feature type keywords
+            keywords = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem="//wfs:Keyword")
+            keyword_list = []
+            for keyword in keywords:
+                kw = Keyword.objects.get_or_create(name=keyword.text)
+                kw_to_ft = KeywordToFeatureType()
+                kw_to_ft.keyword = kw
+                kw_to_ft.feature_type = f_t
+                keyword_list.append(kw_to_ft)
+
+            # SRS
+            srs_default = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem="//wfs:")
+
 
 
 class OGCWebFeatureService_2_0_0(OGCWebFeatureService):

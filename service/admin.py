@@ -50,7 +50,6 @@ class LayerAdmin(admin.ModelAdmin):
 class ServiceToFormatAdmin(admin.ModelAdmin):
     pass
 
-
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(ServiceType, ServiceTypeAdmin)
 admin.site.register(Module, ModuleAdmin)

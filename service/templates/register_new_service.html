@@ -1,6 +1,5 @@
 {% load i18n static %}
 <style>
-
     .form-table{
         color: gray;
         max-height: 30vh;
@@ -46,6 +45,18 @@
     .form-table td{
 
     }
+
+    .loading-spinner{
+        border: none;
+        color: white;
+        padding: 0 10px 0 0;
+    }
+
+    .submit-button{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 </style>
 
 {% block body %}
@@ -83,7 +94,12 @@
                 <td class="field">{{ uri }}</td>
             </tr>
         </table>
-        <div class="submit-button button">{% trans 'Continue' %}</div>
+        <div class="submit-button button">
+            <div class="loading-spinner hide">
+                <i class="fas fa-circle-notch fa-spin"></i>
+            </div>
+            <span id="submit-text">{% trans 'Continue' %}</span>
+        </div>
     </form>
     {% endif %}
 </div>
@@ -93,8 +109,10 @@
         toggleOverlay("");
     });
     $(".submit-button").click(function(){
+        $(this).children(".loading-spinner").toggleClass("hide");
+        var buttonText = $("#submit-text");
         replaceButtonWithSpinner($(this));
-        startServiceRegistration('{{ full_uri }}');
+        startServiceRegistration('{{ full_uri }}', buttonText);
     });
 </script>
 

@@ -5,13 +5,20 @@
 .. moduleauthor:: Armin Retterath <armin.retterath@gmail.com>
 
 """
+import json
+import uuid
 from abc import abstractmethod
+
+import datetime
 
 from service.helper.enums import VersionTypes
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
 from service.helper import service_helper
+from service.models import ServiceType, Service, Metadata, Layer, Dimension, ServiceToFormat, Keyword, \
+    KeywordToMetadata, ReferenceSystem, ReferenceSystemToMetadata
+from structure.models import Organization, Group
 
 
 class OGCWebMapServiceFactory:
@@ -425,6 +432,155 @@ class OGCWebMapService(OGCWebService):
                 0].text
         except (IndexError, AttributeError) as error:
             pass
+
+    def __persist_layers(self, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
+                         published_for: Organization, root_md: Metadata):
+        """ Iterates over all layers given by the service and persist them, including additional data like metadata and so on.
+
+        Args:
+            layers (list): A list of layers
+            service_type (ServiceType): The type of the service this function has to deal with
+            wms (Service): The root or parent service which holds all these layers
+            creator (Group): The group that started the registration process
+            publisher (Organization): The organization that publishes the service
+            published_for (Organization): The organization for which the first organization publishes this data (e.g. 'in the name of')
+            root_md (Metadata): The metadata of the root service (parameter 'wms')
+        Returns:
+        """
+        pers_list = []
+        # iterate over all layers
+        for layer_obj in layers:
+            layer = Layer()
+            layer.identifier = layer_obj.identifier
+            layer.servicetype = service_type
+            layer.position = layer_obj.position
+            layer.parent_layer = service_helper.find_parent_in_list(pers_list, layer_obj.parent)
+            layer.is_queryable = layer_obj.is_queryable
+            layer.is_cascaded = layer_obj.is_cascaded
+            layer.is_opaque = layer_obj.is_opaque
+            layer.scale_min = layer_obj.capability_scale_hint.get("min")
+            layer.scale_max = layer_obj.capability_scale_hint.get("max")
+            layer.bbox_lat_lon = json.dumps(layer_obj.capability_bbox_lat_lon)
+            layer.created_by = creator
+            layer.published_for = published_for
+            layer.published_by = publisher
+            layer.parent_service = wms
+            layer.get_styles_uri = layer_obj.get_styles_uri
+            layer.get_legend_graphic_uri = layer_obj.get_legend_graphic_uri
+            layer.get_feature_info_uri = layer_obj.get_feature_info_uri
+            layer.get_map_uri = layer_obj.get_map_uri
+            layer.describe_layer_uri = layer_obj.describe_layer_uri
+            layer.get_capabilities_uri = layer_obj.get_capabilities_uri
+            if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
+                dim = Dimension()
+                dim.layer = layer
+                dim.name = layer_obj.dimension.get("name")
+                dim.units = layer_obj.dimension.get("units")
+                dim.default = layer_obj.dimension.get("default")
+                dim.extent = layer_obj.dimension.get("extent")
+                # ToDo: Refine for inherited and nearest_value and so on
+                dim.save()
+            layer.save()
+
+            # iterate over all available mime types and actions
+            for action, format_list in layer_obj.format_list.items():
+                for _format in format_list:
+                    service_to_format = ServiceToFormat()
+                    service_to_format.service = layer
+                    service_to_format.action = action
+                    service_to_format.mime_type = _format
+                    service_to_format.save()
+            # to keep an eye on all handled layers we need to store them in a temporary list
+            pers_list.append(layer)
+
+            metadata = Metadata()
+            metadata.title = layer_obj.title
+            metadata.uuid = uuid.uuid4()
+            metadata.abstract = layer_obj.abstract
+            metadata.online_resource = root_md.online_resource
+            metadata.service = layer
+            metadata.contact_phone = root_md.contact_phone
+            metadata.contact_person_position = root_md.contact_person_position
+            metadata.contact_person = root_md.contact_person
+            metadata.contact_organization = root_md.contact_organization
+            metadata.contact_email = root_md.contact_email
+            metadata.city = root_md.city
+            metadata.post_code = root_md.post_code
+            metadata.address = root_md.address
+            metadata.state_or_province = root_md.state_or_province
+            metadata.access_constraints = root_md.access_constraints
+            metadata.is_active = False
+            metadata.save()
+
+            # handle keywords of this layer
+            for kw in layer_obj.capability_keywords:
+                keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+                kw_2_md = KeywordToMetadata()
+                kw_2_md.metadata = metadata
+                kw_2_md.keyword = keyword
+                kw_2_md.save()
+
+            # handle reference systems
+            for sys in layer_obj.capability_projection_system:
+                ref_sys = ReferenceSystem.objects.get_or_create(name=sys)[0]
+                ref_sys_2_md = ReferenceSystemToMetadata()
+                ref_sys_2_md.metadata = metadata
+                ref_sys_2_md.reference_system = ref_sys
+                ref_sys_2_md.save()
+
+    def persist(self):
+        """ Persists the web map service and all of its related content and data
+
+        Args:
+
+        Returns:
+
+        """
+        orga_published_for = Organization.objects.get(name="Testorganization")
+        orga_publisher = Organization.objects.get(name="Testorganization")
+
+        group = Group.objects.get(name="Testgroup")
+
+        # fill objects
+        service_type = ServiceType.objects.get_or_create(
+            name=self.service_type.value,
+            version=self.service_version.value
+        )[0]
+
+        service = Service()
+        service.created_on = datetime.datetime.now()
+        service.availability = 0.0
+        service.is_available = False
+        service.servicetype = service_type
+        service.published_for = orga_published_for
+        service.created_by = group
+        service.save()
+
+        # metadata
+        metadata = Metadata()
+        metadata.uuid = uuid.uuid4()
+        metadata.title = self.service_identification_title
+        metadata.abstract = self.service_identification_abstract
+        metadata.online_resource = self.service_provider_onlineresource_linkage
+        metadata.service = service
+        metadata.is_root = True
+        ## contact
+        metadata.contact_person = self.service_provider_responsibleparty_individualname
+        metadata.contact_email = self.service_provider_address_electronicmailaddress
+        metadata.contact_organization = orga_publisher
+        metadata.contact_person_position = self.service_provider_responsibleparty_positionname
+        metadata.contact_phone = self.service_provider_telephone_voice
+        metadata.city = self.service_provider_address_city
+        metadata.address = self.service_provider_address
+        metadata.post_code = self.service_provider_address_postalcode
+        metadata.state_or_province = self.service_provider_address_state_or_province
+        ## other
+        metadata.access_constraints = self.service_identification_accessconstraints
+        metadata.is_active = False
+        metadata.save()
+
+        self.__persist_layers(layers=self.layers, service_type=service_type, wms=service, creator=group, root_md=metadata,
+                         publisher=orga_publisher, published_for=orga_published_for)
 
 
 class OGCWebMapServiceLayer(OGCLayer):

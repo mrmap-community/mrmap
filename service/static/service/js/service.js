@@ -7,7 +7,6 @@ function toggleOverlay(html){
 }
 
 function replaceButtonWithSpinner(button){
-
 }
 
 function changeOverlayContent(html){
@@ -40,7 +39,9 @@ function removeService(id, confirmed){
 
 }
 
-function startServiceRegistration(uri){
+function startServiceRegistration(uri, button){
+    var oldHtml = button.html();
+    button.html("Please wait...");
     $.ajax({
         url: "/service/new/",
         headers:{
@@ -53,6 +54,7 @@ function startServiceRegistration(uri){
         dataType: 'json',
         success: function(data){
             changeOverlayContent(data["html"]);
+            button.html(oldHtml);
         }
     });
 

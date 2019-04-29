@@ -41,15 +41,24 @@ def index(request: HttpRequest):
 
 
 def remove(request: HttpRequest):
+    """ Renders the remove form for a service
+
+    Args:
+        request(HttpRequest): The used request
+    Returns:
+        A rendered view
+    """
     template = "remove_service_confirmation.html"
     service_id = request.GET.dict().get("id")
     confirmed = request.GET.dict().get("confirmed")
     service = get_object_or_404(Service, id=service_id)
+    service_layers = Layer.objects.filter(parent_service=service)
     metadata = get_object_or_404(Metadata, service=service)
     if confirmed == 'false':
         params = {
             "service": service,
-            "metadata": metadata
+            "metadata": metadata,
+            "service_layers": service_layers,
         }
         html = render_to_string(template_name=template, context=params, request=request)
         return BackendAjaxResponse(html=html).get_response()
@@ -148,19 +157,19 @@ def new_service(request: HttpRequest):
     if url_dict.get("service") is ServiceTypes.WMS:
         # create WMS object
         wms_factory = OGCWebMapServiceFactory()
-        web_service = wms_factory.get_ogc_wms(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
+        wms = wms_factory.get_ogc_wms(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
 
         # let it load it's capabilities
-        web_service.create_from_capabilities()
+        wms.create_from_capabilities()
 
         # check quality of metadata
         # ToDo: :3
 
         params = {
-            "wms": web_service,
+            "wms": wms,
         }
         # persist data
-        service_helper.persist_wms(web_service) # ToDo: Move the persisting from service helper to wms class!
+        wms.persist()
 
     elif url_dict.get("service") is ServiceTypes.WFS:
         # create WFS object

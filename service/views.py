@@ -14,7 +14,7 @@ from service.helper.enums import ServiceTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
-from service.models import Metadata, Layer, Service, ServiceToFormat
+from service.models import Metadata, Layer, Service, ServiceToFormat, ServiceType
 
 
 def index(request: HttpRequest):
@@ -33,9 +33,24 @@ def index(request: HttpRequest):
         if display_service_type == 'layers':
             # show single layers instead of service grouped
             is_root = False
-    md_list = Metadata.objects.filter(is_root=is_root)
+    services_wms = Service.objects.filter(servicetype__name="wms")
+    services_wfs = Service.objects.filter(servicetype__name="wfs")
+    md_list_wms = []
+    md_list_wfs = []
+    for service in services_wms:
+        servs = Metadata.objects.filter(service=service)
+        for serv in servs:
+            md_list_wms.append(serv)
+    for service in services_wfs:
+        servs = Metadata.objects.filter(service=service)
+        for serv in servs:
+            md_list_wfs.append(serv)
+    # md_list_wms = Metadata.objects.filter(is_root=is_root, servicetype=wms_type)
+    # md_list_wfs = Metadata.objects.filter(is_root=is_root, servicetype=wfs_type)
+    i = 0
     params = {
-        "metadata_list": md_list,
+        "metadata_list_wms": md_list_wms,
+        "metadata_list_wfs": md_list_wfs,
         "select_default": request.session.get("displayServices", None)
     }
     return render(request=request, template_name=template, context=params)

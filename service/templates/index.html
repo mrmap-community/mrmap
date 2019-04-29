@@ -43,7 +43,7 @@
                 {% trans 'Created' %}
             </th>
         </tr>
-        {% for md in metadata_list %}
+        {% for md in metadata_list_wms %}
             <tr>
                 <td class="table-cell">
                     <a href="{% url 'service:detail-wms' id=md.id %}">{{ md.title }}</a>
@@ -84,23 +84,47 @@
 
         </div>
     </div>
-    {% if wfs_list|length > 0 %}
+    {% if metadata_list_wfs|length > 0 %}
     <table class="overview-table">
         <tr>
             <th class="table-header">
                 {% trans 'Title' %}
             </th>
             <th class="table-header">
+                {% trans 'Parent service' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Active' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Organization' %}
+            </th>
+            <th class="table-header">
                 {% trans 'Created' %}
             </th>
-        </tr>{% for wfs in wfs_list %}
-        <tr>
-            <td class="table-cell">
-                {{ wfs.title }}
-            </td>
-            <td class="table-cell">
-                {{ wfs.createdOn }}
-            </td>
+        </tr>
+        {% for wfs in metadata_list_wfs %}
+            <tr>
+                <td class="table-cell">
+                    <a href="{% url 'service:detail-wms' id=wfs.id %}">{{ wfs.title }}</a>
+                </td>
+                <td class="table-cell">
+                    {{ wfs.service.parent_service }}
+                </td>
+                <td class="table-cell">
+                    {% if wfs.is_active %}
+                    <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
+                    {% else %}
+                    <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
+                    {% endif %}
+                </td>
+                <td class="table-cell">
+                    {{ wfs.contact_organization }}
+                </td>
+                <td class="table-cell">
+                    {{ wfs.created }}
+                </td>
+            </tr>
         </tr>{% endfor %}
     </table>
     {% endif %}

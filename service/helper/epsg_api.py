@@ -19,6 +19,22 @@ class EpsgApi:
         self.registry_uri = "http://www.epsg-registry.org/export.htm?gml="
         self.id_prefix = "urn:ogc:def:crs:EPSG::"
 
+    def get_subelements(self, identifier: str):
+        """ Returns both, id and prefix in a dict
+
+        Args:
+            identifier: The unresolved identifier for an SRS
+        Returns:
+             A dict containing the parts of the identifier
+        """
+        id = self.get_real_identifier(identifier)
+        prefix = identifier[:len(identifier) - len(str(id))]
+        return {
+            "code": id,
+            "prefix": prefix,
+        }
+
+
     def get_real_identifier(self, identifier: str):
         """ Returns only the numeral identifier of the spatial reference system.
 

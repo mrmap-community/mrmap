@@ -524,9 +524,8 @@ class OGCWebMapService(OGCWebService):
             # handle reference systems
             epsg_api = EpsgApi()
             for sys in layer_obj.capability_projection_system:
-                id = epsg_api.get_real_identifier(sys)
-                prefix = sys[:len(sys)-len(str(id))]
-                ref_sys = ReferenceSystem.objects.get_or_create(code=id, prefix=prefix)[0]
+                parts = epsg_api.get_subelements(sys)
+                ref_sys = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
                 ref_sys_2_md = ReferenceSystemToMetadata()
                 ref_sys_2_md.metadata = metadata
                 ref_sys_2_md.reference_system = ref_sys
@@ -552,7 +551,6 @@ class OGCWebMapService(OGCWebService):
         )[0]
 
         service = Service()
-        service.created_on = datetime.datetime.now()
         service.availability = 0.0
         service.is_available = False
         service.servicetype = service_type

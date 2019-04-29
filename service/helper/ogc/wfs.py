@@ -1,6 +1,7 @@
 #common classes for handling of WFS (OGC WebFeatureServices)
 #http://www.opengeospatial.org/standards/wf
 import json
+import uuid
 from abc import abstractmethod
 
 from MapSkinner.settings import XML_NAMESPACES
@@ -8,7 +9,9 @@ from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper
-from service.models import FeatureType, Keyword, ReferenceSystem, ReferenceSystemToFeatureType, KeywordToFeatureType
+from service.models import FeatureType, Keyword, ReferenceSystem, ReferenceSystemToFeatureType, KeywordToFeatureType, \
+    Service, Metadata, ServiceType, KeywordToMetadata
+from structure.models import Organization, Group
 
 
 class OGCWebFeatureService(OGCWebService):
@@ -262,9 +265,8 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             epsg_api = EpsgApi()
             for srs in srs_list:
                 srs_val = service_helper.get_text_from_node(srs)
-                id = epsg_api.get_real_identifier(srs_val)
-                prefix = srs[:len(srs_val)-len(str(id))]
-                srs_model = ReferenceSystem.objects.get_or_create(code=id, prefix=prefix)[0]
+                parts = epsg_api.get_subelements(srs_val)
+                srs_model = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
                 srs_to_feature_type = ReferenceSystemToFeatureType()
                 srs_to_feature_type.feature_type = feature_type
                 srs_to_feature_type.reference_system = srs_model
@@ -279,8 +281,70 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             }
 
     def persist(self):
-        # ToDo: Implement this!
-        pass
+        orga_published_for = Organization.objects.get(name="Testorganization")
+        orga_publisher = Organization.objects.get(name="Testorganization")
+
+        group = Group.objects.get(name="Testgroup")
+
+        # Service
+        service = Service()
+        service_type = ServiceType.objects.get_or_create(
+            name=self.service_type.value,
+            version=self.service_version.value
+        )[0]
+        service.servicetype = service_type
+        service.created_by = group
+        service.published_for = orga_published_for
+        service.availability = 0.0
+        service.is_available = False
+        service.save()
+
+        # Metadata
+        md = Metadata()
+        md.title = self.service_identification_title
+        md.uuid = uuid.uuid4()
+        md.abstract = self.service_identification_abstract
+        md.online_resource = self.service_provider_onlineresource_linkage
+        md.is_root = True
+        md.contact_organization = self.service_provider_providername
+        md.contact_person = self.service_provider_responsibleparty_individualname
+        md.contact_person_position = self.service_provider_responsibleparty_positionname
+        md.contact_phone = self.service_provider_telephone_voice
+        md.contact_email = self.service_provider_address_electronicmailaddress
+        md.address = self.service_provider_address
+        md.country = self.service_provider_address_country
+        md.city = self.service_provider_address_city
+        md.post_code = self.service_provider_address_postalcode
+        md.state_or_province = self.service_provider_address_state_or_province
+        md.authority_url = self.service_provider_url
+        md.access_constraints = self.service_identification_accessconstraints
+        md.service = service
+        md.save()
+
+        # Keywords
+        for kw in self.service_identification_keywords:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            kw_to_md = KeywordToMetadata()
+            kw_to_md.keyword = keyword
+            kw_to_md.metadata = md
+            kw_to_md.save()
+
+        # feature types
+        for feature_type_key, feature_type_val in self.feature_type_list.items():
+            f_t = feature_type_val.get("feature_type")
+            f_t.save()
+            # keywords of feature types
+            for kw in feature_type_val.get("keyword_list"):
+                kw.feature_type = f_t
+                kw.save()
+            # srs of feature types
+            for srs in feature_type_val.get("srs_list"):
+                srs.feature_type = f_t
+                srs.save()
+
+        # toDo: Implement persisting of get_feature_uri and so on
+
+
 
 
 class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
@@ -398,6 +462,7 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
     def get_feature_type_metadata(self, xml_obj):
         xml_xpath = service_helper.parse_xml(self.service_capabilities_xml)
         feature_type_list = service_helper.try_get_element_from_xml(elem="//wfs:FeatureType", xml_elem=xml_xpath)
+        epsg_api = EpsgApi()
 
         # Feature types
         for feature_type in feature_type_list:
@@ -417,8 +482,48 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
                 keyword_list.append(kw_to_ft)
 
             # SRS
-            srs_default = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem="//wfs:")
+            ## default
+            srs = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem="//wfs:DefaultSRS")
+            parts = epsg_api.get_subelements(srs)
+            srs_default = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
+            f_t.default_srs = srs_default
+            ## additional
+            srs = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem="//wfs:OtherSRS")
+            srs_list = []
+            for sys in srs:
+                parts = epsg_api.get_subelements(sys.text)
+                srs_other = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
+                ref_sys_to_f_t = ReferenceSystemToFeatureType()
+                ref_sys_to_f_t.feature_type = f_t
+                ref_sys_to_f_t.reference_system = srs_other
+                srs_list.append(ref_sys_to_f_t)
 
+            # Latlon bounding box
+            tmp = service_helper.try_get_text_from_xml_element("//ows:LowerCorner", feature_type)
+            min_x = tmp.split(" ")[0]
+            min_y = tmp.split(" ")[1]
+            tmp = service_helper.try_get_text_from_xml_element("//ows:UpperCorner", feature_type)
+            max_x = tmp.split(" ")[0]
+            max_y = tmp.split(" ")[1]
+            tmp = {
+                "minx": min_x,
+                "miny": min_y,
+                "maxx": max_x,
+                "maxy": max_y,
+            }
+            f_t.bbox_lat_lon = json.dumps(tmp)
+
+            # put the feature types objects with keywords and reference systems into the dict for the persisting process
+            # will happen later
+            self.feature_type_list[f_t.name] = {
+                "feature_type": f_t,
+                "keyword_list": keyword_list,
+                "srs_list": srs_list,
+            }
+
+    def persist(self):
+        # ToDo: Implement this!
+        pass
 
 
 class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
@@ -429,6 +534,22 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
             service_type=ServiceTypes.WFS,
         )
 
+    def get_feature_type_metadata(self, xml_obj):
+        pass
+
+    def get_capability_metadata(self, xml_obj):
+        pass
+
+    def persist(self):
+        pass
+
+    def get_service_metadata(self, xml_obj):
+        pass
+
+    def create_from_capabilities(self):
+        pass
+
+
 
 class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
     def __init__(self, service_connect_url):
@@ -437,3 +558,18 @@ class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
             service_version=VersionTypes.V_2_0_2,
             service_type=ServiceTypes.WFS,
         )
+
+    def get_feature_type_metadata(self, xml_obj):
+        pass
+
+    def get_capability_metadata(self, xml_obj):
+        pass
+
+    def persist(self):
+        pass
+
+    def get_service_metadata(self, xml_obj):
+        pass
+
+    def create_from_capabilities(self):
+        pass

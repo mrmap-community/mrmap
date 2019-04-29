@@ -155,7 +155,7 @@ def new_service(request: HttpRequest):
     cap_url = POST_params.get("uri", "")
     url_dict = service_helper.split_service_uri(cap_url)
     epsg_api = EpsgApi()
-    epsg_api.resolve_crs_identifier("EPSG:25832")
+    epsg_api.get_axis_order("EPSG:25832")
 
     if url_dict.get("service") is ServiceTypes.WMS:
         # create WMS object

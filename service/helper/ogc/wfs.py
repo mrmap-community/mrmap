@@ -5,6 +5,7 @@ from abc import abstractmethod
 
 from MapSkinner.settings import XML_NAMESPACES
 from service.helper.enums import VersionTypes, ServiceTypes
+from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, ReferenceSystemToFeatureType, KeywordToFeatureType
@@ -258,9 +259,12 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             # append only the ...ToFeatureType objects, since the reference systems will be created automatically
             srs_list = node.getElementsByTagName("SRS")
             srs_model_list = []
+            epsg_api = EpsgApi()
             for srs in srs_list:
                 srs_val = service_helper.get_text_from_node(srs)
-                srs_model = ReferenceSystem.objects.get_or_create(name=srs_val)[0]
+                id = epsg_api.get_real_identifier(srs_val)
+                prefix = srs[:len(srs_val)-len(str(id))]
+                srs_model = ReferenceSystem.objects.get_or_create(code=id, prefix=prefix)[0]
                 srs_to_feature_type = ReferenceSystemToFeatureType()
                 srs_to_feature_type.feature_type = feature_type
                 srs_to_feature_type.reference_system = srs_model

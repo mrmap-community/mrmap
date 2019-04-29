@@ -12,6 +12,7 @@ from abc import abstractmethod
 import datetime
 
 from service.helper.enums import VersionTypes
+from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
@@ -521,8 +522,11 @@ class OGCWebMapService(OGCWebService):
                 kw_2_md.save()
 
             # handle reference systems
+            epsg_api = EpsgApi()
             for sys in layer_obj.capability_projection_system:
-                ref_sys = ReferenceSystem.objects.get_or_create(name=sys)[0]
+                id = epsg_api.get_real_identifier(sys)
+                prefix = sys[:len(sys)-len(str(id))]
+                ref_sys = ReferenceSystem.objects.get_or_create(code=id, prefix=prefix)[0]
                 ref_sys_2_md = ReferenceSystemToMetadata()
                 ref_sys_2_md.metadata = metadata
                 ref_sys_2_md.reference_system = ref_sys

@@ -19,7 +19,7 @@ class EpsgApi:
         self.registry_uri = "http://www.epsg-registry.org/export.htm?gml="
         self.id_prefix = "urn:ogc:def:crs:EPSG::"
 
-    def _get_real_identifier(self, identifier: str):
+    def get_real_identifier(self, identifier: str):
         """ Returns only the numeral identifier of the spatial reference system.
 
         E.g. for 'EPSG:1111' the integer 1111 will be returned
@@ -47,7 +47,7 @@ class EpsgApi:
         Returns:
 
         """
-        id = self._get_real_identifier(identifier)
+        id = self.get_real_identifier(identifier)
 
         XML_NAMESPACES["gml"] = "http://www.opengis.net/gml/3.2"
 
@@ -69,6 +69,9 @@ class EpsgApi:
         order = []
         for a in axis:
             order.append(a.text)
-        order = "(" + ",".join(order) + ")"
+        order = {
+            "first_axis": order[0],
+            "second_axis": order[1],
+        }
         return order
 

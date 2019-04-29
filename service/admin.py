@@ -40,6 +40,7 @@ class ServiceAdmin(admin.ModelAdmin):
 
 
 class ReferenceSystemAdmin(admin.ModelAdmin):
+    list_display = ('code', 'prefix', 'version')
     pass
 
 

@@ -149,12 +149,12 @@ class Module(Service):
 
 
 class ReferenceSystem(models.Model):
-    identifier = models.CharField(max_length=100)
+    code = models.CharField(max_length=100)
     prefix = models.CharField(max_length=255, default="EPSG:")
     version = models.CharField(max_length=50, default="9.6.1")
 
     def __str__(self):
-        return self.identifier
+        return self.code
 
 
 class ReferenceSystemToMetadata(models.Model):
@@ -162,7 +162,7 @@ class ReferenceSystemToMetadata(models.Model):
     reference_system = models.ForeignKey(ReferenceSystem, on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.reference_system.identifier
+        return self.reference_system.code
 
 
 class Dataset(models.Model):

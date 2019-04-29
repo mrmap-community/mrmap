@@ -57,7 +57,7 @@ function startServiceRegistration(uri, button){
             button.html(oldHtml);
         },
         always: function(data){
-            button.html(oldHtml);
+            $(".loading-spinner").toggleClass("hide");
         }
     });
 

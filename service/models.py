@@ -7,7 +7,7 @@ from structure.models import User, Group, UserGroupRoleRel, Organization
 
 
 class Keyword(models.Model):
-    keyword = models.CharField(max_length=100)
+    keyword = models.CharField(max_length=255)
 
     def __str__(self):
         return self.keyword
@@ -20,7 +20,7 @@ class Metadata(models.Model):
     online_resource = models.CharField(max_length=255, null=True)
     is_root = models.BooleanField(default=False)
     # Service md
-    service = models.ForeignKey('Service', null=True, blank=True, on_delete=models.CASCADE)
+    service = models.OneToOneField('Service', null=True, blank=True, on_delete=models.CASCADE)
     contact_person = models.CharField(max_length=100, null=True)
     contact_person_position = models.CharField(max_length=100, null=True)
     contact_organization = models.CharField(max_length=100, null=True)
@@ -138,7 +138,7 @@ class Layer(Service):
     bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
 
     def __str__(self):
-        return self.identifier
+        return str(self.identifier)
 
 
 class Module(Service):
@@ -171,7 +171,7 @@ class Dataset(models.Model):
 
 
 class ServiceToFormat(models.Model):
-    service = models.ForeignKey(Service, on_delete=models.CASCADE)
+    service = models.ForeignKey(Service, on_delete=models.CASCADE, related_name="formats")
     action = models.CharField(max_length=255, null=True)
     mime_type = models.CharField(max_length=500)
 

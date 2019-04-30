@@ -223,16 +223,11 @@ def detail(request: HttpRequest, id):
     service_md = get_object_or_404(Metadata, id=id)
     service = get_object_or_404(Service, id=service_md.service.id)
     layers = Layer.objects.filter(parent_service=service_md.service)
-    if len(layers) == 0:
-        # happens only when not the parent service but the layer itself is selected
-        layers = Layer.objects.filter(id=service_md.service.id)
-    layers_md_list = []
-    for layer in layers:
-        service_helper.fetch_detail_view_layer(layer, layers_md_list)
+    layers_md_list = layers.filter(parent_layer=None)
 
     params = {
         "root_metadata": service_md,
         "root_service": service,
-        "layer_list": layers_md_list,
+        "layers": layers_md_list,
     }
     return render(request=request, template_name=template, context=params)

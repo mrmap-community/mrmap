@@ -149,4 +149,12 @@ $(document).ready(function(){
         toggleCollapsibleSymbol(img);
     });
 
+    $(".sublayer-headline").click(function(){
+        var elem = $(this);
+        var table = elem.siblings(".sublayer");
+        table.toggle("fast");
+        var img = elem.find("img");
+        toggleCollapsibleSymbol(img);
+    });
+
 });

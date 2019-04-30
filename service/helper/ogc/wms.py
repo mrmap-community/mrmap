@@ -63,6 +63,8 @@ class OGCWebMapService(OGCWebService):
     ### IDENTIFIER ###
     def __parse_identifier(self, layer, layer_obj):
         layer_obj.identifier = service_helper.try_get_text_from_xml_element("./Name", layer)
+        if layer_obj.identifier is None:
+            layer_obj.identifier = service_helper.generate_name(layer_obj.capability_projection_system)
 
     ### KEYWORDS ###
     def __parse_keywords(self, layer, layer_obj):
@@ -272,7 +274,6 @@ class OGCWebMapService(OGCWebService):
             layer_obj.position = position
             # iterate over single parsing functions -> improves maintainability
             parse_functions = [
-                self.__parse_identifier,
                 self.__parse_keywords,
                 self.__parse_abstract,
                 self.__parse_title,
@@ -287,6 +288,7 @@ class OGCWebMapService(OGCWebService):
                 self.__parse_formats,
                 self.__parse_dimension,
                 self.__parse_style,
+                self.__parse_identifier,
             ]
             thread_list = []
             for func in parse_functions:

@@ -1,5 +1,5 @@
 .collapsible-table{
-    padding: 0 0 0 5vw;
+    padding: 0 0 0 1vw;
 }
 
 .layer-title, .back-title{
@@ -46,4 +46,29 @@
     border: none;
     color: white;
     padding: 10px
+}
+
+.sublayer-container{
+    padding: 0 0 0 0;
+}
+
+.sublayer-headline img{
+    padding: 0 10px 0 0;
+    -webkit-filter: invert(1.0);
+    filter: invert(1.0);
+}
+
+.sublayer-headline{
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background-color: var(--secondary-color);
+    color: white;
+    font-size: 1.2em;
+}
+
+
+.sublayer-headline:hover{
+    cursor: pointer;
+    background-color: var(--secondary-color-light);
 }

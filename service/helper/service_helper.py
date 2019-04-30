@@ -5,6 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 16.04.19
 
 """
+import hashlib
 import json
 import urllib
 
@@ -16,6 +17,7 @@ from lxml import etree
 
 from MapSkinner.settings import DEFAULT_SERVICE_VERSION, XML_NAMESPACES
 from service.helper.enums import VersionTypes, ServiceTypes
+from service.helper.epsg_api import EpsgApi
 from service.models import Layer, Metadata, ServiceToFormat
 
 
@@ -319,6 +321,7 @@ def fetch_detail_view_layer(layer, layers_md_list: list):
     res = {}
     md = get_object_or_404(Metadata, service=layer)
     formats = list(ServiceToFormat.objects.filter(service=layer))
+    sub_layers = Layer.objects.filter(parent_layer=layer)
     f_l = {}
     for _format in formats:
         if f_l.get(_format.action, None) is None:
@@ -329,3 +332,22 @@ def fetch_detail_view_layer(layer, layers_md_list: list):
     res["layer"] = layer
     res["formats"] = f_l
     layers_md_list.append(res)
+
+
+def generate_name(srs_list: list=[]):
+    """ Generates a name made from a list of spatial reference systems
+
+    Args:
+        srs_list:
+    Returns:
+         A hash made from the srs elements
+    """
+    tmp = []
+    epsg_api = EpsgApi()
+    for srs in srs_list:
+        id = epsg_api.get_real_identifier(srs)
+        tmp.append(str(id))
+    tmp = "".join(tmp)
+    m = hashlib.sha256()
+    m.update(tmp.encode("UTF-8"))
+    return m.hexdigest()

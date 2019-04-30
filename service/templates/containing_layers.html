@@ -1,0 +1,117 @@
+
+{% load static i18n %}
+
+{% if layers|length > 0 %}
+<div class="sublayer-container">
+    <div class="sublayer-headline">
+        <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+        {% trans 'Show sublayers' %} ({{ layers|length }})
+    </div>
+    <div class="sublayer hidden">
+        {% for layer in layers %}
+        <div class="collapsible-table">
+            <h3 class="layer-title" title="{% trans 'Click to expand' %}">
+                <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+                {{ layer.identifier }}
+            </h3>
+            <div class="layer-content hidden">
+            <table>
+                <tr>
+                    <th>{% trans 'Identifier' %}</th>
+                    <td>{{ layer.identifier }}</td>
+                </tr>
+                <tr>
+                    <th>{% trans 'Abstract' %}</th>
+                    <td>{{ layer.metadata.abstract }}</td>
+                </tr>
+                <tr>
+                    <th>{% trans 'Hits' %}</th>
+                    <td>{{ layer.hits }}</td>
+                </tr>
+                <tr>
+                    <th>{% trans 'Is available' %}</th>
+                    <td>
+                        {% if layer.is_available %}
+                        <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
+                        {% else %}
+                        <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>{% trans 'Is queryable' %}</th>
+                    <td>
+                        {% if layer.is_queryable %}
+                        <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
+                        {% else %}
+                        <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>{% trans 'Is opaque' %}</th>
+                    <td>
+                        {% if layer.is_opaque %}
+                        <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
+                        {% else %}
+                        <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>{% trans 'Is cascaded' %}</th>
+                    <td>
+                        {% if layer.is_cascaded %}
+                        <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
+                        {% else %}
+                        <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>{% trans 'Scale range' %}</th>
+                    <td>[{{ layer.scale_min }}, {{ layer.scale_max }}]</td>
+                </tr>
+                <tr>
+                    <th>{% trans 'Bounding box (lat lon)' %}</th>
+                    <td>
+                        {{ layer.bbox_lat_lon }}
+                    </td>
+                </tr>
+                <tr>
+                    <th>{% trans 'Uuid' %}</th>
+                    <td>{{ layer.metadata.uuid }}</td>
+                </tr>
+                <tr>
+                    <th>{% trans 'Mime types:' %}</th>
+                    <td>
+                        <table>
+                        {% for format in layer.formats.all %}
+                        <tr>
+                            <th>{{ format.action }}</th>
+                            <td>{{ format.mime_type }}</td>
+                            <!--<td>
+                                {% for mime_type in mime_type_list %}
+                                    {{ mime_type }} <br>
+                                {% endfor %}
+                            </td>-->
+                        </tr>
+                        {% endfor %}
+
+                        </table>
+                    </td>
+                </tr>
+            </table>
+            {% if layer.child_layer.all|length > 0 %}
+                {% with layer.child_layer.all as layers%}
+                    {% include 'containing_layers.html' %}
+                {% endwith %}
+            {% endif %}
+
+            </div>
+        </div>
+
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

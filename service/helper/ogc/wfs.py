@@ -102,13 +102,68 @@ class OGCWebFeatureService(OGCWebService):
 
     @abstractmethod
     def persist(self):
-        """ Implementation has to be in the wfs classes directly since they are too different from version to version.
-        No common method is implementable.
+        orga_published_for = Organization.objects.get(name="Testorganization")
+        orga_publisher = Organization.objects.get(name="Testorganization")
 
-        :param xml_obj:
-        :return:
-        """
-        pass
+        group = Group.objects.get(name="Testgroup")
+
+        # Service
+        service = Service()
+        service_type = ServiceType.objects.get_or_create(
+            name=self.service_type.value,
+            version=self.service_version.value
+        )[0]
+        service.servicetype = service_type
+        service.created_by = group
+        service.published_for = orga_published_for
+        service.availability = 0.0
+        service.is_available = False
+        service.save()
+
+        # Metadata
+        md = Metadata()
+        md.title = self.service_identification_title
+        md.uuid = uuid.uuid4()
+        md.abstract = self.service_identification_abstract
+        md.online_resource = self.service_provider_onlineresource_linkage
+        md.is_root = True
+        md.contact_organization = self.service_provider_providername
+        md.contact_person = self.service_provider_responsibleparty_individualname
+        md.contact_person_position = self.service_provider_responsibleparty_positionname
+        md.contact_phone = self.service_provider_telephone_voice
+        md.contact_email = self.service_provider_address_electronicmailaddress
+        md.address = self.service_provider_address
+        md.country = self.service_provider_address_country
+        md.city = self.service_provider_address_city
+        md.post_code = self.service_provider_address_postalcode
+        md.state_or_province = self.service_provider_address_state_or_province
+        md.authority_url = self.service_provider_url
+        md.access_constraints = self.service_identification_accessconstraints
+        md.service = service
+        md.save()
+
+        # Keywords
+        for kw in self.service_identification_keywords:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            kw_to_md = KeywordToMetadata()
+            kw_to_md.keyword = keyword
+            kw_to_md.metadata = md
+            kw_to_md.save()
+
+        # feature types
+        for feature_type_key, feature_type_val in self.feature_type_list.items():
+            f_t = feature_type_val.get("feature_type")
+            f_t.save()
+            # keywords of feature types
+            for kw in feature_type_val.get("keyword_list"):
+                kw.feature_type = f_t
+                kw.save()
+            # srs of feature types
+            for srs in feature_type_val.get("srs_list"):
+                srs.feature_type = f_t
+                srs.save()
+
+        # toDo: Implement persisting of get_feature_uri and so on
 
 class OGCWebFeatureServiceFactory:
     """ Creates the correct OGCWebFeatureService objects
@@ -279,72 +334,6 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                 "keyword_list": kw_list,
                 "srs_list": srs_model_list,
             }
-
-    def persist(self):
-        orga_published_for = Organization.objects.get(name="Testorganization")
-        orga_publisher = Organization.objects.get(name="Testorganization")
-
-        group = Group.objects.get(name="Testgroup")
-
-        # Service
-        service = Service()
-        service_type = ServiceType.objects.get_or_create(
-            name=self.service_type.value,
-            version=self.service_version.value
-        )[0]
-        service.servicetype = service_type
-        service.created_by = group
-        service.published_for = orga_published_for
-        service.availability = 0.0
-        service.is_available = False
-        service.save()
-
-        # Metadata
-        md = Metadata()
-        md.title = self.service_identification_title
-        md.uuid = uuid.uuid4()
-        md.abstract = self.service_identification_abstract
-        md.online_resource = self.service_provider_onlineresource_linkage
-        md.is_root = True
-        md.contact_organization = self.service_provider_providername
-        md.contact_person = self.service_provider_responsibleparty_individualname
-        md.contact_person_position = self.service_provider_responsibleparty_positionname
-        md.contact_phone = self.service_provider_telephone_voice
-        md.contact_email = self.service_provider_address_electronicmailaddress
-        md.address = self.service_provider_address
-        md.country = self.service_provider_address_country
-        md.city = self.service_provider_address_city
-        md.post_code = self.service_provider_address_postalcode
-        md.state_or_province = self.service_provider_address_state_or_province
-        md.authority_url = self.service_provider_url
-        md.access_constraints = self.service_identification_accessconstraints
-        md.service = service
-        md.save()
-
-        # Keywords
-        for kw in self.service_identification_keywords:
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            kw_to_md = KeywordToMetadata()
-            kw_to_md.keyword = keyword
-            kw_to_md.metadata = md
-            kw_to_md.save()
-
-        # feature types
-        for feature_type_key, feature_type_val in self.feature_type_list.items():
-            f_t = feature_type_val.get("feature_type")
-            f_t.save()
-            # keywords of feature types
-            for kw in feature_type_val.get("keyword_list"):
-                kw.feature_type = f_t
-                kw.save()
-            # srs of feature types
-            for srs in feature_type_val.get("srs_list"):
-                srs.feature_type = f_t
-                srs.save()
-
-        # toDo: Implement persisting of get_feature_uri and so on
-
-
 
 
 class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
@@ -520,10 +509,6 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
                 "keyword_list": keyword_list,
                 "srs_list": srs_list,
             }
-
-    def persist(self):
-        # ToDo: Implement this!
-        pass
 
 
 class OGCWebFeatureService_2_0_0(OGCWebFeatureService):

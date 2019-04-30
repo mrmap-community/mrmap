@@ -209,7 +209,7 @@ class Style(models.Model):
 class FeatureType(models.Model):
     name = models.CharField(max_length=255)
     title = models.CharField(max_length=255)
-    abstract = models.TextField()
+    abstract = models.TextField(null=True)
     searchable = models.BooleanField(default=False)
     default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True)
     inspire_download = models.BooleanField(default=False)

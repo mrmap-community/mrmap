@@ -38,7 +38,7 @@ def index(request: HttpRequest):
     md_list_wms = []
     md_list_wfs = []
     for service in services_wms:
-        servs = Metadata.objects.filter(service=service)
+        servs = Metadata.objects.filter(service=service, is_root=is_root)
         for serv in servs:
             md_list_wms.append(serv)
     for service in services_wfs:
@@ -184,7 +184,7 @@ def new_service(request: HttpRequest):
         # ToDo: :3
 
         params = {
-            "wms": wms,
+            "service": wms,
         }
         # persist data
         wms.persist()
@@ -201,10 +201,8 @@ def new_service(request: HttpRequest):
         wfs.persist()
 
         params = {
-            "wfs": wfs,
+            "service": wfs,
         }
-    # else:
-    #     params = {}
 
     template = "check_metadata_form.html"
     html = render_to_string(template_name=template, request=request, context=params)

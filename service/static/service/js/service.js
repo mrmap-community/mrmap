@@ -68,8 +68,8 @@ function checkServiceRequestURI(){
     if (uri.length == 0){
         return
     }
-    if (!uri.startsWith("http://")){
-        uri = "http://" + uri;
+    if (!uri.startsWith("http")){
+        uri = "http://" + uri; // use http by default
     }
     $.ajax({
         url: "/service/new/register-form",

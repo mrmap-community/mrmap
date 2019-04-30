@@ -9,8 +9,11 @@ import json
 import uuid
 from abc import abstractmethod
 
-import datetime
+import time
 
+from django.db import transaction
+
+from MapSkinner.settings import EXEC_TIME_PRINT
 from service.helper.enums import VersionTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.ows import OGCWebService
@@ -228,7 +231,6 @@ class OGCWebMapService(OGCWebService):
             pass
         layer_obj.dimension = dims_list
 
-
     ### STYLES ###
     def __parse_style(self, layer, layer_obj):
         style = service_helper.try_get_element_from_xml("./Style", layer)
@@ -286,9 +288,13 @@ class OGCWebMapService(OGCWebService):
                 self.__parse_dimension,
                 self.__parse_style,
             ]
+            thread_list = []
             for func in parse_functions:
+                # thread_list.append(
+                #     Thread(target=func, args=(layer, layer_obj))
+                # )
                 func(layer=layer, layer_obj=layer_obj)
-
+            # execute_threads(thread_list)
             if self.layers is None:
                 self.layers = []
             self.layers.append(layer_obj)
@@ -310,6 +316,7 @@ class OGCWebMapService(OGCWebService):
         layers = xml_obj.xpath("//Capability/Layer")
         self.__get_layers_recursive(layers)
 
+    @abstractmethod
     def create_from_capabilities(self):
         """ Fills the object with data from the capabilities document
 
@@ -318,16 +325,16 @@ class OGCWebMapService(OGCWebService):
         """
         # get xml as iterable object
         xml_obj = service_helper.parse_xml(xml=self.service_capabilities_xml)
-        if self.service_version is VersionTypes.V_1_0_0:
-            self.get_service_metadata(xml_obj=xml_obj)
-        if self.service_version is VersionTypes.V_1_1_0:
-            self.get_service_metadata(xml_obj=xml_obj)
-        if self.service_version is VersionTypes.V_1_1_1:
-            self.get_service_metadata(xml_obj=xml_obj)
-        if self.service_version is VersionTypes.V_1_3_0:
-            self.get_service_metadata(xml_obj=xml_obj)
-            self.get_version_specific_metadata(xml_obj=xml_obj)
+
+        start_time = time.time()
+        self.get_service_metadata(xml_obj=xml_obj)
+        print(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
+
+        self.get_version_specific_metadata(xml_obj=xml_obj)
+
+        start_time = time.time()
         self.get_layers(xml_obj=xml_obj)
+        print(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
 
     def get_service_metadata(self, xml_obj):
         """ This private function holds the main parsable elements which are part of every wms specification starting at 1.0.0
@@ -531,6 +538,7 @@ class OGCWebMapService(OGCWebService):
                 ref_sys_2_md.reference_system = ref_sys
                 ref_sys_2_md.save()
 
+    @transaction.atomic
     def persist(self):
         """ Persists the web map service and all of its related content and data
 

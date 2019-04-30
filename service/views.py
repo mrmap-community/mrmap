@@ -1,6 +1,7 @@
 import json
-import urllib
+import time
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 
@@ -8,6 +9,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 
 from MapSkinner.responses import BackendAjaxResponse
+from MapSkinner.settings import EXEC_TIME_PRINT
 from service.forms import NewServiceURIForm
 from service.helper import service_helper
 from service.helper.enums import ServiceTypes
@@ -26,28 +28,14 @@ def index(request: HttpRequest):
          A view
     """
     template = "index.html"
-    param_GET = request.GET.dict()
     display_service_type = request.session.get("displayServices", None)
     is_root = True
     if display_service_type is not None:
         if display_service_type == 'layers':
             # show single layers instead of service grouped
             is_root = False
-    services_wms = Service.objects.filter(servicetype__name="wms")
-    services_wfs = Service.objects.filter(servicetype__name="wfs")
-    md_list_wms = []
-    md_list_wfs = []
-    for service in services_wms:
-        servs = Metadata.objects.filter(service=service, is_root=is_root)
-        for serv in servs:
-            md_list_wms.append(serv)
-    for service in services_wfs:
-        servs = Metadata.objects.filter(service=service)
-        for serv in servs:
-            md_list_wfs.append(serv)
-    # md_list_wms = Metadata.objects.filter(is_root=is_root, servicetype=wms_type)
-    # md_list_wfs = Metadata.objects.filter(is_root=is_root, servicetype=wfs_type)
-    i = 0
+    md_list_wms = Metadata.objects.filter(service__servicetype__name="wms", is_root=is_root)
+    md_list_wfs = Metadata.objects.filter(service__servicetype__name="wfs")
     params = {
         "metadata_list_wms": md_list_wms,
         "metadata_list_wfs": md_list_wfs,
@@ -187,7 +175,10 @@ def new_service(request: HttpRequest):
             "service": wms,
         }
         # persist data
+
+        start_time = time.time()
         wms.persist()
+        print(EXEC_TIME_PRINT % ("persisting", time.time() - start_time))
 
     elif url_dict.get("service") is ServiceTypes.WFS:
         # create WFS object

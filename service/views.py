@@ -1,11 +1,9 @@
 import json
 import time
 
-from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render, get_object_or_404, redirect
+from django.http import HttpRequest
+from django.shortcuts import render, get_object_or_404
 
-# Create your views here.
 from django.template.loader import render_to_string
 
 from MapSkinner.responses import BackendAjaxResponse
@@ -230,19 +228,7 @@ def detail(request: HttpRequest, id):
         layers = Layer.objects.filter(id=service_md.service.id)
     layers_md_list = []
     for layer in layers:
-        res = {}
-        md = get_object_or_404(Metadata, service=layer)
-        formats = list(ServiceToFormat.objects.filter(service=layer))
-        f_l = {}
-        for _format in formats:
-            if f_l.get(_format.action, None) is None:
-                f_l[_format.action] = []
-            f_l[_format.action].append(_format.mime_type)
-        layer.bbox_lat_lon = json.loads(layer.bbox_lat_lon)
-        res["metadata"] = md
-        res["layer"] = layer
-        res["formats"] = f_l
-        layers_md_list.append(res)
+        service_helper.fetch_detail_view_layer(layer, layers_md_list)
 
     params = {
         "root_metadata": service_md,

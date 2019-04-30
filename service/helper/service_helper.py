@@ -5,16 +5,18 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 16.04.19
 
 """
+import json
 import urllib
 
 from xml.dom import minidom
 from xml.dom.minidom import Element, Text, Node
 
+from django.shortcuts import get_object_or_404
 from lxml import etree
 
 from MapSkinner.settings import DEFAULT_SERVICE_VERSION, XML_NAMESPACES
 from service.helper.enums import VersionTypes, ServiceTypes
-from service.models import Layer
+from service.models import Layer, Metadata, ServiceToFormat
 
 
 def resolve_version_enum(version:str):
@@ -304,3 +306,26 @@ def find_parent_in_list(list, parent):
                 return elem
         else:
             continue
+
+
+def fetch_detail_view_layer(layer, layers_md_list: list):
+    """ Outsources the gathering of layer detail information from the views.py
+
+    Args:
+        layer:
+        layers_md_list:
+    Returns:
+    """
+    res = {}
+    md = get_object_or_404(Metadata, service=layer)
+    formats = list(ServiceToFormat.objects.filter(service=layer))
+    f_l = {}
+    for _format in formats:
+        if f_l.get(_format.action, None) is None:
+            f_l[_format.action] = []
+        f_l[_format.action].append(_format.mime_type)
+    layer.bbox_lat_lon = json.loads(layer.bbox_lat_lon)
+    res["metadata"] = md
+    res["layer"] = layer
+    res["formats"] = f_l
+    layers_md_list.append(res)

@@ -20,8 +20,7 @@ from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
 from service.helper import service_helper
-from service.models import ServiceType, Service, Metadata, Layer, Dimension, ServiceToFormat, Keyword, \
-    KeywordToMetadata, ReferenceSystem, ReferenceSystemToMetadata
+from service.models import ServiceType, Service, Metadata, Layer, Dimension, ServiceToFormat, Keyword, ReferenceSystem
 from structure.models import Organization, Group
 
 
@@ -521,20 +520,15 @@ class OGCWebMapService(OGCWebService):
             # handle keywords of this layer
             for kw in layer_obj.capability_keywords:
                 keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-                kw_2_md = KeywordToMetadata()
-                kw_2_md.metadata = metadata
-                kw_2_md.keyword = keyword
-                kw_2_md.save()
+                metadata.keywords.add(keyword)
 
             # handle reference systems
             epsg_api = EpsgApi()
             for sys in layer_obj.capability_projection_system:
                 parts = epsg_api.get_subelements(sys)
                 ref_sys = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
-                ref_sys_2_md = ReferenceSystemToMetadata()
-                ref_sys_2_md.metadata = metadata
-                ref_sys_2_md.reference_system = ref_sys
-                ref_sys_2_md.save()
+                metadata.reference_system.add(ref_sys)
+
 
             if len(layer_obj.child_layer) > 0:
                 self.__persist_layers(layers=layer_obj.child_layer, service_type=service_type, wms=wms, creator=creator, root_md=root_md,

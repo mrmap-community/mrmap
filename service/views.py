@@ -73,10 +73,14 @@ def activate(request: HttpRequest):
     param_POST = request.POST.dict()
     service_id = param_POST.get("id", -1)
     new_status = service_helper.resolve_boolean_attribute_val(param_POST.get("active", False))
-    # get service
+    # get service and change status
     service = Service.objects.get(id=service_id)
     service.metadata.is_active = new_status
     service.metadata.save()
+    # get root_layer of service and start changing of all statuses
+    root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
+    service_helper.change_layer_status_recursively(root_layer, new_status)
+
     return BackendAjaxResponse(html="").get_response()
 
 def session(request: HttpRequest):

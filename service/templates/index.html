@@ -49,7 +49,7 @@
                     <a href="{% url 'service:detail-wms' id=md.id %}">{{ md.title }}</a>
                 </td>
                 <td class="table-cell">
-                    {{ md.service.parent_service }}
+                    {{ md.service.parent_service.metadata.title }}
                 </td>
                 <td class="table-cell">
                     {% if md.is_active %}

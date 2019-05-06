@@ -358,3 +358,10 @@ def generate_name(srs_list: list=[]):
     m = hashlib.sha256()
     m.update(tmp.encode("UTF-8"))
     return m.hexdigest()
+
+
+def change_layer_status_recursively(root_layer, new_status):
+    root_layer.metadata.is_active = new_status
+    root_layer.metadata.save()
+    for layer in root_layer.child_layer.all():
+        change_layer_status_recursively(layer, new_status)

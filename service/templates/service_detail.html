@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block head %}
+    <script type="text/javascript" src="{% static '/service/js/service.js' %}"></script>
+    <link rel="stylesheet" type="text/css" href="{% static '/service/css/service.css' %}" media="all" />
+{% endblock %}
+
+{% block body %}
+<a href="{% url 'service:index' %}">
+    <h3 class="back-title">
+        <img src="{% static 'service/images/icn_back.png' %}">
+        {% trans 'Back' %}
+    </h3>
+</a>
+<hr>
+<div class="container-left">
+    <div class="remove-service-container" data-parent="{{ root_service.id }}">
+        <img src="{% static 'service/images/icn_minus.png' %}">
+        <span>{% trans 'Remove service' %}</span>
+    </div>
+    
+</div>
+<div class="container-right">
+    
+</div>
+
+<h2>{% trans 'Service Metadata' %}</h2>
+<table>
+    <tr>
+        <th>{% trans 'Abstract' %}</th>
+        <td>{{ root_metadata.abstract }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Online resource' %}</th>
+        <td>{{ root_metadata.online_resource }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Access Constraints' %}</th>
+        <td>{{ root_metadata.access_constraints }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Responsible Person' %}</th>
+        <td>{{ root_metadata.contact_person }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Organization' %}</th>
+        <td>{{ root_metadata.contact_organization }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Phone' %}</th>
+        <td>{{ root_metadata.contact_phone }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'E-Mail' %}</th>
+        <td>{{ root_metadata.contact_email }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'State or province' %}</th>
+        <td>{{ root_metadata.state_or_province }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Address' %}</th>
+        <td>{{ root_metadata.address }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'City' %}</th>
+        <td>{{ root_metadata.city }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Post code' %}</th>
+        <td>{{ root_metadata.post_code }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Uuid' %}</th>
+        <td>{{ root_metadata.uuid }}</td>
+    </tr>
+</table>
+
+<br>
+
+{% include 'containing_layers.html' %}
+
+{% endblock %}

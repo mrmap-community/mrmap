@@ -1,0 +1,36 @@
+
+body{
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 100px;
+}
+
+.login-article{
+    max-width: 30%;
+}
+.login-article article{
+    color: gray;
+}
+
+.login-frame{
+    display: flex;
+    justify-content: space-around;
+    margin: 0 0 0 50px;
+    padding: 50px;
+    width: 40%;
+    max-width: 400px;
+    box-shadow: 0 0 0 1px #e5e5e5;
+}
+
+.login-logo{
+    max-width: 150px;
+    max-height: 150px;
+}
+
+.login-form{
+    margin: 0 0 0 20px;
+}
+.login-form-tr{
+    background-color: white !important;
+}

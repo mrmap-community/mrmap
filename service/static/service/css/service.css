@@ -1,0 +1,74 @@
+.collapsible-table{
+    padding: 0 0 0 1vw;
+}
+
+.layer-title, .back-title{
+    display: flex;
+    align-items: center;
+}
+.layer-title img, .back-title img{
+    padding: 0 10px 0 0;
+    filter: opacity(0.5);
+}
+
+.layer-title:hover, .back-title{
+    opacity: 0.75;
+    cursor: pointer;
+}
+
+.remove-service-container{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    background-color: red;
+    color: white;
+    font-weight: bold;
+}
+.remove-service-container:hover{
+    cursor: pointer;
+    opacity: 0.75;
+}
+
+.remove-service-container img{
+    padding: 0 10px 0 0;
+    -webkit-filter: invert(1.0);
+    filter: invert(1.0);
+}
+
+.layer-content{
+    border: 1px solid var(--primary-color);
+    padding: 5px;
+    margin: 0 0 0 5vw;
+}
+
+.loading-spinner{
+    border: none;
+    color: white;
+    padding: 10px
+}
+
+.sublayer-container{
+    padding: 0 0 0 0;
+}
+
+.sublayer-headline img{
+    padding: 0 10px 0 0;
+    -webkit-filter: invert(1.0);
+    filter: invert(1.0);
+}
+
+.sublayer-headline{
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background-color: var(--secondary-color);
+    color: white;
+    font-size: 1.2em;
+}
+
+
+.sublayer-headline:hover{
+    cursor: pointer;
+    background-color: var(--secondary-color-light);
+}

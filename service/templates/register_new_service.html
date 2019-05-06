@@ -1,0 +1,119 @@
+{% load i18n static %}
+<style>
+    .form-table{
+        color: gray;
+        max-height: 30vh;
+        overflow-y: auto;
+    }
+
+    .field-label, .field{
+        font-size: 1.2em;
+    }
+
+    .field input{
+        color: gray;
+        background-color: white;
+        border: 1px solid gray;
+        border-radius: 0.25rem;
+        padding: 0.375rem 0.75rem;
+    }
+
+    .field input:focus{
+        -webkit-box-shadow: 0 0 10px var(--primary-color);
+        -moz-box-shadow: 0 0 10px var(--primary-color);
+        box-shadow: 0 0 10px var(--primary-color);
+    }
+
+    .form-submit-area{
+        padding: 20px 0;
+    }
+
+
+    #capabilities-uri{
+        width: 80%;
+    }
+
+    .form-table{
+        font-size: 0.9em !important;
+        color: black;
+    }
+    .form-table tbody{
+        border: 1px solid var(--primary-color-light);
+        border-radius: 10px;
+        padding: 10px;
+    }
+    .form-table td{
+
+    }
+
+    .loading-spinner{
+        border: none;
+        color: white;
+        padding: 0 10px 0 0;
+    }
+
+    .submit-button{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
+{% block body %}
+<div class="modal-dialog">
+    <div class="modal-close" title="{% trans 'Close' %}">
+        x
+    </div>
+    {% if error %}
+    <article>
+        {% trans 'The URI is invalid.' %}<br>
+        {% trans 'Please check and try again.' %}
+        <div class="button close-button">{% trans 'Okay' %}</div>
+    </article>
+    {% else %}
+    <article>
+        {% trans 'You are about to register this service.' %}<br>
+        {% trans 'Do you want to continue?' %}
+    </article>
+    <form action="/service/new/" method="post" >
+        <table class="form-table">
+            <tr>
+                <td class="field-label">{% trans 'OGC Request:' %}</td>
+                <td class="field">{{ request_action }}</td>
+            </tr>
+            <tr>
+                <td class="field-label">{% trans 'OGC service:' %}</td>
+                <td class="field">{{ service_type }}</td>
+            </tr>
+            <tr>
+                <td class="field-label">{% trans 'OGC Version:' %}</td>
+                <td class="field">{{ version }}</td>
+            </tr>
+            <tr>
+                <td class="field-label">{% trans 'URI:' %}</td>
+                <td class="field">{{ uri }}</td>
+            </tr>
+        </table>
+        <div class="submit-button button">
+            <div class="loading-spinner hide">
+                <i class="fas fa-circle-notch fa-spin"></i>
+            </div>
+            <span id="submit-text">{% trans 'Continue' %}</span>
+        </div>
+    </form>
+    {% endif %}
+</div>
+
+<script>
+    $(".modal-close, .close-button").click(function(){
+        toggleOverlay("");
+    });
+    $(".submit-button").click(function(){
+        $(this).children(".loading-spinner").toggleClass("hide");
+        var buttonText = $("#submit-text");
+        replaceButtonWithSpinner($(this));
+        startServiceRegistration('{{ full_uri }}', buttonText);
+    });
+</script>
+
+{% endblock %}

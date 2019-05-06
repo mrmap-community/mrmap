@@ -1,0 +1,18 @@
+
+
+#capabilities-uri{
+    width: 80%;
+}
+
+.form-table{
+    font-size: 0.9em !important;
+    color: black;
+}
+.form-table tbody{
+    border: 1px solid var(--primary-color-light);
+    border-radius: 10px;
+    padding: 10px;
+}
+.form-table td{
+
+}

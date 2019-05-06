@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+{% load i18n static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MapSkinner - Login</title>
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/login.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/form.css' %}" media="all" />
+    <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
+</head>
+<body>
+<div class="login-article">
+    <h1>{{ login_article_title }}</h1>
+    <article>{{ login_article }}</article>
+</div>
+<div class="login-frame">
+    <img class="login-logo" src="{% static '/structure/images/mr_map.png' %}">
+    <div class="login-form">
+        <form action="{% url 'structure:login' %}" method="post">
+            {% csrf_token %}
+            <table class="form-table">
+                {% for field in login_form %}
+                <tr>
+                    <td class="field-label">{{ field.label_tag }}</td>
+                </tr>
+                <tr class="login-form-tr">
+                    <td class="field">{{ field }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+            <div class="form-submit-area">
+                <input class="button" type="submit" value="{% trans 'Sign in' %}">
+            </div>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>

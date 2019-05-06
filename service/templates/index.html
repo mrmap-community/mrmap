@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block head %}
+    <script type="text/javascript" src="{% static '/service/js/service.js' %}"></script>
+{% endblock %}
+
+{% block body %}
+<div class="overview">
+    <h1>{% trans 'Overview services' %}</h1>
+    <div class="overview-title-actions-container">
+        <div class="container-left">
+            <h2>{% trans 'WMS' %}</h2>
+            <div class="overview-action">
+                <span class="action-button" title="{% trans 'Register new' %}" datatype="wms">
+                    +
+                </span>
+            </div>
+        </div>
+        <div class="container-right">
+            <select id="service-display-selector" title="Group elements">
+                <option value="services" {% if select_default == 'services' %} selected {% endif %}>{% trans 'Show services' %}</option>
+                <option value="layers" {% if select_default == 'layers' %} selected {% endif %}>{% trans 'Show layers' %}</option>
+            </select>
+        </div>
+    </div>
+    {% if metadata_list_wms|length > 0 %}
+    <table class="overview-table">
+        <tr>
+            <th class="table-header">
+                {% trans 'Title' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Parent service' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Active' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Organization' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Created' %}
+            </th>
+        </tr>
+        {% for md in metadata_list_wms %}
+            <tr>
+                <td class="table-cell">
+                    <a href="{% url 'service:detail-wms' id=md.id %}">{{ md.title }}</a>
+                </td>
+                <td class="table-cell">
+                    {{ md.service.parent_service }}
+                </td>
+                <td class="table-cell">
+                    {% if wms.is_active %}
+                    <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
+                    {% else %}
+                    <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
+                    {% endif %}
+                </td>
+                <td class="table-cell">
+                    {{ md.contact_organization }}
+                </td>
+                <td class="table-cell">
+                    {{ md.created }}
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    <hr>
+
+    <div class="overview-title-actions-container">
+        <div class="container-left">
+        <h2>{% trans 'WFS' %}</h2>
+            <div class="overview-action">
+                <span class="action-button" title="{% trans 'Register new' %}" datatype="wfs">
+                    +
+                </span>
+            </div>
+        </div>
+        <div class="container-right">
+
+        </div>
+    </div>
+    {% if metadata_list_wfs|length > 0 %}
+    <table class="overview-table">
+        <tr>
+            <th class="table-header">
+                {% trans 'Title' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Parent service' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Active' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Organization' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Created' %}
+            </th>
+        </tr>
+        {% for wfs in metadata_list_wfs %}
+            <tr>
+                <td class="table-cell">
+                    <a href="{% url 'service:detail-wms' id=wfs.id %}">{{ wfs.title }}</a>
+                </td>
+                <td class="table-cell">
+                    {{ wfs.service.parent_service }}
+                </td>
+                <td class="table-cell">
+                    {% if wfs.is_active %}
+                    <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
+                    {% else %}
+                    <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
+                    {% endif %}
+                </td>
+                <td class="table-cell">
+                    {{ wfs.contact_organization }}
+                </td>
+                <td class="table-cell">
+                    {{ wfs.created }}
+                </td>
+            </tr>
+        </tr>{% endfor %}
+    </table>
+    {% endif %}
+
+</div>
+{% endblock %}

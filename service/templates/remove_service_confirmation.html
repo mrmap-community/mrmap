@@ -1,0 +1,50 @@
+{% block body %}
+{% load static i18n %}
+
+<style>
+    .submit-button:hover{
+        background-color: red;
+        border: 1px solid red;
+    }
+</style>
+
+<div class="modal-dialog">
+    <div class="modal-close" title="{% trans 'Close' %}">
+        x
+    </div>
+    <article>
+        {% trans 'You are about to remove this service.' %}<br>
+        {% trans 'This will remove all related layers and metadata.' %}<br>
+        {% trans 'Do you want to continue?' %}
+    </article>
+    <table class="form-table">
+        <tr>
+            <th>{% trans 'ID:' %}</th>
+            <td>{{ service.id }}</td>
+        </tr>
+        <tr>
+            <th>{% trans 'Title:' %}</th>
+            <td>{{ metadata.title }}</td>
+        </tr>
+        <tr>
+            <th>{% trans 'Abstract:' %}</th>
+            <td>{{ metadata.abstract }}</td>
+        </tr>
+        <tr>
+            <th>{% trans 'Number of layers:' %}</th>
+            <td>{{ service_layers|length }}</td>
+        </tr>
+    </table>
+    <div class="submit-button button">{% trans 'Yes, remove!' %}</div>
+</div>
+
+<script>
+    $(".modal-close, .close-button").click(function(){
+        toggleOverlay("");
+    });
+    $(".submit-button").click(function(){
+        replaceButtonWithSpinner($(this));
+        removeService({{ service.id }},true);
+    });
+</script>
+{% endblock %}

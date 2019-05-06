@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+{% load i18n static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MapSkinner</title>
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/overview.css' %}" media="all" />
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
+    <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
+    <script type="text/javascript" src="{% static '/structure/js/base.js' %}"></script>
+    {% block head %}
+    
+    {% endblock %}
+</head>
+<header>
+    <nav class="navigation-bar">
+        <div class="navigation-bar-left">
+            <div class="navigation-menu">
+                <a class="navigation-title" href="{% url 'structure:index' %}">
+                    {% trans 'Structure' %}
+                </a>
+                <div class="navigation-element-list">
+                    <a href="{% url 'structure:organizations' %}">
+                        <div class="navigation-element">
+                            {% trans 'Organizations' %}
+                        </div>
+                    </a>
+                    <a href="{% url 'structure:groups' %}">
+                        <div class="navigation-element">
+                            {% trans 'Groups' %}
+                        </div>
+                    </a>
+                </div>
+            </div>
+            <div class="navigation-menu">
+                <a class="navigation-title" href="{% url 'service:index' %}">
+                    {% trans 'Services' %}
+                </a>
+                <div class="navigation-element-list">
+                    <a href="{% url 'service:wms' %}">
+                        <div class="navigation-element">
+                            {% trans 'WMS' %}
+                        </div>
+                    </a>
+                    <a href="{% url 'service:wfs' %}">
+                        <div class="navigation-element">
+                            {% trans 'WFS' %}
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+        </div>
+        <div class="navigation-bar-right">
+            <a id="logout-button" href="{% url 'structure:logout' %}">
+                {% trans 'Logout' %}
+                <img id="logout-img" src="{% static '/structure/images/logout.png' %}">
+            </a>
+        </div>
+    </nav>
+</header>
+
+<body>
+<div id="body-content">
+    <div id="overlay">
+    </div>
+{% block body %}
+
+{% endblock %}
+
+</div>
+</body>
+
+<footer>
+
+</footer>
+
+</html>

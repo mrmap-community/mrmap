@@ -11,8 +11,11 @@ https://docs.djangoproject.com/en/2.1/ref/settings/
 """
 
 import os
+from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+from service.helper.enums import ConnectionType, VersionTypes
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -24,6 +27,36 @@ SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+
+EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
+
+PROXIES = {
+    "http": "http://10.240.20.164:8080",
+    "https": "http://10.240.20.164:8080"
+}
+
+XML_NAMESPACES = {
+    "ogc": "http://www.opengis.net/ogc",
+    "ows": "http://www.opengis.net/ows",
+    "wfs": "http://www.opengis.net/wfs",
+    "wms": "http://www.opengis.net/wms",
+    "xlink": "http://www.w3.org/1999/xlink",
+    "gml": "http://www.opengis.net/gml",
+    "xsi": "http://www.w3.org/2001/XMLSchema-instance",
+    "ave": "http://repository.gdi-de.org/schemas/adv/produkt/alkis-vereinfacht/1.0",
+    "inspire_common": "http://inspire.ec.europa.eu/schemas/common/1.0",
+    "inspire_dls": "http://inspire.ec.europa.eu/schemas/inspire_dls/1.0",
+    "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset"
+}
+
+# Some special things for govbender
+DEFAULT_CONNECTION_TYPE = ConnectionType.REQUESTS
+DEFAULT_SERVICE_VERSION = VersionTypes.V_1_1_1
+HTTP_PROXY = "http://10.240.20.164:8080"
+REQUEST_PROXIES = {
+    "http": "http://10.240.20.164:8080",
+    "https": "http://10.240.20.164:8080",
+}
 
 ALLOWED_HOSTS = []
 
@@ -40,7 +73,7 @@ INSTALLED_APPS = [
     'django.contrib.postgres',
     'django.contrib.gis',
     'service',
-    'user',
+    'structure',
     'django_extensions',
 ]
 
@@ -59,7 +92,9 @@ ROOT_URLCONF = 'MapSkinner.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            BASE_DIR + "/templates",
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -114,6 +149,15 @@ AUTH_PASSWORD_VALIDATORS = [
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
+LANGUAGES = (
+    ('en', _('English')),
+    ('de', _('German')),
+)
+
+LOCALE_PATHS = (
+    os.path.join(BASE_DIR, 'locale'),
+)
+
 
 TIME_ZONE = 'UTC'
 
@@ -128,3 +172,4 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.1/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR + "/static/"

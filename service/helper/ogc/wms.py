@@ -61,28 +61,28 @@ class OGCWebMapService(OGCWebService):
 
     ### IDENTIFIER ###
     def __parse_identifier(self, layer, layer_obj):
-        layer_obj.identifier = service_helper.try_get_text_from_xml_element("./Name", layer)
+        layer_obj.identifier = service_helper.try_get_text_from_xml_element(elem="./Name", xml_elem=layer)
         if layer_obj.identifier is None:
             layer_obj.identifier = service_helper.generate_name(layer_obj.capability_projection_system)
 
     ### KEYWORDS ###
     def __parse_keywords(self, layer, layer_obj):
-        keywords = service_helper.try_get_element_from_xml("./KeywordList/Keyword", layer)
+        keywords = service_helper.try_get_element_from_xml(elem="./KeywordList/Keyword", xml_elem=layer)
         for keyword in keywords:
             layer_obj.capability_keywords.append(keyword.text)
 
     ### ABSTRACT ###
     def __parse_abstract(self, layer, layer_obj):
-        layer_obj.abstract = service_helper.try_get_text_from_xml_element("./Abstract", layer)
+        layer_obj.abstract = service_helper.try_get_text_from_xml_element(elem="./Abstract", xml_elem=layer)
 
     ### TITLE ###
     def __parse_title(self, layer, layer_obj):
-        layer_obj.title = service_helper.try_get_text_from_xml_element("./Title", layer)
+        layer_obj.title = service_helper.try_get_text_from_xml_element(elem="./Title", xml_elem=layer)
 
     ### SRS/CRS     PROJECTION SYSTEM ###
     @abstractmethod
     def __parse_projection_system(self, layer, layer_obj):
-        srs = service_helper.try_get_element_from_xml("./SRS", layer)
+        srs = service_helper.try_get_element_from_xml(elem="./SRS", xml_elem=layer)
         for elem in srs:
             layer_obj.capability_projection_system.append(elem.text)
 
@@ -90,7 +90,7 @@ class OGCWebMapService(OGCWebService):
     @abstractmethod
     def __parse_lat_lon_bounding_box(self, layer, layer_obj):
         try:
-            bbox = service_helper.try_get_element_from_xml("./LatLonBoundingBox", layer)[0]
+            bbox = service_helper.try_get_element_from_xml(elem="./LatLonBoundingBox", xml_elem=layer)[0]
             attrs = ["minx", "miny", "maxx", "maxy"]
             for attr in attrs:
                 layer_obj.capability_bbox_lat_lon[attr] = bbox.get(attr)
@@ -132,7 +132,7 @@ class OGCWebMapService(OGCWebService):
     ### SCALE HINT ###
     def __parse_scale_hint(self, layer, layer_obj):
         try:
-            scales = service_helper.try_get_element_from_xml("./ScaleHint", layer)[0]
+            scales = service_helper.try_get_element_from_xml(elem="./ScaleHint", xml_elem=layer)[0]
             attrs = ["min", "max"]
             for attr in attrs:
                 layer_obj.capability_scale_hint[attr] = scales.get(attr)
@@ -243,7 +243,7 @@ class OGCWebMapService(OGCWebService):
             "uri": "./LegendURL/OnlineResource"
         }
         for key, val in elements.items():
-            tmp = service_helper.try_get_element_from_xml(val, style)
+            tmp = service_helper.try_get_element_from_xml(elem=val, xml_elem=style)
             try:
                 elements[key] = tmp[0]
             except (IndexError, TypeError) as error:
@@ -568,7 +568,7 @@ class OGCWebMapService(OGCWebService):
         metadata.uuid = uuid.uuid4()
         metadata.title = self.service_identification_title
         metadata.abstract = self.service_identification_abstract
-        metadata.online_resource = self.service_provider_onlineresource_linkage
+        metadata.online_resource = ",".join(self.service_provider_onlineresource_linkage)
         metadata.service = service
         metadata.is_root = True
         ## contact

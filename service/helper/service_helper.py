@@ -215,10 +215,16 @@ def resolve_boolean_attribute_val(val):
     Returns:
          val
     """
+
     try:
         val = bool(int(val))
-    except TypeError:
-        pass
+    except (TypeError, ValueError) as e:
+        if isinstance(val, str):
+            val_tmp = val.upper()
+            if val_tmp == "FALSE":
+                return False
+            if val_tmp == "TRUE":
+                return True
     return val
 
 
@@ -289,7 +295,7 @@ def try_get_text_from_xml_element(xml_elem, elem: str=None):
         xml_elem = try_get_single_element_from_xml(elem=elem, xml_elem=xml_elem)
     try:
         return xml_elem.text
-    except IndexError:
+    except AttributeError:
         return None
 
 

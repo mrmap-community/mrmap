@@ -18,6 +18,13 @@ a{
     display: none;
 }
 
+.container-row{
+    display: flex;
+    justify-content: space-between;
+    flex-direction: row;
+    align-items: center;
+}
+
 #body-content{
     padding: 0 1vw 0 1vw;
 }

@@ -16,7 +16,18 @@
     cursor: pointer;
 }
 
-.remove-service-container{
+.activate-service-container{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    background-color: green;
+    color: white;
+    font-weight: bold;
+
+}
+
+.remove-service-container, .deactivate-service-container{
     display: flex;
     align-items: center;
     justify-content: center;
@@ -25,9 +36,15 @@
     color: white;
     font-weight: bold;
 }
-.remove-service-container:hover{
+.remove-service-container:hover, .deactivate-service-container:hover, .activate-service-container:hover{
     cursor: pointer;
     opacity: 0.75;
+}
+
+.deactivate-service-container img, .activate-service-container img{
+    padding: 0 10px 0 0;
+    -webkit-filter: brightness(0.0) invert(1.0);
+    filter: brightness(0.0) invert(1.0);
 }
 
 .remove-service-container img{

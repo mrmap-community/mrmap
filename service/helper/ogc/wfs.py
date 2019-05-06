@@ -13,8 +13,7 @@ from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper
-from service.models import FeatureType, Keyword, ReferenceSystem, \
-    Service, Metadata, ServiceType
+from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType
 from structure.models import Organization, Group
 
 
@@ -294,7 +293,6 @@ class OGCWebFeatureService(OGCWebService):
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             md.keywords.add(keyword)
 
-
         # feature types
         for feature_type_key, feature_type_val in self.feature_type_list.items():
             f_t = feature_type_val.get("feature_type")
@@ -307,6 +305,7 @@ class OGCWebFeatureService(OGCWebService):
                 f_t.reference_system.add(srs)
 
         # toDo: Implement persisting of get_feature_uri and so on
+
 
 class OGCWebFeatureServiceFactory:
     """ Creates the correct OGCWebFeatureService objects

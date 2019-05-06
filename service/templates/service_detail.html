@@ -14,26 +14,46 @@
     </h3>
 </a>
 <hr>
-<div class="container-left">
-    <div class="remove-service-container" data-parent="{{ root_service.id }}">
-        <img src="{% static 'service/images/icn_minus.png' %}">
-        <span>{% trans 'Remove service' %}</span>
+<div class="container-row">
+    <div class="container-left">
+        {% if root_metadata.is_active %}
+            <div class="deactivate-service-container" data-parent="{{ root_service.id }}">
+                <img src="{% static 'service/images/icn_false.png' %}">
+                <span>{% trans 'Deactivate service' %}</span>
+            </div>
+        {% else %}
+            <div class="activate-service-container" data-parent="{{ root_service.id }}">
+                <img src="{% static 'service/images/icn_true.png' %}">
+                <span>{% trans 'Activate service' %}</span>
+            </div>
+        {% endif %}
+
     </div>
-    
-</div>
-<div class="container-right">
-    
+    <div class="container-right">
+        <div class="remove-service-container" data-parent="{{ root_service.id }}">
+            <img src="{% static 'service/images/icn_minus.png' %}">
+            <span>{% trans 'Remove service' %}</span>
+        </div>
+
+    </div>
+
 </div>
 
 <h2>{% trans 'Service Metadata' %}</h2>
 <table>
+    <tr>
+        <th>{% trans 'Uuid' %}</th>
+        <td>{{ root_metadata.uuid }}</td>
+    </tr>
     <tr>
         <th>{% trans 'Abstract' %}</th>
         <td>{{ root_metadata.abstract }}</td>
     </tr>
     <tr>
         <th>{% trans 'Online resource' %}</th>
-        <td>{{ root_metadata.online_resource }}</td>
+        <td>
+            {{ root_metadata.online_resource }}
+        </td>
     </tr>
     <tr>
         <th>{% trans 'Access Constraints' %}</th>
@@ -70,10 +90,6 @@
     <tr>
         <th>{% trans 'Post code' %}</th>
         <td>{{ root_metadata.post_code }}</td>
-    </tr>
-    <tr>
-        <th>{% trans 'Uuid' %}</th>
-        <td>{{ root_metadata.uuid }}</td>
     </tr>
 </table>
 

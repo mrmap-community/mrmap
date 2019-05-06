@@ -52,7 +52,7 @@
                     {{ md.service.parent_service }}
                 </td>
                 <td class="table-cell">
-                    {% if wms.is_active %}
+                    {% if md.is_active %}
                     <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
                     {% else %}
                     <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
@@ -112,7 +112,7 @@
                     {{ wfs.service.parent_service }}
                 </td>
                 <td class="table-cell">
-                    {% if wfs.is_active %}
+                    {% if md.is_active %}
                     <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
                     {% else %}
                     <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">

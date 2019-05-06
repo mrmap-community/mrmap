@@ -17,6 +17,10 @@
             <div class="layer-content hidden">
             <table>
                 <tr>
+                    <th>{% trans 'Uuid' %}</th>
+                    <td>{{ layer.metadata.uuid }}</td>
+                </tr>
+                <tr>
                     <th>{% trans 'Identifier' %}</th>
                     <td>{{ layer.identifier }}</td>
                 </tr>
@@ -29,8 +33,12 @@
                     <td>{{ layer.metadata.abstract }}</td>
                 </tr>
                 <tr>
-                    <th>{% trans 'Hits' %}</th>
-                    <td>{{ layer.hits }}</td>
+                    <th>{% trans 'Keywords' %}</th>
+                    <td>
+                        {% for kw in layer.metadata.keywords.all %}
+                            {{ kw }}<br>
+                        {% endfor %}
+                    </td>
                 </tr>
                 <tr>
                     <th>{% trans 'Is available' %}</th>
@@ -83,8 +91,8 @@
                     </td>
                 </tr>
                 <tr>
-                    <th>{% trans 'Uuid' %}</th>
-                    <td>{{ layer.metadata.uuid }}</td>
+                    <th>{% trans 'Hits' %}</th>
+                    <td>{{ layer.hits }}</td>
                 </tr>
                 <tr>
                     <th>{% trans 'Mime types:' %}</th>

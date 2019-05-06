@@ -69,6 +69,15 @@ def remove(request: HttpRequest):
         service.delete()
         return BackendAjaxResponse(html="", redirect="/service").get_response()
 
+def activate(request: HttpRequest):
+    param_POST = request.POST.dict()
+    service_id = param_POST.get("id", -1)
+    new_status = service_helper.resolve_boolean_attribute_val(param_POST.get("active", False))
+    # get service
+    service = Service.objects.get(id=service_id)
+    service.metadata.is_active = new_status
+    service.metadata.save()
+    return BackendAjaxResponse(html="").get_response()
 
 def session(request: HttpRequest):
     """ Can set a value to the django session

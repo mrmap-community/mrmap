@@ -215,10 +215,16 @@ def resolve_boolean_attribute_val(val):
     Returns:
          val
     """
+
     try:
         val = bool(int(val))
-    except TypeError:
-        pass
+    except (TypeError, ValueError) as e:
+        if isinstance(val, str):
+            val_tmp = val.upper()
+            if val_tmp == "FALSE":
+                return False
+            if val_tmp == "TRUE":
+                return True
     return val
 
 
@@ -276,7 +282,7 @@ def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str):
         return None
 
 
-def try_get_text_from_xml_element(elem: str, xml_elem):
+def try_get_text_from_xml_element(xml_elem, elem: str=None):
     """ Returns the text of an xml element
 
     Args:
@@ -285,10 +291,11 @@ def try_get_text_from_xml_element(elem: str, xml_elem):
     Returns:
         A string if text was found, otherwise None
     """
-    tmp = try_get_element_from_xml(elem=elem, xml_elem=xml_elem)
+    if elem is not None:
+        xml_elem = try_get_single_element_from_xml(elem=elem, xml_elem=xml_elem)
     try:
-        return tmp[0].text
-    except IndexError:
+        return xml_elem.text
+    except AttributeError:
         return None
 
 
@@ -351,3 +358,10 @@ def generate_name(srs_list: list=[]):
     m = hashlib.sha256()
     m.update(tmp.encode("UTF-8"))
     return m.hexdigest()
+
+
+def change_layer_status_recursively(root_layer, new_status):
+    root_layer.metadata.is_active = new_status
+    root_layer.metadata.save()
+    for layer in root_layer.child_layer.all():
+        change_layer_status_recursively(layer, new_status)

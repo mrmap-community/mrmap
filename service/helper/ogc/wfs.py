@@ -13,8 +13,7 @@ from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper
-from service.models import FeatureType, Keyword, ReferenceSystem, ReferenceSystemToFeatureType, KeywordToFeatureType, \
-    Service, Metadata, ServiceType, KeywordToMetadata
+from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType
 from structure.models import Organization, Group
 
 
@@ -205,10 +204,7 @@ class OGCWebFeatureService(OGCWebService):
             keyword_list = []
             for keyword in keywords:
                 kw = Keyword.objects.get_or_create(name=keyword.text)
-                kw_to_ft = KeywordToFeatureType()
-                kw_to_ft.keyword = kw
-                kw_to_ft.feature_type = f_t
-                keyword_list.append(kw_to_ft)
+                f_t.keywords.add(kw)
 
             # SRS
             ## default
@@ -224,10 +220,7 @@ class OGCWebFeatureService(OGCWebService):
             for sys in srs:
                 parts = epsg_api.get_subelements(sys.text)
                 srs_other = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
-                ref_sys_to_f_t = ReferenceSystemToFeatureType()
-                ref_sys_to_f_t.feature_type = f_t
-                ref_sys_to_f_t.reference_system = srs_other
-                srs_list.append(ref_sys_to_f_t)
+                f_t.reference_system.add(srs_other)
 
             # Latlon bounding box
             tmp = service_helper.try_get_text_from_xml_element("//ows:LowerCorner", feature_type)
@@ -298,10 +291,7 @@ class OGCWebFeatureService(OGCWebService):
         # Keywords
         for kw in self.service_identification_keywords:
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            kw_to_md = KeywordToMetadata()
-            kw_to_md.keyword = keyword
-            kw_to_md.metadata = md
-            kw_to_md.save()
+            md.keywords.add(keyword)
 
         # feature types
         for feature_type_key, feature_type_val in self.feature_type_list.items():
@@ -309,14 +299,13 @@ class OGCWebFeatureService(OGCWebService):
             f_t.save()
             # keywords of feature types
             for kw in feature_type_val.get("keyword_list"):
-                kw.feature_type = f_t
-                kw.save()
+                f_t.keywords.add(kw)
             # srs of feature types
             for srs in feature_type_val.get("srs_list"):
-                srs.feature_type = f_t
-                srs.save()
+                f_t.reference_system.add(srs)
 
         # toDo: Implement persisting of get_feature_uri and so on
+
 
 class OGCWebFeatureServiceFactory:
     """ Creates the correct OGCWebFeatureService objects
@@ -352,6 +341,10 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             service_version=VersionTypes.V_1_0_0,
             service_type=ServiceTypes.WFS,
         )
+        XML_NAMESPACES["schemaLocation"] = "http://geodatenlb1.rlp:80/geoserver/schemas/wfs/1.0.0/WFS-capabilities.xsd"
+        XML_NAMESPACES["xsi"] = "http://www.w3.org/2001/XMLSchema-instance"
+        XML_NAMESPACES["lvermgeo"] = "http://www.lvermgeo.rlp.de/lvermgeo"
+        XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs")
 
     def get_service_metadata(self, xml_obj):
         """ Parse the wfs <Service> metadata into the self object
@@ -361,37 +354,27 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         Returns:
              Nothing
         """
-        service_node = xml_obj.getElementsByTagName("Service")
+        service_node = service_helper.try_get_single_element_from_xml("/wfs:WFS_Capabilities/wfs:Service", xml_elem=xml_obj)
         # TITLE
-        title_node = service_helper.get_node_from_node_list(service_node, "Title")
-        self.service_identification_title = service_helper.get_text_from_node(title_node)
-        del title_node
+        title_node = service_helper.try_get_text_from_xml_element(elem="./wfs:Title", xml_elem=service_node)
+        self.service_identification_title = title_node
 
         # ABSTRACT
-        abstract_node = service_helper.get_node_from_node_list(service_node, "Abstract")
-        self.service_identification_abstract = service_helper.get_text_from_node(abstract_node)
-        del abstract_node
+        self.service_identification_abstract = service_helper.try_get_text_from_xml_element(elem="./wfs:Abstract", xml_elem=service_node)
 
         # FEES
-        fees_node = service_helper.get_node_from_node_list(service_node, "Fees")
-        self.service_identification_fees = service_helper.get_text_from_node(fees_node)
-        del fees_node
+        self.service_identification_fees = service_helper.try_get_text_from_xml_element(elem="./wfs:Fees", xml_elem=service_node)
 
         # ACCESS CONSTRAINTS
-        ac_node = service_helper.get_node_from_node_list(service_node, "AccessConstraints")
-        self.service_identification_accessconstraints = service_helper.get_text_from_node(ac_node)
-        del ac_node
+        self.service_identification_accessconstraints = service_helper.try_get_text_from_xml_element(elem="./wfs:AccessConstraints", xml_elem=service_node)
 
         # KEYWORDS
-        keywords_node = service_helper.get_node_from_node_list(service_node, "Keywords")
-        keywords_str = service_helper.get_text_from_node(keywords_node)
+        keywords_str = service_helper.try_get_text_from_xml_element(elem="./wfs:Keywords", xml_elem=service_node)
         self.service_identification_keywords = service_helper.resolve_keywords_array_string(keywords_str)
-        del keywords_node, keywords_str
+        del keywords_str
 
         # ONLINE RESOURCE
-        or_node = service_helper.get_node_from_node_list(service_node, "OnlineResource")
-        self.service_provider_onlineresource_linkage = service_helper.get_text_from_node(or_node)
-        del or_node
+        self.service_provider_onlineresource_linkage = service_helper.try_get_text_from_xml_element(elem="./wfs:OnlineResource", xml_elem=service_node)
 
         del service_node
 
@@ -403,19 +386,15 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         Returns:
              Nothing
         """
-        cap_node = xml_obj.getElementsByTagName("Capability")[0]
+        cap_node = service_helper.try_get_single_element_from_xml("/wfs:WFS_Capabilities/wfs:Capability", xml_elem=xml_obj)
         actions = ["GetCapabilities", "DescribeFeatureType", "GetFeature", "Transaction", "LockFeature",
                    "GetFeatureWithLock"]
         get = {}
         post = {}
         for action in actions:
-            node = cap_node.getElementsByTagName(action)[0]
-            get[action] = service_helper.get_attributes_from_node(
-                node.getElementsByTagName("Get")[0]
-            ).get("onlineResource", None)
-            post[action] = service_helper.get_attributes_from_node(
-                node.getElementsByTagName("Post")[0]
-            ).get("onlineResource", None)
+            node = service_helper.try_get_single_element_from_xml(".//wfs:" + action, cap_node)
+            get[action] = service_helper.try_get_attribute_from_xml_element(elem=".//wfs:Get", xml_elem=node, attribute="onlineResource")
+            post[action] = service_helper.try_get_attribute_from_xml_element(elem=".//wfs:Post", xml_elem=node, attribute="onlineResource")
         del cap_node
 
         self.get_capabilities_uri["get"] = get.get("GetCapabilities", None)
@@ -444,45 +423,41 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         Returns:
              Nothing
         """
-        feat_nodes = xml_obj.getElementsByTagName("FeatureType")
+        feat_nodes = service_helper.try_get_element_from_xml("/wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType", xml_obj)
         for node in feat_nodes:
             feature_type = FeatureType()
-            feature_type.name = service_helper.get_text_from_node(node.getElementsByTagName("Name")[0])
-            feature_type.title = service_helper.get_text_from_node(node.getElementsByTagName("Title")[0])
-            feature_type.abstract = service_helper.get_text_from_node(node.getElementsByTagName("Abstract")[0])
+            feature_type.name = service_helper.try_get_text_from_xml_element(elem=".//wfs:Name", xml_elem=node)
+            feature_type.title = service_helper.try_get_text_from_xml_element(elem=".//wfs:Title", xml_elem=node)
+            feature_type.abstract = service_helper.try_get_text_from_xml_element(elem=".//wfs:Abstract", xml_elem=node)
             keywords = service_helper.resolve_keywords_array_string(
-                service_helper.get_text_from_node(
-                    node.getElementsByTagName("Keywords")[0]
-                )
+                service_helper.try_get_text_from_xml_element(elem=".//wfs:Keywords", xml_elem=node)
             )
             # keywords
             # append only the ...ToFeatureType objects, since the keywords will be created automatically
             kw_list = []
             for keyword in keywords:
                 kw = Keyword.objects.get_or_create(keyword=keyword)[0]
-                kw_to_feature_type = KeywordToFeatureType()
-                kw_to_feature_type.keyword = kw
-                kw_to_feature_type.feature_type = feature_type
-                kw_list.append(kw_to_feature_type)
+                kw_list.append(kw)
 
             # lat lon bounding box
-            bbox = service_helper.get_attributes_from_node(service_helper.find_node_recursive([node], "LatLongBoundingBox"))
-            bbox = json.dumps(bbox)
+            bbox = {
+                "minx": service_helper.try_get_attribute_from_xml_element(elem="./wfs:LatLongBoundingBox", xml_elem=node, attribute="minx"),
+                "miny": service_helper.try_get_attribute_from_xml_element(elem="./wfs:LatLongBoundingBox", xml_elem=node, attribute="miny"),
+                "maxx": service_helper.try_get_attribute_from_xml_element(elem="./wfs:LatLongBoundingBox", xml_elem=node, attribute="maxx"),
+                "maxy": service_helper.try_get_attribute_from_xml_element(elem="./wfs:LatLongBoundingBox", xml_elem=node, attribute="maxy"),
+            }
             feature_type.bbox_lat_lon = bbox
 
             # reference systems
             # append only the ...ToFeatureType objects, since the reference systems will be created automatically
-            srs_list = node.getElementsByTagName("SRS")
+            srs_list = service_helper.try_get_element_from_xml("./wfs:SRS", node)
             srs_model_list = []
             epsg_api = EpsgApi()
             for srs in srs_list:
-                srs_val = service_helper.get_text_from_node(srs)
+                srs_val = service_helper.try_get_text_from_xml_element(srs)
                 parts = epsg_api.get_subelements(srs_val)
                 srs_model = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
-                srs_to_feature_type = ReferenceSystemToFeatureType()
-                srs_to_feature_type.feature_type = feature_type
-                srs_to_feature_type.reference_system = srs_model
-                srs_model_list.append(srs_to_feature_type)
+                srs_model_list.append(srs_model)
 
             # put the feature types objects with keywords and reference systems into the dict for the persisting process
             # will happen later

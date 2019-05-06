@@ -53,17 +53,20 @@ class Metadata(models.Model):
     authority_url = models.CharField(max_length=255, null=True)
     identifier = models.CharField(max_length=255, null=True)
     metadata_url = models.CharField(max_length=255, null=True)
+    # other
+    keywords = models.ManyToManyField(Keyword)
+    reference_system = models.ManyToManyField('ReferenceSystem')
 
     def __str__(self):
-        return self.uuid
+        return str(self.uuid)
 
 
-class KeywordToMetadata(models.Model):
-    metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
-    keyword = models.ForeignKey(Keyword, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return self.keyword.keyword
+# class KeywordToMetadata(models.Model):
+#     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
+#     keyword = models.ForeignKey(Keyword, on_delete=models.CASCADE)
+#
+#     def __str__(self):
+#         return self.keyword.keyword
 
 
 class TermsOfUse(models.Model):
@@ -157,12 +160,12 @@ class ReferenceSystem(models.Model):
         return self.code
 
 
-class ReferenceSystemToMetadata(models.Model):
-    metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
-    reference_system = models.ForeignKey(ReferenceSystem, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return self.reference_system.code
+# class ReferenceSystemToMetadata(models.Model):
+#     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE)
+#     reference_system = models.ForeignKey(ReferenceSystem, on_delete=models.CASCADE)
+#
+#     def __str__(self):
+#         return self.reference_system.code
 
 
 class Dataset(models.Model):
@@ -211,16 +214,19 @@ class FeatureType(models.Model):
     title = models.CharField(max_length=255)
     abstract = models.TextField(null=True)
     searchable = models.BooleanField(default=False)
-    default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True)
+    default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True, related_name="default_srs")
     inspire_download = models.BooleanField(default=False)
     bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
+    keywords = models.ManyToManyField(Keyword)
+    reference_system = models.ManyToManyField(ReferenceSystem)
 
 
-class KeywordToFeatureType(models.Model):
-    feature_type = models.ForeignKey(FeatureType, on_delete=models.CASCADE)
-    keyword = models.ForeignKey(Keyword, on_delete=models.CASCADE)
 
-
-class ReferenceSystemToFeatureType(models.Model):
-    feature_type = models.ForeignKey(FeatureType, on_delete=models.CASCADE)
-    reference_system = models.ForeignKey(ReferenceSystem, on_delete=models.CASCADE)
+# class KeywordToFeatureType(models.Model):
+#     feature_type = models.ForeignKey(FeatureType, on_delete=models.CASCADE)
+#     keyword = models.ForeignKey(Keyword, on_delete=models.CASCADE)
+#
+#
+# class ReferenceSystemToFeatureType(models.Model):
+#     feature_type = models.ForeignKey(FeatureType, on_delete=models.CASCADE)
+#     reference_system = models.ForeignKey(ReferenceSystem, on_delete=models.CASCADE)

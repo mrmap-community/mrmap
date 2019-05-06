@@ -29,14 +29,29 @@ function removeService(id, confirmed){
         success: function(data){
             var html = data["html"];
             toggleOverlay(html);
-            console.log(data);
             if(data["redirect"] !== null){
                 window.open(data["redirect"], "_self");
             }
-
         }
     })
+}
 
+function toggleServiceActiveStatus(id, active){
+    $.ajax({
+        url: "/service/activate/",
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        data:{
+            "id": id,
+            "active": active
+        },
+        type: 'post',
+        dataType: 'json',
+        success: function(data){
+            location.reload();
+        }
+    })
 }
 
 function startServiceRegistration(uri, button){
@@ -101,6 +116,17 @@ $(document).ready(function(){
         removeService(id, false);
     });
 
+    $(".deactivate-service-container, .activate-service-container").click(function(){
+        var id = $(this).attr("data-parent");
+        var elem = $(this);
+        var active = false;
+        if(elem.hasClass("activate-service-container")){
+            var active = true;
+        }
+        toggleServiceActiveStatus(id, active)
+    });
+
+
 
     $("#service-display-selector").change(function(){
         var val = $(this).val();
@@ -119,10 +145,7 @@ $(document).ready(function(){
             success: function(data){
                 location.reload();
             }
-
         });
-
-
     });
 
     $(".action-button").click(function(){

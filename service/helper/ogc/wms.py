@@ -20,8 +20,7 @@ from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
 from service.helper import service_helper
-from service.models import ServiceType, Service, Metadata, Layer, Dimension, ServiceToFormat, Keyword, \
-    KeywordToMetadata, ReferenceSystem, ReferenceSystemToMetadata
+from service.models import ServiceType, Service, Metadata, Layer, Dimension, ServiceToFormat, Keyword, ReferenceSystem
 from structure.models import Organization, Group
 
 
@@ -62,28 +61,28 @@ class OGCWebMapService(OGCWebService):
 
     ### IDENTIFIER ###
     def __parse_identifier(self, layer, layer_obj):
-        layer_obj.identifier = service_helper.try_get_text_from_xml_element("./Name", layer)
+        layer_obj.identifier = service_helper.try_get_text_from_xml_element(elem="./Name", xml_elem=layer)
         if layer_obj.identifier is None:
             layer_obj.identifier = service_helper.generate_name(layer_obj.capability_projection_system)
 
     ### KEYWORDS ###
     def __parse_keywords(self, layer, layer_obj):
-        keywords = service_helper.try_get_element_from_xml("./KeywordList/Keyword", layer)
+        keywords = service_helper.try_get_element_from_xml(elem="./KeywordList/Keyword", xml_elem=layer)
         for keyword in keywords:
             layer_obj.capability_keywords.append(keyword.text)
 
     ### ABSTRACT ###
     def __parse_abstract(self, layer, layer_obj):
-        layer_obj.abstract = service_helper.try_get_text_from_xml_element("./Abstract", layer)
+        layer_obj.abstract = service_helper.try_get_text_from_xml_element(elem="./Abstract", xml_elem=layer)
 
     ### TITLE ###
     def __parse_title(self, layer, layer_obj):
-        layer_obj.title = service_helper.try_get_text_from_xml_element("./Title", layer)
+        layer_obj.title = service_helper.try_get_text_from_xml_element(elem="./Title", xml_elem=layer)
 
     ### SRS/CRS     PROJECTION SYSTEM ###
     @abstractmethod
     def __parse_projection_system(self, layer, layer_obj):
-        srs = service_helper.try_get_element_from_xml("./SRS", layer)
+        srs = service_helper.try_get_element_from_xml(elem="./SRS", xml_elem=layer)
         for elem in srs:
             layer_obj.capability_projection_system.append(elem.text)
 
@@ -91,7 +90,7 @@ class OGCWebMapService(OGCWebService):
     @abstractmethod
     def __parse_lat_lon_bounding_box(self, layer, layer_obj):
         try:
-            bbox = service_helper.try_get_element_from_xml("./LatLonBoundingBox", layer)[0]
+            bbox = service_helper.try_get_element_from_xml(elem="./LatLonBoundingBox", xml_elem=layer)[0]
             attrs = ["minx", "miny", "maxx", "maxy"]
             for attr in attrs:
                 layer_obj.capability_bbox_lat_lon[attr] = bbox.get(attr)
@@ -133,7 +132,7 @@ class OGCWebMapService(OGCWebService):
     ### SCALE HINT ###
     def __parse_scale_hint(self, layer, layer_obj):
         try:
-            scales = service_helper.try_get_element_from_xml("./ScaleHint", layer)[0]
+            scales = service_helper.try_get_element_from_xml(elem="./ScaleHint", xml_elem=layer)[0]
             attrs = ["min", "max"]
             for attr in attrs:
                 layer_obj.capability_scale_hint[attr] = scales.get(attr)
@@ -244,7 +243,7 @@ class OGCWebMapService(OGCWebService):
             "uri": "./LegendURL/OnlineResource"
         }
         for key, val in elements.items():
-            tmp = service_helper.try_get_element_from_xml(val, style)
+            tmp = service_helper.try_get_element_from_xml(elem=val, xml_elem=style)
             try:
                 elements[key] = tmp[0]
             except (IndexError, TypeError) as error:
@@ -290,17 +289,15 @@ class OGCWebMapService(OGCWebService):
                 self.__parse_style,
                 self.__parse_identifier,
             ]
-            thread_list = []
             for func in parse_functions:
-                # thread_list.append(
-                #     Thread(target=func, args=(layer, layer_obj))
-                # )
                 func(layer=layer, layer_obj=layer_obj)
-            # execute_threads(thread_list)
             if self.layers is None:
                 self.layers = []
+
             self.layers.append(layer_obj)
             sublayers = layer.xpath("./Layer")
+            if parent is not None:
+                parent.child_layer.append(layer_obj)
             position += 1
             self.__get_layers_recursive(layers=sublayers, parent=layer_obj, position=position)
 
@@ -443,8 +440,9 @@ class OGCWebMapService(OGCWebService):
         except (IndexError, AttributeError) as error:
             pass
 
+    @transaction.atomic
     def __persist_layers(self, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
-                         published_for: Organization, root_md: Metadata):
+                         published_for: Organization, root_md: Metadata, parent=None):
         """ Iterates over all layers given by the service and persist them, including additional data like metadata and so on.
 
         Args:
@@ -457,14 +455,13 @@ class OGCWebMapService(OGCWebService):
             root_md (Metadata): The metadata of the root service (parameter 'wms')
         Returns:
         """
-        pers_list = []
         # iterate over all layers
         for layer_obj in layers:
             layer = Layer()
             layer.identifier = layer_obj.identifier
             layer.servicetype = service_type
             layer.position = layer_obj.position
-            layer.parent_layer = service_helper.find_parent_in_list(pers_list, layer_obj.parent)
+            layer.parent_layer = parent
             layer.is_queryable = layer_obj.is_queryable
             layer.is_cascaded = layer_obj.is_cascaded
             layer.is_opaque = layer_obj.is_opaque
@@ -500,8 +497,6 @@ class OGCWebMapService(OGCWebService):
                     service_to_format.action = action
                     service_to_format.mime_type = _format
                     service_to_format.save()
-            # to keep an eye on all handled layers we need to store them in a temporary list
-            pers_list.append(layer)
 
             metadata = Metadata()
             metadata.title = layer_obj.title
@@ -525,20 +520,20 @@ class OGCWebMapService(OGCWebService):
             # handle keywords of this layer
             for kw in layer_obj.capability_keywords:
                 keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-                kw_2_md = KeywordToMetadata()
-                kw_2_md.metadata = metadata
-                kw_2_md.keyword = keyword
-                kw_2_md.save()
+                metadata.keywords.add(keyword)
 
             # handle reference systems
             epsg_api = EpsgApi()
             for sys in layer_obj.capability_projection_system:
                 parts = epsg_api.get_subelements(sys)
                 ref_sys = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
-                ref_sys_2_md = ReferenceSystemToMetadata()
-                ref_sys_2_md.metadata = metadata
-                ref_sys_2_md.reference_system = ref_sys
-                ref_sys_2_md.save()
+                metadata.reference_system.add(ref_sys)
+
+
+            if len(layer_obj.child_layer) > 0:
+                self.__persist_layers(layers=layer_obj.child_layer, service_type=service_type, wms=wms, creator=creator, root_md=root_md,
+                         publisher=publisher, published_for=published_for, parent=layer)
+
 
     @transaction.atomic
     def persist(self):
@@ -573,13 +568,13 @@ class OGCWebMapService(OGCWebService):
         metadata.uuid = uuid.uuid4()
         metadata.title = self.service_identification_title
         metadata.abstract = self.service_identification_abstract
-        metadata.online_resource = self.service_provider_onlineresource_linkage
+        metadata.online_resource = ",".join(self.service_provider_onlineresource_linkage)
         metadata.service = service
         metadata.is_root = True
         ## contact
         metadata.contact_person = self.service_provider_responsibleparty_individualname
         metadata.contact_email = self.service_provider_address_electronicmailaddress
-        metadata.contact_organization = orga_publisher
+        metadata.contact_organization = self.service_provider_providername
         metadata.contact_person_position = self.service_provider_responsibleparty_positionname
         metadata.contact_phone = self.service_provider_telephone_voice
         metadata.city = self.service_provider_address_city
@@ -591,7 +586,9 @@ class OGCWebMapService(OGCWebService):
         metadata.is_active = False
         metadata.save()
 
-        self.__persist_layers(layers=self.layers, service_type=service_type, wms=service, creator=group, root_md=metadata,
+        root_layer = self.layers[0]
+
+        self.__persist_layers(layers=[root_layer], service_type=service_type, wms=service, creator=group, root_md=metadata,
                          publisher=orga_publisher, published_for=orga_published_for)
 
 

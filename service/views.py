@@ -2,7 +2,7 @@ import json
 import time
 
 from django.http import HttpRequest
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 
 from django.template.loader import render_to_string
 
@@ -17,7 +17,7 @@ from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Metadata, Layer, Service, ServiceToFormat, ServiceType
 
 
-def index(request: HttpRequest):
+def index(request: HttpRequest, service_type=None):
     """ Renders an overview of all wms and wfs
 
     Args:
@@ -32,12 +32,17 @@ def index(request: HttpRequest):
         if display_service_type == 'layers':
             # show single layers instead of service grouped
             is_root = False
-    md_list_wms = Metadata.objects.filter(service__servicetype__name="wms", is_root=is_root)
-    md_list_wfs = Metadata.objects.filter(service__servicetype__name="wfs")
+    md_list_wfs = None
+    md_list_wms = None
+    if service_type is None or service_type == ServiceTypes.WMS.value:
+        md_list_wms = Metadata.objects.filter(service__servicetype__name="wms", is_root=is_root)
+    if service_type is None or service_type == ServiceTypes.WFS.value:
+        md_list_wfs = Metadata.objects.filter(service__servicetype__name="wfs")
     params = {
         "metadata_list_wms": md_list_wms,
         "metadata_list_wfs": md_list_wfs,
-        "select_default": request.session.get("displayServices", None)
+        "select_default": request.session.get("displayServices", None),
+        "only_type": service_type,
     }
     return render(request=request, template_name=template, context=params)
 
@@ -70,6 +75,28 @@ def remove(request: HttpRequest):
         return BackendAjaxResponse(html="", redirect="/service").get_response()
 
 
+def activate(request: HttpRequest):
+    """ (De-)Activates a service and all of its layers
+
+    Args:
+        request:
+    Returns:
+         An Ajax response
+    """
+    param_POST = request.POST.dict()
+    service_id = param_POST.get("id", -1)
+    new_status = service_helper.resolve_boolean_attribute_val(param_POST.get("active", False))
+    # get service and change status
+    service = Service.objects.get(id=service_id)
+    service.metadata.is_active = new_status
+    service.metadata.save()
+    # get root_layer of service and start changing of all statuses
+    root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
+    service_helper.change_layer_status_recursively(root_layer, new_status)
+
+    return BackendAjaxResponse(html="").get_response()
+
+
 def session(request: HttpRequest):
     """ Can set a value to the django session
 
@@ -95,9 +122,7 @@ def wms(request:HttpRequest):
     Returns:
          A view
     """
-    template = "index.html"
-    params = {}
-    return render(request=request, template_name=template, context=params)
+    return redirect("service:index", ServiceTypes.WMS.value)
 
 
 def register_form(request: HttpRequest):
@@ -206,9 +231,10 @@ def wfs(request:HttpRequest):
     Returns:
          A view
     """
-    template = "index.html"
-    params = {}
-    return render(request=request, template_name=template, context=params)
+    params = {
+        "only": ServiceTypes.WFS
+    }
+    return redirect("service:index", ServiceTypes.WFS.value)
 
 
 def detail(request: HttpRequest, id):

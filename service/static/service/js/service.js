@@ -140,11 +140,15 @@ $(document).ready(function(){
                     "displayServices": val
                 })
             },
+            contentType: 'application/json',
             type: 'get',
             dataType: 'json',
-            success: function(data){
-                location.reload();
-            }
+        }).done(function(){
+            location.reload();
+
+        }).fail(function(jqXHR, textStatus){
+            console.log(textStatus);
+            console.log(jqXHR);
         });
     });
 

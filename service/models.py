@@ -1,9 +1,8 @@
 import datetime
 from django.db import models
 from django.contrib.gis.db import models
-from django.shortcuts import get_object_or_404
 
-from structure.models import User, Group, UserGroupRoleRel, Organization
+from structure.models import User, Group, Organization
 
 
 class Keyword(models.Model):

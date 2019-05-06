@@ -24,13 +24,8 @@ class PermissionsAdmin(admin.ModelAdmin):
     pass
 
 
-class UserGroupRoleRelAdmin(admin.ModelAdmin):
-    pass
-
-
 admin.site.register(Role, RoleAdmin)
 admin.site.register(User, UserAdmin)
 admin.site.register(Group, GroupAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Permissions, PermissionsAdmin)
-admin.site.register(UserGroupRoleRel, UserGroupRoleRelAdmin)

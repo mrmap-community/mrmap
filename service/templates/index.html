@@ -8,6 +8,7 @@
 {% block body %}
 <div class="overview">
     <h1>{% trans 'Overview services' %}</h1>
+    {% if only_type == 'wms' or only_type is None %}
     <div class="overview-title-actions-container">
         <div class="container-left">
             <h2>{% trans 'WMS' %}</h2>
@@ -68,8 +69,9 @@
         {% endfor %}
     </table>
     {% endif %}
-
     <hr>
+    {% endif %}
+    {% if only_type == 'wfs' or only_type is None %}
 
     <div class="overview-title-actions-container">
         <div class="container-left">
@@ -127,6 +129,7 @@
             </tr>
         </tr>{% endfor %}
     </table>
+    {% endif %}
     {% endif %}
 
 </div>

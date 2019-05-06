@@ -12,13 +12,17 @@
         <div class="collapsible-table">
             <h3 class="layer-title" title="{% trans 'Click to expand' %}">
                 <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
-                {{ layer.identifier }}
+                {{ layer.metadata.title }}
             </h3>
             <div class="layer-content hidden">
             <table>
                 <tr>
                     <th>{% trans 'Identifier' %}</th>
                     <td>{{ layer.identifier }}</td>
+                </tr>
+                <tr>
+                    <th>{% trans 'Title' %}</th>
+                    <td>{{ layer.metadata.title }}</td>
                 </tr>
                 <tr>
                     <th>{% trans 'Abstract' %}</th>

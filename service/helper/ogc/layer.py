@@ -38,3 +38,4 @@ class OGCLayer:
         self.get_styles_uri = None
         self.dimension = []
         self.style = {}
+        self.child_layer = []

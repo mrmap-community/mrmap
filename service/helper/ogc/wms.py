@@ -290,17 +290,15 @@ class OGCWebMapService(OGCWebService):
                 self.__parse_style,
                 self.__parse_identifier,
             ]
-            thread_list = []
             for func in parse_functions:
-                # thread_list.append(
-                #     Thread(target=func, args=(layer, layer_obj))
-                # )
                 func(layer=layer, layer_obj=layer_obj)
-            # execute_threads(thread_list)
             if self.layers is None:
                 self.layers = []
+
             self.layers.append(layer_obj)
             sublayers = layer.xpath("./Layer")
+            if parent is not None:
+                parent.child_layer.append(layer_obj)
             position += 1
             self.__get_layers_recursive(layers=sublayers, parent=layer_obj, position=position)
 
@@ -444,7 +442,7 @@ class OGCWebMapService(OGCWebService):
             pass
 
     def __persist_layers(self, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
-                         published_for: Organization, root_md: Metadata):
+                         published_for: Organization, root_md: Metadata, parent=None):
         """ Iterates over all layers given by the service and persist them, including additional data like metadata and so on.
 
         Args:
@@ -457,14 +455,13 @@ class OGCWebMapService(OGCWebService):
             root_md (Metadata): The metadata of the root service (parameter 'wms')
         Returns:
         """
-        pers_list = []
         # iterate over all layers
         for layer_obj in layers:
             layer = Layer()
             layer.identifier = layer_obj.identifier
             layer.servicetype = service_type
             layer.position = layer_obj.position
-            layer.parent_layer = service_helper.find_parent_in_list(pers_list, layer_obj.parent)
+            layer.parent_layer = parent
             layer.is_queryable = layer_obj.is_queryable
             layer.is_cascaded = layer_obj.is_cascaded
             layer.is_opaque = layer_obj.is_opaque
@@ -540,6 +537,11 @@ class OGCWebMapService(OGCWebService):
                 ref_sys_2_md.reference_system = ref_sys
                 ref_sys_2_md.save()
 
+            if len(layer_obj.child_layer) > 0:
+                self.__persist_layers(layers=layer_obj.child_layer, service_type=service_type, wms=wms, creator=creator, root_md=root_md,
+                         publisher=publisher, published_for=published_for, parent=layer)
+
+
     @transaction.atomic
     def persist(self):
         """ Persists the web map service and all of its related content and data
@@ -579,7 +581,7 @@ class OGCWebMapService(OGCWebService):
         ## contact
         metadata.contact_person = self.service_provider_responsibleparty_individualname
         metadata.contact_email = self.service_provider_address_electronicmailaddress
-        metadata.contact_organization = orga_publisher
+        metadata.contact_organization = self.service_provider_providername
         metadata.contact_person_position = self.service_provider_responsibleparty_positionname
         metadata.contact_phone = self.service_provider_telephone_voice
         metadata.city = self.service_provider_address_city
@@ -591,7 +593,9 @@ class OGCWebMapService(OGCWebService):
         metadata.is_active = False
         metadata.save()
 
-        self.__persist_layers(layers=self.layers, service_type=service_type, wms=service, creator=group, root_md=metadata,
+        root_layer = self.layers[0]
+
+        self.__persist_layers(layers=[root_layer], service_type=service_type, wms=service, creator=group, root_md=metadata,
                          publisher=orga_publisher, published_for=orga_published_for)
 
 

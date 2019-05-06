@@ -441,6 +441,7 @@ class OGCWebMapService(OGCWebService):
         except (IndexError, AttributeError) as error:
             pass
 
+    @transaction.atomic
     def __persist_layers(self, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
                          published_for: Organization, root_md: Metadata, parent=None):
         """ Iterates over all layers given by the service and persist them, including additional data like metadata and so on.
@@ -497,8 +498,6 @@ class OGCWebMapService(OGCWebService):
                     service_to_format.action = action
                     service_to_format.mime_type = _format
                     service_to_format.save()
-            # to keep an eye on all handled layers we need to store them in a temporary list
-            pers_list.append(layer)
 
             metadata = Metadata()
             metadata.title = layer_obj.title

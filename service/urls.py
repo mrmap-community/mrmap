@@ -4,7 +4,7 @@ from service.views import *
 app_name='service'
 urlpatterns = [
     path('', index, name='index'),
-    path('<service_type>', index, name='index'),
+    path('/<service_type>', index, name='index'),
     path('session', session, name='session'),
     path('remove', remove, name='remove'),
     path('activate', activate, name='remove'),

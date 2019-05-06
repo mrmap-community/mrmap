@@ -38,7 +38,7 @@ function removeService(id, confirmed){
 
 function toggleServiceActiveStatus(id, active){
     $.ajax({
-        url: "/service/activate",
+        url: "/service/activate/",
         headers: {
             "X-CSRFToken": getCookie("csrftoken")
         },
@@ -145,10 +145,7 @@ $(document).ready(function(){
             success: function(data){
                 location.reload();
             }
-
         });
-
-
     });
 
     $(".action-button").click(function(){

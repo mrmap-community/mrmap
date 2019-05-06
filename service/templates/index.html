@@ -31,9 +31,11 @@
             <th class="table-header">
                 {% trans 'Title' %}
             </th>
-            <th class="table-header">
-                {% trans 'Parent service' %}
-            </th>
+            {% if select_default == 'layers' %}
+                <th class="table-header">
+                    {% trans 'Parent service' %}
+                </th>
+            {% endif %}
             <th class="table-header">
                 {% trans 'Active' %}
             </th>
@@ -49,9 +51,11 @@
                 <td class="table-cell">
                     <a href="{% url 'service:detail-wms' id=md.id %}">{{ md.title }}</a>
                 </td>
-                <td class="table-cell">
-                    {{ md.service.parent_service.metadata.title }}
-                </td>
+                {% if select_default == 'layers' %}
+                    <td class="table-cell">
+                        {{ md.service.parent_service.metadata.title }}
+                    </td>
+                {% endif %}
                 <td class="table-cell">
                     {% if md.is_active %}
                     <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
@@ -69,7 +73,7 @@
         {% endfor %}
     </table>
     {% endif %}
-    <hr>
+
     {% endif %}
     {% if only_type == 'wfs' or only_type is None %}
 
@@ -93,9 +97,6 @@
                 {% trans 'Title' %}
             </th>
             <th class="table-header">
-                {% trans 'Parent service' %}
-            </th>
-            <th class="table-header">
                 {% trans 'Active' %}
             </th>
             <th class="table-header">
@@ -109,9 +110,6 @@
             <tr>
                 <td class="table-cell">
                     <a href="{% url 'service:detail-wms' id=wfs.id %}">{{ wfs.title }}</a>
-                </td>
-                <td class="table-cell">
-                    {{ wfs.service.parent_service }}
                 </td>
                 <td class="table-cell">
                     {% if md.is_active %}

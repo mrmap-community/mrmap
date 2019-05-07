@@ -1,3 +1,4 @@
+import datetime
 from django.contrib import messages
 from django.http import HttpRequest
 from django.shortcuts import render, redirect
@@ -5,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.settings import SESSION_EXPIRATION
 from structure.forms import LoginForm
+from structure.models import Permission
 from .helper import user_helper
 
 
@@ -16,8 +18,26 @@ def index(request: HttpRequest):
     Returns:
          A view
     """
+    if user_helper.is_session_expired(request):
+        messages.add_message(request, messages.INFO, _("Session timeout"))
+        return redirect("structure:login")
+    user = user_helper.get_user(user_id=request.session.get("user_id"))
+
+    # Define what permissions are needed here
+    permission = Permission()
+    permission.can_activate_wms = True
+
+    # Check permission against users permissions
+    user_perm = user_helper.get_permissions(user)
+    allowed = user_helper.check_permissions(user_perm, permission)
+
+    if not allowed:
+        pass
+        # ToDo: Find good way to redirect user somewhere else
     template = "index_structure.html"
-    params = {}
+    params = {
+        "permissions": user_perm,
+    }
     return render(request=request, template_name=template, context=params)
 
 
@@ -67,6 +87,8 @@ def login(request: HttpRequest):
         if not user_helper.is_password_valid(user, password):
             messages.add_message(request, messages.ERROR, _("Username or password incorrect"))
             return redirect("structure:login")
+        user.last_login = datetime.datetime.now()
+        user.save()
         request.session["user_id"] = user.id
         request.session.set_expiry(SESSION_EXPIRATION)
         return redirect('structure:index')

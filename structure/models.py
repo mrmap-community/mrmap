@@ -45,7 +45,7 @@ class User(Contact):
     password = models.CharField(max_length=500)
     last_login = models.DateTimeField(null=True)
     created_on = models.DateTimeField(auto_now_add=True)
-    groups = models.ForeignKey('Group', on_delete=models.DO_NOTHING, related_name='users', null=True)
+    groups = models.ManyToManyField('Group', related_name='users', null=True)
 
 
 class Organization(Contact):
@@ -56,7 +56,7 @@ class Organization(Contact):
 class Group(models.Model):
     name = models.CharField(max_length=255)
     description = models.CharField(max_length=1000)
-    parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True)
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True, related_name="children")
     role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
 
     def __str__(self):

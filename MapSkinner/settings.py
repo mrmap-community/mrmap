@@ -28,7 +28,6 @@ SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-SESSION_EXPIRATION = 300
 
 EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
 
@@ -50,6 +49,10 @@ XML_NAMESPACES = {
     "inspire_dls": "http://inspire.ec.europa.eu/schemas/inspire_dls/1.0",
     "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset"
 }
+
+# Session refreshes on every request!
+SESSION_EXPIRATION = 1800 # seconds
+SESSION_SAVE_EVERY_REQUEST = True
 
 # Some special things for govbender
 DEFAULT_CONNECTION_TYPE = ConnectionType.REQUESTS

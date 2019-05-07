@@ -20,8 +20,8 @@ from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
 from service.helper import service_helper
-from service.models import ServiceType, Service, Metadata, Layer, Dimension, ServiceToFormat, Keyword, ReferenceSystem
-from structure.models import Organization, Group
+from service.models import ServiceType, Service, Metadata, Layer, Dimension, MimeType, Keyword, ReferenceSystem
+from structure.models import Organization, Group, User
 
 
 class OGCWebMapServiceFactory:
@@ -49,7 +49,6 @@ class OGCWebMapServiceFactory:
 
 class OGCWebMapService(OGCWebService):
     """Base class for OGC WebMapServices."""
-
 
     # define layers as array of OGCWebMapServiceLayer objects
     # Using None here to avoid mutable appending of infinite layers (python specific)
@@ -442,7 +441,7 @@ class OGCWebMapService(OGCWebService):
 
     @transaction.atomic
     def __persist_layers(self, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
-                         published_for: Organization, root_md: Metadata, parent=None):
+                         published_for: Organization, root_md: Metadata, user: User, contact, parent=None):
         """ Iterates over all layers given by the service and persist them, including additional data like metadata and so on.
 
         Args:
@@ -457,13 +456,39 @@ class OGCWebMapService(OGCWebService):
         """
         # iterate over all layers
         for layer_obj in layers:
+            metadata = Metadata()
+            metadata.title = layer_obj.title
+            metadata.uuid = uuid.uuid4()
+            metadata.abstract = layer_obj.abstract
+            metadata.online_resource = root_md.online_resource
+
+            metadata.contact = contact
+            metadata.access_constraints = root_md.access_constraints
+            metadata.is_active = False
+            metadata.created_by = creator
+            metadata.save()
+
+            # handle keywords of this layer
+            for kw in layer_obj.capability_keywords:
+                keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+                metadata.keywords.add(keyword)
+
+            # handle reference systems
+            epsg_api = EpsgApi()
+            for sys in layer_obj.capability_projection_system:
+                parts = epsg_api.get_subelements(sys)
+                ref_sys = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
+                metadata.reference_system.add(ref_sys)
+
             layer = Layer()
+            layer.metadata = metadata
             layer.identifier = layer_obj.identifier
             layer.servicetype = service_type
             layer.position = layer_obj.position
             layer.parent_layer = parent
             layer.is_queryable = layer_obj.is_queryable
             layer.is_cascaded = layer_obj.is_cascaded
+            layer.registered_by = creator
             layer.is_opaque = layer_obj.is_opaque
             layer.scale_min = layer_obj.capability_scale_hint.get("min")
             layer.scale_max = layer_obj.capability_scale_hint.get("max")
@@ -492,51 +517,18 @@ class OGCWebMapService(OGCWebService):
             # iterate over all available mime types and actions
             for action, format_list in layer_obj.format_list.items():
                 for _format in format_list:
-                    service_to_format = ServiceToFormat()
-                    service_to_format.service = layer
-                    service_to_format.action = action
-                    service_to_format.mime_type = _format
-                    service_to_format.save()
-
-            metadata = Metadata()
-            metadata.title = layer_obj.title
-            metadata.uuid = uuid.uuid4()
-            metadata.abstract = layer_obj.abstract
-            metadata.online_resource = root_md.online_resource
-            metadata.service = layer
-            metadata.contact_phone = root_md.contact_phone
-            metadata.contact_person_position = root_md.contact_person_position
-            metadata.contact_person = root_md.contact_person
-            metadata.contact_organization = root_md.contact_organization
-            metadata.contact_email = root_md.contact_email
-            metadata.city = root_md.city
-            metadata.post_code = root_md.post_code
-            metadata.address = root_md.address
-            metadata.state_or_province = root_md.state_or_province
-            metadata.access_constraints = root_md.access_constraints
-            metadata.is_active = False
-            metadata.save()
-
-            # handle keywords of this layer
-            for kw in layer_obj.capability_keywords:
-                keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-                metadata.keywords.add(keyword)
-
-            # handle reference systems
-            epsg_api = EpsgApi()
-            for sys in layer_obj.capability_projection_system:
-                parts = epsg_api.get_subelements(sys)
-                ref_sys = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
-                metadata.reference_system.add(ref_sys)
-
+                    service_to_format = MimeType.objects.get_or_create(
+                        action=action,
+                        mime_type=_format
+                    )[0]
+                    layer.formats.add(service_to_format)
 
             if len(layer_obj.child_layer) > 0:
                 self.__persist_layers(layers=layer_obj.child_layer, service_type=service_type, wms=wms, creator=creator, root_md=root_md,
-                         publisher=publisher, published_for=published_for, parent=layer)
-
+                         publisher=publisher, published_for=published_for, parent=layer, user=user, contact=contact)
 
     @transaction.atomic
-    def persist(self):
+    def persist(self, user: User):
         """ Persists the web map service and all of its related content and data
 
         Args:
@@ -544,8 +536,8 @@ class OGCWebMapService(OGCWebService):
         Returns:
 
         """
-        orga_published_for = Organization.objects.get(name="Testorganization")
-        orga_publisher = Organization.objects.get(name="Testorganization")
+        orga_published_for = Organization.objects.get(organization_name="Testorganization")
+        orga_publisher = Organization.objects.get(organization_name="Testorganization")
 
         group = Group.objects.get(name="Testgroup")
 
@@ -555,41 +547,46 @@ class OGCWebMapService(OGCWebService):
             version=self.service_version.value
         )[0]
 
-        service = Service()
-        service.availability = 0.0
-        service.is_available = False
-        service.servicetype = service_type
-        service.published_for = orga_published_for
-        service.created_by = group
-        service.save()
-
         # metadata
         metadata = Metadata()
         metadata.uuid = uuid.uuid4()
         metadata.title = self.service_identification_title
         metadata.abstract = self.service_identification_abstract
         metadata.online_resource = ",".join(self.service_provider_onlineresource_linkage)
-        metadata.service = service
         metadata.is_root = True
         ## contact
-        metadata.contact_person = self.service_provider_responsibleparty_individualname
-        metadata.contact_email = self.service_provider_address_electronicmailaddress
-        metadata.contact_organization = self.service_provider_providername
-        metadata.contact_person_position = self.service_provider_responsibleparty_positionname
-        metadata.contact_phone = self.service_provider_telephone_voice
-        metadata.city = self.service_provider_address_city
-        metadata.address = self.service_provider_address
-        metadata.post_code = self.service_provider_address_postalcode
-        metadata.state_or_province = self.service_provider_address_state_or_province
+        contact = Organization.objects.get_or_create(
+            organization_name=self.service_provider_providername,
+            person_name=self.service_provider_responsibleparty_individualname,
+            email=self.service_provider_address_electronicmailaddress,
+            phone=self.service_provider_telephone_voice,
+            city=self.service_provider_address_city,
+            address=self.service_provider_address,
+            postal_code=self.service_provider_address_postalcode,
+            state_or_province=self.service_provider_address_state_or_province
+        )[0]
+        metadata.contact = contact
         ## other
         metadata.access_constraints = self.service_identification_accessconstraints
         metadata.is_active = False
+        metadata.created_by = group
         metadata.save()
+
+        service = Service()
+        service.availability = 0.0
+        service.is_available = False
+        service.servicetype = service_type
+        service.published_for = orga_published_for
+        service.published_by = orga_published_for
+        service.created_by = group
+        service.metadata = metadata
+        service.is_root = True
+        service.save()
 
         root_layer = self.layers[0]
 
         self.__persist_layers(layers=[root_layer], service_type=service_type, wms=service, creator=group, root_md=metadata,
-                         publisher=orga_publisher, published_for=orga_published_for)
+                         publisher=orga_publisher, published_for=orga_published_for, contact=contact, user=user)
 
 
 class OGCWebMapServiceLayer(OGCLayer):

@@ -9,7 +9,7 @@ class RoleAdmin(admin.ModelAdmin):
 
 
 class UserAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'username', 'last_login']
+    list_display = ['id', 'person_name', 'username', 'last_login']
 
 
 class OrganizationAdmin(admin.ModelAdmin):

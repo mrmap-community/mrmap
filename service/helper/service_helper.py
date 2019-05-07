@@ -18,7 +18,7 @@ from lxml import etree
 from MapSkinner.settings import DEFAULT_SERVICE_VERSION, XML_NAMESPACES
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
-from service.models import Layer, Metadata, ServiceToFormat
+from service.models import Layer, Metadata, MimeType
 
 
 def resolve_version_enum(version:str):
@@ -327,7 +327,7 @@ def fetch_detail_view_layer(layer, layers_md_list: list):
     """
     res = {}
     md = get_object_or_404(Metadata, service=layer)
-    formats = list(ServiceToFormat.objects.filter(service=layer))
+    formats = list(MimeType.objects.filter(service=layer))
     sub_layers = Layer.objects.filter(parent_layer=layer)
     f_l = {}
     for _format in formats:

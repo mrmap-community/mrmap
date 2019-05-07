@@ -14,7 +14,8 @@ from service.helper.enums import ServiceTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
-from service.models import Metadata, Layer, Service, ServiceToFormat, ServiceType
+from service.models import Metadata, Layer, Service, MimeType, ServiceType
+from structure.helper import user_helper
 
 
 def index(request: HttpRequest, service_type=None):
@@ -35,7 +36,8 @@ def index(request: HttpRequest, service_type=None):
     md_list_wfs = None
     md_list_wms = None
     if service_type is None or service_type == ServiceTypes.WMS.value:
-        md_list_wms = Metadata.objects.filter(service__servicetype__name="wms", is_root=is_root)
+        md = Service.objects.filter(servicetype__name="wms", is_root=is_root)
+        md_list_wms = Metadata.objects.filter(service__servicetype__name="wms", service__is_root=is_root)
     if service_type is None or service_type == ServiceTypes.WFS.value:
         md_list_wfs = Metadata.objects.filter(service__servicetype__name="wfs")
     params = {
@@ -179,6 +181,7 @@ def new_service(request: HttpRequest):
     """
     POST_params = request.POST.dict()
     cap_url = POST_params.get("uri", "")
+    user = user_helper.get_user(user_id=request.session.get("user_id"))
     url_dict = service_helper.split_service_uri(cap_url)
     epsg_api = EpsgApi()
     epsg_api.get_axis_order("EPSG:25832")
@@ -200,7 +203,7 @@ def new_service(request: HttpRequest):
         # persist data
 
         start_time = time.time()
-        wms.persist()
+        wms.persist(user)
         print(EXEC_TIME_PRINT % ("persisting", time.time() - start_time))
 
     elif url_dict.get("service") is ServiceTypes.WFS:

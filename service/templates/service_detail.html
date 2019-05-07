@@ -61,35 +61,35 @@
     </tr>
     <tr>
         <th>{% trans 'Responsible Person' %}</th>
-        <td>{{ root_metadata.contact_person }}</td>
+        <td>{{ root_metadata.contact.person_name }}</td>
     </tr>
     <tr>
         <th>{% trans 'Organization' %}</th>
-        <td>{{ root_metadata.contact_organization }}</td>
+        <td>{{ root_metadata.contact.organization_name }}</td>
     </tr>
     <tr>
         <th>{% trans 'Phone' %}</th>
-        <td>{{ root_metadata.contact_phone }}</td>
+        <td>{{ root_metadata.contact.phone }}</td>
     </tr>
     <tr>
         <th>{% trans 'E-Mail' %}</th>
-        <td>{{ root_metadata.contact_email }}</td>
+        <td>{{ root_metadata.contact.email }}</td>
     </tr>
     <tr>
         <th>{% trans 'State or province' %}</th>
-        <td>{{ root_metadata.state_or_province }}</td>
+        <td>{{ root_metadata.contact.state_or_province }}</td>
     </tr>
     <tr>
         <th>{% trans 'Address' %}</th>
-        <td>{{ root_metadata.address }}</td>
+        <td>{{ root_metadata.contact.address }}</td>
     </tr>
     <tr>
         <th>{% trans 'City' %}</th>
-        <td>{{ root_metadata.city }}</td>
+        <td>{{ root_metadata.contact.city }}</td>
     </tr>
     <tr>
         <th>{% trans 'Post code' %}</th>
-        <td>{{ root_metadata.post_code }}</td>
+        <td>{{ root_metadata.contact.postal_code }}</td>
     </tr>
 </table>
 

@@ -35,7 +35,7 @@ class TermsOfUseAdmin(admin.ModelAdmin):
 
 
 class ServiceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'created_by', 'servicetype')
+    list_display = ('id',  'servicetype')
     pass
 
 
@@ -48,7 +48,7 @@ class LayerAdmin(admin.ModelAdmin):
     pass
 
 
-class ServiceToFormatAdmin(admin.ModelAdmin):
+class MimeTypeAdmin(admin.ModelAdmin):
     pass
 
 admin.site.register(Category, CategoryAdmin)
@@ -60,5 +60,5 @@ admin.site.register(Metadata, MetadataAdmin)
 admin.site.register(TermsOfUse, TermsOfUseAdmin)
 admin.site.register(ReferenceSystem, ReferenceSystemAdmin)
 admin.site.register(Service, ServiceAdmin)
-admin.site.register(ServiceToFormat, ServiceToFormatAdmin)
+admin.site.register(MimeType, MimeTypeAdmin)
 admin.site.register(Layer, LayerAdmin)

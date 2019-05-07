@@ -4,6 +4,7 @@ from abc import abstractmethod
 
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
+from structure.models import User
 
 
 class OGCWebService:
@@ -119,7 +120,7 @@ class OGCWebService:
         pass
 
     @abstractmethod
-    def persist(self):
+    def persist(self, user: User):
         pass
 
 

@@ -25,15 +25,19 @@ class Role(models.Model):
 
 
 class Contact(models.Model):
-    name = models.CharField(max_length=100)
+    person_name = models.CharField(max_length=200, default="")
     email = models.CharField(max_length=100)
     phone = models.CharField(max_length=100)
     city = models.CharField(max_length=100)
     postal_code = models.CharField(max_length=100)
     street = models.CharField(max_length=100)
+    address_type = models.CharField(max_length=100, null=True)
+    address = models.CharField(max_length=100, null=True)
+    state_or_province = models.CharField(max_length=100, null=True)
+    country = models.CharField(max_length=100, null=True)
 
     def __str__(self):
-        return self.name
+        return self.person_name
 
     class Meta:
         abstract = True
@@ -49,7 +53,8 @@ class User(Contact):
 
 
 class Organization(Contact):
-    description = models.CharField(max_length=200)
+    organization_name = models.CharField(max_length=255)
+    description = models.CharField(max_length=500)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True)
 
 

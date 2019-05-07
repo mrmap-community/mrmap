@@ -1,8 +1,11 @@
+from django.contrib import messages
 from django.http import HttpRequest
 from django.shortcuts import render, redirect
 from django.utils.translation import gettext_lazy as _
 
+from MapSkinner.settings import SESSION_EXPIRATION
 from structure.forms import LoginForm
+from .helper import user_helper
 
 
 def index(request: HttpRequest):
@@ -57,7 +60,15 @@ def login(request: HttpRequest):
     if login_form.is_valid():
         username = login_form.cleaned_data.get("username")
         password = login_form.cleaned_data.get("password")
-        # ToDo: Check in database for user! If found and credentials are correct --> redirect!
+        user = user_helper.get_user(username=username)
+        if user is None:
+            messages.add_message(request, messages.ERROR, _("Username or password incorrect"))
+            return redirect("structure:login")
+        if not user_helper.is_password_valid(user, password):
+            messages.add_message(request, messages.ERROR, _("Username or password incorrect"))
+            return redirect("structure:login")
+        request.session["user_id"] = user.id
+        request.session.set_expiry(SESSION_EXPIRATION)
         return redirect('structure:index')
     login_form = LoginForm()
     params = {

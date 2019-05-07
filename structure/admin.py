@@ -5,11 +5,11 @@ from structure.models import *
 
 
 class RoleAdmin(admin.ModelAdmin):
-    pass
+    list_display = [p.name for p in Role._meta.fields]
 
 
 class UserAdmin(admin.ModelAdmin):
-    pass
+    list_display = ['id', 'name', 'username', 'last_login']
 
 
 class OrganizationAdmin(admin.ModelAdmin):
@@ -17,15 +17,15 @@ class OrganizationAdmin(admin.ModelAdmin):
 
 
 class GroupAdmin(admin.ModelAdmin):
-    pass
+    list_display = [p.name for p in Group._meta.fields]
 
 
-class PermissionsAdmin(admin.ModelAdmin):
-    pass
+class PermissionAdmin(admin.ModelAdmin):
+    list_display = [p.name for p in Permission._meta.fields]
 
 
 admin.site.register(Role, RoleAdmin)
 admin.site.register(User, UserAdmin)
 admin.site.register(Group, GroupAdmin)
 admin.site.register(Organization, OrganizationAdmin)
-admin.site.register(Permissions, PermissionsAdmin)
+admin.site.register(Permission, PermissionAdmin)

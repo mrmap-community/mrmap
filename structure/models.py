@@ -1,7 +1,7 @@
 from django.db import models
 
 
-class Permissions(models.Model):
+class Permission(models.Model):
     can_create_group = models.BooleanField(default=False)
     can_edit_group = models.BooleanField(default=False)
     can_add_user_to_group = models.BooleanField(default=False)
@@ -18,7 +18,7 @@ class Permissions(models.Model):
 class Role(models.Model):
     name = models.CharField(max_length=100)
     description = models.CharField(max_length=200)
-    permissions = models.ManyToManyField(Permissions)
+    permission = models.ForeignKey(Permission, on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         return self.name
@@ -43,9 +43,9 @@ class User(Contact):
     username = models.CharField(max_length=50)
     salt = models.CharField(max_length=500)
     password = models.CharField(max_length=500)
-    last_login = models.DateTimeField()
+    last_login = models.DateTimeField(null=True)
     created_on = models.DateTimeField(auto_now_add=True)
-    groups = models.ManyToManyField('Group')
+    groups = models.ForeignKey('Group', on_delete=models.DO_NOTHING, related_name='users', null=True)
 
 
 class Organization(Contact):
@@ -54,10 +54,10 @@ class Organization(Contact):
 
 
 class Group(models.Model):
-    name = models.CharField(max_length=100)
-    description = models.CharField(max_length=100)
+    name = models.CharField(max_length=255)
+    description = models.CharField(max_length=1000)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True)
-    role = models.ForeignKey(Role, on_delete=models.DO_NOTHING, null=True)
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
 
     def __str__(self):
         return self.name

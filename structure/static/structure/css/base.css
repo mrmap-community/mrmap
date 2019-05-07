@@ -25,6 +25,26 @@ a{
     align-items: center;
 }
 
+.messages{
+    position: fixed;
+    top: 0;
+    width: 100vw;
+    text-align: center;
+}
+.messages:hover{
+    cursor:pointer;
+    opacity: 0.75;
+}
+.message{
+    padding: 10px;
+}
+.message.error{
+    background-color: red;
+    color: white;
+    font-weight: bold;
+    font-size: 1.00em;
+}
+
 #body-content{
     padding: 0 1vw 0 1vw;
 }

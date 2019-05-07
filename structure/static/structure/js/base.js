@@ -19,7 +19,6 @@ function toggleNavigationMenu(elem){
     elem.slideToggle("fast");
 }
 
-
 $(document).ready(function(){
     $(".navigation-title").on("mouseover",function(){
         var list = $(this).siblings(".navigation-element-list");
@@ -33,6 +32,11 @@ $(document).ready(function(){
         if(!elem.is(":hidden")){
             toggleNavigationMenu(elem);
         }
+    });
+
+    $(".messages").on("click", function(){
+        var elem = $(this);
+        elem.slideToggle();
     });
 
 });

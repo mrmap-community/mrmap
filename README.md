@@ -2,8 +2,9 @@
 
 New Geoportal project
 
-Install:
+## Install:
 
+```shell
 apt update  
 apt install postgis postgresql postgresql-server-dev-all libgdal-dev virtualenv python3-pip curl libgnutls28-dev  
 
@@ -19,3 +20,11 @@ pip install -r requirements.txt
 python manage.py makemigrations service  
 python manage.py makemigrations structure  
 python manage.py migrate  
+```
+
+## Initial setup:
+Call the setup command and follow the prompt instructions to generate the system's superuser 
+```shell
+cd .../MapSkinner
+python manage.py setup
+```

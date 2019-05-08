@@ -14,22 +14,35 @@
             {% endif %}
         </div>
     </div>
+    <h3>{% trans 'You are member of the following groups:' %}</h3>
     <table class="overview-table">
         <tr>
             <th class="overview-table-header">
                 {% trans 'Name' %}
             </th>
             <th class="overview-table-header">
-                {% trans 'Created' %}
+                {% trans 'Description' %}
+            </th>
+            <th class="overview-table-header">
+                {% trans 'Parent' %}
+            </th>
+            <th class="overview-table-header">
+                {% trans 'Created by' %}
             </th>
         </tr>
-        {% for organization in organizations %}
+        {% for group in groups %}
             <tr>
                 <td class="overview-table-cell">
-                    {{ organization.name }}
+                    {{ group.name }}
                 </td>
                 <td class="overview-table-cell">
-                    {{ organization.createdOn }}
+                    {{ group.description }}
+                </td>
+                <td class="overview-table-cell">
+                    {{ group.parent }}
+                </td>
+                <td class="overview-table-cell">
+                    {{ group.created_by }}
                 </td>
             </tr>
         {% endfor %}

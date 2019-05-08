@@ -4,69 +4,35 @@ from django.http import HttpRequest
 from django.shortcuts import render, redirect
 from django.utils.translation import gettext_lazy as _
 
+from MapSkinner.decorator import check_access
 from MapSkinner.settings import SESSION_EXPIRATION
 from structure.forms import LoginForm
-from structure.models import Permission
+from structure.models import Permission, User, Group
 from .helper import user_helper
 
 
-def index(request: HttpRequest):
-    """ Renders an overview of all organization and groups
-
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-         A view
-    """
-    if user_helper.is_session_expired(request):
-        messages.add_message(request, messages.INFO, _("Session timeout"))
-        return redirect("structure:login")
-    user = user_helper.get_user(user_id=request.session.get("user_id"))
-    if user is None:
-        messages.add_message(request, messages.ERROR, _("You have been logged out."))
-        return redirect("structure:login")
-
-    # Define what permissions are needed here
-    permission = Permission()
-    permission.can_activate_wms = True
-
-    # Check permission against users permissions
-    user_perm = user_helper.get_permissions(user)
-    allowed = user_helper.check_permissions(user_perm, permission)
-
-    if not allowed:
-        pass
-        # ToDo: Find good way to redirect user somewhere else
-    template = "index_structure.html"
-    params = {
-        "permissions": user_perm,
-    }
-    return render(request=request, template_name=template, context=params)
-
-
-def groups(request: HttpRequest):
+@check_access
+def index(request: HttpRequest, user: User):
     """ Renders an overview of all groups
 
     Args:
         request (HttpRequest): The incoming request
+        user (User):
     Returns:
          A view
     """
     template = "index_structure.html"
-    params = {}
-    return render(request=request, template_name=template, context=params)
-
-
-def organizations(request: HttpRequest):
-    """ Renders an overview of all organization
-
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-         A view
-    """
-    template = "index_structure.html"
-    params = {}
+    user_groups = user.groups.all()
+    groups = []
+    for user_group in user_groups:
+        groups.append(user_group)
+        groups.extend(Group.objects.filter(
+            parent=user_group
+        ))
+    params = {
+        "permissions": user_helper.get_permissions(user),
+        "groups": groups,
+    }
     return render(request=request, template_name=template, context=params)
 
 
@@ -91,6 +57,7 @@ def login(request: HttpRequest):
             messages.add_message(request, messages.ERROR, _("Username or password incorrect"))
             return redirect("structure:login")
         user.last_login = datetime.datetime.now()
+        user.logged_in = True
         user.save()
         request.session["user_id"] = user.id
         request.session.set_expiry(SESSION_EXPIRATION)
@@ -103,8 +70,8 @@ def login(request: HttpRequest):
     }
     return render(request=request, template_name=template, context=params)
 
-
-def logout(request: HttpRequest):
+@check_access
+def logout(request: HttpRequest, user:User):
     """ Logs the structure out and redirects to login view
 
     Args:
@@ -112,5 +79,7 @@ def logout(request: HttpRequest):
     Returns:
          A view
     """
-    # ToDo: Set functionality to indicate user logged out
+    user.logged_in = False
+    user.save()
+    messages.add_message(request, messages.SUCCESS, _("Successfully logged out!"))
     return redirect('structure:login')

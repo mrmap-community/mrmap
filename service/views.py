@@ -1,28 +1,31 @@
 import json
-import time
 
 from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
 
 from django.template.loader import render_to_string
 
+from MapSkinner.decorator import check_access
 from MapSkinner.responses import BackendAjaxResponse
-from MapSkinner.settings import EXEC_TIME_PRINT
 from service.forms import NewServiceURIForm
 from service.helper import service_helper
 from service.helper.enums import ServiceTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
-from service.models import Metadata, Layer, Service, MimeType, ServiceType
+from service.models import Metadata, Layer, Service
 from structure.helper import user_helper
+from structure.models import User
 
 
-def index(request: HttpRequest, service_type=None):
+@check_access
+def index(request: HttpRequest, user: User, service_type=None):
     """ Renders an overview of all wms and wfs
 
     Args:
         request (HttpRequest): The incoming request
+        user (User): The session user
+        service_type: Indicates if only a special service type shall be displayed
     Returns:
          A view
     """
@@ -31,25 +34,33 @@ def index(request: HttpRequest, service_type=None):
     is_root = True
     if display_service_type is not None:
         if display_service_type == 'layers':
-            # show single layers instead of service grouped
+            # show single layers instead of grouped service
             is_root = False
     md_list_wfs = None
     md_list_wms = None
     if service_type is None or service_type == ServiceTypes.WMS.value:
-        md = Service.objects.filter(servicetype__name="wms", is_root=is_root)
-        md_list_wms = Metadata.objects.filter(service__servicetype__name="wms", service__is_root=is_root)
+        md_list_wms = Metadata.objects.filter(
+            service__servicetype__name="wms",
+            service__is_root=is_root,
+            service__published_by=user.primary_organization
+        )
     if service_type is None or service_type == ServiceTypes.WFS.value:
-        md_list_wfs = Metadata.objects.filter(service__servicetype__name="wfs")
+        md_list_wfs = Metadata.objects.filter(
+            service__servicetype__name="wfs",
+            service__published_by=user.primary_organization
+        )
     params = {
         "metadata_list_wms": md_list_wms,
         "metadata_list_wfs": md_list_wfs,
         "select_default": request.session.get("displayServices", None),
         "only_type": service_type,
+        "permissions": user_helper.get_permissions(user),
     }
     return render(request=request, template_name=template, context=params)
 
 
-def remove(request: HttpRequest):
+@check_access
+def remove(request: HttpRequest, user: User):
     """ Renders the remove form for a service
 
     Args:
@@ -76,8 +87,8 @@ def remove(request: HttpRequest):
         service.delete()
         return BackendAjaxResponse(html="", redirect="/service").get_response()
 
-
-def activate(request: HttpRequest):
+@check_access
+def activate(request: HttpRequest, user:User):
     """ (De-)Activates a service and all of its layers
 
     Args:
@@ -98,8 +109,8 @@ def activate(request: HttpRequest):
 
     return BackendAjaxResponse(html="").get_response()
 
-
-def session(request: HttpRequest):
+@check_access
+def session(request: HttpRequest, user:User):
     """ Can set a value to the django session
 
     Args:
@@ -115,8 +126,8 @@ def session(request: HttpRequest):
         request.session[_session_key] = _session_val
     return BackendAjaxResponse(html="").get_response()
 
-
-def wms(request:HttpRequest):
+@check_access
+def wms(request:HttpRequest, user:User):
     """ Renders an overview of all wms
 
     Args:
@@ -126,8 +137,8 @@ def wms(request:HttpRequest):
     """
     return redirect("service:index", ServiceTypes.WMS.value)
 
-
-def register_form(request: HttpRequest):
+@check_access
+def register_form(request: HttpRequest, user:User):
     """ Returns the form for providing a capabilities URI
 
     Args:
@@ -170,8 +181,8 @@ def register_form(request: HttpRequest):
     html = render_to_string(request=request, template_name=template, context=params)
     return BackendAjaxResponse(html).get_response()
 
-
-def new_service(request: HttpRequest):
+@check_access
+def new_service(request: HttpRequest, user:User):
     """ Register a new service
 
     Args:
@@ -223,8 +234,8 @@ def new_service(request: HttpRequest):
     html = render_to_string(template_name=template, request=request, context=params)
     return BackendAjaxResponse(html=html).get_response()
 
-
-def wfs(request:HttpRequest):
+@check_access
+def wfs(request:HttpRequest, user:User):
     """ Renders an overview of all wfs
 
     Args:
@@ -237,8 +248,8 @@ def wfs(request:HttpRequest):
     }
     return redirect("service:index", ServiceTypes.WFS.value)
 
-
-def detail(request: HttpRequest, id):
+@check_access
+def detail(request: HttpRequest, id, user:User):
     """ Renders a detail view of the selected service
 
     Args:
@@ -256,5 +267,6 @@ def detail(request: HttpRequest, id):
         "root_metadata": service_md,
         "root_service": service,
         "layers": layers_md_list,
+        "permissions": user_helper.get_permissions(user),
     }
     return render(request=request, template_name=template, context=params)

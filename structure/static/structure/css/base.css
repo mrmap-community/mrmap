@@ -44,6 +44,12 @@ a{
     font-weight: bold;
     font-size: 1.00em;
 }
+.message.success{
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: bold;
+    font-size: 1.00em;
+}
 
 #body-content{
     padding: 0 1vw 0 1vw;

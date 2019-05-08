@@ -16,6 +16,7 @@
 <header>
     <nav class="navigation-bar">
         <div class="navigation-bar-left">
+            <img id="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" title="Map your s*** together!">
             <div class="navigation-menu">
                 <a class="navigation-title" href="{% url 'structure:index' %}">
                     {% trans 'Groups' %}
@@ -38,7 +39,6 @@
                     </a>
                 </div>
             </div>
-
         </div>
         <div class="navigation-bar-right">
             <a id="logout-button" href="{% url 'structure:logout' %}">

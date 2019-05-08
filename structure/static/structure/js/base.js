@@ -20,8 +20,8 @@ function toggleNavigationMenu(elem){
 }
 
 $(document).ready(function(){
-    $(".navigation-title").on("mouseover",function(){
-        var list = $(this).siblings(".navigation-element-list");
+    $(".navigation-menu").on("mouseover",function(){
+        var list = $(this).find(".navigation-element-list");
         if(list.is(":hidden")){
             toggleNavigationMenu(list);
         }

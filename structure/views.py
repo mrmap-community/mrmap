@@ -1,11 +1,12 @@
 
 from django.http import HttpRequest
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.decorator import check_access
 from MapSkinner.responses import BackendAjaxResponse
+from structure.forms import GroupForm
 from structure.models import User, Group
 from .helper import user_helper
 
@@ -73,3 +74,22 @@ def remove(request: HttpRequest, user: User):
         # remove group and all of the related content
         group.delete()
         return BackendAjaxResponse(html="", redirect="/structure").get_response()
+
+
+@check_access
+def edit(request: HttpRequest,id: int, user: User):
+    template = "edit_group_form.html"
+    group = Group.objects.get(id=id)
+    form = GroupForm(request.POST or None, instance=group)
+    if request.method == "POST":
+        if form.is_valid():
+            # save changes of group
+            group = form.save()
+            return redirect("structure:detail-group", group.id)
+    else:
+        params = {
+            "group": group,
+            "form": form,
+        }
+        html = render_to_string(template_name=template, request=request, context=params)
+        return BackendAjaxResponse(html=html).get_response()

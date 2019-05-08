@@ -35,6 +35,24 @@ function changeOverlayContent(html){
     overlay.html(html);
 }
 
+
+function editEntity(id, entity){
+    $.ajax({
+        url: "/" + entity + "/edit/" + id,
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        data: {},
+        type: 'get',
+        dataType: 'json',
+        success: function(data){
+            var html = data["html"];
+            toggleOverlay(html);
+        }
+    })
+}
+
+
 function removeEntity(id, confirmed, entity){
     $.ajax({
         url: "/" + entity + "/remove",
@@ -82,6 +100,13 @@ $(document).ready(function(){
         // call remove form, but indicate that the remove process was not confirmed yet by the user
         var entity = $(this).attr("typeof");
         removeEntity(id, false, entity);
+    });
+
+    $(".edit-container").click(function(){
+        var id = $(this).attr("data-parent");
+        // call remove form, but indicate that the remove process was not confirmed yet by the user
+        var entity = $(this).attr("typeof");
+        editEntity(id, entity);
     });
 
 });

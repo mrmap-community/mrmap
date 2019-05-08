@@ -1,9 +1,9 @@
 from django.urls import path
 from structure.views import *
 
-app_name='structure'
+app_name = 'structure'
 urlpatterns = [
-    path('', login, name='login'),
-    path('logout/', logout, name='logout'),
-    path('index/', index, name='index'),
+    path('', index, name='index'),
+    path('remove', remove, name='remove'),
+    path('detail-group/<id>', detail_group, name='detail-group'),
 ]

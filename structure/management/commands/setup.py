@@ -69,16 +69,18 @@ class Command(BaseCommand):
             role = Role.objects.get_or_create(name="_root_")[0]
             if role.permission is None:
                 perm = Permission()
-                perm.can_activate_wfs = True
-                perm.can_activate_wms = True
-                perm.can_add_user_to_group = True
+
                 perm.can_create_group = True
+                perm.can_delete_group = True
                 perm.can_edit_group = True
-                perm.can_register_wfs = True
-                perm.can_register_wms = True
+
                 perm.can_remove_user_from_group = True
-                perm.can_remove_wfs = True
-                perm.can_remove_wms = True
+                perm.can_add_user_to_group = True
+
+                perm.can_register_service = True
+                perm.can_activate_service = True
+                perm.can_remove_service = True
+
                 perm.save()
                 role.permission = perm
             role.save()

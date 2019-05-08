@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block head %}
+{% endblock %}
+
+{% block body %}
+<a href="{% url 'structure:index' %}">
+    <h3 class="back-title">
+        <img src="{% static 'service/images/icn_back.png' %}">
+        {% trans 'Back' %}
+    </h3>
+</a>
+<hr>
+<div class="container-row">
+    <div class="container-left">
+        {% if 'can_edit_group' in permissions %}
+            <div class="edit-container" data-parent="{{ group.id }}">
+                <img src="{% static 'structure/images/icn_edit.png' %}">
+                <span>{% trans 'Edit group' %}</span>
+            </div>
+        {% endif %}
+    </div>
+    {% if 'can_delete_group' in permissions %}
+        <div class="container-right">
+            <div class="delete-container" data-parent="{{ group.id }}" typeof="structure">
+                <img src="{% static 'service/images/icn_minus.png' %}">
+                <span>{% trans 'Delete group' %}</span>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<h2>{{ group.name }}</h2>
+<table>
+    <tr>
+        <th>{% trans 'Description' %}</th>
+        <td>{{ group.description }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Members' %}</th>
+        <td>
+            {% for member in members %}
+                {{ member.username }}<br>
+            {% endfor %}
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Parent' %}</th>
+        <td>{{ group.parent }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Permissions' %}</th>
+        <td>
+            {% for perm in permissions %}
+                {{ perm }} <br>
+            {% endfor %}
+        </td>
+    </tr>
+</table>
+
+{% endblock %}

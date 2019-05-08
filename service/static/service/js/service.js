@@ -1,40 +1,5 @@
-function toggleOverlay(html){
-    var overlay = $("#overlay");
-    if(overlay.is(":visible")){
-        overlay.html(html);
-    }
-    overlay.toggleClass("show");
-}
 
-function replaceButtonWithSpinner(button){
-}
 
-function changeOverlayContent(html){
-    var overlay = $("#overlay");
-    overlay.html(html);
-}
-
-function removeService(id, confirmed){
-    $.ajax({
-        url: "/service/remove",
-        headers: {
-            "X-CSRFToken": getCookie("csrftoken")
-        },
-        data:{
-            "id": id,
-            "confirmed": confirmed
-        },
-        type: 'get',
-        dataType: 'json',
-        success: function(data){
-            var html = data["html"];
-            toggleOverlay(html);
-            if(data["redirect"] !== null){
-                window.open(data["redirect"], "_self");
-            }
-        }
-    })
-}
 
 function toggleServiceActiveStatus(id, active){
     $.ajax({
@@ -110,17 +75,12 @@ function toggleCollapsibleSymbol(elem){
 }
 
 $(document).ready(function(){
-    $(".remove-service-container").click(function(){
-        var id = $(this).attr("data-parent");
-        // call remove form, but indicate that the remove process was not confirmed yet by the user
-        removeService(id, false);
-    });
 
-    $(".deactivate-service-container, .activate-service-container").click(function(){
+    $(".deactivate-container, .activate-container").click(function(){
         var id = $(this).attr("data-parent");
         var elem = $(this);
         var active = false;
-        if(elem.hasClass("activate-service-container")){
+        if(elem.hasClass("activate-container")){
             var active = true;
         }
         toggleServiceActiveStatus(id, active)

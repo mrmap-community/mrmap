@@ -1,13 +1,12 @@
-import datetime
-from django.contrib import messages
+
 from django.http import HttpRequest
-from django.shortcuts import render, redirect
+from django.shortcuts import render, get_object_or_404
+from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.decorator import check_access
-from MapSkinner.settings import SESSION_EXPIRATION
-from structure.forms import LoginForm
-from structure.models import Permission, User, Group
+from MapSkinner.responses import BackendAjaxResponse
+from structure.models import User, Group
 from .helper import user_helper
 
 
@@ -36,50 +35,41 @@ def index(request: HttpRequest, user: User):
     return render(request=request, template_name=template, context=params)
 
 
-def login(request: HttpRequest):
-    """ Logs the structure in and redirects to overview
-
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-         A view
-    """
-    template = "login.html"
-    login_form = LoginForm(request.POST)
-    if login_form.is_valid():
-        username = login_form.cleaned_data.get("username")
-        password = login_form.cleaned_data.get("password")
-        user = user_helper.get_user(username=username)
-        if user is None:
-            messages.add_message(request, messages.ERROR, _("Username or password incorrect"))
-            return redirect("structure:login")
-        if not user_helper.is_password_valid(user, password):
-            messages.add_message(request, messages.ERROR, _("Username or password incorrect"))
-            return redirect("structure:login")
-        user.last_login = datetime.datetime.now()
-        user.logged_in = True
-        user.save()
-        request.session["user_id"] = user.id
-        request.session.set_expiry(SESSION_EXPIRATION)
-        return redirect('service:index')
-    login_form = LoginForm()
+@check_access
+def detail_group(request: HttpRequest, id: int, user: User):
+    group = Group.objects.get(id=id)
+    members = group.users.all()
+    template = "group_detail.html"
     params = {
-        "login_form": login_form,
-        "login_article_title": _("Sign in for Mr. Map"),
-        "login_article": _("Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. ")
+        "group": group,
+        "permissions": user_helper.get_permissions(group=group),
+        "members": members
     }
     return render(request=request, template_name=template, context=params)
 
+
 @check_access
-def logout(request: HttpRequest, user:User):
-    """ Logs the structure out and redirects to login view
+def remove(request: HttpRequest, user: User):
+    """ Renders the remove form for a service
 
     Args:
-        request (HttpRequest): The incoming request
+        request(HttpRequest): The used request
     Returns:
-         A view
+        A rendered view
     """
-    user.logged_in = False
-    user.save()
-    messages.add_message(request, messages.SUCCESS, _("Successfully logged out!"))
-    return redirect('structure:login')
+    template = "remove_group_confirmation.html"
+    service_id = request.GET.dict().get("id")
+    confirmed = request.GET.dict().get("confirmed")
+    group = get_object_or_404(Group, id=service_id)
+    permission = group.role.permission
+    if confirmed == 'false':
+        params = {
+            "group": group,
+            "permissions": permission,
+        }
+        html = render_to_string(template_name=template, context=params, request=request)
+        return BackendAjaxResponse(html=html).get_response()
+    else:
+        # remove group and all of the related content
+        group.delete()
+        return BackendAjaxResponse(html="", redirect="/structure").get_response()

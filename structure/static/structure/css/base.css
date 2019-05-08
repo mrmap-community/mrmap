@@ -196,7 +196,7 @@ table{
 }
 
 th, td{
-    padding: 5px 0 0 10px;
+    padding: 5px;
 }
 
 th{
@@ -231,4 +231,38 @@ tr:nth-child(even){
 .button:hover{
     cursor:pointer;
     background-color: var(--secondary-color-light);
+}
+
+
+
+.delete-container, .deactivate-container{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    background-color: red;
+    color: white;
+    font-weight: bold;
+}
+.delete-container:hover, .deactivate-container:hover, .activate-container:hover, .edit-container:hover{
+    cursor: pointer;
+    opacity: 0.75;
+}
+.delete-container img{
+    padding: 0 10px 0 0;
+    -webkit-filter: invert(1.0);
+    filter: invert(1.0);
+}
+
+.edit-container{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    background-color: var(--secondary-color);
+    color: white;
+    font-weight: bold;
+}
+.edit-container img{
+    padding: 0 10px 0 0;
 }

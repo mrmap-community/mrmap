@@ -33,7 +33,7 @@
         {% for group in groups %}
             <tr>
                 <td class="overview-table-cell">
-                    {{ group.name }}
+                    <a href="{% url 'structure:detail-group' id=group.id %}">{{ group.name }}</a>
                 </td>
                 <td class="overview-table-cell">
                     {{ group.description }}

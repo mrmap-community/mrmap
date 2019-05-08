@@ -202,9 +202,7 @@ def new_service(request: HttpRequest):
         }
         # persist data
 
-        start_time = time.time()
         wms.persist(user)
-        print(EXEC_TIME_PRINT % ("persisting", time.time() - start_time))
 
     elif url_dict.get("service") is ServiceTypes.WFS:
         # create WFS object
@@ -215,7 +213,7 @@ def new_service(request: HttpRequest):
         wfs.create_from_capabilities()
 
         # persist wfs
-        wfs.persist()
+        wfs.persist(user)
 
         params = {
             "service": wfs,

@@ -9,21 +9,23 @@ from getpass import getpass
 
 import os
 
-from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.hashers import make_password
 from django.core.management import BaseCommand
+from django.db import transaction
 
-from structure.models import User, Group, Role, Permission
+from structure.models import User, Group, Role, Permission, Organization
 
 
 class Command(BaseCommand):
     help = "Runs an initial setup for creating the superuser on a fresh installation."
 
     def add_arguments(self, parser):
-        parser.add_argument("superuser-name", nargs=1, type=str, help="The superuser's username")
+        pass
 
+    @transaction.atomic
     def handle(self, *args, **options):
         # Check if superuser already exists
-        name = options.get("superuser-name", None)[0]
+        name = input("Enter a username:")
         superuser = User()
         superuser.username = name
 
@@ -47,6 +49,21 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(str(msg)))
 
         # handle root group
+        group = self._create_default_group()
+        group.users.add(superuser)
+        group.save()
+
+        # handle root organization
+        orga = self._create_default_organization()
+        superuser.primary_organization = orga
+        superuser.save()
+        msg = "Superuser '" + name + "' added to group '" + group.name + "'!"
+        self.stdout.write(self.style.SUCCESS(str(msg)))
+        msg = "Superuser '" + name + "' added to organization '" + orga.organization_name + "'!"
+        self.stdout.write(self.style.SUCCESS(msg))
+
+
+    def _create_default_group(self):
         group = Group.objects.get_or_create(name="_root_")[0]
         if group.role is None:
             role = Role.objects.get_or_create(name="_root_")[0]
@@ -66,8 +83,9 @@ class Command(BaseCommand):
                 role.permission = perm
             role.save()
             group.role = role
-        group.users.add(superuser)
-        group.save()
-        msg = "Superuser '" + name + "' added to group '" + group.name + "'!"
-        self.stdout.write(self.style.SUCCESS(str(msg)))
+        return group
+
+    def _create_default_organization(self):
+        orga = Organization.objects.get_or_create(organization_name="Testorganization")[0]
+        return orga
 

@@ -22,6 +22,9 @@ def index(request: HttpRequest):
         messages.add_message(request, messages.INFO, _("Session timeout"))
         return redirect("structure:login")
     user = user_helper.get_user(user_id=request.session.get("user_id"))
+    if user is None:
+        messages.add_message(request, messages.ERROR, _("You have been logged out."))
+        return redirect("structure:login")
 
     # Define what permissions are needed here
     permission = Permission()
@@ -91,7 +94,7 @@ def login(request: HttpRequest):
         user.save()
         request.session["user_id"] = user.id
         request.session.set_expiry(SESSION_EXPIRATION)
-        return redirect('structure:index')
+        return redirect('service:index')
     login_form = LoginForm()
     params = {
         "login_form": login_form,

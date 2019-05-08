@@ -536,10 +536,10 @@ class OGCWebMapService(OGCWebService):
         Returns:
 
         """
-        orga_published_for = Organization.objects.get(organization_name="Testorganization")
-        orga_publisher = Organization.objects.get(organization_name="Testorganization")
+        orga_published_for = user.secondary_organization
+        orga_publisher = user.primary_organization
 
-        group = Group.objects.get(name="Testgroup")
+        group = user.groups.all()[0]
 
         # fill objects
         service_type = ServiceType.objects.get_or_create(
@@ -577,7 +577,7 @@ class OGCWebMapService(OGCWebService):
         service.is_available = False
         service.servicetype = service_type
         service.published_for = orga_published_for
-        service.published_by = orga_published_for
+        service.published_by = orga_publisher
         service.created_by = group
         service.metadata = metadata
         service.is_root = True

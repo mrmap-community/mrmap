@@ -14,7 +14,7 @@ from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType
-from structure.models import Organization, Group
+from structure.models import Organization, Group, User
 
 
 class OGCWebFeatureService(OGCWebService):
@@ -247,24 +247,11 @@ class OGCWebFeatureService(OGCWebService):
 
     @abstractmethod
     @transaction.atomic
-    def persist(self):
-        orga_published_for = Organization.objects.get(name="Testorganization")
-        orga_publisher = Organization.objects.get(name="Testorganization")
+    def persist(self, user: User):
+        orga_published_for = user.secondary_organization
+        orga_publisher = user.primary_organization
 
-        group = Group.objects.get(name="Testgroup")
-
-        # Service
-        service = Service()
-        service_type = ServiceType.objects.get_or_create(
-            name=self.service_type.value,
-            version=self.service_version.value
-        )[0]
-        service.servicetype = service_type
-        service.created_by = group
-        service.published_for = orga_published_for
-        service.availability = 0.0
-        service.is_available = False
-        service.save()
+        group = user.groups.all()[0] # ToDo: Find better solution for group selection than this
 
         # Metadata
         md = Metadata()
@@ -272,20 +259,20 @@ class OGCWebFeatureService(OGCWebService):
         md.uuid = uuid.uuid4()
         md.abstract = self.service_identification_abstract
         md.online_resource = self.service_provider_onlineresource_linkage
-        md.is_root = True
-        md.contact_organization = self.service_provider_providername
-        md.contact_person = self.service_provider_responsibleparty_individualname
-        md.contact_person_position = self.service_provider_responsibleparty_positionname
-        md.contact_phone = self.service_provider_telephone_voice
-        md.contact_email = self.service_provider_address_electronicmailaddress
-        md.address = self.service_provider_address
-        md.country = self.service_provider_address_country
-        md.city = self.service_provider_address_city
-        md.post_code = self.service_provider_address_postalcode
-        md.state_or_province = self.service_provider_address_state_or_province
+        ## contact
+        contact = Organization.objects.get_or_create(
+            organization_name=self.service_provider_providername,
+            person_name=self.service_provider_responsibleparty_individualname,
+            email=self.service_provider_address_electronicmailaddress,
+            phone=self.service_provider_telephone_voice,
+            city=self.service_provider_address_city,
+            address=self.service_provider_address,
+            postal_code=self.service_provider_address_postalcode,
+            state_or_province=self.service_provider_address_state_or_province
+        )[0]
+        md.contact = contact
         md.authority_url = self.service_provider_url
         md.access_constraints = self.service_identification_accessconstraints
-        md.service = service
         md.save()
 
         # Keywords
@@ -305,6 +292,22 @@ class OGCWebFeatureService(OGCWebService):
                 f_t.reference_system.add(srs)
 
         # toDo: Implement persisting of get_feature_uri and so on
+
+        # Service
+        service = Service()
+        service_type = ServiceType.objects.get_or_create(
+            name=self.service_type.value,
+            version=self.service_version.value
+        )[0]
+        service.servicetype = service_type
+        service.created_by = group
+        service.published_for = orga_published_for
+        service.published_by = orga_publisher
+        service.availability = 0.0
+        service.is_available = False
+        service.is_root = True
+        service.metadata = md
+        service.save()
 
 
 class OGCWebFeatureServiceFactory:

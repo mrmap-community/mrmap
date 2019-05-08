@@ -14,6 +14,9 @@ class Permission(models.Model):
     can_remove_wfs = models.BooleanField(default=False)
     # more permissions coming
 
+    def __str__(self):
+        return str(self.id)
+
 
 class Role(models.Model):
     name = models.CharField(max_length=100)
@@ -25,12 +28,12 @@ class Role(models.Model):
 
 
 class Contact(models.Model):
-    person_name = models.CharField(max_length=200, default="")
-    email = models.CharField(max_length=100)
-    phone = models.CharField(max_length=100)
-    city = models.CharField(max_length=100)
-    postal_code = models.CharField(max_length=100)
-    street = models.CharField(max_length=100)
+    person_name = models.CharField(max_length=200, default="", null=True)
+    email = models.CharField(max_length=100, null=True)
+    phone = models.CharField(max_length=100, null=True)
+    city = models.CharField(max_length=100, null=True)
+    postal_code = models.CharField(max_length=100, null=True)
+    street = models.CharField(max_length=100, null=True)
     address_type = models.CharField(max_length=100, null=True)
     address = models.CharField(max_length=100, null=True)
     state_or_province = models.CharField(max_length=100, null=True)
@@ -50,12 +53,22 @@ class User(Contact):
     last_login = models.DateTimeField(null=True)
     created_on = models.DateTimeField(auto_now_add=True)
     groups = models.ManyToManyField('Group', related_name='users', null=True)
+    primary_organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.DO_NOTHING, null=True)
+    secondary_organization = models.ForeignKey('Organization', related_name='secondary_users', on_delete=models.DO_NOTHING, null=True)
+
+    def __str__(self):
+        return self.username
 
 
 class Organization(Contact):
-    organization_name = models.CharField(max_length=255)
-    description = models.CharField(max_length=500)
+    organization_name = models.CharField(max_length=255, null=True, default="")
+    description = models.CharField(max_length=500, null=True)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True)
+
+    def __str__(self):
+        if self.organization_name is None:
+            return ""
+        return self.organization_name
 
 
 class Group(models.Model):
@@ -66,10 +79,4 @@ class Group(models.Model):
 
     def __str__(self):
         return self.name
-
-
-# class UserGroupRoleRel(models.Model):
-#     user = models.ForeignKey(User, on_delete=models.CASCADE)
-#     group = models.ForeignKey(Group, on_delete=models.CASCADE)
-#     role = models.ForeignKey(Role, on_delete=models.CASCADE)
 

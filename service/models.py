@@ -30,17 +30,6 @@ class Metadata(Resource):
     online_resource = models.CharField(max_length=255, null=True)
 
     contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING)
-    # contact_person = models.CharField(max_length=100, null=True)
-    # contact_person_position = models.CharField(max_length=100, null=True)
-    # contact_organization = models.CharField(max_length=100, null=True)
-    # address_type = models.CharField(max_length=100, null=True)
-    # address = models.CharField(max_length=100, null=True)
-    # city = models.CharField(max_length=100, null=True)
-    # state_or_province = models.CharField(max_length=100, null=True)
-    # post_code = models.CharField(max_length=100, null=True)
-    # country = models.CharField(max_length=100, null=True)
-    # contact_phone = models.CharField(max_length=100, null=True)
-    # contact_email = models.CharField(max_length=100, null=True)
     terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, null=True)
     access_constraints = models.TextField(null=True)
 
@@ -102,7 +91,7 @@ class ServiceType(models.Model):
 class Service(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None)
-    published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for")
+    published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None)
     published_by = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_by")
     servicetype = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
     categories = models.ManyToManyField(Category)

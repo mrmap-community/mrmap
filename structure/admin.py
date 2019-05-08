@@ -13,7 +13,7 @@ class UserAdmin(admin.ModelAdmin):
 
 
 class OrganizationAdmin(admin.ModelAdmin):
-    pass
+    list_display = ['organization_name', 'country', 'city', 'postal_code']
 
 
 class GroupAdmin(admin.ModelAdmin):

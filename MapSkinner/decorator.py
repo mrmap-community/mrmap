@@ -15,7 +15,7 @@ from structure.helper import user_helper
 def check_access(function):
     def wrap(request, *args, **kwargs):
         if user_helper.is_session_expired(request):
-            messages.add_message(request, messages.INFO, _("Session timeout"))
+            messages.add_message(request, messages.INFO, _("Session timeout. You have been logged out."))
             return redirect("structure:login")
         user = user_helper.get_user(user_id=request.session.get("user_id"))
         if user is None:

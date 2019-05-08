@@ -37,18 +37,18 @@ a{
 }
 .message{
     padding: 10px;
+    color: white;
+    font-weight: bold;
+    font-size: 1.00em;
 }
 .message.error{
     background-color: red;
-    color: white;
-    font-weight: bold;
-    font-size: 1.00em;
 }
 .message.success{
     background-color: var(--primary-color);
-    color: white;
-    font-weight: bold;
-    font-size: 1.00em;
+}
+.message.info{
+    background-color: var(--primary-color);
 }
 
 #body-content{
@@ -109,7 +109,7 @@ a{
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    padding: 0 0 0 20px;
+    padding: 0;
     height: 50px;
     background-color: var(--primary-color);
     font-size: 1.0em;
@@ -117,10 +117,15 @@ a{
     position: relative;
 }
 
+#navbar-logo{
+    padding: 10px;
+    max-height: 80%;
+}
+
 .navigation-bar-left{
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: center;
 }
 .navigation-bar-right{
     display: flex;
@@ -130,26 +135,29 @@ a{
 }
 
 .navigation-menu{
-}
-
-.navigation-title{
     display: flex;
     align-items: center;
     justify-content: center;
-    border-right: 1px solid white;
+    width: 120px;
     height: 100%;
-    width: 100px;
-    color: white;
-    font-weight: bold;
-    padding: 10px;
+    border-right: 1px solid white;
 }
-.navigation-title:hover{
+.navigation-menu:hover{
     cursor: pointer;
     background-color: var(--primary-color-dark);
 }
 
+.navigation-title{
+    color: white;
+    font-weight: bold;
+    padding: 10px;
+}
+
 .navigation-element-list{
     display: none;
+    position: absolute;
+    top: 50px;
+    width: 120px;
     background-color: var(--secondary-color);
 }
 

@@ -52,6 +52,22 @@ function editEntity(id, entity){
     })
 }
 
+function addEntity(entity){
+    $.ajax({
+        url: "/" + entity + "/new/",
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        data: {},
+        type: 'get',
+        dataType: 'json',
+        success: function(data){
+            var html = data["html"];
+            toggleOverlay(html);
+        }
+    })
+}
+
 
 function removeEntity(id, confirmed, entity){
     $.ajax({
@@ -108,5 +124,12 @@ $(document).ready(function(){
         var entity = $(this).attr("typeof");
         editEntity(id, entity);
     });
+
+    $(".add-button").click(function(){
+        // call remove form, but indicate that the remove process was not confirmed yet by the user
+        var entity = $(this).attr("typeof");
+        addEntity(entity);
+    });
+
 
 });

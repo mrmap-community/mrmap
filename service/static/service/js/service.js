@@ -112,7 +112,7 @@ $(document).ready(function(){
         });
     });
 
-    $(".action-button").click(function(){
+    $(".add-button").click(function(){
         $.ajax({
             url: "/service/new/register-form",
             headers: {

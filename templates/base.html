@@ -14,6 +14,7 @@
     {% endblock %}
 </head>
 <header>
+    {% include 'messages.html' %}
     <nav class="navigation-bar">
         <div class="navigation-bar-left">
             <img id="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" title="Map your s*** together!">
@@ -53,7 +54,6 @@
 <div id="body-content">
     <div id="overlay">
     </div>
-    {% include 'messages.html' %}
 {% block body %}
 
 {% endblock %}

@@ -17,4 +17,4 @@ class GroupForm(ModelForm):
     class Meta:
         model = Group
         fields = '__all__'
-        exclude = ["created_by", "role"]
+        exclude = ["created_by"]

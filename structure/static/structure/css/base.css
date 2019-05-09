@@ -26,8 +26,9 @@ a{
 }
 
 .messages{
-    position: fixed;
+    position: absolute;
     top: 0;
+    z-index: 100;
     width: 100vw;
     text-align: center;
 }

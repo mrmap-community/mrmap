@@ -44,7 +44,7 @@
     });
     $(".submit-button").click(function(){
         replaceButtonWithSpinner($(this));
-        removeService({{ service.id }},true);
+        removeEntity({{ service.id }},true, 'service');
     });
 
     $('form').bind('keypress', function(event){

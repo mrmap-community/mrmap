@@ -43,6 +43,8 @@ class ReferenceSystemAdmin(admin.ModelAdmin):
     list_display = ('code', 'prefix', 'version')
     pass
 
+class FeatureTypeAdmin(admin.ModelAdmin):
+    list_display = ('title', 'name', 'abstract')
 
 class LayerAdmin(admin.ModelAdmin):
     pass
@@ -62,3 +64,4 @@ admin.site.register(ReferenceSystem, ReferenceSystemAdmin)
 admin.site.register(Service, ServiceAdmin)
 admin.site.register(MimeType, MimeTypeAdmin)
 admin.site.register(Layer, LayerAdmin)
+admin.site.register(FeatureType, FeatureTypeAdmin)

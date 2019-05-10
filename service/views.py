@@ -16,6 +16,7 @@ from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Metadata, Layer, Service
 from structure.helper import user_helper
 from structure.models import User
+from django.utils.translation import gettext_lazy as _
 
 
 @check_access
@@ -200,32 +201,36 @@ def new_service(request: HttpRequest, user:User):
     if url_dict.get("service") is ServiceTypes.WMS:
         # create WMS object
         wms_factory = OGCWebMapServiceFactory()
-        wms = wms_factory.get_ogc_wms(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
+        try:
+            wms = wms_factory.get_ogc_wms(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
+            # let it load it's capabilities
+            wms.create_from_capabilities()
 
-        # let it load it's capabilities
-        wms.create_from_capabilities()
+            # check quality of metadata
+            # ToDo: :3
 
-        # check quality of metadata
-        # ToDo: :3
+            params["service"] = wms
+            # persist data
 
-        params["service"] = wms
-        # persist data
-
-        wms.persist(user)
+            wms.persist(user)
+        except ConnectionError as e:
+            params["error"] = e.args[0]
+            return
 
     elif url_dict.get("service") is ServiceTypes.WFS:
         # create WFS object
         wfs_factory = OGCWebFeatureServiceFactory()
-        wfs = wfs_factory.get_ogc_wfs(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
+        try:
+            wfs = wfs_factory.get_ogc_wfs(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
+            # load capabilities
+            wfs.create_from_capabilities()
 
-        # load capabilities
-        wfs.create_from_capabilities()
+            params["service"] = wfs
 
-        params["service"] = wfs
-
-        # persist wfs
-        wfs.persist(user)
-
+            # persist wfs
+            wfs.persist(user)
+        except ConnectionError as e:
+            params["error"] = e.args[0]
 
     template = "check_metadata_form.html"
     html = render_to_string(template_name=template, request=request, context=params)

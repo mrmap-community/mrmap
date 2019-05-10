@@ -1,4 +1,4 @@
-import datetime
+import uuid
 from django.db import models
 from django.contrib.gis.db import models
 
@@ -13,9 +13,9 @@ class Keyword(models.Model):
 
 
 class Resource(models.Model):
-    uuid = models.CharField(max_length=255)
+    uuid = models.CharField(max_length=255, default=uuid.uuid4())
     created = models.DateTimeField(auto_now_add=True)
-    #created_by = models.OneToOneField(Group, on_delete=models.DO_NOTHING, unique=False)
+    created_by = models.ForeignKey(Group, on_delete=models.DO_NOTHING)
     last_modified = models.DateTimeField(null=True)
     deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
@@ -105,6 +105,7 @@ class Service(Resource):
     get_legend_graphic_uri = models.CharField(max_length=1000, null=True)
     get_styles_uri = models.CharField(max_length=1000, null=True)
     formats = models.ManyToManyField('MimeType')
+    featuretypes = models.ManyToManyField('FeatureType')
 
     def __str__(self):
         return str(self.id)

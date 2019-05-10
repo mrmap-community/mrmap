@@ -53,6 +53,17 @@
     <div class="modal-close" title="{% trans 'Close' %}">
         x
     </div>
+    {% if error is not None %}
+    <h2 class="error">{% trans 'An error occured' %}</h2>
+    <article>
+        {% blocktrans %}
+        Service could not be loaded. <br>
+        The following HTTP error was raised during connection: <b>{{ error }}</b> <br>
+        Please make sure the service is publicly available.
+        {% endblocktrans %}
+    </article>
+    <div class="close-button button">{% trans 'Okay' %}</div>
+    {% else %}
     {% trans 'The service has been registered. The following is an extract from the metadata.' %} <br>
     <form class="form-table" action="/service/new/" method="post">
         {% csrf_token %}
@@ -102,6 +113,7 @@
         </table>
     </form>
     <div class="submit-button button">{% trans 'Finish' %}</div>
+    {% endif %}
 </div>
 
 <script>

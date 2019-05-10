@@ -273,25 +273,8 @@ class OGCWebFeatureService(OGCWebService):
         md.contact = contact
         md.authority_url = self.service_provider_url
         md.access_constraints = self.service_identification_accessconstraints
+        md.created_by = user
         md.save()
-
-        # Keywords
-        for kw in self.service_identification_keywords:
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            md.keywords.add(keyword)
-
-        # feature types
-        for feature_type_key, feature_type_val in self.feature_type_list.items():
-            f_t = feature_type_val.get("feature_type")
-            f_t.save()
-            # keywords of feature types
-            for kw in feature_type_val.get("keyword_list"):
-                f_t.keywords.add(kw)
-            # srs of feature types
-            for srs in feature_type_val.get("srs_list"):
-                f_t.reference_system.add(srs)
-
-        # toDo: Implement persisting of get_feature_uri and so on
 
         # Service
         service = Service()
@@ -308,6 +291,28 @@ class OGCWebFeatureService(OGCWebService):
         service.is_root = True
         service.metadata = md
         service.save()
+
+        # Keywords
+        for kw in self.service_identification_keywords:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            md.keywords.add(keyword)
+
+        # feature types
+        for feature_type_key, feature_type_val in self.feature_type_list.items():
+            f_t = feature_type_val.get("feature_type")
+            if f_t.created_by is None:
+                f_t.created_by = group
+            f_t.save()
+            service.featuretypes.add(f_t)
+            # keywords of feature types
+            for kw in feature_type_val.get("keyword_list"):
+                f_t.keywords.add(kw)
+            # srs of feature types
+            for srs in feature_type_val.get("srs_list"):
+                f_t.reference_system.add(srs)
+
+        # toDo: Implement persisting of get_feature_uri and so on
+
 
 
 class OGCWebFeatureServiceFactory:

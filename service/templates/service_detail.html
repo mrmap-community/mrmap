@@ -96,6 +96,10 @@
 
 <br>
 
-{% include 'containing_layers.html' %}
+{% if root_service.servicetype.name == 'wms' %}
+    {% include 'containing_layers.html' %}
+{% elif root_service.servicetype.name == 'wfs' %}
+    {% include 'containing_featuretypes.html' %}
+{% endif %}
 
 {% endblock %}

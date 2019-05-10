@@ -19,6 +19,16 @@ class Permission(models.Model):
     def __str__(self):
         return str(self.id)
 
+    def get_permission_list(self):
+        p_list = []
+        perms = self.__dict__
+        del perms["id"]
+        del perms["_state"]
+        for perm_key, perm_val in perms.items():
+            if perm_val:
+                p_list.append(perm_key)
+        return p_list
+
 
 class Role(models.Model):
     name = models.CharField(max_length=100)

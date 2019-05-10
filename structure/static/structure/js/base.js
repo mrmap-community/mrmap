@@ -54,7 +54,7 @@ function editEntity(id, entity){
 
 function addEntity(entity){
     $.ajax({
-        url: "/" + entity + "/new/",
+        url: "/" + entity + "/new/register-form",
         headers: {
             "X-CSRFToken": getCookie("csrftoken")
         },

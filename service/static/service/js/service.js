@@ -109,7 +109,7 @@ $(document).ready(function(){
             console.log(jqXHR);
         });
     });
-
+/*
     $(".add-button").click(function(){
         $.ajax({
             url: "/service/new/register-form",
@@ -125,7 +125,7 @@ $(document).ready(function(){
             }
         });
     });
-
+*/
     $(".layer-title").click(function(){
         var elem = $(this);
         var table = elem.siblings(".layer-content");

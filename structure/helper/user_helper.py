@@ -80,9 +80,7 @@ def has_permission(user: User, permission_needed: Permission):
          True if all permissions are satisfied. False otherwise
     """
     all_perms = get_permissions(user=user)
-    permissions_needed = list(permission_needed.__dict__.keys())
-    permissions_needed.remove("id")
-    permissions_needed.remove("_state")
+    permissions_needed = permission_needed.get_permission_list()
     for p_n in permissions_needed:
         if p_n not in all_perms:
             return False

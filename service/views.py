@@ -43,12 +43,14 @@ def index(request: HttpRequest, user: User, service_type=None):
         md_list_wms = Metadata.objects.filter(
             service__servicetype__name="wms",
             service__is_root=is_root,
-            service__published_by=user.primary_organization
+            service__published_by=user.primary_organization,
+            service__is_deleted=False,
         )
     if service_type is None or service_type == ServiceTypes.WFS.value:
         md_list_wfs = Metadata.objects.filter(
             service__servicetype__name="wfs",
-            service__published_by=user.primary_organization
+            service__published_by=user.primary_organization,
+            service__is_deleted=False,
         )
     params = {
         "metadata_list_wms": md_list_wms,
@@ -85,7 +87,9 @@ def remove(request: HttpRequest, user: User):
         return BackendAjaxResponse(html=html).get_response()
     else:
         # remove service and all of the related content
-        service.delete()
+        service.is_deleted = True
+        service.save()
+        #service.delete()
         return BackendAjaxResponse(html="", redirect="/service").get_response()
 
 @check_access

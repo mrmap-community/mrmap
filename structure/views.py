@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from MapSkinner.decorator import check_access
 from MapSkinner.responses import BackendAjaxResponse
 from structure.forms import GroupForm
-from structure.models import User, Group, Role
+from structure.models import User, Group, Role, Permission
 from .helper import user_helper
 
 
@@ -69,6 +69,10 @@ def new(request: HttpRequest, user: User):
     Returns:
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
+    if not user_helper.has_permission(user=user, permission_needed=Permission(can_create_group=True)):
+        messages.add_message(request, messages.ERROR, _("You do not have permissions for this!"))
+        return redirect("structure:index")
+
     template = "group_form.html"
     form = GroupForm(request.POST or None)
     if request.method == "POST":

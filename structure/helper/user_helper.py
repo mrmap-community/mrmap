@@ -70,20 +70,21 @@ def get_permissions(user: User = None, group: Group = None):
     return all_perm
 
 
-def check_permissions(all_permissions: list, permission_needed: Permission):
+def has_permission(user: User, permission_needed: Permission):
     """ Checks if needed permissions are provided by the users permission
 
     Args:
-        all_permissions: A list of all user's permissions
+        user: The user object
         permission_needed: The permission that is needed
     Returns:
          True if all permissions are satisfied. False otherwise
     """
+    all_perms = get_permissions(user=user)
     permissions_needed = list(permission_needed.__dict__.keys())
     permissions_needed.remove("id")
     permissions_needed.remove("_state")
     for p_n in permissions_needed:
-        if p_n not in all_permissions:
+        if p_n not in all_perms:
             return False
     return True
 

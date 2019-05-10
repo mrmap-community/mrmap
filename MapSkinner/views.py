@@ -5,7 +5,8 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 08.05.19
 
 """
-import datetime
+import pytz
+from django.utils import timezone
 from django.contrib import messages
 from django.http import HttpRequest
 from django.shortcuts import redirect, render
@@ -39,7 +40,7 @@ def login(request: HttpRequest):
         if not user_helper.is_password_valid(user, password):
             messages.add_message(request, messages.ERROR, _("Username or password incorrect"))
             return redirect("login")
-        user.last_login = datetime.datetime.now()
+        user.last_login = timezone.now()
         user.logged_in = True
         user.save()
         request.session["user_id"] = user.id

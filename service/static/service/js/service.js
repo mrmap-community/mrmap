@@ -86,8 +86,6 @@ $(document).ready(function(){
         toggleServiceActiveStatus(id, active)
     });
 
-
-
     $("#service-display-selector").change(function(){
         var val = $(this).val();
         $.ajax({

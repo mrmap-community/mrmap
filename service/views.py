@@ -194,8 +194,8 @@ def new_service(request: HttpRequest, user:User):
     cap_url = POST_params.get("uri", "")
     user = user_helper.get_user(user_id=request.session.get("user_id"))
     url_dict = service_helper.split_service_uri(cap_url)
-    epsg_api = EpsgApi()
-    epsg_api.get_axis_order("EPSG:25832")
+
+    params = {}
 
     if url_dict.get("service") is ServiceTypes.WMS:
         # create WMS object
@@ -208,9 +208,7 @@ def new_service(request: HttpRequest, user:User):
         # check quality of metadata
         # ToDo: :3
 
-        params = {
-            "service": wms,
-        }
+        params["service"] = wms
         # persist data
 
         wms.persist(user)
@@ -223,12 +221,11 @@ def new_service(request: HttpRequest, user:User):
         # load capabilities
         wfs.create_from_capabilities()
 
+        params["service"] = wfs
+
         # persist wfs
         wfs.persist(user)
 
-        params = {
-            "service": wfs,
-        }
 
     template = "check_metadata_form.html"
     html = render_to_string(template_name=template, request=request, context=params)

@@ -44,6 +44,9 @@
                 {% trans 'Active' %}
             </th>
             <th class="table-header">
+                {% trans 'Version' %}
+            </th>
+            <th class="table-header">
                 {% trans 'Organization' %}
             </th>
             <th class="table-header">
@@ -66,6 +69,9 @@
                     {% else %}
                     <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
                     {% endif %}
+                </td>
+                <td class="table-cell">
+                    {{ md.service.servicetype.version }}
                 </td>
                 <td class="table-cell">
                     {{ md.contact.organization_name }}
@@ -106,6 +112,9 @@
                 {% trans 'Active' %}
             </th>
             <th class="table-header">
+                {% trans 'Version' %}
+            </th>
+            <th class="table-header">
                 {% trans 'Organization' %}
             </th>
             <th class="table-header">
@@ -123,6 +132,9 @@
                     {% else %}
                     <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
                     {% endif %}
+                </td>
+                <td class="table-cell">
+                    {{ wfs.service.servicetype.version }}
                 </td>
                 <td class="table-cell">
                     {{ wfs.contact_organization }}

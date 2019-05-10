@@ -114,6 +114,22 @@
         replaceButtonWithSpinner($(this));
         startServiceRegistration('{{ full_uri }}', buttonText);
     });
+
+    $(document).bind('keypress', function(event){
+        if (event.keyCode == 13){
+            // Enter key pressed
+            event.preventDefault();
+            $(".submit-button").click();
+        }
+    });
+
+    $(document).bind('keypress', function(event){
+        if (event.keyCode == 27){
+            // Esc key pressed
+            event.preventDefault();
+            $(".modal-close").click();
+        }
+    });
 </script>
 
 {% endblock %}

@@ -172,7 +172,7 @@ LOCALE_PATHS = (
 )
 
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Berlin'
 
 USE_I18N = True
 

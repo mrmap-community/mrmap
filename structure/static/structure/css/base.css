@@ -26,8 +26,9 @@ a{
 }
 
 .messages{
-    position: fixed;
+    position: absolute;
     top: 0;
+    z-index: 100;
     width: 100vw;
     text-align: center;
 }
@@ -119,7 +120,8 @@ a{
 
 #navbar-logo{
     padding: 10px;
-    max-height: 80%;
+    max-height: 40px;
+    max-width: 40px;
 }
 
 .navigation-bar-left{
@@ -148,9 +150,13 @@ a{
 }
 
 .navigation-title{
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: white;
     font-weight: bold;
-    padding: 10px;
+    width: 120px;
+    height: 100%;
 }
 
 .navigation-element-list{
@@ -208,6 +214,10 @@ tr:nth-child(even){
     background-color: var(--primary-color-light);
 }
 
+tr:nth-child(odd){
+    background-color: white;
+}
+
 
 
 .hidden{
@@ -226,6 +236,7 @@ tr:nth-child(even){
     color: white;
     border-radius: 5px;
     text-align: center;
+    font-size: 1.05em;
 }
 
 .button:hover{

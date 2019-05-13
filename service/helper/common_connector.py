@@ -34,6 +34,7 @@ class CommonConnector():
         self.content = None
         self.encoding = None
         self.text = None
+        self.status_code = None
         
     def load(self):
         self.init_time = time.time()
@@ -46,6 +47,7 @@ class CommonConnector():
         else:
             response = self.__load_urllib()
         # parse response
+        self.status_code = response.status_code
         self.content = response.content
         self.encoding = response.encoding
         self.text = response.text

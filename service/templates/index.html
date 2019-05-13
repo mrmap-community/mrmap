@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load i18n static %}
+{% load i18n static tz %}
 
 {% block head %}
     <script type="text/javascript" src="{% static '/service/js/service.js' %}"></script>
@@ -16,7 +16,7 @@
             <h2>{% trans 'WMS' %}</h2>
             {% if 'can_register_service' in permissions %}
                 <div class="overview-action">
-                    <span class="action-button" title="{% trans 'Register new' %}" datatype="wms">
+                    <span class="add-button" title="{% trans 'Register new' %}" datatype="wms" typeof="service">
                         +
                     </span>
                 </div>
@@ -44,6 +44,9 @@
                 {% trans 'Active' %}
             </th>
             <th class="table-header">
+                {% trans 'Version' %}
+            </th>
+            <th class="table-header">
                 {% trans 'Organization' %}
             </th>
             <th class="table-header">
@@ -68,6 +71,9 @@
                     {% endif %}
                 </td>
                 <td class="table-cell">
+                    {{ md.service.servicetype.version }}
+                </td>
+                <td class="table-cell">
                     {{ md.contact.organization_name }}
                 </td>
                 <td class="table-cell">
@@ -86,7 +92,7 @@
         <h2>{% trans 'WFS' %}</h2>
         {% if 'can_register_service' in permissions %}
             <div class="overview-action">
-                <span class="action-button" title="{% trans 'Register new' %}" datatype="wfs">
+                <span class="add-button" title="{% trans 'Register new' %}" datatype="wfs" typeof="service">
                     +
                 </span>
             </div>
@@ -104,6 +110,9 @@
             </th>
             <th class="table-header">
                 {% trans 'Active' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Version' %}
             </th>
             <th class="table-header">
                 {% trans 'Organization' %}
@@ -125,10 +134,13 @@
                     {% endif %}
                 </td>
                 <td class="table-cell">
-                    {{ wfs.contact_organization }}
+                    {{ wfs.service.servicetype.version }}
                 </td>
                 <td class="table-cell">
-                    {{ wfs.created }}
+                    {{ wfs.contact.organization_name }}
+                </td>
+                <td class="table-cell">
+                    {{ wfs.created | localtime }}
                 </td>
             </tr>
         </tr>{% endfor %}

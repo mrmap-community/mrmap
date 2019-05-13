@@ -14,7 +14,7 @@
     </div>
     <article>
         {% trans 'You are about to remove this service.' %}<br>
-        {% trans 'This will remove all related layers and metadata.' %}<br>
+        {% trans 'This will remove all related subelements and metadata.' %}<br>
         {% trans 'Do you want to continue?' %}
     </article>
     <table class="form-table">
@@ -31,8 +31,8 @@
             <td>{{ metadata.abstract }}</td>
         </tr>
         <tr>
-            <th>{% trans 'Number of layers:' %}</th>
-            <td>{{ service_layers|length }}</td>
+            <th>{% trans 'Number of subelements:' %}</th>
+            <td>{{ sub_elements|length }}</td>
         </tr>
     </table>
     <div class="submit-button button">{% trans 'Yes, remove!' %}</div>
@@ -44,7 +44,23 @@
     });
     $(".submit-button").click(function(){
         replaceButtonWithSpinner($(this));
-        removeService({{ service.id }},true);
+        removeEntity({{ service.id }},true, 'service');
+    });
+
+    $('form').bind('keypress', function(event){
+        if (event.keyCode == 13){
+            // Enter key pressed
+            event.preventDefault();
+            $(".submit-button").click();
+        }
+    });
+
+    $(document).bind('keypress', function(event){
+        if (event.keyCode == 27){
+            // Esc key pressed
+            event.preventDefault();
+            $(".modal-close").click();
+        }
     });
 </script>
 {% endblock %}

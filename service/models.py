@@ -1,6 +1,7 @@
-import datetime
+import uuid
 from django.db import models
 from django.contrib.gis.db import models
+from django.utils import timezone
 
 from structure.models import User, Group, Organization, Contact
 
@@ -13,12 +14,18 @@ class Keyword(models.Model):
 
 
 class Resource(models.Model):
-    uuid = models.CharField(max_length=255)
+    uuid = models.CharField(max_length=255, default=uuid.uuid4())
     created = models.DateTimeField(auto_now_add=True)
-    #created_by = models.OneToOneField(Group, on_delete=models.DO_NOTHING, unique=False)
+    created_by = models.ForeignKey(Group, on_delete=models.DO_NOTHING)
     last_modified = models.DateTimeField(null=True)
-    deleted = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        # We always want to have automatically the last timestamp from the latest change!
+        self.last_modified = timezone.now()
+        super().save()
 
     class Meta:
         abstract = True
@@ -90,21 +97,21 @@ class ServiceType(models.Model):
 
 class Service(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
-    parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None)
-    published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None)
+    parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
+    published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)
     published_by = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_by")
     servicetype = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
-    categories = models.ManyToManyField(Category)
+    categories = models.ManyToManyField(Category, blank=True, null=True)
     is_root = models.BooleanField(default=False)
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
-    get_capabilities_uri = models.CharField(max_length=1000, null=True)
-    get_map_uri = models.CharField(max_length=1000, null=True)
-    get_feature_info_uri = models.CharField(max_length=1000, null=True)
-    describe_layer_uri = models.CharField(max_length=1000, null=True)
-    get_legend_graphic_uri = models.CharField(max_length=1000, null=True)
-    get_styles_uri = models.CharField(max_length=1000, null=True)
-    formats = models.ManyToManyField('MimeType')
+    get_capabilities_uri = models.CharField(max_length=1000, null=True, blank=True)
+    get_map_uri = models.CharField(max_length=1000, null=True, blank=True)
+    get_feature_info_uri = models.CharField(max_length=1000, null=True, blank=True)
+    describe_layer_uri = models.CharField(max_length=1000, null=True, blank=True)
+    get_legend_graphic_uri = models.CharField(max_length=1000, null=True, blank=True)
+    get_styles_uri = models.CharField(max_length=1000, null=True, blank=True)
+    formats = models.ManyToManyField('MimeType', null=True, blank=True)
 
     def __str__(self):
         return str(self.id)
@@ -192,7 +199,12 @@ class FeatureType(Resource):
     abstract = models.TextField(null=True)
     searchable = models.BooleanField(default=False)
     default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True, related_name="default_srs")
+    additional_srs = models.ManyToManyField(ReferenceSystem)
     inspire_download = models.BooleanField(default=False)
     bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
     keywords = models.ManyToManyField(Keyword)
-    reference_system = models.ManyToManyField(ReferenceSystem)
+    formats = models.ManyToManyField(MimeType)
+    service = models.ForeignKey(Service, null=True,  blank=True, on_delete=models.CASCADE, related_name="featuretypes")
+
+    def __str__(self):
+        return self.name

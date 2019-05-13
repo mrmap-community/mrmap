@@ -75,6 +75,26 @@
     $("#new-service-register-button").click(function(){
         checkServiceRequestURI();
     });
+
+    $('form').bind('keypress', function(event){
+        if (event.keyCode == 13){
+            // Enter key pressed
+            event.preventDefault();
+            $("#new-service-register-button").click();
+        }
+    });
+
+    $(document).bind('keypress', function(event){
+        if (event.keyCode == 27){
+            // Esc key pressed
+            event.preventDefault();
+            $(".modal-close").click();
+        }
+    });
+
+    $(document).ready(function(){
+        $("#capabilities-uri").focus();
+    });
 </script>
 
 {% endblock %}

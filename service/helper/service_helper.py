@@ -244,7 +244,7 @@ def try_get_single_element_from_xml(elem: str, xml_elem):
     tmp = try_get_element_from_xml(elem=elem, xml_elem=xml_elem)
     try:
         return tmp[0]
-    except IndexError:
+    except (IndexError, TypeError) as e:
         return None
 
 

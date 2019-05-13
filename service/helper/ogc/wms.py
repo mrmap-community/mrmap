@@ -519,7 +519,8 @@ class OGCWebMapService(OGCWebService):
                 for _format in format_list:
                     service_to_format = MimeType.objects.get_or_create(
                         action=action,
-                        mime_type=_format
+                        mime_type=_format,
+                        created_by=creator
                     )[0]
                     layer.formats.add(service_to_format)
 
@@ -560,10 +561,12 @@ class OGCWebMapService(OGCWebService):
             person_name=self.service_provider_responsibleparty_individualname,
             email=self.service_provider_address_electronicmailaddress,
             phone=self.service_provider_telephone_voice,
+            facsimile=self.service_provider_telephone_facsimile,
             city=self.service_provider_address_city,
             address=self.service_provider_address,
             postal_code=self.service_provider_address_postalcode,
-            state_or_province=self.service_provider_address_state_or_province
+            state_or_province=self.service_provider_address_state_or_province,
+            country=self.service_provider_address_country,
         )[0]
         metadata.contact = contact
         ## other

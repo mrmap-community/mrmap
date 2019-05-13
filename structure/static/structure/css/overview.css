@@ -8,7 +8,7 @@
     justify-content: space-between;
 }
 
-.action-button{
+.add-button{
     display: inline-block;
     text-align: center;
     vertical-align: middle;
@@ -20,7 +20,7 @@
     font-weight: bold;
     font-size: 1.2em;
 }
-.action-button:hover{
+.add-button:hover{
     background-color: var(--primary-color-dark);
     cursor: pointer;
 }

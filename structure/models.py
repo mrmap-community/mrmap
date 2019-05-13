@@ -5,8 +5,12 @@ class Permission(models.Model):
     can_create_group = models.BooleanField(default=False)
     can_delete_group = models.BooleanField(default=False)
     can_edit_group = models.BooleanField(default=False)
+
     can_add_user_to_group = models.BooleanField(default=False)
     can_remove_user_from_group = models.BooleanField(default=False)
+
+    can_change_group_role = models.BooleanField(default=False)
+
     can_activate_service = models.BooleanField(default=False)
     can_register_service = models.BooleanField(default=False)
     can_remove_service = models.BooleanField(default=False)
@@ -14,6 +18,16 @@ class Permission(models.Model):
 
     def __str__(self):
         return str(self.id)
+
+    def get_permission_list(self):
+        p_list = []
+        perms = self.__dict__
+        del perms["id"]
+        del perms["_state"]
+        for perm_key, perm_val in perms.items():
+            if perm_val:
+                p_list.append(perm_key)
+        return p_list
 
 
 class Role(models.Model):
@@ -29,6 +43,7 @@ class Contact(models.Model):
     person_name = models.CharField(max_length=200, default="", null=True)
     email = models.CharField(max_length=100, null=True)
     phone = models.CharField(max_length=100, null=True)
+    facsimile = models.CharField(max_length=100, null=True)
     city = models.CharField(max_length=100, null=True)
     postal_code = models.CharField(max_length=100, null=True)
     street = models.CharField(max_length=100, null=True)

@@ -58,10 +58,6 @@ class OGCWebService:
         else:
             # load from url
             self.get_capabilities()
-        # Parse capabilities - depending on service_type and service_version
-        if self.service_type is ServiceTypes.WMS and self.service_version is VersionTypes.V_1_1_1:
-                # self.service_object = OGCWebMapService_1_1_1(self.service_capabilities_xml)
-                pass
 
         class Meta:
             abstract = True
@@ -88,6 +84,8 @@ class OGCWebService:
                                         connection_type=ConnectionType.REQUESTS)
         ows_connector.http_method = 'GET'
         ows_connector.load()
+        if ows_connector.status_code != 200:
+            raise ConnectionError(ows_connector.status_code)
         if ows_connector.encoding is not None:
             self.service_capabilities_xml = ows_connector.content.decode(ows_connector.encoding)
         else:

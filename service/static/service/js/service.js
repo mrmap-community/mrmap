@@ -86,8 +86,6 @@ $(document).ready(function(){
         toggleServiceActiveStatus(id, active)
     });
 
-
-
     $("#service-display-selector").change(function(){
         var val = $(this).val();
         $.ajax({
@@ -111,8 +109,8 @@ $(document).ready(function(){
             console.log(jqXHR);
         });
     });
-
-    $(".action-button").click(function(){
+/*
+    $(".add-button").click(function(){
         $.ajax({
             url: "/service/new/register-form",
             headers: {
@@ -127,7 +125,7 @@ $(document).ready(function(){
             }
         });
     });
-
+*/
     $(".layer-title").click(function(){
         var elem = $(this);
         var table = elem.siblings(".layer-content");

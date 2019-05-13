@@ -10,12 +10,12 @@ from MapSkinner.responses import BackendAjaxResponse
 from service.forms import NewServiceURIForm
 from service.helper import service_helper
 from service.helper.enums import ServiceTypes
-from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Metadata, Layer, Service
 from structure.helper import user_helper
 from structure.models import User
+from django.utils.translation import gettext_lazy as _
 
 
 @check_access
@@ -42,12 +42,14 @@ def index(request: HttpRequest, user: User, service_type=None):
         md_list_wms = Metadata.objects.filter(
             service__servicetype__name="wms",
             service__is_root=is_root,
-            service__published_by=user.primary_organization
+            service__published_by=user.primary_organization,
+            service__is_deleted=False,
         )
     if service_type is None or service_type == ServiceTypes.WFS.value:
         md_list_wfs = Metadata.objects.filter(
             service__servicetype__name="wfs",
-            service__published_by=user.primary_organization
+            service__published_by=user.primary_organization,
+            service__is_deleted=False,
         )
     params = {
         "metadata_list_wms": md_list_wms,
@@ -72,19 +74,26 @@ def remove(request: HttpRequest, user: User):
     service_id = request.GET.dict().get("id")
     confirmed = request.GET.dict().get("confirmed")
     service = get_object_or_404(Service, id=service_id)
-    service_layers = Layer.objects.filter(parent_service=service)
+    service_type = service.servicetype
+    sub_elements = None
+    if service_type.name == ServiceTypes.WMS.value:
+        sub_elements = Layer.objects.filter(parent_service=service)
+    elif service_type.name == ServiceTypes.WFS.value:
+        sub_elements = service.featuretypes.all()
     metadata = get_object_or_404(Metadata, service=service)
     if confirmed == 'false':
         params = {
             "service": service,
             "metadata": metadata,
-            "service_layers": service_layers,
+            "sub_elements": sub_elements,
         }
         html = render_to_string(template_name=template, context=params, request=request)
         return BackendAjaxResponse(html=html).get_response()
     else:
         # remove service and all of the related content
-        service.delete()
+        service.is_deleted = True
+        service.save()
+        #service.delete()
         return BackendAjaxResponse(html="", redirect="/service").get_response()
 
 @check_access
@@ -194,41 +203,42 @@ def new_service(request: HttpRequest, user:User):
     cap_url = POST_params.get("uri", "")
     user = user_helper.get_user(user_id=request.session.get("user_id"))
     url_dict = service_helper.split_service_uri(cap_url)
-    epsg_api = EpsgApi()
-    epsg_api.get_axis_order("EPSG:25832")
+
+    params = {}
 
     if url_dict.get("service") is ServiceTypes.WMS:
         # create WMS object
         wms_factory = OGCWebMapServiceFactory()
-        wms = wms_factory.get_ogc_wms(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
+        try:
+            wms = wms_factory.get_ogc_wms(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
+            # let it load it's capabilities
+            wms.create_from_capabilities()
 
-        # let it load it's capabilities
-        wms.create_from_capabilities()
+            # check quality of metadata
+            # ToDo: :3
 
-        # check quality of metadata
-        # ToDo: :3
+            params["service"] = wms
+            # persist data
 
-        params = {
-            "service": wms,
-        }
-        # persist data
-
-        wms.persist(user)
+            wms.persist(user)
+        except ConnectionError as e:
+            params["error"] = e.args[0]
+            return
 
     elif url_dict.get("service") is ServiceTypes.WFS:
         # create WFS object
         wfs_factory = OGCWebFeatureServiceFactory()
-        wfs = wfs_factory.get_ogc_wfs(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
+        try:
+            wfs = wfs_factory.get_ogc_wfs(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
+            # load capabilities
+            wfs.create_from_capabilities()
 
-        # load capabilities
-        wfs.create_from_capabilities()
+            params["service"] = wfs
 
-        # persist wfs
-        wfs.persist(user)
-
-        params = {
-            "service": wfs,
-        }
+            # persist wfs
+            wfs.persist(user)
+        except ConnectionError as e:
+            params["error"] = e.args[0]
 
     template = "check_metadata_form.html"
     html = render_to_string(template_name=template, request=request, context=params)
@@ -262,7 +272,6 @@ def detail(request: HttpRequest, id, user:User):
     service = get_object_or_404(Service, id=service_md.service.id)
     layers = Layer.objects.filter(parent_service=service_md.service)
     layers_md_list = layers.filter(parent_layer=None)
-
     params = {
         "root_metadata": service_md,
         "root_service": service,

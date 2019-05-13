@@ -43,6 +43,7 @@ class Contact(models.Model):
     person_name = models.CharField(max_length=200, default="", null=True)
     email = models.CharField(max_length=100, null=True)
     phone = models.CharField(max_length=100, null=True)
+    facsimile = models.CharField(max_length=100, null=True)
     city = models.CharField(max_length=100, null=True)
     postal_code = models.CharField(max_length=100, null=True)
     street = models.CharField(max_length=100, null=True)

@@ -10,7 +10,6 @@ from MapSkinner.responses import BackendAjaxResponse
 from service.forms import NewServiceURIForm
 from service.helper import service_helper
 from service.helper.enums import ServiceTypes
-from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Metadata, Layer, Service
@@ -75,13 +74,18 @@ def remove(request: HttpRequest, user: User):
     service_id = request.GET.dict().get("id")
     confirmed = request.GET.dict().get("confirmed")
     service = get_object_or_404(Service, id=service_id)
-    service_layers = Layer.objects.filter(parent_service=service)
+    service_type = service.servicetype
+    sub_elements = None
+    if service_type.name == ServiceTypes.WMS.value:
+        sub_elements = Layer.objects.filter(parent_service=service)
+    elif service_type.name == ServiceTypes.WFS.value:
+        sub_elements = service.featuretypes.all()
     metadata = get_object_or_404(Metadata, service=service)
     if confirmed == 'false':
         params = {
             "service": service,
             "metadata": metadata,
-            "service_layers": service_layers,
+            "sub_elements": sub_elements,
         }
         html = render_to_string(template_name=template, context=params, request=request)
         return BackendAjaxResponse(html=html).get_response()
@@ -268,7 +272,6 @@ def detail(request: HttpRequest, id, user:User):
     service = get_object_or_404(Service, id=service_md.service.id)
     layers = Layer.objects.filter(parent_service=service_md.service)
     layers_md_list = layers.filter(parent_layer=None)
-
     params = {
         "root_metadata": service_md,
         "root_service": service,

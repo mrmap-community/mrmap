@@ -214,6 +214,10 @@ tr:nth-child(even){
     background-color: var(--primary-color-light);
 }
 
+tr:nth-child(odd){
+    background-color: white;
+}
+
 
 
 .hidden{

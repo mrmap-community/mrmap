@@ -40,11 +40,19 @@
     {% endif %}
 </div>
 
-<h2>{% trans 'Service Metadata' %}</h2>
+<h2>{{ root_metadata.title }}</h2>
 <table>
     <tr>
         <th>{% trans 'Uuid' %}</th>
         <td>{{ root_metadata.uuid }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Service type' %}</th>
+        <td>{{ root_service.servicetype }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Service type version' %}</th>
+        <td>{{ root_service.servicetype.version }}</td>
     </tr>
     <tr>
         <th>{% trans 'Abstract' %}</th>
@@ -54,6 +62,20 @@
         <th>{% trans 'Online resource' %}</th>
         <td>
             {{ root_metadata.online_resource }}
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Keywords' %}</th>
+        <td>
+            <table>
+            {% for kw in root_metadata.keywords.all %}
+                <tr>
+                    <td>{{ kw }}</td>
+                </tr>
+            {% empty %}
+                {% trans 'No keywords provided' %}
+            {% endfor %}
+            </table>
         </td>
     </tr>
     <tr>
@@ -73,12 +95,12 @@
         <td>{{ root_metadata.contact.phone }}</td>
     </tr>
     <tr>
-        <th>{% trans 'E-Mail' %}</th>
-        <td>{{ root_metadata.contact.email }}</td>
+        <th>{% trans 'Facsimile' %}</th>
+        <td>{{ root_metadata.contact.facsimile }}</td>
     </tr>
     <tr>
-        <th>{% trans 'State or province' %}</th>
-        <td>{{ root_metadata.contact.state_or_province }}</td>
+        <th>{% trans 'E-Mail' %}</th>
+        <td>{{ root_metadata.contact.email }}</td>
     </tr>
     <tr>
         <th>{% trans 'Address' %}</th>
@@ -92,6 +114,14 @@
         <th>{% trans 'Post code' %}</th>
         <td>{{ root_metadata.contact.postal_code }}</td>
     </tr>
+    <tr>
+        <th>{% trans 'State or province' %}</th>
+        <td>{{ root_metadata.contact.state_or_province }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Country' %}</th>
+        <td>{{ root_metadata.contact.country }}</td>
+    </tr>
 </table>
 
 <br>
@@ -99,7 +129,9 @@
 {% if root_service.servicetype.name == 'wms' %}
     {% include 'containing_layers.html' %}
 {% elif root_service.servicetype.name == 'wfs' %}
-    {% include 'containing_featuretypes.html' %}
+    {% with root_service.featuretypes.all as featuretypes %}
+        {% include 'containing_featuretypes.html' %}
+    {% endwith %}
 {% endif %}
 
 {% endblock %}

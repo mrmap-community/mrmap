@@ -4,6 +4,7 @@ import json
 import threading
 import uuid
 from abc import abstractmethod
+from collections import OrderedDict
 
 from django.db import transaction
 
@@ -13,7 +14,7 @@ from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper
-from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType
+from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType
 from structure.models import Organization, Group, User
 
 
@@ -85,6 +86,9 @@ class OGCWebFeatureService(OGCWebService):
             threading.Thread(target=self.get_feature_type_metadata, args=(xml_obj,))
         ]
         execute_threads(thread_list)
+        # always execute version specific tasks AFTER multithreading
+        # Otherwise we might face race conditions which lead to loss of data!
+        self.get_version_specific_metadata(xml_obj)
 
 
     @abstractmethod
@@ -197,12 +201,12 @@ class OGCWebFeatureService(OGCWebService):
         # Feature types
         for feature_type in feature_type_list:
             f_t = FeatureType()
-            f_t.title = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem="//wfs:Title")
-            f_t.name = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem="//wfs:Name")
-            f_t.abstract = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem="//wfs:Abstract")
+            f_t.title = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Title")
+            f_t.name = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Name")
+            f_t.abstract = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Abstract")
 
             # Feature type keywords
-            keywords = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem="//ows:Keyword")
+            keywords = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//ows:Keywords")
             keyword_list = []
             for keyword in keywords:
                 kw = service_helper.try_get_text_from_xml_element(xml_elem=keyword)
@@ -211,7 +215,7 @@ class OGCWebFeatureService(OGCWebService):
 
             # SRS
             ## default
-            srs = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem="//wfs:DefaultSRS")
+            srs = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:DefaultSRS")
             if srs is not None:
                 parts = epsg_api.get_subelements(srs)
                 srs_default = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
@@ -219,7 +223,7 @@ class OGCWebFeatureService(OGCWebService):
                 f_t.default_srs = srs_default
 
             ## additional
-            srs = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem="//wfs:OtherSRS")
+            srs = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:OtherSRS")
             srs_list = []
             for sys in srs:
                 parts = epsg_api.get_subelements(sys.text)
@@ -227,24 +231,33 @@ class OGCWebFeatureService(OGCWebService):
                 srs_list.append(srs_other)
 
             # Latlon bounding box
-            tmp = service_helper.try_get_text_from_xml_element(elem="//ows:LowerCorner", xml_elem=feature_type)
+            tmp = service_helper.try_get_text_from_xml_element(elem=".//ows:LowerCorner", xml_elem=feature_type)
             min_x = tmp.split(" ")[0]
             min_y = tmp.split(" ")[1]
-            tmp = service_helper.try_get_text_from_xml_element(elem="//ows:UpperCorner", xml_elem=feature_type)
+            tmp = service_helper.try_get_text_from_xml_element(elem=".//ows:UpperCorner", xml_elem=feature_type)
             max_x = tmp.split(" ")[0]
             max_y = tmp.split(" ")[1]
-            tmp = {
-                "minx": min_x,
-                "miny": min_y,
-                "maxx": max_x,
-                "maxy": max_y,
-            }
+            tmp = OrderedDict()
+            tmp["minx"] = min_x
+            tmp["miny"] = min_y
+            tmp["maxx"] = max_x
+            tmp["maxy"] = max_y
             f_t.bbox_lat_lon = json.dumps(tmp)
+
+            # Output formats
+            formats = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:Format")
+            format_list = []
+            for _format in formats:
+                m_t = MimeType(
+                    mime_type=service_helper.try_get_text_from_xml_element(xml_elem=_format)
+                )
+                format_list.append(m_t)
 
             self.feature_type_list[f_t.name] = {
                 "feature_type": f_t,
                 "keyword_list": keyword_list,
                 "srs_list": srs_list,
+                "format_list": format_list,
             }
 
     @abstractmethod
@@ -267,10 +280,12 @@ class OGCWebFeatureService(OGCWebService):
             person_name=self.service_provider_responsibleparty_individualname,
             email=self.service_provider_address_electronicmailaddress,
             phone=self.service_provider_telephone_voice,
+            facsimile=self.service_provider_telephone_facsimile,
             city=self.service_provider_address_city,
             address=self.service_provider_address,
             postal_code=self.service_provider_address_postalcode,
-            state_or_province=self.service_provider_address_state_or_province
+            state_or_province=self.service_provider_address_state_or_province,
+            country=self.service_provider_address_country,
         )[0]
         md.contact = contact
         md.authority_url = self.service_provider_url
@@ -303,17 +318,22 @@ class OGCWebFeatureService(OGCWebService):
         for feature_type_key, feature_type_val in self.feature_type_list.items():
             f_t = feature_type_val.get("feature_type")
             f_t.created_by = group
+            f_t.service = service
             f_t.save()
-            service.featuretypes.add(f_t)
             # keywords of feature types
             for kw in feature_type_val.get("keyword_list"):
                 f_t.keywords.add(kw)
             # srs of feature types
             for srs in feature_type_val.get("srs_list"):
-                f_t.reference_system.add(srs)
+                f_t.additional_srs.add(srs)
+
+            # formats
+            for _format in feature_type_val.get("format_list"):
+                _format.created_by = group
+                _format.save()
+                f_t.formats.add(_format)
 
         # toDo: Implement persisting of get_feature_uri and so on
-
 
 
 class OGCWebFeatureServiceFactory:
@@ -474,6 +494,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                 "feature_type": feature_type,
                 "keyword_list": kw_list,
                 "srs_list": srs_model_list,
+                "format_list": [],
             }
 
 
@@ -503,6 +524,40 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
         XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
+
+    def get_version_specific_metadata(self, xml_obj):
+        epsg_api = EpsgApi()
+        # featuretype keywords are different than in older versions
+        feature_type_list = service_helper.try_get_element_from_xml(elem="//wfs:FeatureType", xml_elem=xml_obj)
+        for feature_type in feature_type_list:
+            name = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Name")
+            f_t = self.feature_type_list.get(name).get("feature_type")
+            # Feature type keywords
+            keywords = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//ows:Keyword")
+            keyword_list = []
+            for keyword in keywords:
+                kw = service_helper.try_get_text_from_xml_element(xml_elem=keyword)
+                kw = Keyword.objects.get_or_create(keyword=kw)[0]
+                keyword_list.append(kw)
+            self.feature_type_list[name]["keyword_list"] = keyword_list
+
+            # srs are now called crs -> do it again!
+            # CRS
+            ## default
+            crs = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:DefaultCRS")
+            if crs is not None:
+                parts = epsg_api.get_subelements(crs)
+                crs_default = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
+                parts = epsg_api.get_subelements(crs)
+                f_t.default_srs = crs_default
+            ## additional
+            crs = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:OtherCRS")
+            crs_list = []
+            for sys in crs:
+                parts = epsg_api.get_subelements(sys.text)
+                srs_other = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
+                crs_list.append(srs_other)
+            self.feature_type_list[name]["srs_list"] = crs_list
 
 
 class OGCWebFeatureService_2_0_2(OGCWebFeatureService):

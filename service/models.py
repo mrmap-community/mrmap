@@ -112,7 +112,6 @@ class Service(Resource):
     get_legend_graphic_uri = models.CharField(max_length=1000, null=True, blank=True)
     get_styles_uri = models.CharField(max_length=1000, null=True, blank=True)
     formats = models.ManyToManyField('MimeType', null=True, blank=True)
-    featuretypes = models.ManyToManyField('FeatureType',null=True,  blank=True)
 
     def __str__(self):
         return str(self.id)
@@ -204,6 +203,8 @@ class FeatureType(Resource):
     inspire_download = models.BooleanField(default=False)
     bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
     keywords = models.ManyToManyField(Keyword)
+    formats = models.ManyToManyField(MimeType)
+    service = models.ForeignKey(Service, null=True,  blank=True, on_delete=models.CASCADE, related_name="featuretypes")
 
     def __str__(self):
         return self.name

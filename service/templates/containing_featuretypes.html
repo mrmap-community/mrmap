@@ -1,6 +1,5 @@
 
 {% load static i18n %}
-
 {% if featuretypes|length > 0 %}
 <div class="sublayer-container">
     <div class="sublayer-headline">
@@ -12,7 +11,7 @@
         <div class="collapsible-table">
             <h3 class="layer-title" title="{% trans 'Click to expand' %}">
                 <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
-                {{ featuretype.metadata.title }}
+                {{ featuretype.title }}
             </h3>
             <div class="layer-content hidden">
             <table>
@@ -35,9 +34,15 @@
                 <tr>
                     <th>{% trans 'Keywords' %}</th>
                     <td>
-                        {% for kw in featuretype.keywords.all %}
-                            {{ kw }}<br>
+                        <table>
+                        {% for kw in featuretypes.keywords.all %}
+                            <tr>
+                                <td>{{ kw }}</td>
+                            </tr>
+                        {% empty %}
+                            {% trans 'No keywords provided' %}
                         {% endfor %}
+                        </table>
                     </td>
                 </tr>
                 <tr>
@@ -51,19 +56,37 @@
                     </td>
                 </tr>
                 <tr>
+                    <th>{% trans 'Bounding box (lat lon)' %}</th>
+                    <td>
+                        {{ featuretype.bbox_lat_lon }}
+                    </td>
+                </tr>
+                <tr>
                     <th>{% trans 'Default reference system' %}</th>
-                    <td>{{ featuretype.default_srs }}</td>
+                    <td>{{ featuretype.default_srs.prefix }}{{ featuretype.default_srs.code }}</td>
                 </tr>
                 <tr>
                     <th>{% trans 'Additional reference systems:' %}</th>
                     <td>
                         <table>
-                        {% for rs in featuretype.reference_system.all %}
+                        {% for rs in featuretype.additional_srs.all %}
                         <tr>
-                            <th>{{ rs.prefix }}</th>
-                            <td>{{ rs.code }}</td>
+                            <td>{{ rs.prefix }}{{ rs.code }}</td>
                         </tr>
                         {% endfor %}
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <th>{% trans 'Mime types:' %}</th>
+                    <td>
+                        <table>
+                        {% for format in featuretype.formats.all %}
+                        <tr>
+                            <td>{{ format.mime_type }}</td>
+                        </tr>
+                        {% endfor %}
+
                         </table>
                     </td>
                 </tr>

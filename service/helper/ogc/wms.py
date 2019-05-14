@@ -555,6 +555,8 @@ class OGCWebMapService(OGCWebService):
         metadata.abstract = self.service_identification_abstract
         metadata.online_resource = ",".join(self.service_provider_onlineresource_linkage)
         metadata.is_root = True
+        metadata.original_uri = self.service_connect_url
+        metadata.access_constraints = self.service_identification_accessconstraints
         ## contact
         contact = Organization.objects.get_or_create(
             organization_name=self.service_provider_providername,
@@ -570,7 +572,6 @@ class OGCWebMapService(OGCWebService):
         )[0]
         metadata.contact = contact
         ## other
-        metadata.access_constraints = self.service_identification_accessconstraints
         metadata.is_active = False
         metadata.created_by = group
         metadata.save()

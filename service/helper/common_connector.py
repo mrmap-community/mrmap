@@ -6,6 +6,9 @@ import requests
 import types
 
 import re
+
+from requests.exceptions import InvalidURL
+
 from MapSkinner.settings import DEFAULT_CONNECTION_TYPE, HTTP_PROXY, REQUEST_PROXIES
 from service.helper.enums import ConnectionType
 
@@ -145,6 +148,7 @@ class CommonConnector():
                 response = requests.request(self.http_method, self.url, proxies=proxies)
         else:
             response = requests.request(self.http_method, self.url, proxies=proxies)
+
         return response   
     
     def __load_urllib(self):

@@ -118,7 +118,7 @@ $(document).ready(function(){
         removeEntity(id, false, entity);
     });
 
-    $(".edit-container").click(function(){
+    $("#edit-button").click(function(){
         var id = $(this).attr("data-parent");
         // call remove form, but indicate that the remove process was not confirmed yet by the user
         var entity = $(this).attr("typeof");

@@ -30,6 +30,16 @@
             {% endif %}
         {% endif %}
     </div>
+    <div class="container-center">
+        <a href="{{ root_metadata.original_uri }}" target="_blank" title="{% trans 'Open original metadata in new tab' %}">
+            <div class="button-container" data-parent="{{ root_service.id }}">
+                <!--
+                <img src="{% static 'service/images/icn_false.png' %}">
+                -->
+                <span>{% trans 'Open metadata' %}</span>
+            </div>
+        </a>
+    </div>
     {% if 'can_remove_service' in permissions %}
         <div class="container-right">
             <div class="delete-container" data-parent="{{ root_service.id }}" typeof="service">

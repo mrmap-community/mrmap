@@ -49,9 +49,11 @@ class FeatureTypeAdmin(admin.ModelAdmin):
 class LayerAdmin(admin.ModelAdmin):
     pass
 
-
 class MimeTypeAdmin(admin.ModelAdmin):
     pass
+
+class NamespaceAdmin(admin.ModelAdmin):
+    list_display = ('name', 'uri', 'version')
 
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(ServiceType, ServiceTypeAdmin)
@@ -65,3 +67,4 @@ admin.site.register(Service, ServiceAdmin)
 admin.site.register(MimeType, MimeTypeAdmin)
 admin.site.register(Layer, LayerAdmin)
 admin.site.register(FeatureType, FeatureTypeAdmin)
+admin.site.register(Namespace, NamespaceAdmin)

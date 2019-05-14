@@ -4,6 +4,7 @@ from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
 
 from django.template.loader import render_to_string
+from requests.exceptions import InvalidURL
 
 from MapSkinner.decorator import check_access
 from MapSkinner.responses import BackendAjaxResponse
@@ -221,9 +222,10 @@ def new_service(request: HttpRequest, user:User):
             # persist data
 
             wms.persist(user)
-        except ConnectionError as e:
+        except (ConnectionError, InvalidURL) as e:
             params["error"] = e.args[0]
-            return
+        except BaseException as e:
+            params["unknown_error"] = e
 
     elif url_dict.get("service") is ServiceTypes.WFS:
         # create WFS object
@@ -237,8 +239,10 @@ def new_service(request: HttpRequest, user:User):
 
             # persist wfs
             wfs.persist(user)
-        except ConnectionError as e:
+        except (ConnectionError, InvalidURL) as e:
             params["error"] = e.args[0]
+        except BaseException as e:
+            params["unknown_error"] = e
 
     template = "check_metadata_form.html"
     html = render_to_string(template_name=template, request=request, context=params)

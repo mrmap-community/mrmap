@@ -30,6 +30,11 @@
     align-items: center;
     justify-content: flex-start;
 }
+.container-center{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 .container-right{
     display: flex;
     align-items: center;

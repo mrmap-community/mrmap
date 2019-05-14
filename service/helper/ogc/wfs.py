@@ -14,7 +14,7 @@ from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper
-from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType
+from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace
 from structure.models import Organization, Group, User
 
 
@@ -83,7 +83,8 @@ class OGCWebFeatureService(OGCWebService):
         thread_list = [
             threading.Thread(target=self.get_service_metadata, args=(xml_obj,)),
             threading.Thread(target=self.get_capability_metadata, args=(xml_obj,)),
-            threading.Thread(target=self.get_feature_type_metadata, args=(xml_obj,))
+            threading.Thread(target=self.get_feature_type_metadata, args=(xml_obj,)),
+            threading.Thread(target=self.get_namespaces, args=(xml_obj,)),
         ]
         execute_threads(thread_list)
         # always execute version specific tasks AFTER multithreading
@@ -268,6 +269,17 @@ class OGCWebFeatureService(OGCWebService):
 
         group = user.groups.all()[0] # ToDo: Find better solution for group selection than this
 
+        # Namespaces
+        ns_list = []
+        for ns in self.namespaces:
+            if None in ns:
+                continue
+            ns_list.append(Namespace.objects.get_or_create(
+                name=ns[0],
+                uri=ns[1],
+                created_by=group,
+            )[0])
+
         # Metadata
         md = Metadata()
         md.title = self.service_identification_title
@@ -291,6 +303,7 @@ class OGCWebFeatureService(OGCWebService):
         md.authority_url = self.service_provider_url
         md.access_constraints = self.service_identification_accessconstraints
         md.created_by = group
+        md.original_uri = self.service_connect_url
         md.save()
 
         # Service
@@ -383,7 +396,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         Returns:
              Nothing
         """
-        service_node = service_helper.try_get_single_element_from_xml("/wfs:WFS_Capabilities/wfs:Service", xml_elem=xml_obj)
+        service_node = service_helper.try_get_single_element_from_xml(elem="/wfs:WFS_Capabilities/wfs:Service", xml_elem=xml_obj)
         # TITLE
         title_node = service_helper.try_get_text_from_xml_element(elem="./wfs:Title", xml_elem=service_node)
         self.service_identification_title = title_node

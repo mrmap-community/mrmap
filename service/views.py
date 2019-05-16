@@ -1,5 +1,6 @@
 import json
 
+import requests
 from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
 
@@ -7,7 +8,8 @@ from django.template.loader import render_to_string
 from requests.exceptions import InvalidURL
 
 from MapSkinner.decorator import check_access
-from MapSkinner.responses import BackendAjaxResponse
+from MapSkinner.responses import BackendAjaxResponse, DefaultContext
+from MapSkinner.settings import ROOT_URL
 from service.forms import NewServiceURIForm
 from service.helper import service_helper
 from service.helper.enums import ServiceTypes
@@ -59,7 +61,8 @@ def index(request: HttpRequest, user: User, service_type=None):
         "only_type": service_type,
         "permissions": user_helper.get_permissions(user),
     }
-    return render(request=request, template_name=template, context=params)
+    context = DefaultContext(params)
+    return render(request=request, template_name=template, context=context.get_context())
 
 
 @check_access
@@ -95,7 +98,7 @@ def remove(request: HttpRequest, user: User):
         service.is_deleted = True
         service.save()
         #service.delete()
-        return BackendAjaxResponse(html="", redirect="/service").get_response()
+        return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 
 @check_access
 def activate(request: HttpRequest, user:User):
@@ -239,7 +242,7 @@ def new_service(request: HttpRequest, user:User):
 
             # persist wfs
             wfs.persist(user)
-        except (ConnectionError, InvalidURL) as e:
+        except (ConnectionError, InvalidURL, ConnectionRefusedError) as e:
             params["error"] = e.args[0]
         except BaseException as e:
             params["unknown_error"] = e
@@ -282,4 +285,5 @@ def detail(request: HttpRequest, id, user:User):
         "layers": layers_md_list,
         "permissions": user_helper.get_permissions(user),
     }
-    return render(request=request, template_name=template, context=params)
+    context = DefaultContext(params)
+    return render(request=request, template_name=template, context=context.get_context())

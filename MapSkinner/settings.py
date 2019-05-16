@@ -69,7 +69,10 @@ REQUEST_PROXIES = {
     "https": "http://10.240.20.164:8080",
 }
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    HOST_NAME,
+    HOST_IP
+]
 
 
 # Application definition

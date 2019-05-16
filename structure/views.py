@@ -5,7 +5,7 @@ from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.decorator import check_access
-from MapSkinner.responses import BackendAjaxResponse
+from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from structure.forms import GroupForm
 from structure.models import User, Group, Role, Permission
 from .helper import user_helper
@@ -33,7 +33,8 @@ def index(request: HttpRequest, user: User):
         "permissions": user_helper.get_permissions(user=user),
         "groups": groups,
     }
-    return render(request=request, template_name=template, context=params)
+    context = DefaultContext(params)
+    return render(request=request, template_name=template, context=context.get_context())
 
 
 @check_access
@@ -56,7 +57,8 @@ def detail_group(request: HttpRequest, id: int, user: User):
         "group_permissions": user_helper.get_permissions(group=group),
         "members": members
     }
-    return render(request=request, template_name=template, context=params)
+    context = DefaultContext(params)
+    return render(request=request, template_name=template, context=context.get_context())
 
 
 @check_access

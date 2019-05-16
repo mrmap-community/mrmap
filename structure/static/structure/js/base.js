@@ -38,7 +38,7 @@ function changeOverlayContent(html){
 
 function editEntity(id, entity){
     $.ajax({
-        url: "/" + entity + "/edit/" + id,
+        url: rootUrl + "/" + entity + "/edit/" + id,
         headers: {
             "X-CSRFToken": getCookie("csrftoken")
         },
@@ -54,7 +54,7 @@ function editEntity(id, entity){
 
 function addEntity(entity){
     $.ajax({
-        url: "/" + entity + "/new/register-form",
+        url: rootUrl + "/" + entity + "/new/register-form",
         headers: {
             "X-CSRFToken": getCookie("csrftoken")
         },
@@ -71,7 +71,7 @@ function addEntity(entity){
 
 function removeEntity(id, confirmed, entity){
     $.ajax({
-        url: "/" + entity + "/remove",
+        url: rootUrl + "/" + entity + "/remove",
         headers: {
             "X-CSRFToken": getCookie("csrftoken")
         },
@@ -118,7 +118,7 @@ $(document).ready(function(){
         removeEntity(id, false, entity);
     });
 
-    $(".edit-container").click(function(){
+    $("#edit-button").click(function(){
         var id = $(this).attr("data-parent");
         // call remove form, but indicate that the remove process was not confirmed yet by the user
         var entity = $(this).attr("typeof");

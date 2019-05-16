@@ -34,7 +34,8 @@ class Resource(models.Model):
 class Metadata(Resource):
     title = models.CharField(max_length=255)
     abstract = models.CharField(max_length=1000, null=True, blank=True)
-    online_resource = models.CharField(max_length=255, null=True)
+    online_resource = models.CharField(max_length=500, null=True, blank=True)
+    original_uri = models.CharField(max_length=500, blank=True, null=True)
 
     contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING)
     terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, null=True)
@@ -208,3 +209,21 @@ class FeatureType(Resource):
 
     def __str__(self):
         return self.name
+
+
+class FeatureTypeElement(Resource):
+    name = models.CharField(max_length=255)
+    type = models.CharField(max_length=255)
+    namespace = models.ForeignKey('Namespace', on_delete=models.DO_NOTHING)
+
+    def __str__(self):
+        return self.name
+
+
+class Namespace(Resource):
+    name = models.CharField(max_length=50)
+    version = models.CharField(max_length=50, blank=True, null=True)
+    uri = models.CharField(max_length=500)
+
+    def __str__(self):
+        return self.name + " (" + self.uri + ")"

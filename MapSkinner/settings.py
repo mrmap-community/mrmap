@@ -28,6 +28,12 @@ SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+HTTP_OR_SSL = "http://"
+HOST_NAME = "127.0.0.1:8000"
+HOST_IP = "127.0.0.1:8000"
+# DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
+ROOT_URL = HTTP_OR_SSL + HOST_NAME
+
 
 EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
 

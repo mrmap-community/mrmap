@@ -255,7 +255,7 @@ tr:nth-child(odd){
     color: white;
     font-weight: bold;
 }
-.delete-container:hover, .deactivate-container:hover, .activate-container:hover, .edit-container:hover{
+.delete-container:hover, .deactivate-container:hover, .activate-container:hover, .button-container:hover{
     cursor: pointer;
     opacity: 0.75;
 }
@@ -265,7 +265,7 @@ tr:nth-child(odd){
     filter: invert(1.0);
 }
 
-.edit-container{
+.button-container{
     display: flex;
     align-items: center;
     justify-content: center;
@@ -274,6 +274,6 @@ tr:nth-child(odd){
     color: white;
     font-weight: bold;
 }
-.edit-container img{
+.button-container img{
     padding: 0 10px 0 0;
 }

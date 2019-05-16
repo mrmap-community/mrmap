@@ -3,7 +3,7 @@
 
 function toggleServiceActiveStatus(id, active){
     $.ajax({
-        url: "/service/activate/",
+        url: rootUrl + "/service/activate/",
         headers: {
             "X-CSRFToken": getCookie("csrftoken")
         },
@@ -23,7 +23,7 @@ function startServiceRegistration(uri, button){
     var oldHtml = button.html();
     button.html("Please wait...");
     $.ajax({
-        url: "/service/new/",
+        url: rootUrl + "/service/new/",
         headers:{
             "X-CSRFToken": getCookie("csrftoken")
         },
@@ -52,7 +52,7 @@ function checkServiceRequestURI(){
         uri = "http://" + uri; // use http by default
     }
     $.ajax({
-        url: "/service/new/register-form",
+        url: rootUrl + "/service/new/register-form",
         headers:{
             "X-CSRFToken": getCookie("csrftoken")
         },
@@ -89,7 +89,7 @@ $(document).ready(function(){
     $("#service-display-selector").change(function(){
         var val = $(this).val();
         $.ajax({
-            url: "/service/session",
+            url: rootUrl + "/service/session",
             headers: {
                 "X-CSRFToken": getCookie("csrftoken")
             },
@@ -109,23 +109,7 @@ $(document).ready(function(){
             console.log(jqXHR);
         });
     });
-/*
-    $(".add-button").click(function(){
-        $.ajax({
-            url: "/service/new/register-form",
-            headers: {
-                "X-CSRFToken": getCookie("csrftoken")
-            },
-            data: {},
-            type: 'get',
-            dataType: 'json',
-            success: function(data) {
-                var html = data["html"];
-                toggleOverlay(html);
-            }
-        });
-    });
-*/
+
     $(".layer-title").click(function(){
         var elem = $(this);
         var table = elem.siblings(".layer-content");

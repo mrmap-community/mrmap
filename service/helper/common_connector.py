@@ -2,6 +2,8 @@ import time
 
 # Problem of unresolved python c extensions: https://stackoverflow.com/questions/41598399/pydev-tags-import-as-unresolved-import-all-compiled-extensions
 import pycurl
+from urllib.parse import urlencode
+
 import requests
 import types
 
@@ -39,14 +41,14 @@ class CommonConnector():
         self.text = None
         self.status_code = None
         
-    def load(self):
+    def load(self, params: dict = None):
         self.init_time = time.time()
         # print(self.http_method)
         c = ConnectionType.CURL
         if self.connection_type is ConnectionType.CURL:
-            response = self.__load_curl()
+            response = self.__load_curl(params)
         elif self.connection_type is ConnectionType.REQUESTS:
-            response = self.__load_requests()
+            response = self.__load_requests(params)
         else:
             response = self.__load_urllib()
         # parse response
@@ -55,8 +57,8 @@ class CommonConnector():
         self.encoding = response.encoding
         self.text = response.text
         self.load_time = time.time() - self.init_time
-        
-    def __load_curl(self):
+
+    def __load_curl(self, params: dict = None):
         response = types.SimpleNamespace()
         # Example from http://pycurl.io/docs/latest/quickstart.html
         #import curl #normally we would use pycurl - but the class has been renamed?
@@ -96,9 +98,13 @@ class CommonConnector():
             # Note: this only works when headers are not duplicated, see below.
             headers[name] = value
 
+        url_args = ""
+        if params is not None:
+            url_args = "?" +urlencode(params)
+
         buffer = BytesIO()
         c = pycurl.Curl()
-        c.setopt(c.URL, self.url)
+        c.setopt(c.URL, self.url + url_args)
         c.setopt(c.WRITEFUNCTION, buffer.write)
         # Set our header function.
         c.setopt(c.HEADERFUNCTION, header_function)
@@ -130,24 +136,24 @@ class CommonConnector():
         response.text = response.content.decode(encoding)
         return response
     
-    def __load_requests(self):
+    def __load_requests(self, params:dict = None):
         response = None
         proxies = None
         if len(REQUEST_PROXIES) > 0:
             proxies = REQUEST_PROXIES
         if self.auth is not None:
             if self.auth["auth_type"] == 'none':
-                response = requests.request(self.http_method, self.url, proxies=proxies)
+                response = requests.request(self.http_method, self.url, params=params, proxies=proxies)
             elif self.auth["auth_type"] == 'http_basic':
                 from requests.auth import HTTPBasicAuth
-                response = requests.request(self.http_method, self.url, auth=HTTPBasicAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies)
+                response = requests.request(self.http_method, self.url, params=params, auth=HTTPBasicAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies)
             elif self.auth["auth_type"] == 'http_digest':   
                 from requests.auth import HTTPDigestAuth
-                response = requests.request(self.http_method, self.url, auth=HTTPDigestAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies)
+                response = requests.request(self.http_method, self.url, params=params, auth=HTTPDigestAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies)
             else:
-                response = requests.request(self.http_method, self.url, proxies=proxies)
+                response = requests.request(self.http_method, self.url, params=params, proxies=proxies)
         else:
-            response = requests.request(self.http_method, self.url, proxies=proxies)
+            response = requests.request(self.http_method, self.url, params=params, proxies=proxies)
 
         return response   
     

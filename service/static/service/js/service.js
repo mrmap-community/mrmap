@@ -48,7 +48,7 @@ function checkServiceRequestURI(){
     if (uri.length == 0){
         return
     }
-    if (!uri.startsWith("http") || !uri.startsWith("https") ){
+    if (!uri.startsWith("http")){
         uri = "http://" + uri; // use http by default
     }
     $.ajax({

@@ -73,6 +73,7 @@
             {% endblocktrans %}
         </article>
         <div class="close-button button">{% trans 'Okay' %}</div>
+    {% else %}
     {% trans 'The service has been registered. The following is an extract from the metadata.' %} <br>
     <form class="form-table" action="/service/new/" method="post">
         {% csrf_token %}

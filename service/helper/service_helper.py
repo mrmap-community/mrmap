@@ -12,10 +12,12 @@ import urllib
 from xml.dom import minidom
 from xml.dom.minidom import Element, Text, Node
 
+import requests
 from django.shortcuts import get_object_or_404
 from lxml import etree
 
 from MapSkinner.settings import DEFAULT_SERVICE_VERSION, XML_NAMESPACES
+from service.helper.common_connector import CommonConnector
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
 from service.models import Layer, Metadata, MimeType
@@ -226,6 +228,22 @@ def resolve_boolean_attribute_val(val):
             if val_tmp == "TRUE":
                 return True
     return val
+
+def get_feature_type_elements_xml(title, service_type_version, service_type, uri):
+    connector = CommonConnector(url=uri)
+    params = {
+        "service": service_type,
+        "version": service_type_version,
+        "request": "DescribeFeatureType",
+        "typeNames": title
+    }
+    try:
+        response = connector.load(params=params)
+    except ConnectionError:
+        return None
+    return response
+
+
 
 
 def try_get_single_element_from_xml(elem: str, xml_elem):

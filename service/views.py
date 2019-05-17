@@ -117,8 +117,9 @@ def activate(request: HttpRequest, user:User):
     service.metadata.is_active = new_status
     service.metadata.save()
     # get root_layer of service and start changing of all statuses
-    root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
-    service_helper.change_layer_status_recursively(root_layer, new_status)
+    if service.servicetype == "wms":
+        root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
+        service_helper.change_layer_status_recursively(root_layer, new_status)
 
     return BackendAjaxResponse(html="").get_response()
 

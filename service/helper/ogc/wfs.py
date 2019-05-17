@@ -6,6 +6,9 @@ import uuid
 from abc import abstractmethod
 from collections import OrderedDict
 
+import time
+
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 
 from MapSkinner.settings import XML_NAMESPACES
@@ -14,7 +17,8 @@ from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper
-from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace
+from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
+    FeatureTypeElement
 from structure.models import Organization, Group, User
 
 
@@ -84,7 +88,6 @@ class OGCWebFeatureService(OGCWebService):
             threading.Thread(target=self.get_service_metadata, args=(xml_obj,)),
             threading.Thread(target=self.get_capability_metadata, args=(xml_obj,)),
             threading.Thread(target=self.get_feature_type_metadata, args=(xml_obj,)),
-            threading.Thread(target=self.get_namespaces, args=(xml_obj,)),
         ]
         execute_threads(thread_list)
         # always execute version specific tasks AFTER multithreading
@@ -185,6 +188,96 @@ class OGCWebFeatureService(OGCWebService):
         self.get_gml_object_uri["get"] = get.get("ListStoredQueries", None)
         self.get_gml_object_uri["post"] = post.get("ListStoredQueries", None)
 
+
+    @transaction.atomic
+    def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version):
+        f_t = FeatureType()
+        f_t.title = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Title")
+        f_t.name = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Name")
+        f_t.abstract = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Abstract")
+        # Feature type keywords
+        keywords = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//ows:Keywords")
+        keyword_list = []
+        for keyword in keywords:
+            kw = service_helper.try_get_text_from_xml_element(xml_elem=keyword)
+            kw = Keyword.objects.get_or_create(keyword=kw)[0]
+            keyword_list.append(kw)
+        # SRS
+        ## default
+        srs = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:DefaultSRS")
+        if srs is not None:
+            parts = epsg_api.get_subelements(srs)
+            srs_default = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
+            parts = epsg_api.get_subelements(srs)
+            f_t.default_srs = srs_default
+        ## additional
+        srs = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:OtherSRS")
+        srs_list = []
+        for sys in srs:
+            parts = epsg_api.get_subelements(sys.text)
+            srs_other = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
+            srs_list.append(srs_other)
+        # Latlon bounding box
+        tmp = service_helper.try_get_text_from_xml_element(elem=".//ows:LowerCorner", xml_elem=feature_type)
+        min_x = tmp.split(" ")[0]
+        min_y = tmp.split(" ")[1]
+        tmp = service_helper.try_get_text_from_xml_element(elem=".//ows:UpperCorner", xml_elem=feature_type)
+        max_x = tmp.split(" ")[0]
+        max_y = tmp.split(" ")[1]
+        tmp = OrderedDict()
+        tmp["minx"] = min_x
+        tmp["miny"] = min_y
+        tmp["maxx"] = max_x
+        tmp["maxy"] = max_y
+        f_t.bbox_lat_lon = json.dumps(tmp)
+        # Output formats
+        formats = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:Format")
+        format_list = []
+        for _format in formats:
+            m_t = MimeType(
+                mime_type=service_helper.try_get_text_from_xml_element(xml_elem=_format)
+            )
+            format_list.append(m_t)
+        # Feature type elements
+        # Feature type namespaces
+        element_list = []
+        ns_list = []
+        if self.describe_feature_type_uri.get("get") is not None:
+            XML_NAMESPACES["default"] = XML_NAMESPACES["xsd"]
+            descr_feat_root = service_helper.get_feature_type_elements_xml(title=f_t.name,
+                                                                    service_type="wfs",
+                                                                    service_type_version=service_type_version,
+                                                                    uri=self.describe_feature_type_uri.get("get"))
+            if descr_feat_root is not None:
+                # Feature type elements
+                elements = service_helper.try_get_element_from_xml(elem="//xsd:element", xml_elem=descr_feat_root)
+                for element in elements:
+                    f_t_element = FeatureTypeElement.objects.get_or_create(
+                        name=service_helper.try_get_attribute_from_xml_element(xml_elem=element, attribute="name"),
+                        type=service_helper.try_get_attribute_from_xml_element(xml_elem=element, attribute="type"),
+                    )[0]
+                    element_list.append(f_t_element)
+
+                # Feature type namespaces
+                namespaces = service_helper.try_get_element_from_xml(elem="./namespace::*", xml_elem=descr_feat_root)
+                for namespace in namespaces:
+                    if namespace[0] is None:
+                        continue
+                    ns = Namespace.objects.get_or_create(
+                        name=namespace[0],
+                        uri=namespace[1],
+                    )[0]
+                    if ns not in ns_list:
+                        ns_list.append(ns)
+        self.feature_type_list[f_t.name] = {
+            "feature_type": f_t,
+            "keyword_list": keyword_list,
+            "srs_list": srs_list,
+            "format_list": format_list,
+            "element_list": element_list,
+            "ns_list": ns_list,
+        }
+
     @abstractmethod
     def get_feature_type_metadata(self, xml_obj):
         """ Parse the wfs <FeatureTypeList> metadata into the self object
@@ -197,69 +290,21 @@ class OGCWebFeatureService(OGCWebService):
              Nothing
         """
         feature_type_list = service_helper.try_get_element_from_xml(elem="//wfs:FeatureType", xml_elem=xml_obj)
+        service_type_version = service_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj,
+                                                                                 attribute="version",
+                                                                                 elem="//wfs:WFS_Capabilities")
         epsg_api = EpsgApi()
+        while self.describe_feature_type_uri.get("get", "") == "":
+            # wait for other thread to finish
+            time.sleep(0.00005)
 
+        thread_list = []
         # Feature types
         for feature_type in feature_type_list:
-            f_t = FeatureType()
-            f_t.title = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Title")
-            f_t.name = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Name")
-            f_t.abstract = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Abstract")
+            self._get_feature_type_metadata(feature_type, epsg_api, service_type_version)
+        #     thread_list.append(threading.Thread(target=self._get_feature_type_metadata_multithreaded, args=(feature_type, epsg_api, service_type_version)))
+        # execute_threads(thread_list)
 
-            # Feature type keywords
-            keywords = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//ows:Keywords")
-            keyword_list = []
-            for keyword in keywords:
-                kw = service_helper.try_get_text_from_xml_element(xml_elem=keyword)
-                kw = Keyword.objects.get_or_create(keyword=kw)[0]
-                keyword_list.append(kw)
-
-            # SRS
-            ## default
-            srs = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:DefaultSRS")
-            if srs is not None:
-                parts = epsg_api.get_subelements(srs)
-                srs_default = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
-                parts = epsg_api.get_subelements(srs)
-                f_t.default_srs = srs_default
-
-            ## additional
-            srs = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:OtherSRS")
-            srs_list = []
-            for sys in srs:
-                parts = epsg_api.get_subelements(sys.text)
-                srs_other = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
-                srs_list.append(srs_other)
-
-            # Latlon bounding box
-            tmp = service_helper.try_get_text_from_xml_element(elem=".//ows:LowerCorner", xml_elem=feature_type)
-            min_x = tmp.split(" ")[0]
-            min_y = tmp.split(" ")[1]
-            tmp = service_helper.try_get_text_from_xml_element(elem=".//ows:UpperCorner", xml_elem=feature_type)
-            max_x = tmp.split(" ")[0]
-            max_y = tmp.split(" ")[1]
-            tmp = OrderedDict()
-            tmp["minx"] = min_x
-            tmp["miny"] = min_y
-            tmp["maxx"] = max_x
-            tmp["maxy"] = max_y
-            f_t.bbox_lat_lon = json.dumps(tmp)
-
-            # Output formats
-            formats = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:Format")
-            format_list = []
-            for _format in formats:
-                m_t = MimeType(
-                    mime_type=service_helper.try_get_text_from_xml_element(xml_elem=_format)
-                )
-                format_list.append(m_t)
-
-            self.feature_type_list[f_t.name] = {
-                "feature_type": f_t,
-                "keyword_list": keyword_list,
-                "srs_list": srs_list,
-                "format_list": format_list,
-            }
 
     @abstractmethod
     @transaction.atomic
@@ -268,17 +313,6 @@ class OGCWebFeatureService(OGCWebService):
         orga_publisher = user.primary_organization
 
         group = user.groups.all()[0] # ToDo: Find better solution for group selection than this
-
-        # Namespaces
-        ns_list = []
-        for ns in self.namespaces:
-            if None in ns:
-                continue
-            ns_list.append(Namespace.objects.get_or_create(
-                name=ns[0],
-                uri=ns[1],
-                created_by=group,
-            )[0])
 
         # Metadata
         md = Metadata()
@@ -346,7 +380,13 @@ class OGCWebFeatureService(OGCWebService):
                 _format.save()
                 f_t.formats.add(_format)
 
-        # toDo: Implement persisting of get_feature_uri and so on
+            # elements
+            for _element in feature_type_val.get("element_list"):
+                f_t.elements.add(_element)
+
+            # namespaces
+            for ns in feature_type_val.get("ns_list"):
+                f_t.namespaces.add(ns)
 
 
 class OGCWebFeatureServiceFactory:

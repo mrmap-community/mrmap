@@ -95,9 +95,9 @@ def remove(request: HttpRequest, user: User):
         return BackendAjaxResponse(html=html).get_response()
     else:
         # remove service and all of the related content
-        service.is_deleted = True
-        service.save()
-        #service.delete()
+        # service.is_deleted = True
+        # service.save()
+        service.delete()
         return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 
 @check_access
@@ -117,8 +117,9 @@ def activate(request: HttpRequest, user:User):
     service.metadata.is_active = new_status
     service.metadata.save()
     # get root_layer of service and start changing of all statuses
-    root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
-    service_helper.change_layer_status_recursively(root_layer, new_status)
+    if service.servicetype == "wms":
+        root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
+        service_helper.change_layer_status_recursively(root_layer, new_status)
 
     return BackendAjaxResponse(html="").get_response()
 

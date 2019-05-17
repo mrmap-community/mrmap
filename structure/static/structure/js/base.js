@@ -15,6 +15,12 @@ function getCookie(cname) {
     return "";
 }
 
+function checkRedirect(data){
+    if(data["redirect"] !== null){
+        window.open(data["redirect"], "_self");
+    }
+}
+
 function toggleNavigationMenu(elem){
     elem.slideToggle("fast");
 }
@@ -44,12 +50,13 @@ function editEntity(id, entity){
         },
         data: {},
         type: 'get',
-        dataType: 'json',
-        success: function(data){
-            var html = data["html"];
-            toggleOverlay(html);
-        }
-    })
+        dataType: 'json'
+    }).done(function(data){
+        var html = data["html"];
+        toggleOverlay(html);
+    }).always(function(data){
+        checkRedirect(data);
+    });
 }
 
 function addEntity(entity){
@@ -61,11 +68,12 @@ function addEntity(entity){
         data: {},
         type: 'get',
         dataType: 'json',
-        success: function(data){
-            var html = data["html"];
-            toggleOverlay(html);
-        }
-    })
+    }).done(function(data){
+        var html = data["html"];
+        toggleOverlay(html);
+    }).always(function(data){
+        checkRedirect(data);
+    });
 }
 
 
@@ -80,15 +88,13 @@ function removeEntity(id, confirmed, entity){
             "confirmed": confirmed
         },
         type: 'get',
-        dataType: 'json',
-        success: function(data){
-            var html = data["html"];
-            toggleOverlay(html);
-            if(data["redirect"] !== null){
-                window.open(data["redirect"], "_self");
-            }
-        }
-    })
+        dataType: 'json'
+    }).done(function(data){
+        var html = data["html"];
+        toggleOverlay(html);
+    }).always(function(data){
+        checkRedirect(data);
+    });
 }
 
 $(document).ready(function(){

@@ -13,10 +13,13 @@ function toggleServiceActiveStatus(id, active){
         },
         type: 'post',
         dataType: 'json',
-        success: function(data){
-            location.reload();
-        }
     })
+    .done(function(data){
+        location.reload();
+    })
+    .always(function(data){
+        checkRedirect(data);
+    });
 }
 
 function startServiceRegistration(uri, button){
@@ -31,14 +34,14 @@ function startServiceRegistration(uri, button){
             "uri": uri
         },
         type: 'post',
-        dataType: 'json',
-        success: function(data){
-            changeOverlayContent(data["html"]);
-            button.html(oldHtml);
-        },
-        always: function(data){
-            $(".loading-spinner").toggleClass("hide");
-        }
+        dataType: 'json'
+    })
+    .done(function(data){
+        changeOverlayContent(data["html"]);
+        button.html(oldHtml);
+    })
+    .always(function(data){
+        checkRedirect(data);
     });
 
 }
@@ -60,10 +63,13 @@ function checkServiceRequestURI(){
             "uri": uri
         },
         type: 'post',
-        dataType: 'json',
-        success: function(data){
-            changeOverlayContent(data["html"]);
-        }
+        dataType: 'json'
+    })
+    .done(function(data){
+        changeOverlayContent(data["html"]);
+    })
+    .always(function(data){
+        checkRedirect(data);
     });
 }
 
@@ -107,6 +113,8 @@ $(document).ready(function(){
         }).fail(function(jqXHR, textStatus){
             console.log(textStatus);
             console.log(jqXHR);
+        }).always(function(data){
+            checkRedirect(data);
         });
     });
 

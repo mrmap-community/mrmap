@@ -87,7 +87,7 @@ class Organization(Contact):
 
 class Group(models.Model):
     name = models.CharField(max_length=255)
-    description = models.CharField(max_length=1000)
+    description = models.CharField(max_length=1000, blank=True, null=True)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True, related_name="children")
     role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
     created_by = models.ForeignKey(User, on_delete=models.DO_NOTHING)

@@ -53,7 +53,9 @@ XML_NAMESPACES = {
     "ave": "http://repository.gdi-de.org/schemas/adv/produkt/alkis-vereinfacht/1.0",
     "inspire_common": "http://inspire.ec.europa.eu/schemas/common/1.0",
     "inspire_dls": "http://inspire.ec.europa.eu/schemas/inspire_dls/1.0",
-    "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset"
+    "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset",
+    "ms": "http://mapserver.gis.umn.edu/mapserver",
+    "xsd": "http://www.w3.org/2001/XMLSchema",
 }
 
 # Session refreshes on every request!
@@ -69,7 +71,10 @@ REQUEST_PROXIES = {
     "https": "http://10.240.20.164:8080",
 }
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    HOST_NAME,
+    "127.0.0.1",
+]
 
 
 # Application definition

@@ -12,7 +12,8 @@ class LoginForm(forms.Form):
 
 class GroupForm(ModelForm):
     description = forms.CharField(
-        widget=forms.Textarea()
+        widget=forms.Textarea(),
+        required=False,
     )
     class Meta:
         model = Group

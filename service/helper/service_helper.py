@@ -160,7 +160,7 @@ def find_node_recursive(node_list: list, name):
     return Element("None")
 
 
-def parse_xml(xml: str):
+def parse_xml(xml):
     """ Returns the xml as iterable object
 
     Args:
@@ -168,8 +168,10 @@ def parse_xml(xml: str):
     Returns:
         nothing
     """
-    xml_bytes = xml.encode("UTF-8")
-    xml_obj = etree.ElementTree(etree.fromstring(text=xml_bytes))
+
+    if not isinstance(xml, bytes):
+        xml = xml.encode("UTF-8")
+    xml_obj = etree.ElementTree(etree.fromstring(text=xml))
     return xml_obj
 
 
@@ -238,7 +240,9 @@ def get_feature_type_elements_xml(title, service_type_version, service_type, uri
         "typeNames": title
     }
     try:
-        response = connector.load(params=params)
+        connector.load(params=params)
+        response = connector.content
+        response = parse_xml(response)
     except ConnectionError:
         return None
     return response

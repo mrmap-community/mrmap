@@ -213,7 +213,7 @@ class FeatureType(Resource):
 
 class FeatureTypeElement(Resource):
     name = models.CharField(max_length=255)
-    type = models.CharField(max_length=255)
+    type = models.CharField(max_length=255, null=True, blank=True)
     namespace = models.ForeignKey('Namespace', on_delete=models.DO_NOTHING)
 
     def __str__(self):

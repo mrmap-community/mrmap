@@ -20,7 +20,7 @@ from MapSkinner.settings import DEFAULT_SERVICE_VERSION, XML_NAMESPACES
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
-from service.models import Layer, Metadata, MimeType
+from service.models import Layer, Metadata, MimeType, Namespace
 
 
 def resolve_version_enum(version:str):
@@ -287,7 +287,7 @@ def try_get_element_from_xml(elem: str, xml_elem):
     return ret_val
 
 
-def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str):
+def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str = None):
     """ Returns the requested attribute of an xml element
 
     Args:
@@ -297,7 +297,10 @@ def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str):
     Returns:
         A string if attribute was found, otherwise None
     """
-    tmp = try_get_element_from_xml(elem=elem, xml_elem=xml_elem)
+    if elem is None:
+        tmp = [xml_elem]
+    else:
+        tmp = try_get_element_from_xml(elem=elem, xml_elem=xml_elem)
     try:
         return tmp[0].get(attribute)
     except (IndexError, AttributeError) as e:
@@ -387,3 +390,4 @@ def change_layer_status_recursively(root_layer, new_status):
     root_layer.metadata.save()
     for layer in root_layer.child_layer.all():
         change_layer_status_recursively(layer, new_status)
+

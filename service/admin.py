@@ -46,6 +46,9 @@ class ReferenceSystemAdmin(admin.ModelAdmin):
 class FeatureTypeAdmin(admin.ModelAdmin):
     list_display = ('title', 'name', 'abstract')
 
+class FeatureTypeElementAdmin(admin.ModelAdmin):
+    list_display = ('name', 'type')
+
 class LayerAdmin(admin.ModelAdmin):
     pass
 
@@ -67,4 +70,5 @@ admin.site.register(Service, ServiceAdmin)
 admin.site.register(MimeType, MimeTypeAdmin)
 admin.site.register(Layer, LayerAdmin)
 admin.site.register(FeatureType, FeatureTypeAdmin)
+admin.site.register(FeatureTypeElement, FeatureTypeElementAdmin)
 admin.site.register(Namespace, NamespaceAdmin)

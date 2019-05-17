@@ -95,9 +95,9 @@ def remove(request: HttpRequest, user: User):
         return BackendAjaxResponse(html=html).get_response()
     else:
         # remove service and all of the related content
-        service.is_deleted = True
-        service.save()
-        #service.delete()
+        # service.is_deleted = True
+        # service.save()
+        service.delete()
         return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 
 @check_access

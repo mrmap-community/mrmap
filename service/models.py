@@ -16,7 +16,7 @@ class Keyword(models.Model):
 class Resource(models.Model):
     uuid = models.CharField(max_length=255, default=uuid.uuid4())
     created = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(Group, on_delete=models.DO_NOTHING)
+    created_by = models.ForeignKey(Group, on_delete=models.DO_NOTHING, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)
     is_deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
@@ -205,6 +205,8 @@ class FeatureType(Resource):
     bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
     keywords = models.ManyToManyField(Keyword)
     formats = models.ManyToManyField(MimeType)
+    elements = models.ManyToManyField('FeatureTypeElement')
+    namespaces = models.ManyToManyField('Namespace')
     service = models.ForeignKey(Service, null=True,  blank=True, on_delete=models.CASCADE, related_name="featuretypes")
 
     def __str__(self):
@@ -214,13 +216,12 @@ class FeatureType(Resource):
 class FeatureTypeElement(Resource):
     name = models.CharField(max_length=255)
     type = models.CharField(max_length=255, null=True, blank=True)
-    namespace = models.ForeignKey('Namespace', on_delete=models.DO_NOTHING)
 
     def __str__(self):
         return self.name
 
 
-class Namespace(Resource):
+class Namespace(models.Model):
     name = models.CharField(max_length=50)
     version = models.CharField(max_length=50, blank=True, null=True)
     uri = models.CharField(max_length=500)

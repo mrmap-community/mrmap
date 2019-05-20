@@ -21,7 +21,6 @@ class OGCWebService:
         self.descriptive_document_encoding = None
         self.connect_duration = None
         self.service_object = None
-        self.namespaces = []
         
         # service_metadata
         self.service_identification_title = None
@@ -122,10 +121,6 @@ class OGCWebService:
     @abstractmethod
     def persist(self, user: User):
         pass
-
-    @abstractmethod
-    def get_namespaces(self, xml_obj):
-        self.namespaces = ns_attribs = service_helper.try_get_element_from_xml(elem="./namespace::*", xml_elem=xml_obj)
 
 
 class OWSServiceMetadata:

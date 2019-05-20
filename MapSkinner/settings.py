@@ -34,6 +34,7 @@ HOST_IP = "127.0.0.1:8000"
 # DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
 ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
+GENERIC_ERROR_MSG = _("The service could not be registered. Please check your metadata and contact an administrator.")
 
 EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
 
@@ -53,7 +54,9 @@ XML_NAMESPACES = {
     "ave": "http://repository.gdi-de.org/schemas/adv/produkt/alkis-vereinfacht/1.0",
     "inspire_common": "http://inspire.ec.europa.eu/schemas/common/1.0",
     "inspire_dls": "http://inspire.ec.europa.eu/schemas/inspire_dls/1.0",
-    "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset"
+    "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset",
+    "ms": "http://mapserver.gis.umn.edu/mapserver",
+    "xsd": "http://www.w3.org/2001/XMLSchema",
 }
 
 # Session refreshes on every request!
@@ -71,7 +74,7 @@ REQUEST_PROXIES = {
 
 ALLOWED_HOSTS = [
     HOST_NAME,
-    HOST_IP
+    "127.0.0.1",
 ]
 
 
@@ -170,7 +173,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'en'
 LANGUAGES = (
     ('en', _('English')),
     ('de', _('German')),
@@ -188,6 +191,7 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = True
+
 
 
 # Static files (CSS, JavaScript, Images)

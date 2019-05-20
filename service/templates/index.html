@@ -127,7 +127,7 @@
                     <a href="{% url 'service:detail-wms' id=wfs.id %}">{{ wfs.title }}</a>
                 </td>
                 <td class="table-cell">
-                    {% if md.is_active %}
+                    {% if wfs.is_active %}
                     <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
                     {% else %}
                     <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">

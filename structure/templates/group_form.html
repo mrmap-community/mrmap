@@ -53,9 +53,11 @@
     $(".modal-close, .close-button").click(function(){
         toggleOverlay("");
     });
-    $(".submit-button").click(function(){
-        editGroup();
-    });
+    {% if group is not None %}
+        $(".submit-button").click(function(){
+            editEntity({{ group.id }}, 'structure');
+        });
+    {% endif %}
 </script>
 
 {% endblock %}

@@ -12,9 +12,10 @@ import urllib
 from xml.dom import minidom
 from xml.dom.minidom import Element, Text, Node
 
-import requests
 from django.shortcuts import get_object_or_404
 from lxml import etree
+from lxml.etree import XMLSyntaxError
+from requests.exceptions import ProxyError
 
 from MapSkinner.settings import DEFAULT_SERVICE_VERSION, XML_NAMESPACES
 from service.helper.common_connector import CommonConnector
@@ -160,7 +161,7 @@ def find_node_recursive(node_list: list, name):
     return Element("None")
 
 
-def parse_xml(xml: str):
+def parse_xml(xml):
     """ Returns the xml as iterable object
 
     Args:
@@ -168,8 +169,13 @@ def parse_xml(xml: str):
     Returns:
         nothing
     """
-    xml_bytes = xml.encode("UTF-8")
-    xml_obj = etree.ElementTree(etree.fromstring(text=xml_bytes))
+
+    if not isinstance(xml, bytes):
+        xml = xml.encode("UTF-8")
+    try:
+        xml_obj = etree.ElementTree(etree.fromstring(text=xml))
+    except XMLSyntaxError:
+        xml_obj = None
     return xml_obj
 
 
@@ -238,8 +244,12 @@ def get_feature_type_elements_xml(title, service_type_version, service_type, uri
         "typeNames": title
     }
     try:
-        response = connector.load(params=params)
+        connector.load(params=params)
+        response = connector.content
+        response = parse_xml(response)
     except ConnectionError:
+        return None
+    except ProxyError:
         return None
     return response
 
@@ -283,7 +293,7 @@ def try_get_element_from_xml(elem: str, xml_elem):
     return ret_val
 
 
-def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str):
+def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str = None):
     """ Returns the requested attribute of an xml element
 
     Args:
@@ -293,7 +303,10 @@ def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str):
     Returns:
         A string if attribute was found, otherwise None
     """
-    tmp = try_get_element_from_xml(elem=elem, xml_elem=xml_elem)
+    if elem is None:
+        tmp = [xml_elem]
+    else:
+        tmp = try_get_element_from_xml(elem=elem, xml_elem=xml_elem)
     try:
         return tmp[0].get(attribute)
     except (IndexError, AttributeError) as e:
@@ -383,3 +396,4 @@ def change_layer_status_recursively(root_layer, new_status):
     root_layer.metadata.save()
     for layer in root_layer.child_layer.all():
         change_layer_status_recursively(layer, new_status)
+

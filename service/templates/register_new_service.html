@@ -57,6 +57,24 @@
         align-items: center;
         justify-content: center;
     }
+
+    .form-advice{
+        display: flex;
+        align-items: center;
+        justify-content: space-evenly;
+        background-color: var(--secondary-color);
+        padding: 10px;
+        margin-top: 10px;
+    }
+
+    .form-advice span{
+        text-align: justify;
+        color: white;
+        font-weight: bold;
+        max-width: 60vw;
+    }
+    .form-advice img{
+    }
 </style>
 
 {% block body %}
@@ -94,6 +112,15 @@
                 <td class="field">{{ uri }}</td>
             </tr>
         </table>
+        <div class="form-advice">
+            <img src="{% static 'structure/images/icn_mr_map_invert.png' %}">
+            <span>
+                {% trans 'Please note:' %}
+                <br>
+                {% trans 'Depending on the numbers of layers or featuretypes provided by this service, the registration process can take several seconds. Please be patient. Do not click around furiously.' %}
+            </span>
+        </div>
+        
         <div class="submit-button button">
             <div class="loading-spinner hide">
                 <i class="fas fa-circle-notch fa-spin"></i>
@@ -105,31 +132,22 @@
 </div>
 
 <script>
-    $(".modal-close, .close-button").click(function(){
-        toggleOverlay("");
-    });
+
+    {% include 'modal-dialog-scripts.html' %}
+
     $(".submit-button").click(function(){
-        $(this).children(".loading-spinner").toggleClass("hide");
+        // check if the button was already pressed by checking if the spinner is visible
+        var spinner = $(this).children(".loading-spinner");
+        if(spinner.is(":visible")){
+            alert("{% trans 'Mr. Map is doing his best. Please wait...' %}");
+            return;
+        }
+        spinner.toggleClass("hide");
         var buttonText = $("#submit-text");
         replaceButtonWithSpinner($(this));
         startServiceRegistration('{{ full_uri }}', buttonText);
     });
 
-    $(document).bind('keypress', function(event){
-        if (event.keyCode == 13){
-            // Enter key pressed
-            event.preventDefault();
-            $(".submit-button").click();
-        }
-    });
-
-    $(document).bind('keypress', function(event){
-        if (event.keyCode == 27){
-            // Esc key pressed
-            event.preventDefault();
-            $(".modal-close").click();
-        }
-    });
 </script>
 
 {% endblock %}

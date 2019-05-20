@@ -12,15 +12,16 @@ import urllib
 from xml.dom import minidom
 from xml.dom.minidom import Element, Text, Node
 
-import requests
 from django.shortcuts import get_object_or_404
 from lxml import etree
+from lxml.etree import XMLSyntaxError
+from requests.exceptions import ProxyError
 
 from MapSkinner.settings import DEFAULT_SERVICE_VERSION, XML_NAMESPACES
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
-from service.models import Layer, Metadata, MimeType, Namespace
+from service.models import Layer, Metadata, MimeType
 
 
 def resolve_version_enum(version:str):
@@ -171,7 +172,10 @@ def parse_xml(xml):
 
     if not isinstance(xml, bytes):
         xml = xml.encode("UTF-8")
-    xml_obj = etree.ElementTree(etree.fromstring(text=xml))
+    try:
+        xml_obj = etree.ElementTree(etree.fromstring(text=xml))
+    except XMLSyntaxError:
+        xml_obj = None
     return xml_obj
 
 
@@ -244,6 +248,8 @@ def get_feature_type_elements_xml(title, service_type_version, service_type, uri
         response = connector.content
         response = parse_xml(response)
     except ConnectionError:
+        return None
+    except ProxyError:
         return None
     return response
 

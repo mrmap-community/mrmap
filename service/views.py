@@ -5,7 +5,8 @@ from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
 
 from django.template.loader import render_to_string
-from requests.exceptions import InvalidURL
+from lxml.etree import XMLSyntaxError
+from requests.exceptions import InvalidURL, ProxyError
 
 from MapSkinner.decorator import check_access
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
@@ -121,7 +122,7 @@ def activate(request: HttpRequest, user:User):
         root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
         service_helper.change_layer_status_recursively(root_layer, new_status)
 
-    return BackendAjaxResponse(html="").get_response()
+    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 
 @check_access
 def session(request: HttpRequest, user:User):
@@ -228,7 +229,7 @@ def new_service(request: HttpRequest, user:User):
             wms.persist(user)
         except (ConnectionError, InvalidURL) as e:
             params["error"] = e.args[0]
-        except BaseException as e:
+        except (BaseException, XMLSyntaxError) as e:
             params["unknown_error"] = e
 
     elif url_dict.get("service") is ServiceTypes.WFS:
@@ -243,9 +244,9 @@ def new_service(request: HttpRequest, user:User):
 
             # persist wfs
             wfs.persist(user)
-        except (ConnectionError, InvalidURL, ConnectionRefusedError) as e:
+        except (ProxyError, ConnectionError, InvalidURL, ConnectionRefusedError) as e:
             params["error"] = e.args[0]
-        except BaseException as e:
+        except (BaseException, XMLSyntaxError) as e:
             params["unknown_error"] = e
 
     template = "check_metadata_form.html"

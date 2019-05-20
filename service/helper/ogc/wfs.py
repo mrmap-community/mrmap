@@ -8,10 +8,9 @@ from collections import OrderedDict
 
 import time
 
-from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 
-from MapSkinner.settings import XML_NAMESPACES
+from MapSkinner.settings import XML_NAMESPACES, GENERIC_ERROR_MSG
 from MapSkinner.utils import execute_threads
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
@@ -19,7 +18,7 @@ from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
     FeatureTypeElement
-from structure.models import Organization, Group, User
+from structure.models import Organization, User
 
 
 class OGCWebFeatureService(OGCWebService):
@@ -130,6 +129,9 @@ class OGCWebFeatureService(OGCWebService):
         self.service_provider_address_country = service_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:Country")
         self.service_provider_address_electronicmailaddress = service_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ElectronicMailAddress")
         self.service_provider_onlineresource_linkage = service_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj, elem="//ows:OnlineResource", attribute="{http://www.w3.org/1999/xlink}href")
+        if self.service_provider_onlineresource_linkage is None or self.service_provider_onlineresource_linkage == "":
+            # There are metadatas where no online resource link is given. We need to generate it manually therefore...
+            self.service_provider_onlineresource_linkage = service_helper.split_service_uri(self.service_connect_url).get("base_uri") + "?"
         self.service_provider_contact_hoursofservice = service_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:HoursOfService")
         self.service_provider_contact_contactinstructions = service_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ContactInstructions")
 
@@ -188,9 +190,62 @@ class OGCWebFeatureService(OGCWebService):
         self.get_gml_object_uri["get"] = get.get("ListStoredQueries", None)
         self.get_gml_object_uri["post"] = post.get("ListStoredQueries", None)
 
+    @abstractmethod
+    def _get_featuretype_elements_namespaces(self, feature_type, service_type_version:str):
+        """ Get the elements and their namespaces of a feature type object
+
+        Args:
+            feature_type: The feature type xml object
+            service_type_version(str): The service type version as string
+        Returns:
+            dict: Containing "element_list" and "ns_list"
+        """
+        element_list = []
+        ns_list = []
+        if self.describe_feature_type_uri.get("get") is not None:
+            XML_NAMESPACES["default"] = XML_NAMESPACES["xsd"]
+            descr_feat_root = service_helper.get_feature_type_elements_xml(title=feature_type.name,
+                                                                    service_type="wfs",
+                                                                    service_type_version=service_type_version,
+                                                                    uri=self.describe_feature_type_uri.get("get"))
+            if descr_feat_root is not None:
+                # Feature type elements
+                elements = service_helper.try_get_element_from_xml(elem="//xsd:element", xml_elem=descr_feat_root)
+                for element in elements:
+                    f_t_element = FeatureTypeElement.objects.get_or_create(
+                        name=service_helper.try_get_attribute_from_xml_element(xml_elem=element, attribute="name"),
+                        type=service_helper.try_get_attribute_from_xml_element(xml_elem=element, attribute="type"),
+                    )[0]
+                    element_list.append(f_t_element)
+
+                # Feature type namespaces
+                namespaces = service_helper.try_get_element_from_xml(elem="./namespace::*", xml_elem=descr_feat_root)
+                for namespace in namespaces:
+                    if namespace[0] is None:
+                        continue
+                    ns = Namespace.objects.get_or_create(
+                        name=namespace[0],
+                        uri=namespace[1],
+                    )[0]
+                    if ns not in ns_list:
+                        ns_list.append(ns)
+        return {
+            "element_list": element_list,
+            "ns_list": ns_list,
+        }
+
 
     @transaction.atomic
-    def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version):
+    def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version:str):
+        """ Get featuretype metadata of a single featuretype
+
+        Args:
+            feature_type: The featuretype xml object
+            epsg_api: The epsg api object
+            service_type_version(str): The service type version as string
+        Returns:
+            feature_type_list(dict): A dict containing all different metadatas for this featuretype and it's children
+        """
         f_t = FeatureType()
         f_t.title = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Title")
         f_t.name = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Name")
@@ -238,44 +293,17 @@ class OGCWebFeatureService(OGCWebService):
                 mime_type=service_helper.try_get_text_from_xml_element(xml_elem=_format)
             )
             format_list.append(m_t)
+
         # Feature type elements
         # Feature type namespaces
-        element_list = []
-        ns_list = []
-        if self.describe_feature_type_uri.get("get") is not None:
-            XML_NAMESPACES["default"] = XML_NAMESPACES["xsd"]
-            descr_feat_root = service_helper.get_feature_type_elements_xml(title=f_t.name,
-                                                                    service_type="wfs",
-                                                                    service_type_version=service_type_version,
-                                                                    uri=self.describe_feature_type_uri.get("get"))
-            if descr_feat_root is not None:
-                # Feature type elements
-                elements = service_helper.try_get_element_from_xml(elem="//xsd:element", xml_elem=descr_feat_root)
-                for element in elements:
-                    f_t_element = FeatureTypeElement.objects.get_or_create(
-                        name=service_helper.try_get_attribute_from_xml_element(xml_elem=element, attribute="name"),
-                        type=service_helper.try_get_attribute_from_xml_element(xml_elem=element, attribute="type"),
-                    )[0]
-                    element_list.append(f_t_element)
-
-                # Feature type namespaces
-                namespaces = service_helper.try_get_element_from_xml(elem="./namespace::*", xml_elem=descr_feat_root)
-                for namespace in namespaces:
-                    if namespace[0] is None:
-                        continue
-                    ns = Namespace.objects.get_or_create(
-                        name=namespace[0],
-                        uri=namespace[1],
-                    )[0]
-                    if ns not in ns_list:
-                        ns_list.append(ns)
+        elements_namespaces = self._get_featuretype_elements_namespaces(f_t, service_type_version)
         self.feature_type_list[f_t.name] = {
             "feature_type": f_t,
             "keyword_list": keyword_list,
             "srs_list": srs_list,
             "format_list": format_list,
-            "element_list": element_list,
-            "ns_list": ns_list,
+            "element_list": elements_namespaces.get("element_list", []),
+            "ns_list": elements_namespaces.get("ns_list", []),
         }
 
     @abstractmethod
@@ -298,17 +326,21 @@ class OGCWebFeatureService(OGCWebService):
             # wait for other thread to finish
             time.sleep(0.00005)
 
-        thread_list = []
         # Feature types
         for feature_type in feature_type_list:
             self._get_feature_type_metadata(feature_type, epsg_api, service_type_version)
-        #     thread_list.append(threading.Thread(target=self._get_feature_type_metadata_multithreaded, args=(feature_type, epsg_api, service_type_version)))
-        # execute_threads(thread_list)
 
 
     @abstractmethod
     @transaction.atomic
     def persist(self, user: User):
+        """ Map all data from the WebFeatureService classes to their database models and persist them
+
+        Args:
+            user(User): The user which performs the action
+        Returns:
+             nothing
+        """
         orga_published_for = user.secondary_organization
         orga_publisher = user.primary_organization
 
@@ -505,6 +537,9 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         Returns:
              Nothing
         """
+        service_type_version = service_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj,
+                                                                                 attribute="version",
+                                                                                 elem="//wfs:WFS_Capabilities")
         feat_nodes = service_helper.try_get_element_from_xml("/wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType", xml_obj)
         for node in feat_nodes:
             feature_type = FeatureType()
@@ -515,7 +550,6 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                 service_helper.try_get_text_from_xml_element(elem=".//wfs:Keywords", xml_elem=node)
             )
             # keywords
-            # append only the ...ToFeatureType objects, since the keywords will be created automatically
             kw_list = []
             for keyword in keywords:
                 kw = Keyword.objects.get_or_create(keyword=keyword)[0]
@@ -541,6 +575,10 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                 srs_model = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
                 srs_model_list.append(srs_model)
 
+            # Feature type elements
+            # Feature type namespaces
+            elements_namespaces = self._get_featuretype_elements_namespaces(feature_type, service_type_version)
+
             # put the feature types objects with keywords and reference systems into the dict for the persisting process
             # will happen later
             self.feature_type_list[feature_type.name] = {
@@ -548,6 +586,8 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                 "keyword_list": kw_list,
                 "srs_list": srs_model_list,
                 "format_list": [],
+                "element_list": elements_namespaces["element_list"],
+                "ns_list": elements_namespaces["ns_list"],
             }
 
 
@@ -584,7 +624,11 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
         feature_type_list = service_helper.try_get_element_from_xml(elem="//wfs:FeatureType", xml_elem=xml_obj)
         for feature_type in feature_type_list:
             name = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Name")
-            f_t = self.feature_type_list.get(name).get("feature_type")
+            try:
+                f_t = self.feature_type_list.get(name).get("feature_type")
+            except AttributeError:
+                # if this happens the metadata is broken or not reachable due to bad configuration
+                raise BaseException(GENERIC_ERROR_MSG)
             # Feature type keywords
             keywords = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//ows:Keyword")
             keyword_list = []

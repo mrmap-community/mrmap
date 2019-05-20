@@ -137,10 +137,10 @@
 <br>
 
 {% if root_service.servicetype.name == 'wms' %}
-    {% include 'containing_layers.html' %}
+    {% include 'wms/containing_layers.html' %}
 {% elif root_service.servicetype.name == 'wfs' %}
     {% with root_service.featuretypes.all as featuretypes %}
-        {% include 'containing_featuretypes.html' %}
+        {% include 'wfs/containing_featuretypes.html' %}
     {% endwith %}
 {% endif %}
 

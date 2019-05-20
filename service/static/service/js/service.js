@@ -15,7 +15,7 @@ function toggleServiceActiveStatus(id, active){
         dataType: 'json',
     })
     .done(function(data){
-        location.reload();
+        //location.reload();
     })
     .always(function(data){
         checkRedirect(data);
@@ -111,8 +111,6 @@ $(document).ready(function(){
             location.reload();
 
         }).fail(function(jqXHR, textStatus){
-            console.log(textStatus);
-            console.log(jqXHR);
         }).always(function(data){
             checkRedirect(data);
         });

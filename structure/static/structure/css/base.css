@@ -3,10 +3,17 @@
 html{
     font-family: 'Helvetica';
 }
+h1,h2,h3,h4{
+    margin: 0;
+}
 
 body{
     margin: 0;
     padding: 0 0 5vh 0;
+}
+body.background{
+    background-image: url("/static/structure/images/background.png");
+    background-repeat: repeat;
 }
 
 a{

@@ -21,7 +21,9 @@ from .views import *
 urlpatterns = [
     path('', login, name="login"),
     path('logout/', logout, name='logout'),
+    path('register/', register, name='register'),
     path('admin/', admin.site.urls),
     path('structure/', include('structure.urls')),
     path('service/', include('service.urls')),
+    path('captcha/', include('captcha.urls')),
 ]

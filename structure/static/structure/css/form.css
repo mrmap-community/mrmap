@@ -11,6 +11,7 @@
 }
 
 .field input{
+    width: 100%;
     color: gray;
     background-color: white;
     border: 1px solid gray;
@@ -28,4 +29,56 @@
     display: flex;
     justify-content: space-between;
     padding: 20px 0;
+}
+
+
+#password_message {
+  display:none;
+  background: #f1f1f1;
+  color: #000;
+  position: relative;
+  padding:   20px;
+  margin-top: 10px;
+}
+
+.valid {
+  color: var(--secondary-color);
+}
+
+.valid:before {
+  position: relative;
+  content: "✔ ";
+}
+
+/* Add a red text color and an "x" when the requirements are wrong */
+.invalid {
+  color: red;
+}
+
+.invalid:before {
+  position: relative;
+  content: "✖ ";
+}
+
+.captcha{
+    height: 50px;
+    width: 100px;
+}
+
+.captcha-refresh{
+    text-decoration: none;
+    color: #fff;
+    font-size: 1.5em;
+    position: relative;
+    margin: 5px;
+    padding: 5px;
+    left: 10px;
+    bottom: 12px;
+    font-size: 1.5em;
+    font-weight: bold;
+    color: white;
+    background-color: var(--secondary-color);
+}
+.captcha-refresh:hover{
+    background-color: var(--primary-color);
 }

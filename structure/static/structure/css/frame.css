@@ -6,26 +6,32 @@ body{
     padding: 100px;
 }
 
-.login-article{
+.frame-article{
     max-width: 30%;
 }
-.login-article article{
+.frame-article article, .frame article{
     color: gray;
+    padding: 0 50px 0 0;
 }
 
-.login-frame{
+.frame{
+    background-color: white;
     display: flex;
     justify-content: space-around;
-    margin: 0 0 0 50px;
     padding: 50px;
-    width: 40%;
+    width: 40vw;
     max-width: 400px;
     box-shadow: 0 0 0 1px #e5e5e5;
 }
 
-.login-logo{
+.registration-frame{
+    width: 60vw;
+    max-width: none;
+}
+
+.frame-logo{
     max-width: 150px;
-    max-height: 150px;
+    height: 150px;
 }
 
 .login-form{
@@ -33,4 +39,13 @@ body{
 }
 .login-form-tr{
     background-color: white !important;
+}
+
+.registration-form{
+    width: 25vw;
+    min-width: 200px;
+}
+.registration-sidebar{
+    width: 30vw;
+    min-width: 100px;
 }

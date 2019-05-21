@@ -46,7 +46,6 @@ class Contact(models.Model):
     facsimile = models.CharField(max_length=100, null=True)
     city = models.CharField(max_length=100, null=True)
     postal_code = models.CharField(max_length=100, null=True)
-    street = models.CharField(max_length=100, null=True)
     address_type = models.CharField(max_length=100, null=True)
     address = models.CharField(max_length=100, null=True)
     state_or_province = models.CharField(max_length=100, null=True)
@@ -69,6 +68,9 @@ class User(Contact):
     groups = models.ManyToManyField('Group', related_name='users', null=True)
     primary_organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.DO_NOTHING, null=True, blank=True)
     secondary_organization = models.ForeignKey('Organization', related_name='secondary_users', on_delete=models.DO_NOTHING, null=True, blank=True)
+    confirmed_newsletter = models.BooleanField(default=False)
+    confirmed_survey = models.BooleanField(default=False)
+    confirmed_dsgvo = models.DateTimeField(null=True, blank=True) # ToDo: For production this is not supposed to be nullable!!!
 
     def __str__(self):
         return self.username

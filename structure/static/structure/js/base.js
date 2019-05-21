@@ -97,6 +97,7 @@ function removeEntity(id, confirmed, entity){
     });
 }
 
+
 $(document).ready(function(){
     $(".navigation-menu").on("mouseover",function(){
         var list = $(this).find(".navigation-element-list");

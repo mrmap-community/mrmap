@@ -15,6 +15,7 @@
         </div>
     </div>
     <h3>{% trans 'You are member of the following groups:' %}</h3>
+    {% if groups|length > 0 %}
     <table class="overview-table">
         <tr>
             <th class="overview-table-header">
@@ -47,6 +48,9 @@
             </tr>
         {% endfor %}
     </table>
+    {% else %}
+        {% trans 'None ¯\_(ツ)_/¯' %}
+    {% endif %}
 
 </div>
 {% endblock %}

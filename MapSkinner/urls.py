@@ -22,6 +22,7 @@ urlpatterns = [
     path('', login, name="login"),
     path('logout/', logout, name='logout'),
     path('register/', register, name='register'),
+    path('activate/<activation_hash>', activate_user, name='activate-user'),
     path('admin/', admin.site.urls),
     path('structure/', include('structure.urls')),
     path('service/', include('service.urls')),

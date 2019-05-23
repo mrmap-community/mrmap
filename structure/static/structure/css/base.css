@@ -56,7 +56,8 @@ a{
     background-color: var(--primary-color);
 }
 .message.info{
-    background-color: var(--primary-color);
+    background-color: var(--message-info);
+    color: black;
 }
 
 #body-content{

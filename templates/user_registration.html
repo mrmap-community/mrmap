@@ -23,9 +23,9 @@
         <a href="{% url 'login' %}" title="{% trans 'Back' %}">
             <img class="frame-logo" src="{% static '/structure/images/mr_map.png' %}">
         </a>
-        <article>
-            {{ registration_article }}
-        </article>
+            <article class="registration-article">
+                {{ registration_article }}
+            </article>
         <div id="password_message">
             <h3>{% trans 'Password must contain the following:' %}</h3>
             <p id="letter" class="invalid"><b>{% trans 'Lowercase letters' %}</b> </p>

@@ -71,10 +71,18 @@ class User(Contact):
     confirmed_newsletter = models.BooleanField(default=False)
     confirmed_survey = models.BooleanField(default=False)
     confirmed_dsgvo = models.DateTimeField(null=True, blank=True) # ToDo: For production this is not supposed to be nullable!!!
+    is_active = models.BooleanField(default=False)
 
     def __str__(self):
         return self.username
 
+class UserActivation(models.Model):
+    user = models.ForeignKey(User, null=False, blank=False, on_delete=models.DO_NOTHING)
+    activation_until = models.DateTimeField(null=True)
+    activation_hash = models.CharField(max_length=500, null=False, blank=False)
+
+    def __str__(self):
+        return self.user.username
 
 class Organization(Contact):
     organization_name = models.CharField(max_length=255, null=True, default="")

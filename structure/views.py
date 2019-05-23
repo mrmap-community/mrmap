@@ -18,7 +18,7 @@ def index(request: HttpRequest, user: User):
 
     Args:
         request (HttpRequest): The incoming request
-        user (User):
+        user (User): The current user
     Returns:
          A view
     """

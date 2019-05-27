@@ -265,6 +265,10 @@ tr:nth-child(odd){
     font-weight: bold;
 }
 
+.detail-table th{
+    width: 200px;
+}
+
 .button{
     margin-top: 10px;
     padding: 10px;
@@ -281,8 +285,6 @@ tr:nth-child(odd){
     background-color: var(--secondary-color-light);
 }
 
-
-
 .delete-container, .deactivate-container{
     display: flex;
     align-items: center;
@@ -292,10 +294,12 @@ tr:nth-child(odd){
     color: white;
     font-weight: bold;
 }
+
 .delete-container:hover, .deactivate-container:hover, .activate-container:hover, .button-container:hover{
     cursor: pointer;
     opacity: 0.75;
 }
+
 .delete-container img{
     padding: 0 10px 0 0;
     -webkit-filter: invert(1.0);
@@ -311,6 +315,7 @@ tr:nth-child(odd){
     color: white;
     font-weight: bold;
 }
+
 .button-container img{
     padding: 0 10px 0 0;
 }

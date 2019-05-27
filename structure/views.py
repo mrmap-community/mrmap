@@ -108,11 +108,13 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
     """
     org = Organization.objects.get(id=id)
     members = User.objects.filter(primary_organization=org)
+    sub_orgs = Organization.objects.filter(parent=org)
     template = "organization_detail.html"
     params = {
         "organization": org,
         "permissions": user_helper.get_permissions(user=user),
-        "members": members
+        "members": members,
+        "sub_organizations": sub_orgs,
     }
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
@@ -187,7 +189,7 @@ def new_org(request: HttpRequest, user: User):
             "organizations": orgs,
             "form": form,
             "article": _("You are creating a new organization. Please make sure the organization does not exist yet to avoid duplicates! You can see if a similar named organization already exists by typing the organization name in the related field."),
-            "action_url": ROOT_URL + "/structure/groups/new/register-form/"
+            "action_url": ROOT_URL + "/structure/organizations/new/register-form/"
         }
         html = render_to_string(template_name=template, request=request, context=params)
         return BackendAjaxResponse(html=html).get_response()

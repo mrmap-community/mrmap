@@ -9,7 +9,7 @@
 <a href="{% url 'structure:index' %}">
     <h3 class="back-title">
         <img src="{% static 'service/images/icn_back.png' %}">
-        {% trans 'Back' %}
+        {% trans 'Overview' %}
     </h3>
 </a>
 <hr>
@@ -32,8 +32,8 @@
     {% endif %}
 </div>
 
-<h2>{{ organization.name }}</h2>
-<table>
+<h2>{{ organization.organization_name }}</h2>
+<table class="detail-table">
     <tr>
         <th>{% trans 'Description' %}</th>
         <td>{{ organization.description }}</td>
@@ -49,6 +49,53 @@
     <tr>
         <th>{% trans 'Parent' %}</th>
         <td>{{ organization.parent }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Suborganizations' %}</th>
+        <td>
+            {% for sub_org in sub_organizations %}
+            <a href="{% url 'structure:detail-organization' sub_org.id %}">{{ sub_org }}</a><br>
+            {% endfor %}
+        </td>
+    </tr>
+</table>
+<h2>{% trans 'Contact' %}</h2>
+<table class="detail-table">
+    <tr>
+        <th>{% trans 'Person' %}</th>
+        <td>{{ organization.person_name }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'E-Mail' %}</th>
+        <td>{{ organization.email }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Phone' %}</th>
+        <td>{{ organization.phone }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Facsimile' %}</th>
+        <td>{{ organization.facsimile }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Address' %}</th>
+        <td>{{ organization.address }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Postal code' %}</th>
+        <td>{{ organization.postal_code }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'City' %}</th>
+        <td>{{ organization.city }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'State or province' %}</th>
+        <td>{{ organization.state_or_province }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Country' %}</th>
+        <td>{{ organization.country }}</td>
     </tr>
 </table>
 

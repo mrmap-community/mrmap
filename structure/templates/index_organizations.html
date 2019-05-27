@@ -1,0 +1,92 @@
+
+{% load i18n static %}
+{% block head %}
+    <script type="text/javascript" src="{% static '/structure/js/structure.js' %}"></script>
+{% endblock %}
+{% block body %}
+<div class="overview">
+    <div class="overview-title-actions-container">
+        <div class="container-left">
+            <h2>{% trans 'Organizations' %}</h2>
+            {% if 'can_create_organization' in permissions %}
+            <div class="overview-action">
+                <span class="add-button" title="{% trans 'Create new' %}" typeof="structure/organizations">
+                    +
+                </span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% if user_organizations|length > 0 %}
+    <h3>{% trans 'You are member of the following organizations:' %}</h3>
+    <table class="overview-table">
+        <tr>
+            <th class="overview-table-header">
+                {% trans 'Relation' %}
+            </th>
+            <th class="overview-table-header">
+                {% trans 'Name' %}
+            </th>
+            <th class="overview-table-header">
+                {% trans 'Description' %}
+            </th>
+            <th class="overview-table-header">
+                {% trans 'Parent' %}
+            </th>
+        </tr>
+        {% for org_key, org_val in user_organizations.items %}
+            {% if org_val is not None %}
+                <tr>
+                    <td class="overview-table-cell">
+                        {{ org_key }}
+                    </td>
+                    <td class="overview-table-cell">
+                        <a href="{% url 'structure:detail-organization' id=org_val.id %}">{{ org_val.organization_name }}</a>
+                    </td>
+                    <td class="overview-table-cell">
+                        {{ org_val.description }}
+                    </td>
+                    <td class="overview-table-cell">
+                        {{ org_val.parent }}
+                    </td>
+                </tr>
+            {% endif %}
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    {% if all_organizations|length > 0 %}
+        <div id="show-all-organizations">
+            <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+            {% trans 'Show all organizations' %} ({{ all_organizations|length }})
+        </div>
+        <table id="all-organizations" class="overview-table">
+            <tr>
+                <th class="overview-table-header">
+                    {% trans 'Name' %}
+                </th>
+                <th class="overview-table-header">
+                    {% trans 'Description' %}
+                </th>
+                <th class="overview-table-header">
+                    {% trans 'Parent' %}
+                </th>
+            </tr>
+            {% for org in all_organizations %}
+                <tr>
+                    <td class="overview-table-cell">
+                        {{ org.organization_name }}
+                    </td>
+                    <td class="overview-table-cell">
+                        {{ org.description }}
+                    </td>
+                    <td class="overview-table-cell">
+                        {{ org.parent }}
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -15,28 +15,28 @@
 <hr>
 <div class="container-row">
     <div class="container-left">
-        {% if 'can_edit_group' in permissions %}
-            <div id="edit-button" class="button-container" data-parent="{{ group.id }}" typeof="structure/groups">
+        {% if 'can_edit_organization' in permissions %}
+            <div id="edit-button" class="button-container" data-parent="{{ organization.id }}" typeof="structure/organizations">
                 <img src="{% static 'structure/images/icn_edit.png' %}">
-                <span>{% trans 'Edit group' %}</span>
+                <span>{% trans 'Edit organization' %}</span>
             </div>
         {% endif %}
     </div>
-    {% if 'can_delete_group' in permissions %}
+    {% if 'can_delete_organization' in permissions %}
         <div class="container-right">
-            <div class="delete-container" data-parent="{{ group.id }}" typeof="structure">
+            <div class="delete-container" data-parent="{{ organization.id }}" typeof="structure/organizations">
                 <img src="{% static 'service/images/icn_minus.png' %}">
-                <span>{% trans 'Delete group' %}</span>
+                <span>{% trans 'Delete organization' %}</span>
             </div>
         </div>
     {% endif %}
 </div>
 
-<h2>{{ group.name }}</h2>
+<h2>{{ organization.name }}</h2>
 <table>
     <tr>
         <th>{% trans 'Description' %}</th>
-        <td>{{ group.description }}</td>
+        <td>{{ organization.description }}</td>
     </tr>
     <tr>
         <th>{% trans 'Members' %}</th>
@@ -48,15 +48,7 @@
     </tr>
     <tr>
         <th>{% trans 'Parent' %}</th>
-        <td>{{ group.parent }}</td>
-    </tr>
-    <tr>
-        <th>{% trans 'Permissions' %}</th>
-        <td>
-            {% for perm in group_permissions %}
-                {{ perm }} <br>
-            {% endfor %}
-        </td>
+        <td>{{ organization.parent }}</td>
     </tr>
 </table>
 

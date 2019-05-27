@@ -2,6 +2,10 @@ from django.db import models
 
 
 class Permission(models.Model):
+    can_create_organization = models.BooleanField(default=False)
+    can_edit_organization = models.BooleanField(default=False)
+    can_delete_organization = models.BooleanField(default=False)
+
     can_create_group = models.BooleanField(default=False)
     can_delete_group = models.BooleanField(default=False)
     can_edit_group = models.BooleanField(default=False)

@@ -75,6 +75,10 @@ class Command(BaseCommand):
             if role.permission is None:
                 perm = Permission()
 
+                perm.can_create_organization = True
+                perm.can_delete_organization = True
+                perm.can_edit_organization = True
+
                 perm.can_create_group = True
                 perm.can_delete_group = True
                 perm.can_edit_group = True

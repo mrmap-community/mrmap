@@ -15,6 +15,14 @@ function getCookie(cname) {
     return "";
 }
 
+
+function toggleCollapsibleSymbol(elem){
+    var src = elem.attr("src");
+    var toggle = elem.attr("data-toggle");
+    elem.attr("src", toggle);
+    elem.attr("data-toggle", src);
+}
+
 function checkRedirect(data){
     if(data["redirect"] !== null){
         window.open(data["redirect"], "_self");

@@ -3,12 +3,6 @@
 
 <style>
 
-    .form-table{
-        color: gray;
-        max-height: 30vh;
-        overflow-y: auto;
-    }
-
     .field-label, .field{
         font-size: 1.2em;
     }
@@ -48,6 +42,10 @@
     .form-table td{
 
     }
+    .modal-content{
+        max-height: 75vh;
+        overflow-y: auto;
+    }
 </style>
 
 {% block body %}
@@ -56,16 +54,18 @@
     <div class="modal-close" title="{% trans 'Close' %}">
         x
     </div>
-    <form class="form-table" action="/service/new/" method="post">
-        {% csrf_token %}
-        <div class="field">
-            {% for field in form %}
-                <div class="field-label">{{ field.label_tag }}</div>
-                <div id="request-uri" class="field">{{ field }}</div>
-            {% endfor %}
-        </div>
-        <div id="new-service-register-button" class="button submit-button" title="{% trans 'Start registration' %}">{% trans 'Register' %}</div>
-    </form>
+    <div class="modal-content">
+        <form class="form-table" action="/service/new/" method="post">
+            {% csrf_token %}
+            <div class="field">
+                {% for field in form %}
+                    <div class="field-label">{{ field.label_tag }}</div>
+                    <div id="request-uri" class="field">{{ field }}</div>
+                {% endfor %}
+            </div>
+            <div id="new-service-register-button" class="button submit-button" title="{% trans 'Start registration' %}">{% trans 'Register' %}</div>
+        </form>
+    </div>
 </div>
 <script>
     {% include 'modal-dialog-scripts.html' %}

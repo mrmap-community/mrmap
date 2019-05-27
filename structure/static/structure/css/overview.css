@@ -41,3 +41,25 @@
     align-items: center;
     justify-content: flex-end;
 }
+
+
+#show-all-organizations img{
+    padding: 0 10px 0 0;
+    -webkit-filter: invert(1.0);
+    filter: invert(1.0);
+}
+
+#show-all-organizations{
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background-color: var(--secondary-color);
+    color: white;
+    font-size: 1.2em;
+}
+
+
+#show-all-organizations:hover{
+    cursor: pointer;
+    background-color: var(--secondary-color-light);
+}

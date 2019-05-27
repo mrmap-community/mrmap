@@ -23,8 +23,20 @@
             <img id="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" title="Map your s*** together!">
             <div class="navigation-menu">
                 <a class="navigation-title" href="{% url 'structure:index' %}">
-                    {% trans 'Groups' %}
+                    {% trans 'Structure' %}
                 </a>
+                <div class="navigation-element-list">
+                    <a href="{% url 'structure:groups' %}">
+                        <div class="navigation-element">
+                            {% trans 'Groups' %}
+                        </div>
+                    </a>
+                    <a href="{% url 'structure:organizations' %}">
+                        <div class="navigation-element">
+                            {% trans 'Organizations' %}
+                        </div>
+                    </a>
+                </div>
             </div>
             <div class="navigation-menu">
                 <a class="navigation-title" href="{% url 'service:index' %}">

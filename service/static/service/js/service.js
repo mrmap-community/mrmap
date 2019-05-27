@@ -73,12 +73,6 @@ function checkServiceRequestURI(){
     });
 }
 
-function toggleCollapsibleSymbol(elem){
-    var src = elem.attr("src");
-    var toggle = elem.attr("data-toggle");
-    elem.attr("src", toggle);
-    elem.attr("data-toggle", src);
-}
 
 $(document).ready(function(){
 

@@ -64,9 +64,29 @@ a{
     padding: 0 1vw 0 1vw;
 }
 
+
+.layer-title, .back-title{
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+}
+.layer-title img, .back-title img{
+    padding: 0 10px 0 0;
+    filter: opacity(0.5);
+}
+
+.layer-title:hover, .back-title:hover{
+    opacity: 0.75;
+    cursor: pointer;
+}
+
+
 .modal-dialog{
     position: fixed;
-    top: 20%;
+    max-height: 75vh;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
     padding: 20px;
     width: 75vw;
     background-color: white;
@@ -226,7 +246,16 @@ tr:nth-child(odd){
     background-color: white;
 }
 
+.overview-table{
+    margin: 0 0 40px 0;
+}
 
+.overview-table-cell{
+    max-width: 33vw;
+}
+#all-organizations{
+    display: none;
+}
 
 .hidden{
     display: none;

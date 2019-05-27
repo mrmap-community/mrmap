@@ -3,7 +3,7 @@ from django import forms
 from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import Group
+from structure.models import Group, Organization
 
 
 class LoginForm(forms.Form):
@@ -16,10 +16,27 @@ class GroupForm(ModelForm):
         widget=forms.Textarea(),
         required=False,
     )
+
     class Meta:
         model = Group
         fields = '__all__'
         exclude = ["created_by"]
+
+
+class OrganizationForm(ModelForm):
+    description = forms.CharField(
+        widget=forms.Textarea(),
+        required=False,
+    )
+    person_name = forms.CharField(label=_("Contact person"))
+
+    field_order = ["organization_name", "description", "parent"]
+
+    class Meta:
+        model = Organization
+        fields = '__all__'
+        exclude = ["created_by", "address_type"]
+
 
 class RegistrationForm(forms.Form):
     username = forms.CharField(max_length=255, label=_("Username"), label_suffix=" ", required=True)

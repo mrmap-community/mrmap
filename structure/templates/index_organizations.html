@@ -56,36 +56,38 @@
     {% endif %}
 
     {% if all_organizations|length > 0 %}
-        <div id="show-all-organizations">
+        <div id="show-all">
             <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
             {% trans 'Show all organizations' %} ({{ all_organizations|length }})
         </div>
-        <table id="all-organizations" class="overview-table">
-            <tr>
-                <th class="overview-table-header">
-                    {% trans 'Name' %}
-                </th>
-                <th class="overview-table-header">
-                    {% trans 'Description' %}
-                </th>
-                <th class="overview-table-header">
-                    {% trans 'Parent' %}
-                </th>
-            </tr>
-            {% for org in all_organizations %}
+        <div class="subelements hidden">
+            <table class="detail-table">
                 <tr>
-                    <td class="overview-table-cell">
-                        {{ org.organization_name }}
-                    </td>
-                    <td class="overview-table-cell">
-                        {{ org.description }}
-                    </td>
-                    <td class="overview-table-cell">
-                        {{ org.parent }}
-                    </td>
+                    <th class="overview-table-header">
+                        {% trans 'Name' %}
+                    </th>
+                    <th class="overview-table-header">
+                        {% trans 'Description' %}
+                    </th>
+                    <th class="overview-table-header">
+                        {% trans 'Parent' %}
+                    </th>
                 </tr>
-            {% endfor %}
-        </table>
+                {% for org in all_organizations %}
+                    <tr>
+                        <td class="overview-table-cell">
+                            <a href="{% url 'structure:detail-organization' org.id %}">{{ org.organization_name }}</a>
+                        </td>
+                        <td class="overview-table-cell">
+                            {{ org.description }}
+                        </td>
+                        <td class="overview-table-cell">
+                            {{ org.parent }}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </table>
+        </div>
     {% endif %}
 
 </div>

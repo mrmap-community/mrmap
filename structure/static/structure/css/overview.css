@@ -43,13 +43,14 @@
 }
 
 
-#show-all-organizations img{
+#show-all img{
     padding: 0 10px 0 0;
     -webkit-filter: invert(1.0);
     filter: invert(1.0);
 }
 
-#show-all-organizations{
+#show-all{
+    margin: 10px 0;
     display: flex;
     align-items: center;
     padding: 10px;
@@ -59,7 +60,7 @@
 }
 
 
-#show-all-organizations:hover{
+#show-all:hover{
     cursor: pointer;
     background-color: var(--secondary-color-light);
 }

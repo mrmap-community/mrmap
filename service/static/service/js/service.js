@@ -112,7 +112,7 @@ $(document).ready(function(){
 
     $(".layer-title").click(function(){
         var elem = $(this);
-        var table = elem.siblings(".layer-content");
+        var table = elem.siblings(".subelements");
         table.toggle("fast");
         var img = elem.find("img");
         toggleCollapsibleSymbol(img);

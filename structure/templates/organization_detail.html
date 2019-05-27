@@ -2,7 +2,7 @@
 {% load static i18n %}
 
 {% block head %}
-
+    <script type="text/javascript" src="{% static '/structure/js/structure.js' %}"></script>
 {% endblock %}
 
 {% block body %}
@@ -98,5 +98,49 @@
         <td>{{ organization.country }}</td>
     </tr>
 </table>
+
+<div id="show-all">
+    <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+    {% trans 'Show all services' %} ({{ services|length }})
+</div>
+<div class="subelements hidden">
+    <table class="detail-table">
+        <tr>
+            <th>
+                {% trans 'Name' %}
+            </th>
+            <th>
+                {% trans 'Description' %}
+            </th>
+            <th>
+                {% trans 'Service type' %}
+            </th>
+            <th>
+                {% trans 'Published by' %}
+            </th>
+        </tr>
+        {% for service in services %}
+        <tr>
+            <td>
+                {% if service.servicetype.name == 'wms' %}
+                    <a href="{% url 'service:detail-wms' service.metadata.id %}">{{ service.metadata.title }}</a>
+                {% elif service.servicetype.name == 'wfs' %}
+                    <a href="{% url 'service:detail-wfs' service.metadata.id %}">{{ service.metadata.title }}</a>
+                {% endif %}
+            </td>
+            <td>
+                {{ service.metadata.abstract }}
+            </td>
+            <td>
+                {{ service.servicetype }} ({{ service.servicetype.version }})
+            </td>
+            <td>
+                {{ service.published_by }}
+            </td>
+        </tr>
+
+        {% endfor %}
+    </table>
+</div>
 
 {% endblock %}

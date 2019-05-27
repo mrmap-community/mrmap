@@ -1,8 +1,8 @@
 
 $(document).ready(function(){
-    $("#show-all-organizations").click(function(){
+    $("#show-all").click(function(){
         var elem = $(this);
-        var orgs = $("#all-organizations");
+        var orgs = $(".subelements");
         orgs.toggle("slow");
         var img = elem.find("img");
         toggleCollapsibleSymbol(img);

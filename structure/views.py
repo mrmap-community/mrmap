@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from MapSkinner.decorator import check_access
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
+from service.models import Service
 from structure.forms import GroupForm, OrganizationForm
 from structure.models import User, Group, Role, Permission, Organization
 from .helper import user_helper
@@ -73,7 +74,7 @@ def groups(request: HttpRequest, user: User):
 
 @check_access
 def organizations(request: HttpRequest, user: User):
-    """ Renders an overview of all groups
+    """ Renders an overview of all organizations
 
     Args:
         request (HttpRequest): The incoming request
@@ -109,12 +110,14 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
     org = Organization.objects.get(id=id)
     members = User.objects.filter(primary_organization=org)
     sub_orgs = Organization.objects.filter(parent=org)
+    services = Service.objects.filter(metadata__contact=org, is_root=True)
     template = "organization_detail.html"
     params = {
         "organization": org,
         "permissions": user_helper.get_permissions(user=user),
         "members": members,
         "sub_organizations": sub_orgs,
+        "services": services,
     }
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())

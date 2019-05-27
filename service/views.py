@@ -273,7 +273,7 @@ def detail(request: HttpRequest, id, user:User):
 
     Args:
         request: The incoming request
-        id: The id of the selected service
+        id: The id of the selected metadata
     Returns:
     """
     template = "service_detail.html"

@@ -253,8 +253,11 @@ tr:nth-child(odd){
 .overview-table-cell{
     max-width: 33vw;
 }
-#all-organizations{
-    display: none;
+
+.subelements{
+    border: 1px solid var(--primary-color);
+    padding: 5px;
+    margin: 0 0 0 5vw;
 }
 
 .hidden{

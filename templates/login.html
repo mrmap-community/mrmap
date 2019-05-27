@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 {% load i18n static %}
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
     <title>MapSkinner - Login</title>
     <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base.css' %}" media="all" />
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/login.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/frame.css' %}" media="all" />
     <link rel="stylesheet" type="text/css" href="{% static '/structure/css/form.css' %}" media="all" />
         <script>
             var rootUrl = '{{ ROOT_URL }}'
@@ -13,16 +13,16 @@
     <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
     <script type="text/javascript" src="{% static '/structure/js/base.js' %}"></script>
 </head>
-<body>
+<body class="background">
 
 {% include 'messages.html' %}
 
-<div class="login-article">
+<div class="frame-article">
     <h1>{{ login_article_title }}</h1>
-    <article>{{ login_article }}</article>
+    <article class="login-article">{{ login_article }}</article>
 </div>
-<div class="login-frame">
-    <img class="login-logo" src="{% static '/structure/images/mr_map.png' %}">
+<div class="frame">
+    <img class="frame-logo" src="{% static '/structure/images/mr_map.png' %}">
     <div class="login-form">
         <form action="{% url 'login' %}" method="post">
             {% csrf_token %}
@@ -38,7 +38,7 @@
             </table>
             <div class="form-submit-area">
                 <input class="button" type="submit" value="{% trans 'Sign in' %}">
-                <a href=""><input class="button" type="button" value="{% trans 'Register' %}"></a>
+                <a href="{% url 'register' %}"><input class="button" type="button" value="{% trans 'Register' %}"></a>
             </div>
         </form>
     </div>

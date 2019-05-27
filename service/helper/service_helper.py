@@ -22,6 +22,7 @@ from service.helper.common_connector import CommonConnector
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
 from service.models import Layer, Metadata, MimeType
+from MapSkinner.utils import sha256
 
 
 def resolve_version_enum(version:str):
@@ -386,9 +387,7 @@ def generate_name(srs_list: list=[]):
         id = epsg_api.get_real_identifier(srs)
         tmp.append(str(id))
     tmp = "".join(tmp)
-    m = hashlib.sha256()
-    m.update(tmp.encode("UTF-8"))
-    return m.hexdigest()
+    return sha256(tmp)
 
 
 def change_layer_status_recursively(root_layer, new_status):

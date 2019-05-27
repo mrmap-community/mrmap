@@ -34,6 +34,9 @@ HOST_IP = "127.0.0.1:8000"
 # DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
 ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
+# In hours: how long an activation link is valid for a user
+USER_ACTIVATION_TIME_WINDOW = 24
+
 GENERIC_ERROR_MSG = _("The service could not be registered. Please check your metadata and contact an administrator.")
 
 EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
@@ -92,12 +95,14 @@ INSTALLED_APPS = [
     'service',
     'structure',
     'django_extensions',
+    'captcha',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',

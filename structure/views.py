@@ -18,7 +18,7 @@ def index(request: HttpRequest, user: User):
 
     Args:
         request (HttpRequest): The incoming request
-        user (User):
+        user (User): The current user
     Returns:
          A view
     """
@@ -34,7 +34,7 @@ def index(request: HttpRequest, user: User):
         "permissions": user_helper.get_permissions(user=user),
         "groups": groups,
     }
-    context = DefaultContext(params)
+    context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
 
 
@@ -58,7 +58,7 @@ def detail_group(request: HttpRequest, id: int, user: User):
         "group_permissions": user_helper.get_permissions(group=group),
         "members": members
     }
-    context = DefaultContext(params)
+    context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
 
 

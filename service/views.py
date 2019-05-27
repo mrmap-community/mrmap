@@ -62,7 +62,7 @@ def index(request: HttpRequest, user: User, service_type=None):
         "only_type": service_type,
         "permissions": user_helper.get_permissions(user),
     }
-    context = DefaultContext(params)
+    context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
 
 
@@ -287,5 +287,5 @@ def detail(request: HttpRequest, id, user:User):
         "layers": layers_md_list,
         "permissions": user_helper.get_permissions(user),
     }
-    context = DefaultContext(params)
+    context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())

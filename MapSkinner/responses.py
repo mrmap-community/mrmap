@@ -5,7 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 15.04.19
 
 """
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpRequest
 
 from MapSkinner.settings import ROOT_URL
 
@@ -14,9 +14,10 @@ class DefaultContext:
 
     """
 
-    def __init__(self, context: dict):
+    def __init__(self, request: HttpRequest, context: dict):
         self.context = {
-            "ROOT_URL": ROOT_URL
+            "ROOT_URL": ROOT_URL,
+            "LANGUAGE_CODE": request.LANGUAGE_CODE,
         }
         self.add_context(context)
 

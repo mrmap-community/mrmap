@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+{% load i18n static %}
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+    <meta charset="UTF-8">
+    <title>MapSkinner - Registration</title>
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/frame.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/form.css' %}" media="all" />
+        <script>
+            var rootUrl = '{{ ROOT_URL }}'
+        </script>
+    <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
+    <script type="text/javascript" src="{% static '/structure/js/base.js' %}"></script>
+    <script type="text/javascript" src="{% static '/structure/js/form.js' %}"></script>
+</head>
+<body class="background">
+
+{% include 'messages.html' %}
+
+<div class="frame registration-frame">
+    <div class="registration-sidebar">
+        <a href="{% url 'login' %}" title="{% trans 'Back' %}">
+            <img class="frame-logo" src="{% static '/structure/images/mr_map.png' %}">
+        </a>
+            <article class="registration-article">
+                {{ registration_article }}
+            </article>
+        <div id="password_message">
+            <h3>{% trans 'Password must contain the following:' %}</h3>
+            <p id="letter" class="invalid"><b>{% trans 'Lowercase letters' %}</b> </p>
+            <p id="capital" class="invalid"><b>{% trans 'Uppercase letters' %}</b> </p>
+            <p id="number" class="invalid"><b>{% trans 'At least one Number' %}</b></p>
+            <p id="length" class="invalid"><b>{% trans 'At least 9 characters' %}</b></p>
+        </div>
+    </div>
+    <div class="registration-form">
+        <h2>{{ registration_title }}</h2>
+        <form action="{{ ROOT_URL }}/register/" method="post">
+            {% csrf_token %}
+                <table class="form-table">
+                    {% for field in form %}
+                        {% if field.field.widget.input_type == 'checkbox' %}
+                            <tr>
+                                <td class="field-label">{{ field.label_tag }}</td>
+                                <td class="field">{{ field }}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td class="field-label">{{ field.label_tag }}</td>
+                            </tr>
+                            <tr class="login-form-tr">
+                                <td class="field">{{ field }}</td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                </table>
+                <div class="form-submit-area">
+                    <input class="button" type="submit" value="{% trans 'Sign up' %}">
+                </div>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+{% load i18n static %}
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+    <meta charset="UTF-8">
+    <title>MapSkinner - Registration</title>
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/form.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/frame.css' %}" media="all" />
+        <script>
+            var rootUrl = '{{ ROOT_URL }}'
+        </script>
+    <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
+    <script type="text/javascript" src="{% static '/structure/js/base.js' %}"></script>
+    <script type="text/javascript" src="{% static '/structure/js/form.js' %}"></script>
+    <style>
+        body.background{
+            background-image: url({% static 'structure/images/background.png' %});
+            background-repeat: repeat;
+        }
+    </style>
+</head>
+<body class="background">
+
+{% include 'messages.html' %}
+
+<div class="frame activation-frame">
+    <a href="{% url 'login' %}"><img class="frame-logo" src="{% static '/structure/images/mr_map.png' %}"></a>
+    <br>
+    <h1>{% trans 'Welcome' %} {{ user.username }}!</h1>
+    <article class="activation-article">
+        {% blocktrans %}
+        Your account was activated successfully. Click on Mr. Map to get to the login page.
+        {% endblocktrans %}
+    </article>
+</div>
+
+</body>
+</html>

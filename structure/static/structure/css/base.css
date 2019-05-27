@@ -3,10 +3,17 @@
 html{
     font-family: 'Helvetica';
 }
+h1,h2,h3,h4{
+    margin: 0;
+}
 
 body{
     margin: 0;
     padding: 0 0 5vh 0;
+}
+body.background{
+    background-image: url("/static/structure/images/background.png");
+    background-repeat: repeat;
 }
 
 a{
@@ -49,7 +56,8 @@ a{
     background-color: var(--primary-color);
 }
 .message.info{
-    background-color: var(--primary-color);
+    background-color: var(--message-info);
+    color: black;
 }
 
 #body-content{
@@ -255,7 +263,7 @@ tr:nth-child(odd){
     color: white;
     font-weight: bold;
 }
-.delete-container:hover, .deactivate-container:hover, .activate-container:hover, .edit-container:hover{
+.delete-container:hover, .deactivate-container:hover, .activate-container:hover, .button-container:hover{
     cursor: pointer;
     opacity: 0.75;
 }
@@ -265,7 +273,7 @@ tr:nth-child(odd){
     filter: invert(1.0);
 }
 
-.edit-container{
+.button-container{
     display: flex;
     align-items: center;
     justify-content: center;
@@ -274,6 +282,6 @@ tr:nth-child(odd){
     color: white;
     font-weight: bold;
 }
-.edit-container img{
+.button-container img{
     padding: 0 10px 0 0;
 }

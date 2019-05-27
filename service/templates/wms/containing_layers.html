@@ -116,7 +116,7 @@
             </table>
             {% if layer.child_layer.all|length > 0 %}
                 {% with layer.child_layer.all as layers%}
-                    {% include 'containing_layers.html' %}
+                    {% include 'wms/containing_layers.html' %}
                 {% endwith %}
             {% endif %}
 

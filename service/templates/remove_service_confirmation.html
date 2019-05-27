@@ -39,28 +39,11 @@
 </div>
 
 <script>
-    $(".modal-close, .close-button").click(function(){
-        toggleOverlay("");
-    });
+    {% include 'modal-dialog-scripts.html' %}
+
     $(".submit-button").click(function(){
         replaceButtonWithSpinner($(this));
         removeEntity({{ service.id }},true, 'service');
-    });
-
-    $('form').bind('keypress', function(event){
-        if (event.keyCode == 13){
-            // Enter key pressed
-            event.preventDefault();
-            $(".submit-button").click();
-        }
-    });
-
-    $(document).bind('keypress', function(event){
-        if (event.keyCode == 27){
-            // Esc key pressed
-            event.preventDefault();
-            $(".modal-close").click();
-        }
     });
 </script>
 {% endblock %}

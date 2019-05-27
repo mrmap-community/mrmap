@@ -43,7 +43,8 @@ class Command(BaseCommand):
 
         superuser.salt = str(os.urandom(25).hex())
         superuser.password = make_password(password, salt=superuser.salt)
-        # self.stdout.write(self.style.ERROR(superuser.password))
+        superuser.confirmed_dsgvo = True
+        superuser.is_active = True
         superuser.name = "root"
         superuser.save()
         msg = "Superuser '" + name + "' was created successfully!"

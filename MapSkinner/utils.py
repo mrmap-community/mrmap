@@ -5,6 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 17.04.19
 
 """
+import hashlib
 
 
 def execute_threads(thread_list):
@@ -18,3 +19,9 @@ def execute_threads(thread_list):
         thread.start()
     for thread in thread_list:
         thread.join()
+
+
+def sha256(_input: str):
+    m = hashlib.sha256()
+    m.update(_input.encode("UTF-8"))
+    return m.hexdigest()

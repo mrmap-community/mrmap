@@ -64,32 +64,14 @@
                 <div id="request-uri" class="field">{{ field }}</div>
             {% endfor %}
         </div>
-        <div id="new-service-register-button" class="button" title="{% trans 'Start registration' %}">{% trans 'Register' %}</div>
+        <div id="new-service-register-button" class="button submit-button" title="{% trans 'Start registration' %}">{% trans 'Register' %}</div>
     </form>
 </div>
 <script>
-    $(".modal-close").click(function(){
-        toggleOverlay("");
-    });
+    {% include 'modal-dialog-scripts.html' %}
 
-    $("#new-service-register-button").click(function(){
+    $(".submit-button").click(function(){
         checkServiceRequestURI();
-    });
-
-    $('form').bind('keypress', function(event){
-        if (event.keyCode == 13){
-            // Enter key pressed
-            event.preventDefault();
-            $("#new-service-register-button").click();
-        }
-    });
-
-    $(document).bind('keypress', function(event){
-        if (event.keyCode == 27){
-            // Esc key pressed
-            event.preventDefault();
-            $(".modal-close").click();
-        }
     });
 
     $(document).ready(function(){

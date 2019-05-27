@@ -15,6 +15,12 @@ function getCookie(cname) {
     return "";
 }
 
+function checkRedirect(data){
+    if(data["redirect"] !== null){
+        window.open(data["redirect"], "_self");
+    }
+}
+
 function toggleNavigationMenu(elem){
     elem.slideToggle("fast");
 }
@@ -38,40 +44,42 @@ function changeOverlayContent(html){
 
 function editEntity(id, entity){
     $.ajax({
-        url: "/" + entity + "/edit/" + id,
+        url: rootUrl + "/" + entity + "/edit/" + id,
         headers: {
             "X-CSRFToken": getCookie("csrftoken")
         },
         data: {},
         type: 'get',
-        dataType: 'json',
-        success: function(data){
-            var html = data["html"];
-            toggleOverlay(html);
-        }
-    })
+        dataType: 'json'
+    }).done(function(data){
+        var html = data["html"];
+        toggleOverlay(html);
+    }).always(function(data){
+        checkRedirect(data);
+    });
 }
 
 function addEntity(entity){
     $.ajax({
-        url: "/" + entity + "/new/register-form",
+        url: rootUrl + "/" + entity + "/new/register-form",
         headers: {
             "X-CSRFToken": getCookie("csrftoken")
         },
         data: {},
         type: 'get',
         dataType: 'json',
-        success: function(data){
-            var html = data["html"];
-            toggleOverlay(html);
-        }
-    })
+    }).done(function(data){
+        var html = data["html"];
+        toggleOverlay(html);
+    }).always(function(data){
+        checkRedirect(data);
+    });
 }
 
 
 function removeEntity(id, confirmed, entity){
     $.ajax({
-        url: "/" + entity + "/remove",
+        url: rootUrl + "/" + entity + "/remove",
         headers: {
             "X-CSRFToken": getCookie("csrftoken")
         },
@@ -80,16 +88,15 @@ function removeEntity(id, confirmed, entity){
             "confirmed": confirmed
         },
         type: 'get',
-        dataType: 'json',
-        success: function(data){
-            var html = data["html"];
-            toggleOverlay(html);
-            if(data["redirect"] !== null){
-                window.open(data["redirect"], "_self");
-            }
-        }
-    })
+        dataType: 'json'
+    }).done(function(data){
+        var html = data["html"];
+        toggleOverlay(html);
+    }).always(function(data){
+        checkRedirect(data);
+    });
 }
+
 
 $(document).ready(function(){
     $(".navigation-menu").on("mouseover",function(){
@@ -118,7 +125,7 @@ $(document).ready(function(){
         removeEntity(id, false, entity);
     });
 
-    $(".edit-container").click(function(){
+    $("#edit-button").click(function(){
         var id = $(this).attr("data-parent");
         // call remove form, but indicate that the remove process was not confirmed yet by the user
         var entity = $(this).attr("typeof");

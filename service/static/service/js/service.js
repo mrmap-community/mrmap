@@ -3,7 +3,7 @@
 
 function toggleServiceActiveStatus(id, active){
     $.ajax({
-        url: "/service/activate/",
+        url: rootUrl + "/service/activate/",
         headers: {
             "X-CSRFToken": getCookie("csrftoken")
         },
@@ -13,17 +13,20 @@ function toggleServiceActiveStatus(id, active){
         },
         type: 'post',
         dataType: 'json',
-        success: function(data){
-            location.reload();
-        }
     })
+    .done(function(data){
+        //location.reload();
+    })
+    .always(function(data){
+        checkRedirect(data);
+    });
 }
 
 function startServiceRegistration(uri, button){
     var oldHtml = button.html();
     button.html("Please wait...");
     $.ajax({
-        url: "/service/new/",
+        url: rootUrl + "/service/new/",
         headers:{
             "X-CSRFToken": getCookie("csrftoken")
         },
@@ -31,14 +34,14 @@ function startServiceRegistration(uri, button){
             "uri": uri
         },
         type: 'post',
-        dataType: 'json',
-        success: function(data){
-            changeOverlayContent(data["html"]);
-            button.html(oldHtml);
-        },
-        always: function(data){
-            $(".loading-spinner").toggleClass("hide");
-        }
+        dataType: 'json'
+    })
+    .done(function(data){
+        changeOverlayContent(data["html"]);
+        button.html(oldHtml);
+    })
+    .always(function(data){
+        checkRedirect(data);
     });
 
 }
@@ -52,7 +55,7 @@ function checkServiceRequestURI(){
         uri = "http://" + uri; // use http by default
     }
     $.ajax({
-        url: "/service/new/register-form",
+        url: rootUrl + "/service/new/register-form",
         headers:{
             "X-CSRFToken": getCookie("csrftoken")
         },
@@ -60,10 +63,13 @@ function checkServiceRequestURI(){
             "uri": uri
         },
         type: 'post',
-        dataType: 'json',
-        success: function(data){
-            changeOverlayContent(data["html"]);
-        }
+        dataType: 'json'
+    })
+    .done(function(data){
+        changeOverlayContent(data["html"]);
+    })
+    .always(function(data){
+        checkRedirect(data);
     });
 }
 
@@ -89,7 +95,7 @@ $(document).ready(function(){
     $("#service-display-selector").change(function(){
         var val = $(this).val();
         $.ajax({
-            url: "/service/session",
+            url: rootUrl + "/service/session",
             headers: {
                 "X-CSRFToken": getCookie("csrftoken")
             },
@@ -105,27 +111,11 @@ $(document).ready(function(){
             location.reload();
 
         }).fail(function(jqXHR, textStatus){
-            console.log(textStatus);
-            console.log(jqXHR);
+        }).always(function(data){
+            checkRedirect(data);
         });
     });
-/*
-    $(".add-button").click(function(){
-        $.ajax({
-            url: "/service/new/register-form",
-            headers: {
-                "X-CSRFToken": getCookie("csrftoken")
-            },
-            data: {},
-            type: 'get',
-            dataType: 'json',
-            success: function(data) {
-                var html = data["html"];
-                toggleOverlay(html);
-            }
-        });
-    });
-*/
+
     $(".layer-title").click(function(){
         var elem = $(this);
         var table = elem.siblings(".layer-content");

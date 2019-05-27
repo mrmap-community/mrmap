@@ -1,12 +1,16 @@
 import json
 
+import requests
 from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
 
 from django.template.loader import render_to_string
+from lxml.etree import XMLSyntaxError
+from requests.exceptions import InvalidURL, ProxyError
 
 from MapSkinner.decorator import check_access
-from MapSkinner.responses import BackendAjaxResponse
+from MapSkinner.responses import BackendAjaxResponse, DefaultContext
+from MapSkinner.settings import ROOT_URL
 from service.forms import NewServiceURIForm
 from service.helper import service_helper
 from service.helper.enums import ServiceTypes
@@ -58,7 +62,8 @@ def index(request: HttpRequest, user: User, service_type=None):
         "only_type": service_type,
         "permissions": user_helper.get_permissions(user),
     }
-    return render(request=request, template_name=template, context=params)
+    context = DefaultContext(request, params)
+    return render(request=request, template_name=template, context=context.get_context())
 
 
 @check_access
@@ -91,10 +96,10 @@ def remove(request: HttpRequest, user: User):
         return BackendAjaxResponse(html=html).get_response()
     else:
         # remove service and all of the related content
-        service.is_deleted = True
-        service.save()
-        #service.delete()
-        return BackendAjaxResponse(html="", redirect="/service").get_response()
+        # service.is_deleted = True
+        # service.save()
+        service.delete()
+        return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 
 @check_access
 def activate(request: HttpRequest, user:User):
@@ -113,10 +118,11 @@ def activate(request: HttpRequest, user:User):
     service.metadata.is_active = new_status
     service.metadata.save()
     # get root_layer of service and start changing of all statuses
-    root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
-    service_helper.change_layer_status_recursively(root_layer, new_status)
+    if service.servicetype == "wms":
+        root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
+        service_helper.change_layer_status_recursively(root_layer, new_status)
 
-    return BackendAjaxResponse(html="").get_response()
+    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 
 @check_access
 def session(request: HttpRequest, user:User):
@@ -221,9 +227,10 @@ def new_service(request: HttpRequest, user:User):
             # persist data
 
             wms.persist(user)
-        except ConnectionError as e:
+        except (ConnectionError, InvalidURL) as e:
             params["error"] = e.args[0]
-            return
+        except (BaseException, XMLSyntaxError) as e:
+            params["unknown_error"] = e
 
     elif url_dict.get("service") is ServiceTypes.WFS:
         # create WFS object
@@ -237,8 +244,10 @@ def new_service(request: HttpRequest, user:User):
 
             # persist wfs
             wfs.persist(user)
-        except ConnectionError as e:
+        except (ProxyError, ConnectionError, InvalidURL, ConnectionRefusedError) as e:
             params["error"] = e.args[0]
+        except (BaseException, XMLSyntaxError) as e:
+            params["unknown_error"] = e
 
     template = "check_metadata_form.html"
     html = render_to_string(template_name=template, request=request, context=params)
@@ -278,4 +287,5 @@ def detail(request: HttpRequest, id, user:User):
         "layers": layers_md_list,
         "permissions": user_helper.get_permissions(user),
     }
-    return render(request=request, template_name=template, context=params)
+    context = DefaultContext(request, params)
+    return render(request=request, template_name=template, context=context.get_context())

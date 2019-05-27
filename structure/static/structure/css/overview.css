@@ -2,6 +2,7 @@
 
 
 .overview-title-actions-container{
+    padding: 10px 0;
     display: flex;
     align-items: center;
     flex-direction: row;
@@ -29,6 +30,11 @@
     display: flex;
     align-items: center;
     justify-content: flex-start;
+}
+.container-center{
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .container-right{
     display: flex;

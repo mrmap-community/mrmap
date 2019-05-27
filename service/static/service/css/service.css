@@ -5,6 +5,7 @@
 .layer-title, .back-title{
     display: flex;
     align-items: center;
+    padding: 10px 0;
 }
 .layer-title img, .back-title img{
     padding: 0 10px 0 0;

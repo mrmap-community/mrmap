@@ -1,0 +1,39 @@
+
+{% load static i18n %}
+{% with featuretype.elements.all as featuretype_elements %}
+{% if featuretype_elements|length > 0 %}
+<div class="sublayer-container">
+    <div class="sublayer-headline">
+        <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+        {% trans 'Show elements' %} ({{ featuretype_elements|length }})
+    </div>
+    <div class="sublayer hidden">
+        {% for element in featuretype_elements %}
+        <div class="collapsible-table">
+            <h3 class="layer-title" title="{% trans 'Click to expand' %}">
+                <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+                {{ element.name }}
+            </h3>
+            <div class="layer-content hidden">
+            <table>
+                <tr>
+                    <th>{% trans 'Uuid' %}</th>
+                    <td>{{ element.uuid }}</td>
+                </tr>
+                <tr>
+                    <th>{% trans 'Name' %}</th>
+                    <td>{{ element.name }}</td>
+                </tr>
+                <tr>
+                    <th>{% trans 'Type' %}</th>
+                    <td>{{ element.type }}</td>
+                </tr>
+            </table>
+            </div>
+        </div>
+
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endwith %}

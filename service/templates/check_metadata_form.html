@@ -54,15 +54,25 @@
         x
     </div>
     {% if error is not None %}
-    <h2 class="error">{% trans 'An error occured' %}</h2>
-    <article>
-        {% blocktrans %}
-        Service could not be loaded. <br>
-        The following HTTP error was raised during connection: <b>{{ error }}</b> <br>
-        Please make sure the service is publicly available.
-        {% endblocktrans %}
-    </article>
-    <div class="close-button button">{% trans 'Okay' %}</div>
+        <h2 class="error">{% trans 'An error occured' %}</h2>
+        <article>
+            {% blocktrans %}
+            Service could not be loaded. <br>
+            The following HTTP error was raised during connection: <b>{{ error }}</b> <br>
+            Please make sure the service is publicly available.
+            {% endblocktrans %}
+        </article>
+        <div class="close-button button">{% trans 'Okay' %}</div>
+    {% elif unknown_error is not None %}
+        <h2 class="error">{% trans 'An error occured' %}</h2>
+        <article>
+            {% blocktrans %}
+            Service could not be loaded. <br>
+            The following error occured: <b>{{ unknown_error }}</b> <br>
+            Please contact an administrator to inform about this issue.
+            {% endblocktrans %}
+        </article>
+        <div class="close-button button submit-button">{% trans 'Okay' %}</div>
     {% else %}
     {% trans 'The service has been registered. The following is an extract from the metadata.' %} <br>
     <form class="form-table" action="/service/new/" method="post">
@@ -117,29 +127,11 @@
 </div>
 
 <script>
-    $(".modal-close, .close-button").click(function(){
-        toggleOverlay("");
-    });
+    {% include 'modal-dialog-scripts.html' %}
 
     $(".submit-button").click(function(){
         toggleOverlay("");
         location.reload();
-    });
-
-    $('form').bind('keypress', function(event){
-        if (event.keyCode == 13){
-            // Enter key pressed
-            event.preventDefault();
-            $("submit-button").click();
-        }
-    });
-
-    $(document).bind('keypress', function(event){
-        if (event.keyCode == 27){
-            // Esc key pressed
-            event.preventDefault();
-            $(".modal-close").click();
-        }
     });
 </script>
 

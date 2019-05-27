@@ -11,6 +11,9 @@ class RoleAdmin(admin.ModelAdmin):
 class UserAdmin(admin.ModelAdmin):
     list_display = ['id', 'person_name', 'username', 'last_login']
 
+class UserActivationAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user']
+
 
 class OrganizationAdmin(admin.ModelAdmin):
     list_display = ['organization_name', 'country', 'city', 'postal_code']
@@ -26,6 +29,7 @@ class PermissionAdmin(admin.ModelAdmin):
 
 admin.site.register(Role, RoleAdmin)
 admin.site.register(User, UserAdmin)
+admin.site.register(UserActivation, UserActivationAdmin)
 admin.site.register(Group, GroupAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Permission, PermissionAdmin)

@@ -5,7 +5,8 @@ from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.decorator import check_access
-from MapSkinner.responses import BackendAjaxResponse
+from MapSkinner.responses import BackendAjaxResponse, DefaultContext
+from MapSkinner.settings import ROOT_URL
 from structure.forms import GroupForm
 from structure.models import User, Group, Role, Permission
 from .helper import user_helper
@@ -17,7 +18,7 @@ def index(request: HttpRequest, user: User):
 
     Args:
         request (HttpRequest): The incoming request
-        user (User):
+        user (User): The current user
     Returns:
          A view
     """
@@ -33,7 +34,8 @@ def index(request: HttpRequest, user: User):
         "permissions": user_helper.get_permissions(user=user),
         "groups": groups,
     }
-    return render(request=request, template_name=template, context=params)
+    context = DefaultContext(request, params)
+    return render(request=request, template_name=template, context=context.get_context())
 
 
 @check_access
@@ -56,7 +58,8 @@ def detail_group(request: HttpRequest, id: int, user: User):
         "group_permissions": user_helper.get_permissions(group=group),
         "members": members
     }
-    return render(request=request, template_name=template, context=params)
+    context = DefaultContext(request, params)
+    return render(request=request, template_name=template, context=context.get_context())
 
 
 @check_access
@@ -85,12 +88,13 @@ def new(request: HttpRequest, user: User):
                 group.created_by = user
                 group.role = Role.objects.get(name="_default_")
                 group.save()
+                user.groups.add(group)
             return redirect("structure:index")
     else:
         params = {
             "form": form,
             "article": _("You are creating a new group."),
-            "action_url": "/structure/new/"
+            "action_url": ROOT_URL + "/structure/new/register-form/"
         }
         html = render_to_string(template_name=template, request=request, context=params)
         return BackendAjaxResponse(html=html).get_response()
@@ -121,11 +125,11 @@ def remove(request: HttpRequest, user: User):
     else:
         # remove group and all of the related content
         group.delete()
-        return BackendAjaxResponse(html="", redirect="/structure").get_response()
+        return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure").get_response()
 
 
 @check_access
-def edit(request: HttpRequest,id: int, user: User):
+def edit(request: HttpRequest, user: User, id: int):
     """ The edit view for changing group values
 
     Args:
@@ -139,6 +143,7 @@ def edit(request: HttpRequest,id: int, user: User):
     group = Group.objects.get(id=id)
     form = GroupForm(request.POST or None, instance=group)
     if request.method == "POST":
+        form.fields.get('role').disabled = True
         if form.is_valid():
             # save changes of group
             group = form.save(commit=False)
@@ -146,16 +151,17 @@ def edit(request: HttpRequest,id: int, user: User):
                 messages.add_message(request=request, level=messages.ERROR, message=_("A group can not be parent to itself!"))
             else:
                 group.save()
-            return redirect("structure:detail-group", group.id)
+        return redirect("structure:detail-group", group.id)
+
     else:
         user_perm = user_helper.get_permissions(user=user)
         if not 'can_change_group_role' in user_perm and form.fields.get('role', None) is not None:
-            form.fields.pop('role')
+            form.fields.get('role').disabled = True
         params = {
             "group": group,
             "form": form,
             "article": _("You are editing the group") + " " + group.name,
-            "action_url": "/structure/edit/" + str(group.id)
+            "action_url": ROOT_URL + "/structure/edit/" + str(group.id)
         }
         html = render_to_string(template_name=template, request=request, context=params)
         return BackendAjaxResponse(html=html).get_response()

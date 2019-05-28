@@ -3,7 +3,7 @@ from django.db import models
 from django.contrib.gis.db import models
 from django.utils import timezone
 
-from structure.models import User, Group, Organization, Contact
+from structure.models import Group, Organization
 
 
 class Keyword(models.Model):

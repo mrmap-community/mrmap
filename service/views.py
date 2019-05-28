@@ -18,7 +18,7 @@ from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Metadata, Layer, Service
 from structure.helper import user_helper
-from structure.models import User
+from users.models import User
 from django.utils.translation import gettext_lazy as _
 
 

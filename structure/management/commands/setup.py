@@ -14,7 +14,8 @@ from django.core.management import BaseCommand
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import User, Group, Role, Permission, Organization
+from structure.models import Group, Role, Permission, Organization
+from users.models import User
 
 
 class Command(BaseCommand):

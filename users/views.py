@@ -2,20 +2,20 @@
 Author: Michel Peltriaux
 Organization: Spatial data infrastructure Rhineland-Palatinate, Germany
 Contact: michel.peltriaux@vermkv.rlp.de
-Created on: 08.05.19
+Created on: 28.05.19
 
 """
+
 import os
 
 import datetime
-import pytz
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.utils import timezone
 from django.contrib import messages
 from django.http import HttpRequest
-from django.shortcuts import redirect, render, get_object_or_404
+from django.shortcuts import redirect, render
 
 from MapSkinner.decorator import check_access
 from MapSkinner.responses import DefaultContext
@@ -25,7 +25,8 @@ from structure.forms import LoginForm, RegistrationForm
 from structure.helper import user_helper
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import User, UserActivation
+from users.models import User, UserActivation
+from users.forms import PasswordResetForm
 
 
 def login(request: HttpRequest):
@@ -114,6 +115,37 @@ def logout(request: HttpRequest, user: User):
     user.save()
     messages.add_message(request, messages.SUCCESS, _("Successfully logged out!"))
     return redirect('login')
+
+
+@transaction.atomic
+def password_reset(request: HttpRequest):
+    """ Renders a view for requesting a new auto-generated password which will be sent via mail
+
+    Args:
+        request (HttpRequest): The incoming request
+    Returns:
+         A view
+    """
+    template = "password_reset.html"
+    form = PasswordResetForm(request.POST)
+    if form.is_valid:
+        # generate new password
+        try:
+            user = User.objects.get(email=form.cleaned_data.get("email"))
+        except ObjectDoesNotExist:
+            messages.add_message(request, messages.ERROR, _("This e-mail is not known"))
+            return redirect('password-reset')
+        gen_pw = sha256(user.salt + timezone.now())[:7]
+        # ToDo: Do sending via email!
+        messages.add_message(request, messages.INFO, _("A new password has been sent. Please check your e-mails!"))
+        return redirect('login')
+    else:
+        params = {
+            "form": form,
+        }
+        context = DefaultContext(request, params)
+        return render(request, template, context=context.get_context())
+
 
 @transaction.atomic
 def register(request: HttpRequest):

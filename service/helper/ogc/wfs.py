@@ -18,7 +18,8 @@ from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
     FeatureTypeElement
-from structure.models import Organization, User
+from structure.models import Organization
+from users.models import User
 
 
 class OGCWebFeatureService(OGCWebService):

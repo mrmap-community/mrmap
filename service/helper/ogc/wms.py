@@ -21,7 +21,8 @@ from service.helper.ogc.layer import OGCLayer
 
 from service.helper import service_helper
 from service.models import ServiceType, Service, Metadata, Layer, Dimension, MimeType, Keyword, ReferenceSystem
-from structure.models import Organization, Group, User
+from structure.models import Organization, Group
+from users.models import User
 
 
 class OGCWebMapServiceFactory:

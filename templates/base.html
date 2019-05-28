@@ -57,8 +57,10 @@
             </div>
         </div>
         <div class="navigation-bar-right">
-            <a id="logout-button" href="{% url 'logout' %}">
-                {% trans 'Logout' %}
+            <a id="account-button" class="navigation-button" href="{% url 'account' %}" title="{% trans 'Account' %}">
+                <img src="{% static '/structure/images/icn_user.png' %}">
+            </a>
+            <a id="logout-button" class="navigation-button" href="{% url 'logout' %}" title="{% trans 'Logout' %}">
                 <img id="logout-img" src="{% static '/structure/images/logout.png' %}">
             </a>
         </div>

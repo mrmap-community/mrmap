@@ -10,8 +10,8 @@ from MapSkinner.settings import ROOT_URL
 from service.models import Service
 from structure.forms import GroupForm, OrganizationForm
 from structure.models import Group, Role, Permission, Organization
-from users.models import User
 from .helper import user_helper
+from structure.models import User
 
 
 @check_access

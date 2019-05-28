@@ -133,10 +133,13 @@ $(document).ready(function(){
         removeEntity(id, false, entity);
     });
 
-    $("#edit-button").click(function(){
+    $("#edit-button, #change-pw-button").click(function(){
         var id = $(this).attr("data-parent");
         // call remove form, but indicate that the remove process was not confirmed yet by the user
         var entity = $(this).attr("typeof");
+        if(entity.includes('user')){
+            id = "";
+        }
         editEntity(id, entity);
     });
 

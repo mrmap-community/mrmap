@@ -1,6 +1,5 @@
 import json
 
-import requests
 from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
 
@@ -18,7 +17,7 @@ from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Metadata, Layer, Service
 from structure.helper import user_helper
-from users.models import User
+from structure.models import User
 from django.utils.translation import gettext_lazy as _
 
 
@@ -225,8 +224,8 @@ def new_service(request: HttpRequest, user:User):
 
             params["service"] = wms
             # persist data
-
             wms.persist(user)
+
         except (ConnectionError, InvalidURL) as e:
             params["error"] = e.args[0]
         except (BaseException, XMLSyntaxError) as e:
@@ -241,9 +240,9 @@ def new_service(request: HttpRequest, user:User):
             wfs.create_from_capabilities()
 
             params["service"] = wfs
-
             # persist wfs
             wfs.persist(user)
+
         except (ProxyError, ConnectionError, InvalidURL, ConnectionRefusedError) as e:
             params["error"] = e.args[0]
         except (BaseException, XMLSyntaxError) as e:

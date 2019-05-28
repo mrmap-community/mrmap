@@ -10,8 +10,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 
 from MapSkinner.settings import SESSION_EXPIRATION
-from structure.models import Permission, Group
-from users.models import User
+from structure.models import Permission, Group, User
 
 
 def get_user(username: str=None, user_id: int=None):

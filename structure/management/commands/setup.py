@@ -12,10 +12,10 @@ import os
 from django.contrib.auth.hashers import make_password
 from django.core.management import BaseCommand
 from django.db import transaction
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import Group, Role, Permission, Organization
-from users.models import User
+from structure.models import Group, Role, Permission, Organization, User
 
 
 class Command(BaseCommand):
@@ -44,7 +44,7 @@ class Command(BaseCommand):
 
         superuser.salt = str(os.urandom(25).hex())
         superuser.password = make_password(password, salt=superuser.salt)
-        superuser.confirmed_dsgvo = True
+        superuser.confirmed_dsgvo = timezone.now()
         superuser.is_active = True
         superuser.name = "root"
         superuser.save()

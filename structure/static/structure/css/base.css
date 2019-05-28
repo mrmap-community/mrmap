@@ -25,6 +25,14 @@ a{
     display: none;
 }
 
+.space-above{
+    margin: 10px 0;
+}
+
+.space-below{
+    margin: 0 0 10px 0;
+}
+
 .container-row{
     display: flex;
     justify-content: space-between;
@@ -50,10 +58,12 @@ a{
     font-size: 1.00em;
 }
 .message.error{
-    background-color: red;
+    background-color: var(--message-error);
+    color: black;
 }
 .message.success{
-    background-color: var(--primary-color);
+    background-color: var(--message-success);
+    color: black;
 }
 .message.info{
     background-color: var(--message-info);
@@ -207,7 +217,7 @@ a{
     background-color: var(--secondary-color-light);
 }
 
-#logout-button{
+.navigation-button{
     padding: 10px;
     display: flex;
     align-items: center;
@@ -215,13 +225,14 @@ a{
     color: white;
 }
 
-#logout-button:hover{
+.navigation-button:hover{
     background-color: var(--secondary-color);
     border-radius: 3px;
 }
 
-#logout-img{
-    margin: 0 0 0 10px;
+.navigation-button img{
+    margin: 0 5px 0 5px;
+    max-height: 30px;
 }
 
 table{
@@ -317,6 +328,7 @@ tr:nth-child(odd){
     background-color: var(--secondary-color);
     color: white;
     font-weight: bold;
+    margin: 0 5px 0 5px;
 }
 
 .button-container img{

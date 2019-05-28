@@ -11,9 +11,11 @@ from abc import abstractmethod
 
 import time
 
+from copy import copy
 from django.db import transaction
 
 from MapSkinner.settings import EXEC_TIME_PRINT
+from MapSkinner.utils import execute_threads
 from service.helper.enums import VersionTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.ows import OGCWebService
@@ -21,7 +23,8 @@ from service.helper.ogc.layer import OGCLayer
 
 from service.helper import service_helper
 from service.models import ServiceType, Service, Metadata, Layer, Dimension, MimeType, Keyword, ReferenceSystem
-from structure.models import Organization, Group, User
+from structure.models import Organization, Group
+from structure.models import User
 
 
 class OGCWebMapServiceFactory:
@@ -589,7 +592,7 @@ class OGCWebMapService(OGCWebService):
 
         root_layer = self.layers[0]
 
-        self.__persist_layers(layers=[root_layer], service_type=service_type, wms=service, creator=group, root_md=metadata,
+        self.__persist_layers(layers=[root_layer], service_type=service_type, wms=service, creator=group, root_md=copy(metadata),
                          publisher=orga_publisher, published_for=orga_published_for, contact=contact, user=user)
 
 

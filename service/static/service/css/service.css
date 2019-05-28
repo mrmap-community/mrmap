@@ -2,21 +2,6 @@
     padding: 0 0 0 1vw;
 }
 
-.layer-title, .back-title{
-    display: flex;
-    align-items: center;
-    padding: 10px 0;
-}
-.layer-title img, .back-title img{
-    padding: 0 10px 0 0;
-    filter: opacity(0.5);
-}
-
-.layer-title:hover, .back-title{
-    opacity: 0.75;
-    cursor: pointer;
-}
-
 .activate-container{
     display: flex;
     align-items: center;
@@ -36,11 +21,6 @@
 }
 
 
-.layer-content{
-    border: 1px solid var(--primary-color);
-    padding: 5px;
-    margin: 0 0 0 5vw;
-}
 
 .loading-spinner{
     border: none;

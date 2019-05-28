@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block head %}
+
+{% endblock %}
+
+{% block body %}
+<div class="container-row space-above">
+    <div class="container-left">
+        <div id="edit-button" class="button-container" data-parent="{{ user.id }}" typeof="users">
+            <img src="{% static 'structure/images/icn_edit.png' %}">
+            <span>{% trans 'Edit account' %}</span>
+        </div>
+        <div id="change-pw-button" class="button-container" data-parent="{{ user.id }}" typeof="users/password">
+            <img src="{% static 'structure/images/icn_edit.png' %}">
+            <span>{% trans 'Change password' %}</span>
+        </div>
+    </div>
+    <div class="container-right">
+        <div class="delete-container" data-parent="{{ user.id }}" typeof="user">
+            <img src="{% static 'service/images/icn_minus.png' %}">
+            <span>{% trans 'Delete account' %}</span>
+        </div>
+    </div>
+</div>
+
+<h2>{{ user.username }}</h2>
+<table class="detail-table">
+    {% for field in form %}
+        <tr>
+            <th>{{ field.label_tag }}</th>
+            <td>
+                {% if field.value is False %}
+                    <img src="{% static 'service/images/icn_false.png' %}">
+                {% elif field.value is True %}
+                    <img src="{% static 'service/images/icn_true.png' %}">
+                {% else %}
+                    {{ field.value }}
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+</table>
+
+{% endblock %}

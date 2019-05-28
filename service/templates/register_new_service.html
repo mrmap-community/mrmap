@@ -1,10 +1,5 @@
 {% load i18n static %}
 <style>
-    .form-table{
-        color: gray;
-        max-height: 30vh;
-        overflow-y: auto;
-    }
 
     .field-label, .field{
         font-size: 1.2em;
@@ -75,6 +70,11 @@
     }
     .form-advice img{
     }
+
+    .modal-content{
+        max-height: 75vh;
+        overflow-y: auto;
+    }
 </style>
 
 {% block body %}
@@ -82,53 +82,55 @@
     <div class="modal-close" title="{% trans 'Close' %}">
         x
     </div>
-    {% if error %}
-    <article>
-        {% trans 'The URI is invalid.' %}<br>
-        {% trans 'Please check and try again.' %}
-        <div class="button close-button">{% trans 'Okay' %}</div>
-    </article>
-    {% else %}
-    <article>
-        {% trans 'You are about to register this service.' %}<br>
-        {% trans 'Do you want to continue?' %}
-    </article>
-    <form action="/service/new/" method="post" >
-        <table class="form-table">
-            <tr>
-                <td class="field-label">{% trans 'OGC Request:' %}</td>
-                <td class="field">{{ request_action }}</td>
-            </tr>
-            <tr>
-                <td class="field-label">{% trans 'OGC service:' %}</td>
-                <td class="field">{{ service_type }}</td>
-            </tr>
-            <tr>
-                <td class="field-label">{% trans 'OGC Version:' %}</td>
-                <td class="field">{{ version }}</td>
-            </tr>
-            <tr>
-                <td class="field-label">{% trans 'URI:' %}</td>
-                <td class="field">{{ uri }}</td>
-            </tr>
-        </table>
-        <div class="form-advice">
-            <img src="{% static 'structure/images/icn_mr_map_invert.png' %}">
-            <span>
-                {% trans 'Please note:' %}
-                <br>
-                {% trans 'Depending on the numbers of layers or featuretypes provided by this service, the registration process can take several seconds. Please be patient. Do not click around furiously.' %}
-            </span>
-        </div>
-        
-        <div class="submit-button button">
-            <div class="loading-spinner hide">
-                <i class="fas fa-circle-notch fa-spin"></i>
+    <div class="modal-content">
+        {% if error %}
+        <article>
+            {% trans 'The URI is invalid.' %}<br>
+            {% trans 'Please check and try again.' %}
+            <div class="button close-button">{% trans 'Okay' %}</div>
+        </article>
+        {% else %}
+        <article>
+            {% trans 'You are about to register this service.' %}<br>
+            {% trans 'Do you want to continue?' %}
+        </article>
+        <form action="/service/new/" method="post" >
+            <table class="form-table">
+                <tr>
+                    <td class="field-label">{% trans 'OGC Request:' %}</td>
+                    <td class="field">{{ request_action }}</td>
+                </tr>
+                <tr>
+                    <td class="field-label">{% trans 'OGC service:' %}</td>
+                    <td class="field">{{ service_type }}</td>
+                </tr>
+                <tr>
+                    <td class="field-label">{% trans 'OGC Version:' %}</td>
+                    <td class="field">{{ version }}</td>
+                </tr>
+                <tr>
+                    <td class="field-label">{% trans 'URI:' %}</td>
+                    <td class="field">{{ uri }}</td>
+                </tr>
+            </table>
+            <div class="form-advice">
+                <img src="{% static 'structure/images/icn_mr_map_invert.png' %}">
+                <span>
+                    {% trans 'Please note:' %}
+                    <br>
+                    {% trans 'Depending on the numbers of layers or featuretypes provided by this service, the registration process can take several seconds. Please be patient. Do not click around furiously.' %}
+                </span>
             </div>
-            <span id="submit-text">{% trans 'Continue' %}</span>
-        </div>
-    </form>
-    {% endif %}
+
+            <div class="submit-button button">
+                <div class="loading-spinner hide">
+                    <i class="fas fa-circle-notch fa-spin"></i>
+                </div>
+                <span id="submit-text">{% trans 'Continue' %}</span>
+            </div>
+        </form>
+        {% endif %}
+    </div>
 </div>
 
 <script>

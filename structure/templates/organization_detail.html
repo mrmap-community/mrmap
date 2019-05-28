@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block head %}
+    <script type="text/javascript" src="{% static '/structure/js/structure.js' %}"></script>
+{% endblock %}
+
+{% block body %}
+<a href="{% url 'structure:index' %}">
+    <h3 class="back-title">
+        <img src="{% static 'service/images/icn_back.png' %}">
+        {% trans 'Overview' %}
+    </h3>
+</a>
+<hr>
+<div class="container-row">
+    <div class="container-left">
+        {% if 'can_edit_organization' in permissions %}
+            <div id="edit-button" class="button-container" data-parent="{{ organization.id }}" typeof="structure/organizations">
+                <img src="{% static 'structure/images/icn_edit.png' %}">
+                <span>{% trans 'Edit organization' %}</span>
+            </div>
+        {% endif %}
+    </div>
+    {% if 'can_delete_organization' in permissions %}
+        <div class="container-right">
+            <div class="delete-container" data-parent="{{ organization.id }}" typeof="structure/organizations">
+                <img src="{% static 'service/images/icn_minus.png' %}">
+                <span>{% trans 'Delete organization' %}</span>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<h2>{{ organization.organization_name }}</h2>
+<table class="detail-table">
+    <tr>
+        <th>{% trans 'Description' %}</th>
+        <td>{{ organization.description }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Members' %}</th>
+        <td>
+            {% for member in members %}
+                {{ member.username }}<br>
+            {% endfor %}
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Parent' %}</th>
+        <td>{{ organization.parent }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Suborganizations' %}</th>
+        <td>
+            {% for sub_org in sub_organizations %}
+            <a href="{% url 'structure:detail-organization' sub_org.id %}">{{ sub_org }}</a><br>
+            {% endfor %}
+        </td>
+    </tr>
+</table>
+<h2>{% trans 'Contact' %}</h2>
+<table class="detail-table">
+    <tr>
+        <th>{% trans 'Person' %}</th>
+        <td>{{ organization.person_name }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'E-Mail' %}</th>
+        <td>{{ organization.email }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Phone' %}</th>
+        <td>{{ organization.phone }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Facsimile' %}</th>
+        <td>{{ organization.facsimile }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Address' %}</th>
+        <td>{{ organization.address }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Postal code' %}</th>
+        <td>{{ organization.postal_code }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'City' %}</th>
+        <td>{{ organization.city }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'State or province' %}</th>
+        <td>{{ organization.state_or_province }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Country' %}</th>
+        <td>{{ organization.country }}</td>
+    </tr>
+</table>
+
+<div id="show-all">
+    <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+    {% trans 'Show all services' %} ({{ services|length }})
+</div>
+<div class="subelements hidden">
+    <table class="detail-table">
+        <tr>
+            <th>
+                {% trans 'Name' %}
+            </th>
+            <th>
+                {% trans 'Description' %}
+            </th>
+            <th>
+                {% trans 'Service type' %}
+            </th>
+            <th>
+                {% trans 'Published by' %}
+            </th>
+        </tr>
+        {% for service in services %}
+        <tr>
+            <td>
+                {% if service.servicetype.name == 'wms' %}
+                    <a href="{% url 'service:detail-wms' service.metadata.id %}">{{ service.metadata.title }}</a>
+                {% elif service.servicetype.name == 'wfs' %}
+                    <a href="{% url 'service:detail-wfs' service.metadata.id %}">{{ service.metadata.title }}</a>
+                {% endif %}
+            </td>
+            <td>
+                {{ service.metadata.abstract }}
+            </td>
+            <td>
+                {{ service.servicetype }} ({{ service.servicetype.version }})
+            </td>
+            <td>
+                {{ service.published_by }}
+            </td>
+        </tr>
+
+        {% endfor %}
+    </table>
+</div>
+
+{% endblock %}

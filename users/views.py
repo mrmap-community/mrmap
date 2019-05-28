@@ -2,30 +2,32 @@
 Author: Michel Peltriaux
 Organization: Spatial data infrastructure Rhineland-Palatinate, Germany
 Contact: michel.peltriaux@vermkv.rlp.de
-Created on: 08.05.19
+Created on: 28.05.19
 
 """
+
 import os
 
 import datetime
-import pytz
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.contrib import messages
 from django.http import HttpRequest
-from django.shortcuts import redirect, render, get_object_or_404
+from django.shortcuts import redirect, render
 
 from MapSkinner.decorator import check_access
-from MapSkinner.responses import DefaultContext
-from MapSkinner.settings import SESSION_EXPIRATION, USER_ACTIVATION_TIME_WINDOW
+from MapSkinner.responses import DefaultContext, BackendAjaxResponse
+from MapSkinner.settings import SESSION_EXPIRATION, USER_ACTIVATION_TIME_WINDOW, ROOT_URL
 from MapSkinner.utils import sha256
 from structure.forms import LoginForm, RegistrationForm
 from structure.helper import user_helper
 from django.utils.translation import gettext_lazy as _
 
 from structure.models import User, UserActivation
+from users.forms import PasswordResetForm, UserForm, PasswordChangeForm
 
 
 def login(request: HttpRequest):
@@ -65,6 +67,92 @@ def login(request: HttpRequest):
     }
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
+
+@check_access
+def account(request: HttpRequest, user: User):
+    """ Renders an overview of the user's account information
+
+    Args:
+        request (HttpRequest): The incoming request
+        user (User): The user
+    Returns:
+         A rendered view
+    """
+    template = "account.html"
+    form = UserForm(instance=user)
+    params = {
+        "user": user,
+        "form": form,
+    }
+    context = DefaultContext(request, params)
+    return render(request, template, context.get_context())
+
+@check_access
+def password_change(request: HttpRequest, user: User):
+    """ Renders the form for password changing and validates the input afterwards
+
+    Args:
+        request (HttpRequest): The incoming request
+        user (User): The user
+    Returns:
+        A view
+    """
+    template = "change_password.html"
+    form = PasswordChangeForm()
+    if request.method == 'POST':
+        form = PasswordChangeForm(request.POST)
+        if form.is_valid():
+            password = form.data.get("password")
+            password_again = form.data.get("password_again")
+            if password != password_again:
+                messages.add_message(request, messages.ERROR, _("Passwords didn't match!"))
+            else:
+                user.password = make_password(password, user.salt)
+                user.save()
+                messages.add_message(request, messages.SUCCESS, _("Password successfully changed!"))
+        else:
+            messages.add_message(request, messages.ERROR, _("The input was not valid."))
+        return redirect("account")
+    else:
+        params = {
+            "form": form,
+            "article": _("Please insert your new password. You have to fulfill the password constraints."),
+            "action_url": ROOT_URL + "/users/password/edit/"
+        }
+        context = DefaultContext(request, params)
+        html = render_to_string(request=request, template_name=template, context=context.get_context())
+        return BackendAjaxResponse(html=html).get_response()
+
+@check_access
+def account_edit(request: HttpRequest, user: User):
+    """ Renders a form for editing user account data
+
+    Args:
+        request (HttpRequest): The incoming request
+        user (User): The user
+    Returns:
+        A view
+    """
+    template = "users_form.html"
+    form = UserForm(request.POST or None, instance=user)
+    if request.method == 'POST':
+        if form.is_valid():
+            # save changes
+            user = form.save()
+            user.save()
+            messages.add_message(request, messages.SUCCESS, _("Account updated successfully!"))
+        else:
+            messages.add_message(request, messages.ERROR, _("The input was not valid."))
+        return redirect("account")
+    else:
+        params = {
+            "form": form,
+            "article": _("You can update your account information using this form."),
+            "action_url": ROOT_URL + "/users/edit/"
+        }
+        context = DefaultContext(request, params)
+        html = render_to_string(request=request, template_name=template, context=context.get_context())
+        return BackendAjaxResponse(html=html).get_response()
 
 
 def activate_user(request: HttpRequest, activation_hash: str):
@@ -115,6 +203,45 @@ def logout(request: HttpRequest, user: User):
     messages.add_message(request, messages.SUCCESS, _("Successfully logged out!"))
     return redirect('login')
 
+
+@transaction.atomic
+def password_reset(request: HttpRequest):
+    """ Renders a view for requesting a new auto-generated password which will be sent via mail
+
+    Args:
+        request (HttpRequest): The incoming request
+    Returns:
+         A view
+    """
+    template = "password_reset.html"
+    form = PasswordResetForm()
+    if request.method == 'POST':
+        form = PasswordResetForm(request.POST)
+        if form.is_valid:
+            # generate new password
+            try:
+                user = User.objects.get(email=form.data.get("email"))
+            except ObjectDoesNotExist:
+                messages.add_message(request, messages.ERROR, _("This e-mail is not known"))
+                return redirect('password-reset')
+            # ToDo: Do sending via email!
+            gen_pw = sha256(user.salt + str(timezone.now()))[:7].upper()
+            print(gen_pw)
+            user.password = make_password(gen_pw, user.salt)
+            user.save()
+            messages.add_message(request, messages.INFO, _("A new password has been sent. Please check your e-mails!"))
+            return redirect('login')
+        else:
+            messages.add_message(request, messages.ERROR, _("The e-mail address was not valid"))
+            return redirect('password-reset')
+    else:
+        params = {
+            "form": form,
+        }
+        context = DefaultContext(request, params)
+        return render(request, template, context=context.get_context())
+
+
 @transaction.atomic
 def register(request: HttpRequest):
     """
@@ -130,6 +257,7 @@ def register(request: HttpRequest):
         "form": form,
         "registration_article": _("Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. "),
         "registration_title": _("Sign up"),
+        "action_url": ROOT_URL + "/register"
     }
     if request.method == "POST":
         form = RegistrationForm(request.POST)

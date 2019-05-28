@@ -1,6 +1,5 @@
 import json
 
-import requests
 from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
 
@@ -225,8 +224,8 @@ def new_service(request: HttpRequest, user:User):
 
             params["service"] = wms
             # persist data
-
             wms.persist(user)
+
         except (ConnectionError, InvalidURL) as e:
             params["error"] = e.args[0]
         except (BaseException, XMLSyntaxError) as e:
@@ -241,9 +240,9 @@ def new_service(request: HttpRequest, user:User):
             wfs.create_from_capabilities()
 
             params["service"] = wfs
-
             # persist wfs
             wfs.persist(user)
+
         except (ProxyError, ConnectionError, InvalidURL, ConnectionRefusedError) as e:
             params["error"] = e.args[0]
         except (BaseException, XMLSyntaxError) as e:
@@ -273,7 +272,7 @@ def detail(request: HttpRequest, id, user:User):
 
     Args:
         request: The incoming request
-        id: The id of the selected service
+        id: The id of the selected metadata
     Returns:
     """
     template = "service_detail.html"

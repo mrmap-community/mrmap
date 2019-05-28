@@ -10,7 +10,7 @@
 <a href="{% url 'service:index' %}">
     <h3 class="back-title">
         <img src="{% static 'service/images/icn_back.png' %}">
-        {% trans 'Back' %}
+        {% trans 'Overview' %}
     </h3>
 </a>
 <hr>
@@ -51,7 +51,7 @@
 </div>
 
 <h2>{{ root_metadata.title }}</h2>
-<table>
+<table class="detail-table">
     <tr>
         <th>{% trans 'Uuid' %}</th>
         <td>{{ root_metadata.uuid }}</td>

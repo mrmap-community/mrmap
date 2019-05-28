@@ -4,8 +4,8 @@ from abc import abstractmethod
 
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
-from structure.models import User
 from service.helper import service_helper
+from structure.models import User
 
 
 class OGCWebService:

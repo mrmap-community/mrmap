@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     'django.contrib.postgres',
     'django.contrib.gis',
     'service',
+    'users',
     'structure',
     'django_extensions',
     'captcha',

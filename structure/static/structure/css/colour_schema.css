@@ -13,5 +13,15 @@ For best harmonizing colours use https://htmlcolorcodes.com/color-picker/
     --secondary-color-light: #454d7a;
 
     --background-color: white;
-    --message-info: #e8e000;
+
+    /*
+    https://www.color-hex.com/color/91a3ff
+
+    These message colours are picked after the colour ergonomic suggestion.
+    The info colour is the complementary colour of --primary-color.
+    Success, error and the primary color create the triadic colors of #91a3ff
+    */
+    --message-info: #ffed91;
+    --message-success: #a3ff91;
+    --message-error: #ff91a3;
 }

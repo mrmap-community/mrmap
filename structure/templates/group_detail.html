@@ -2,20 +2,21 @@
 {% load static i18n %}
 
 {% block head %}
+
 {% endblock %}
 
 {% block body %}
 <a href="{% url 'structure:index' %}">
     <h3 class="back-title">
         <img src="{% static 'service/images/icn_back.png' %}">
-        {% trans 'Back' %}
+        {% trans 'Overview' %}
     </h3>
 </a>
 <hr>
 <div class="container-row">
     <div class="container-left">
         {% if 'can_edit_group' in permissions %}
-            <div id="edit-button" class="button-container" data-parent="{{ group.id }}" typeof="structure">
+            <div id="edit-button" class="button-container" data-parent="{{ group.id }}" typeof="structure/groups">
                 <img src="{% static 'structure/images/icn_edit.png' %}">
                 <span>{% trans 'Edit group' %}</span>
             </div>
@@ -32,7 +33,7 @@
 </div>
 
 <h2>{{ group.name }}</h2>
-<table>
+<table class="detail-table">
     <tr>
         <th>{% trans 'Description' %}</th>
         <td>{{ group.description }}</td>

@@ -15,13 +15,15 @@ from xml.dom.minidom import Element, Text, Node
 from django.shortcuts import get_object_or_404
 from lxml import etree
 from lxml.etree import XMLSyntaxError
-from requests.exceptions import ProxyError
+from requests.exceptions import ProxyError, InvalidURL
 
 from MapSkinner.settings import DEFAULT_SERVICE_VERSION, XML_NAMESPACES
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
-from service.models import Layer, Metadata, MimeType
+from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
+from service.helper.ogc.wms import OGCWebMapServiceFactory
+from service.models import Layer, Metadata, MimeType, Service
 from MapSkinner.utils import sha256
 
 
@@ -396,3 +398,59 @@ def change_layer_status_recursively(root_layer, new_status):
     for layer in root_layer.child_layer.all():
         change_layer_status_recursively(layer, new_status)
 
+
+def get_service_model_instance(service_type, version, base_uri, user):
+    """ Creates a database model from given service information and persists it.
+
+    Due to the many-to-many relationships used in the models there is currently no way (without extending the models) to
+    return an uncommitted database model object.
+
+    Args;
+        service_type: The type of service (wms, wfs)
+        version: The version of the service type
+        base_uri: The conne
+        user:
+    Returns:
+
+    """
+    ret_dict = {}
+    if service_type is ServiceTypes.WMS:
+        # create WMS object
+        wms_factory = OGCWebMapServiceFactory()
+        wms = wms_factory.get_ogc_wms(version=version, service_connect_url=base_uri)
+        # let it load it's capabilities
+        wms.get_capabilities()
+        wms.create_from_capabilities()
+        service = wms.create_service_model_instance(user)
+        ret_dict["raw_data"] = wms
+    else:
+        # create WFS object
+        wfs_factory = OGCWebFeatureServiceFactory()
+        wfs = wfs_factory.get_ogc_wfs(version=version, service_connect_url=base_uri)
+        # let it load it's capabilities
+        wfs.get_capabilities()
+        wfs.create_from_capabilities()
+        service = wfs.create_service_model_instance(user)
+        ret_dict["raw_data"] = wfs
+    ret_dict["service"] = service
+    return ret_dict
+
+
+def persist_service_model_instance(service: Service):
+    """ Persists the service model instance
+
+    Args:
+        service: The service model instance
+    Returns:
+         Nothing
+    """
+    if service.servicetype.name == ServiceTypes.WMS.value:
+        # create WMS object
+        wms_factory = OGCWebMapServiceFactory()
+        wms = wms_factory.get_ogc_wms(version=resolve_version_enum(service.servicetype.version))
+        wms.persist_service_model(service)
+    else:
+        # create WFS object
+        wfs_factory = OGCWebFeatureServiceFactory()
+        wfs = wfs_factory.get_ogc_wfs(version=resolve_version_enum(service.servicetype.version))
+        wfs.persist_service_model(service)

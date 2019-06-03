@@ -213,42 +213,16 @@ def new_service(request: HttpRequest, user: User):
     #user = user_helper.get_user(user_id=request.session.get("user_id"))
     url_dict = service_helper.split_service_uri(cap_url)
     params = {}
-    if url_dict.get("service") is ServiceTypes.WMS:
-        # create WMS object
-        wms_factory = OGCWebMapServiceFactory()
-        try:
-            wms = wms_factory.get_ogc_wms(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
-            # let it load it's capabilities
-            wms.create_from_capabilities()
-
-            # check quality of metadata
-            # ToDo: :3
-
-            params["service"] = wms
-            # persist data
-            wms.persist(user)
-
-        except (ConnectionError, InvalidURL) as e:
-            params["error"] = e.args[0]
-        except (BaseException, XMLSyntaxError) as e:
-            params["unknown_error"] = e
-
-    elif url_dict.get("service") is ServiceTypes.WFS:
-        # create WFS object
-        wfs_factory = OGCWebFeatureServiceFactory()
-        try:
-            wfs = wfs_factory.get_ogc_wfs(version=url_dict["version"], service_connect_url=url_dict["base_uri"])
-            # load capabilities
-            wfs.create_from_capabilities()
-
-            params["service"] = wfs
-            # persist wfs
-            wfs.persist(user)
-
-        except (ProxyError, ConnectionError, InvalidURL, ConnectionRefusedError) as e:
-            params["error"] = e.args[0]
-        except (BaseException, XMLSyntaxError) as e:
-            params["unknown_error"] = e
+    try:
+        service = service_helper.get_service_model_instance(url_dict.get("service"), url_dict.get("version"), url_dict.get("base_uri"), user)
+        raw_service = service["raw_data"]
+        service = service["service"]
+        service_helper.persist_service_model_instance(service)
+        params["service"] = raw_service
+    except (ConnectionError, InvalidURL) as e:
+        params["error"] = e.args[0]
+    except (BaseException, XMLSyntaxError) as e:
+        params["unknown_error"] = e
 
     template = "check_metadata_form.html"
     html = render_to_string(template_name=template, request=request, context=params)
@@ -258,14 +232,19 @@ def new_service(request: HttpRequest, user: User):
 @check_access
 def update_service(request: HttpRequest, user: User, id: int):
     template = ""
-    # parse new capabilities into db model without saving
-    # ToDO: This!
+    params = {}
+    update_params = request.session["update"]
+    url_dict = service_helper.split_service_uri(update_params["full_uri"])
+    # parse new capabilities into db model
+    new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user)
+    new_service = new_service["service"]
+    old_service = Service.objects.get(id=id)
+    old_service_root_layer = Layer.objects.get(parent_service=old_service, parent_layer=None)
+    old_service_layers = Layer.objects.filter(parent_service=old_service)
 
-    # Compare new object to persisted one
     # Collect differences in dict for rendering purpose
     diff = {}
     # ToDo: This!
-
     params = {}
     html = render_to_string(template_name=template, request=request, context=params)
     return BackendAjaxResponse(html).get_response()
@@ -296,6 +275,9 @@ def update_service_form(request: HttpRequest, user:User, id: int):
                     "version": url_dict["version"].value,
                     "service_type": url_dict["service"].value,
                     "request_action": url_dict["request"],
+                    "full_uri": cap_url,
+                }
+                request.session["update"] = {
                     "full_uri": cap_url,
                 }
             except AttributeError:

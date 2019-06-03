@@ -2,6 +2,8 @@
 # for naming conventions see http://portal.opengeospatial.org/files/?artifact_id=38867
 from abc import abstractmethod
 
+from django.db import transaction
+
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
 from service.helper import service_helper
@@ -53,12 +55,12 @@ class OGCWebService:
 
 
         # initialize service from url
-        if service_capabilities_xml is not None:
-            # load from given xml
-            print("try to load from given xml document")
-        else:
-            # load from url
-            self.get_capabilities()
+        # if service_capabilities_xml is not None:
+        #     # load from given xml
+        #     print("try to load from given xml document")
+        # else:
+        #     # load from url
+        #     self.get_capabilities()
 
         class Meta:
             abstract = True
@@ -119,7 +121,12 @@ class OGCWebService:
         pass
 
     @abstractmethod
-    def persist(self, user: User):
+    def create_service_model_instance(self, user: User):
+        pass
+
+    @transaction.atomic
+    @abstractmethod
+    def persist_service_model(self, service):
         pass
 
 

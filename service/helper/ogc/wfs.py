@@ -333,13 +333,13 @@ class OGCWebFeatureService(OGCWebService):
 
     @abstractmethod
     @transaction.atomic
-    def persist(self, user: User):
-        """ Map all data from the WebFeatureService classes to their database models and persist them
+    def create_service_model_instance(self, user: User):
+        """ Map all data from the WebFeatureService classes to their database models
 
         Args:
             user(User): The user which performs the action
         Returns:
-             nothing
+             service (Service): Service instance, contains all information, ready for persisting!
         """
         orga_published_for = user.secondary_organization
         orga_publisher = user.primary_organization
@@ -370,7 +370,7 @@ class OGCWebFeatureService(OGCWebService):
         md.access_constraints = self.service_identification_accessconstraints
         md.created_by = group
         md.original_uri = self.service_connect_url
-        md.save()
+        #md.save()
 
         # Service
         service = Service()
@@ -386,38 +386,95 @@ class OGCWebFeatureService(OGCWebService):
         service.is_available = False
         service.is_root = True
         service.metadata = md
-        service.save()
+        #service.save()
 
         # Keywords
         for kw in self.service_identification_keywords:
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            md.keywords.add(keyword)
+            md.keywords_list.append(keyword)
+            #md.keywords.add(keyword)
 
         # feature types
         for feature_type_key, feature_type_val in self.feature_type_list.items():
             f_t = feature_type_val.get("feature_type")
             f_t.created_by = group
             f_t.service = service
-            f_t.save()
+            # f_t.save()
+
             # keywords of feature types
             for kw in feature_type_val.get("keyword_list"):
-                f_t.keywords.add(kw)
+                f_t.keywords_list.append(kw)
+                # f_t.keywords.add(kw)
+
             # srs of feature types
             for srs in feature_type_val.get("srs_list"):
-                f_t.additional_srs.add(srs)
+                f_t.additional_srs_list.append(srs)
+                # f_t.additional_srs.add(srs)
 
             # formats
             for _format in feature_type_val.get("format_list"):
                 _format.created_by = group
+                f_t.formats_list.append(_format)
+                #_format.save()
+                # f_t.formats.add(_format)
+
+            # elements
+            for _element in feature_type_val.get("element_list"):
+                f_t.elements_list.append(_element)
+                # f_t.elements.add(_element)
+
+            # namespaces
+            for ns in feature_type_val.get("ns_list"):
+                f_t.namespaces_list.append(ns)
+                # f_t.namespaces.add(ns)
+
+            # add feature type to list of related feature types
+            service.feature_type_list.append(f_t)
+
+        return service
+
+    @transaction.atomic
+    def persist_service_model(self, service):
+        """ Persist the service model object
+
+        Returns:
+             Nothing
+        """
+        # save metadata
+        md = service.metadata
+        md.save()
+        service.metadata = md
+        # save parent service
+        service.save()
+
+        # Keywords
+        for kw in service.metadata.keywords_list:
+            service.metadata.keywords.add(kw)
+
+        # feature types
+        for f_t in service.feature_type_list:
+            f_t.service = service
+            f_t.save()
+
+            # keywords of feature types
+            for kw in f_t.keywords_list:
+                f_t.keywords.add(kw)
+
+            # srs of feature types
+            for srs in f_t.additional_srs_list:
+                f_t.additional_srs.add(srs)
+
+            # formats
+            for _format in f_t.formats_list:
                 _format.save()
                 f_t.formats.add(_format)
 
             # elements
-            for _element in feature_type_val.get("element_list"):
+            for _element in f_t.elements_list:
                 f_t.elements.add(_element)
 
             # namespaces
-            for ns in feature_type_val.get("ns_list"):
+            for ns in f_t.namespaces_list:
                 f_t.namespaces.add(ns)
 
 
@@ -425,7 +482,7 @@ class OGCWebFeatureServiceFactory:
     """ Creates the correct OGCWebFeatureService objects
 
     """
-    def get_ogc_wfs(self, version: VersionTypes, service_connect_url: str):
+    def get_ogc_wfs(self, version: VersionTypes, service_connect_url=None):
         """ Returns the correct implementation of an OGCWebFeatureService according to the given version
 
         Args:

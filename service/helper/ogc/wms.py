@@ -31,7 +31,7 @@ class OGCWebMapServiceFactory:
     """ Creates the correct OGCWebMapService objects
 
     """
-    def get_ogc_wms(self, version: VersionTypes, service_connect_url: str):
+    def get_ogc_wms(self, version: VersionTypes, service_connect_url=None):
         """ Returns the correct implementation of an OGCWebMapService according to the given version
 
         Args:
@@ -443,7 +443,7 @@ class OGCWebMapService(OGCWebService):
             pass
 
     @transaction.atomic
-    def __persist_layers(self, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
+    def __create_layer_model_instance(self, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
                          published_for: Organization, root_md: Metadata, user: User, contact, parent=None):
         """ Iterates over all layers given by the service and persist them, including additional data like metadata and so on.
 
@@ -469,19 +469,21 @@ class OGCWebMapService(OGCWebService):
             metadata.access_constraints = root_md.access_constraints
             metadata.is_active = False
             metadata.created_by = creator
-            metadata.save()
+            #metadata.save()
 
             # handle keywords of this layer
             for kw in layer_obj.capability_keywords:
                 keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-                metadata.keywords.add(keyword)
+                metadata.keywords_list.append(keyword)
+                #metadata.keywords.add(keyword)
 
             # handle reference systems
             epsg_api = EpsgApi()
             for sys in layer_obj.capability_projection_system:
                 parts = epsg_api.get_subelements(sys)
                 ref_sys = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
-                metadata.reference_system.add(ref_sys)
+                metadata.reference_system_list.append(ref_sys)
+                #metadata.reference_system.add(ref_sys)
 
             layer = Layer()
             layer.metadata = metadata
@@ -489,6 +491,8 @@ class OGCWebMapService(OGCWebService):
             layer.servicetype = service_type
             layer.position = layer_obj.position
             layer.parent_layer = parent
+            if layer.parent_layer is not None:
+                layer.parent_layer.children_list.append(layer)
             layer.is_queryable = layer_obj.is_queryable
             layer.is_cascaded = layer_obj.is_cascaded
             layer.registered_by = creator
@@ -506,16 +510,23 @@ class OGCWebMapService(OGCWebService):
             layer.get_map_uri = layer_obj.get_map_uri
             layer.describe_layer_uri = layer_obj.describe_layer_uri
             layer.get_capabilities_uri = layer_obj.get_capabilities_uri
+
             if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
                 dim = Dimension()
-                dim.layer = layer
+                # dim.layer = layer
                 dim.name = layer_obj.dimension.get("name")
                 dim.units = layer_obj.dimension.get("units")
                 dim.default = layer_obj.dimension.get("default")
                 dim.extent = layer_obj.dimension.get("extent")
                 # ToDo: Refine for inherited and nearest_value and so on
-                dim.save()
-            layer.save()
+                layer.dimension = dim
+                #dim.save()
+
+            if wms.root_layer is None:
+                # no root layer set yet
+                wms.root_layer = layer
+
+            #layer.save()
 
             # iterate over all available mime types and actions
             for action, format_list in layer_obj.format_list.items():
@@ -525,19 +536,22 @@ class OGCWebMapService(OGCWebService):
                         mime_type=_format,
                         created_by=creator
                     )[0]
-                    layer.formats.add(service_to_format)
+                    #layer.formats.add(service_to_format)
+                    layer.formats_list.append(service_to_format)
 
             if len(layer_obj.child_layer) > 0:
-                self.__persist_layers(layers=layer_obj.child_layer, service_type=service_type, wms=wms, creator=creator, root_md=root_md,
-                         publisher=publisher, published_for=published_for, parent=layer, user=user, contact=contact)
+                parent_layer = copy(layer)
+                self.__create_layer_model_instance(layers=layer_obj.child_layer, service_type=service_type, wms=wms, creator=creator, root_md=root_md,
+                         publisher=publisher, published_for=published_for, parent=parent_layer, user=user, contact=contact)
 
     @transaction.atomic
-    def persist(self, user: User):
+    def create_service_model_instance(self, user: User):
         """ Persists the web map service and all of its related content and data
 
         Args:
-
+            user (User): The action performing user
         Returns:
+             service (Service): Service instance, contains all information, ready for persisting!
 
         """
         orga_published_for = user.secondary_organization
@@ -577,7 +591,7 @@ class OGCWebMapService(OGCWebService):
         ## other
         metadata.is_active = False
         metadata.created_by = group
-        metadata.save()
+        #metadata.save()
 
         service = Service()
         service.availability = 0.0
@@ -588,12 +602,68 @@ class OGCWebMapService(OGCWebService):
         service.created_by = group
         service.metadata = metadata
         service.is_root = True
-        service.save()
+        #service.save()
 
         root_layer = self.layers[0]
 
-        self.__persist_layers(layers=[root_layer], service_type=service_type, wms=service, creator=group, root_md=copy(metadata),
+        self.__create_layer_model_instance(layers=[root_layer], service_type=service_type, wms=service, creator=group, root_md=copy(metadata),
                          publisher=orga_publisher, published_for=orga_published_for, contact=contact, user=user)
+        return service
+
+    @transaction.atomic
+    def persist_service_model(self, service):
+        """ Persist the service model object
+
+        Returns:
+             Nothing
+        """
+        # save metadata
+        md = service.metadata
+        md.save()
+        service.metadata = md
+        # save parent service
+        service.save()
+        # save all containing layers
+        if service.root_layer is not None:
+            self.__persist_child_layers([service.root_layer], service)
+
+    @transaction.atomic
+    def __persist_child_layers(self, layers, parent_service, parent_layer=None):
+        """ Persist all layer children
+
+        Args:
+            parent_layer:
+        Returns:
+             Nothing
+        """
+        for layer in layers:
+            md = layer.metadata
+            md.save()
+            layer.metadata = md
+
+            # handle keywords of this layer
+            for kw in layer.metadata.keywords_list:
+                layer.metadata.keywords.add(kw)
+
+            # handle reference systems
+            for sys in layer.metadata.reference_system_list:
+                layer.metadata.reference_system.add(sys)
+
+            if layer.dimension is not None:
+                dim = layer.dimension
+                dim.save()
+                layer.dimension = dim
+
+            layer.parent_layer = parent_layer
+            layer.parent_service = parent_service
+            layer.save()
+
+            # iterate over all available mime types and actions
+            for _format in layer.formats_list:
+                layer.formats.add(_format)
+
+            if len(layer.children_list) > 0:
+                self.__persist_child_layers(layer.children_list, parent_service, layer)
 
 
 class OGCWebMapServiceLayer(OGCLayer):
@@ -644,7 +714,7 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
     """ The WMS class for standard version 1.1.1
 
     """
-    def __init__(self, service_connect_url):
+    def __init__(self, service_connect_url=None):
         super().__init__(service_connect_url=service_connect_url)
         self.service_version = VersionTypes.V_1_1_1
 

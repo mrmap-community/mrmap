@@ -62,6 +62,12 @@ class Metadata(Resource):
     keywords = models.ManyToManyField(Keyword)
     reference_system = models.ManyToManyField('ReferenceSystem')
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # non persisting attributes
+        self.keywords_list = []
+        self.reference_system_list = []
+
     def __str__(self):
         return str(self.uuid)
 
@@ -114,6 +120,14 @@ class Service(Resource):
     get_styles_uri = models.CharField(max_length=1000, null=True, blank=True)
     formats = models.ManyToManyField('MimeType', null=True, blank=True)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # non persisting attributes
+        self.root_layer = None
+        self.feature_type_list = []
+        self.formats_list = []
+        self.categories_list = []
+
     def __str__(self):
         return str(self.id)
 
@@ -133,6 +147,11 @@ class Layer(Service):
     scale_max = models.FloatField(default=0)
     bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # non persisting attributes
+        self.children_list = []
+        self.dimension = None
 
     def __str__(self):
         return str(self.identifier)
@@ -208,6 +227,15 @@ class FeatureType(Resource):
     elements = models.ManyToManyField('FeatureTypeElement')
     namespaces = models.ManyToManyField('Namespace')
     service = models.ForeignKey(Service, null=True,  blank=True, on_delete=models.CASCADE, related_name="featuretypes")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # non persisting attributes
+        self.additional_srs_list = []
+        self.keywords_list = []
+        self.formats_list = []
+        self.elements_list = []
+        self.namespaces_list = []
 
     def __str__(self):
         return self.name

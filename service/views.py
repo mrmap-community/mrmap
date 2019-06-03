@@ -15,6 +15,7 @@ from service.helper import service_helper
 from service.helper.enums import ServiceTypes
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
+from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service
 from structure.helper import user_helper
 from structure.models import User
@@ -243,8 +244,9 @@ def update_service(request: HttpRequest, user: User, id: int):
     old_service_layers = Layer.objects.filter(parent_service=old_service)
 
     # Collect differences in dict for rendering purpose
-    diff = {}
-    # ToDo: This!
+    comparator = ServiceComparator(service_1=new_service, service_2=old_service)
+    diff = comparator.compare_services()
+    # ToDo: Create comparing template!
     params = {}
     html = render_to_string(template_name=template, request=request, context=params)
     return BackendAjaxResponse(html).get_response()

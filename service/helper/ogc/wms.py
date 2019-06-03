@@ -564,16 +564,18 @@ class OGCWebMapService(OGCWebService):
             name=self.service_type.value,
             version=self.service_version.value
         )[0]
-
         # metadata
         metadata = Metadata()
         metadata.uuid = uuid.uuid4()
         metadata.title = self.service_identification_title
         metadata.abstract = self.service_identification_abstract
         metadata.online_resource = ",".join(self.service_provider_onlineresource_linkage)
-        metadata.is_root = True
         metadata.original_uri = self.service_connect_url
         metadata.access_constraints = self.service_identification_accessconstraints
+        ## keywords
+        for kw in self.service_identification_keywords:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            metadata.keywords_list.append(keyword)
         ## contact
         contact = Organization.objects.get_or_create(
             organization_name=self.service_provider_providername,
@@ -620,6 +622,9 @@ class OGCWebMapService(OGCWebService):
         # save metadata
         md = service.metadata
         md.save()
+        # metadata keywords
+        for kw in md.keywords_list:
+            md.keywords.add(kw)
         service.metadata = md
         # save parent service
         service.save()

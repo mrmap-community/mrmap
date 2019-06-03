@@ -9,7 +9,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 
 
-class NewServiceURIForm(forms.Form):
+class ServiceURIForm(forms.Form):
     uri = forms.CharField(label=_("GetRequest URI"), widget=forms.TextInput(attrs={
         "id": "capabilities-uri"
     }))

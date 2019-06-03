@@ -43,19 +43,47 @@ function startServiceRegistration(uri, button){
     .always(function(data){
         checkRedirect(data);
     });
-
 }
 
-function checkServiceRequestURI(){
+function startServiceUpdate(uri, button, id){
+    var oldHtml = button.html();
+    button.html("Please wait...");
+    $.ajax({
+        url: rootUrl + "/service/update/" + id,
+        headers:{
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        data: {
+            "uri": uri
+        },
+        type: 'post',
+        dataType: 'json'
+    })
+    .done(function(data){
+        changeOverlayContent(data["html"]);
+        button.html(oldHtml);
+    })
+    .always(function(data){
+        checkRedirect(data);
+    });
+}
+
+function checkServiceRequestURI(isUpdate, id){
     var uri = $("#request-uri input").val().trim();
     if (uri.length == 0){
         return
+    }
+    var url = "";
+    if(isUpdate){
+        url = rootUrl + "/service/update/register-form/" + id;
+    }else{
+        url = rootUrl + "/service/new/register-form";
     }
     if (!uri.startsWith("http")){
         uri = "http://" + uri; // use http by default
     }
     $.ajax({
-        url: rootUrl + "/service/new/register-form",
+        url: url,
         headers:{
             "X-CSRFToken": getCookie("csrftoken")
         },
@@ -124,6 +152,12 @@ $(document).ready(function(){
         table.toggle("fast");
         var img = elem.find("img");
         toggleCollapsibleSymbol(img);
+    });
+
+    $("#service-update-button").click(function(){
+        var entity = $(this).attr("typeof");
+        var id = $(this).attr("datasrc");
+        updateEntity(id, entity);
     });
 
 });

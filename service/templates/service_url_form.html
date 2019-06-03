@@ -55,7 +55,8 @@
         x
     </div>
     <div class="modal-content">
-        <form class="form-table" action="/service/new/" method="post">
+        <article>{{ article }}</article>
+        <form class="form-table" action="{{ action_url }}" method="post">
             {% csrf_token %}
             <div class="field">
                 {% for field in form %}
@@ -63,7 +64,7 @@
                     <div id="request-uri" class="field">{{ field }}</div>
                 {% endfor %}
             </div>
-            <div id="new-service-register-button" class="button submit-button" title="{% trans 'Start registration' %}">{% trans 'Register' %}</div>
+            <div id="service-register-button" class="button submit-button">{{ button_text }}</div>
         </form>
     </div>
 </div>
@@ -71,7 +72,11 @@
     {% include 'modal-dialog-scripts.html' %}
 
     $(".submit-button").click(function(){
-        checkServiceRequestURI();
+        {% if service_id is not None %}
+            checkServiceRequestURI(true, {{ service_id }});
+        {% else %}
+            checkServiceRequestURI(false);
+        {% endif %}
     });
 
     $(document).ready(function(){

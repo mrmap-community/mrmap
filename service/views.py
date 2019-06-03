@@ -10,7 +10,7 @@ from requests.exceptions import InvalidURL, ProxyError
 from MapSkinner.decorator import check_access
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
-from service.forms import NewServiceURIForm
+from service.forms import ServiceURIForm
 from service.helper import service_helper
 from service.helper.enums import ServiceTypes
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
@@ -151,8 +151,9 @@ def wms(request:HttpRequest, user:User):
     """
     return redirect("service:index", ServiceTypes.WMS.value)
 
+
 @check_access
-def register_form(request: HttpRequest, user:User):
+def register_form(request: HttpRequest, user: User):
     """ Returns the form for providing a capabilities URI
 
     Args:
@@ -160,7 +161,7 @@ def register_form(request: HttpRequest, user:User):
     Returns:
         BackendAjaxResponse
     """
-    template = "new_service_url_form.html"
+    template = "service_url_form.html"
     POST_params = request.POST.dict()
     if POST_params.get("uri", None) is not None:
 
@@ -181,22 +182,25 @@ def register_form(request: HttpRequest, user:User):
                 "request_action": url_dict["request"],
                 "full_uri": cap_url,
             }
-        except AttributeError:
+        except AttributeError as e:
             params = {
-                "error": error,
+                "error": e,
             }
 
         template = "register_new_service.html"
     else:
-        uri_form = NewServiceURIForm()
+        uri_form = ServiceURIForm()
         params = {
             "form": uri_form,
+            "action_url": ROOT_URL + "/service/new/register-form",
+            "button_text": "Continue",
         }
     html = render_to_string(request=request, template_name=template, context=params)
     return BackendAjaxResponse(html).get_response()
 
+
 @check_access
-def new_service(request: HttpRequest, user:User):
+def new_service(request: HttpRequest, user: User):
     """ Register a new service
 
     Args:
@@ -206,11 +210,9 @@ def new_service(request: HttpRequest, user:User):
     """
     POST_params = request.POST.dict()
     cap_url = POST_params.get("uri", "")
-    user = user_helper.get_user(user_id=request.session.get("user_id"))
+    #user = user_helper.get_user(user_id=request.session.get("user_id"))
     url_dict = service_helper.split_service_uri(cap_url)
-
     params = {}
-
     if url_dict.get("service") is ServiceTypes.WMS:
         # create WMS object
         wms_factory = OGCWebMapServiceFactory()
@@ -251,6 +253,72 @@ def new_service(request: HttpRequest, user:User):
     template = "check_metadata_form.html"
     html = render_to_string(template_name=template, request=request, context=params)
     return BackendAjaxResponse(html=html).get_response()
+
+
+@check_access
+def update_service(request: HttpRequest, user: User, id: int):
+    template = ""
+    # parse new capabilities into db model without saving
+    # ToDO: This!
+
+    # Compare new object to persisted one
+    # Collect differences in dict for rendering purpose
+    diff = {}
+    # ToDo: This!
+
+    params = {}
+    html = render_to_string(template_name=template, request=request, context=params)
+    return BackendAjaxResponse(html).get_response()
+
+@check_access
+def update_service_form(request: HttpRequest, user:User, id: int):
+    template = "service_url_form.html"
+    uri_form = ServiceURIForm(request.POST or None)
+    params = {}
+    if request.method == 'POST':
+        template = "update_service.html"
+        if uri_form.is_valid():
+            error = False
+            cap_url = uri_form.data.get("uri", "")
+            url_dict = service_helper.split_service_uri(cap_url)
+
+            if url_dict["request"] != "GetCapabilities":
+                # not allowed!
+                error = True
+
+            try:
+                # get current service to compare with
+                service = Service.objects.get(id=id)
+                params = {
+                    "service": service,
+                    "error": error,
+                    "uri": url_dict["base_uri"],
+                    "version": url_dict["version"].value,
+                    "service_type": url_dict["service"].value,
+                    "request_action": url_dict["request"],
+                    "full_uri": cap_url,
+                }
+            except AttributeError:
+                params = {
+                    "error": error,
+                }
+
+        else:
+            params = {
+                "error": _("The input was not valid."),
+            }
+
+    else:
+        params = {
+            "form": uri_form,
+            "article": _("Enter the new capabilities URL of your service."),
+            "action_url": ROOT_URL + "/service/update/" + str(id),
+            "button_text": "Update",
+        }
+    params["service_id"] = id
+    html = render_to_string(template_name=template, request=request, context=params)
+    return BackendAjaxResponse(html=html).get_response()
+
 
 @check_access
 def wfs(request:HttpRequest, user:User):

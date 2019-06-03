@@ -36,7 +36,7 @@ class Permission(models.Model):
 
 class Role(models.Model):
     name = models.CharField(max_length=100)
-    description = models.CharField(max_length=200)
+    description = models.TextField()
     permission = models.ForeignKey(Permission, on_delete=models.CASCADE, null=True)
 
     def __str__(self):
@@ -64,7 +64,7 @@ class Contact(models.Model):
 
 class Organization(Contact):
     organization_name = models.CharField(max_length=255, null=True, default="")
-    description = models.CharField(max_length=500, null=True)
+    description = models.TextField(null=True)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True)
 
     def __str__(self):
@@ -75,7 +75,7 @@ class Organization(Contact):
 
 class Group(models.Model):
     name = models.CharField(max_length=255)
-    description = models.CharField(max_length=1000, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True, related_name="children")
     role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
     created_by = models.ForeignKey('User', on_delete=models.DO_NOTHING)

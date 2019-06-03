@@ -33,7 +33,7 @@ class Resource(models.Model):
 
 class Metadata(Resource):
     title = models.CharField(max_length=255)
-    abstract = models.CharField(max_length=1000, null=True, blank=True)
+    abstract = models.TextField(null=True, blank=True)
     online_resource = models.CharField(max_length=500, null=True, blank=True)
     original_uri = models.CharField(max_length=500, blank=True, null=True)
 
@@ -69,7 +69,7 @@ class Metadata(Resource):
 class TermsOfUse(Resource):
     name = models.CharField(max_length=100)
     symbol_url = models.CharField(max_length=100)
-    description = models.CharField(max_length=100)
+    description = models.TextField()
     is_open_data = models.BooleanField(default=False)
     fees = models.CharField(max_length=100)
 
@@ -77,8 +77,8 @@ class TermsOfUse(Resource):
 class Category(Resource):
     title_DE = models.CharField(max_length=100, unique=True)
     title_EN = models.CharField(max_length=100, unique=True)
-    description_DE = models.CharField(max_length=100, unique=True)
-    description_EN = models.CharField(max_length=100, unique=True)
+    description_DE = models.TextField(unique=True)
+    description_EN = models.TextField(unique=True)
     is_inspire = models.BooleanField()
     symbol = models.CharField(max_length=100, unique=True)
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)

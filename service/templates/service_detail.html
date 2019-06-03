@@ -31,11 +31,11 @@
         {% endif %}
     </div>
     <div class="container-center">
+        <div id="service-update-button" class="button-container" typeof="service" datasrc="{{ root_service.id }}" title="{% trans 'Update service using a new url' %}">
+            <span>{% trans 'Update service' %}</span>
+        </div>
         <a href="{{ root_metadata.original_uri }}" target="_blank" title="{% trans 'Open original metadata in new tab' %}">
-            <div class="button-container" data-parent="{{ root_service.id }}">
-                <!--
-                <img src="{% static 'service/images/icn_false.png' %}">
-                -->
+            <div class="button-container">
                 <span>{% trans 'Capabilities (XML)' %}</span>
             </div>
         </a>

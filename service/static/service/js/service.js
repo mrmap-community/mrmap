@@ -48,6 +48,7 @@ function startServiceRegistration(uri, button){
 function startServiceUpdate(uri, button, id){
     var oldHtml = button.html();
     button.html("Please wait...");
+    /*
     $.ajax({
         url: rootUrl + "/service/update/" + id,
         headers:{
@@ -66,6 +67,7 @@ function startServiceUpdate(uri, button, id){
     .always(function(data){
         checkRedirect(data);
     });
+    */
 }
 
 function checkServiceRequestURI(isUpdate, id){

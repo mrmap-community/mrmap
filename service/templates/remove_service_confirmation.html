@@ -41,14 +41,14 @@
                 <td>{{ sub_elements|length }}</td>
             </tr>
         </table>
-        <div class="submit-button button">{% trans 'Yes, remove!' %}</div>
+        <div class="discard-button button">{% trans 'Yes, remove!' %}</div>
     </div>
 </div>
 
 <script>
     {% include 'modal-dialog-scripts.html' %}
 
-    $(".submit-button").click(function(){
+    $(".button").click(function(){
         replaceButtonWithSpinner($(this));
         removeEntity({{ service.id }},true, 'service');
     });

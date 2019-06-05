@@ -299,6 +299,16 @@ tr:nth-child(odd){
     background-color: var(--secondary-color-light);
 }
 
+.discard-button{
+    background-color: red;
+    border: 1px solid red;
+}
+.discard-button:hover{
+    cursor: pointer;
+    background-color: white;
+    color: red;
+}
+
 .delete-container, .deactivate-container{
     display: flex;
     align-items: center;

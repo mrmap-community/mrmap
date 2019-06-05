@@ -52,3 +52,16 @@
     cursor: pointer;
     background-color: var(--secondary-color-light);
 }
+
+.update{
+    padding: 5px;
+    color: white;
+    border-radius: 5px;
+}
+
+.update.removed{
+    background-color: red;
+}
+.update.new{
+    background-color: green;
+}

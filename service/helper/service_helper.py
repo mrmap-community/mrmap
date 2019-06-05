@@ -5,7 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 16.04.19
 
 """
-import hashlib
+
 import json
 import urllib
 
@@ -15,7 +15,7 @@ from xml.dom.minidom import Element, Text, Node
 from django.shortcuts import get_object_or_404
 from lxml import etree
 from lxml.etree import XMLSyntaxError
-from requests.exceptions import ProxyError, InvalidURL
+from requests.exceptions import ProxyError
 
 from MapSkinner.settings import DEFAULT_SERVICE_VERSION, XML_NAMESPACES
 from service.helper.common_connector import CommonConnector
@@ -238,6 +238,7 @@ def resolve_boolean_attribute_val(val):
                 return True
     return val
 
+
 def get_feature_type_elements_xml(title, service_type_version, service_type, uri):
     connector = CommonConnector(url=uri)
     params = {
@@ -255,8 +256,6 @@ def get_feature_type_elements_xml(title, service_type_version, service_type, uri
     except ProxyError:
         return None
     return response
-
-
 
 
 def try_get_single_element_from_xml(elem: str, xml_elem):
@@ -454,3 +453,27 @@ def persist_service_model_instance(service: Service):
         wfs_factory = OGCWebFeatureServiceFactory()
         wfs = wfs_factory.get_ogc_wfs(version=resolve_version_enum(service.servicetype.version))
         wfs.persist_service_model(service)
+
+
+def capabilities_are_different(cap_url_1, cap_url_2):
+    """ Loads two capabilities documents using uris and checks if they differ
+
+    Args:
+        cap_url_1: First capabilities url
+        cap_url_2: Second capabilities url
+    Returns:
+         bool: True if they differ, false if they are equal
+    """
+    # load xmls
+    connector = CommonConnector(cap_url_1)
+    connector.load()
+    xml_1 = connector.text
+    connector = CommonConnector(cap_url_2)
+    connector.load()
+    xml_2 = connector.text
+
+    # hash both and compare hashes
+    xml_1_hash = sha256(xml_1)
+    xml_2_hash = sha256(xml_2)
+
+    return xml_1_hash != xml_2_hash

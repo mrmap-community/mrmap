@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block head %}
+    <link rel="stylesheet" type="text/css" href="{% static '/service/css/service.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/form.css' %}" media="all" />
+{% endblock %}
+
+{% block body %}
+
+<table>
+    <tr>
+        <th></th>
+        <th>{% trans 'New Service' %}</th>
+        <th>{% trans 'Old Service' %}</th>
+    </tr>
+    <tr>
+        <th>{% trans 'Service title' %}</th>
+        <td>{{ new_service.metadata.title }}</td>
+        <td>{{ old_service.metadata.title }}</td>
+    </tr>
+    {% if old_service.servicetype.name == 'wms' %}
+        {% for new in diff.layers.new %}
+            <tr>
+                <th>{% trans 'New Layer' %}</th>
+                <td><span class="update new">{{ new.identifier }}</span></td>
+                <td> - </td>
+            </tr>
+        {% empty %}
+            <tr>
+                <th>{% trans 'New Layer' %}</th>
+                <td> - </td>
+                <td> - </td>
+            </tr>
+        {% endfor %}
+        {% for removed in diff.layers.removed %}
+            <tr>
+                <th>{% trans 'Removed Layer' %}</th>
+                <td> - </td>
+                <td><span class="update removed">{{ removed.identifier }}</span></td>
+            </tr>
+        {% empty %}
+            <tr>
+                <th>{% trans 'Removed Layer' %}</th>
+                <td> - </td>
+                <td> - </td>
+            </tr>
+        {% endfor %}
+        {% for layer in diff.layers.updated %}
+            <tr>
+                <th>{% trans 'Layer' %}</th>
+                <td>{{ layer.identifier }}</td>
+                <td>{{ layer.identifier }}</td>
+            </tr>
+        {% endfor %}
+    {% elif old_service.servicetype.name == 'wfs' %}
+        {% for new in diff.feature_types.new %}
+            <tr>
+                <th>{% trans 'New Feature Types' %}</th>
+                <td><span class="update new">{{ new.name }}</span></td>
+                <td> - </td>
+            </tr>
+        {% empty %}
+            <tr>
+                <th>{% trans 'New Feature Types' %}</th>
+                <td> - </td>
+                <td> - </td>
+            </tr>
+        {% endfor %}
+        {% for removed in diff.feature_types.removed %}
+            <tr>
+                <th>{% trans 'Removed Feature Types' %}</th>
+                <td> - </td>
+                <td><span class="update removed">{{ removed.name }}</span></td>
+            </tr>
+        {% empty %}
+            <tr>
+                <th>{% trans 'Removed Feature Types' %}</th>
+                <td> - </td>
+                <td> - </td>
+            </tr>
+        {% endfor %}
+        {% for f_t in diff.feature_types.updated %}
+            <tr>
+                <th>{% trans 'Updated Feature Types' %}</th>
+                <td>{{ f_t.name }}</td>
+                <td>{{ f_t.name }}</td>
+            </tr>
+        {% endfor %}
+    {% else %}
+    {% endif %}
+    <tr>
+        <th>{% trans 'Show capabilities' %}</th>
+        <td><a href="{{ old_service.metadata.original_uri }}" target="_blank"><button class="button submit-button">{% trans 'Capabilities' %}</button></a></td>
+        <td><a href="{{ new_service.metadata.original_uri }}" target="_blank"><button class="button submit-button">{% trans 'Capabilities' %}</button></a></td>
+    </tr>
+</table>
+<div class="form-submit-area">
+    <a href="{% url 'service:update-discard' %}">
+        <button class="button discard-button">
+            {% trans 'Discard' %}
+        </button>
+    </a>
+    <a href="{% url 'service:update-service' old_service.id %}">
+        <button class="button submit-button">
+            {% trans 'Yes, update it!' %}
+        </button>
+    </a>
+
+</div>
+
+{% endblock %}

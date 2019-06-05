@@ -13,6 +13,7 @@ urlpatterns = [
 
     path('update/register-form/<id>', update_service_form, name='register-form'),
     path('update/<id>', update_service, name='update-service'),
+    path('update/discard/', discard_update, name='update-discard'),
 
     path('remove', remove, name='remove'),
 

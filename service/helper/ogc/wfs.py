@@ -289,9 +289,11 @@ class OGCWebFeatureService(OGCWebService):
         formats = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:Format")
         format_list = []
         for _format in formats:
-            m_t = MimeType(
-                mime_type=service_helper.try_get_text_from_xml_element(xml_elem=_format)
-            )
+            m_t = MimeType.objects.get_or_create(
+                mime_type=service_helper.try_get_text_from_xml_element(
+                    xml_elem=_format
+                )
+            )[0]
             format_list.append(m_t)
 
         # Feature type elements
@@ -413,7 +415,6 @@ class OGCWebFeatureService(OGCWebService):
 
             # formats
             for _format in feature_type_val.get("format_list"):
-                _format.created_by = group
                 f_t.formats_list.append(_format)
                 #_format.save()
                 # f_t.formats.add(_format)

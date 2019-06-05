@@ -65,6 +65,10 @@
         <td>{{ root_service.servicetype.version }}</td>
     </tr>
     <tr>
+        <th>{% trans 'Last update on' %}</th>
+        <td>{{ root_service.metadata.last_modified }}</td>
+    </tr>
+    <tr>
         <th>{% trans 'Abstract' %}</th>
         <td>{{ root_metadata.abstract }}</td>
     </tr>

@@ -139,13 +139,7 @@
                     {% trans 'Depending on the numbers of layers or featuretypes provided by this service, the update process can take a while. Please be patient. Do not click around furiously.' %}
                 </span>
             </div>
-
-            <div class="submit-button button">
-                <div class="loading-spinner hide">
-                    <i class="fas fa-circle-notch fa-spin"></i>
-                </div>
-                <span id="submit-text">{% trans 'Continue' %}</span>
-            </div>
+            <a href="{% url 'service:update-service'  service.id  %}"><div class="submit-button button">{% trans 'Continue' %}</div></a>
         </form>
         {% endif %}
     </div>
@@ -155,6 +149,7 @@
 
     {% include 'modal-dialog-scripts.html' %}
 
+    /*
     $(".submit-button").click(function(){
         // check if the button was already pressed by checking if the spinner is visible
         var spinner = $(this).children(".loading-spinner");
@@ -167,6 +162,7 @@
         replaceButtonWithSpinner($(this));
         startServiceUpdate('{{ full_uri }}', buttonText, {{ service_id }});
     });
+    */
 
 </script>
 

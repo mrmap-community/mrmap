@@ -5,7 +5,8 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 03.06.19
 
 """
-from service.models import Service, Metadata, Layer
+from service.helper.enums import ServiceTypes
+from service.models import Service, Metadata, Layer, ServiceType, FeatureType
 
 
 class ServiceComparator:
@@ -19,6 +20,7 @@ class ServiceComparator:
         "id",
         "last_modified",
         "uuid",
+        "service_id"
     ]
 
     def __init__(self, service_1: Service, service_2: Service):
@@ -36,7 +38,6 @@ class ServiceComparator:
             raise Exception("INVALID SERVICE ARGUMENTS. Service types not matching")
         self.service_1 = service_1
         self.service_2 = service_2
-        self._load_relational_fields_to_lists(service_2.metadata)
 
     def get_service_1(self):
         return self.service_1
@@ -44,77 +45,108 @@ class ServiceComparator:
     def get_service_2(self):
         return self.service_2
 
-    def _load_relational_fields_to_lists(self, metadata):
-        """ Since Many-To-Many fields can not be compared against temporary list structures (which are normally provided by service_1),
-        we need to load those relational fields into the corresponding list objects.
+    def compare_services(self):
+        """ The main function to be called.
+
+        Collects all differences in metadata, layers or feature types in a diff dict.
 
         Returns:
-             nothing
+             diff (dict): The differences collected
         """
-        # keywords
-        for kw in metadata.keywords.all():
-            metadata.keywords_list.append(kw)
-
-        # reference systems
-        for srs in metadata.reference_system.all():
-            metadata.reference_system_list.append(srs)
-
-    def compare_services(self):
         diff = {}
+        if self.service_1.servicetype.name == ServiceTypes.WMS.value:
+            # Check layer metadata against each other
+            # Always iterate over service_1 and check against service_2
+            layers = self.service_1.get_all_layers()
+            diff["layers"] = self.compare_layers(layers)
 
-        # Check service metadata against each other
-        diff_services = {}
-        md_1 = self.service_1.metadata
-        md_2 = self.service_2.metadata
-        self.compare_metadata(md_1, md_2, diff_services)
+        elif self.service_1.servicetype.name == ServiceTypes.WFS.value:
+            # Check feature services against each other
+            # always iterate over service_1 and check against service_2
+            diff["feature_types"] = self.compare_feature_types(self.service_1.feature_type_list)
 
-        # Check layer metadata against each other
-        # Always iterate over service_1 and check against service_2
-        diff_layers = {}
-        self.compare_layer([self.service_1.root_layer], diff_layers)
-        diff["layers"] = diff_layers
-        diff["services"] = diff_services
         return diff
 
-    def compare_layer(self, layers, diff: dict):
+    def compare_layers(self, layers):
+        """ Compares a list of given layers against the persisted layers in the database.
+
+        Collects which layers must be new, which one must be updated and which one are removed
+
+        Args:
+            layers (list): The 'new' layers
+            diff (dict): The differences as a dict
+        Returns:
+            nothing
+        """
+        service_2_layers = Layer.objects.filter(parent_service=self.service_2)
+        diff = {
+            "new": [],
+            "updated": [],
+            "removed": [],
+        }
         for layer_1 in layers:
-            # get layer identifier and check if this exists in the other service
-            layer_2 = Layer.objects.filter(identifier=layer_1.identifier, parent_service=self.service_2)
-            if layer_2.count() == 0:
-                # no such layer existing in other service
-                diff[layer_1.identifier] = {
-                    "md_1": layer_1,
-                    "md_2": None
-                }
-            elif layer_2.count() > 1:
-                raise Exception("MULTIPLE LAYERS FOR SAME IDENTIFIER FOUND: " + layer_1.identifier)
-            else:
-                layer_2 = layer_2[0]
-                self._load_relational_fields_to_lists(layer_2.metadata)
-                self.compare_metadata(layer_1.metadata, layer_2.metadata, diff)
-            if len(layer_1.children_list) > 0:
-                self.compare_layer(layer_1.children_list, diff)
+            found = False
+            for layer_2 in service_2_layers:
+                if layer_1.identifier == layer_2.identifier:
+                    # case: still there
+                    found = True
+                    diff["updated"].append(layer_1)
+                    break
+            if not found:
+                # case: layer from new service not found in old service -> must be a new layer!
+                diff["new"].append(layer_1)
 
+        for layer_2 in service_2_layers:
+            found = False
+            for layer_1 in layers:
+                if layer_1.identifier == layer_2.identifier:
+                    # case: still there
+                    found = True
+                    break
+            if not found:
+                # case: layer from old service not found in new service -> must have been removed!
+                diff["removed"].append(layer_2)
 
-    def compare_metadata(self, metadata_1: Metadata, metadata_2: Metadata, diff:dict):
-        metadata_2_dict = metadata_2.__dict__
-        for md_key, md_val_1 in metadata_1.__dict__.items():
-            if md_key in self.no_comparison:
-                continue
+        return diff
 
-            md_val_2 = metadata_2_dict.get(md_key)
-            if isinstance(md_val_1, list):
-                for val in md_val_1:
-                    if val not in md_val_2:
-                        diff[md_key] = {
-                            "md_1": md_val_1,
-                            "md_2": md_val_2,
-                        }
-                        break
-            else:
-                if md_val_1 != md_val_2:
-                    diff[md_key] = {
-                        "md_1": md_val_1,
-                        "md_2": md_val_2
-                    }
+    def compare_feature_types(self, feature_type_list: list):
+        """ Compares a list of given layers against the persisted layers in the database.
+
+        Collects which layers must be new, which one must be updated and which one are removed
+
+        Args:
+            layers (list): The 'new' layers
+            diff (dict): The differences as a dict
+        Returns:
+            nothing
+        """
+        service_2_f_t = FeatureType.objects.filter(service=self.service_2)
+        diff = {
+            "new": [],
+            "updated": [],
+            "removed": [],
+        }
+        for f_t in feature_type_list:
+            found = False
+            for f_t_2 in service_2_f_t:
+                if f_t.name == f_t_2.name:
+                    # case: still there
+                    found = True
+                    diff["updated"].append(f_t)
+                    break
+            if not found:
+                # case: layer from new service not found in old service -> must be a new layer!
+                diff["new"].append(f_t)
+
+        for f_t_2 in service_2_f_t:
+            found = False
+            for f_t in feature_type_list:
+                if f_t.name == f_t_2.name:
+                    # case: still there
+                    found = True
+                    break
+            if not found:
+                # case: layer from old service not found in new service -> must have been removed!
+                diff["removed"].append(f_t_2)
+
         return diff

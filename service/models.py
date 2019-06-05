@@ -131,6 +131,35 @@ class Service(Resource):
     def __str__(self):
         return str(self.id)
 
+    def __get_children(self, current, layers: list):
+        """ Recursive appending of all layers
+
+        Args:
+            current (Layer): The current layer instance
+            layers (list): The list of all collected layers so far
+        Returns:
+             nothing
+        """
+        layers.append(current)
+        for layer in current.children_list:
+            layers.append(layer)
+            if len(layer.children_list) > 0:
+                self.__get_children(layer, layers)
+
+
+    def get_all_layers(self):
+        """ Returns all layers in a list that can be found in this service
+
+        NOTE: THIS IS ONLY USED FOR CHILDREN_LIST, WHICH SHOULD ONLY BE USED FOR NON-PERSISTED OBJECTS!!!
+
+        Returns:
+             layers (list): The layers
+        """
+
+        layers = []
+        self.__get_children(self.root_layer, layers)
+        return layers
+
 
 class Layer(Service):
     identifier = models.CharField(max_length=500, null=True)

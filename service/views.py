@@ -1,20 +1,21 @@
 import json
 
+from django.contrib import messages
+from django.db import transaction
 from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
 
 from django.template.loader import render_to_string
+from django.utils import timezone
 from lxml.etree import XMLSyntaxError
-from requests.exceptions import InvalidURL, ProxyError
+from requests.exceptions import InvalidURL
 
 from MapSkinner.decorator import check_access
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.forms import ServiceURIForm
-from service.helper import service_helper
+from service.helper import service_helper, update_helper
 from service.helper.enums import ServiceTypes
-from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
-from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service
 from structure.helper import user_helper
@@ -211,7 +212,6 @@ def new_service(request: HttpRequest, user: User):
     """
     POST_params = request.POST.dict()
     cap_url = POST_params.get("uri", "")
-    #user = user_helper.get_user(user_id=request.session.get("user_id"))
     url_dict = service_helper.split_service_uri(cap_url)
     params = {}
     try:
@@ -231,25 +231,91 @@ def new_service(request: HttpRequest, user: User):
 
 
 @check_access
+@transaction.atomic
 def update_service(request: HttpRequest, user: User, id: int):
-    template = ""
-    params = {}
+    """ Compare old service with new service and collect differences
+
+    Args:
+        request: The incoming request
+        user: The active user
+        id: The service id
+    Returns:
+        A rendered view
+    """
+    template = "service_differences.html"
     update_params = request.session["update"]
     url_dict = service_helper.split_service_uri(update_params["full_uri"])
+    new_service_type = url_dict.get("service")
+    old_service = Service.objects.get(id=id)
+
     # parse new capabilities into db model
     new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user)
     new_service = new_service["service"]
-    old_service = Service.objects.get(id=id)
-    old_service_root_layer = Layer.objects.get(parent_service=old_service, parent_layer=None)
-    old_service_layers = Layer.objects.filter(parent_service=old_service)
 
-    # Collect differences in dict for rendering purpose
+    # Collect differences
     comparator = ServiceComparator(service_1=new_service, service_2=old_service)
     diff = comparator.compare_services()
-    # ToDo: Create comparing template!
-    params = {}
-    html = render_to_string(template_name=template, request=request, context=params)
-    return BackendAjaxResponse(html).get_response()
+
+    if request.session.get("update_confirmed", False):
+        # check cross update attempt
+        if old_service.servicetype.name != new_service_type.value:
+            # cross update attempt -> forbidden!
+            messages.add_message(request, messages.ERROR, _("You tried to update a service to another service type. This is not possible!"))
+            del request.session["update_confirmed"]
+            return redirect("service:detail-" + old_service.servicetype.name, old_service.metadata.id)
+        # check if new capabilities is even different from existing
+        if not service_helper.capabilities_are_different(update_params["full_uri"], old_service.metadata.original_uri):
+            messages.add_message(request, messages.INFO, _("The provided capabilities document is not different from the currently registered. Update canceled!"))
+            del request.session["update_confirmed"]
+            return redirect("service:detail-" + old_service.servicetype.name, old_service.metadata.id)
+
+        # the update is confirmed, we can continue changing the service!
+        # first update the metadata of the whole service
+        md = update_helper.update_metadata(old_service.metadata, new_service.metadata)
+        # secondly update the service itself, overwrite the metadata with the previously updated metadata
+        old_service = update_helper.update_service(old_service, new_service)
+        old_service.metadata = md
+        # don't forget the timestamp when we updated the last time
+        old_service.metadata.last_modified = timezone.now()
+        # save the metadata changes
+        old_service.metadata.save()
+        old_service.last_modified = timezone.now()
+
+        if new_service.servicetype.name == ServiceTypes.WFS.value:
+            old_service = update_helper.update_wfs(old_service, new_service, diff)
+
+        elif new_service.servicetype.name == ServiceTypes.WMS.value:
+            old_service = update_helper.update_wms(old_service, new_service, diff)
+
+        old_service.save()
+        del request.session["update_confirmed"]
+
+        return redirect("service:detail-" + old_service.servicetype.name, old_service.metadata.id)
+    else:
+        # otherwise
+        params = {
+            "diff": diff,
+            "old_service": old_service,
+            "new_service": new_service,
+        }
+        request.session["update_confirmed"] = True
+    context = DefaultContext(request, params)
+    return render(request, template, context.get_context())
+
+
+@check_access
+def discard_update(request: HttpRequest, user: User):
+    """ If the user does not want to proceed with the update,
+    we need to go back and drop the session stored data about the update
+
+    Args:
+        request (HttpRequest):
+        user (User):
+    Returns:
+         redirects
+    """
+    del request.session["update"]
+    return redirect("service:index")
 
 @check_access
 def update_service_form(request: HttpRequest, user:User, id: int):
@@ -317,6 +383,7 @@ def wfs(request:HttpRequest, user:User):
         "only": ServiceTypes.WFS
     }
     return redirect("service:index", ServiceTypes.WFS.value)
+
 
 @check_access
 def detail(request: HttpRequest, id, user:User):

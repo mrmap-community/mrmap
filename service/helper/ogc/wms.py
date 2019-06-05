@@ -457,6 +457,7 @@ class OGCWebMapService(OGCWebService):
             root_md (Metadata): The metadata of the root service (parameter 'wms')
         Returns:
         """
+
         # iterate over all layers
         for layer_obj in layers:
             metadata = Metadata()
@@ -512,15 +513,18 @@ class OGCWebMapService(OGCWebService):
             layer.get_capabilities_uri = layer_obj.get_capabilities_uri
 
             if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
-                dim = Dimension()
-                # dim.layer = layer
-                dim.name = layer_obj.dimension.get("name")
-                dim.units = layer_obj.dimension.get("units")
-                dim.default = layer_obj.dimension.get("default")
-                dim.extent = layer_obj.dimension.get("extent")
-                # ToDo: Refine for inherited and nearest_value and so on
-                layer.dimension = dim
-                #dim.save()
+                # ToDo: Rework dimension persisting! Currently simply ignore it...
+                pass
+                # for dimension in layer_obj.dimension:
+                #     dim = Dimension()
+                #     # dim.layer = layer
+                #     dim.name = layer_obj.dimension.get("name")
+                #     dim.units = layer_obj.dimension.get("units")
+                #     dim.default = layer_obj.dimension.get("default")
+                #     dim.extent = layer_obj.dimension.get("extent")
+                #     # ToDo: Refine for inherited and nearest_value and so on
+                #     layer.dimension = dim
+                #     #dim.save()
 
             if wms.root_layer is None:
                 # no root layer set yet

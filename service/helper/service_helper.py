@@ -412,6 +412,7 @@ def get_service_model_instance(service_type, version, base_uri, user):
     Returns:
 
     """
+
     ret_dict = {}
     if service_type is ServiceTypes.WMS:
         # create WMS object

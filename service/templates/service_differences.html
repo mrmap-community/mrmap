@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block head %}
+    <link rel="stylesheet" type="text/css" href="{% static '/service/css/service.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/form.css' %}" media="all" />
+    <script type="text/javascript" src="{% static '/service/js/update.js' %}"></script>
+{% endblock %}
+
+{% block body %}
+
+
+<table>
+    <tr>
+        <th></th>
+        <th>{% trans 'New Service' %}</th>
+        <th id="old-service" itemid="{{ old_service.id }}">{% trans 'Old Service' %}</th>
+    </tr>
+    <tr>
+        <th>{% trans 'Service title' %}</th>
+        <td>{{ new_service.metadata.title }}</td>
+        <td>{{ old_service.metadata.title }}</td>
+    </tr>
+    {% if old_service.servicetype.name == 'wms' %}
+        {% for new in diff.layers.new %}
+            <tr class="new-service">
+                <th>{% trans 'New Layer' %}</th>
+                <td itemid="{{ new.identifier }}" ondrop="dropBack(event)" ondragover="allowDrop(event)" >
+                    <span id="{{ new.identifier }}" class="update new" draggable="true" ondragstart="drag(event)" title="{% trans 'Drag and drop the new layer onto the old layer, if you know it has been renamed.' %}">
+                        {{ new.identifier }}
+                    </span>
+                </td>
+                <td> - </td>
+            </tr>
+        {% empty %}
+            <tr>
+                <th>{% trans 'New Layer' %}</th>
+                <td> - </td>
+                <td> - </td>
+            </tr>
+        {% endfor %}
+        {% for removed in diff.layers.removed %}
+            <tr class="old-service">
+                <th>{% trans 'Removed Layer' %}</th>
+                <td> - </td>
+                <td><span id="{{ removed.identifier }}" class="update removed" ondrop="dropNewLayer(event)" ondragover="allowDrop(event)" title="{% trans 'Drop a new layer on this old layer if you want to map it.' %}">{{ removed.identifier }}</span></td>
+            </tr>
+        {% empty %}
+            <tr>
+                <th>{% trans 'Removed Layer' %}</th>
+                <td> - </td>
+                <td> - </td>
+            </tr>
+        {% endfor %}
+        {% for layer in diff.layers.updated %}
+            <tr>
+                <th>{% trans 'Layer' %}</th>
+                <td>{{ layer.identifier }}</td>
+                <td>{{ layer.identifier }}</td>
+            </tr>
+        {% endfor %}
+    {% elif old_service.servicetype.name == 'wfs' %}
+        {% for new in diff.feature_types.new %}
+            <tr class="new-service">
+                <th>{% trans 'New Feature Types' %}</th>
+                <td itemid="{{ new.name }}" ondrop="dropBack(event)" ondragover="allowDrop(event)" >
+                    <span id="{{ new.name }}" class="update new" draggable="true" ondragstart="drag(event)" title="{% trans 'Drag and drop the new layer onto the old layer, if you know it has been renamed.' %}">
+                        {{ new.name }}
+                    </span>
+                </td>
+                <td> - </td>
+            </tr>
+        {% empty %}
+            <tr>
+                <th>{% trans 'New Feature Types' %}</th>
+                <td> - </td>
+                <td> - </td>
+            </tr>
+        {% endfor %}
+        {% for removed in diff.feature_types.removed %}
+            <tr class="old-service">
+                <th>{% trans 'Removed Feature Types' %}</th>
+                <td> - </td>
+                <td><span id="{{ removed.name }}" class="update removed" ondrop="dropNewLayer(event)" ondragover="allowDrop(event)" title="{% trans 'Drop a new feature type on this old one if you want to map it.' %}">{{ removed.name }}</span></td>
+            </tr>
+        {% empty %}
+            <tr>
+                <th>{% trans 'Removed Feature Types' %}</th>
+                <td> - </td>
+                <td> - </td>
+            </tr>
+        {% endfor %}
+        {% for f_t in diff.feature_types.updated %}
+            <tr>
+                <th>{% trans 'Updated Feature Types' %}</th>
+                <td>{{ f_t.name }}</td>
+                <td>{{ f_t.name }}</td>
+            </tr>
+        {% endfor %}
+    {% else %}
+    {% endif %}
+    <tr>
+        <th>{% trans 'Show capabilities' %}</th>
+        <td><a href="{{ old_service.metadata.original_uri }}" target="_blank"><button class="button submit-button">{% trans 'Capabilities' %}</button></a></td>
+        <td><a href="{{ new_service.metadata.original_uri }}" target="_blank"><button class="button submit-button">{% trans 'Capabilities' %}</button></a></td>
+    </tr>
+</table>
+<div class="advice">
+    <img src="{% static 'structure/images/icn_mr_map_invert.png' %}">
+    <span>
+        {% blocktrans %}
+        You can link a new service layer to an old layer by simply
+        drag and drop it on the old layer. This is needed if you didn't remove an existing layer but simply renamed it and want to
+        keep the persistency of the underlying data!
+
+        <br>
+
+        Undo your changes by doubleclicking on the dragged element.
+        {% endblocktrans %}
+    </span>
+</div>
+<div class="form-submit-area">
+    <a href="{% url 'service:update-discard' %}">
+        <button class="button discard-button">
+            {% trans 'Discard' %}
+        </button>
+    </a>
+    <div id="start-update" class="button submit-button" style="display: flex; justify-content: center; align-items: center;">
+        <div class="loading-spinner hide">
+            <i class="fas fa-circle-notch fa-spin"></i>
+        </div>
+        <span id="button-text">
+            {% trans 'Yes, update it!' %}
+        </span>
+    </div>
+</div>
+
+<script>
+
+    var isUpdating = false;
+
+    $("#start-update").click(function(){
+        if(isUpdating){
+            alert("{% trans 'Mr. Map is doing his best. Please wait...' %}");
+            return;
+        }
+        isUpdating = true;
+        var serviceId = $("#old-service").attr("itemid");
+        // show loading symbol!
+        var width = $(this).width();
+        $("#button-text").hide();
+        $(".loading-spinner").show();
+        $(this).width(width);
+        $.ajax({
+            url: rootUrl + "/service/update/" + serviceId,
+            headers:{
+                "X-CSRFToken": getCookie("csrftoken")
+            },
+            data: {
+                "storage": JSON.stringify(window.sessionStorage),
+                "confirmed": true
+            },
+            type: 'post',
+            dataType: 'json'
+        })
+        .always(function(data){
+            console.log(data);
+            checkRedirect(data);
+        });
+    });
+</script>
+
+{% endblock %}

@@ -86,9 +86,9 @@ class OGCWebFeatureService(OGCWebService):
         thread_list = [
             threading.Thread(target=self.get_service_metadata, args=(xml_obj,)),
             threading.Thread(target=self.get_capability_metadata, args=(xml_obj,)),
-            threading.Thread(target=self.get_feature_type_metadata, args=(xml_obj,)),
         ]
         execute_threads(thread_list)
+        self.get_feature_type_metadata(xml_obj)
         # always execute version specific tasks AFTER multithreading
         # Otherwise we might face race conditions which lead to loss of data!
         self.get_version_specific_metadata(xml_obj)
@@ -144,7 +144,11 @@ class OGCWebFeatureService(OGCWebService):
         Returns:
              Nothing
         """
-        operation_metadata = service_helper.try_get_element_from_xml("//ows:OperationsMetadata", xml_obj)[0]
+        operation_metadata = service_helper.try_get_element_from_xml("//ows:OperationsMetadata", xml_obj)
+        if len(operation_metadata) > 0:
+            operation_metadata = operation_metadata[0]
+        else:
+            return
         actions = ["GetCapabilities", "DescribeFeatureType", "GetFeature", "Transaction", "LockFeature",
                    "GetFeatureWithLock", "GetGMLObject", "ListStoredQueries"]
         get = {}
@@ -247,11 +251,12 @@ class OGCWebFeatureService(OGCWebService):
             feature_type_list(dict): A dict containing all different metadatas for this featuretype and it's children
         """
         f_t = FeatureType()
+        f_t.uuid = uuid.uuid4()
         f_t.title = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Title")
         f_t.name = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Name")
         f_t.abstract = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Abstract")
         # Feature type keywords
-        keywords = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//ows:Keywords")
+        keywords = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//ows:Keyword")
         keyword_list = []
         for keyword in keywords:
             kw = service_helper.try_get_text_from_xml_element(xml_elem=keyword)
@@ -289,9 +294,11 @@ class OGCWebFeatureService(OGCWebService):
         formats = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:Format")
         format_list = []
         for _format in formats:
-            m_t = MimeType(
-                mime_type=service_helper.try_get_text_from_xml_element(xml_elem=_format)
-            )
+            m_t = MimeType.objects.get_or_create(
+                mime_type=service_helper.try_get_text_from_xml_element(
+                    xml_elem=_format
+                )
+            )[0]
             format_list.append(m_t)
 
         # Feature type elements
@@ -322,10 +329,6 @@ class OGCWebFeatureService(OGCWebService):
                                                                                  attribute="version",
                                                                                  elem="//wfs:WFS_Capabilities")
         epsg_api = EpsgApi()
-        while self.describe_feature_type_uri.get("get", "") == "":
-            # wait for other thread to finish
-            time.sleep(0.00005)
-
         # Feature types
         for feature_type in feature_type_list:
             self._get_feature_type_metadata(feature_type, epsg_api, service_type_version)
@@ -333,19 +336,19 @@ class OGCWebFeatureService(OGCWebService):
 
     @abstractmethod
     @transaction.atomic
-    def persist(self, user: User):
-        """ Map all data from the WebFeatureService classes to their database models and persist them
+    def create_service_model_instance(self, user: User):
+        """ Map all data from the WebFeatureService classes to their database models
 
         Args:
             user(User): The user which performs the action
         Returns:
-             nothing
+             service (Service): Service instance, contains all information, ready for persisting!
         """
+
         orga_published_for = user.secondary_organization
         orga_publisher = user.primary_organization
 
         group = user.groups.all()[0] # ToDo: Find better solution for group selection than this
-
         # Metadata
         md = Metadata()
         md.title = self.service_identification_title
@@ -370,7 +373,7 @@ class OGCWebFeatureService(OGCWebService):
         md.access_constraints = self.service_identification_accessconstraints
         md.created_by = group
         md.original_uri = self.service_connect_url
-        md.save()
+        #md.save()
 
         # Service
         service = Service()
@@ -386,38 +389,94 @@ class OGCWebFeatureService(OGCWebService):
         service.is_available = False
         service.is_root = True
         service.metadata = md
-        service.save()
+        #service.save()
 
         # Keywords
         for kw in self.service_identification_keywords:
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            md.keywords.add(keyword)
+            md.keywords_list.append(keyword)
+            #md.keywords.add(keyword)
 
         # feature types
         for feature_type_key, feature_type_val in self.feature_type_list.items():
             f_t = feature_type_val.get("feature_type")
             f_t.created_by = group
             f_t.service = service
-            f_t.save()
+            # f_t.save()
+
             # keywords of feature types
             for kw in feature_type_val.get("keyword_list"):
-                f_t.keywords.add(kw)
+                f_t.keywords_list.append(kw)
+                # f_t.keywords.add(kw)
+
             # srs of feature types
             for srs in feature_type_val.get("srs_list"):
-                f_t.additional_srs.add(srs)
+                f_t.additional_srs_list.append(srs)
+                # f_t.additional_srs.add(srs)
 
             # formats
             for _format in feature_type_val.get("format_list"):
-                _format.created_by = group
+                f_t.formats_list.append(_format)
+                #_format.save()
+                # f_t.formats.add(_format)
+
+            # elements
+            for _element in feature_type_val.get("element_list"):
+                f_t.elements_list.append(_element)
+                # f_t.elements.add(_element)
+
+            # namespaces
+            for ns in feature_type_val.get("ns_list"):
+                f_t.namespaces_list.append(ns)
+                # f_t.namespaces.add(ns)
+
+            # add feature type to list of related feature types
+            service.feature_type_list.append(f_t)
+
+        return service
+
+    @transaction.atomic
+    def persist_service_model(self, service):
+        """ Persist the service model object
+
+        Returns:
+             Nothing
+        """
+        # save metadata
+        md = service.metadata
+        md.save()
+        service.metadata = md
+        # save parent service
+        service.save()
+
+        # Keywords
+        for kw in service.metadata.keywords_list:
+            service.metadata.keywords.add(kw)
+
+        # feature types
+        for f_t in service.feature_type_list:
+            f_t.service = service
+            f_t.save()
+
+            # keywords of feature types
+            for kw in f_t.keywords_list:
+                f_t.keywords.add(kw)
+
+            # srs of feature types
+            for srs in f_t.additional_srs_list:
+                f_t.additional_srs.add(srs)
+
+            # formats
+            for _format in f_t.formats_list:
                 _format.save()
                 f_t.formats.add(_format)
 
             # elements
-            for _element in feature_type_val.get("element_list"):
+            for _element in f_t.elements_list:
                 f_t.elements.add(_element)
 
             # namespaces
-            for ns in feature_type_val.get("ns_list"):
+            for ns in f_t.namespaces_list:
                 f_t.namespaces.add(ns)
 
 
@@ -425,7 +484,7 @@ class OGCWebFeatureServiceFactory:
     """ Creates the correct OGCWebFeatureService objects
 
     """
-    def get_ogc_wfs(self, version: VersionTypes, service_connect_url: str):
+    def get_ogc_wfs(self, version: VersionTypes, service_connect_url=None):
         """ Returns the correct implementation of an OGCWebFeatureService according to the given version
 
         Args:
@@ -601,6 +660,10 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
             service_version=VersionTypes.V_1_1_0,
             service_type=ServiceTypes.WFS,
         )
+        XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs"
+        XML_NAMESPACES["ows"] = "http://www.opengis.net/ows"
+        XML_NAMESPACES["fes"] = "http://www.opengis.net/fes"
+        XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
 
 
 class OGCWebFeatureService_2_0_0(OGCWebFeatureService):

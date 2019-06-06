@@ -1,6 +1,10 @@
 {% extends 'base.html' %}
 {% load static i18n %}
 
+{% block title %}
+- {{ root_metadata.title }}
+{% endblock %}
+
 {% block head %}
     <script type="text/javascript" src="{% static '/service/js/service.js' %}"></script>
     <link rel="stylesheet" type="text/css" href="{% static '/service/css/service.css' %}" media="all" />
@@ -31,11 +35,11 @@
         {% endif %}
     </div>
     <div class="container-center">
+        <div id="service-update-button" class="button-container" typeof="service" datasrc="{{ root_service.id }}" title="{% trans 'Update service using a new url' %}">
+            <span>{% trans 'Update service' %}</span>
+        </div>
         <a href="{{ root_metadata.original_uri }}" target="_blank" title="{% trans 'Open original metadata in new tab' %}">
-            <div class="button-container" data-parent="{{ root_service.id }}">
-                <!--
-                <img src="{% static 'service/images/icn_false.png' %}">
-                -->
+            <div class="button-container">
                 <span>{% trans 'Capabilities (XML)' %}</span>
             </div>
         </a>
@@ -63,6 +67,10 @@
     <tr>
         <th>{% trans 'Service type version' %}</th>
         <td>{{ root_service.servicetype.version }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Last update on' %}</th>
+        <td>{{ root_service.metadata.last_modified }}</td>
     </tr>
     <tr>
         <th>{% trans 'Abstract' %}</th>

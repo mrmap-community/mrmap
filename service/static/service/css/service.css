@@ -25,7 +25,7 @@
 .loading-spinner{
     border: none;
     color: white;
-    padding: 10px
+    padding: 0 10px 0 0;
 }
 
 .sublayer-container{
@@ -52,3 +52,27 @@
     cursor: pointer;
     background-color: var(--secondary-color-light);
 }
+
+.update{
+    padding: 5px;
+    color: white;
+    border-radius: 5px;
+}
+
+.update.removed{
+    background-color: red;
+}
+.update.new{
+    background-color: green;
+}
+
+.update.new:hover{
+    cursor: grab;
+    opacity: 0.8;
+}
+.update.removed:hover{
+    cursor: default;
+    opacity: 0.8;
+}
+
+

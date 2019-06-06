@@ -33,7 +33,7 @@ class Resource(models.Model):
 
 class Metadata(Resource):
     title = models.CharField(max_length=255)
-    abstract = models.CharField(max_length=1000, null=True, blank=True)
+    abstract = models.TextField(null=True, blank=True)
     online_resource = models.CharField(max_length=500, null=True, blank=True)
     original_uri = models.CharField(max_length=500, blank=True, null=True)
 
@@ -62,6 +62,12 @@ class Metadata(Resource):
     keywords = models.ManyToManyField(Keyword)
     reference_system = models.ManyToManyField('ReferenceSystem')
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # non persisting attributes
+        self.keywords_list = []
+        self.reference_system_list = []
+
     def __str__(self):
         return str(self.uuid)
 
@@ -69,7 +75,7 @@ class Metadata(Resource):
 class TermsOfUse(Resource):
     name = models.CharField(max_length=100)
     symbol_url = models.CharField(max_length=100)
-    description = models.CharField(max_length=100)
+    description = models.TextField()
     is_open_data = models.BooleanField(default=False)
     fees = models.CharField(max_length=100)
 
@@ -77,8 +83,8 @@ class TermsOfUse(Resource):
 class Category(Resource):
     title_DE = models.CharField(max_length=100, unique=True)
     title_EN = models.CharField(max_length=100, unique=True)
-    description_DE = models.CharField(max_length=100, unique=True)
-    description_EN = models.CharField(max_length=100, unique=True)
+    description_DE = models.TextField(unique=True)
+    description_EN = models.TextField(unique=True)
     is_inspire = models.BooleanField()
     symbol = models.CharField(max_length=100, unique=True)
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
@@ -114,8 +120,45 @@ class Service(Resource):
     get_styles_uri = models.CharField(max_length=1000, null=True, blank=True)
     formats = models.ManyToManyField('MimeType', null=True, blank=True)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # non persisting attributes
+        self.root_layer = None
+        self.feature_type_list = []
+        self.formats_list = []
+        self.categories_list = []
+
     def __str__(self):
         return str(self.id)
+
+    def __get_children(self, current, layers: list):
+        """ Recursive appending of all layers
+
+        Args:
+            current (Layer): The current layer instance
+            layers (list): The list of all collected layers so far
+        Returns:
+             nothing
+        """
+        layers.append(current)
+        for layer in current.children_list:
+            layers.append(layer)
+            if len(layer.children_list) > 0:
+                self.__get_children(layer, layers)
+
+
+    def get_all_layers(self):
+        """ Returns all layers in a list that can be found in this service
+
+        NOTE: THIS IS ONLY USED FOR CHILDREN_LIST, WHICH SHOULD ONLY BE USED FOR NON-PERSISTED OBJECTS!!!
+
+        Returns:
+             layers (list): The layers
+        """
+
+        layers = []
+        self.__get_children(self.root_layer, layers)
+        return layers
 
 
 class Layer(Service):
@@ -133,6 +176,11 @@ class Layer(Service):
     scale_max = models.FloatField(default=0)
     bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # non persisting attributes
+        self.children_list = []
+        self.dimension = None
 
     def __str__(self):
         return str(self.identifier)
@@ -208,6 +256,15 @@ class FeatureType(Resource):
     elements = models.ManyToManyField('FeatureTypeElement')
     namespaces = models.ManyToManyField('Namespace')
     service = models.ForeignKey(Service, null=True,  blank=True, on_delete=models.CASCADE, related_name="featuretypes")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # non persisting attributes
+        self.additional_srs_list = []
+        self.keywords_list = []
+        self.formats_list = []
+        self.elements_list = []
+        self.namespaces_list = []
 
     def __str__(self):
         return self.name

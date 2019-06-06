@@ -299,6 +299,16 @@ tr:nth-child(odd){
     background-color: var(--secondary-color-light);
 }
 
+.discard-button{
+    background-color: red;
+    border: 1px solid red;
+}
+.discard-button:hover{
+    cursor: pointer;
+    background-color: white;
+    color: red;
+}
+
 .delete-container, .deactivate-container{
     display: flex;
     align-items: center;
@@ -333,4 +343,20 @@ tr:nth-child(odd){
 
 .button-container img{
     padding: 0 10px 0 0;
+}
+
+.advice{
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    background-color: var(--secondary-color);
+    padding: 10px;
+    margin-top: 10px;
+}
+
+.advice span{
+    text-align: justify;
+    color: white;
+    font-weight: bold;
+    max-width: 60vw;
 }

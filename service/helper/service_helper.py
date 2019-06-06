@@ -5,7 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 16.04.19
 
 """
-import hashlib
+
 import json
 import urllib
 
@@ -21,7 +21,9 @@ from MapSkinner.settings import DEFAULT_SERVICE_VERSION, XML_NAMESPACES
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
-from service.models import Layer, Metadata, MimeType
+from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
+from service.helper.ogc.wms import OGCWebMapServiceFactory
+from service.models import Layer, Metadata, MimeType, Service
 from MapSkinner.utils import sha256
 
 
@@ -236,6 +238,7 @@ def resolve_boolean_attribute_val(val):
                 return True
     return val
 
+
 def get_feature_type_elements_xml(title, service_type_version, service_type, uri):
     connector = CommonConnector(url=uri)
     params = {
@@ -253,8 +256,6 @@ def get_feature_type_elements_xml(title, service_type_version, service_type, uri
     except ProxyError:
         return None
     return response
-
-
 
 
 def try_get_single_element_from_xml(elem: str, xml_elem):
@@ -396,3 +397,84 @@ def change_layer_status_recursively(root_layer, new_status):
     for layer in root_layer.child_layer.all():
         change_layer_status_recursively(layer, new_status)
 
+
+def get_service_model_instance(service_type, version, base_uri, user):
+    """ Creates a database model from given service information and persists it.
+
+    Due to the many-to-many relationships used in the models there is currently no way (without extending the models) to
+    return an uncommitted database model object.
+
+    Args;
+        service_type: The type of service (wms, wfs)
+        version: The version of the service type
+        base_uri: The conne
+        user:
+    Returns:
+
+    """
+
+    ret_dict = {}
+    if service_type is ServiceTypes.WMS:
+        # create WMS object
+        wms_factory = OGCWebMapServiceFactory()
+        wms = wms_factory.get_ogc_wms(version=version, service_connect_url=base_uri)
+        # let it load it's capabilities
+        wms.get_capabilities()
+        wms.create_from_capabilities()
+        service = wms.create_service_model_instance(user)
+        ret_dict["raw_data"] = wms
+    else:
+        # create WFS object
+        wfs_factory = OGCWebFeatureServiceFactory()
+        wfs = wfs_factory.get_ogc_wfs(version=version, service_connect_url=base_uri)
+        # let it load it's capabilities
+        wfs.get_capabilities()
+        wfs.create_from_capabilities()
+        service = wfs.create_service_model_instance(user)
+        ret_dict["raw_data"] = wfs
+    ret_dict["service"] = service
+    return ret_dict
+
+
+def persist_service_model_instance(service: Service):
+    """ Persists the service model instance
+
+    Args:
+        service: The service model instance
+    Returns:
+         Nothing
+    """
+    if service.servicetype.name == ServiceTypes.WMS.value:
+        # create WMS object
+        wms_factory = OGCWebMapServiceFactory()
+        wms = wms_factory.get_ogc_wms(version=resolve_version_enum(service.servicetype.version))
+        wms.persist_service_model(service)
+    else:
+        # create WFS object
+        wfs_factory = OGCWebFeatureServiceFactory()
+        wfs = wfs_factory.get_ogc_wfs(version=resolve_version_enum(service.servicetype.version))
+        wfs.persist_service_model(service)
+
+
+def capabilities_are_different(cap_url_1, cap_url_2):
+    """ Loads two capabilities documents using uris and checks if they differ
+
+    Args:
+        cap_url_1: First capabilities url
+        cap_url_2: Second capabilities url
+    Returns:
+         bool: True if they differ, false if they are equal
+    """
+    # load xmls
+    connector = CommonConnector(cap_url_1)
+    connector.load()
+    xml_1 = connector.text
+    connector = CommonConnector(cap_url_2)
+    connector.load()
+    xml_2 = connector.text
+
+    # hash both and compare hashes
+    xml_1_hash = sha256(xml_1)
+    xml_2_hash = sha256(xml_2)
+
+    return xml_1_hash != xml_2_hash

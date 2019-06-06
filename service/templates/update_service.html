@@ -1,0 +1,169 @@
+{% load i18n static %}
+<style>
+
+    .field-label, .field{
+        font-size: 1.2em;
+    }
+
+    .field input{
+        color: gray;
+        background-color: white;
+        border: 1px solid gray;
+        border-radius: 0.25rem;
+        padding: 0.375rem 0.75rem;
+    }
+
+    .field input:focus{
+        -webkit-box-shadow: 0 0 10px var(--primary-color);
+        -moz-box-shadow: 0 0 10px var(--primary-color);
+        box-shadow: 0 0 10px var(--primary-color);
+    }
+
+    .form-submit-area{
+        padding: 20px 0;
+    }
+
+
+    #capabilities-uri{
+        width: 80%;
+    }
+
+    .form-table{
+        font-size: 0.9em !important;
+        color: black;
+    }
+    .form-table tbody{
+        border: 1px solid var(--primary-color-light);
+        border-radius: 10px;
+        padding: 10px;
+    }
+    .form-table td{
+
+    }
+
+    .loading-spinner{
+        border: none;
+        color: white;
+        padding: 0 10px 0 0;
+    }
+
+    .submit-button{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .form-advice{
+        display: flex;
+        align-items: center;
+        justify-content: space-evenly;
+        background-color: var(--secondary-color);
+        padding: 10px;
+        margin-top: 10px;
+    }
+
+    .form-advice span{
+        text-align: justify;
+        color: white;
+        font-weight: bold;
+        max-width: 60vw;
+    }
+    .form-advice img{
+    }
+
+    .modal-content{
+        max-height: 75vh;
+        overflow-y: auto;
+    }
+</style>
+
+{% block body %}
+<div class="modal-dialog">
+    <div class="modal-close" title="{% trans 'Close' %}">
+        x
+    </div>
+    <div class="modal-content">
+        {% if error %}
+        <article>
+            {% trans 'The URI is invalid.' %}<br>
+            {% trans 'Please check and try again.' %}
+            <div class="button close-button">{% trans 'Okay' %}</div>
+        </article>
+        {% else %}
+        <form action="{{ action_url }}" method="post" >
+            <h2>{% trans 'Existing service' %}</h2>
+            <table class="form-table">
+                <tr>
+                    <td class="field-label">{% trans 'OGC service:' %}</td>
+                    <td class="field">{{ service.servicetype }}</td>
+                </tr>
+                <tr>
+                    <td class="field-label">{% trans 'OGC Version:' %}</td>
+                    <td class="field">{{ service.servicetype.version }}</td>
+                </tr>
+                <tr>
+                    <td class="field-label">{% trans 'URI:' %}</td>
+                    <td class="field">{{ service.metadata.original_uri }}</td>
+                </tr>
+            </table>
+            <br>
+            <article>
+                {% trans 'You are about to update this service.' %}<br>
+                {% trans 'Do you want to continue?' %}
+            </article>
+            <br>
+            <h2>{% trans 'New service' %}</h2>
+            <table class="form-table">
+                <tr>
+                    <td class="field-label">{% trans 'OGC Request:' %}</td>
+                    <td class="field">{{ request_action }}</td>
+                </tr>
+                <tr>
+                    <td class="field-label">{% trans 'OGC service:' %}</td>
+                    <td class="field">{{ service_type }}</td>
+                </tr>
+                <tr>
+                    <td class="field-label">{% trans 'OGC Version:' %}</td>
+                    <td class="field">{{ version }}</td>
+                </tr>
+                <tr>
+                    <td class="field-label">{% trans 'URI:' %}</td>
+                    <td class="field">{{ uri }}</td>
+                </tr>
+            </table>
+            <div class="form-advice">
+                <img src="{% static 'structure/images/icn_mr_map_invert.png' %}">
+                <span>
+                    {% trans 'Please note:' %}
+                    <br>
+                    {% trans 'Depending on the numbers of layers or featuretypes provided by this service, the update process can take a while. Please be patient. Do not click around furiously.' %}
+                </span>
+            </div>
+            <a href="{% url 'service:update-service'  service.id  %}"><div class="submit-button button">{% trans 'Continue' %}</div></a>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+
+    {% include 'modal-dialog-scripts.html' %}
+
+    /*
+    $(".submit-button").click(function(){
+        // check if the button was already pressed by checking if the spinner is visible
+        var spinner = $(this).children(".loading-spinner");
+        if(spinner.is(":visible")){
+            alert("{% trans 'Mr. Map is doing his best. Please wait...' %}");
+            return;
+        }
+        spinner.toggleClass("hide");
+        var buttonText = $("#submit-text");
+        replaceButtonWithSpinner($(this));
+        startServiceUpdate('{{ full_uri }}', buttonText, {{ service_id }});
+    });
+    */
+
+</script>
+
+{% endblock %}

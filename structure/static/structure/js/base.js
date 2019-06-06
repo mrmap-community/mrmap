@@ -67,6 +67,24 @@ function editEntity(id, entity){
     });
 }
 
+function updateEntity(id, entity){
+    $.ajax({
+        url: rootUrl + "/" + entity + "/update/register-form/" + id,
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        data: {},
+        type: 'get',
+        dataType: 'json'
+    }).done(function(data){
+        var html = data["html"];
+        toggleOverlay(html);
+
+    }).always(function(data){
+        checkRedirect(data);
+    });
+}
+
 function addEntity(entity){
     $.ajax({
         url: rootUrl + "/" + entity + "/new/register-form",

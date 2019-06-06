@@ -248,6 +248,9 @@ def update_service(request: HttpRequest, user: User, id: int):
     new_service_type = url_dict.get("service")
     old_service = Service.objects.get(id=id)
 
+    # get info which layers/featuretypes are linked (old->new)
+    links = json.loads(request.COOKIES.get("storage", "{}"))
+
     # parse new capabilities into db model
     new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user)
     new_service = new_service["service"]
@@ -264,6 +267,7 @@ def update_service(request: HttpRequest, user: User, id: int):
             del request.session["update_confirmed"]
             return redirect("service:detail-" + old_service.servicetype.name, old_service.metadata.id)
         # check if new capabilities is even different from existing
+        # if not we do not need to spend time and money on performing it!
         if not service_helper.capabilities_are_different(update_params["full_uri"], old_service.metadata.original_uri):
             messages.add_message(request, messages.INFO, _("The provided capabilities document is not different from the currently registered. Update canceled!"))
             del request.session["update_confirmed"]
@@ -282,14 +286,14 @@ def update_service(request: HttpRequest, user: User, id: int):
         old_service.last_modified = timezone.now()
 
         if new_service.servicetype.name == ServiceTypes.WFS.value:
-            old_service = update_helper.update_wfs(old_service, new_service, diff)
+            old_service = update_helper.update_wfs(old_service, new_service, diff, links)
 
         elif new_service.servicetype.name == ServiceTypes.WMS.value:
-            old_service = update_helper.update_wms(old_service, new_service, diff)
+            old_service = update_helper.update_wms(old_service, new_service, diff, links)
 
         old_service.save()
-        del request.session["update_confirmed"]
 
+        del request.session["update_confirmed"]
         return redirect("service:detail-" + old_service.servicetype.name, old_service.metadata.id)
     else:
         # otherwise
@@ -314,7 +318,7 @@ def discard_update(request: HttpRequest, user: User):
     Returns:
          redirects
     """
-    del request.session["update"]
+    del request.session["update_confirmed"]
     return redirect("service:index")
 
 @check_access

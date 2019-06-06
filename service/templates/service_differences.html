@@ -4,15 +4,17 @@
 {% block head %}
     <link rel="stylesheet" type="text/css" href="{% static '/service/css/service.css' %}" media="all" />
     <link rel="stylesheet" type="text/css" href="{% static '/structure/css/form.css' %}" media="all" />
+    <script type="text/javascript" src="{% static '/service/js/update.js' %}"></script>
 {% endblock %}
 
 {% block body %}
+
 
 <table>
     <tr>
         <th></th>
         <th>{% trans 'New Service' %}</th>
-        <th>{% trans 'Old Service' %}</th>
+        <th id="old-service" itemid="{{ old_service.id }}">{% trans 'Old Service' %}</th>
     </tr>
     <tr>
         <th>{% trans 'Service title' %}</th>
@@ -21,9 +23,13 @@
     </tr>
     {% if old_service.servicetype.name == 'wms' %}
         {% for new in diff.layers.new %}
-            <tr>
+            <tr class="new-service">
                 <th>{% trans 'New Layer' %}</th>
-                <td><span class="update new">{{ new.identifier }}</span></td>
+                <td itemid="{{ new.identifier }}" ondrop="dropBack(event)" ondragover="allowDrop(event)" >
+                    <span id="{{ new.identifier }}" class="update new" draggable="true" ondragstart="drag(event)" title="{% trans 'Drag and drop the new layer onto the old layer, if you know it has been renamed.' %}">
+                        {{ new.identifier }}
+                    </span>
+                </td>
                 <td> - </td>
             </tr>
         {% empty %}
@@ -34,10 +40,10 @@
             </tr>
         {% endfor %}
         {% for removed in diff.layers.removed %}
-            <tr>
+            <tr class="old-service">
                 <th>{% trans 'Removed Layer' %}</th>
                 <td> - </td>
-                <td><span class="update removed">{{ removed.identifier }}</span></td>
+                <td><span id="{{ removed.identifier }}" class="update removed" ondrop="dropNewLayer(event)" ondragover="allowDrop(event)" title="{% trans 'Drop a new layer on this old layer if you want to map it.' %}">{{ removed.identifier }}</span></td>
             </tr>
         {% empty %}
             <tr>
@@ -55,9 +61,13 @@
         {% endfor %}
     {% elif old_service.servicetype.name == 'wfs' %}
         {% for new in diff.feature_types.new %}
-            <tr>
+            <tr class="new-service">
                 <th>{% trans 'New Feature Types' %}</th>
-                <td><span class="update new">{{ new.name }}</span></td>
+                <td itemid="{{ new.name }}" ondrop="dropBack(event)" ondragover="allowDrop(event)" >
+                    <span id="{{ new.name }}" class="update new" draggable="true" ondragstart="drag(event)" title="{% trans 'Drag and drop the new layer onto the old layer, if you know it has been renamed.' %}">
+                        {{ new.name }}
+                    </span>
+                </td>
                 <td> - </td>
             </tr>
         {% empty %}
@@ -68,10 +78,10 @@
             </tr>
         {% endfor %}
         {% for removed in diff.feature_types.removed %}
-            <tr>
+            <tr class="old-service">
                 <th>{% trans 'Removed Feature Types' %}</th>
                 <td> - </td>
-                <td><span class="update removed">{{ removed.name }}</span></td>
+                <td><span id="{{ removed.name }}" class="update removed" ondrop="dropNewLayer(event)" ondragover="allowDrop(event)" title="{% trans 'Drop a new feature type on this old one if you want to map it.' %}">{{ removed.name }}</span></td>
             </tr>
         {% empty %}
             <tr>
@@ -95,6 +105,20 @@
         <td><a href="{{ new_service.metadata.original_uri }}" target="_blank"><button class="button submit-button">{% trans 'Capabilities' %}</button></a></td>
     </tr>
 </table>
+<div class="advice">
+    <img src="{% static 'structure/images/icn_mr_map_invert.png' %}">
+    <span>
+        {% blocktrans %}
+        You can link a new service layer to an old layer by simply
+        drag and drop it on the old layer. This is needed if you didn't remove an existing layer but simply renamed it and want to
+        keep the persistency of the underlying data!
+
+        <br>
+
+        Undo your changes by doubleclicking on the dragged element.
+        {% endblocktrans %}
+    </span>
+</div>
 <div class="form-submit-area">
     <a href="{% url 'service:update-discard' %}">
         <button class="button discard-button">
@@ -106,7 +130,6 @@
             {% trans 'Yes, update it!' %}
         </button>
     </a>
-
 </div>
 
 {% endblock %}

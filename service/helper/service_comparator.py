@@ -6,7 +6,7 @@ Created on: 03.06.19
 
 """
 from service.helper.enums import ServiceTypes
-from service.models import Service, Metadata, Layer, ServiceType, FeatureType
+from service.models import Service, Layer, FeatureType
 
 
 class ServiceComparator:

@@ -74,7 +74,7 @@ def transform_lists_to_m2m_collections(element):
         raise Exception("UNKNOWN INSTANCE!")
     return element
 
-
+@transaction.atomic
 def update_metadata(old: Metadata, new: Metadata):
     """ Overwrites existing metadata (old) with newer content (new).
 
@@ -100,15 +100,17 @@ def update_metadata(old: Metadata, new: Metadata):
     old.created_by = created_by
 
     # keywords
+    old.keywords.clear()
     for kw in new.keywords_list:
         old.keywords.add(kw)
     # reference systems
+    old.reference_system.clear()
     for srs in new.reference_system_list:
         old.reference_system.add(srs)
 
     return old
 
-
+@transaction.atomic
 def update_service(old: Service, new: Service):
     """ Overwrites existing service (old) with newer content (new).
 
@@ -136,16 +138,18 @@ def update_service(old: Service, new: Service):
     old.published_for = published_for
 
     # formats
+    old.formats.clear()
     for _format in new.formats_list:
         old.formats.add(_format)
 
     # categories
+    old.categories.clear()
     for category in new.categories_list:
         old.categories.add(category)
 
     return old
 
-
+@transaction.atomic
 def update_feature_type(old: FeatureType, new: FeatureType):
     """ Overwrites existing feature type (old) with newer (new).
 
@@ -172,23 +176,29 @@ def update_feature_type(old: FeatureType, new: FeatureType):
     old.created_by = created_by
     old.service = service
 
+
     # additional srs
+    old.additional_srs.clear()
     for srs in new.additional_srs_list:
         old.additional_srs.add(srs)
 
     # keywords
+    old.keywords.clear()
     for kw in new.keywords_list:
         old.keywords.add(kw)
 
     # formats
+    old.formats.clear()
     for _format in new.formats_list:
         old.formats.add(_format)
 
     # elements
+    old.elements.clear()
     for element in new.elements_list:
         old.elements.add(element)
 
     # namespaces
+    old.namespaces.clear()
     for ns in new.namespaces_list:
         old.namespaces.add(ns)
 
@@ -209,6 +219,7 @@ def update_single_layer(old: Layer, new: Layer):
     # save important persistance information
     uuid = old.uuid
     _id = old.id
+    identifier = old.identifier
     created_by = old.created_by
     created_on = old.created
     parent_service = old.parent_service
@@ -217,6 +228,7 @@ def update_single_layer(old: Layer, new: Layer):
     # overwrite old information with new one
     old = copy(new)
     old.id = _id
+    old.identifier = identifier
     old.uuid = uuid
     old.created = created_on
     old.created_by = created_by
@@ -234,7 +246,7 @@ def update_single_layer(old: Layer, new: Layer):
     return old
 
 @transaction.atomic
-def update_wfs(old: Service, new: Service, diff: dict):
+def update_wfs(old: Service, new: Service, diff: dict, links: dict):
     """ Updates the whole wfs service
 
     Goes through all data, starting at metadata, down to feature types and it's elements to update the current status.
@@ -244,6 +256,7 @@ def update_wfs(old: Service, new: Service, diff: dict):
         old (Service): The already existing service
         new (Service): The temporary loaded new version of the old service
         diff (dict): The differences that have been found during comparison before
+        links (dict): Contains key/value pairs of old_identifier->new_identifier (needed for renamed layers or feature types)
     Returns:
          old (Service): The updated service
     """
@@ -251,7 +264,15 @@ def update_wfs(old: Service, new: Service, diff: dict):
     # feature types
     old_service_feature_types = FeatureType.objects.filter(service=old)
     for feature_type in new.feature_type_list:
-        existing_f_t = old_service_feature_types.filter(name=feature_type.name)
+        name = feature_type.name
+        rename = False
+
+        if feature_type.name in links.keys():
+            # aha! This layer is just a renamed one, that already exists. It must be updated and renamed!
+            name = links[feature_type.name]
+            rename = True
+
+        existing_f_t = old_service_feature_types.filter(name=name)
         if existing_f_t.count() == 0:
             # does not exist -> must be new
             # add the new feature type
@@ -262,18 +283,26 @@ def update_wfs(old: Service, new: Service, diff: dict):
         elif existing_f_t.count() == 1:
             # exists already and needs to be overwritten
             existing_f_t = existing_f_t[0]
+            if rename:
+                existing_f_t.name = feature_type.name
+            existing_f_t.save()
+            #transform_lists_to_m2m_collections(existing_f_t)
             existing_f_t = update_feature_type(existing_f_t, feature_type)
             existing_f_t.save()
     # remove old featuretypes
     for removable in diff["feature_types"]["removed"]:
-        old.featuretypes.remove(removable)
-        removable.delete()
+        #old.featuretypes.remove(removable)
+        try:
+            pers_feature_type = FeatureType.objects.get(service=old, name=removable.name)
+            pers_feature_type.delete()
+        except ObjectDoesNotExist:
+            pass
 
     return old
 
 
 @transaction.atomic
-def _update_wms_layers_recursive(old: Service, new: Service, layers: list, parent: Layer = None):
+def _update_wms_layers_recursive(old: Service, new: Service, layers: list, links: dict, parent: Layer = None):
     """ Updates wms layers recursively.
 
     Iterates over all children on level 1, adds new layers, updates existing ones, removes old ones, then proceeds
@@ -287,8 +316,15 @@ def _update_wms_layers_recursive(old: Service, new: Service, layers: list, paren
          old (Service): The updated existing service
     """
     for layer in layers:
+        identifier = layer.identifier
+        rename = False
+
+        if layer.identifier in links.keys():
+            # aha! This layer is just a renamed one, that already exists. It must be updated and renamed!
+            identifier = links[layer.identifier]
+            rename = True
         # check if layer already exists
-        existing_layer = Layer.objects.filter(parent_service=old, identifier=layer.identifier)
+        existing_layer = Layer.objects.filter(parent_service=old, identifier=identifier)
         if existing_layer.count() == 0:
             # not existing yet -> add it!
             layer.parent_service = old
@@ -302,16 +338,19 @@ def _update_wms_layers_recursive(old: Service, new: Service, layers: list, paren
         elif existing_layer.count() == 1:
             # existing -> update it!
             existing_layer = existing_layer[0]
+            if rename:
+                existing_layer.identifier = layer.identifier
             existing_layer.save()
             existing_layer = update_single_layer(existing_layer, layer)
             # for parent-child connection we need to put the existing layer into the running variable layer
             layer = existing_layer
+
         children = layer.children_list
         if len(children) > 0:
-            _update_wms_layers_recursive(old, new, children, layer)
+            _update_wms_layers_recursive(old, new, children, links, layer)
 
 @transaction.atomic
-def update_wms(old: Service, new: Service, diff: dict):
+def update_wms(old: Service, new: Service, diff: dict, links: dict):
     """ Updates a whole wms service
 
     Handles all metadata and layers.
@@ -320,10 +359,11 @@ def update_wms(old: Service, new: Service, diff: dict):
         old (Service): The existing service that nees to be updated
         new (Service): The newer version from where the new data is taken
         diff (dict): The differences that have been found before between the old and new service
+        links (dict): Contains key/value pairs of old_identifier->new_identifier (needed for renamed layers or feature types)
     Returns:
          old (Service): The updated existing service
     """
-    _update_wms_layers_recursive(old, new, [new.root_layer])
+    _update_wms_layers_recursive(old, new, [new.root_layer], links=links)
     # remove unused layers
     for layer in diff["layers"]["removed"]:
         # find persisted layer at first

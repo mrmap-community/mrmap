@@ -44,13 +44,13 @@ class ReferenceSystemAdmin(admin.ModelAdmin):
     pass
 
 class FeatureTypeAdmin(admin.ModelAdmin):
-    list_display = ('title', 'name', 'abstract')
+    list_display = ('title', 'service', 'name', 'abstract')
 
 class FeatureTypeElementAdmin(admin.ModelAdmin):
     list_display = ('name', 'type')
 
 class LayerAdmin(admin.ModelAdmin):
-    pass
+    list_display = ('identifier', 'parent_service', 'parent_layer', 'last_modified')
 
 class MimeTypeAdmin(admin.ModelAdmin):
     pass

@@ -65,3 +65,14 @@
 .update.new{
     background-color: green;
 }
+
+.update.new:hover{
+    cursor: grab;
+    opacity: 0.8;
+}
+.update.removed:hover{
+    cursor: default;
+    opacity: 0.8;
+}
+
+

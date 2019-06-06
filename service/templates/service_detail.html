@@ -1,6 +1,10 @@
 {% extends 'base.html' %}
 {% load static i18n %}
 
+{% block title %}
+- {{ root_metadata.title }}
+{% endblock %}
+
 {% block head %}
     <script type="text/javascript" src="{% static '/service/js/service.js' %}"></script>
     <link rel="stylesheet" type="text/css" href="{% static '/service/css/service.css' %}" media="all" />

@@ -487,6 +487,7 @@ class OGCWebMapService(OGCWebService):
                 #metadata.reference_system.add(ref_sys)
 
             layer = Layer()
+            layer.uuid = uuid.uuid4()
             layer.metadata = metadata
             layer.identifier = layer_obj.identifier
             layer.servicetype = service_type

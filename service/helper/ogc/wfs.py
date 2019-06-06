@@ -86,9 +86,11 @@ class OGCWebFeatureService(OGCWebService):
         thread_list = [
             threading.Thread(target=self.get_service_metadata, args=(xml_obj,)),
             threading.Thread(target=self.get_capability_metadata, args=(xml_obj,)),
-            threading.Thread(target=self.get_feature_type_metadata, args=(xml_obj,)),
         ]
-        execute_threads(thread_list)
+        #execute_threads(thread_list)
+        self.get_service_metadata(xml_obj)
+        self.get_capability_metadata(xml_obj)
+        self.get_feature_type_metadata(xml_obj)
         # always execute version specific tasks AFTER multithreading
         # Otherwise we might face race conditions which lead to loss of data!
         self.get_version_specific_metadata(xml_obj)
@@ -144,7 +146,11 @@ class OGCWebFeatureService(OGCWebService):
         Returns:
              Nothing
         """
-        operation_metadata = service_helper.try_get_element_from_xml("//ows:OperationsMetadata", xml_obj)[0]
+        operation_metadata = service_helper.try_get_element_from_xml("//ows:OperationsMetadata", xml_obj)
+        if len(operation_metadata) > 0:
+            operation_metadata = operation_metadata[0]
+        else:
+            return
         actions = ["GetCapabilities", "DescribeFeatureType", "GetFeature", "Transaction", "LockFeature",
                    "GetFeatureWithLock", "GetGMLObject", "ListStoredQueries"]
         get = {}
@@ -247,11 +253,12 @@ class OGCWebFeatureService(OGCWebService):
             feature_type_list(dict): A dict containing all different metadatas for this featuretype and it's children
         """
         f_t = FeatureType()
+        f_t.uuid = uuid.uuid4()
         f_t.title = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Title")
         f_t.name = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Name")
         f_t.abstract = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Abstract")
         # Feature type keywords
-        keywords = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//ows:Keywords")
+        keywords = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//ows:Keyword")
         keyword_list = []
         for keyword in keywords:
             kw = service_helper.try_get_text_from_xml_element(xml_elem=keyword)
@@ -324,10 +331,6 @@ class OGCWebFeatureService(OGCWebService):
                                                                                  attribute="version",
                                                                                  elem="//wfs:WFS_Capabilities")
         epsg_api = EpsgApi()
-        while self.describe_feature_type_uri.get("get", "") == "":
-            # wait for other thread to finish
-            time.sleep(0.00005)
-
         # Feature types
         for feature_type in feature_type_list:
             self._get_feature_type_metadata(feature_type, epsg_api, service_type_version)
@@ -343,11 +346,11 @@ class OGCWebFeatureService(OGCWebService):
         Returns:
              service (Service): Service instance, contains all information, ready for persisting!
         """
+
         orga_published_for = user.secondary_organization
         orga_publisher = user.primary_organization
 
         group = user.groups.all()[0] # ToDo: Find better solution for group selection than this
-
         # Metadata
         md = Metadata()
         md.title = self.service_identification_title

@@ -125,11 +125,49 @@
             {% trans 'Discard' %}
         </button>
     </a>
-    <a href="{% url 'service:update-service' old_service.id %}">
-        <button class="button submit-button">
+    <div id="start-update" class="button submit-button" style="display: flex; justify-content: center; align-items: center;">
+        <div class="loading-spinner hide">
+            <i class="fas fa-circle-notch fa-spin"></i>
+        </div>
+        <span id="button-text">
             {% trans 'Yes, update it!' %}
-        </button>
-    </a>
+        </span>
+    </div>
 </div>
+
+<script>
+
+    var isUpdating = false;
+
+    $("#start-update").click(function(){
+        if(isUpdating){
+            alert("{% trans 'Mr. Map is doing his best. Please wait...' %}");
+            return;
+        }
+        isUpdating = true;
+        var serviceId = $("#old-service").attr("itemid");
+        // show loading symbol!
+        var width = $(this).width();
+        $("#button-text").hide();
+        $(".loading-spinner").show();
+        $(this).width(width);
+        $.ajax({
+            url: rootUrl + "/service/update/" + serviceId,
+            headers:{
+                "X-CSRFToken": getCookie("csrftoken")
+            },
+            data: {
+                "storage": JSON.stringify(window.sessionStorage),
+                "confirmed": true
+            },
+            type: 'post',
+            dataType: 'json'
+        })
+        .always(function(data){
+            console.log(data);
+            checkRedirect(data);
+        });
+    });
+</script>
 
 {% endblock %}

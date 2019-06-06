@@ -249,7 +249,8 @@ def update_service(request: HttpRequest, user: User, id: int):
     old_service = Service.objects.get(id=id)
 
     # get info which layers/featuretypes are linked (old->new)
-    links = json.loads(request.COOKIES.get("storage", "{}"))
+    links = json.loads(request.POST.get("storage", '{}'))
+    update_confirmed = service_helper.resolve_boolean_attribute_val(request.POST.get("confirmed", 'false'))
 
     # parse new capabilities into db model
     new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user)
@@ -259,18 +260,16 @@ def update_service(request: HttpRequest, user: User, id: int):
     comparator = ServiceComparator(service_1=new_service, service_2=old_service)
     diff = comparator.compare_services()
 
-    if request.session.get("update_confirmed", False):
+    if update_confirmed:
         # check cross update attempt
         if old_service.servicetype.name != new_service_type.value:
             # cross update attempt -> forbidden!
             messages.add_message(request, messages.ERROR, _("You tried to update a service to another service type. This is not possible!"))
-            del request.session["update_confirmed"]
             return redirect("service:detail-" + old_service.servicetype.name, old_service.metadata.id)
         # check if new capabilities is even different from existing
         # if not we do not need to spend time and money on performing it!
         if not service_helper.capabilities_are_different(update_params["full_uri"], old_service.metadata.original_uri):
             messages.add_message(request, messages.INFO, _("The provided capabilities document is not different from the currently registered. Update canceled!"))
-            del request.session["update_confirmed"]
             return redirect("service:detail-" + old_service.servicetype.name, old_service.metadata.id)
 
         # the update is confirmed, we can continue changing the service!
@@ -292,9 +291,7 @@ def update_service(request: HttpRequest, user: User, id: int):
             old_service = update_helper.update_wms(old_service, new_service, diff, links)
 
         old_service.save()
-
-        del request.session["update_confirmed"]
-        return redirect("service:detail-" + old_service.servicetype.name, old_service.metadata.id)
+        return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service/" + old_service.servicetype.name + "/detail/" + str(old_service.metadata.id)).get_response()
     else:
         # otherwise
         params = {
@@ -302,7 +299,7 @@ def update_service(request: HttpRequest, user: User, id: int):
             "old_service": old_service,
             "new_service": new_service,
         }
-        request.session["update_confirmed"] = True
+        #request.session["update_confirmed"] = True
     context = DefaultContext(request, params)
     return render(request, template, context.get_context())
 
@@ -318,7 +315,7 @@ def discard_update(request: HttpRequest, user: User):
     Returns:
          redirects
     """
-    del request.session["update_confirmed"]
+    #del request.session["update_confirmed"]
     return redirect("service:index")
 
 @check_access

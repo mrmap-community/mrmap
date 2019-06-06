@@ -87,9 +87,7 @@ class OGCWebFeatureService(OGCWebService):
             threading.Thread(target=self.get_service_metadata, args=(xml_obj,)),
             threading.Thread(target=self.get_capability_metadata, args=(xml_obj,)),
         ]
-        #execute_threads(thread_list)
-        self.get_service_metadata(xml_obj)
-        self.get_capability_metadata(xml_obj)
+        execute_threads(thread_list)
         self.get_feature_type_metadata(xml_obj)
         # always execute version specific tasks AFTER multithreading
         # Otherwise we might face race conditions which lead to loss of data!
@@ -662,6 +660,10 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
             service_version=VersionTypes.V_1_1_0,
             service_type=ServiceTypes.WFS,
         )
+        XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs"
+        XML_NAMESPACES["ows"] = "http://www.opengis.net/ows"
+        XML_NAMESPACES["fes"] = "http://www.opengis.net/fes"
+        XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
 
 
 class OGCWebFeatureService_2_0_0(OGCWebFeatureService):

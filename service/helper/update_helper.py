@@ -12,7 +12,7 @@ from django.db import transaction
 
 from service.models import Service, Layer, FeatureType, Metadata
 
-
+@transaction.atomic
 def transform_lists_to_m2m_collections(element):
     """ Iterates over all non-persisting attributes (take a look in the service models) and stores the items in the M2M relations.
 

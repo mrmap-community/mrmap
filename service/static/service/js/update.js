@@ -1,9 +1,3 @@
-
-function updateCookie(){
-    document.cookie = "storage=" + JSON.stringify(window.sessionStorage);
-    document.cookie = "updateConfirmed=true";
-}
-
 /**
 *  Load draggable element identifier into event arguments
 */
@@ -37,7 +31,6 @@ function dropBack(ev){
     // delete arrow
     draggedElement.prev().remove();
     window.sessionStorage.removeItem(id);
-    updateCookie();
 
     target.html(draggedElement);
 }
@@ -55,7 +48,6 @@ function autoDropBack(target, element){
     draggedElement.prev().remove();
     target.html(draggedElement);
     window.sessionStorage.removeItem(id);
-    updateCookie();
 }
 
 /**
@@ -72,7 +64,6 @@ function dropNewLayer(ev){
         return;
     }
     window.sessionStorage.setItem(id, targetId);
-    updateCookie();
     var draggedElement = $(document.getElementById(id));
     draggedElement.insertAfter(target);
     draggedElement.before("<span> &rarr; </span>");
@@ -83,7 +74,6 @@ function dropNewLayer(ev){
 $(document).ready(function(){
     // clear sessionStorage on every page reload
     window.sessionStorage.clear();
-    updateCookie();
 
     /**
     *  Listener for doubleclicks

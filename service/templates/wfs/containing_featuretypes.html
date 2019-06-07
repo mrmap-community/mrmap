@@ -73,6 +73,11 @@
                         <tr>
                             <td>{{ rs.prefix }}{{ rs.code }}</td>
                         </tr>
+                        {% empty %}
+                        <tr>
+                            <td>{% trans 'No additional reference systems provided' %}</td>
+                        </tr>
+
                         {% endfor %}
                         </table>
                     </td>
@@ -84,6 +89,10 @@
                         {% for format in featuretype.formats.all %}
                         <tr>
                             <td>{{ format.mime_type }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td>{% trans 'No additional reference systems provided' %}</td>
                         </tr>
                         {% endfor %}
 

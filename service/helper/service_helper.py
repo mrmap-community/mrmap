@@ -178,6 +178,8 @@ def parse_xml(xml, encoding=None):
             xml_b = xml.encode(default_encoding)
         else:
             xml_b = xml.encode(encoding)
+    else:
+        xml_b = xml
     try:
         xml_obj = etree.ElementTree(etree.fromstring(text=xml_b))
         if encoding != xml_obj.docinfo.encoding:

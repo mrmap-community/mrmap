@@ -91,7 +91,7 @@ class User(Contact):
     password = models.CharField(max_length=500)
     last_login = models.DateTimeField(null=True)
     created_on = models.DateTimeField(auto_now_add=True)
-    groups = models.ManyToManyField('Group', related_name='users', null=True)
+    groups = models.ManyToManyField('Group', related_name='users')
     primary_organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.DO_NOTHING, null=True, blank=True)
     secondary_organization = models.ForeignKey('Organization', related_name='secondary_users', on_delete=models.DO_NOTHING, null=True, blank=True)
     confirmed_newsletter = models.BooleanField(default=False)

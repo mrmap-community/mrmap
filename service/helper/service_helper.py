@@ -164,7 +164,7 @@ def find_node_recursive(node_list: list, name):
     return Element("None")
 
 
-def parse_xml(xml):
+def parse_xml(xml, encoding=None):
     """ Returns the xml as iterable object
 
     Args:
@@ -172,11 +172,20 @@ def parse_xml(xml):
     Returns:
         nothing
     """
-
+    default_encoding = "UTF-8"
     if not isinstance(xml, bytes):
-        xml = xml.encode("UTF-8")
+        if encoding is None:
+            xml_b = xml.encode(default_encoding)
+        else:
+            xml_b = xml.encode(encoding)
+    else:
+        xml_b = xml
     try:
-        xml_obj = etree.ElementTree(etree.fromstring(text=xml))
+        xml_obj = etree.ElementTree(etree.fromstring(text=xml_b))
+        if encoding != xml_obj.docinfo.encoding:
+            # there might be problems e.g. with german Umlaute ä,ö,ü, ...
+            # try to parse again but with the correct encoding
+            return parse_xml(xml, xml_obj.docinfo.encoding)
     except XMLSyntaxError:
         xml_obj = None
     return xml_obj

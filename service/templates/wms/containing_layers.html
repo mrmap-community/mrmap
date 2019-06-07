@@ -81,6 +81,10 @@
                     </td>
                 </tr>
                 <tr>
+                    <th>{% trans 'Hits' %}</th>
+                    <td>{{ layer.hits }}</td>
+                </tr>
+                <tr>
                     <th>{% trans 'Scale range' %}</th>
                     <td>[{{ layer.scale_min }}, {{ layer.scale_max }}]</td>
                 </tr>
@@ -91,8 +95,16 @@
                     </td>
                 </tr>
                 <tr>
-                    <th>{% trans 'Hits' %}</th>
-                    <td>{{ layer.hits }}</td>
+                    <th>{% trans 'Reference systems:' %}</th>
+                    <td>
+                        <table>
+                        {% for rs in layer.metadata.reference_system.all %}
+                        <tr>
+                            <td>{{ rs.prefix }}{{ rs.code }}</td>
+                        </tr>
+                        {% endfor %}
+                        </table>
+                    </td>
                 </tr>
                 <tr>
                     <th>{% trans 'Mime types:' %}</th>
@@ -102,11 +114,6 @@
                         <tr>
                             <th>{{ format.action }}</th>
                             <td>{{ format.mime_type }}</td>
-                            <!--<td>
-                                {% for mime_type in mime_type_list %}
-                                    {{ mime_type }} <br>
-                                {% endfor %}
-                            </td>-->
                         </tr>
                         {% endfor %}
 

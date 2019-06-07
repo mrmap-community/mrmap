@@ -108,7 +108,7 @@ class Service(Resource):
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)
     published_by = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_by")
     servicetype = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
-    categories = models.ManyToManyField(Category, blank=True, null=True)
+    categories = models.ManyToManyField(Category, blank=True)
     is_root = models.BooleanField(default=False)
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
@@ -118,7 +118,7 @@ class Service(Resource):
     describe_layer_uri = models.CharField(max_length=1000, null=True, blank=True)
     get_legend_graphic_uri = models.CharField(max_length=1000, null=True, blank=True)
     get_styles_uri = models.CharField(max_length=1000, null=True, blank=True)
-    formats = models.ManyToManyField('MimeType', null=True, blank=True)
+    formats = models.ManyToManyField('MimeType', blank=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

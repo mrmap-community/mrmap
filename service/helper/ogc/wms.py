@@ -16,6 +16,7 @@ from django.db import transaction
 
 from MapSkinner.settings import EXEC_TIME_PRINT
 from MapSkinner.utils import execute_threads
+from service.config import ALLOWED_SRS
 from service.helper.enums import VersionTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.ows import OGCWebService
@@ -57,6 +58,7 @@ class OGCWebMapService(OGCWebService):
     # Using None here to avoid mutable appending of infinite layers (python specific)
     # For further details read: http://effbot.org/zone/default-values.htm
     layers = None
+    epsg_api = EpsgApi()
 
     class Meta:
         abstract = True
@@ -479,9 +481,11 @@ class OGCWebMapService(OGCWebService):
                 #metadata.keywords.add(keyword)
 
             # handle reference systems
-            epsg_api = EpsgApi()
             for sys in layer_obj.capability_projection_system:
-                parts = epsg_api.get_subelements(sys)
+                parts = self.epsg_api.get_subelements(sys)
+                # check if this srs is allowed for us. If not, skip it!
+                if parts.get("code") not in ALLOWED_SRS:
+                    continue
                 ref_sys = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
                 metadata.reference_system_list.append(ref_sys)
                 #metadata.reference_system.add(ref_sys)

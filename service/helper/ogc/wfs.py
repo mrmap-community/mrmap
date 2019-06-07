@@ -12,6 +12,7 @@ from django.db import transaction
 
 from MapSkinner.settings import XML_NAMESPACES, GENERIC_ERROR_MSG
 from MapSkinner.utils import execute_threads
+from service.config import ALLOWED_SRS
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wms import OGCWebService
@@ -110,8 +111,11 @@ class OGCWebFeatureService(OGCWebService):
         keywords = service_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Keywords/ows:Keyword")
         kw = []
         for keyword in keywords:
+            text = keyword.text
+            if text is None:
+                continue
             try:
-                kw.append(keyword.text)
+                kw.append(text)
             except AttributeError:
                 pass
         self.service_identification_keywords = kw
@@ -260,6 +264,8 @@ class OGCWebFeatureService(OGCWebService):
         keyword_list = []
         for keyword in keywords:
             kw = service_helper.try_get_text_from_xml_element(xml_elem=keyword)
+            if kw is None:
+                continue
             kw = Keyword.objects.get_or_create(keyword=kw)[0]
             keyword_list.append(kw)
         # SRS
@@ -268,13 +274,15 @@ class OGCWebFeatureService(OGCWebService):
         if srs is not None:
             parts = epsg_api.get_subelements(srs)
             srs_default = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
-            parts = epsg_api.get_subelements(srs)
             f_t.default_srs = srs_default
         ## additional
         srs = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:OtherSRS")
         srs_list = []
         for sys in srs:
             parts = epsg_api.get_subelements(sys.text)
+            # check if this srs is allowed for us. If not, skip it!
+            if parts.get("code") not in ALLOWED_SRS:
+                continue
             srs_other = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
             srs_list.append(srs_other)
         # Latlon bounding box
@@ -631,6 +639,9 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             for srs in srs_list:
                 srs_val = service_helper.try_get_text_from_xml_element(srs)
                 parts = epsg_api.get_subelements(srs_val)
+                # check if this srs is allowed for us. If not, skip it!
+                if parts.get("code") not in ALLOWED_SRS:
+                    continue
                 srs_model = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
                 srs_model_list.append(srs_model)
 
@@ -707,14 +718,19 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
             crs = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:DefaultCRS")
             if crs is not None:
                 parts = epsg_api.get_subelements(crs)
+                # check if this srs is allowed for us. If not, skip it!
+                if parts.get("code") not in ALLOWED_SRS:
+                    continue
                 crs_default = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
-                parts = epsg_api.get_subelements(crs)
                 f_t.default_srs = crs_default
             ## additional
             crs = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:OtherCRS")
             crs_list = []
             for sys in crs:
                 parts = epsg_api.get_subelements(sys.text)
+                # check if this srs is allowed for us. If not, skip it!
+                if parts.get("code") not in ALLOWED_SRS:
+                    continue
                 srs_other = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
                 crs_list.append(srs_other)
             self.feature_type_list[name]["srs_list"] = crs_list

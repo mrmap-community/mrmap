@@ -563,8 +563,8 @@ class OGCWebMapService(OGCWebService):
              service (Service): Service instance, contains all information, ready for persisting!
 
         """
-        orga_published_for = user.secondary_organization
-        orga_publisher = user.primary_organization
+        #orga_published_for = user.secondary_organization
+        orga_publisher = user.organization
 
         group = user.groups.all()[0]
 

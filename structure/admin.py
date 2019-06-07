@@ -9,7 +9,7 @@ class RoleAdmin(admin.ModelAdmin):
 
 
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ['organization_name', 'country', 'city', 'postal_code']
+    list_display = ['organization_name', 'is_auto_generated', 'country', 'city', 'postal_code']
 
 
 class GroupAdmin(admin.ModelAdmin):
@@ -27,6 +27,9 @@ class UserAdmin(admin.ModelAdmin):
 class UserActivationAdmin(admin.ModelAdmin):
     list_display = ['id', 'user']
 
+class PublishRequestAdmin(admin.ModelAdmin):
+    list_display = ['group', 'organization', 'activation_until']
+
 
 admin.site.register(User, UserAdmin)
 admin.site.register(UserActivation, UserActivationAdmin)
@@ -34,3 +37,4 @@ admin.site.register(Role, RoleAdmin)
 admin.site.register(Group, GroupAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Permission, PermissionAdmin)
+admin.site.register(PublishRequest, PublishRequestAdmin)

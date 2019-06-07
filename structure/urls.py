@@ -14,6 +14,7 @@ urlpatterns = [
     path('organizations/detail/<id>', detail_organizations, name='detail-organization'),
     path('organizations/edit/<id>', edit_org, name='edit-organization'),
     path('organizations/new/register-form/', new_org, name='new-organization'),
+    path('organizations/publish-request/<id>', publish_request, name='publish-request'),
 
     path('remove/', remove, name='remove'),
 ]

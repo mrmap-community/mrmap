@@ -66,6 +66,7 @@ class Organization(Contact):
     organization_name = models.CharField(max_length=255, null=True, default="")
     description = models.TextField(null=True)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True)
+    is_auto_generated = models.BooleanField(default=True)
 
     def __str__(self):
         if self.organization_name is None:
@@ -77,7 +78,9 @@ class Group(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True, related_name="children")
+    organization = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, null=True, blank=True, related_name="groups")
     role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
+    publish_for_organizations = models.ManyToManyField('Organization', related_name='can_publish_for', blank=True)
     created_by = models.ForeignKey('User', on_delete=models.DO_NOTHING)
 
     def __str__(self):
@@ -92,8 +95,7 @@ class User(Contact):
     last_login = models.DateTimeField(null=True)
     created_on = models.DateTimeField(auto_now_add=True)
     groups = models.ManyToManyField('Group', related_name='users')
-    primary_organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.DO_NOTHING, null=True, blank=True)
-    secondary_organization = models.ForeignKey('Organization', related_name='secondary_users', on_delete=models.DO_NOTHING, null=True, blank=True)
+    organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.DO_NOTHING, null=True, blank=True)
     confirmed_newsletter = models.BooleanField(default=False)
     confirmed_survey = models.BooleanField(default=False)
     confirmed_dsgvo = models.DateTimeField(null=True, blank=True) # ToDo: For production this is not supposed to be nullable!!!
@@ -110,3 +112,13 @@ class UserActivation(models.Model):
 
     def __str__(self):
         return self.user.username
+
+
+class PublishRequest(models.Model):
+    group = models.ForeignKey(Group, related_name="pending_publish_requests", on_delete=models.DO_NOTHING)
+    organization = models.ForeignKey(Organization, related_name="pending_publish_requests", on_delete=models.DO_NOTHING)
+    message = models.TextField(null=True, blank=True)
+    activation_until = models.DateTimeField(null=True)
+
+    def __str__(self):
+        return self.group.name + " > " + self.organization.organization_name

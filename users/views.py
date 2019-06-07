@@ -20,8 +20,9 @@ from django.shortcuts import redirect, render
 
 from MapSkinner.decorator import check_access
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
-from MapSkinner.settings import SESSION_EXPIRATION, USER_ACTIVATION_TIME_WINDOW, ROOT_URL
+from MapSkinner.settings import SESSION_EXPIRATION, ROOT_URL
 from MapSkinner.utils import sha256
+from structure.config import USER_ACTIVATION_TIME_WINDOW
 from structure.forms import LoginForm, RegistrationForm
 from structure.helper import user_helper
 from django.utils.translation import gettext_lazy as _

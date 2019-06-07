@@ -1,15 +1,18 @@
+import datetime
 from django.contrib import messages
 from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.decorator import check_access
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.models import Service
-from structure.forms import GroupForm, OrganizationForm
-from structure.models import Group, Role, Permission, Organization
+from structure.config import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW
+from structure.forms import GroupForm, OrganizationForm, PublisherForOrganization
+from structure.models import Group, Role, Permission, Organization, PublishRequest
 from .helper import user_helper
 from structure.models import User
 
@@ -28,8 +31,8 @@ def index(request: HttpRequest, user: User):
     user_groups = user.groups.all()
     all_orgs = Organization.objects.all()
     user_orgs = {
-        "primary": user.primary_organization,
-        "secondary": user.secondary_organization,
+        "primary": user.organization,
+        #"secondary": user.secondary_organization,
     }
     groups = []
     for user_group in user_groups:
@@ -86,8 +89,8 @@ def organizations(request: HttpRequest, user: User):
     template = "index_organizations_extended.html"
     all_orgs = Organization.objects.all()
     orgs = {
-        "primary": user.primary_organization,
-        "secondary": user.secondary_organization,
+        "primary": user.organization,
+        #"secondary": user.secondary_organization,
     }
     params = {
         "permissions": user_helper.get_permissions(user=user),
@@ -109,7 +112,7 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
          A rendered view
     """
     org = Organization.objects.get(id=id)
-    members = User.objects.filter(primary_organization=org)
+    members = User.objects.filter(organization=org)
     sub_orgs = Organization.objects.filter(parent=org)
     services = Service.objects.filter(metadata__contact=org, is_root=True)
     template = "organization_detail.html"
@@ -197,6 +200,51 @@ def new_org(request: HttpRequest, user: User):
         }
         html = render_to_string(template_name=template, request=request, context=params)
         return BackendAjaxResponse(html=html).get_response()
+
+
+@check_access
+def publish_request(request: HttpRequest, id: int, user:User):
+    template = "request_publish_permission.html"
+    org = Organization.objects.get(id=id)
+    # check if user is already a publisher
+    for group in user.groups.all():
+        if org in group.publish_for_organizations.all():
+            messages.add_message(request, messages.INFO, _("You already are a publisher for this organization!"))
+            return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/organization/detail/" + str(id)).get_response()
+
+    request_form = PublisherForOrganization(request.POST or None)
+    request_form.fields["organization_name"].initial = org.organization_name
+    groups = user.groups.all().values_list('id', 'name')
+    request_form.fields["group"].choices = groups
+    params = {}
+    if request.method == 'POST':
+        if request_form.is_valid():
+            msg = request_form.cleaned_data["request_msg"]
+            group = Group.objects.get(id=request_form.cleaned_data["group"])
+            publish_request_obj = PublishRequest()
+            publish_request_obj.organization = org
+            publish_request_obj.message = msg
+            publish_request_obj.group = group
+            publish_request_obj.activation_until = timezone.now() + datetime.timedelta(hours=PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW)
+            publish_request_obj.save()
+            # create pending publish request for organization!
+            messages.add_message(request, messages.SUCCESS, _("Publish request has been sent to the organization!"))
+        else:
+            messages.add_message(request, messages.ERROR, _("The input was not valid"))
+        return redirect("structure:detail-organization", id)
+
+    else:
+        params = {
+            "form": request_form,
+            "organization": org,
+            "user": user,
+            "button_text": _("Send"),
+            "article": _("You need to ask for permission to become a publisher. Please select your group for which you want to have publishing permissions and explain why you need them."),
+            "action_url": ROOT_URL + "/structure/organizations/publish-request/" + str(id),
+        }
+
+    html = render_to_string(template_name=template, context=params, request=request)
+    return BackendAjaxResponse(html=html).get_response()
 
 
 @check_access

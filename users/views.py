@@ -59,7 +59,7 @@ def login(request: HttpRequest):
         user.save()
         request.session["user_id"] = user.id
         request.session.set_expiry(SESSION_EXPIRATION)
-        return redirect('service:index')
+        return redirect('structure:index')
     login_form = LoginForm()
     params = {
         "login_form": login_form,

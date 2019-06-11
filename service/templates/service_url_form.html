@@ -25,6 +25,17 @@
         padding: 20px 0;
     }
 
+    .submit-button{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--secondary-color);
+    }
+
+    .submit-button:hover{
+        background-color: var(--secondary-color-light);
+    }
+
 
     #capabilities-uri{
         width: 80%;
@@ -64,8 +75,8 @@
                     <div id="request-uri" class="field">{{ field }}</div>
                 {% endfor %}
             </div>
-            <div id="service-register-button" class="button submit-button">{{ button_text }}</div>
         </form>
+        <button id="service-register-button" class="button submit-button">{{ button_text }}</button>
     </div>
 </div>
 <script>

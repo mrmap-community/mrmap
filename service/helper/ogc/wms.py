@@ -15,7 +15,7 @@ from copy import copy
 from django.db import transaction
 
 from MapSkinner.settings import EXEC_TIME_PRINT
-from MapSkinner.utils import execute_threads
+from MapSkinner import utils
 from service.config import ALLOWED_SRS
 from service.helper.enums import VersionTypes
 from service.helper.epsg_api import EpsgApi
@@ -150,7 +150,7 @@ class OGCWebMapService(OGCWebService):
                 if is_queryable is None:
                     is_queryable = False
                 else:
-                    is_queryable = service_helper.resolve_boolean_attribute_val(is_queryable)
+                    is_queryable = utils.resolve_boolean_attribute_val(is_queryable)
                 layer_obj.is_queryable = is_queryable
             except AttributeError:
                 pass
@@ -162,7 +162,7 @@ class OGCWebMapService(OGCWebService):
                 if is_opaque is None:
                     is_opaque = False
                 else:
-                    is_opaque = service_helper.resolve_boolean_attribute_val(is_opaque)
+                    is_opaque = utils.resolve_boolean_attribute_val(is_opaque)
                 layer_obj.is_opaque = is_opaque
             except AttributeError:
                 pass
@@ -174,7 +174,7 @@ class OGCWebMapService(OGCWebService):
                 if is_opaque is None:
                     is_opaque = False
                 else:
-                    is_opaque = service_helper.resolve_boolean_attribute_val(is_opaque)
+                    is_opaque = utils.resolve_boolean_attribute_val(is_opaque)
                 layer_obj.is_cascaded = is_opaque
             except AttributeError:
                 pass

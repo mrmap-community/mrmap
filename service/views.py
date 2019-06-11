@@ -15,6 +15,7 @@ from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
+from MapSkinner import utils
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service
@@ -114,7 +115,7 @@ def activate(request: HttpRequest, user:User):
     """
     param_POST = request.POST.dict()
     service_id = param_POST.get("id", -1)
-    new_status = service_helper.resolve_boolean_attribute_val(param_POST.get("active", False))
+    new_status = utils.resolve_boolean_attribute_val(param_POST.get("active", False))
     # get service and change status
     service = Service.objects.get(id=service_id)
     service.metadata.is_active = new_status
@@ -224,7 +225,7 @@ def new_service(request: HttpRequest, user: User):
     register_for_organization = POST_params.get("registerForOrg")
 
     register_group = Group.objects.get(id=register_group)
-    if service_helper.resolve_none_string(register_for_organization) is not None:
+    if utils.resolve_none_string(register_for_organization) is not None:
         register_for_organization = Organization.objects.get(id=register_for_organization)
     else:
         register_for_organization = None
@@ -267,7 +268,7 @@ def update_service(request: HttpRequest, user: User, id: int):
 
     # get info which layers/featuretypes are linked (old->new)
     links = json.loads(request.POST.get("storage", '{}'))
-    update_confirmed = service_helper.resolve_boolean_attribute_val(request.POST.get("confirmed", 'false'))
+    update_confirmed = utils.resolve_boolean_attribute_val(request.POST.get("confirmed", 'false'))
 
     # parse new capabilities into db model
     new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user)

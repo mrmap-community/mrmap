@@ -15,6 +15,7 @@ from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizatio
 from structure.models import Group, Role, Permission, Organization, PublishRequest
 from .helper import user_helper
 from structure.models import User
+from MapSkinner import utils
 
 
 @check_access
@@ -29,10 +30,9 @@ def index(request: HttpRequest, user: User):
     """
     template = "index_structure.html"
     user_groups = user.groups.all()
-    all_orgs = Organization.objects.all()
+    all_orgs = Organization.objects.all().order_by('organization_name')
     user_orgs = {
         "primary": user.organization,
-        #"secondary": user.secondary_organization,
     }
     groups = []
     for user_group in user_groups:
@@ -40,11 +40,16 @@ def index(request: HttpRequest, user: User):
         groups.extend(Group.objects.filter(
             parent=user_group
         ))
+    # check for notifications like publishing requests
+    # publish requests
+    pub_requests_count = PublishRequest.objects.filter(organization=user.organization).count()
+
     params = {
         "permissions": user_helper.get_permissions(user=user),
         "groups": groups,
         "all_organizations": all_orgs,
         "user_organizations": user_orgs,
+        "pub_requests_count": pub_requests_count,
     }
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
@@ -88,6 +93,9 @@ def organizations(request: HttpRequest, user: User):
     """
     template = "index_organizations_extended.html"
     all_orgs = Organization.objects.all()
+    # check for notifications like publishing requests
+    # publish requests
+    pub_requests_count = PublishRequest.objects.filter(organization=user.organization).count()
     orgs = {
         "primary": user.organization,
         #"secondary": user.secondary_organization,
@@ -96,6 +104,7 @@ def organizations(request: HttpRequest, user: User):
         "permissions": user_helper.get_permissions(user=user),
         "user_organizations": orgs,
         "all_organizations": all_orgs,
+        "pub_requests_count": pub_requests_count,
     }
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
@@ -203,14 +212,70 @@ def new_org(request: HttpRequest, user: User):
 
 
 @check_access
-def publish_request(request: HttpRequest, id: int, user:User):
+def list_publish_request(request: HttpRequest, id: int, user: User):
+    """ Index for all publishers and publish requests
+
+    :param request:
+    :param id:
+    :param user:
+    :return:
+    """
+    template = "index_publish_requests.html"
+    pub_requests = PublishRequest.objects.filter(organization=id)
+    all_publishing_groups = Group.objects.filter(publish_for_organizations__id=id)
+    organization = Organization.objects.get(id=id)
+    params = {
+        "pub_requests": pub_requests,
+        "all_publisher": all_publishing_groups,
+        "organization": organization,
+    }
+    context = DefaultContext(request, params)
+    return render(request, template, context.get_context())
+
+
+@check_access
+def toggle_publish_request(request: HttpRequest, id: int, user: User):
+    # activate or remove publish request/ publisher
+    post_params = request.POST
+    is_accepted = utils.resolve_boolean_attribute_val(post_params.get("accept"))
+    organization = Organization.objects.get(id=post_params.get("organizationId"))
+    pub_request = PublishRequest.objects.get(id=id)
+    now = timezone.now()
+    if is_accepted and pub_request.activation_until >= now:
+        # add organization to group_publisher manager
+        pub_request.group.publish_for_organizations.add(organization)
+    pub_request.delete()
+    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/organizations/list-publish-request/" + str(organization.id)).get_response()
+
+
+@check_access
+def remove_publisher(request: HttpRequest, id: int, user: User):
+    post_params = request.POST
+    group_id = post_params.get("publishingGroupId")
+    org = Organization.objects.get(id=id)
+    group = Group.objects.get(id=group_id, publish_for_organizations=org)
+    group.publish_for_organizations.remove(org)
+
+    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/organizations/list-publish-request/" + str(id)).get_response()
+
+@check_access
+def publish_request(request: HttpRequest, id: int, user: User):
+    """ Performs creation of a publishing request between a user/group and an organization
+
+    Args:
+        request (HttpRequest): The incoming HttpRequest
+        id (int): The organization id
+        user (User): The performing user object
+    Returns:
+         A rendered view
+    """
     template = "request_publish_permission.html"
     org = Organization.objects.get(id=id)
     # check if user is already a publisher
     for group in user.groups.all():
         if org in group.publish_for_organizations.all():
             messages.add_message(request, messages.INFO, _("You already are a publisher for this organization!"))
-            return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/organization/detail/" + str(id)).get_response()
+            return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/organizations/detail/" + str(id)).get_response()
 
     request_form = PublisherForOrganization(request.POST or None)
     request_form.fields["organization_name"].initial = org.organization_name

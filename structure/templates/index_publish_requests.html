@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load static i18n %}
+
+{% block title %}
+{% trans 'Publishing Requests' %}
+{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/publish_requests.css' %}" media="all" />
+    <script type="text/javascript" src="{% static '/structure/js/publish_requests.js' %}"></script>
+{% endblock %}
+
+{% block body %}
+
+<a href="{% url 'structure:index' %}">
+    <h3 class="back-title">
+        <img src="{% static 'service/images/icn_back.png' %}">
+        {% trans 'Overview' %}
+    </h3>
+</a>
+<hr>
+<div class="container-row">
+    <div class="container-left">
+    </div>
+    <div class="container-right">
+    </div>
+</div>
+
+{% if pub_requests.count > 0 %}
+
+<h2>{% trans 'Publishing Requests' %}</h2>
+<table class="overview-table">
+    <tr>
+        <th class="table-header">{% trans 'Requesting group' %}</th>
+        <th class="table-header">{% trans 'Group organization' %}</th>
+        <th class="table-header">{% trans 'Message' %}</th>
+        <th class="table-header">{% trans 'Activation until' %}</th>
+        <th class="table-header">{% trans 'Action' %}</th>
+    </tr>
+    {% for request in pub_requests %}
+        <tr data-id="{{ request.id }}" data-parent="{{ organization.id }}">
+            <td class="table-cell">
+                <a href="{% url 'structure:detail-organization' request.group.id %}">{{ request.group }}</a>
+            </td>
+            <td class="table-cell">
+                {% if request.group.organization is not None %}
+                    <a href="{% url 'structure:detail-organization' request.group.organization.id %}">{{ request.group.organization }}</a>
+                {% else %}
+                    {{ request.group.organization }}
+                {% endif %}
+            </td>
+            <td class="table-cell message-cell">
+                {{ request.message }}
+            </td>
+            <td class="table-cell">
+                {{ request.activation_until }}
+            </td>
+            <td class="table-cell action-cell">
+                <img class="img-interactive" src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Accept' %}" id="accept-request">
+                <img class="img-interactive" src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Decline' %}" id="decline-request">
+            </td>
+        </tr>
+    {% endfor %}
+</table>
+{% endif %}
+
+<h2>{% trans 'Publishers' %}</h2>
+<table class="overview-table">
+    <tr>
+        <th class="table-header">{% trans 'Group' %}</th>
+        <th class="table-header">{% trans 'Group organization' %}</th>
+        <th class="table-header">{% trans 'Action' %}</th>
+    </tr>
+    {% for publisher in all_publisher %}
+        <tr>
+            <td class="table-cell">
+                <a href="{% url 'structure:detail-group' publisher.id %}">{{ publisher }}</a>
+            </td>
+            <td class="table-cell">
+                {% if publisher.organization is not None %}
+                    <a href="{% url 'structure:detail-organization' publisher.organization.id %}">{{ publisher.organization }}</a>
+                {% else %}
+                    {{ publisher.organization }}
+                {% endif %}
+            </td>
+            <td class="table-cell">
+                <button class="button delete-container" data-parent="{{ publisher.id }}" data-id="{{ organization.id }}" title="{% trans 'Remove publisher' %}">
+                    <img src="{% static 'service/images/icn_minus.png' %}">
+                    <span>{% trans 'Remove publisher' %}</span>
+                </button>
+            </td>
+        </tr>
+    {% endfor %}
+</table>
+{% endblock %}

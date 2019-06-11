@@ -344,19 +344,21 @@ class OGCWebFeatureService(OGCWebService):
 
     @abstractmethod
     @transaction.atomic
-    def create_service_model_instance(self, user: User):
+    def create_service_model_instance(self, user: User, register_group, register_for_organization):
         """ Map all data from the WebFeatureService classes to their database models
 
         Args:
-            user(User): The user which performs the action
+            user (User): The user which performs the action
+            register_group (Group): The group which is used to register this service
+            register_for_organization (Organization): The organization for which this service is being registered
         Returns:
              service (Service): Service instance, contains all information, ready for persisting!
         """
 
-        #orga_published_for = user.secondary_organization
+        orga_published_for = register_for_organization
         orga_publisher = user.organization
 
-        group = user.groups.all()[0] # ToDo: Find better solution for group selection than this
+        group = register_group
         # Metadata
         md = Metadata()
         md.title = self.service_identification_title

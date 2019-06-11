@@ -35,6 +35,10 @@
 <h2>{{ group.name }}</h2>
 <table class="detail-table">
     <tr>
+        <th>{% trans 'Organization' %}</th>
+        <td>{{ group.organization }}</td>
+    </tr>
+    <tr>
         <th>{% trans 'Description' %}</th>
         <td>{{ group.description }}</td>
     </tr>

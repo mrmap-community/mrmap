@@ -71,7 +71,7 @@ a{
 }
 
 #body-content{
-    padding: 0 1vw 0 1vw;
+    padding: 50px 1vw 0 1vw;
 }
 
 
@@ -153,7 +153,8 @@ a{
     background-color: var(--primary-color);
     font-size: 1.0em;
     z-index: 10;
-    position: relative;
+    position: fixed;
+    width: 100%;
 }
 
 #navbar-logo{

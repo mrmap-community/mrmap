@@ -121,7 +121,7 @@ class OGCWebService:
         pass
 
     @abstractmethod
-    def create_service_model_instance(self, user: User):
+    def create_service_model_instance(self, user: User, register_group, register_for_organization):
         pass
 
     @transaction.atomic

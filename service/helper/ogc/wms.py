@@ -554,7 +554,7 @@ class OGCWebMapService(OGCWebService):
                          publisher=publisher, published_for=published_for, parent=parent_layer, user=user, contact=contact)
 
     @transaction.atomic
-    def create_service_model_instance(self, user: User):
+    def create_service_model_instance(self, user: User, register_group, register_for_organization):
         """ Persists the web map service and all of its related content and data
 
         Args:
@@ -563,10 +563,10 @@ class OGCWebMapService(OGCWebService):
              service (Service): Service instance, contains all information, ready for persisting!
 
         """
-        #orga_published_for = user.secondary_organization
+        orga_published_for = register_for_organization
         orga_publisher = user.organization
 
-        group = user.groups.all()[0]
+        group = register_group
 
         # fill objects
         service_type = ServiceType.objects.get_or_create(

@@ -19,7 +19,7 @@ from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service
 from structure.helper import user_helper
-from structure.models import User
+from structure.models import User, Organization, Group
 from django.utils.translation import gettext_lazy as _
 
 
@@ -47,13 +47,13 @@ def index(request: HttpRequest, user: User, service_type=None):
         md_list_wms = Metadata.objects.filter(
             service__servicetype__name="wms",
             service__is_root=is_root,
-            service__published_by=user.organization,
+            created_by__in=user.groups.all(),
             service__is_deleted=False,
         )
     if service_type is None or service_type == ServiceTypes.WFS.value:
         md_list_wfs = Metadata.objects.filter(
             service__servicetype__name="wfs",
-            service__published_by=user.organization,
+            created_by__in=user.groups.all(),
             service__is_deleted=False,
         )
     params = {
@@ -62,6 +62,7 @@ def index(request: HttpRequest, user: User, service_type=None):
         "select_default": request.session.get("displayServices", None),
         "only_type": service_type,
         "permissions": user_helper.get_permissions(user),
+        "user": user,
     }
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
@@ -176,6 +177,10 @@ def register_form(request: HttpRequest, user: User):
             error = True
 
         try:
+            # create group->publishable organizations dict
+            group_orgs = {}
+            for group in user.groups.all():
+                group_orgs[group.id] = list(group.publish_for_organizations.all().values_list("id", flat=True))
             params = {
                 "error": error,
                 "uri": url_dict["base_uri"],
@@ -183,6 +188,8 @@ def register_form(request: HttpRequest, user: User):
                 "service_type": url_dict["service"].value,
                 "request_action": url_dict["request"],
                 "full_uri": cap_url,
+                "user": user,
+                "group_publishable_orgs": json.dumps(group_orgs),
             }
         except AttributeError as e:
             params = {
@@ -211,11 +218,21 @@ def new_service(request: HttpRequest, user: User):
 
     """
     POST_params = request.POST.dict()
+
     cap_url = POST_params.get("uri", "")
+    register_group = POST_params.get("registerGroup")
+    register_for_organization = POST_params.get("registerForOrg")
+
+    register_group = Group.objects.get(id=register_group)
+    if service_helper.resolve_none_string(register_for_organization) is not None:
+        register_for_organization = Organization.objects.get(id=register_for_organization)
+    else:
+        register_for_organization = None
+
     url_dict = service_helper.split_service_uri(cap_url)
     params = {}
     try:
-        service = service_helper.get_service_model_instance(url_dict.get("service"), url_dict.get("version"), url_dict.get("base_uri"), user)
+        service = service_helper.get_service_model_instance(url_dict.get("service"), url_dict.get("version"), url_dict.get("base_uri"), user, register_group, register_for_organization)
         raw_service = service["raw_data"]
         service = service["service"]
         service_helper.persist_service_model_instance(service)

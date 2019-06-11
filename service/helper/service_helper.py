@@ -407,7 +407,7 @@ def change_layer_status_recursively(root_layer, new_status):
         change_layer_status_recursively(layer, new_status)
 
 
-def get_service_model_instance(service_type, version, base_uri, user):
+def get_service_model_instance(service_type, version, base_uri, user, register_group, register_for_organization=None):
     """ Creates a database model from given service information and persists it.
 
     Due to the many-to-many relationships used in the models there is currently no way (without extending the models) to
@@ -430,7 +430,7 @@ def get_service_model_instance(service_type, version, base_uri, user):
         # let it load it's capabilities
         wms.get_capabilities()
         wms.create_from_capabilities()
-        service = wms.create_service_model_instance(user)
+        service = wms.create_service_model_instance(user, register_group, register_for_organization)
         ret_dict["raw_data"] = wms
     else:
         # create WFS object
@@ -439,7 +439,7 @@ def get_service_model_instance(service_type, version, base_uri, user):
         # let it load it's capabilities
         wfs.get_capabilities()
         wfs.create_from_capabilities()
-        service = wfs.create_service_model_instance(user)
+        service = wfs.create_service_model_instance(user, register_group, register_for_organization)
         ret_dict["raw_data"] = wfs
     ret_dict["service"] = service
     return ret_dict

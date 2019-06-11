@@ -22,7 +22,7 @@ function toggleServiceActiveStatus(id, active){
     });
 }
 
-function startServiceRegistration(uri, button){
+function startServiceRegistration(uri, registerGroup, registerForOrg, button){
     var oldHtml = button.html();
     button.html("Please wait...");
     $.ajax({
@@ -31,7 +31,9 @@ function startServiceRegistration(uri, button){
             "X-CSRFToken": getCookie("csrftoken")
         },
         data: {
-            "uri": uri
+            "uri": uri,
+            "registerGroup": registerGroup,
+            "registerForOrg": registerForOrg
         },
         type: 'post',
         dataType: 'json'

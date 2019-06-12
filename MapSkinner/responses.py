@@ -8,16 +8,20 @@ Created on: 15.04.19
 from django.http import JsonResponse, HttpRequest
 
 from MapSkinner.settings import ROOT_URL
+from structure.models import User
+from users.helper import user_helper
+
 
 class DefaultContext:
     """ Contains the default values that have to be set on every rendering process!
 
     """
 
-    def __init__(self, request: HttpRequest, context: dict):
+    def __init__(self, request: HttpRequest, context: dict, user: User = None):
         self.context = {
             "ROOT_URL": ROOT_URL,
             "LANGUAGE_CODE": request.LANGUAGE_CODE,
+            "user_permissions": user_helper.get_permissions(user)
         }
         self.add_context(context)
 

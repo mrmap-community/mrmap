@@ -1,12 +1,12 @@
 function toggleRequest(accept, requestId, organizationId){
     $.ajax({
-        url: rootUrl + "/structure/organizations/toggle-publish-request/" + requestId,
+        url: rootUrl + "/structure/organizations/toggle-publish-request/" + organizationId,
         headers: {
             "X-CSRFToken": getCookie("csrftoken")
         },
         data: {
             "accept": accept,
-            "organizationId": organizationId
+            "requestId": requestId
         },
         type: 'post',
         dataType: 'json'

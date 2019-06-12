@@ -4,24 +4,22 @@ from django.contrib import messages
 from django.db import transaction
 from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
-
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from lxml.etree import XMLSyntaxError
 from requests.exceptions import InvalidURL
 
+from MapSkinner import utils
 from MapSkinner.decorator import check_access
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
-from MapSkinner import utils
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service
-from structure.helper import user_helper
 from structure.models import User, Organization, Group
-from django.utils.translation import gettext_lazy as _
 
 
 @check_access
@@ -62,10 +60,9 @@ def index(request: HttpRequest, user: User, service_type=None):
         "metadata_list_wfs": md_list_wfs,
         "select_default": request.session.get("displayServices", None),
         "only_type": service_type,
-        "permissions": user_helper.get_permissions(user),
         "user": user,
     }
-    context = DefaultContext(request, params)
+    context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 
 
@@ -318,7 +315,7 @@ def update_service(request: HttpRequest, user: User, id: int):
             "new_service": new_service,
         }
         #request.session["update_confirmed"] = True
-    context = DefaultContext(request, params)
+    context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
 
 
@@ -422,7 +419,6 @@ def detail(request: HttpRequest, id, user:User):
         "root_metadata": service_md,
         "root_service": service,
         "layers": layers_md_list,
-        "permissions": user_helper.get_permissions(user),
     }
-    context = DefaultContext(request, params)
+    context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())

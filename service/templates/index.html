@@ -14,7 +14,7 @@
     <div class="overview-title-actions-container">
         <div class="container-left">
             <h2>{% trans 'WMS' %}</h2>
-            {% if 'can_register_service' in permissions %}
+            {% if 'can_register_service' in user_permissions %}
                 <div class="overview-action">
                     <span class="add-button" title="{% trans 'Register new' %}" datatype="wms" typeof="service">
                         +
@@ -108,7 +108,7 @@
     <div class="overview-title-actions-container">
         <div class="container-left">
         <h2>{% trans 'WFS' %}</h2>
-        {% if 'can_register_service' in permissions %}
+        {% if 'can_register_service' in user_permissions %}
             <div class="overview-action">
                 <span class="add-button" title="{% trans 'Register new' %}" datatype="wfs" typeof="service">
                     +

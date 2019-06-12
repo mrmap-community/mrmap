@@ -5,7 +5,7 @@
     <div class="overview-title-actions-container">
         <div class="container-left">
             <h2>{% trans 'Groups' %}</h2>
-            {% if 'can_create_group' in permissions %}
+            {% if 'can_create_group' in user_permissions %}
             <div class="overview-action">
                 <span class="add-button" title="{% trans 'Create new' %}" typeof="structure/groups">
                     +
@@ -28,10 +28,7 @@
                 {% trans 'Organization' %}
             </th>
             <th class="overview-table-header">
-                {% trans 'Parent' %}
-            </th>
-            <th class="overview-table-header">
-                {% trans 'Created by' %}
+                {% trans 'Can publish for' %}
             </th>
         </tr>
         {% for group in groups %}
@@ -50,10 +47,9 @@
                     {% endif %}
                 </td>
                 <td class="overview-table-cell">
-                    {{ group.parent }}
-                </td>
-                <td class="overview-table-cell">
-                    {{ group.created_by }}
+                    <a href="{% url 'structure:publisher-group' group.id %}">
+                        <button class="button submit-button">{% trans 'Show' %}</button>
+                    </a>
                 </td>
             </tr>
         {% endfor %}

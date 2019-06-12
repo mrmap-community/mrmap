@@ -16,8 +16,11 @@ class Permission(models.Model):
     can_change_group_role = models.BooleanField(default=False)
 
     can_activate_service = models.BooleanField(default=False)
+    can_update_service = models.BooleanField(default=False)
     can_register_service = models.BooleanField(default=False)
     can_remove_service = models.BooleanField(default=False)
+
+    can_react_to_publishing_requests = models.BooleanField(default=False)
     # more permissions coming
 
     def __str__(self):

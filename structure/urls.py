@@ -9,6 +9,7 @@ urlpatterns = [
     path('groups/detail/<id>', detail_group, name='detail-group'),
     path('groups/edit/<id>', edit_group, name='edit-group'),
     path('groups/new/register-form/', new_group, name='new-group'),
+    path('groups/publisher/<id>', list_publisher_group, name='publisher-group'),
 
     path('organizations/', organizations, name='organizations'),
     path('organizations/detail/<id>', detail_organizations, name='detail-organization'),

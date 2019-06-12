@@ -6,17 +6,18 @@ Created on: 28.05.19
 
 """
 
+import datetime
 import os
 
-import datetime
+from django.contrib import messages
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.template.loader import render_to_string
-from django.utils import timezone
-from django.contrib import messages
 from django.http import HttpRequest
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.decorator import check_access
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
@@ -24,11 +25,9 @@ from MapSkinner.settings import SESSION_EXPIRATION, ROOT_URL
 from MapSkinner.utils import sha256
 from structure.config import USER_ACTIVATION_TIME_WINDOW
 from structure.forms import LoginForm, RegistrationForm
-from structure.helper import user_helper
-from django.utils.translation import gettext_lazy as _
-
 from structure.models import User, UserActivation
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm
+from users.helper import user_helper
 
 
 def login(request: HttpRequest):
@@ -85,7 +84,7 @@ def account(request: HttpRequest, user: User):
         "user": user,
         "form": form,
     }
-    context = DefaultContext(request, params)
+    context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
 
 @check_access
@@ -120,7 +119,7 @@ def password_change(request: HttpRequest, user: User):
             "article": _("Please insert your new password. You have to fulfill the password constraints."),
             "action_url": ROOT_URL + "/users/password/edit/"
         }
-        context = DefaultContext(request, params)
+        context = DefaultContext(request, params, user)
         html = render_to_string(request=request, template_name=template, context=context.get_context())
         return BackendAjaxResponse(html=html).get_response()
 
@@ -151,7 +150,7 @@ def account_edit(request: HttpRequest, user: User):
             "article": _("You can update your account information using this form."),
             "action_url": ROOT_URL + "/users/edit/"
         }
-        context = DefaultContext(request, params)
+        context = DefaultContext(request, params, user)
         html = render_to_string(request=request, template_name=template, context=context.get_context())
         return BackendAjaxResponse(html=html).get_response()
 
@@ -186,7 +185,7 @@ def activate_user(request: HttpRequest, activation_hash: str):
     params = {
         "user": user,
     }
-    context = DefaultContext(request, params)
+    context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 
 
@@ -239,7 +238,7 @@ def password_reset(request: HttpRequest):
         params = {
             "form": form,
         }
-        context = DefaultContext(request, params)
+        context = DefaultContext(request, params, user)
         return render(request, template, context=context.get_context())
 
 
@@ -300,5 +299,5 @@ def register(request: HttpRequest):
             for error_key, error_val in form.errors.items():
                 for e in error_val.data:
                     messages.add_message(request, messages.ERROR, e.message)
-    context = DefaultContext(request, params)
+    context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())

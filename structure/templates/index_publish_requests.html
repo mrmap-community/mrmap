@@ -56,14 +56,47 @@
                 {{ request.activation_until }}
             </td>
             <td class="table-cell action-cell">
-                <img class="img-interactive" src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Accept' %}" id="accept-request">
-                <img class="img-interactive" src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Decline' %}" id="decline-request">
+                {% if 'can_react_to_publishing_requests' in user_permissions %}
+                    <img class="img-interactive" src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Accept' %}" id="accept-request">
+                    <img class="img-interactive" src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Decline' %}" id="decline-request">
+                {% else %}
+                    {% trans 'You have no permission to change this!' %}
+                {% endif %}
             </td>
         </tr>
     {% endfor %}
 </table>
 {% endif %}
 
+{% if show_registering_for %}
+<h2>{{ group.name }}</h2>
+<h2>{% trans 'Publishing for' %}</h2>
+<table class="overview-table">
+    <tr>
+        <th class="table-header">{% trans 'Organization' %}</th>
+        <th class="table-header">{% trans 'Action' %}</th>
+    </tr>
+    {% for org in group.publish_for_organizations.all %}
+        <tr>
+            <td class="table-cell">
+                <a href="{% url 'structure:detail-organization' org.id %}">{{ org }}</a>
+            </td>
+            <td class="table-cell">
+                {% if 'can_react_to_publishing_requests' in user_permissions %}
+                <button class="button delete-container" data-id="{{ org.id }}" data-parent="{{ group.id }}" title="{% trans 'Stop being publisher' %}">
+                    <img src="{% static 'service/images/icn_minus.png' %}">
+                    <span>{% trans 'Stop being publisher' %}</span>
+                </button>
+                {% else %}
+                {% trans 'You have no permission to change this!' %}
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+</table>
+
+{% else %}
+<h2>{{ organization.organization_name }}</h2>
 <h2>{% trans 'Publishers' %}</h2>
 <table class="overview-table">
     <tr>
@@ -92,4 +125,6 @@
         </tr>
     {% endfor %}
 </table>
+
+{% endif %}
 {% endblock %}

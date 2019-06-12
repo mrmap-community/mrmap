@@ -238,7 +238,7 @@ def password_reset(request: HttpRequest):
         params = {
             "form": form,
         }
-        context = DefaultContext(request, params, user)
+        context = DefaultContext(request, params)
         return render(request, template, context=context.get_context())
 
 
@@ -299,5 +299,5 @@ def register(request: HttpRequest):
             for error_key, error_val in form.errors.items():
                 for e in error_val.data:
                     messages.add_message(request, messages.ERROR, e.message)
-    context = DefaultContext(request, params, user)
+    context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())

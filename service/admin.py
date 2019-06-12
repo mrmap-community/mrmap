@@ -7,6 +7,10 @@ from service.models import *
 
 
 class CategoryAdmin(admin.ModelAdmin):
+    list_display = ('type', 'title_EN', 'online_link', 'origin')
+
+
+class CategoryOriginAdmin(admin.ModelAdmin):
     pass
 
 
@@ -58,7 +62,9 @@ class MimeTypeAdmin(admin.ModelAdmin):
 class NamespaceAdmin(admin.ModelAdmin):
     list_display = ('name', 'uri', 'version')
 
+
 admin.site.register(Category, CategoryAdmin)
+admin.site.register(CategoryOrigin, CategoryOriginAdmin)
 admin.site.register(ServiceType, ServiceTypeAdmin)
 admin.site.register(Module, ModuleAdmin)
 admin.site.register(Dataset, DatasetAdmin)

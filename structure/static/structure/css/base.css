@@ -71,7 +71,7 @@ a{
 }
 
 #body-content{
-    padding: 0 1vw 0 1vw;
+    padding: 50px 1vw 0 1vw;
 }
 
 
@@ -153,7 +153,12 @@ a{
     background-color: var(--primary-color);
     font-size: 1.0em;
     z-index: 10;
-    position: relative;
+    position: fixed;
+    width: 100%;
+
+    -webkit-box-shadow: 0 0 5px black;
+    -moz-box-shadow: 0 0 5px black;
+    box-shadow: 0 0 5px black;
 }
 
 #navbar-logo{
@@ -210,6 +215,7 @@ a{
     padding: 10px;
     border-top: 1px solid white;
     text-align: center;
+
 }
 
 .navigation-element:hover{
@@ -233,6 +239,39 @@ a{
 .navigation-button img{
     margin: 0 5px 0 5px;
     max-height: 30px;
+}
+
+@keyframes pulse{
+    0% {
+        background-color: var(--secondary-color);
+    }
+    5% {
+        background-color: var(--secondary-color-dark);
+    }
+    10% {
+        background-color: var(--secondary-color);
+    }
+}
+
+.notification-badge{
+    background-color: var(--secondary-color);
+    color: white;
+    font-weight: bold;
+    padding: 5px 10px 5px 10px;
+    margin: 0 5px 0 5px;
+    border-radius: 5px;
+}
+
+.unread{
+	-webkit-animation: pulse 3s linear infinite;
+	-moz-animation: pulse 3s linear infinite;
+	-ms-animation: pulse 3s linear infinite;
+	animation: pulse 3s linear infinite;
+}
+
+.notification-badge:hover{
+    cursor: pointer;
+    background-color: var(--secondary-color-light);
 }
 
 table{
@@ -284,9 +323,11 @@ tr:nth-child(odd){
 }
 
 .button{
+    /*
     margin-top: 10px;
+    */
     padding: 10px;
-    border: 1px solid var(--secondary-color-light);
+    border: 0px solid var(--secondary-color-light);
     background-color: var(--secondary-color);
     color: white;
     border-radius: 5px;
@@ -296,7 +337,9 @@ tr:nth-child(odd){
 
 .button:hover{
     cursor:pointer;
+    /*
     background-color: var(--secondary-color-light);
+    */
 }
 
 .discard-button{

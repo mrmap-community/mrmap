@@ -15,14 +15,19 @@
 <hr>
 <div class="container-row">
     <div class="container-left">
-        {% if 'can_edit_organization' in permissions %}
+        {% if 'can_edit_organization' in user_permissions %}
             <div id="edit-button" class="button-container" data-parent="{{ organization.id }}" typeof="structure/organizations">
                 <img src="{% static 'structure/images/icn_edit.png' %}">
                 <span>{% trans 'Edit organization' %}</span>
             </div>
         {% endif %}
     </div>
-    {% if 'can_delete_organization' in permissions %}
+    <div class="container-center">
+        <div id="request-publish-button" class="button-container" typeof="structure" datasrc="{{ organization.id }}" title="{% trans 'Request the permission to publish for this organization' %}">
+            <span>{% trans 'Become a publisher' %}</span>
+        </div>
+    </div>
+    {% if 'can_delete_organization' in user_permissions %}
         <div class="container-right">
             <div class="delete-container" data-parent="{{ organization.id }}" typeof="structure/organizations">
                 <img src="{% static 'service/images/icn_minus.png' %}">

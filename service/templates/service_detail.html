@@ -20,7 +20,7 @@
 <hr>
 <div class="container-row">
     <div class="container-left">
-        {% if 'can_activate_service' in permissions %}
+        {% if 'can_activate_service' in user_permissions %}
             {% if root_metadata.is_active %}
                 <div class="deactivate-container" data-parent="{{ root_service.id }}">
                     <img src="{% static 'service/images/icn_false.png' %}">
@@ -35,16 +35,18 @@
         {% endif %}
     </div>
     <div class="container-center">
-        <div id="service-update-button" class="button-container" typeof="service" datasrc="{{ root_service.id }}" title="{% trans 'Update service using a new url' %}">
-            <span>{% trans 'Update service' %}</span>
-        </div>
+        {% if 'can_update_service' in user_permissions %}
+            <div id="service-update-button" class="button-container" typeof="service" datasrc="{{ root_service.id }}" title="{% trans 'Update service using a new url' %}">
+                <span>{% trans 'Update service' %}</span>
+            </div>
+        {% endif %}
         <a href="{{ root_metadata.original_uri }}" target="_blank" title="{% trans 'Open original metadata in new tab' %}">
             <div class="button-container">
                 <span>{% trans 'Capabilities (XML)' %}</span>
             </div>
         </a>
     </div>
-    {% if 'can_remove_service' in permissions %}
+    {% if 'can_remove_service' in user_permissions %}
         <div class="container-right">
             <div class="delete-container" data-parent="{{ root_service.id }}" typeof="service">
                 <img src="{% static 'service/images/icn_minus.png' %}">

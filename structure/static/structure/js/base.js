@@ -30,7 +30,7 @@ function checkRedirect(data){
 }
 
 function toggleNavigationMenu(elem){
-    elem.slideToggle("fast");
+    elem.slideToggle(250);
 }
 
 function toggleOverlay(html){

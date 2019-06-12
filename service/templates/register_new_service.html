@@ -51,6 +51,11 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        background-color: var(--secondary-color);
+    }
+
+    .submit-button:hover{
+        background-color: var(--secondary-color-light);
     }
 
     .form-advice{
@@ -59,7 +64,7 @@
         justify-content: space-evenly;
         background-color: var(--secondary-color);
         padding: 10px;
-        margin-top: 10px;
+        margin: 10px 0 10px 0;
     }
 
     .form-advice span{
@@ -92,7 +97,6 @@
         {% else %}
         <article>
             {% trans 'You are about to register this service.' %}<br>
-            {% trans 'Do you want to continue?' %}
         </article>
         <form action="/service/new/" method="post" >
             <table class="form-table">
@@ -112,7 +116,32 @@
                     <td class="field-label">{% trans 'URI:' %}</td>
                     <td class="field">{{ uri }}</td>
                 </tr>
+                <tr>
+                    <td class="field-label">{% trans 'Registering with group:' %}</td>
+                    <td class="field">
+                        <select id="user-groups-select">
+                            {% for group in user.groups.all %}
+                                <option value="{{ group.id }}">{{ group }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="field-label">{% trans 'Registering for other organization:' %}</td>
+                    <td class="field">
+                        <select id="publishable-organizations-select" data-links="{{ group_publishable_orgs }}">
+                            <option value="None">{% trans 'No other' %}</option>
+                            {% for group in user.groups.all %}
+                                {% for org in group.publish_for_organizations.all %}
+                                    <option value="{{ org.id }}">{{ org }}</option>
+                                {% endfor %}
+                            {% endfor %}
+                        </select>
+                    </td>
+                </tr>
             </table>
+
+
             <div class="form-advice">
                 <img src="{% static 'structure/images/icn_mr_map_invert.png' %}">
                 <span>
@@ -121,14 +150,14 @@
                     {% trans 'Depending on the numbers of layers or featuretypes provided by this service, the registration process can take up to a minute. Please be patient. Do not click around furiously.' %}
                 </span>
             </div>
+        </form>
 
-            <div class="submit-button button">
+            <button class="submit-button button">
                 <div class="loading-spinner hide">
                     <i class="fas fa-circle-notch fa-spin"></i>
                 </div>
                 <span id="submit-text">{% trans 'Continue' %}</span>
-            </div>
-        </form>
+            </button>
         {% endif %}
     </div>
 </div>
@@ -136,6 +165,34 @@
 <script>
 
     {% include 'modal-dialog-scripts.html' %}
+
+    function checkGroupPublishableOrganizations(element){
+        var selectedGroup = element.val();
+        element = $("#publishable-organizations-select");
+        var groupOrgs = JSON.parse(element.attr("data-links"))[selectedGroup];
+
+        var options = element.find("option");
+        var somethingEnabled = false;
+        $.each(options, function(i){
+            var val = parseInt($(options[i]).val());
+            if($(options[i]).val() == "None"){
+                // the default value for no other organization shall be used
+                // skip in a jquery manner
+                return;
+            }
+
+            if(groupOrgs.includes(val)){
+                $(options[i]).attr("disabled", false);
+                $(options[i]).attr("hidden", false);
+                somethingEnabled = true;
+            }else{
+                $(options[i]).attr("disabled", true);
+                $(options[i]).attr("hidden", true);
+            }
+        });
+        //element.attr("disabled", !somethingEnabled);
+        
+    }
 
     $(".submit-button").click(function(){
         // check if the button was already pressed by checking if the spinner is visible
@@ -147,7 +204,20 @@
         spinner.toggleClass("hide");
         var buttonText = $("#submit-text");
         replaceButtonWithSpinner($(this));
-        startServiceRegistration('{{ full_uri }}', buttonText);
+
+        var registerGroup = $("#user-groups-select").val();
+        var registerForOrg = $("#publishable-organizations-select").val();
+
+        startServiceRegistration('{{ full_uri }}', registerGroup, registerForOrg, buttonText);
+    });
+
+    $("#user-groups-select").change(function(){
+        var element = $(this);
+        checkGroupPublishableOrganizations(element);
+    });
+
+    $(document).ready(function(){
+        checkGroupPublishableOrganizations($("#user-groups-select"));
     });
 
 </script>

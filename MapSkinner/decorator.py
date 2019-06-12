@@ -11,7 +11,7 @@ from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.responses import BackendAjaxResponse
 from MapSkinner.settings import ROOT_URL
-from structure.helper import user_helper
+from users.helper import user_helper
 
 
 def check_access(function):

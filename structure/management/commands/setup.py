@@ -62,7 +62,7 @@ class Command(BaseCommand):
 
         # handle root organization
         orga = self._create_default_organization()
-        superuser.primary_organization = orga
+        superuser.organization = orga
         superuser.save()
         msg = "Superuser '" + name + "' added to group '" + group.name + "'!"
         self.stdout.write(self.style.SUCCESS(str(msg)))

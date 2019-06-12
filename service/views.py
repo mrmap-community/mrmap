@@ -4,12 +4,13 @@ from django.contrib import messages
 from django.db import transaction
 from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
-
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from lxml.etree import XMLSyntaxError
 from requests.exceptions import InvalidURL
 
+from MapSkinner import utils
 from MapSkinner.decorator import check_access
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
@@ -18,9 +19,7 @@ from service.helper import service_helper, update_helper
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service
-from structure.helper import user_helper
-from structure.models import User
-from django.utils.translation import gettext_lazy as _
+from structure.models import User, Organization, Group
 
 
 @check_access
@@ -47,13 +46,13 @@ def index(request: HttpRequest, user: User, service_type=None):
         md_list_wms = Metadata.objects.filter(
             service__servicetype__name="wms",
             service__is_root=is_root,
-            service__published_by=user.primary_organization,
+            created_by__in=user.groups.all(),
             service__is_deleted=False,
         )
     if service_type is None or service_type == ServiceTypes.WFS.value:
         md_list_wfs = Metadata.objects.filter(
             service__servicetype__name="wfs",
-            service__published_by=user.primary_organization,
+            created_by__in=user.groups.all(),
             service__is_deleted=False,
         )
     params = {
@@ -61,9 +60,9 @@ def index(request: HttpRequest, user: User, service_type=None):
         "metadata_list_wfs": md_list_wfs,
         "select_default": request.session.get("displayServices", None),
         "only_type": service_type,
-        "permissions": user_helper.get_permissions(user),
+        "user": user,
     }
-    context = DefaultContext(request, params)
+    context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 
 
@@ -113,7 +112,7 @@ def activate(request: HttpRequest, user:User):
     """
     param_POST = request.POST.dict()
     service_id = param_POST.get("id", -1)
-    new_status = service_helper.resolve_boolean_attribute_val(param_POST.get("active", False))
+    new_status = utils.resolve_boolean_attribute_val(param_POST.get("active", False))
     # get service and change status
     service = Service.objects.get(id=service_id)
     service.metadata.is_active = new_status
@@ -176,6 +175,10 @@ def register_form(request: HttpRequest, user: User):
             error = True
 
         try:
+            # create group->publishable organizations dict
+            group_orgs = {}
+            for group in user.groups.all():
+                group_orgs[group.id] = list(group.publish_for_organizations.all().values_list("id", flat=True))
             params = {
                 "error": error,
                 "uri": url_dict["base_uri"],
@@ -183,6 +186,8 @@ def register_form(request: HttpRequest, user: User):
                 "service_type": url_dict["service"].value,
                 "request_action": url_dict["request"],
                 "full_uri": cap_url,
+                "user": user,
+                "group_publishable_orgs": json.dumps(group_orgs),
             }
         except AttributeError as e:
             params = {
@@ -211,11 +216,21 @@ def new_service(request: HttpRequest, user: User):
 
     """
     POST_params = request.POST.dict()
+
     cap_url = POST_params.get("uri", "")
+    register_group = POST_params.get("registerGroup")
+    register_for_organization = POST_params.get("registerForOrg")
+
+    register_group = Group.objects.get(id=register_group)
+    if utils.resolve_none_string(register_for_organization) is not None:
+        register_for_organization = Organization.objects.get(id=register_for_organization)
+    else:
+        register_for_organization = None
+
     url_dict = service_helper.split_service_uri(cap_url)
     params = {}
     try:
-        service = service_helper.get_service_model_instance(url_dict.get("service"), url_dict.get("version"), url_dict.get("base_uri"), user)
+        service = service_helper.get_service_model_instance(url_dict.get("service"), url_dict.get("version"), url_dict.get("base_uri"), user, register_group, register_for_organization)
         raw_service = service["raw_data"]
         service = service["service"]
         service_helper.persist_service_model_instance(service)
@@ -250,7 +265,7 @@ def update_service(request: HttpRequest, user: User, id: int):
 
     # get info which layers/featuretypes are linked (old->new)
     links = json.loads(request.POST.get("storage", '{}'))
-    update_confirmed = service_helper.resolve_boolean_attribute_val(request.POST.get("confirmed", 'false'))
+    update_confirmed = utils.resolve_boolean_attribute_val(request.POST.get("confirmed", 'false'))
 
     # parse new capabilities into db model
     new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user)
@@ -300,7 +315,7 @@ def update_service(request: HttpRequest, user: User, id: int):
             "new_service": new_service,
         }
         #request.session["update_confirmed"] = True
-    context = DefaultContext(request, params)
+    context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
 
 
@@ -404,7 +419,6 @@ def detail(request: HttpRequest, id, user:User):
         "root_metadata": service_md,
         "root_service": service,
         "layers": layers_md_list,
-        "permissions": user_helper.get_permissions(user),
     }
-    context = DefaultContext(request, params)
+    context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())

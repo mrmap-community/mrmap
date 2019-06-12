@@ -8,7 +8,7 @@
     <div class="overview-title-actions-container">
         <div class="container-left">
             <h2>{% trans 'Organizations' %}</h2>
-            {% if 'can_create_organization' in permissions %}
+            {% if 'can_create_organization' in user_permissions %}
             <div class="overview-action">
                 <span class="add-button" title="{% trans 'Create new' %}" typeof="structure/organizations">
                     +
@@ -31,7 +31,7 @@
                 {% trans 'Description' %}
             </th>
             <th class="overview-table-header">
-                {% trans 'Parent' %}
+                {% trans 'Publisher' %}
             </th>
         </tr>
         {% for org_key, org_val in user_organizations.items %}
@@ -41,13 +41,22 @@
                         {{ org_key }}
                     </td>
                     <td class="overview-table-cell">
-                        <a href="{% url 'structure:detail-organization' id=org_val.id %}">{{ org_val.organization_name }}</a>
+                        <a href="{% url 'structure:detail-organization' org_val.id %}">{{ org_val.organization_name }}</a>
+                        <a href="{% url 'structure:index-publish-request' org_val.id %}">
+                            {% if pub_requests_count > 0 %}
+                                <span class="notification-badge unread" title="{% trans 'New publish requests' %}">
+                                    {{ pub_requests_count }}
+                                </span>
+                            {% endif %}
+                        </a>
                     </td>
                     <td class="overview-table-cell">
                         {{ org_val.description }}
                     </td>
                     <td class="overview-table-cell">
-                        {{ org_val.parent }}
+                        <a href="{% url 'structure:index-publish-request' org_val.id %}">
+                            <button class="button submit-button">{% trans 'Show' %}</button>
+                        </a>
                     </td>
                 </tr>
             {% endif %}
@@ -58,7 +67,7 @@
     {% if all_organizations|length > 0 %}
         <div id="show-all">
             <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
-            {% trans 'Show all organizations' %} ({{ all_organizations|length }})
+            {% trans 'All organizations' %} ({{ all_organizations|length }})
         </div>
         <div class="subelements hidden">
             <table class="detail-table">

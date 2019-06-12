@@ -20,7 +20,21 @@ class GroupForm(ModelForm):
     class Meta:
         model = Group
         fields = '__all__'
-        exclude = ["created_by"]
+        exclude = [
+            "created_by",
+            "publish_for_organizations"
+        ]
+
+
+class PublisherForOrganization(forms.Form):
+    organization_name = forms.CharField(max_length=500, label_suffix=" ", label=_("Organization"), disabled=True)
+    group = forms.ChoiceField(widget=forms.Select)
+    request_msg = forms.CharField(
+        widget=forms.Textarea(),
+        required=True,
+        label=_("Message"),
+        label_suffix=" ",
+    )
 
 
 class OrganizationForm(ModelForm):

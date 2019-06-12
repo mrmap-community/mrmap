@@ -15,14 +15,14 @@
 <hr>
 <div class="container-row">
     <div class="container-left">
-        {% if 'can_edit_group' in permissions %}
+        {% if 'can_edit_group' in user_permissions %}
             <div id="edit-button" class="button-container" data-parent="{{ group.id }}" typeof="structure/groups">
                 <img src="{% static 'structure/images/icn_edit.png' %}">
                 <span>{% trans 'Edit group' %}</span>
             </div>
         {% endif %}
     </div>
-    {% if 'can_delete_group' in permissions %}
+    {% if 'can_delete_group' in user_permissions %}
         <div class="container-right">
             <div class="delete-container" data-parent="{{ group.id }}" typeof="structure">
                 <img src="{% static 'service/images/icn_minus.png' %}">
@@ -34,6 +34,10 @@
 
 <h2>{{ group.name }}</h2>
 <table class="detail-table">
+    <tr>
+        <th>{% trans 'Organization' %}</th>
+        <td>{{ group.organization }}</td>
+    </tr>
     <tr>
         <th>{% trans 'Description' %}</th>
         <td>{{ group.description }}</td>

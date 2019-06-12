@@ -15,7 +15,7 @@ from copy import copy
 from django.db import transaction
 
 from MapSkinner.settings import EXEC_TIME_PRINT
-from MapSkinner.utils import execute_threads
+from MapSkinner import utils
 from service.config import ALLOWED_SRS
 from service.helper.enums import VersionTypes
 from service.helper.epsg_api import EpsgApi
@@ -150,7 +150,7 @@ class OGCWebMapService(OGCWebService):
                 if is_queryable is None:
                     is_queryable = False
                 else:
-                    is_queryable = service_helper.resolve_boolean_attribute_val(is_queryable)
+                    is_queryable = utils.resolve_boolean_attribute_val(is_queryable)
                 layer_obj.is_queryable = is_queryable
             except AttributeError:
                 pass
@@ -162,7 +162,7 @@ class OGCWebMapService(OGCWebService):
                 if is_opaque is None:
                     is_opaque = False
                 else:
-                    is_opaque = service_helper.resolve_boolean_attribute_val(is_opaque)
+                    is_opaque = utils.resolve_boolean_attribute_val(is_opaque)
                 layer_obj.is_opaque = is_opaque
             except AttributeError:
                 pass
@@ -174,7 +174,7 @@ class OGCWebMapService(OGCWebService):
                 if is_opaque is None:
                     is_opaque = False
                 else:
-                    is_opaque = service_helper.resolve_boolean_attribute_val(is_opaque)
+                    is_opaque = utils.resolve_boolean_attribute_val(is_opaque)
                 layer_obj.is_cascaded = is_opaque
             except AttributeError:
                 pass
@@ -554,7 +554,7 @@ class OGCWebMapService(OGCWebService):
                          publisher=publisher, published_for=published_for, parent=parent_layer, user=user, contact=contact)
 
     @transaction.atomic
-    def create_service_model_instance(self, user: User):
+    def create_service_model_instance(self, user: User, register_group, register_for_organization):
         """ Persists the web map service and all of its related content and data
 
         Args:
@@ -563,10 +563,10 @@ class OGCWebMapService(OGCWebService):
              service (Service): Service instance, contains all information, ready for persisting!
 
         """
-        orga_published_for = user.secondary_organization
-        orga_publisher = user.primary_organization
+        orga_published_for = register_for_organization
+        orga_publisher = user.organization
 
-        group = user.groups.all()[0]
+        group = register_group
 
         # fill objects
         service_type = ServiceType.objects.get_or_create(

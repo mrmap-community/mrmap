@@ -14,7 +14,7 @@
     <div class="overview-title-actions-container">
         <div class="container-left">
             <h2>{% trans 'WMS' %}</h2>
-            {% if 'can_register_service' in permissions %}
+            {% if 'can_register_service' in user_permissions %}
                 <div class="overview-action">
                     <span class="add-button" title="{% trans 'Register new' %}" datatype="wms" typeof="service">
                         +
@@ -47,7 +47,13 @@
                 {% trans 'Version' %}
             </th>
             <th class="table-header">
-                {% trans 'Organization' %}
+                {% trans 'Data provider' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Registered by group' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Registered for' %}
             </th>
             <th class="table-header">
                 {% trans 'Created' %}
@@ -65,16 +71,26 @@
                 {% endif %}
                 <td class="table-cell">
                     {% if md.is_active %}
-                    <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
+                    <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Active' %}">
                     {% else %}
-                    <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
+                    <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Not active' %}">
                     {% endif %}
                 </td>
                 <td class="table-cell">
                     {{ md.service.servicetype.version }}
                 </td>
-                <td class="table-cell">
+                <td class="table-cell" title="{{ md.contact.organization_name }}">
                     {{ md.contact.organization_name }}
+                </td>
+                <td class="table-cell">
+                    <a href="{% url 'structure:detail-group' md.service.created_by.id %}">{{ md.service.created_by }}</a>
+                </td>
+                <td class="table-cell">
+                    {% if md.service.published_for is not None %}
+                        <a href="{% url 'structure:detail-organization' md.service.published_for.id %}">{{ md.service.published_for }}</a>
+                    {% else %}
+                        {{ md.service.published_for }}
+                    {% endif %}
                 </td>
                 <td class="table-cell">
                     {{ md.created }}
@@ -92,7 +108,7 @@
     <div class="overview-title-actions-container">
         <div class="container-left">
         <h2>{% trans 'WFS' %}</h2>
-        {% if 'can_register_service' in permissions %}
+        {% if 'can_register_service' in user_permissions %}
             <div class="overview-action">
                 <span class="add-button" title="{% trans 'Register new' %}" datatype="wfs" typeof="service">
                     +
@@ -117,7 +133,13 @@
                 {% trans 'Version' %}
             </th>
             <th class="table-header">
-                {% trans 'Organization' %}
+                {% trans 'Data provider' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Registered by group' %}
+            </th>
+            <th class="table-header">
+                {% trans 'Registered for' %}
             </th>
             <th class="table-header">
                 {% trans 'Created' %}
@@ -130,9 +152,9 @@
                 </td>
                 <td class="table-cell">
                     {% if wfs.is_active %}
-                    <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
+                    <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Active' %}">
                     {% else %}
-                    <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
+                    <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Not active' %}">
                     {% endif %}
                 </td>
                 <td class="table-cell">
@@ -140,6 +162,16 @@
                 </td>
                 <td class="table-cell">
                     {{ wfs.contact.organization_name }}
+                </td>
+                <td class="table-cell">
+                    <a href="{% url 'structure:detail-group' wfs.service.created_by.id %}">{{ wfs.service.created_by }}</a>
+                </td>
+                <td class="table-cell">
+                    {% if wfs.service.published_for is not None %}
+                        <a href="{% url 'structure:detail-organization' wfs.service.published_for.id %}">{{ wfs.service.published_for }}</a>
+                    {% else %}
+                        {{ wfs.service.published_for }}
+                    {% endif %}
                 </td>
                 <td class="table-cell">
                     {{ wfs.created | localtime }}

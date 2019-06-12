@@ -7,15 +7,16 @@
         font-size: 1.2em;
     }
 
-    .field input{
+    .field input, .field textarea, .field select{
         color: gray;
         background-color: white;
         border: 1px solid gray;
         border-radius: 0.25rem;
         padding: 0.375rem 0.75rem;
+        width: 90%;
     }
 
-    .field input:focus{
+    .field input:focus, .field textarea:focus{
         -webkit-box-shadow: 0 0 10px var(--primary-color);
         -moz-box-shadow: 0 0 10px var(--primary-color);
         box-shadow: 0 0 10px var(--primary-color);
@@ -23,17 +24,6 @@
 
     .form-submit-area{
         padding: 20px 0;
-    }
-
-    .submit-button{
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: var(--secondary-color);
-    }
-
-    .submit-button:hover{
-        background-color: var(--secondary-color-light);
     }
 
 
@@ -75,24 +65,15 @@
                     <div id="request-uri" class="field">{{ field }}</div>
                 {% endfor %}
             </div>
+            <button type="submit" id="run-publish-request-button" class="button submit-button">{{ button_text }}</button>
         </form>
-        <button id="service-register-button" class="button submit-button">{{ button_text }}</button>
     </div>
 </div>
 <script>
-    {% include 'modal-dialog-scripts.html' %}
-
-    $(".submit-button").click(function(){
-        {% if service_id is not None %}
-            checkServiceRequestURI(true, {{ service_id }});
-        {% else %}
-            checkServiceRequestURI(false);
-        {% endif %}
+    $(".modal-close, .close-button").click(function(){
+        toggleOverlay("");
     });
 
-    $(document).ready(function(){
-        $("#capabilities-uri").focus();
-    });
 </script>
 
 {% endblock %}

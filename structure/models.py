@@ -68,7 +68,7 @@ class Contact(models.Model):
 class Organization(Contact):
     organization_name = models.CharField(max_length=255, null=True, default="")
     description = models.TextField(null=True)
-    parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True)
+    parent = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True)
     is_auto_generated = models.BooleanField(default=True)
 
     def __str__(self):
@@ -80,7 +80,7 @@ class Organization(Contact):
 class Group(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    parent = models.ForeignKey('self', on_delete=models.CASCADE, blank=True, null=True, related_name="children")
+    parent = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True, related_name="children")
     organization = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, null=True, blank=True, related_name="groups")
     role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
     publish_for_organizations = models.ManyToManyField('Organization', related_name='can_publish_for', blank=True)
@@ -117,7 +117,8 @@ class UserActivation(models.Model):
         return self.user.username
 
 
-class PublishRequest(models.Model):
+class PendingRequest(models.Model):
+    type = models.CharField(max_length=255) # defines what type of request this is
     group = models.ForeignKey(Group, related_name="pending_publish_requests", on_delete=models.DO_NOTHING)
     organization = models.ForeignKey(Organization, related_name="pending_publish_requests", on_delete=models.DO_NOTHING)
     message = models.TextField(null=True, blank=True)

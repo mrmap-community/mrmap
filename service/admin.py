@@ -27,7 +27,7 @@ class KeywordAdmin(admin.ModelAdmin):
 
 
 class MetadataAdmin(admin.ModelAdmin):
-    pass
+    list_display = ('title', 'contact', 'uuid')
 
 
 class TermsOfUseAdmin(admin.ModelAdmin):
@@ -35,7 +35,7 @@ class TermsOfUseAdmin(admin.ModelAdmin):
 
 
 class ServiceAdmin(admin.ModelAdmin):
-    list_display = ('id',  'servicetype')
+    list_display = ('id', 'is_active', 'is_deleted',  'servicetype', 'metadata', 'parent_service', 'published_for')
     pass
 
 

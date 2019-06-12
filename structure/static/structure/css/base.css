@@ -344,7 +344,6 @@ tr:nth-child(odd){
 
 .discard-button{
     background-color: red;
-    border: 1px solid red;
 }
 .discard-button:hover{
     cursor: pointer;

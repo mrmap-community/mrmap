@@ -69,7 +69,7 @@ class Metadata(Resource):
         self.reference_system_list = []
 
     def __str__(self):
-        return str(self.uuid)
+        return self.title
 
 
 class TermsOfUse(Resource):

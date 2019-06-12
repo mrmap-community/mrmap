@@ -27,8 +27,8 @@ class UserAdmin(admin.ModelAdmin):
 class UserActivationAdmin(admin.ModelAdmin):
     list_display = ['id', 'user']
 
-class PublishRequestAdmin(admin.ModelAdmin):
-    list_display = ['group', 'organization', 'activation_until']
+class PendingRequestAdmin(admin.ModelAdmin):
+    list_display = ['type', 'group', 'organization', 'activation_until']
 
 
 admin.site.register(User, UserAdmin)
@@ -37,4 +37,4 @@ admin.site.register(Role, RoleAdmin)
 admin.site.register(Group, GroupAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Permission, PermissionAdmin)
-admin.site.register(PublishRequest, PublishRequestAdmin)
+admin.site.register(PendingRequest, PendingRequestAdmin)

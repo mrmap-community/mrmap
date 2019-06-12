@@ -4,7 +4,6 @@
 <style>
     .submit-button:hover{
         background-color: red;
-        border: 1px solid red;
     }
 </style>
 
@@ -13,37 +12,29 @@
         x
     </div>
     <article>
-        {% trans 'You are about to remove this group.' %}<br>
+        {% trans 'You are about to remove this organization.' %}<br>
         {% trans 'Do you want to continue?' %}
     </article>
     <table class="form-table">
         <tr>
             <th>{% trans 'Name:' %}</th>
-            <td>{{ group.name }}</td>
+            <td>{{ organization.organization_name }}</td>
         </tr>
         <tr>
             <th>{% trans 'Description:' %}</th>
-            <td>{{ group.description }}</td>
+            <td>{{ organization.description }}</td>
         </tr>
         <tr>
-            <th>{% trans 'Members' %}</th>
+            <th>{% trans 'Groups' %}</th>
             <td>
-                {% for member in members %}
-                    {{ member.username }}<br>
+                {% for group in organization.groups.all %}
+                    {{ group.name }}<br>
                 {% endfor %}
             </td>
         </tr>
         <tr>
             <th>{% trans 'Parent' %}</th>
-            <td>{{ group.parent }}</td>
-        </tr>
-        <tr>
-            <th>{% trans 'Permissions' %}</th>
-            <td>
-                {% for perm in group_permissions %}
-                    {{ perm }} <br>
-                {% endfor %}
-            </td>
+            <td>{{ organization.parent }}</td>
         </tr>
     </table>
     <div class="submit-button button">{% trans 'Yes, remove!' %}</div>
@@ -53,8 +44,9 @@
     $(".modal-close, .close-button").click(function(){
         toggleOverlay("");
     });
+
     $(".submit-button").click(function(){
-        removeEntity({{ group.id }},true, 'structure/groups');
+        removeEntity({{ organization.id }},true, 'structure/organizations');
     });
 </script>
 {% endblock %}

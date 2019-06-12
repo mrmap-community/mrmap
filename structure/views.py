@@ -1,6 +1,7 @@
 import datetime
 
 from django.contrib import messages
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
@@ -12,9 +13,9 @@ from MapSkinner.decorator import check_access
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.models import Service
-from structure.config import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW
+from structure.config import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganization
-from structure.models import Group, Role, Permission, Organization, PublishRequest
+from structure.models import Group, Role, Permission, Organization, PendingRequest
 from structure.models import User
 from users.helper import user_helper
 
@@ -43,7 +44,7 @@ def index(request: HttpRequest, user: User):
         ))
     # check for notifications like publishing requests
     # publish requests
-    pub_requests_count = PublishRequest.objects.filter(organization=user.organization).count()
+    pub_requests_count = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=user.organization).count()
 
     params = {
         "groups": groups,
@@ -94,10 +95,9 @@ def organizations(request: HttpRequest, user: User):
     all_orgs = Organization.objects.all()
     # check for notifications like publishing requests
     # publish requests
-    pub_requests_count = PublishRequest.objects.filter(organization=user.organization).count()
+    pub_requests_count = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=user.organization).count()
     orgs = {
         "primary": user.organization,
-        #"secondary": user.secondary_organization,
     }
     params = {
         "user_organizations": orgs,
@@ -169,6 +169,31 @@ def edit_org(request: HttpRequest, id: int, user: User):
 
 
 @check_access
+def remove_org(request: HttpRequest, user: User):
+    """ Renders the remove form for an organization
+
+    Args:
+        request(HttpRequest): The used request
+    Returns:
+        A rendered view
+    """
+    template = "remove_organization_confirmation.html"
+    _id = request.GET.dict().get("id")
+    confirmed = utils.resolve_boolean_attribute_val(request.GET.dict().get("confirmed"))
+    org = get_object_or_404(Organization, id=_id)
+    if not confirmed:
+        params = {
+            "organization": org,
+        }
+        html = render_to_string(template_name=template, context=params, request=request)
+        return BackendAjaxResponse(html=html).get_response()
+    else:
+        # remove group and all of the related content
+        org.delete()
+        return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure").get_response()
+
+
+@check_access
 def new_org(request: HttpRequest, user: User):
     """ Renders the new organization form and saves the input
 
@@ -212,13 +237,15 @@ def new_org(request: HttpRequest, user: User):
 def list_publish_request(request: HttpRequest, id: int, user: User):
     """ Index for all publishers and publish requests
 
-    :param request:
-    :param id:
-    :param user:
-    :return:
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The organization's id
+        user (User): The acting user
+    Returns:
+        A rendered view
     """
     template = "index_publish_requests.html"
-    pub_requests = PublishRequest.objects.filter(organization=id)
+    pub_requests = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=id)
     all_publishing_groups = Group.objects.filter(publish_for_organizations__id=id)
     organization = Organization.objects.get(id=id)
     params = {
@@ -247,7 +274,7 @@ def toggle_publish_request(request: HttpRequest, id: int, user: User):
     post_params = request.POST
     is_accepted = utils.resolve_boolean_attribute_val(post_params.get("accept"))
     organization = Organization.objects.get(id=id)
-    pub_request = PublishRequest.objects.get(id=post_params.get("requestId"))
+    pub_request = PendingRequest.objects.get(type=PENDING_REQUEST_TYPE_PUBLISHING, id=post_params.get("requestId"))
     now = timezone.now()
     if is_accepted and pub_request.activation_until >= now:
         # add organization to group_publisher manager
@@ -300,7 +327,7 @@ def publish_request(request: HttpRequest, id: int, user: User):
             group = Group.objects.get(id=request_form.cleaned_data["group"])
 
             # check if user is already a publisher using this group or a request already has been created
-            pub_request = PublishRequest.objects.filter(organization=org, group=group)
+            pub_request = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=org, group=group)
             if org in group.publish_for_organizations.all() or pub_request.count() > 0 or org == group.organization:
                 if pub_request.count() > 0:
                     messages.add_message(request, messages.INFO, _("Your group already has sent a request. Please be patient!"))
@@ -310,7 +337,8 @@ def publish_request(request: HttpRequest, id: int, user: User):
                     messages.add_message(request, messages.INFO, _("Your group already is a publisher for this organization!"))
                 return redirect("structure:detail-organization", str(id))
 
-            publish_request_obj = PublishRequest()
+            publish_request_obj = PendingRequest()
+            publish_request_obj.type = PENDING_REQUEST_TYPE_PUBLISHING
             publish_request_obj.organization = org
             publish_request_obj.message = msg
             publish_request_obj.group = group
@@ -412,8 +440,8 @@ def list_publisher_group(request: HttpRequest, id: int, user: User):
 
 
 @check_access
-def remove(request: HttpRequest, user: User):
-    """ Renders the remove form for a service
+def remove_group(request: HttpRequest, user: User):
+    """ Renders the remove form for a group
 
     Args:
         request(HttpRequest): The used request

@@ -60,6 +60,7 @@ class Metadata(Resource):
     metadata_url = models.CharField(max_length=255, null=True)
     # other
     keywords = models.ManyToManyField(Keyword)
+    categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
 
     def __init__(self, *args, **kwargs):
@@ -80,17 +81,28 @@ class TermsOfUse(Resource):
     fees = models.CharField(max_length=100)
 
 
-class Category(Resource):
-    title_DE = models.CharField(max_length=100, unique=True)
-    title_EN = models.CharField(max_length=100, unique=True)
-    description_DE = models.TextField(unique=True)
-    description_EN = models.TextField(unique=True)
-    is_inspire = models.BooleanField()
-    symbol = models.CharField(max_length=100, unique=True)
-    metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
+class CategoryOrigin(models.Model):
+    name = models.CharField(max_length=255)
+    uri = models.CharField(max_length=500)
 
     def __str__(self):
-        return self.title_EN
+        return self.name
+
+
+class Category(Resource):
+    type = models.CharField(max_length=255)
+    title_locale_1 = models.CharField(max_length=255, null=True)
+    title_locale_2 = models.CharField(max_length=255, null=True)
+    title_EN = models.CharField(max_length=255, null=True)
+    description_locale_1 = models.TextField(null=True)
+    description_locale_2 = models.TextField(null=True)
+    description_EN = models.TextField(null=True)
+    symbol = models.CharField(max_length=500, null=True)
+    online_link = models.CharField(max_length=500, null=True)
+    origin = models.ForeignKey(CategoryOrigin, on_delete=models.DO_NOTHING, null=True)
+
+    def __str__(self):
+        return self.title_EN + " (" + self.type + ")"
 
 
 class ServiceType(models.Model):

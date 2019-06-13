@@ -46,12 +46,11 @@ PROXIES = {
 CATEGORIES = {
     "inspire": "https://www.eionet.europa.eu/gemet/getTopmostConcepts?thesaurus_uri=http://inspire.ec.europa.eu/theme/&language={}",
     "iso": "http://inspire.ec.europa.eu/metadata-codelist/TopicCategory/TopicCategory.{}.json",
-    "additional": []
 }
 
 CATEGORIES_LANG = {
     "locale_1": "de",
-    "locale_2": None,
+    "locale_2": "fr",
 }
 
 XML_NAMESPACES = {

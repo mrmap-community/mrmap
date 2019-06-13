@@ -60,6 +60,7 @@ class Metadata(Resource):
     metadata_url = models.CharField(max_length=255, null=True)
     # other
     keywords = models.ManyToManyField(Keyword)
+    categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
 
     def __init__(self, *args, **kwargs):

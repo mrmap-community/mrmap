@@ -19,11 +19,12 @@ from MapSkinner import utils
 from service.config import ALLOWED_SRS
 from service.helper.enums import VersionTypes
 from service.helper.epsg_api import EpsgApi
-from service.helper.ogc.ows import OGCWebService
+from service.helper.ogc.ows import OGCWebService, ISOMetadata
 from service.helper.ogc.layer import OGCLayer
 
 from service.helper import service_helper
-from service.models import ServiceType, Service, Metadata, Layer, Dimension, MimeType, Keyword, ReferenceSystem
+from service.models import ServiceType, Service, Metadata, Layer, Dimension, MimeType, Keyword, ReferenceSystem, \
+    MetadataRelation, MetadataOrigin
 from structure.models import Organization, Group
 from structure.models import User
 
@@ -259,6 +260,17 @@ class OGCWebMapService(OGCWebService):
         elements["uri"] = elements["uri"].get("xlink:href") if elements["uri"] is not None else None
         layer_obj.style = elements
 
+    def __has_iso_metadata(self, xml):
+        """ Checks whether the xml element has an iso 19115 metadata record or not
+
+        Args:
+            xml: The xml etree object
+        Returns:
+             True if element has iso metadata, false otherwise
+        """
+        iso_metadata = service_helper.try_get_element_from_xml(xml_elem=xml, elem="./MetadataURL")
+        return len(iso_metadata) != 0
+
     def __get_layers_recursive(self, layers, parent=None, position=0):
         """ Recursive Iteration over all children and subchildren.
 
@@ -298,12 +310,20 @@ class OGCWebMapService(OGCWebService):
             if self.layers is None:
                 self.layers = []
 
+            # check for possible ISO metadata
+            if self.__has_iso_metadata(layer):
+                # run parsing on this metadata!
+                iso_uri = service_helper.try_get_attribute_from_xml_element(xml_elem=layer, attribute="{http://www.w3.org/1999/xlink}href", elem="./MetadataURL/OnlineResource")
+                iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
+                layer_obj.iso_metadata = iso_metadata
+
             self.layers.append(layer_obj)
             sublayers = layer.xpath("./Layer")
             if parent is not None:
                 parent.child_layer.append(layer_obj)
             position += 1
             self.__get_layers_recursive(layers=sublayers, parent=layer_obj, position=position)
+
 
     def get_layers(self, xml_obj):
         """ Parses all layers of a service and creates objects for it.
@@ -472,7 +492,6 @@ class OGCWebMapService(OGCWebService):
             metadata.access_constraints = root_md.access_constraints
             metadata.is_active = False
             metadata.created_by = creator
-            #metadata.save()
 
             # handle keywords of this layer
             for kw in layer_obj.capability_keywords:
@@ -516,6 +535,11 @@ class OGCWebMapService(OGCWebService):
             layer.get_map_uri = layer_obj.get_map_uri
             layer.describe_layer_uri = layer_obj.describe_layer_uri
             layer.get_capabilities_uri = layer_obj.get_capabilities_uri
+
+            if layer_obj.iso_metadata is not None:
+                iso_metadata = layer_obj.iso_metadata.get_db_model()
+                layer.iso_metadata = iso_metadata
+
 
             if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
                 # ToDo: Rework dimension persisting! Currently simply ignore it...
@@ -653,6 +677,17 @@ class OGCWebMapService(OGCWebService):
         for layer in layers:
             md = layer.metadata
             md.save()
+            iso_md = layer.iso_metadata
+            if iso_md is not None:
+                iso_md.save()
+                metadata_relation = MetadataRelation()
+                metadata_relation.metadata_1 = md
+                metadata_relation.metadata_2 = iso_md
+                metadata_relation.origin = MetadataOrigin.objects.get_or_create(
+                    name=iso_md.origin
+                )[0]
+                metadata_relation.save()
+
             layer.metadata = md
 
             # handle keywords of this layer

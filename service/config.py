@@ -7,6 +7,7 @@ Created on: 07.06.19
 
 This file contains app specific configurations like constants and so on.
 """
+from MapSkinner.settings import BASE_DIR
 
 ALLOWED_SRS = [
     4326,
@@ -64,3 +65,4 @@ ALLOWED_SRS_EXTENTS = {
         },
 }
 
+INSPIRE_LEGISLATION_FILE = BASE_DIR + "/inspire_legislation.json"

@@ -18,7 +18,7 @@ def check_access(function):
     def wrap(request, *args, **kwargs):
         if user_helper.is_session_expired(request):
             messages.add_message(request, messages.INFO, _("Session timeout. You have been logged out."))
-            if request.method == 'POST':
+            if request.environ.get("HTTP_X_REQUESTED_WITH", None) is not None:
                 # this is an ajax call -> redirect user to login page if the session isn't valid anymore
                 return BackendAjaxResponse(html="", redirect=ROOT_URL).get_response()
             else:

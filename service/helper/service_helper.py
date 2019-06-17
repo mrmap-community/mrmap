@@ -164,7 +164,7 @@ def find_node_recursive(node_list: list, name):
     return Element("None")
 
 
-def parse_xml(xml, encoding=None):
+def parse_xml(xml: str, encoding=None):
     """ Returns the xml as iterable object
 
     Args:

@@ -289,7 +289,15 @@ class FeatureType(Resource):
     default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True, related_name="default_srs")
     additional_srs = models.ManyToManyField(ReferenceSystem)
     inspire_download = models.BooleanField(default=False)
-    bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
+    bbox_lat_lon = models.PolygonField(default=Polygon(
+        (
+            (-90.0, -180.0),
+            (-90.0, 180.0),
+            (90.0, 180.0),
+            (90.0, -180.0),
+            (-90.0, -180.0),
+        )
+    ))
     keywords = models.ManyToManyField(Keyword)
     formats = models.ManyToManyField(MimeType)
     elements = models.ManyToManyField('FeatureTypeElement')

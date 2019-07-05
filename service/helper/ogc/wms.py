@@ -67,6 +67,30 @@ class OGCWebMapService(OGCWebService):
     class Meta:
         abstract = True
 
+    @abstractmethod
+    def create_from_capabilities(self):
+        """ Fills the object with data from the capabilities document
+
+        Returns:
+             nothing
+        """
+        # get xml as iterable object
+        xml_obj = service_helper.parse_xml(xml=self.service_capabilities_xml)
+
+        start_time = time.time()
+        self.get_service_metadata(xml_obj=xml_obj)
+        print(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
+
+        start_time = time.time()
+        self.get_service_iso_metadata(xml_obj=xml_obj)
+        print(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
+
+        self.get_version_specific_metadata(xml_obj=xml_obj)
+
+        start_time = time.time()
+        self.get_layers(xml_obj=xml_obj)
+        print(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
+
     ### IDENTIFIER ###
     def __parse_identifier(self, layer, layer_obj):
         layer_obj.identifier = service_helper.try_get_text_from_xml_element(elem="./Name", xml_elem=layer)
@@ -341,72 +365,6 @@ class OGCWebMapService(OGCWebService):
         # get most upper parent layer, which normally lives directly in <Capability>
         layers = xml_obj.xpath("//Capability/Layer")
         self.__get_layers_recursive(layers)
-
-    @abstractmethod
-    def create_from_capabilities(self):
-        """ Fills the object with data from the capabilities document
-
-        Returns:
-             nothing
-        """
-        # get xml as iterable object
-        xml_obj = service_helper.parse_xml(xml=self.service_capabilities_xml)
-
-        start_time = time.time()
-        self.get_service_metadata(xml_obj=xml_obj)
-        print(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
-
-        start_time = time.time()
-        self.get_service_iso_metadata(xml_obj=xml_obj)
-        print(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
-
-        self.get_version_specific_metadata(xml_obj=xml_obj)
-
-        start_time = time.time()
-        self.get_layers(xml_obj=xml_obj)
-        print(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
-
-    def get_service_iso_metadata(self, xml_obj):
-        """ Parse iso metadata for the whole service and merge the data with the capabilities service metadata.
-
-        Since there might be differences between the ISO metadata and the capabilities metadata we need to declare
-        a few best practices:
-        1. Lists of information (e.g. keywords, spatial reference systems, ...) should be merged, not replaced, without duplicates
-        2. If an information is already set...
-            2.1. ... and the found information does not differ from the set one -> do nothing
-            2.2. ... and the found information differs from the set one -> DO NOTHING! Yes this is strange but we have no way to qualify which
-
-        Args:
-            xml_obj: The xml etree object which is used for parsing
-        Returns:
-             nothing
-        """
-        # Must parse metadata document and merge metadata into this metadata object
-        service_md_link = service_helper.try_get_text_from_xml_element(elem="//inspire_common:URL", xml_elem=xml_obj)
-        # get iso metadata xml object
-        if service_md_link is None:
-            # no iso metadata provided
-            return
-        iso_metadata = ISOMetadata(uri=service_md_link)
-        # add keywords
-        for keyword in iso_metadata.keywords:
-            self.service_identification_keywords.append(keyword)
-        # add multiple other data that can not be found in the capabilities document
-        self.service_create_date = iso_metadata.create_date
-        self.service_last_change = iso_metadata.last_change_date
-        self.service_iso_md_uri = iso_metadata.uri
-        self.service_file_identifier = iso_metadata.file_identifier
-        self.service_identification_title = iso_metadata.title
-        self.service_identification_abstract = iso_metadata.abstract
-        bounding_points = (
-            (float(iso_metadata.bounding_box["min_x"]), float(iso_metadata.bounding_box["min_y"])),
-            (float(iso_metadata.bounding_box["min_x"]), float(iso_metadata.bounding_box["max_y"])),
-            (float(iso_metadata.bounding_box["max_x"]), float(iso_metadata.bounding_box["max_y"])),
-            (float(iso_metadata.bounding_box["max_x"]), float(iso_metadata.bounding_box["min_y"])),
-            (float(iso_metadata.bounding_box["min_x"]), float(iso_metadata.bounding_box["min_y"]))
-        )
-        bbox = Polygon(bounding_points)
-        self.service_bounding_box = bbox
 
     def get_service_metadata(self, xml_obj):
         """ This private function holds the main parsable elements which are part of every wms specification starting at 1.0.0

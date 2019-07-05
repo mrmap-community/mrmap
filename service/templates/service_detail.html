@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% load static i18n leaflet_tags %}
+{% load static i18n %}
 
 {% block title %}
 - {{ root_metadata.title }}
@@ -9,8 +9,6 @@
     <script type="text/javascript" src="{% static '/service/js/service.js' %}"></script>
     <link rel="stylesheet" type="text/css" href="{% static '/service/css/service.css' %}" media="all" />
     <link rel="stylesheet" type="text/css" href="{% static '/service/css/leaflet.css' %}" media="all" />
-    {% leaflet_js %}
-    {% leaflet_css %}
 {% endblock %}
 
 {% block body %}

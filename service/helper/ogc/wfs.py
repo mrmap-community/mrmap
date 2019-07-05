@@ -8,9 +8,10 @@ from collections import OrderedDict
 
 import time
 
+from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from MapSkinner.settings import XML_NAMESPACES, GENERIC_ERROR_MSG
+from MapSkinner.settings import XML_NAMESPACES, GENERIC_ERROR_MSG, EXEC_TIME_PRINT
 from MapSkinner.utils import execute_threads
 from service.config import ALLOWED_SRS
 from service.helper.enums import VersionTypes, ServiceTypes
@@ -89,11 +90,17 @@ class OGCWebFeatureService(OGCWebService):
             threading.Thread(target=self.get_capability_metadata, args=(xml_obj,)),
         ]
         execute_threads(thread_list)
+
+        start_time = time.time()
+        self.get_service_iso_metadata(xml_obj)
+        print(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
+
+        start_time = time.time()
         self.get_feature_type_metadata(xml_obj)
+        print(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
         # always execute version specific tasks AFTER multithreading
         # Otherwise we might face race conditions which lead to loss of data!
         self.get_version_specific_metadata(xml_obj)
-
 
     @abstractmethod
     def get_service_metadata(self, xml_obj):
@@ -293,11 +300,16 @@ class OGCWebFeatureService(OGCWebService):
         max_x = tmp.split(" ")[0]
         max_y = tmp.split(" ")[1]
         tmp = OrderedDict()
-        tmp["minx"] = min_x
-        tmp["miny"] = min_y
-        tmp["maxx"] = max_x
-        tmp["maxy"] = max_y
-        f_t.bbox_lat_lon = json.dumps(tmp)
+        bbox = Polygon(
+            (
+                (float(min_x), float(min_y)),
+                (float(min_x), float(max_y)),
+                (float(max_x), float(max_y)),
+                (float(max_x), float(min_y)),
+                (float(min_x), float(min_y)),
+            )
+        )
+        f_t.bbox_lat_lon = bbox
         # Output formats
         formats = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:Format")
         format_list = []
@@ -362,7 +374,9 @@ class OGCWebFeatureService(OGCWebService):
         # Metadata
         md = Metadata()
         md.title = self.service_identification_title
-        md.uuid = uuid.uuid4()
+        if self.service_file_identifier is None:
+            self.service_file_identifier = uuid.uuid4()
+        md.uuid = self.service_file_identifier
         md.abstract = self.service_identification_abstract
         md.online_resource = self.service_provider_onlineresource_linkage
         ## contact
@@ -383,6 +397,7 @@ class OGCWebFeatureService(OGCWebService):
         md.access_constraints = self.service_identification_accessconstraints
         md.created_by = group
         md.original_uri = self.service_connect_url
+        md.bounding_geometry = self.service_bounding_box
         #md.save()
 
         # Service

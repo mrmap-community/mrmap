@@ -58,7 +58,7 @@
                 <tr>
                     <th>{% trans 'Bounding box (lat lon)' %}</th>
                     <td>
-                        {{ featuretype.bbox_lat_lon }}
+                        {{ featuretype.bbox_lat_lon.geojson|safe }}
                     </td>
                 </tr>
                 <tr>

@@ -207,7 +207,7 @@ class ISOMetadata:
         regislations = {
             "inspire_rules": []
         }
-        with open(INSPIRE_LEGISLATION_FILE, "r") as _file:
+        with open(INSPIRE_LEGISLATION_FILE, "r", encoding="utf-8") as _file:
             regislations = json.load(_file)
         for regislation in regislations["inspire_rules"]:
             reg = {

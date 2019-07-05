@@ -1,5 +1,5 @@
 
-{% load static i18n %}
+{% load static i18n leaflet_tags %}
 
 {% if layers|length > 0 %}
 <div class="sublayer-container">
@@ -35,9 +35,15 @@
                 <tr>
                     <th>{% trans 'Keywords' %}</th>
                     <td>
+                        <table>
                         {% for kw in layer.metadata.keywords.all %}
-                            {{ kw }}<br>
+                            <tr>
+                                <td>{{ kw }}</td>
+                            </tr>
+                        {% empty %}
+                            {% trans 'No keywords provided' %}
                         {% endfor %}
+                        </table>
                     </td>
                 </tr>
                 <tr>
@@ -91,7 +97,7 @@
                 <tr>
                     <th>{% trans 'Bounding box (lat lon)' %}</th>
                     <td>
-                        {{ layer.bbox_lat_lon }}
+                        {{ layer.bbox_lat_lon.geojson|safe }}
                     </td>
                 </tr>
                 <tr>

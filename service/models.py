@@ -1,4 +1,6 @@
 import uuid
+
+from django.contrib.gis.geos import Polygon
 from django.db import models
 from django.contrib.gis.db import models
 from django.utils import timezone
@@ -201,7 +203,16 @@ class Layer(Service):
     is_cascaded = models.BooleanField(default=False)
     scale_min = models.FloatField(default=0)
     scale_max = models.FloatField(default=0)
-    bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
+    #bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
+    bbox_lat_lon = models.PolygonField(default=Polygon(
+        (
+            (-90.0, -180.0),
+            (-90.0, 180.0),
+            (90.0, 180.0),
+            (90.0, -180.0),
+            (-90.0, -180.0),
+        )
+    ))
     iso_metadata = None
 
     def __init__(self, *args, **kwargs):

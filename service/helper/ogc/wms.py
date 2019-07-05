@@ -12,6 +12,8 @@ from abc import abstractmethod
 import time
 
 from copy import copy
+
+from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
 from MapSkinner.settings import EXEC_TIME_PRINT
@@ -19,7 +21,8 @@ from MapSkinner import utils
 from service.config import ALLOWED_SRS
 from service.helper.enums import VersionTypes
 from service.helper.epsg_api import EpsgApi
-from service.helper.ogc.ows import OGCWebService, ISOMetadata
+from service.helper.iso.isoMetadata import ISOMetadata
+from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
 from service.helper import service_helper
@@ -353,11 +356,57 @@ class OGCWebMapService(OGCWebService):
         self.get_service_metadata(xml_obj=xml_obj)
         print(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
 
+        start_time = time.time()
+        self.get_service_iso_metadata(xml_obj=xml_obj)
+        print(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
+
         self.get_version_specific_metadata(xml_obj=xml_obj)
 
         start_time = time.time()
         self.get_layers(xml_obj=xml_obj)
         print(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
+
+    def get_service_iso_metadata(self, xml_obj):
+        """ Parse iso metadata for the whole service and merge the data with the capabilities service metadata.
+
+        Since there might be differences between the ISO metadata and the capabilities metadata we need to declare
+        a few best practices:
+        1. Lists of information (e.g. keywords, spatial reference systems, ...) should be merged, not replaced, without duplicates
+        2. If an information is already set...
+            2.1. ... and the found information does not differ from the set one -> do nothing
+            2.2. ... and the found information differs from the set one -> DO NOTHING! Yes this is strange but we have no way to qualify which
+
+        Args:
+            xml_obj: The xml etree object which is used for parsing
+        Returns:
+             nothing
+        """
+        # Must parse metadata document and merge metadata into this metadata object
+        service_md_link = service_helper.try_get_text_from_xml_element(elem="//inspire_common:URL", xml_elem=xml_obj)
+        # get iso metadata xml object
+        if service_md_link is None:
+            # no iso metadata provided
+            return
+        iso_metadata = ISOMetadata(uri=service_md_link)
+        # add keywords
+        for keyword in iso_metadata.keywords:
+            self.service_identification_keywords.append(keyword)
+        # add multiple other data that can not be found in the capabilities document
+        self.service_create_date = iso_metadata.create_date
+        self.service_last_change = iso_metadata.last_change_date
+        self.service_iso_md_uri = iso_metadata.uri
+        self.service_file_identifier = iso_metadata.file_identifier
+        self.service_identification_title = iso_metadata.title
+        self.service_identification_abstract = iso_metadata.abstract
+        bounding_points = (
+            (float(iso_metadata.bounding_box["min_x"]), float(iso_metadata.bounding_box["min_y"])),
+            (float(iso_metadata.bounding_box["min_x"]), float(iso_metadata.bounding_box["max_y"])),
+            (float(iso_metadata.bounding_box["max_x"]), float(iso_metadata.bounding_box["max_y"])),
+            (float(iso_metadata.bounding_box["max_x"]), float(iso_metadata.bounding_box["min_y"])),
+            (float(iso_metadata.bounding_box["min_x"]), float(iso_metadata.bounding_box["min_y"]))
+        )
+        bbox = Polygon(bounding_points)
+        self.service_bounding_box = bbox
 
     def get_service_metadata(self, xml_obj):
         """ This private function holds the main parsable elements which are part of every wms specification starting at 1.0.0
@@ -524,7 +573,16 @@ class OGCWebMapService(OGCWebService):
             layer.is_opaque = layer_obj.is_opaque
             layer.scale_min = layer_obj.capability_scale_hint.get("min")
             layer.scale_max = layer_obj.capability_scale_hint.get("max")
-            layer.bbox_lat_lon = json.dumps(layer_obj.capability_bbox_lat_lon)
+            # create bounding box polygon
+            bounding_points = (
+                (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["miny"])),
+                (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["maxy"])),
+                (float(layer_obj.capability_bbox_lat_lon["maxx"]), float(layer_obj.capability_bbox_lat_lon["maxy"])),
+                (float(layer_obj.capability_bbox_lat_lon["maxx"]), float(layer_obj.capability_bbox_lat_lon["miny"])),
+                (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["miny"]))
+            )
+            layer.bbox_lat_lon = Polygon(bounding_points)
+
             layer.created_by = creator
             layer.published_for = published_for
             layer.published_by = publisher
@@ -599,12 +657,15 @@ class OGCWebMapService(OGCWebService):
         )[0]
         # metadata
         metadata = Metadata()
-        metadata.uuid = uuid.uuid4()
+        if self.service_file_identifier is None:
+            self.service_file_identifier = uuid.uuid4()
+        metadata.uuid = self.service_file_identifier
         metadata.title = self.service_identification_title
         metadata.abstract = self.service_identification_abstract
         metadata.online_resource = ",".join(self.service_provider_onlineresource_linkage)
         metadata.original_uri = self.service_connect_url
         metadata.access_constraints = self.service_identification_accessconstraints
+        metadata.bounding_geometry = self.service_bounding_box
         ## keywords
         for kw in self.service_identification_keywords:
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]

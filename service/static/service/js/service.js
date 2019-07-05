@@ -114,15 +114,18 @@ function checkServiceRequestURI(isUpdate, id){
 $(document).on("click", ".layer-title", function(){
     var elem = $(this);
     var table = elem.siblings(".subelements");
-    var layerId = elem.attr("data-id");
-    if(!elem.hasClass("loaded")){
+    var elemId = elem.attr("data-id");
+    var elemType = elem.attr("data-type");
+    if(!elem.hasClass("loaded") && elemType != "featureTypeElements"){
         // do the ajax request
         $.ajax({
-            url: rootUrl + "/service/detail-child/" + layerId,
+            url: rootUrl + "/service/detail-child/" + elemId,
             headers: {
                 "X-CSRFToken": getCookie("csrftoken")
             },
-            data: {},
+            data: {
+                "serviceType": elemType
+            },
             type: 'get',
             dataType: 'json'
         }).done(function(data){

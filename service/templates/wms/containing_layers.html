@@ -10,7 +10,7 @@
     <div class="sublayer hidden">
         {% for layer in layers %}
         <div class="collapsible-table">
-            <h3 class="layer-title" title="{% trans 'Click to expand' %}" data-id="{{ layer.id }}">
+            <h3 class="layer-title" title="{% trans 'Click to expand' %}" data-id="{{ layer.id }}" data-type="wms">
                 <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
                 {{ layer.metadata.title }}
             </h3>

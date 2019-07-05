@@ -18,7 +18,7 @@ from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
-from service.models import Metadata, Layer, Service
+from service.models import Metadata, Layer, Service, FeatureType
 from structure.models import User, Organization, Group
 
 
@@ -426,10 +426,20 @@ def detail(request: HttpRequest, id, user:User):
 
 @check_access
 def detail_child(request: HttpRequest, id, user:User):
-    template = "detail/service_detail_child.html"
-    element = Layer.objects.get(id=id)
+    elementType = request.GET.get("serviceType")
+    if elementType == "wms":
+        template = "detail/service_detail_child_wms.html"
+        element = Layer.objects.get(id=id)
+    elif elementType == "wfs":
+        template = "detail/service_detail_child_wfs.html"
+        element = FeatureType.objects.get(id=id)
+        l = list(element.elements.all())
+    else:
+        template = ""
+        element = None
     params = {
         "element": element
     }
+
     html = render_to_string(template_name=template, context=params)
     return BackendAjaxResponse(html=html).get_response()

@@ -410,7 +410,7 @@ def detail(request: HttpRequest, id, user:User):
         id: The id of the selected metadata
     Returns:
     """
-    template = "service_detail.html"
+    template = "detail/service_detail.html"
     service_md = get_object_or_404(Metadata, id=id)
     service = get_object_or_404(Service, id=service_md.service.id)
     layers = Layer.objects.filter(parent_service=service_md.service)
@@ -422,3 +422,14 @@ def detail(request: HttpRequest, id, user:User):
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
+
+
+@check_access
+def detail_child(request: HttpRequest, id, user:User):
+    template = "detail/service_detail_child.html"
+    element = Service.objects.get(id=id)
+    params = {
+        "element": element
+    }
+    html = render_to_string(template_name=template, context=params)
+    return BackendAjaxResponse(html=html).get_response()

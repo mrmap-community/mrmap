@@ -30,8 +30,16 @@ class KeywordAdmin(admin.ModelAdmin):
     pass
 
 
+class MetadataOriginAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+
+
 class MetadataAdmin(admin.ModelAdmin):
     list_display = ('title', 'contact', 'uuid')
+
+
+class MetadataRelationAdmin(admin.ModelAdmin):
+    list_display = ('metadata_1', 'metadata_2', 'origin')
 
 
 class TermsOfUseAdmin(admin.ModelAdmin):
@@ -69,7 +77,9 @@ admin.site.register(ServiceType, ServiceTypeAdmin)
 admin.site.register(Module, ModuleAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(Keyword, KeywordAdmin)
+admin.site.register(MetadataOrigin, MetadataOriginAdmin)
 admin.site.register(Metadata, MetadataAdmin)
+admin.site.register(MetadataRelation, MetadataRelationAdmin)
 admin.site.register(TermsOfUse, TermsOfUseAdmin)
 admin.site.register(ReferenceSystem, ReferenceSystemAdmin)
 admin.site.register(Service, ServiceAdmin)

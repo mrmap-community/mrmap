@@ -1,12 +1,15 @@
 # common classes for handling of OWS (OGC Webservices)
 # for naming conventions see http://portal.opengeospatial.org/files/?artifact_id=38867
+
 from abc import abstractmethod
 
+from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
+from service.helper import service_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
-from service.helper import service_helper
+from service.helper.iso.isoMetadata import ISOMetadata
 from structure.models import User
 
 
@@ -25,12 +28,19 @@ class OGCWebService:
         self.service_object = None
         
         # service_metadata
+        self.service_file_identifier = None
+        self.service_preview_image = None
+        self.service_iso_md_uri = None
         self.service_identification_title = None
         self.service_identification_abstract = None
         self.service_identification_keywords = []
         self.service_identification_fees = None
         self.service_identification_accessconstraints = None
-        
+
+        self.service_last_change = None
+        self.service_create_date = None
+        self.service_bounding_box = None
+
         # service_provider
         self.service_provider_providername = None
         self.service_provider_url = None
@@ -64,7 +74,8 @@ class OGCWebService:
 
         class Meta:
             abstract = True
-            
+
+
     def get_capabilities(self):
         """ Start a network call to retrieve the original capabilities xml document.
 
@@ -121,6 +132,52 @@ class OGCWebService:
         pass
 
     @abstractmethod
+    def get_service_iso_metadata(self, xml_obj):
+        """ Parse iso metadata for the whole service and merge the data with the capabilities service metadata.
+
+        Since there might be differences between the ISO metadata and the capabilities metadata we need to declare
+        a few best practices:
+        1. Lists of information (e.g. keywords, spatial reference systems, ...) should be merged without duplicates
+        2. If an information is already set...
+            2.1. ... and the found information does not differ from the set one -> do nothing
+            2.2. ... and the found information differs from the set one -> DO NOTHING! Yes this is strange but we have no way to qualify which
+
+        Args:
+            xml_obj: The xml etree object which is used for parsing
+        Returns:
+             nothing
+        """
+        # Must parse metadata document and merge metadata into this metadata object
+        elem = "//inspire_common:URL"  # for wms by default
+        if self.service_type is ServiceTypes.WFS:
+            elem = "//wfs:MetadataURL"
+        service_md_link = service_helper.try_get_text_from_xml_element(elem=elem, xml_elem=xml_obj)
+        # get iso metadata xml object
+        if service_md_link is None:
+            # no iso metadata provided
+            return
+        iso_metadata = ISOMetadata(uri=service_md_link)
+        # add keywords
+        for keyword in iso_metadata.keywords:
+            self.service_identification_keywords.append(keyword)
+        # add multiple other data that can not be found in the capabilities document
+        self.service_create_date = iso_metadata.create_date
+        self.service_last_change = iso_metadata.last_change_date
+        self.service_iso_md_uri = iso_metadata.uri
+        self.service_file_identifier = iso_metadata.file_identifier
+        self.service_identification_title = iso_metadata.title
+        self.service_identification_abstract = iso_metadata.abstract
+        bounding_points = (
+            (float(iso_metadata.bounding_box["min_x"]), float(iso_metadata.bounding_box["min_y"])),
+            (float(iso_metadata.bounding_box["min_x"]), float(iso_metadata.bounding_box["max_y"])),
+            (float(iso_metadata.bounding_box["max_x"]), float(iso_metadata.bounding_box["max_y"])),
+            (float(iso_metadata.bounding_box["max_x"]), float(iso_metadata.bounding_box["min_y"])),
+            (float(iso_metadata.bounding_box["min_x"]), float(iso_metadata.bounding_box["min_y"]))
+        )
+        bbox = Polygon(bounding_points)
+        self.service_bounding_box = bbox
+
+    @abstractmethod
     def create_service_model_instance(self, user: User, register_group, register_for_organization):
         pass
 
@@ -128,13 +185,6 @@ class OGCWebService:
     @abstractmethod
     def persist_service_model(self, service):
         pass
-
-
-class OWSServiceMetadata:
-    def __init__(self):
-        self.section = "all" # serviceIdentification, serviceProvider, operationMetadata, contents, all
-        # version = ""
-        # update_sequence = ""
 
 
 class OWSRequestHandler:

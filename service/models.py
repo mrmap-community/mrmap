@@ -1,4 +1,6 @@
 import uuid
+
+from django.contrib.gis.geos import Polygon
 from django.db import models
 from django.contrib.gis.db import models
 from django.utils import timezone
@@ -30,6 +32,20 @@ class Resource(models.Model):
     class Meta:
         abstract = True
 
+class MetadataOrigin(models.Model):
+    name = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.name
+
+
+class MetadataRelation(models.Model):
+    metadata_1 = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadate_from")
+    metadata_2 = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadate_to")
+    origin = models.ForeignKey(MetadataOrigin, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.metadata_1.title + " -> " + self.metadata_2.title
 
 class Metadata(Resource):
     title = models.CharField(max_length=255)
@@ -50,8 +66,7 @@ class Metadata(Resource):
     is_active = models.BooleanField(default=False)
     is_inspire_conform = models.BooleanField(default=False)
     has_inspire_downloads = models.BooleanField(default=False)
-    geom = models.GeometryField(null=True)
-    bounding_geometry = models.GeometryField(null=True)
+    bounding_geometry = models.PolygonField(null=True, blank=True)
     # capabilities
     bbox = models.DecimalField(decimal_places=2, max_digits=4, null=True)
     dimension = models.CharField(max_length=100, null=True)
@@ -62,6 +77,9 @@ class Metadata(Resource):
     keywords = models.ManyToManyField(Keyword)
     categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
+
+    related_metadata = models.ManyToManyField(MetadataRelation)
+    origin = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -185,7 +203,17 @@ class Layer(Service):
     is_cascaded = models.BooleanField(default=False)
     scale_min = models.FloatField(default=0)
     scale_max = models.FloatField(default=0)
-    bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
+    #bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
+    bbox_lat_lon = models.PolygonField(default=Polygon(
+        (
+            (-90.0, -180.0),
+            (-90.0, 180.0),
+            (90.0, 180.0),
+            (90.0, -180.0),
+            (-90.0, -180.0),
+        )
+    ))
+    iso_metadata = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -261,7 +289,15 @@ class FeatureType(Resource):
     default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True, related_name="default_srs")
     additional_srs = models.ManyToManyField(ReferenceSystem)
     inspire_download = models.BooleanField(default=False)
-    bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
+    bbox_lat_lon = models.PolygonField(default=Polygon(
+        (
+            (-90.0, -180.0),
+            (-90.0, 180.0),
+            (90.0, 180.0),
+            (90.0, -180.0),
+            (-90.0, -180.0),
+        )
+    ))
     keywords = models.ManyToManyField(Keyword)
     formats = models.ManyToManyField(MimeType)
     elements = models.ManyToManyField('FeatureTypeElement')

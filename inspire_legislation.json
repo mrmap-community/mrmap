@@ -1,0 +1,145 @@
+{
+	"default_language": "de",
+	"inspire_rules": [{
+		"name": "directive",
+		"group": "directive",
+		"type": "legislation",
+		"subject": ["dataset", "service", "metadata"],
+		"label": {
+			"en": "Directive 2007/2/EC of the European Parliament and of the Council of 14 March 2007 establishing an Infrastructure for Spatial Information in the European Community (INSPIRE)",
+			"de": "Richtlinie 2007/2/EG des Europäischen Parlaments und des Rates vom 14. März 2007 zur Schaffung einer Geodateninfrastruktur in der Europäischen Gemeinschaft (INSPIRE)"
+		},
+		"date": "2007-04-25",
+		"url": {
+			"en": "http://eur-lex.europa.eu/LexUriServ/LexUriServ.do?uri=CELEX%3A32007L0002%3AEN%3ANOT",
+			"de": ""
+		}
+	}, {
+		"name": "regulation_1089_2010_1",
+		"group": "data_specifications",
+		"type": "legislation",
+		"subject": ["service", "metadata", "dataset"],
+		"label": {
+			"en": "COMMISSION REGULATION (EU) No 1089/2010 of 23 November 2010 implementing Directive 2007/2/EC of the European Parliament and of the Council as regards interoperability of spatial data sets and services",
+			"de": "VERORDNUNG (EG) Nr. 1089/2010 DER KOMMISSION vom 23. November 2010 zur Durchführung der Richtlinie 2007/2/EG des Europäischen Parlaments und des Rates hinsichtlich der Interoperabilität von Geodatensätzen und -diensten"
+		},
+		"date": "2010-12-08",
+		"url": {
+			"en": "http://eur-lex.europa.eu/JOHtml.do?uri=OJ%3AL%3A2010%3A323%3ASOM%3AEN%3AHTML",
+			"de": ""
+		}
+	}, {
+		"name": "regulation_102_2011_1",
+		"group": "data_specifications",
+		"type": "legislation_amendment",
+		"subject": ["service", "dataset"],
+		"label": {
+			"en": "COMMISSION REGULATION (EU) No 102/2011 of 4 February 2011 amending Regulation (EU) No 1089/2010 implementing Directive 2007/2/EC of the European Parliament and of the Council as regards interoperability of spatial data sets and services",
+			"de": "VERORDNUNG (EU) Nr. 102/2011 DER KOMMISSION vom 4. Februar 2011 zur Änderung der Verordnung (EU) Nr. 1089/2010 zur Durchführung der Richtlinie 2007/2/EG des Europäischen Parlaments und des Rates hinsichtlich der Interoperabilität von Geodatensätzen und -diensten"
+		},
+		"date": "2011-02-05",
+		"url": {
+			"en": "http://eur-lex.europa.eu/LexUriServ/LexUriServ.do?uri=CELEX%3A32011R0102%3AEN%3ANOT",
+			"de": ""
+		}
+	}, {
+		"name": "regulation_1253_2013_1",
+		"group": "data_specifications",
+		"type": "legislation_amendment",
+		"subject": ["service", "dataset","metadata"],
+		"label": {
+			"en": "COMMISSION REGULATION (EU) No 1253/2013 of 21 October 2013 amending Regulation (EU) No 1089/2010 implementing Directive 2007/2/EC as regards interoperability of spatial data sets and services",
+			"de": "VERORDNUNG (EU) Nr. 1253/2013 DER KOMMISSION vom 21. Oktober 2013 zur Änderung der Verordnung (EU) Nr. 1089/2010 zur Durchführung der Richtlinie 2007/2/EG hinsichtlich der Interoperabilität von Geodatensätzen und -diensten"
+		},
+		"date": "2013-12-10",
+		"url": {
+			"en": "http://eur-lex.europa.eu/LexUriServ/LexUriServ.do?uri=OJ%3AL%3A2013%3A331%3A0001%3A0267%3AEN%3APDF",
+			"de": ""
+		}
+	}, {
+		"name": "regulation_1312_2014_1",
+		"group": "data_specifications",
+		"type": "legislation",
+		"subject": ["service","metadata"],
+		"label": {
+			"en": "COMMISSION REGULATION (EU) No 1312/2014 of 10 December 2014 amending Regulation (EU) No 1089/2010 implementing Directive 2007/2/EC of the European Parliament and of the Council as regards interoperability of spatial data services",
+			"de": "VERORDNUNG (EU) Nr. 1312/2014 DER KOMMISSION vom 10. Dezember 2014 zur Änderung der Verordnung (EU) Nr. 1089/2010 zur Durchführung der Richtlinie 2007/2/EG des Europäischen Parlaments und des Rates hinsichtlich der Interoperabilität von Geodatendiensten"
+		},
+		"date": "2014-12-11",
+		"url": {
+			"en": "http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=uriserv%3AOJ.L_.2014.354.01.0008.01.ENG",
+			"de": ""
+		}
+	}, {
+		"name": "regulation_1205_2008_1",
+		"group": "metadata",
+		"type": "legislation",
+		"subject": ["metadata","service","dataset"],
+		"label": {
+			"en": "COMMISSION REGULATION (EC) No 1205/2008 of 3 December 2008 implementing Directive 2007/2/EC of the European Parliament and of the Council as regards metadata",
+			"de": "VERORDNUNG (EG) Nr. 1205/2008 DER KOMMISSION vom 3. Dezember 2008 zur Durchführung der Richtlinie 2007/2/EG des Europäischen Parlaments und des Rates hinsichtlich Metadaten"
+		},
+		"date": "2008-12-04",
+		"url": {
+			"en": "http://eur-lex.europa.eu/LexUriServ/LexUriServ.do?uri=CELEX%3A32008R1205%3AEN%3ANOT",
+			"de": ""
+		}
+	}, {
+		"name": "regulation_1205_2008_1_1",
+		"group": "metadata",
+		"type": "legislation_corrigendum",
+		"abstract": "...",
+		"subject": ["metadata","service","dataset"],
+		"label": {
+			"en": "Corrigendum to Commission Regulation (EC) No 1205/2008 of 3 December 2008 implementing Directive 2007/2/EC of the European Parliament and of the Council as regards metadata",
+			"de": "Berichtigung der Verordnung (EG) Nr. 1205/2008 der Kommission vom 3. Dezember 2008 zur Durchführung der Richtlinie 2007/2/EG des Europäischen Parlaments und des Rates hinsichtlich Metadaten"
+		},
+		"date": "2009-12-15",
+		"url": {
+			"en": "http://eur-lex.europa.eu/legal-content/EN/ALL/?uri=CELEX:32008R1205R(02)",
+			"de": "http://eur-lex.europa.eu/legal-content/DE/TXT/?uri=CELEX:32008R1205R(02)"
+		}
+	}, {
+		"name": "regulation_1311_2014_1",
+		"group": "metadata",
+		"type": "legislation_amendment",
+		"subject": ["metadata", "service"],
+		"label": {
+			"en": "COMMISSION REGULATION (EU) No 1311/2014 of 10 December 2014 amending Regulation (EC) No 976/2009 as regards the definition of an INSPIRE metadata element",
+			"de": "VERORDNUNG (EU) Nr. 1311/2014 DER KOMMISSION vom 10. Dezember 2014 zur Änderung der Verordnung (EG) Nr. 976/2009 hinsichtlich der Definition des Begriffs INSPIRE-Metadatenelement"
+		},
+		"date": "2014-12-11",
+		"url": {
+			"en": "http://eur-lex.europa.eu/legal-content/EN/TXT/?uri=uriserv%3AOJ.L_.2014.354.01.0006.01.ENG",
+			"de": ""
+		}
+	}, {
+		"name": "regulation_976_2009_1",
+		"group": "network_services",
+		"type": "legislation",
+		"subject": ["metadata","service"],
+		"label": {
+			"en": "COMMISSION REGULATION (EC) No 976/2009 of 19 October 2009 implementing Directive 2007/2/EC of the European Parliament and of the Council as regards the Network Services",
+			"de": "VERORDNUNG (EG) Nr. 976/2009 DER KOMMISSION  vom 19. Oktober 2009 zur Durchführung der Richtlinie 2007/2/EG des Europäischen Parlaments und des Rates hinsichtlich der Netzdienste"
+		},
+		"date": "2009-10-20",
+		"url": {
+			"en": "http://eur-lex.europa.eu/LexUriServ/LexUriServ.do?uri=CELEX%3A32009R0976%3AEN%3ANOT",
+			"de": ""
+		}
+	}, {
+		"name": "regulation_1088_2010_1",
+		"group": "network_services",
+		"type": "legislation",
+		"subject": ["metadata","service"],
+		"label": {
+			"en": "COMMISSION REGULATION (EU) No 1088/2010 of 23 November 2010 amending Regulation (EC) No 976/2009 as regards download services and transformation service",
+			"de": "VERORDNUNG (EU) Nr. 1088/2010 DER KOMMISSION vom 23. November 2010 zur Änderung der Verordnung (EG) Nr. 976/2009 hinsichtlich Downloaddiensten und Transformationsdiensten"
+		},
+		"date": "2010-12-08",
+		"url": {
+			"en": "http://eur-lex.europa.eu/LexUriServ/LexUriServ.do?uri=CELEX%3A02009R0976-20101228%3AEN%3ANOT",
+			"de": "Verordnung (EU) Nr. 1088/2010 der Kommission vom 23. November 2010 zur Änderung der Verordnung (EG) Nr. 976/2009 hinsichtlich Downloaddiensten und Transformationsdiensten"
+		}
+	}]
+}

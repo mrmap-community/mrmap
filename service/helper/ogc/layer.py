@@ -39,3 +39,5 @@ class OGCLayer:
         self.dimension = []
         self.style = {}
         self.child_layer = []
+
+        self.iso_metadata = None

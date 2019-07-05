@@ -8,6 +8,7 @@
 {% block head %}
     <script type="text/javascript" src="{% static '/service/js/service.js' %}"></script>
     <link rel="stylesheet" type="text/css" href="{% static '/service/css/service.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/service/css/leaflet.css' %}" media="all" />
 {% endblock %}
 
 {% block body %}
@@ -81,7 +82,7 @@
     <tr>
         <th>{% trans 'Online resource' %}</th>
         <td>
-            {{ root_metadata.online_resource }}
+            <a href="{{ root_metadata.online_resource }}" target="_blank">{{ root_metadata.online_resource }}</a>
         </td>
     </tr>
     <tr>
@@ -96,6 +97,12 @@
                 {% trans 'No keywords provided' %}
             {% endfor %}
             </table>
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Bounding Box' %}</th>
+        <td>
+            {{ root_metadata.bounding_geometry.geojson|safe }}
         </td>
     </tr>
     <tr>

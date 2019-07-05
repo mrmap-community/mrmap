@@ -106,6 +106,51 @@ function checkServiceRequestURI(isUpdate, id){
 }
 
 
+/*
+ *  THESE FUNCTIONS HAVE TO STAY OUTSIDE THE DOCUMENT.READY BLOCK
+ *  THIS IS DUE TO THE FACT THAT THESE HAVE TO BE FIRED FOR AJAX LOADED HTML CONTENT AS WELL, WHICH WILL NOT WORK IF
+ *  THEY WOULD BE INSIDE THE DOCUMENT.READY BLOCK
+ */
+$(document).on("click", ".layer-title", function(){
+    var elem = $(this);
+    var table = elem.siblings(".subelements");
+    var layerId = elem.attr("data-id");
+    if(!elem.hasClass("loaded")){
+        // do the ajax request
+        $.ajax({
+            url: rootUrl + "/service/detail-child/" + layerId,
+            headers: {
+                "X-CSRFToken": getCookie("csrftoken")
+            },
+            data: {},
+            type: 'get',
+            dataType: 'json'
+        }).done(function(data){
+            var html = data["html"];
+            table.html(html);
+            elem.addClass("loaded");
+        }).always(function(data){
+        });
+    }
+    table.toggle("fast");
+    var img = elem.find("img");
+    toggleCollapsibleSymbol(img);
+});
+
+/*
+ *  THESE FUNCTIONS HAVE TO STAY OUTSIDE THE DOCUMENT.READY BLOCK
+ *  THIS IS DUE TO THE FACT THAT THESE HAVE TO BE FIRED FOR AJAX LOADED HTML CONTENT AS WELL, WHICH WILL NOT WORK IF
+ *  THEY WOULD BE INSIDE THE DOCUMENT.READY BLOCK
+ */
+$(document).on("click", ".sublayer-headline", function(){
+    var elem = $(this);
+    var table = elem.siblings(".sublayer");
+    table.toggle("fast");
+    var img = elem.find("img");
+    toggleCollapsibleSymbol(img);
+});
+
+
 $(document).ready(function(){
 
     $(".deactivate-container, .activate-container").click(function(){
@@ -140,41 +185,6 @@ $(document).ready(function(){
         }).always(function(data){
             checkRedirect(data);
         });
-    });
-
-    $(".layer-title").click(function(){
-        var elem = $(this);
-        var table = elem.siblings(".subelements");
-        var layerId = elem.attr("data-id");
-        if(!elem.hasClass("loaded")){
-            // do the ajax request
-            $.ajax({
-                url: rootUrl + "/service/detail-child/" + layerId,
-                headers: {
-                    "X-CSRFToken": getCookie("csrftoken")
-                },
-                data: {},
-                type: 'get',
-                dataType: 'json'
-            }).done(function(data){
-                var html = data["html"];
-                console.log(html);
-                table.html(html);
-                elem.addClass("loaded");
-            }).always(function(data){
-            });
-        }
-        table.toggle("fast");
-        var img = elem.find("img");
-        toggleCollapsibleSymbol(img);
-    });
-
-    $(".sublayer-headline").click(function(){
-        var elem = $(this);
-        var table = elem.siblings(".sublayer");
-        table.toggle("fast");
-        var img = elem.find("img");
-        toggleCollapsibleSymbol(img);
     });
 
     $("#service-update-button").click(function(){

@@ -427,7 +427,7 @@ def detail(request: HttpRequest, id, user:User):
 @check_access
 def detail_child(request: HttpRequest, id, user:User):
     template = "detail/service_detail_child.html"
-    element = Service.objects.get(id=id)
+    element = Layer.objects.get(id=id)
     params = {
         "element": element
     }

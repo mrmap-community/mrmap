@@ -179,6 +179,10 @@ a{
     justify-content: center;
 }
 
+.primary-color{
+    color: var(--secondary-color);
+}
+
 .navigation-menu{
     display: flex;
     align-items: center;

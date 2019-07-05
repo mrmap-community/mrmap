@@ -15,7 +15,10 @@
                 {{ layer.metadata.title }}
             </h3>
             <div class="subelements hidden">
-
+                <div class="loading-spinner">
+                    <i class="fas fa-circle-notch fa-spin primary-color"></i>
+                    <span id="submit-text">{% trans 'Loading...' %}</span>
+                </div>
             </div>
         </div>
 

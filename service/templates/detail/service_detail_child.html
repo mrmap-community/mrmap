@@ -110,8 +110,8 @@
         </td>
     </tr>
 </table>
-{% if element.child_element.all|length > 0 %}
-    {% with element.child_element.all as layers %}
+{% if element.child_layer.all|length > 0 %}
+    {% with element.child_layer.all as layers %}
         {% include 'wms/containing_layers.html' %}
     {% endwith %}
 {% endif %}

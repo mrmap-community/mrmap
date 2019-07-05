@@ -105,7 +105,6 @@ INSTALLED_APPS = [
     'structure',
     'django_extensions',
     'captcha',
-    'leaflet',
 ]
 
 MIDDLEWARE = [

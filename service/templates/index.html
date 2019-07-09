@@ -62,7 +62,7 @@
         {% for md in metadata_list_wms %}
             <tr>
                 <td class="table-cell">
-                    <a href="{% url 'service:detail-wms' id=md.id %}">{{ md.title }}</a>
+                    <a href="{% url 'service:detail' id=md.id %}">{{ md.title }}</a>
                 </td>
                 {% if select_default == 'layers' %}
                     <td class="table-cell">
@@ -148,7 +148,7 @@
         {% for wfs in metadata_list_wfs %}
             <tr>
                 <td class="table-cell">
-                    <a href="{% url 'service:detail-wfs' id=wfs.id %}">{{ wfs.title }}</a>
+                    <a href="{% url 'service:detail' id=wfs.id %}">{{ wfs.title }}</a>
                 </td>
                 <td class="table-cell">
                     {% if wfs.is_active %}

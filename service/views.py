@@ -18,7 +18,7 @@ from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
-from service.models import Metadata, Layer, Service
+from service.models import Metadata, Layer, Service, FeatureType
 from structure.models import User, Organization, Group
 
 
@@ -410,7 +410,7 @@ def detail(request: HttpRequest, id, user:User):
         id: The id of the selected metadata
     Returns:
     """
-    template = "service_detail.html"
+    template = "detail/service_detail.html"
     service_md = get_object_or_404(Metadata, id=id)
     service = get_object_or_404(Service, id=service_md.service.id)
     layers = Layer.objects.filter(parent_service=service_md.service)
@@ -422,3 +422,24 @@ def detail(request: HttpRequest, id, user:User):
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
+
+
+@check_access
+def detail_child(request: HttpRequest, id, user:User):
+    elementType = request.GET.get("serviceType")
+    if elementType == "wms":
+        template = "detail/service_detail_child_wms.html"
+        element = Layer.objects.get(id=id)
+    elif elementType == "wfs":
+        template = "detail/service_detail_child_wfs.html"
+        element = FeatureType.objects.get(id=id)
+        l = list(element.elements.all())
+    else:
+        template = ""
+        element = None
+    params = {
+        "element": element
+    }
+
+    html = render_to_string(template_name=template, context=params)
+    return BackendAjaxResponse(html=html).get_response()

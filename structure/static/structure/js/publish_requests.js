@@ -31,7 +31,6 @@ function removePublisher(orgId, groupId){
     }).done(function(data){
 
     }).always(function(data){
-        console.log(data);
         checkRedirect(data);
     });
 }

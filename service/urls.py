@@ -19,6 +19,6 @@ urlpatterns = [
 
     path('wms/', wms, name='wms'),
     path('wfs/', wfs, name='wfs'),
-    path('wms/detail/<int:id>', detail, name='detail-wms'),
-    path('wfs/detail/<int:id>', detail, name='detail-wfs'),
+    path('detail/<int:id>', detail, name='detail'),
+    path('detail-child/<int:id>', detail_child, name='detail-child'),
 ]

@@ -127,11 +127,14 @@
         {% for service in services %}
         <tr>
             <td>
+                <a href="{% url 'service:detail' service.metadata.id %}">{{ service.metadata.title }}</a>
+                <!--
                 {% if service.servicetype.name == 'wms' %}
                     <a href="{% url 'service:detail-wms' service.metadata.id %}">{{ service.metadata.title }}</a>
                 {% elif service.servicetype.name == 'wfs' %}
                     <a href="{% url 'service:detail-wfs' service.metadata.id %}">{{ service.metadata.title }}</a>
                 {% endif %}
+                -->
             </td>
             <td>
                 {{ service.metadata.abstract }}

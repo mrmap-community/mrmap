@@ -7,14 +7,23 @@ Created on: 08.05.19
 """
 from django.contrib import messages
 from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.responses import BackendAjaxResponse
 from MapSkinner.settings import ROOT_URL
+from structure.models import Permission
 from users.helper import user_helper
 
 
-def check_access(function):
+def check_session(function):
+    """ Checks whether the user's session is valid or not
+
+    Args:
+        function: The decorated function
+    Returns:
+         The function
+    """
     def wrap(request, *args, **kwargs):
         if user_helper.is_session_expired(request):
             messages.add_message(request, messages.INFO, _("Session timeout. You have been logged out."))
@@ -32,3 +41,28 @@ def check_access(function):
     wrap.__doc__ = function.__doc__
     wrap.__name__ = function.__name__
     return wrap
+
+
+def check_permission(permission_needed: Permission):
+    """ Checks whether the user has the required permission for the requested action
+
+    Args:
+        permission_needed (Permission): The permission object that defines which permissions are needed
+    Returns:
+         The function
+    """
+    def method_wrap(function):
+        def wrap(request, *args, **kwargs):
+            user = user_helper.get_user(user_id=request.session.get("user_id"))
+            user_permissions = user.get_permissions()
+            perm_needed = permission_needed.get_permission_list()
+            for perm in perm_needed:
+                if perm not in user_permissions:
+                    messages.add_message(request, messages.ERROR, _("No permission for this"))
+                    return redirect(request.META.get("HTTP_REFERER"))
+            return function(request=request, *args, **kwargs)
+
+        wrap.__doc__ = function.__doc__
+        wrap.__name__ = function.__name__
+        return wrap
+    return method_wrap

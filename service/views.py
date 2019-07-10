@@ -11,7 +11,7 @@ from lxml.etree import XMLSyntaxError
 from requests.exceptions import InvalidURL
 
 from MapSkinner import utils
-from MapSkinner.decorator import check_access
+from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.forms import ServiceURIForm
@@ -19,10 +19,10 @@ from service.helper import service_helper, update_helper
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType
-from structure.models import User, Organization, Group
+from structure.models import User, Organization, Group, Permission
 
 
-@check_access
+@check_session
 def index(request: HttpRequest, user: User, service_type=None):
     """ Renders an overview of all wms and wfs
 
@@ -66,7 +66,8 @@ def index(request: HttpRequest, user: User, service_type=None):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_access
+@check_session
+@check_permission(Permission(can_remove_service=True))
 def remove(request: HttpRequest, user: User):
     """ Renders the remove form for a service
 
@@ -101,7 +102,8 @@ def remove(request: HttpRequest, user: User):
         service.delete()
         return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 
-@check_access
+@check_session
+@check_permission(Permission(can_activate_service=True))
 def activate(request: HttpRequest, user:User):
     """ (De-)Activates a service and all of its layers
 
@@ -124,7 +126,7 @@ def activate(request: HttpRequest, user:User):
 
     return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 
-@check_access
+@check_session
 def session(request: HttpRequest, user:User):
     """ Can set a value to the django session
 
@@ -141,7 +143,7 @@ def session(request: HttpRequest, user:User):
         request.session[_session_key] = _session_val
     return BackendAjaxResponse(html="").get_response()
 
-@check_access
+@check_session
 def wms(request:HttpRequest, user:User):
     """ Renders an overview of all wms
 
@@ -153,7 +155,8 @@ def wms(request:HttpRequest, user:User):
     return redirect("service:index", ServiceTypes.WMS.value)
 
 
-@check_access
+@check_session
+@check_permission(Permission(can_register_service=True))
 def register_form(request: HttpRequest, user: User):
     """ Returns the form for providing a capabilities URI
 
@@ -206,7 +209,8 @@ def register_form(request: HttpRequest, user: User):
     return BackendAjaxResponse(html).get_response()
 
 
-@check_access
+@check_session
+@check_permission(Permission(can_register_service=True))
 def new_service(request: HttpRequest, user: User):
     """ Register a new service
 
@@ -245,7 +249,8 @@ def new_service(request: HttpRequest, user: User):
     return BackendAjaxResponse(html=html).get_response()
 
 
-@check_access
+@check_session
+@check_permission(Permission(can_update_service=True))
 @transaction.atomic
 def update_service(request: HttpRequest, user: User, id: int):
     """ Compare old service with new service and collect differences
@@ -319,7 +324,7 @@ def update_service(request: HttpRequest, user: User, id: int):
     return render(request, template, context.get_context())
 
 
-@check_access
+@check_session
 def discard_update(request: HttpRequest, user: User):
     """ If the user does not want to proceed with the update,
     we need to go back and drop the session stored data about the update
@@ -333,8 +338,18 @@ def discard_update(request: HttpRequest, user: User):
     #del request.session["update_confirmed"]
     return redirect("service:index")
 
-@check_access
+@check_session
+@check_permission(Permission(can_update_service=True))
 def update_service_form(request: HttpRequest, user:User, id: int):
+    """ Creates the form for updating a service
+
+    Args:
+        request: The incoming request
+        user: The current user
+        id: The service id
+    Returns:
+         A BackendAjaxResponse
+    """
     template = "service_url_form.html"
     uri_form = ServiceURIForm(request.POST or None)
     params = {}
@@ -386,7 +401,7 @@ def update_service_form(request: HttpRequest, user:User, id: int):
     return BackendAjaxResponse(html=html).get_response()
 
 
-@check_access
+@check_session
 def wfs(request:HttpRequest, user:User):
     """ Renders an overview of all wfs
 
@@ -401,7 +416,7 @@ def wfs(request:HttpRequest, user:User):
     return redirect("service:index", ServiceTypes.WFS.value)
 
 
-@check_access
+@check_session
 def detail(request: HttpRequest, id, user:User):
     """ Renders a detail view of the selected service
 
@@ -424,7 +439,7 @@ def detail(request: HttpRequest, id, user:User):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_access
+@check_session
 def detail_child(request: HttpRequest, id, user:User):
     elementType = request.GET.get("serviceType")
     if elementType == "wms":

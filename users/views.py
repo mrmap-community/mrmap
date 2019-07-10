@@ -19,7 +19,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from MapSkinner.decorator import check_access
+from MapSkinner.decorator import check_session
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import SESSION_EXPIRATION, ROOT_URL
 from MapSkinner.utils import sha256
@@ -68,7 +68,7 @@ def login(request: HttpRequest):
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
 
-@check_access
+@check_session
 def account(request: HttpRequest, user: User):
     """ Renders an overview of the user's account information
 
@@ -87,7 +87,7 @@ def account(request: HttpRequest, user: User):
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
 
-@check_access
+@check_session
 def password_change(request: HttpRequest, user: User):
     """ Renders the form for password changing and validates the input afterwards
 
@@ -123,7 +123,7 @@ def password_change(request: HttpRequest, user: User):
         html = render_to_string(request=request, template_name=template, context=context.get_context())
         return BackendAjaxResponse(html=html).get_response()
 
-@check_access
+@check_session
 def account_edit(request: HttpRequest, user: User):
     """ Renders a form for editing user account data
 
@@ -189,7 +189,7 @@ def activate_user(request: HttpRequest, activation_hash: str):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_access
+@check_session
 def logout(request: HttpRequest, user: User):
     """ Logs the structure out and redirects to login view
 

@@ -3,7 +3,7 @@ from django.http import HttpRequest
 from django.shortcuts import render, redirect
 
 # Create your views here.
-from MapSkinner.decorator import check_access
+from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.responses import DefaultContext
 from MapSkinner.settings import ROOT_URL
 from editor.forms import MetadataEditorForm
@@ -11,10 +11,10 @@ from service.helper.enums import ServiceTypes
 from service.models import Metadata, Keyword, Category, ReferenceSystem
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import User
+from structure.models import User, Permission
 
-
-@check_access
+@check_session
+@check_permission(Permission(can_edit_metadata_service=True))
 def index(request: HttpRequest, user:User):
     """ The index view of the editor app.
 
@@ -36,7 +36,8 @@ def index(request: HttpRequest, user:User):
     return render(request, template, context.get_context())
 
 
-@check_access
+@check_session
+@check_permission(Permission(can_edit_metadata_service=True))
 def edit(request: HttpRequest, id: int, user: User):
     """ The edit view.
 
@@ -110,7 +111,9 @@ def edit(request: HttpRequest, id: int, user: User):
     context = DefaultContext(request, params)
     return render(request, template, context.get_context())
 
-@check_access
+
+@check_session
+@check_permission(Permission(can_edit_metadata_service=True))
 def restore(request: HttpRequest, id: int, user:User):
     """ Drops custom metadata and load original metadata from capabilities and ISO metadata
 

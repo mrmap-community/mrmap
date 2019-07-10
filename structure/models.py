@@ -22,8 +22,11 @@ class Permission(models.Model):
     can_update_service = models.BooleanField(default=False)
     can_register_service = models.BooleanField(default=False)
     can_remove_service = models.BooleanField(default=False)
+    can_edit_metadata_service = models.BooleanField(default=False)
 
-    can_react_to_publishing_requests = models.BooleanField(default=False)
+    can_toggle_publish_requests = models.BooleanField(default=False)
+    can_remove_publisher = models.BooleanField(default=True)
+    can_request_to_become_publisher = models.BooleanField(default=True)
     # more permissions coming
 
     def __str__(self):
@@ -32,8 +35,10 @@ class Permission(models.Model):
     def get_permission_list(self):
         p_list = []
         perms = self.__dict__
-        del perms["id"]
-        del perms["_state"]
+        if perms.get("id", None) is not None:
+            del perms["id"]
+        if perms.get("_state", None) is not None:
+            del perms["_state"]
         for perm_key, perm_val in perms.items():
             if perm_val:
                 p_list.append(perm_key)

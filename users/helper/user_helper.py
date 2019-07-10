@@ -27,6 +27,8 @@ def get_user(username: str=None, user_id: int=None):
             user = User.objects.get(username=username)
         elif user_id is not None:
             user = User.objects.get(id=user_id)
+        else:
+            return None
         return user
     except ObjectDoesNotExist:
         return None

@@ -104,6 +104,7 @@ INSTALLED_APPS = [
     'users',
     'structure',
     'django_extensions',
+    'editor',
     'captcha',
 ]
 

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load static i18n tz %}
+{% block head %}
+    <link rel="stylesheet" type="text/css" href="{% static '/editor/css/editor.css' %}" media="all" />
+
+{% endblock %}
+
+{% block body %}
+<div class="editor-body">
+    <h2>{% trans 'Editable services' %}:</h2>
+    {% with 'WMS' as service_type %}
+        {% with wms as services %}
+            {% include 'editor_service_list.html' %}
+        {% endwith %}
+    {% endwith %}
+    {% with 'WFS' as service_type %}
+        {% with wfs as services %}
+            {% include 'editor_service_list.html' %}
+        {% endwith %}
+    {% endwith %}
+
+</div>
+
+
+{% endblock %}

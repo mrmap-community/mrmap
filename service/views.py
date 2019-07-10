@@ -33,7 +33,7 @@ def index(request: HttpRequest, user: User, service_type=None):
     Returns:
          A view
     """
-    template = "index.html"
+    template = "service_index.html"
     display_service_type = request.session.get("displayServices", None)
     is_root = True
     if display_service_type is not None:

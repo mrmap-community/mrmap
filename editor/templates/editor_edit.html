@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+
+{% block head %}
+    <link rel="stylesheet" type="text/css" href="{% static '/editor/css/editor.css' %}" media="all" />
+    <script type="text/javascript" src="{% static '/editor/js/editor.js' %}"></script>
+{% endblock %}
+
+{% block body %}
+<a href="{% url 'editor:index' %}">
+    <h3 class="back-title">
+        <img src="{% static 'service/images/icn_back.png' %}">
+        {% trans 'Overview' %}
+    </h3>
+</a>
+<hr>
+<div class="container-row space-above">
+    <div class="container-left">
+    </div>
+    <div class="container-right">
+        <a href="{% url 'editor:restore' service_metadata.id %}">
+            <div class="button-container">
+                <span class="container-icon">&#8635;</span>
+                <span>{% trans 'Restore metadata' %}</span>
+            </div>
+        </a>
+    </div>
+</div>
+
+<h1>{% trans 'Metadata Editor' %}</h1>
+<h2>{{ service_metadata.title }}</h2>
+<form id="metadata-form" action="{{ action_url }}" method="post" >
+    {% csrf_token %}
+    <table class="form-table">
+        {% for field in form %}
+        <tr>
+            <td class="field-label metadata-editor-label">{% trans field.label %}</td>
+            <td class="field metadata-editor-field">{{ field }}</td>
+        </tr>
+        {% endfor %}
+        {% for addable_values in addable_values_list %}
+            {% include 'value_selection.html' %}
+        {% endfor %}
+    </table>
+    <input class="submit-button button" id="submit-text" type="submit" value="{% trans 'Save' %}"/>
+</form>
+
+{% endblock %}

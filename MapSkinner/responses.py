@@ -18,10 +18,15 @@ class DefaultContext:
     """
 
     def __init__(self, request: HttpRequest, context: dict, user: User = None):
+        if user is not None:
+            permissions = user.get_permissions()
+        else:
+            permissions = []
         self.context = {
             "ROOT_URL": ROOT_URL,
+            "PATH": request.path.split("/")[1],
             "LANGUAGE_CODE": request.LANGUAGE_CODE,
-            "user_permissions": user_helper.get_permissions(user)
+            "user_permissions": permissions,  #user_helper.get_permissions(user)
         }
         self.add_context(context)
 

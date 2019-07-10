@@ -23,7 +23,7 @@
     <nav class="navigation-bar">
         <div class="navigation-bar-left">
             <img id="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" title="Map your s*** together!">
-            <div class="navigation-menu">
+            <div class="navigation-menu {% if PATH == 'structure' %}active-menu{% endif %}">
                 <a class="navigation-title" href="{% url 'structure:index' %}">
                     {% trans 'Structure' %}
                 </a>
@@ -40,7 +40,7 @@
                     </a>
                 </div>
             </div>
-            <div class="navigation-menu">
+            <div class="navigation-menu {% if PATH == 'service' %}active-menu{% endif %}">
                 <a class="navigation-title" href="{% url 'service:index' %}">
                     {% trans 'Services' %}
                 </a>
@@ -56,6 +56,11 @@
                         </div>
                     </a>
                 </div>
+            </div>
+            <div class="navigation-menu {% if PATH == 'editor' %}active-menu{% endif %}">
+                <a class="navigation-title" href="{% url 'editor:index' %}">
+                    {% trans 'Metadata Editor' %}
+                </a>
             </div>
         </div>
         <div class="navigation-bar-right">

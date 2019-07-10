@@ -21,7 +21,7 @@ For best harmonizing colours use https://htmlcolorcodes.com/color-picker/
     The info colour is the complementary colour of --primary-color.
     Success, error and the primary color create the triadic colors of #91a3ff
     */
-    --message-info: #ffed91;
-    --message-success: #a3ff91;
-    --message-error: #ff91a3;
+    --message-info:     #ffed91;
+    --message-success:  #a3ff91;
+    --message-error:    #ff91a3;
 }

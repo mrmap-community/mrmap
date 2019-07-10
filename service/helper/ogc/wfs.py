@@ -76,7 +76,7 @@ class OGCWebFeatureService(OGCWebService):
         abstract = True
 
     @abstractmethod
-    def create_from_capabilities(self):
+    def create_from_capabilities(self, metadata_only: bool = False):
         """ Fills the object with data from the capabilities document
 
         Returns:
@@ -95,12 +95,14 @@ class OGCWebFeatureService(OGCWebService):
         self.get_service_iso_metadata(xml_obj)
         print(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
 
-        start_time = time.time()
-        self.get_feature_type_metadata(xml_obj)
-        print(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
         # always execute version specific tasks AFTER multithreading
         # Otherwise we might face race conditions which lead to loss of data!
         self.get_version_specific_metadata(xml_obj)
+
+        if not metadata_only:
+            start_time = time.time()
+            self.get_feature_type_metadata(xml_obj)
+            print(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
 
     @abstractmethod
     def get_service_metadata(self, xml_obj):

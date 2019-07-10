@@ -47,7 +47,7 @@ def login(request: HttpRequest):
         if user is None:
             messages.add_message(request, messages.ERROR, _("Username or password incorrect"))
             return redirect("login")
-        if not user_helper.is_password_valid(user, password):
+        if not user.is_password_valid(password):
             messages.add_message(request, messages.ERROR, _("Username or password incorrect"))
             return redirect("login")
         if not user.is_active:

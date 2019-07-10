@@ -21,6 +21,11 @@ a{
     outline: 0;
 }
 
+.hint{
+    font-size: 0.9em;
+    font-style: italic;
+}
+
 .hide{
     display: none;
 }
@@ -41,7 +46,7 @@ a{
 }
 
 .messages{
-    position: absolute;
+    position: fixed;
     top: 0;
     z-index: 100;
     width: 100vw;
@@ -187,12 +192,16 @@ a{
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 120px;
+    width: 10em;
     height: 100%;
     border-right: 1px solid white;
 }
 .navigation-menu:hover{
     cursor: pointer;
+    background-color: var(--primary-color-dark);
+}
+
+.active-menu{
     background-color: var(--primary-color-dark);
 }
 
@@ -202,7 +211,7 @@ a{
     justify-content: center;
     color: white;
     font-weight: bold;
-    width: 120px;
+    width: 10em;
     height: 100%;
 }
 
@@ -210,7 +219,7 @@ a{
     display: none;
     position: absolute;
     top: 50px;
-    width: 120px;
+    width: 10em;
     background-color: var(--secondary-color);
 }
 
@@ -285,6 +294,7 @@ table{
 
 th, td{
     padding: 5px;
+    max-width: 10em;
 }
 
 th{

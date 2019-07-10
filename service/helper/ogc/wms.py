@@ -68,7 +68,7 @@ class OGCWebMapService(OGCWebService):
         abstract = True
 
     @abstractmethod
-    def create_from_capabilities(self):
+    def create_from_capabilities(self, metadata_only: bool = False):
         """ Fills the object with data from the capabilities document
 
         Returns:
@@ -87,9 +87,10 @@ class OGCWebMapService(OGCWebService):
 
         self.get_version_specific_metadata(xml_obj=xml_obj)
 
-        start_time = time.time()
-        self.get_layers(xml_obj=xml_obj)
-        print(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
+        if not metadata_only:
+            start_time = time.time()
+            self.get_layers(xml_obj=xml_obj)
+            print(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
 
     ### IDENTIFIER ###
     def __parse_identifier(self, layer, layer_obj):

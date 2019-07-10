@@ -30,7 +30,8 @@ function checkRedirect(data){
 }
 
 function toggleNavigationMenu(elem){
-    elem.slideToggle(250);
+    elem.toggleClass("open");
+    elem.stop(true, true).slideToggle("medium");
 }
 
 function toggleOverlay(html){
@@ -127,14 +128,14 @@ function removeEntity(id, confirmed, entity){
 $(document).ready(function(){
     $(".navigation-menu").on("mouseover",function(){
         var list = $(this).find(".navigation-element-list");
-        if(list.is(":hidden")){
+        if(!list.hasClass("open")){
             toggleNavigationMenu(list);
         }
     });
 
     $(".navigation-menu").on("mouseleave",function(){
         var elem = $(this).find(".navigation-element-list");
-        if(!elem.is(":hidden")){
+        if(elem.hasClass("open")){
             toggleNavigationMenu(elem);
         }
     });

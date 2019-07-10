@@ -203,7 +203,7 @@ def new_org(request: HttpRequest, user: User):
     Returns:
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
-    if not user_helper.has_permission(user=user, permission_needed=Permission(can_create_organization=True)):
+    if not user.has_permission(permission_needed=Permission(can_create_organization=True)):
         messages.add_message(request, messages.ERROR, _("You do not have permissions for this!"))
         return redirect("structure:index")
 
@@ -380,8 +380,8 @@ def detail_group(request: HttpRequest, id: int, user: User):
     template = "group_detail.html"
     params = {
         "group": group,
-        "permissions": user_helper.get_permissions(user=user),
-        "group_permissions": user_helper.get_permissions(group=group),
+        "permissions": user.get_permissions(),  # user_helper.get_permissions(user=user),
+        "group_permissions": user.get_permissions(group),  # user_helper.get_permissions(group=group),
         "members": members
     }
     context = DefaultContext(request, params, user)
@@ -398,7 +398,7 @@ def new_group(request: HttpRequest, user: User):
     Returns:
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
-    if not user_helper.has_permission(user=user, permission_needed=Permission(can_create_group=True)):
+    if not user.has_permission(permission_needed=Permission(can_create_group=True)):
         messages.add_message(request, messages.ERROR, _("You do not have permissions for this!"))
         return redirect("structure:index")
 
@@ -492,7 +492,7 @@ def edit_group(request: HttpRequest, user: User, id: int):
         return redirect("structure:detail-group", group.id)
 
     else:
-        user_perm = user_helper.get_permissions(user=user)
+        user_perm = user.get_permissions()  # user_helper.get_permissions(user=user)
         if not 'can_change_group_role' in user_perm and form.fields.get('role', None) is not None:
             form.fields.get('role').disabled = True
         params = {

@@ -64,3 +64,8 @@
     cursor: pointer;
     background-color: var(--secondary-color-light);
 }
+
+.abstract-table-field{
+    max-height: 5em;
+    overflow: auto;
+}

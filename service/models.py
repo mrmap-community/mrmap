@@ -5,6 +5,7 @@ from django.db import models
 from django.contrib.gis.db import models
 from django.utils import timezone
 
+from service.helper.enums import ServiceTypes
 from structure.models import Group, Organization
 
 
@@ -64,6 +65,7 @@ class Metadata(Resource):
     spatial_res_type = models.CharField(max_length=100, null=True)
     spatial_res_value = models.CharField(max_length=100, null=True)
     is_active = models.BooleanField(default=False)
+    is_custom = models.BooleanField(default=False)
     is_inspire_conform = models.BooleanField(default=False)
     has_inspire_downloads = models.BooleanField(default=False)
     bounding_geometry = models.PolygonField(null=True, blank=True)
@@ -90,6 +92,40 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    def restore(self):
+        """ Load original metadata from capabilities and ISO metadata
+
+        Returns:
+             nothing
+        """
+        from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
+        from service.helper.ogc.wms import OGCWebMapService, OGCWebMapServiceFactory
+        from service.helper import service_helper
+        if self.service is None:
+            return
+        service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
+        service = None
+        if self.service.servicetype.name == ServiceTypes.WMS.value:
+            service = OGCWebMapServiceFactory()
+            service = service.get_ogc_wms(version=service_version, service_connect_url=self.original_uri)
+        elif self.service.servicetype.name == ServiceTypes.WFS.value:
+            service = OGCWebFeatureServiceFactory()
+            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.original_uri)
+        if service is None:
+            return
+        service.get_capabilities()
+        service.create_from_capabilities(metadata_only=True)
+        self.title = service.service_identification_title
+        self.abstract = service.service_identification_abstract
+        self.access_constraints = service.service_identification_accessconstraints
+        keywords = service.service_identification_keywords
+        self.keywords.clear()
+        for kw in keywords:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            self.keywords.add(keyword)
+        # by default no categories
+        self.categories.clear()
+        self.is_custom = False
 
 class TermsOfUse(Resource):
     name = models.CharField(max_length=100)

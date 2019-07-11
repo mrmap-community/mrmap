@@ -1,0 +1,23 @@
+{% load static i18n %}
+
+        <tr id="{{ addable_values.name }}">
+            <td class="field-label metadata-editor-label">{% trans addable_values.title %}</td>
+            <td class="field metadata-editor-field">
+                <div class="selected-values-wrapper" title="{% trans 'Click to remove keyword' %}">
+                    {% for value in addable_values.values %}
+                        <span class="selected-value" data-id="{{ value.id }}">{{ value }} &#x2716;</span>
+                    {% endfor %}
+                </div>
+                <input class="value-input" type="text" list="all-{{ addable_values.title }}">
+                <datalist id="all-{{ addable_values.title }}" >
+                    {% for value in addable_values.all_values %}
+                        <option data-id="{{ value.id }}">{{ value }}</option>
+                    {% endfor %}
+                </datalist>
+                <span class="hint">{% trans 'Separate entry by ","' %}</span>
+                {% if addable_values.name != 'keywords' %}
+                    <br>
+                    <span class="hint">{% trans 'You have to choose predefined values. Type in what you are looking for.' %}</span>
+                {% endif %}
+            </td>
+        </tr>

@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner import utils
-from MapSkinner.decorator import check_access
+from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.models import Service
@@ -20,7 +20,7 @@ from structure.models import User
 from users.helper import user_helper
 
 
-@check_access
+@check_session
 def index(request: HttpRequest, user: User):
     """ Renders an overview of all groups and organizations
 
@@ -56,7 +56,7 @@ def index(request: HttpRequest, user: User):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_access
+@check_session
 def groups(request: HttpRequest, user: User):
     """ Renders an overview of all groups
 
@@ -81,7 +81,7 @@ def groups(request: HttpRequest, user: User):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_access
+@check_session
 def organizations(request: HttpRequest, user: User):
     """ Renders an overview of all organizations
 
@@ -107,7 +107,7 @@ def organizations(request: HttpRequest, user: User):
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 
-@check_access
+@check_session
 def detail_organizations(request:HttpRequest, id: int, user:User):
     """ Renders an overview of a group's details.
 
@@ -133,7 +133,8 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_access
+@check_session
+@check_permission(Permission(can_edit_organization=True))
 def edit_org(request: HttpRequest, id: int, user: User):
     """ The edit view for changing organization values
 
@@ -168,7 +169,8 @@ def edit_org(request: HttpRequest, id: int, user: User):
         return BackendAjaxResponse(html=html).get_response()
 
 
-@check_access
+@check_session
+@check_permission(Permission(can_delete_organization=True))
 def remove_org(request: HttpRequest, user: User):
     """ Renders the remove form for an organization
 
@@ -193,7 +195,8 @@ def remove_org(request: HttpRequest, user: User):
         return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure").get_response()
 
 
-@check_access
+@check_session
+@check_permission(Permission(can_create_organization=True))
 def new_org(request: HttpRequest, user: User):
     """ Renders the new organization form and saves the input
 
@@ -203,7 +206,7 @@ def new_org(request: HttpRequest, user: User):
     Returns:
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
-    if not user_helper.has_permission(user=user, permission_needed=Permission(can_create_organization=True)):
+    if not user.has_permission(permission_needed=Permission(can_create_organization=True)):
         messages.add_message(request, messages.ERROR, _("You do not have permissions for this!"))
         return redirect("structure:index")
 
@@ -233,7 +236,7 @@ def new_org(request: HttpRequest, user: User):
         return BackendAjaxResponse(html=html).get_response()
 
 
-@check_access
+@check_session
 def list_publish_request(request: HttpRequest, id: int, user: User):
     """ Index for all publishers and publish requests
 
@@ -257,7 +260,8 @@ def list_publish_request(request: HttpRequest, id: int, user: User):
     return render(request, template, context.get_context())
 
 
-@check_access
+@check_session
+@check_permission(Permission(can_toggle_publish_requests=True))
 def toggle_publish_request(request: HttpRequest, id: int, user: User):
     """ Activate or decline the publishing request.
 
@@ -283,7 +287,8 @@ def toggle_publish_request(request: HttpRequest, id: int, user: User):
     return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/organizations/list-publish-request/" + str(organization.id)).get_response()
 
 
-@check_access
+@check_session
+@check_permission(Permission(can_remove_publisher=True))
 def remove_publisher(request: HttpRequest, id: int, user: User):
     """ Removes a publisher for an organization
 
@@ -302,7 +307,8 @@ def remove_publisher(request: HttpRequest, id: int, user: User):
 
     return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/organizations/list-publish-request/" + str(id)).get_response()
 
-@check_access
+@check_session
+@check_permission(Permission(can_request_to_become_publisher=True))
 def publish_request(request: HttpRequest, id: int, user: User):
     """ Performs creation of a publishing request between a user/group and an organization
 
@@ -364,7 +370,7 @@ def publish_request(request: HttpRequest, id: int, user: User):
     return BackendAjaxResponse(html=html).get_response()
 
 
-@check_access
+@check_session
 def detail_group(request: HttpRequest, id: int, user: User):
     """ Renders an overview of a group's details.
 
@@ -380,15 +386,16 @@ def detail_group(request: HttpRequest, id: int, user: User):
     template = "group_detail.html"
     params = {
         "group": group,
-        "permissions": user_helper.get_permissions(user=user),
-        "group_permissions": user_helper.get_permissions(group=group),
+        "permissions": user.get_permissions(),  # user_helper.get_permissions(user=user),
+        "group_permissions": user.get_permissions(group),  # user_helper.get_permissions(group=group),
         "members": members
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_access
+@check_session
+@check_permission(Permission(can_create_group=True))
 def new_group(request: HttpRequest, user: User):
     """ Renders the new group form and saves the input
 
@@ -398,7 +405,7 @@ def new_group(request: HttpRequest, user: User):
     Returns:
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
-    if not user_helper.has_permission(user=user, permission_needed=Permission(can_create_group=True)):
+    if not user.has_permission(permission_needed=Permission(can_create_group=True)):
         messages.add_message(request, messages.ERROR, _("You do not have permissions for this!"))
         return redirect("structure:index")
 
@@ -426,8 +433,17 @@ def new_group(request: HttpRequest, user: User):
         return BackendAjaxResponse(html=html).get_response()
 
 
-@check_access
+@check_session
 def list_publisher_group(request: HttpRequest, id: int, user: User):
+    """ List all organizations a group can publish for
+
+    Args:
+        request: The incoming request
+        id: The group id
+        user: The performing user
+    Returns:
+        A rendered view
+    """
     template = "index_publish_requests.html"
     group = Group.objects.get(id=id)
 
@@ -439,7 +455,8 @@ def list_publisher_group(request: HttpRequest, id: int, user: User):
     return render(request, template, context)
 
 
-@check_access
+@check_session
+@check_permission(Permission(can_delete_group=True))
 def remove_group(request: HttpRequest, user: User):
     """ Renders the remove form for a group
 
@@ -466,7 +483,8 @@ def remove_group(request: HttpRequest, user: User):
         return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure").get_response()
 
 
-@check_access
+@check_session
+@check_permission(Permission(can_edit_group=True))
 def edit_group(request: HttpRequest, user: User, id: int):
     """ The edit view for changing group values
 
@@ -492,7 +510,7 @@ def edit_group(request: HttpRequest, user: User, id: int):
         return redirect("structure:detail-group", group.id)
 
     else:
-        user_perm = user_helper.get_permissions(user=user)
+        user_perm = user.get_permissions()  # user_helper.get_permissions(user=user)
         if not 'can_change_group_role' in user_perm and form.fields.get('role', None) is not None:
             form.fields.get('role').disabled = True
         params = {

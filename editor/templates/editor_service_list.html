@@ -1,0 +1,60 @@
+{% load static i18n tz %}
+    <h3>{% trans service_type %}</h3>
+    <div>
+        <table class="overview-table metadata-editor-table">
+            <tr>
+                <th class="table-header">
+                    {% trans 'Title' %}
+                </th>
+                <th class="table-header">
+                    {% trans 'Active' %}
+                </th>
+                <th class="table-header">
+                    {% trans 'Data provider' %}
+                </th>
+                <th class="table-header">
+                    {% trans 'Registered by group' %}
+                </th>
+                <th class="table-header">
+                    {% trans 'Original metadata' %}
+                </th>
+                <th class="table-header">
+                    {% trans 'Edit' %}
+                </th>
+            </tr>
+            {% for metadata in services %}
+                <tr>
+                    <td class="table-cell">
+                        <a href="{% url 'service:detail' id=metadata.id %}" title="{% trans 'Open details' %}">{{ metadata.title }}</a>
+                    </td>
+                    <td class="table-cell">
+                        {% if metadata.is_active %}
+                        <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Active' %}">
+                        {% else %}
+                        <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Not active' %}">
+                        {% endif %}
+                    </td>
+                    <td class="table-cell">
+                        {{ metadata.contact.organization_name }}
+                    </td>
+                    <td class="table-cell">
+                        <a href="{% url 'structure:detail-group' metadata.service.created_by.id %}">{{ metadata.service.created_by }}</a>
+                    </td>
+                    <td class="table-cell">
+                        {% if not metadata.is_custom %}
+                        <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Original metadata' %}">
+                        {% else %}
+                        <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Custom metadata' %}">
+                        {% endif %}
+                    </td>
+                    <td class="table-cell">
+                        <a href="{% url 'editor:edit' metadata.id %}">
+                            <button class="button">
+                                <img src="{% static 'structure/images/icn_edit.png' %}">
+                            </button>
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
+    </div>

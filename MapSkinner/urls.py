@@ -27,5 +27,6 @@ urlpatterns = [
     path('', include('users.urls')),
     path('structure/', include('structure.urls')),
     path('service/', include('service.urls')),
+    path('editor/', include('editor.urls')),
     path('captcha/', include('captcha.urls')),
 ]

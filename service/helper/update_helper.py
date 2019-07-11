@@ -300,7 +300,6 @@ def update_wfs(old: Service, new: Service, diff: dict, links: dict):
 
     return old
 
-
 @transaction.atomic
 def _update_wms_layers_recursive(old: Service, new: Service, layers: list, links: dict, parent: Layer = None):
     """ Updates wms layers recursively.

@@ -62,7 +62,7 @@
         {% for md in metadata_list_wms %}
             <tr>
                 <td class="table-cell">
-                    <a href="{% url 'service:detail' id=md.id %}">{{ md.title }}</a>
+                    <a href="{% url 'service:detail' id=md.id %}" title="{% trans 'Open details' %}">{{ md.title }}</a>
                 </td>
                 {% if select_default == 'layers' %}
                     <td class="table-cell">
@@ -80,7 +80,7 @@
                     {{ md.service.servicetype.version }}
                 </td>
                 <td class="table-cell" title="{{ md.contact.organization_name }}">
-                    {{ md.contact.organization_name }}
+                    <a href="{% url 'structure:detail-organization' md.contact.id %}">{{ md.contact.organization_name }}</a>
                 </td>
                 <td class="table-cell">
                     <a href="{% url 'structure:detail-group' md.service.created_by.id %}">{{ md.service.created_by }}</a>
@@ -148,7 +148,7 @@
         {% for wfs in metadata_list_wfs %}
             <tr>
                 <td class="table-cell">
-                    <a href="{% url 'service:detail' id=wfs.id %}">{{ wfs.title }}</a>
+                    <a href="{% url 'service:detail' id=wfs.id %}" title="{% trans 'Open details' %}">{{ wfs.title }}</a>
                 </td>
                 <td class="table-cell">
                     {% if wfs.is_active %}
@@ -161,7 +161,7 @@
                     {{ wfs.service.servicetype.version }}
                 </td>
                 <td class="table-cell">
-                    {{ wfs.contact.organization_name }}
+                    <a href="{% url 'structure:detail-organization' wfs.contact.id %}">{{ wfs.contact.organization_name }}</a>
                 </td>
                 <td class="table-cell">
                     <a href="{% url 'structure:detail-group' wfs.service.created_by.id %}">{{ wfs.service.created_by }}</a>

@@ -6,6 +6,8 @@
     <title>
         MapSkinner {% block title %}{% endblock %}
     </title>
+    <link rel="shortcut icon" href="{% static 'structure/images/favicon.ico' %}" type="image/x-icon">
+    <link rel="icon" href="{% static 'structure/images/favicon.ico' %}" type="image/x-icon">
     <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base.css' %}" media="all" />
     <link rel="stylesheet" type="text/css" href="{% static '/structure/css/overview.css' %}" media="all" />
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
@@ -23,7 +25,7 @@
     <nav class="navigation-bar">
         <div class="navigation-bar-left">
             <img id="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" title="Map your s*** together!">
-            <div class="navigation-menu">
+            <div class="navigation-menu {% if PATH == 'structure' %}active-menu{% endif %}">
                 <a class="navigation-title" href="{% url 'structure:index' %}">
                     {% trans 'Structure' %}
                 </a>
@@ -40,7 +42,7 @@
                     </a>
                 </div>
             </div>
-            <div class="navigation-menu">
+            <div class="navigation-menu {% if PATH == 'service' %}active-menu{% endif %}">
                 <a class="navigation-title" href="{% url 'service:index' %}">
                     {% trans 'Services' %}
                 </a>
@@ -56,6 +58,11 @@
                         </div>
                     </a>
                 </div>
+            </div>
+            <div class="navigation-menu {% if PATH == 'editor' %}active-menu{% endif %}">
+                <a class="navigation-title" href="{% url 'editor:index' %}">
+                    {% trans 'Metadata Editor' %}
+                </a>
             </div>
         </div>
         <div class="navigation-bar-right">

@@ -120,7 +120,7 @@ class OGCWebService:
     Methods that have to be implemented in the sub classes
     """
     @abstractmethod
-    def create_from_capabilities(self):
+    def create_from_capabilities(self, metadata_only: bool = False):
         pass
 
     @abstractmethod

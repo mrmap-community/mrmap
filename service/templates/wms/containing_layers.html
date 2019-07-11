@@ -15,9 +15,34 @@
                 {{ layer.metadata.title }}
             </h3>
             <div class="subelements hidden">
-                <div class="loading-spinner">
-                    <i class="fas fa-circle-notch fa-spin primary-color"></i>
-                    <span id="submit-text">{% trans 'Loading...' %}</span>
+                <div class="container-row">
+                <div class="container-left">
+                    {% if 'can_edit_metadata_service' in user_permissions %}
+                        <a href="{% url 'editor:edit' layer.metadata.id %}" title="{% trans 'Edit metadata' %}">
+                            <div class="button-container">
+                                <span>{% trans 'Edit metadata' %}</span>
+                            </div>
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="container-right">
+                    {% if 'can_edit_metadata_service' in user_permissions %}
+                        <a href="{% url 'editor:restore' layer.metadata.id %}">
+                            <div class="button-container">
+                                <span class="container-icon">&#8635;</span>
+                                <span>{% trans 'Restore metadata' %}</span>
+                            </div>
+                        </a>
+                    {% endif %}
+                </div>
+
+                </div>
+                <div class="content">
+                    <div class="loading-spinner">
+                        <i class="fas fa-circle-notch fa-spin primary-color"></i>
+                        <span id="submit-text">{% trans 'Loading...' %}</span>
+                    </div>
+
                 </div>
             </div>
         </div>

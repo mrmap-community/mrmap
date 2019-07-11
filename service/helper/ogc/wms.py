@@ -67,6 +67,50 @@ class OGCWebMapService(OGCWebService):
     class Meta:
         abstract = True
 
+    def get_layer_by_identifier(self, identifier: str):
+        """ Returns the layer identified by the parameter 'identifier' as OGCWebMapServiceLayer object
+
+        Args:
+            identifier (str): The identifier as string
+        Returns:
+             layer_obj (OGCWebMapServiceLayer): The found and parsed layer
+        """
+        if self.service_capabilities_xml is None:
+            # load xml
+            self.get_capabilities()
+        layer_xml = service_helper.parse_xml(xml=self.service_capabilities_xml)
+        layer_xml_list = service_helper.try_get_element_from_xml(xml_elem=layer_xml, elem="//Layer")
+        found_layer = None
+        for layer in layer_xml_list:
+            if service_helper.try_get_text_from_xml_element(xml_elem=layer, elem="./Name") == identifier:
+                found_layer = layer
+                break
+        del layer_xml
+        del layer_xml_list
+        layer_obj = OGCWebMapServiceLayer()
+        # iterate over single parsing functions -> improves maintainability
+        parse_functions = [
+            self.__parse_keywords,
+            self.__parse_abstract,
+            self.__parse_title,
+            self.__parse_projection_system,
+            self.__parse_lat_lon_bounding_box,
+            self.__parse_bounding_box,
+            self.__parse_scale_hint,
+            self.__parse_queryable,
+            self.__parse_opaque,
+            self.__parse_cascaded,
+            self.__parse_request_uris,
+            self.__parse_formats,
+            self.__parse_dimension,
+            self.__parse_style,
+            self.__parse_identifier,
+        ]
+        for func in parse_functions:
+            func(layer=found_layer, layer_obj=layer_obj)
+
+        return layer_obj
+
     @abstractmethod
     def create_from_capabilities(self, metadata_only: bool = False):
         """ Fills the object with data from the capabilities document
@@ -495,6 +539,7 @@ class OGCWebMapService(OGCWebService):
             metadata.uuid = uuid.uuid4()
             metadata.abstract = layer_obj.abstract
             metadata.online_resource = root_md.online_resource
+            metadata.original_uri = root_md.original_uri
 
             metadata.contact = contact
             metadata.access_constraints = root_md.access_constraints
@@ -739,6 +784,8 @@ class OGCWebMapServiceLayer(OGCLayer):
     """ The OGCWebMapServiceLayer class
 
     """
+
+
 
 
 class OGCWebMapService_1_0_0(OGCWebMapService):

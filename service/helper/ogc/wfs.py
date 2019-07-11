@@ -266,7 +266,7 @@ class OGCWebFeatureService(OGCWebService):
         f_t = FeatureType()
         f_t.uuid = uuid.uuid4()
         f_t.title = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Title")
-        f_t.name = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Name")
+        f_t.identifier = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Name")
         f_t.abstract = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Abstract")
         # Feature type keywords
         keywords = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//ows:Keyword")
@@ -629,7 +629,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         feat_nodes = service_helper.try_get_element_from_xml("/wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType", xml_obj)
         for node in feat_nodes:
             feature_type = FeatureType()
-            feature_type.name = service_helper.try_get_text_from_xml_element(elem=".//wfs:Name", xml_elem=node)
+            feature_type.identifier = service_helper.try_get_text_from_xml_element(elem=".//wfs:Name", xml_elem=node)
             feature_type.title = service_helper.try_get_text_from_xml_element(elem=".//wfs:Title", xml_elem=node)
             feature_type.abstract = service_helper.try_get_text_from_xml_element(elem=".//wfs:Abstract", xml_elem=node)
             keywords = service_helper.resolve_keywords_array_string(

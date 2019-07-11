@@ -25,30 +25,30 @@
             {% for metadata in services %}
                 <tr>
                     <td class="table-cell">
-                        <a href="{% url 'service:detail' id=metadata.id %}" title="{% trans 'Open details' %}">{{ metadata.title }}</a>
+                        <a href="{% url 'service:detail' id=metadata.root_metadata.id %}" title="{% trans 'Open details' %}">{{ metadata.root_metadata.title }}</a>
                     </td>
                     <td class="table-cell">
-                        {% if metadata.is_active %}
+                        {% if metadata.root_metadata.is_active %}
                         <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Active' %}">
                         {% else %}
                         <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Not active' %}">
                         {% endif %}
                     </td>
                     <td class="table-cell">
-                        {{ metadata.contact.organization_name }}
+                        {{ metadata.root_metadata.contact.organization_name }}
                     </td>
                     <td class="table-cell">
-                        <a href="{% url 'structure:detail-group' metadata.service.created_by.id %}">{{ metadata.service.created_by }}</a>
+                        <a href="{% url 'structure:detail-group' metadata.root_metadata.service.created_by.id %}">{{ metadata.root_metadata.service.created_by }}</a>
                     </td>
                     <td class="table-cell">
-                        {% if not metadata.is_custom %}
+                        {% if not metadata.root_metadata.is_custom and metadata.custom_subelement_metadata|length == 0 %}
                         <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Original metadata' %}">
                         {% else %}
                         <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Custom metadata' %}">
                         {% endif %}
                     </td>
                     <td class="table-cell">
-                        <a href="{% url 'editor:edit' metadata.id %}">
+                        <a href="{% url 'editor:edit' metadata.root_metadata.id %}">
                             <button class="button">
                                 <img src="{% static 'structure/images/icn_edit.png' %}">
                             </button>

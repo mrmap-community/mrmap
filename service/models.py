@@ -92,14 +92,50 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
-    def restore(self):
+    def is_root(self):
+        """ Checks whether the metadata describes a root service or a layer/featuretype
+
+        Returns:
+             is_root (bool): True if there is no parent service to the described service, False otherwise
+        """
+        is_root = False
+        service = self.service
+        if service is not None:
+            if service.parent_service is None:
+                is_root = True
+        return is_root
+
+    def _restore_layer_md(self, service, identifier: str = None):
+        """ Private function for retrieving single layer metadata
+
+        Args:
+            service (OGCWebMapService): An empty OGCWebMapService object to load and parse the metadata
+            identifier (str): The identifier string of the layer
+        Returns:
+             nothing, it changes the Metadata object itself
+        """
+        # parse single layer
+        identifier = self.service.layer.identifier
+        layer = service.get_layer_by_identifier(identifier)
+        self.title = layer.title
+        self.abstract = layer.abstract
+        self.is_custom = False
+        self.keywords.clear()
+        for kw in layer.capability_keywords:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            self.keywords.add(keyword)
+        return
+
+    def restore(self, identifier: str = None):
         """ Load original metadata from capabilities and ISO metadata
 
+        Args:
+            identifier (str): The identifier of a featureType or Layer (in xml often named 'name')
         Returns:
              nothing
         """
         from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
-        from service.helper.ogc.wms import OGCWebMapService, OGCWebMapServiceFactory
+        from service.helper.ogc.wms import OGCWebMapServiceFactory
         from service.helper import service_helper
         if self.service is None:
             return
@@ -108,9 +144,14 @@ class Metadata(Resource):
         if self.service.servicetype.name == ServiceTypes.WMS.value:
             service = OGCWebMapServiceFactory()
             service = service.get_ogc_wms(version=service_version, service_connect_url=self.original_uri)
+            # check if whole service shall be restored or single layer
+            if not self.is_root():
+                return self._restore_layer_md(service, identifier)
+
         elif self.service.servicetype.name == ServiceTypes.WFS.value:
             service = OGCWebFeatureServiceFactory()
             service = service.get_ogc_wfs(version=service_version, service_connect_url=self.original_uri)
+            # ToDo: WFS single Feature type metadata restoring!!!
         if service is None:
             return
         service.get_capabilities()
@@ -318,7 +359,7 @@ class Style(models.Model):
 
 
 class FeatureType(Resource):
-    name = models.CharField(max_length=255)
+    identifier = models.CharField(max_length=255)
     title = models.CharField(max_length=255)
     abstract = models.TextField(null=True)
     searchable = models.BooleanField(default=False)

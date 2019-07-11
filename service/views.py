@@ -448,13 +448,12 @@ def detail_child(request: HttpRequest, id, user:User):
     elif elementType == "wfs":
         template = "detail/service_detail_child_wfs.html"
         element = FeatureType.objects.get(id=id)
-        l = list(element.elements.all())
     else:
         template = ""
         element = None
     params = {
-        "element": element
+        "element": element,
+        "user_permissions": user.get_permissions(),
     }
-
     html = render_to_string(template_name=template, context=params)
     return BackendAjaxResponse(html=html).get_response()

@@ -5,7 +5,7 @@
             <td class="field metadata-editor-field">
                 <div class="selected-values-wrapper" title="{% trans 'Click to remove keyword' %}">
                     {% for value in addable_values.values %}
-                        <span class="selected-value" data-id="{{ value.id }}">{{ value }} &#x2716;</span>
+                        <span class="selected-value" data-id="{{ value.id }}"><span class="value">{{ value }}</span> &#x2716;</span>
                     {% endfor %}
                 </div>
                 <input class="value-input" type="text" list="all-{{ addable_values.title }}">

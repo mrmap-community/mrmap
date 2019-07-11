@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 from django.shortcuts import render, redirect
 
@@ -26,11 +27,32 @@ def index(request: HttpRequest, user:User):
     """
     # get all services that are registered by the user
     template = "editor_index.html"
+
     wms_services = user.get_services(ServiceTypes.WMS)
+    wms_layers_custom_md = []
+    wms_list = []
+    for wms in wms_services:
+        child_layers = wms.service.child_service.all()
+        for child in child_layers:
+            if child.metadata.is_custom:
+                wms_layers_custom_md.append(child.metadata)
+        tmp = {
+            "root_metadata": wms,
+            "custom_subelement_metadata": wms_layers_custom_md,
+        }
+        wms_list.append(tmp)
+
     wfs_services = user.get_services(ServiceTypes.WFS)
+    wfs_list = []
+    for wfs in wfs_services:
+        tmp = {
+            "root_metadata": wfs,
+            "custom_subelement_metadata": [],
+        }
+        wfs_list.append(tmp)
     params = {
-        "wfs": wfs_services,
-        "wms": wms_services,
+        "wfs": wfs_list,
+        "wms": wms_list,
     }
     context = DefaultContext(request, params)
     return render(request, template, context.get_context())
@@ -60,20 +82,24 @@ def edit(request: HttpRequest, id: int, user: User):
             metadata.terms_of_use = custom_md.terms_of_use
 
             # get db objects from values
+            # keywords are provided as usual text
             keywords = editor_form.data.get("keywords").split(",")
             if len(keywords) == 1 and keywords[0] == '':
                 keywords = []
-            categories = editor_form.data.get("categories").split(",")
-            if len(categories) == 1 and categories[0] == '':
-                categories = []
+            # categories are provided as id's to prevent language related conflicts
+            category_ids = editor_form.data.get("categories").split(",")
+            if len(category_ids) == 1 and category_ids[0] == '':
+                category_ids = []
 
             metadata.keywords.clear()
             for kw in keywords:
                 keyword = Keyword.objects.get_or_create(keyword=kw)[0]
                 metadata.keywords.add(keyword)
-            for cat in categories:
-                category = Category.objects.get(title_EN=cat)
+
+            for id in category_ids:
+                category = Category.objects.get(id=id)
                 metadata.categories.add(category)
+
             # save metadata
             metadata.is_custom = True
             metadata.save()
@@ -124,6 +150,13 @@ def restore(request: HttpRequest, id: int, user:User):
          Redirects back to edit view
     """
     metadata = Metadata.objects.get(id=id)
+    if not metadata.is_custom:
+        messages.add_message(request, messages.INFO, _("Metadata is original. No need for restoring anything."))
+        return redirect(request.META.get("HTTP_REFERER"))
+    # identifier = None
+    # if not metadata.is_root():
+    #     # we need to restore a single layer or feature type
+    #     identifier = metadata.service.layer.identifier
     metadata.restore()
     metadata.save()
     messages.add_message(request, messages.INFO, _("Metadata restored to original"))

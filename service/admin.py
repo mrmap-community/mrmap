@@ -56,7 +56,7 @@ class ReferenceSystemAdmin(admin.ModelAdmin):
     pass
 
 class FeatureTypeAdmin(admin.ModelAdmin):
-    list_display = ('title', 'service', 'name', 'abstract')
+    list_display = ('title', 'service', 'identifier', 'abstract')
 
 class FeatureTypeElementAdmin(admin.ModelAdmin):
     list_display = ('name', 'type')

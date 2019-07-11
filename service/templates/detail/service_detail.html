@@ -8,6 +8,7 @@
 {% block head %}
     <script type="text/javascript" src="{% static '/service/js/service.js' %}"></script>
     <link rel="stylesheet" type="text/css" href="{% static '/service/css/service.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/editor/css/editor.css' %}" media="all" />
     <link rel="stylesheet" type="text/css" href="{% static '/service/css/leaflet.css' %}" media="all" />
 {% endblock %}
 
@@ -40,6 +41,13 @@
             <div id="service-update-button" class="button-container" typeof="service" datasrc="{{ root_service.id }}" title="{% trans 'Update service using a new url' %}">
                 <span>{% trans 'Update service' %}</span>
             </div>
+        {% endif %}
+        {% if 'can_edit_metadata_service' in user_permissions %}
+            <a href="{% url 'editor:edit' root_metadata.id %}" title="{% trans 'Edit metadata' %}">
+                <div class="button-container">
+                    <span>{% trans 'Edit metadata' %}</span>
+                </div>
+            </a>
         {% endif %}
         <a href="{{ root_metadata.original_uri }}" target="_blank" title="{% trans 'Open original metadata in new tab' %}">
             <div class="button-container">

@@ -21,6 +21,15 @@ a{
     outline: 0;
 }
 
+.disabled{
+    -webkit-filter: grayscale(1.0);
+    filter: grayscale(1.0);
+    opacity: 0.5;
+}
+.disabled:hover{
+    opacity: 0.5;
+}
+
 .hint{
     font-size: 0.9em;
     font-style: italic;

@@ -25,7 +25,7 @@
             {% for metadata in services %}
                 <tr>
                     <td class="table-cell">
-                        <a href="{% url 'service:detail' id=metadata.id %}">{{ metadata.title }}</a>
+                        <a href="{% url 'service:detail' id=metadata.id %}" title="{% trans 'Open details' %}">{{ metadata.title }}</a>
                     </td>
                     <td class="table-cell">
                         {% if metadata.is_active %}

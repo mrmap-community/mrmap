@@ -10,9 +10,12 @@
     <div class="sublayer hidden">
         {% for layer in layers %}
         <div class="collapsible-table">
-            <h3 class="layer-title" title="{% trans 'Click to expand' %}" data-id="{{ layer.id }}" data-type="wms">
-                <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+            <h3 class="layer-title {% if layer.metadata.is_custom %}custom-metadata-headline{% endif %}" title="{% trans 'Click to expand' %}" data-id="{{ layer.id }}" data-type="wms">
+                <img class="collapse-img" src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
                 {{ layer.metadata.title }}
+                {% if layer.metadata.is_custom %}
+                <img class="invert" src="{% static 'structure/images/icn_edit.png' %}" title="{% trans 'Custom Metadata' %}">
+                {% endif %}
             </h3>
             <div class="subelements hidden">
                 <div class="container-row">

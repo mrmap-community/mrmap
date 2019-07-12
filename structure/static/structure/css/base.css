@@ -30,6 +30,15 @@ a{
     opacity: 0.5;
 }
 
+.custom-metadata-headline{
+    color: var(--secondary-color);
+}
+
+.invert{
+    -webkit-filter: invert(1.0);
+    filter: invert(1.0);
+}
+
 .hint{
     font-size: 0.9em;
     font-style: italic;
@@ -95,7 +104,10 @@ a{
     padding: 10px 0;
 }
 .layer-title img, .back-title img{
-    padding: 0 10px 0 0;
+    padding: 0 10px 0 10px;
+    /*filter: opacity(0.5);*/
+}
+.collapse-img, .back-title img{
     filter: opacity(0.5);
 }
 

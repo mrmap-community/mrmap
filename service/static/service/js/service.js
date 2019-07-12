@@ -137,7 +137,7 @@ $(document).on("click", ".layer-title", function(){
         });
     }
     table.toggle("fast");
-    var img = elem.find("img");
+    var img = elem.find(".collapse-img");
     toggleCollapsibleSymbol(img);
 });
 

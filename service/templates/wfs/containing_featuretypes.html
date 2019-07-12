@@ -10,16 +10,40 @@
         {% for featuretype in featuretypes %}
         <div class="collapsible-table">
             <h3 class="layer-title {% if featuretype.is_custom %}custom-metadata-headline{% endif %}" title="{% trans 'Click to expand' %}" data-id="{{ featuretype.id }}" data-type="wfs">
-                <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+                <img class="collapse-img" src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
                 {{ featuretype.title }}
                 {% if featuretype.is_custom %}
                 <img class="invert"  src="{% static 'structure/images/icn_edit.png' %}" title="{% trans 'Custom Metadata' %}">
                 {% endif %}
             </h3>
             <div class="subelements hidden">
-                <div class="loading-spinner">
-                    <i class="fas fa-circle-notch fa-spin primary-color"></i>
-                    <span id="submit-text">{% trans 'Loading...' %}</span>
+                <div class="container-row">
+                <div class="container-left">
+                    {% if 'can_edit_metadata_service' in user_permissions %}
+                        <a href="{% url 'editor:edit-featuretype' featuretype.id %}" title="{% trans 'Edit metadata' %}">
+                            <div class="button-container">
+                                <span>{% trans 'Edit metadata' %}</span>
+                            </div>
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="container-right">
+                    {% if 'can_edit_metadata_service' in user_permissions %}
+                        <a href="{% url 'editor:restore-featuretype' featuretype.id %}">
+                            <div class="button-container">
+                                <span class="container-icon">&#8635;</span>
+                                <span>{% trans 'Restore metadata' %}</span>
+                            </div>
+                        </a>
+                    {% endif %}
+                </div>
+
+                </div>
+                <div class="content">
+                    <div class="loading-spinner">
+                        <i class="fas fa-circle-notch fa-spin primary-color"></i>
+                        <span id="submit-text">{% trans 'Loading...' %}</span>
+                    </div>
                 </div>
             </div>
         </div>

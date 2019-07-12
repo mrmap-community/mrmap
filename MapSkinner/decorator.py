@@ -10,6 +10,7 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
+from MapSkinner.messages import SESSION_TIMEOUT, NO_PERMISSION, LOGOUT_FORCED
 from MapSkinner.responses import BackendAjaxResponse
 from MapSkinner.settings import ROOT_URL
 from structure.models import Permission
@@ -26,7 +27,7 @@ def check_session(function):
     """
     def wrap(request, *args, **kwargs):
         if user_helper.is_session_expired(request):
-            messages.add_message(request, messages.INFO, _("Session timeout. You have been logged out."))
+            messages.add_message(request, messages.INFO, SESSION_TIMEOUT)
             if request.environ.get("HTTP_X_REQUESTED_WITH", None) is not None:
                 # this is an ajax call -> redirect user to login page if the session isn't valid anymore
                 return BackendAjaxResponse(html="", redirect=ROOT_URL).get_response()
@@ -34,7 +35,7 @@ def check_session(function):
                 return redirect("login")
         user = user_helper.get_user(user_id=request.session.get("user_id"))
         if user is None:
-            messages.add_message(request, messages.ERROR, _("You have been logged out."))
+            messages.add_message(request, messages.ERROR, LOGOUT_FORCED)
             return redirect("login")
         return function(request=request, user=user, *args, **kwargs)
 
@@ -58,7 +59,7 @@ def check_permission(permission_needed: Permission):
             perm_needed = permission_needed.get_permission_list()
             for perm in perm_needed:
                 if perm not in user_permissions:
-                    messages.add_message(request, messages.ERROR, _("No permission for this"))
+                    messages.add_message(request, messages.ERROR, NO_PERMISSION)
                     return redirect(request.META.get("HTTP_REFERER"))
             return function(request=request, *args, **kwargs)
 

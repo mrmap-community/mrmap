@@ -221,7 +221,7 @@ class OGCWebFeatureService(OGCWebService):
         ns_list = []
         if self.describe_feature_type_uri.get("get") is not None:
             XML_NAMESPACES["default"] = XML_NAMESPACES["xsd"]
-            descr_feat_root = service_helper.get_feature_type_elements_xml(title=feature_type.name,
+            descr_feat_root = service_helper.get_feature_type_elements_xml(title=feature_type.identifier,
                                                                     service_type="wfs",
                                                                     service_type_version=service_type_version,
                                                                     uri=self.describe_feature_type_uri.get("get"))
@@ -326,7 +326,7 @@ class OGCWebFeatureService(OGCWebService):
         # Feature type elements
         # Feature type namespaces
         elements_namespaces = self._get_featuretype_elements_namespaces(f_t, service_type_version)
-        self.feature_type_list[f_t.name] = {
+        self.feature_type_list[f_t.identifier] = {
             "feature_type": f_t,
             "keyword_list": keyword_list,
             "srs_list": srs_list,
@@ -334,6 +334,20 @@ class OGCWebFeatureService(OGCWebService):
             "element_list": elements_namespaces.get("element_list", []),
             "ns_list": elements_namespaces.get("ns_list", []),
         }
+
+    def get_single_feature_type_metadata(self, identifier):
+        if self.service_capabilities_xml is None:
+            # load xml, might have been forgotten
+            self.get_capabilities()
+        xml_obj = service_helper.parse_xml(xml=self.service_capabilities_xml)
+        feature_type = service_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//wfs:FeatureType/wfs:Name[text()='{}']/parent::wfs:FeatureType".format(identifier))
+        service_type_version = service_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj,
+                                                                                 attribute="version",
+                                                                                 elem="//wfs:WFS_Capabilities")
+        if len(feature_type) > 0:
+            feature_type = feature_type[0]
+            epsg_api = EpsgApi()
+            self._get_feature_type_metadata(feature_type, epsg_api, service_type_version)
 
     @abstractmethod
     def get_feature_type_metadata(self, xml_obj):
@@ -412,6 +426,9 @@ class OGCWebFeatureService(OGCWebService):
         service.created_by = group
         service.published_for = orga_published_for
         service.published_by = orga_publisher
+        service.get_capabilities_uri = self.get_capabilities_uri.get("get", None)
+        service.describe_layer_uri = self.describe_feature_type_uri.get("get", None)
+        service.get_feature_info_uri = self.get_feature_uri.get("get", None)
         service.availability = 0.0
         service.is_available = False
         service.is_root = True
@@ -670,7 +687,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
 
             # put the feature types objects with keywords and reference systems into the dict for the persisting process
             # will happen later
-            self.feature_type_list[feature_type.name] = {
+            self.feature_type_list[feature_type.identifier] = {
                 "feature_type": feature_type,
                 "keyword_list": kw_list,
                 "srs_list": srs_model_list,

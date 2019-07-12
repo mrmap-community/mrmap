@@ -151,7 +151,6 @@ class Metadata(Resource):
         elif self.service.servicetype.name == ServiceTypes.WFS.value:
             service = OGCWebFeatureServiceFactory()
             service = service.get_ogc_wfs(version=service_version, service_connect_url=self.original_uri)
-            # ToDo: WFS single Feature type metadata restoring!!!
         if service is None:
             return
         service.get_capabilities()
@@ -362,6 +361,7 @@ class FeatureType(Resource):
     identifier = models.CharField(max_length=255)
     title = models.CharField(max_length=255)
     abstract = models.TextField(null=True)
+    is_custom = models.BooleanField(default=False)
     searchable = models.BooleanField(default=False)
     default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True, related_name="default_srs")
     additional_srs = models.ManyToManyField(ReferenceSystem)
@@ -391,7 +391,34 @@ class FeatureType(Resource):
         self.namespaces_list = []
 
     def __str__(self):
-        return self.name
+        return self.identifier
+
+    def restore(self):
+        from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
+        from service.helper import service_helper
+        if self.service is None:
+            return
+        service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
+        service = None
+        if self.service.servicetype.name == ServiceTypes.WFS.value:
+            service = OGCWebFeatureServiceFactory()
+            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.service.metadata.original_uri)
+        if service is None:
+            return
+        service.get_capabilities()
+        service.get_single_feature_type_metadata(self.identifier)
+        result = service.feature_type_list.get(self.identifier, {})
+        original_ft = result.get("feature_type")
+        keywords = result.get("keyword_list")
+
+        # now restore the "metadata"
+        self.title = original_ft.title
+        self.abstract = original_ft.abstract
+        self.keywords.clear()
+        for kw in keywords:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            self.keywords.add(keyword)
+        self.is_custom = False
 
 
 class FeatureTypeElement(Resource):

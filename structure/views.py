@@ -10,6 +10,8 @@ from django.utils.translation import gettext_lazy as _
 
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
+from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_SENT, \
+    PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.models import Service
@@ -153,7 +155,7 @@ def edit_org(request: HttpRequest, id: int, user: User):
             # save changes of group
             org = form.save(commit=False)
             if org.parent == org:
-                messages.add_message(request=request, level=messages.ERROR, message=_("A group can not be parent to itself!"))
+                messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
             else:
                 org.save()
         return redirect("structure:detail-organization", org.id)
@@ -207,7 +209,7 @@ def new_org(request: HttpRequest, user: User):
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
     if not user.has_permission(permission_needed=Permission(can_create_organization=True)):
-        messages.add_message(request, messages.ERROR, _("You do not have permissions for this!"))
+        messages.add_message(request, messages.ERROR, NO_PERMISSION)
         return redirect("structure:index")
 
     orgs = list(Organization.objects.values_list("organization_name", flat=True))
@@ -220,7 +222,7 @@ def new_org(request: HttpRequest, user: User):
             # save changes of group
             org = form.save(commit=False)
             if org.parent == org:
-                messages.add_message(request=request, level=messages.ERROR, message=_("A group can not be parent to itself!"))
+                messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
             else:
                 org.created_by = user
                 org.save()
@@ -336,11 +338,11 @@ def publish_request(request: HttpRequest, id: int, user: User):
             pub_request = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=org, group=group)
             if org in group.publish_for_organizations.all() or pub_request.count() > 0 or org == group.organization:
                 if pub_request.count() > 0:
-                    messages.add_message(request, messages.INFO, _("Your group already has sent a request. Please be patient!"))
+                    messages.add_message(request, messages.INFO, PUBLISH_REQUEST_ABORTED_IS_PENDING)
                 elif org == group.organization:
-                    messages.add_message(request, messages.INFO, _("You cannot be a publisher to your group's own organization! You publish by default like this."))
+                    messages.add_message(request, messages.INFO, PUBLISH_REQUEST_ABORTED_OWN_ORG)
                 else:
-                    messages.add_message(request, messages.INFO, _("Your group already is a publisher for this organization!"))
+                    messages.add_message(request, messages.INFO, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER)
                 return redirect("structure:detail-organization", str(id))
 
             publish_request_obj = PendingRequest()
@@ -351,9 +353,9 @@ def publish_request(request: HttpRequest, id: int, user: User):
             publish_request_obj.activation_until = timezone.now() + datetime.timedelta(hours=PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW)
             publish_request_obj.save()
             # create pending publish request for organization!
-            messages.add_message(request, messages.SUCCESS, _("Publish request has been sent to the organization!"))
+            messages.add_message(request, messages.SUCCESS, PUBLISH_REQUEST_SENT)
         else:
-            messages.add_message(request, messages.ERROR, _("The input was not valid"))
+            messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
         return redirect("structure:detail-organization", id)
 
     else:
@@ -406,7 +408,7 @@ def new_group(request: HttpRequest, user: User):
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
     if not user.has_permission(permission_needed=Permission(can_create_group=True)):
-        messages.add_message(request, messages.ERROR, _("You do not have permissions for this!"))
+        messages.add_message(request, messages.ERROR, NO_PERMISSION)
         return redirect("structure:index")
 
     template = "form.html"
@@ -416,7 +418,7 @@ def new_group(request: HttpRequest, user: User):
             # save changes of group
             group = form.save(commit=False)
             if group.parent == group:
-                messages.add_message(request=request, level=messages.ERROR, message=_("A group can not be parent to itself!"))
+                messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
             else:
                 group.created_by = user
                 group.role = Role.objects.get(name="_default_")
@@ -504,7 +506,7 @@ def edit_group(request: HttpRequest, user: User, id: int):
             # save changes of group
             group = form.save(commit=False)
             if group.parent == group:
-                messages.add_message(request=request, level=messages.ERROR, message=_("A group can not be parent to itself!"))
+                messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
             else:
                 group.save()
         return redirect("structure:detail-group", group.id)

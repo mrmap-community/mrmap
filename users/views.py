@@ -20,6 +20,9 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.decorator import check_session
+from MapSkinner.messages import FORM_INPUT_INVALID, ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
+    ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, PASSWORD_CHANGE_NO_MATCH, UNKNOWN_EMAIL, \
+    LOGOUT_SUCCESS, PASSWORD_SENT, EMAIL_INVALID, ACTIVATION_LINK_SENT
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import SESSION_EXPIRATION, ROOT_URL
 from MapSkinner.utils import sha256
@@ -45,13 +48,13 @@ def login(request: HttpRequest):
         password = login_form.cleaned_data.get("password")
         user = user_helper.get_user(username=username)
         if user is None:
-            messages.add_message(request, messages.ERROR, _("Username or password incorrect"))
+            messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
             return redirect("login")
         if not user.is_password_valid(password):
-            messages.add_message(request, messages.ERROR, _("Username or password incorrect"))
+            messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
             return redirect("login")
         if not user.is_active:
-            messages.add_message(request, messages.INFO, _("Your account is currently not activated"))
+            messages.add_message(request, messages.INFO, ACCOUNT_NOT_ACTIVATED)
             return redirect("login")
         user.last_login = timezone.now()
         user.logged_in = True
@@ -105,13 +108,13 @@ def password_change(request: HttpRequest, user: User):
             password = form.data.get("password")
             password_again = form.data.get("password_again")
             if password != password_again:
-                messages.add_message(request, messages.ERROR, _("Passwords didn't match!"))
+                messages.add_message(request, messages.ERROR, PASSWORD_CHANGE_NO_MATCH)
             else:
                 user.password = make_password(password, user.salt)
                 user.save()
-                messages.add_message(request, messages.SUCCESS, _("Password successfully changed!"))
+                messages.add_message(request, messages.SUCCESS, PASSWORD_CHANGE_SUCCESS)
         else:
-            messages.add_message(request, messages.ERROR, _("The input was not valid."))
+            messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
         return redirect("account")
     else:
         params = {
@@ -140,9 +143,9 @@ def account_edit(request: HttpRequest, user: User):
             # save changes
             user = form.save()
             user.save()
-            messages.add_message(request, messages.SUCCESS, _("Account updated successfully!"))
+            messages.add_message(request, messages.SUCCESS, ACCOUNT_UPDATE_SUCCESS)
         else:
-            messages.add_message(request, messages.ERROR, _("The input was not valid."))
+            messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
         return redirect("account")
     else:
         params = {
@@ -169,13 +172,13 @@ def activate_user(request: HttpRequest, activation_hash: str):
     try:
         user_activation = UserActivation.objects.get(activation_hash=activation_hash)
     except ObjectDoesNotExist:
-        messages.add_message(request, messages.ERROR, _("Your activation link was invalid. Please contact an administrator."))
+        messages.add_message(request, messages.ERROR, ACTIVATION_LINK_INVALID)
         return redirect("login")
 
     activation_until = user_activation.activation_until
     if activation_until < timezone.now():
         # the activation was confirmed too late!
-        messages.add_message(request, messages.ERROR, _("Your activation link was outdated. The account couldn't be activated. Please register again."))
+        messages.add_message(request, messages.ERROR, ACTIVATION_LINK_INVALID)
         return redirect("login")
 
     user = user_activation.user
@@ -200,7 +203,7 @@ def logout(request: HttpRequest, user: User):
     """
     user.logged_in = False
     user.save()
-    messages.add_message(request, messages.SUCCESS, _("Successfully logged out!"))
+    messages.add_message(request, messages.SUCCESS, LOGOUT_SUCCESS)
     return redirect('login')
 
 
@@ -222,17 +225,17 @@ def password_reset(request: HttpRequest):
             try:
                 user = User.objects.get(email=form.data.get("email"))
             except ObjectDoesNotExist:
-                messages.add_message(request, messages.ERROR, _("This e-mail is not known"))
+                messages.add_message(request, messages.ERROR, UNKNOWN_EMAIL)
                 return redirect('password-reset')
             # ToDo: Do sending via email!
             gen_pw = sha256(user.salt + str(timezone.now()))[:7].upper()
             print(gen_pw)
             user.password = make_password(gen_pw, user.salt)
             user.save()
-            messages.add_message(request, messages.INFO, _("A new password has been sent. Please check your e-mails!"))
+            messages.add_message(request, messages.INFO, PASSWORD_SENT)
             return redirect('login')
         else:
-            messages.add_message(request, messages.ERROR, _("The e-mail address was not valid"))
+            messages.add_message(request, messages.ERROR, EMAIL_INVALID)
             return redirect('password-reset')
     else:
         params = {
@@ -266,7 +269,7 @@ def register(request: HttpRequest):
             password = cleaned_data.get("password")
             password_check = cleaned_data.get("password_check")
             if password != password_check:
-                messages.add_message(request, messages.ERROR, _("Passwords did not match!"))
+                messages.add_message(request, messages.ERROR, PASSWORD_CHANGE_NO_MATCH)
             else:
                 # create new user and send mail
                 user = User()
@@ -292,7 +295,7 @@ def register(request: HttpRequest):
                 user_activation.activation_hash = sha256(user.username + user.salt + str(user_activation.activation_until))
                 user_activation.save()
 
-                messages.add_message(request, messages.SUCCESS, _("An activation link for your account was sent. Please check your e-mails!"))
+                messages.add_message(request, messages.SUCCESS, ACTIVATION_LINK_SENT)
                 return redirect("login")
         else:
             params["not_valid"] = True

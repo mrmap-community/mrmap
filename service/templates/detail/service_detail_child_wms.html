@@ -18,16 +18,12 @@
     </tr>
     <tr>
         <th>{% trans 'Keywords' %}</th>
-        <td>
-            <table>
-                {% for kw in element.metadata.keywords.all %}
-                <tr>
-                    <td>{{ kw }}</td>
-                </tr>
-                {% empty %}
+        <td class="listable-container">
+            {% for kw in element.metadata.keywords.all %}
+                    <span class="listable">{{ kw }}</span>
+            {% empty %}
                 {% trans 'No keywords provided' %}
-                {% endfor %}
-            </table>
+            {% endfor %}
         </td>
     </tr>
     <tr>
@@ -86,14 +82,12 @@
     </tr>
     <tr>
         <th>{% trans 'Reference systems:' %}</th>
-        <td>
-            <table>
-                {% for rs in element.metadata.reference_system.all %}
-                <tr>
-                    <td>{{ rs.prefix }}{{ rs.code }}</td>
-                </tr>
-                {% endfor %}
-            </table>
+        <td class="listable-container">
+            {% for rs in element.metadata.reference_system.all %}
+                    <span class="listable">{{ rs.prefix }}{{ rs.code }}</span>
+            {% empty %}
+                {% trans 'No additional reference systems provided' %}
+            {% endfor %}
         </td>
     </tr>
     <tr>

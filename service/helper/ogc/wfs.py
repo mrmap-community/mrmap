@@ -11,7 +11,8 @@ import time
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from MapSkinner.settings import XML_NAMESPACES, GENERIC_ERROR_MSG, EXEC_TIME_PRINT
+from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT
+from MapSkinner.messages import SERVICE_GENERIC_ERROR
 from MapSkinner.utils import execute_threads
 from service.config import ALLOWED_SRS
 from service.helper.enums import VersionTypes, ServiceTypes
@@ -738,7 +739,7 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
                 f_t = self.feature_type_list.get(name).get("feature_type")
             except AttributeError:
                 # if this happens the metadata is broken or not reachable due to bad configuration
-                raise BaseException(GENERIC_ERROR_MSG)
+                raise BaseException(SERVICE_GENERIC_ERROR)
             # Feature type keywords
             keywords = service_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//ows:Keyword")
             keyword_list = []

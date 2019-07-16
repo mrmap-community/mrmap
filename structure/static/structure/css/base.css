@@ -31,7 +31,10 @@ a{
 }
 
 .custom-metadata-headline{
-    color: var(--secondary-color);
+    background-color: var(--message-error);
+    padding: 10px;
+    border: 0px solid;
+    border-radius: 10px;
 }
 
 .invert{

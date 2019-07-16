@@ -95,16 +95,12 @@
     </tr>
     <tr>
         <th>{% trans 'Keywords' %}</th>
-        <td>
-            <table>
+        <td class="listable-container">
             {% for kw in root_metadata.keywords.all %}
-                <tr>
-                    <td>{{ kw }}</td>
-                </tr>
+                    <span class="listable">{{ kw }}</span>
             {% empty %}
                 {% trans 'No keywords provided' %}
             {% endfor %}
-            </table>
         </td>
     </tr>
     <tr>

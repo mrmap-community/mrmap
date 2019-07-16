@@ -34,8 +34,6 @@ HOST_IP = "127.0.0.1:8000"
 # DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
 ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
-GENERIC_ERROR_MSG = _("The service could not be registered. Please check your metadata and contact an administrator.")
-
 EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
 
 PROXIES = {

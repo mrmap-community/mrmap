@@ -13,6 +13,26 @@
 
 }
 
+.listable-container{
+    display: flex;
+    -webkit-display: flex;
+    -webkit-flex-wrap: wrap;
+    flex-wrap: wrap;
+    min-width: 100%;
+}
+
+.listable{
+    margin: 0 1em 0 0;
+    padding:  5px;
+    border: 0px solid;
+    border-radius: 10px;
+    background-color: var(--secondary-color);
+    color: white;
+    -webkit-display: flex;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
 
 .deactivate-container img, .activate-container img{
     padding: 0 10px 0 0;

@@ -379,7 +379,9 @@ def get_service_model_instance(service_type, version, base_uri, user, register_g
         service_type: The type of service (wms, wfs)
         version: The version of the service type
         base_uri: The conne
-        user:
+        user (User): The performing user
+        register_group (Group): The group which shall be used for registration
+        register_for_organization (Organization): The organization for which this service shall be registered
     Returns:
 
     """

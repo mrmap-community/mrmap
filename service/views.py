@@ -271,12 +271,17 @@ def update_service(request: HttpRequest, user: User, id: int):
     new_service_type = url_dict.get("service")
     old_service = Service.objects.get(id=id)
 
+    # check if metadata should be kept
+    keep_custom_metadata = request.POST.get("keep-metadata", "")
+    keep_custom_metadata = keep_custom_metadata == "on"
+
     # get info which layers/featuretypes are linked (old->new)
     links = json.loads(request.POST.get("storage", '{}'))
     update_confirmed = utils.resolve_boolean_attribute_val(request.POST.get("confirmed", 'false'))
 
     # parse new capabilities into db model
-    new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user)
+    registrating_group = old_service.created_by
+    new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user, register_group=registrating_group)
     new_service = new_service["service"]
 
     # Collect differences
@@ -284,37 +289,38 @@ def update_service(request: HttpRequest, user: User, id: int):
     diff = comparator.compare_services()
 
     if update_confirmed:
-        # check cross update attempt
+        # check cross service update attempt
         if old_service.servicetype.name != new_service_type.value:
             # cross update attempt -> forbidden!
             messages.add_message(request, messages.ERROR, SERVICE_UPDATE_WRONG_TYPE)
-            return redirect("service:detail-" + old_service.servicetype.name, old_service.metadata.id)
+            return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(old_service.metadata.id))).get_response()
         # check if new capabilities is even different from existing
         # if not we do not need to spend time and money on performing it!
         if not service_helper.capabilities_are_different(update_params["full_uri"], old_service.metadata.original_uri):
             messages.add_message(request, messages.INFO, SERVICE_UPDATE_ABORTED_NO_DIFF)
-            return redirect("service:detail-" + old_service.servicetype.name, old_service.metadata.id)
+            return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(old_service.metadata.id))).get_response()
 
-        # the update is confirmed, we can continue changing the service!
-        # first update the metadata of the whole service
-        md = update_helper.update_metadata(old_service.metadata, new_service.metadata)
+        if not keep_custom_metadata:
+            # the update is confirmed, we can continue changing the service!
+            # first update the metadata of the whole service
+            md = update_helper.update_metadata(old_service.metadata, new_service.metadata)
+            old_service.metadata = md
+            # don't forget the timestamp when we updated the last time
+            old_service.metadata.last_modified = timezone.now()
+            # save the metadata changes
+            old_service.metadata.save()
         # secondly update the service itself, overwrite the metadata with the previously updated metadata
         old_service = update_helper.update_service(old_service, new_service)
-        old_service.metadata = md
-        # don't forget the timestamp when we updated the last time
-        old_service.metadata.last_modified = timezone.now()
-        # save the metadata changes
-        old_service.metadata.save()
         old_service.last_modified = timezone.now()
 
         if new_service.servicetype.name == ServiceTypes.WFS.value:
-            old_service = update_helper.update_wfs(old_service, new_service, diff, links)
+            old_service = update_helper.update_wfs(old_service, new_service, diff, links, keep_custom_metadata)
 
         elif new_service.servicetype.name == ServiceTypes.WMS.value:
-            old_service = update_helper.update_wms(old_service, new_service, diff, links)
+            old_service = update_helper.update_wms(old_service, new_service, diff, links, keep_custom_metadata)
 
         old_service.save()
-        return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service/" + old_service.servicetype.name + "/detail/" + str(old_service.metadata.id)).get_response()
+        return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL,str(old_service.metadata.id))).get_response()
     else:
         # otherwise
         params = {
@@ -371,6 +377,7 @@ def update_service_form(request: HttpRequest, user:User, id: int):
                 # get current service to compare with
                 service = Service.objects.get(id=id)
                 params = {
+                    "action_url": ROOT_URL + "/service/update/" + str(id),
                     "service": service,
                     "error": error,
                     "uri": url_dict["base_uri"],
@@ -396,7 +403,7 @@ def update_service_form(request: HttpRequest, user:User, id: int):
         params = {
             "form": uri_form,
             "article": _("Enter the new capabilities URL of your service."),
-            "action_url": ROOT_URL + "/service/update/" + str(id),
+            "action_url": ROOT_URL + "/service/register-form/" + str(id),
             "button_text": "Update",
         }
     params["service_id"] = id

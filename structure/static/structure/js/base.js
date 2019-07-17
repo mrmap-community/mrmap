@@ -151,7 +151,9 @@ $(document).ready(function(){
             toggleOverlay(img);
             eeSound.addEventListener("ended", function(){
                 // remove overlay
-                toggleOverlay("");
+                if($("#overlay").hasClass("show")){
+                    toggleOverlay("");
+                }
             });
             eeSound.play();
             eeRotation = 0;

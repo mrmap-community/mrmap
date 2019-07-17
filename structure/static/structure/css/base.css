@@ -440,3 +440,29 @@ tr:nth-child(odd){
     font-weight: bold;
     max-width: 60vw;
 }
+
+@-webkit-keyframes animate-rotate{
+    from {
+         -webkit-transform: rotate(0deg);
+          transform: rotate(0deg);
+    }
+    to {
+         -webkit-transform: rotate(360deg);
+          transform: rotate(360deg);
+    }
+}
+@-keyframes animate-rotate{
+    from {
+         -webkit-transform: rotate(0deg);
+          transform: rotate(0deg);
+    }
+    to {
+         -webkit-transform: rotate(360deg);
+          transform: rotate(360deg);
+    }
+}
+.rotating-image
+{
+    -webkit-animation: animate-rotate 4.5s infinite;
+    animation: animate-rotate 4.5s infinite;
+}

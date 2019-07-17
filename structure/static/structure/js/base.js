@@ -125,7 +125,43 @@ function removeEntity(id, confirmed, entity){
 }
 
 
+
 $(document).ready(function(){
+    var eeRotation = 0;
+
+    $("#navbar-logo").mousemove(function(event){
+        var element = $(this);
+        // check if ctrl key is pressed
+        if(!event.ctrlKey){
+            element.mouseleave();
+            return;
+        }
+        eeRotation += 2;
+        element.css({"transform": "rotate(" + eeRotation +"deg)"});
+        if(eeRotation == 360){
+            var overlay = $("#overlay");
+            var eeSound = new Audio("/static/structure/audio/ee_audio.mp3");
+            var img = $("<img/>").attr("src", "/static/structure/images/mr_map.png")
+            .attr("class", "rotating-image")
+            .attr("style", "object-fit: contain;")
+            .attr("id", "eeImg");
+            toggleOverlay(img);
+            eeSound.addEventListener("ended", function(){
+                // remove overlay
+                toggleOverlay("");
+            });
+            eeSound.play();
+            eeRotation = 0;
+        }
+    });
+
+    $("#navbar-logo").mouseleave(function(){
+        var elem = $(this);
+        eeRotation = 0;
+        elem.css({"transform": "rotate(" + eeRotation +"deg)"});
+    });
+
+
     $(".navigation-menu").on("mouseover",function(){
         var list = $(this).find(".navigation-element-list");
         if(!list.hasClass("open")){

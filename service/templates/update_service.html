@@ -96,6 +96,7 @@
         </article>
         {% else %}
         <form action="{{ action_url }}" method="post" >
+            {% csrf_token %}
             <h2>{% trans 'Existing service' %}</h2>
             <table class="form-table">
                 <tr>
@@ -109,6 +110,12 @@
                 <tr>
                     <td class="field-label">{% trans 'URI:' %}</td>
                     <td class="field">{{ service.metadata.original_uri }}</td>
+                </tr>
+                <tr>
+                    <td class="field-label">{% trans 'Keep custom metadata:' %}</td>
+                    <td class="field">
+                        <input name="keep-metadata" type="checkbox" checked="checked" title="{% trans 'Keep custom metadata' %}"/>
+                    </td>
                 </tr>
             </table>
             <br>
@@ -144,7 +151,10 @@
                     {% trans 'Depending on the numbers of layers or featuretypes provided by this service, the update process can take a while. Please be patient. Do not click around furiously.' %}
                 </span>
             </div>
+            <input type="submit" class="button submit-button" value="{% trans 'Continue' %}">
+            <!--
             <a href="{% url 'service:update-service'  service.id  %}"><div class="submit-button button">{% trans 'Continue' %}</div></a>
+            -->
         </form>
         {% endif %}
     </div>

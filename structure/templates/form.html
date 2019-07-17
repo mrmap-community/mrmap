@@ -31,7 +31,7 @@
 }
 
 #existing-organizations{
-    display:none;
+    display: block;
 }
 
 #existing-organizations ul{
@@ -52,8 +52,10 @@
     z-index: 5;
 
 }
+
 #existing-organizations li{
     padding: 5px;
+    display: none;
 }
 #existing-organizations li:hover{
     cursor: default;
@@ -90,7 +92,14 @@ article{
                             <td class="field-label">{% trans field.label %}</td>
                             <td class="field">
                                 {{ field }}
-                                <span id="existing-organizations"></span>
+                                <span id="existing-organizations">
+                                    <ul>
+                                    {% for organization in organizations %}
+                                        <li class="org">{{ organization }}</li>
+                                    {% endfor %}
+
+                                    </ul>
+                                </span>
                             </td>
                         </tr>
                     {% else %}
@@ -117,27 +126,41 @@ article{
         });
     {% endif %}
 
+
     {% if organizations|length > 0 %}
-        $("#id_organization_name").on("focus focusout", function(){
-            $("#existing-organizations").toggle();
+        $("#id_organization_name").on("focus", function(){
+            var input = $("#id_organization_name");
+            input.trigger("input");
+        });
+        $("#id_organization_name").on("focusout", function(){
+            var elem = $(this);
+            if($("#existing-organizations:hover").length){
+                return;
+            }
+            var orgs = $(".org");
+            orgs.each(function(i,org){
+                $(org).hide();
+            });
         });
 
         $("#id_organization_name").on("input", function(){
             var val = $(this).val();
-            if(val === null || val.length == 0){
-                $("#existing-organizations").html("");
-                return;
-            }
-            var orgs = {{ organizations|safe }}
-            var filtered = $(orgs).filter(function(i){
-                return orgs[i].includes(val);
+            var orgs = $("#existing-organizations").find("li");
+            orgs.each(function(i, org){
+                var orgName = $(org).text();
+                if(orgName.includes(val)){
+                    $(org).show();
+                }else{
+                    $(org).hide();
+                }
             });
-            var html = "<ul>";
-            $.each(filtered, function(i){
-                html += "<li>" + filtered[i] + "</li>";
-            });
-            html += "</ul>";
-            $("#existing-organizations").html(html);
+        });
+
+        $(".org").on("click", function(){
+            var val = $(this).text();
+            var input = $("#id_organization_name");
+            input.val(val);
+            input.focus();
         });
     {% endif %}
 

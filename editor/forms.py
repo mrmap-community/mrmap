@@ -7,7 +7,7 @@ Created on: 09.07.19
 """
 from django.forms import ModelForm, Select, SelectMultiple
 
-from service.models import Metadata
+from service.models import Metadata, FeatureType
 
 
 class MetadataEditorForm(ModelForm):
@@ -26,10 +26,11 @@ class MetadataEditorForm(ModelForm):
         labels = {
             "metadata_url": "ISO metadata URL",
         }
-        # widgets = {
-        #     "categories": SelectMultiple(
-        #         attrs={
-        #             "class": "large-select",
-        #         }
-        #     )
-        # }
+
+class FeatureTypeEditorForm(ModelForm):
+    class Meta:
+        model = FeatureType
+        fields = [
+            "title",
+            "abstract",
+        ]

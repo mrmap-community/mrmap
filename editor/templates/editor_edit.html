@@ -19,7 +19,7 @@
     </div>
     <div class="container-right">
         <a href="{% url 'editor:restore' service_metadata.id %}">
-            <div class="button-container">
+            <div class="button-container {% if not service_metadata.is_custom %}disabled{% endif %}">
                 <span class="container-icon">&#8635;</span>
                 <span>{% trans 'Restore metadata' %}</span>
             </div>

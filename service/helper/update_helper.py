@@ -150,7 +150,7 @@ def update_service(old: Service, new: Service):
     return old
 
 @transaction.atomic
-def update_feature_type(old: FeatureType, new: FeatureType):
+def update_feature_type(old: FeatureType, new: FeatureType, keep_custom_metadata: bool = False):
     """ Overwrites existing feature type (old) with newer (new).
 
     Database related information like id, created_by, and so on is saved before and written back after overwriting.
@@ -158,6 +158,7 @@ def update_feature_type(old: FeatureType, new: FeatureType):
     Args:
         old (FeatureType): The existing metadata, that shall be overwritten
         new (FeatureType): The new metadata that is used for overwriting
+        keep_custom_metadata (bool): Whether the metadata shall be overwritten or not
     Returns:
          old (FeatureType): The overwritten metadata
     """
@@ -166,6 +167,8 @@ def update_feature_type(old: FeatureType, new: FeatureType):
     _id = old.id
     created_by = old.created_by
     created_on = old.created
+    title = old.title
+    abstract = old.abstract
     service = old.service
 
     # overwrite old information with new one
@@ -175,6 +178,10 @@ def update_feature_type(old: FeatureType, new: FeatureType):
     old.created = created_on
     old.created_by = created_by
     old.service = service
+    if keep_custom_metadata:
+        # save custom title and abstract
+        old.title = title
+        old.abstract = abstract
 
 
     # additional srs
@@ -182,10 +189,12 @@ def update_feature_type(old: FeatureType, new: FeatureType):
     for srs in new.additional_srs_list:
         old.additional_srs.add(srs)
 
-    # keywords
-    old.keywords.clear()
-    for kw in new.keywords_list:
-        old.keywords.add(kw)
+    if not keep_custom_metadata:
+        # overwrite all keywords
+        # keywords
+        old.keywords.clear()
+        for kw in new.keywords_list:
+            old.keywords.add(kw)
 
     # formats
     old.formats.clear()
@@ -205,7 +214,7 @@ def update_feature_type(old: FeatureType, new: FeatureType):
     return old
 
 @transaction.atomic
-def update_single_layer(old: Layer, new: Layer):
+def update_single_layer(old: Layer, new: Layer, keep_custom_metadata: bool = False):
     """ Overwrites existing layer (old) with newer (new).
 
     Database related information like id, created_by, and so on is saved before and written back after overwriting.
@@ -213,6 +222,7 @@ def update_single_layer(old: Layer, new: Layer):
     Args:
         old (Layer): The existing metadata, that shall be overwritten
         new (Layer): The new metadata that is used for overwriting
+        keep_custom_metadata (bool): Whether the metadata should be kept or overwritten
     Returns:
          old (Layer): The overwritten metadata
     """
@@ -235,18 +245,20 @@ def update_single_layer(old: Layer, new: Layer):
     old.parent_service = parent_service
     old.parent_layer = parent_layer
 
-    # save metadata
-    md = old.metadata
-    md.save()
-    md = transform_lists_to_m2m_collections(md)
-    old.metadata = md
-    old.save()
-    old = transform_lists_to_m2m_collections(old)
+    if not keep_custom_metadata:
+        # save metadata
+        md = old.metadata
+        md.save()
+        md = transform_lists_to_m2m_collections(md)
+        old.metadata = md
+        old.save()
+        old = transform_lists_to_m2m_collections(old)
 
+    old.save()
     return old
 
 @transaction.atomic
-def update_wfs(old: Service, new: Service, diff: dict, links: dict):
+def update_wfs(old: Service, new: Service, diff: dict, links: dict, keep_custom_metadata:bool = False):
     """ Updates the whole wfs service
 
     Goes through all data, starting at metadata, down to feature types and it's elements to update the current status.
@@ -257,6 +269,7 @@ def update_wfs(old: Service, new: Service, diff: dict, links: dict):
         new (Service): The temporary loaded new version of the old service
         diff (dict): The differences that have been found during comparison before
         links (dict): Contains key/value pairs of old_identifier->new_identifier (needed for renamed layers or feature types)
+        keep_custom_metadata (bool): Whether the feature types should be overwritten or simply added/removed
     Returns:
          old (Service): The updated service
     """
@@ -287,7 +300,7 @@ def update_wfs(old: Service, new: Service, diff: dict, links: dict):
                 existing_f_t.name = feature_type.name
             existing_f_t.save()
             #transform_lists_to_m2m_collections(existing_f_t)
-            existing_f_t = update_feature_type(existing_f_t, feature_type)
+            existing_f_t = update_feature_type(existing_f_t, feature_type, keep_custom_metadata)
             existing_f_t.save()
     # remove old featuretypes
     for removable in diff["feature_types"]["removed"]:
@@ -301,7 +314,7 @@ def update_wfs(old: Service, new: Service, diff: dict, links: dict):
     return old
 
 @transaction.atomic
-def _update_wms_layers_recursive(old: Service, new: Service, layers: list, links: dict, parent: Layer = None):
+def _update_wms_layers_recursive(old: Service, new: Service, layers: list, links: dict, parent: Layer = None, keep_custom_metadata: bool = False):
     """ Updates wms layers recursively.
 
     Iterates over all children on level 1, adds new layers, updates existing ones, removes old ones, then proceeds
@@ -311,6 +324,7 @@ def _update_wms_layers_recursive(old: Service, new: Service, layers: list, links
         old (Service): The existing service that nees to be updated
         new (Service): The newer version from where the new data is taken
         layers (list): The current list of children
+        keep_custom_metadata (bool): Whether the metadata should be overwritten or not
     Returns:
          old (Service): The updated existing service
     """
@@ -340,16 +354,16 @@ def _update_wms_layers_recursive(old: Service, new: Service, layers: list, links
             if rename:
                 existing_layer.identifier = layer.identifier
             existing_layer.save()
-            existing_layer = update_single_layer(existing_layer, layer)
+            existing_layer = update_single_layer(existing_layer, layer, keep_custom_metadata)
             # for parent-child connection we need to put the existing layer into the running variable layer
             layer = existing_layer
 
         children = layer.children_list
         if len(children) > 0:
-            _update_wms_layers_recursive(old, new, children, links, layer)
+            _update_wms_layers_recursive(old, new, children, links, layer, keep_custom_metadata)
 
 @transaction.atomic
-def update_wms(old: Service, new: Service, diff: dict, links: dict):
+def update_wms(old: Service, new: Service, diff: dict, links: dict, keep_custom_metadata: bool = False):
     """ Updates a whole wms service
 
     Handles all metadata and layers.
@@ -359,10 +373,11 @@ def update_wms(old: Service, new: Service, diff: dict, links: dict):
         new (Service): The newer version from where the new data is taken
         diff (dict): The differences that have been found before between the old and new service
         links (dict): Contains key/value pairs of old_identifier->new_identifier (needed for renamed layers or feature types)
+        keep_custom_metadata (bool): Whether the metadata should be overwritten or simply new elements be added/old removed
     Returns:
          old (Service): The updated existing service
     """
-    _update_wms_layers_recursive(old, new, [new.root_layer], links=links)
+    _update_wms_layers_recursive(old, new, [new.root_layer], links=links, keep_custom_metadata=keep_custom_metadata)
     # remove unused layers
     for layer in diff["layers"]["removed"]:
         # find persisted layer at first

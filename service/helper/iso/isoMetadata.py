@@ -103,10 +103,13 @@ class ISOMetadata:
         ows_connector.load()
         if ows_connector.status_code != 200:
             raise ConnectionError(ows_connector.status_code)
+
         if ows_connector.encoding is not None:
-            self.raw_metadata = ows_connector.content.decode(ows_connector.encoding)
+            # self.raw_metadata = ows_connector.content.decode(ows_connector.encoding)  # Has to use utf-8 hardcoded because provided encodings didn't work properly
+            self.raw_metadata = ows_connector.content.decode("UTF-8")
         else:
             self.raw_metadata = ows_connector.text
+
 
     def parse_xml(self):
         """ Reads the needed data from the xml into the ISOMetadata
@@ -153,7 +156,7 @@ class ISOMetadata:
         else:
             polygons = service_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:Polygon'.format(xpath_type))
             if polygons is not None:
-                self.polygonal_extent_exterior.append(service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/".format(xpath_type)))
+                self.polygonal_extent_exterior.append(service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon".format(xpath_type)))
 
         self.tmp_extent_begin = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:beginPosition".format(xpath_type))
         if self.tmp_extent_begin is None:

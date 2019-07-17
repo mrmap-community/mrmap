@@ -130,13 +130,14 @@ $(document).on("click", ".layer-title", function(){
             dataType: 'json'
         }).done(function(data){
             var html = data["html"];
-            table.html(html);
+            var contentDiv = table.find(".content");
+            contentDiv.html(html);
             elem.addClass("loaded");
         }).always(function(data){
         });
     }
     table.toggle("fast");
-    var img = elem.find("img");
+    var img = elem.find(".collapse-img");
     toggleCollapsibleSymbol(img);
 });
 

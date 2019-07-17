@@ -63,9 +63,9 @@
         {% for new in diff.feature_types.new %}
             <tr class="new-service">
                 <th>{% trans 'New Feature Types' %}</th>
-                <td itemid="{{ new.name }}" ondrop="dropBack(event)" ondragover="allowDrop(event)" >
-                    <span id="{{ new.name }}" class="update new" draggable="true" ondragstart="drag(event)" title="{% trans 'Drag and drop the new layer onto the old layer, if you know it has been renamed.' %}">
-                        {{ new.name }}
+                <td itemid="{{ new.identifier }}" ondrop="dropBack(event)" ondragover="allowDrop(event)" >
+                    <span id="{{ new.identifier }}" class="update new" draggable="true" ondragstart="drag(event)" title="{% trans 'Drag and drop the new layer onto the old layer, if you know it has been renamed.' %}">
+                        {{ new.identifier }}
                     </span>
                 </td>
                 <td> - </td>
@@ -81,7 +81,7 @@
             <tr class="old-service">
                 <th>{% trans 'Removed Feature Types' %}</th>
                 <td> - </td>
-                <td><span id="{{ removed.name }}" class="update removed" ondrop="dropNewLayer(event)" ondragover="allowDrop(event)" title="{% trans 'Drop a new feature type on this old one if you want to map it.' %}">{{ removed.name }}</span></td>
+                <td><span id="{{ removed.identifier }}" class="update removed" ondrop="dropNewLayer(event)" ondragover="allowDrop(event)" title="{% trans 'Drop a new feature type on this old one if you want to map it.' %}">{{ removed.identifier }}</span></td>
             </tr>
         {% empty %}
             <tr>
@@ -93,8 +93,8 @@
         {% for f_t in diff.feature_types.updated %}
             <tr>
                 <th>{% trans 'Updated Feature Types' %}</th>
-                <td>{{ f_t.name }}</td>
-                <td>{{ f_t.name }}</td>
+                <td>{{ f_t.identifier }}</td>
+                <td>{{ f_t.identifier }}</td>
             </tr>
         {% endfor %}
     {% else %}

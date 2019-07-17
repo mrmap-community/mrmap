@@ -12,15 +12,15 @@ $(document).ready(function(){
     $(".value-input").on("input", function(){
         var elem = $(this);
         var input = elem.val();
+        var datalistOptions = elem.siblings("datalist").find("option");
         if(input.includes(",")){
             input = input.replace(",", "");
             var type = elem.parents("tr").attr("id");
             // if type != 'keywords' -> user is not allowed to add custom values
             if(type != 'keywords'){
                 // check if the input is a word from the datalist
-                var options = elem.siblings("datalist").find("option");
                 var optionsArr = []
-                options.each(function(i, option){
+                datalistOptions.each(function(i, option){
                     optionsArr.push($(option).text())
                 });
                 if(!optionsArr.includes(input)){
@@ -29,10 +29,22 @@ $(document).ready(function(){
                 }
             }
             elem.val("");
+            var dataId = "-1"
+            // find correct dataId of element, if it is a value from the datalist
+            datalistOptions.each(function(i, option){
+                if(input == option.text){
+                    dataId = $(option).attr("data-id");
+                    return;
+                }
+            });
             var wrapper = elem.siblings(".selected-values-wrapper");
-            var wrapperElements = wrapper.find("span").text().replace(" ", "").replace("✖", "");
-            if(!wrapperElements.includes(input)){
-                wrapper.append('<span class="selected-value" data-id="' + '-1' +'">' + input + ' &#x2716;</span>');
+            var wrapperElements = wrapper.find("span");
+            var elementsArr = [];
+            wrapperElements.each(function(i, elem){
+                elementsArr.push($(elem).find(".value").text());
+            });
+            if(!elementsArr.includes(input)){
+                wrapper.append('<span class="selected-value" data-id="' + dataId +'"><span class="value">' + input + '</span> &#x2716;</span>');
             }
         }
     });
@@ -40,14 +52,19 @@ $(document).ready(function(){
     $("#metadata-form").submit(function(event){
         //event.preventDefault();
         // put keywords, categories and reference system in the correct input labels
-        var names = $(["keywords", "categories", "reference_system"]);
+        var names = $(["keywords", "categories"]);
         names.each(function(i, name){
             var itemRow = $("#" + name);
             var items = itemRow.find(".selected-value");
             var itemsArray = [];
             items.each(function(i, item){
-                var id = $(item).attr("data-id");
-                itemsArray.push(id);
+                var tmp = "";
+                if(name == "keywords"){
+                    tmp = $(item).find(".value").text().trim();
+                }else{
+                    tmp = $(item).attr("data-id");
+                }
+                itemsArray.push(tmp);
             });
             itemRow.append($('<input>', {
                     type: 'hidden',

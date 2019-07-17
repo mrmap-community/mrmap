@@ -21,6 +21,27 @@ a{
     outline: 0;
 }
 
+.disabled{
+    -webkit-filter: grayscale(1.0);
+    filter: grayscale(1.0);
+    opacity: 0.5;
+}
+.disabled:hover{
+    opacity: 0.5;
+}
+
+.custom-metadata-headline{
+    background-color: var(--message-error);
+    padding: 10px;
+    border: 0px solid;
+    border-radius: 10px;
+}
+
+.invert{
+    -webkit-filter: invert(1.0);
+    filter: invert(1.0);
+}
+
 .hint{
     font-size: 0.9em;
     font-style: italic;
@@ -86,7 +107,10 @@ a{
     padding: 10px 0;
 }
 .layer-title img, .back-title img{
-    padding: 0 10px 0 0;
+    padding: 0 10px 0 10px;
+    /*filter: opacity(0.5);*/
+}
+.collapse-img, .back-title img{
     filter: opacity(0.5);
 }
 

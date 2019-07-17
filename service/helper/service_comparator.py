@@ -129,7 +129,7 @@ class ServiceComparator:
         for f_t in feature_type_list:
             found = False
             for f_t_2 in service_2_f_t:
-                if f_t.name == f_t_2.name:
+                if f_t.identifier == f_t_2.identifier:
                     # case: still there
                     found = True
                     diff["updated"].append(f_t)
@@ -141,7 +141,7 @@ class ServiceComparator:
         for f_t_2 in service_2_f_t:
             found = False
             for f_t in feature_type_list:
-                if f_t.name == f_t_2.name:
+                if f_t.identifier == f_t_2.identifier:
                     # case: still there
                     found = True
                     break

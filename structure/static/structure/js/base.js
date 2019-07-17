@@ -124,6 +124,9 @@ function removeEntity(id, confirmed, entity){
     });
 }
 
+$(document).on("click", "#eeImg", function(){
+    toggleOverlay("");
+});
 
 
 $(document).ready(function(){

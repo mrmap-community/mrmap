@@ -272,8 +272,12 @@ def update_service(request: HttpRequest, user: User, id: int):
     old_service = Service.objects.get(id=id)
 
     # check if metadata should be kept
-    keep_custom_metadata = request.POST.get("keep-metadata", "")
+    keep_custom_metadata = request.POST.get("keep-metadata", None)
+    if keep_custom_metadata is None:
+        keep_custom_metadata = request.session.get("keep-metadata", "")
+    request.session["keep-metadata"] = keep_custom_metadata
     keep_custom_metadata = keep_custom_metadata == "on"
+
 
     # get info which layers/featuretypes are linked (old->new)
     links = json.loads(request.POST.get("storage", '{}'))
@@ -296,9 +300,9 @@ def update_service(request: HttpRequest, user: User, id: int):
             return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(old_service.metadata.id))).get_response()
         # check if new capabilities is even different from existing
         # if not we do not need to spend time and money on performing it!
-        if not service_helper.capabilities_are_different(update_params["full_uri"], old_service.metadata.original_uri):
-            messages.add_message(request, messages.INFO, SERVICE_UPDATE_ABORTED_NO_DIFF)
-            return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(old_service.metadata.id))).get_response()
+        # if not service_helper.capabilities_are_different(update_params["full_uri"], old_service.metadata.original_uri):
+        #     messages.add_message(request, messages.INFO, SERVICE_UPDATE_ABORTED_NO_DIFF)
+        #     return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(old_service.metadata.id))).get_response()
 
         if not keep_custom_metadata:
             # the update is confirmed, we can continue changing the service!
@@ -320,6 +324,8 @@ def update_service(request: HttpRequest, user: User, id: int):
             old_service = update_helper.update_wms(old_service, new_service, diff, links, keep_custom_metadata)
 
         old_service.save()
+        del request.session["keep-metadata"]
+        del request.session["update"]
         return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL,str(old_service.metadata.id))).get_response()
     else:
         # otherwise
@@ -344,8 +350,9 @@ def discard_update(request: HttpRequest, user: User):
     Returns:
          redirects
     """
-    #del request.session["update_confirmed"]
+    del request.session["update"]
     return redirect("service:index")
+
 
 @check_session
 @check_permission(Permission(can_update_service=True))

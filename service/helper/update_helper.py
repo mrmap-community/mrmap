@@ -128,6 +128,7 @@ def update_service(old: Service, new: Service):
     created_by = old.created_by
     created_on = old.created
     published_for = old.published_for
+    md = old.metadata  # metadata is expected to be updated already at this point. Therefore we need to keep it!
 
     # overwrite old information with new one
     old = copy(new)
@@ -136,6 +137,7 @@ def update_service(old: Service, new: Service):
     old.created = created_on
     old.created_by = created_by
     old.published_for = published_for
+    old.metadata = md
 
     # formats
     old.formats.clear()
@@ -170,6 +172,7 @@ def update_feature_type(old: FeatureType, new: FeatureType, keep_custom_metadata
     title = old.title
     abstract = old.abstract
     service = old.service
+    custom_md = old.is_custom
 
     # overwrite old information with new one
     old = copy(new)
@@ -182,6 +185,7 @@ def update_feature_type(old: FeatureType, new: FeatureType, keep_custom_metadata
         # save custom title and abstract
         old.title = title
         old.abstract = abstract
+        old.is_custom = custom_md
 
 
     # additional srs
@@ -234,6 +238,10 @@ def update_single_layer(old: Layer, new: Layer, keep_custom_metadata: bool = Fal
     created_on = old.created
     parent_service = old.parent_service
     parent_layer = old.parent_layer
+    custom_md = None
+    if keep_custom_metadata and old.metadata.is_custom:
+        custom_md = old.metadata
+
 
     # overwrite old information with new one
     old = copy(new)
@@ -245,7 +253,9 @@ def update_single_layer(old: Layer, new: Layer, keep_custom_metadata: bool = Fal
     old.parent_service = parent_service
     old.parent_layer = parent_layer
 
-    if not keep_custom_metadata:
+    if keep_custom_metadata and custom_md is not None:
+        old.metadata = custom_md
+    else:
         # save metadata
         md = old.metadata
         md.save()
@@ -258,7 +268,7 @@ def update_single_layer(old: Layer, new: Layer, keep_custom_metadata: bool = Fal
     return old
 
 @transaction.atomic
-def update_wfs(old: Service, new: Service, diff: dict, links: dict, keep_custom_metadata:bool = False):
+def update_wfs(old: Service, new: Service, diff: dict, links: dict, keep_custom_metadata: bool = False):
     """ Updates the whole wfs service
 
     Goes through all data, starting at metadata, down to feature types and it's elements to update the current status.
@@ -277,15 +287,15 @@ def update_wfs(old: Service, new: Service, diff: dict, links: dict, keep_custom_
     # feature types
     old_service_feature_types = FeatureType.objects.filter(service=old)
     for feature_type in new.feature_type_list:
-        name = feature_type.name
+        name = feature_type.identifier
         rename = False
 
-        if feature_type.name in links.keys():
+        if feature_type.identifier in links.keys():
             # aha! This layer is just a renamed one, that already exists. It must be updated and renamed!
-            name = links[feature_type.name]
+            name = links[feature_type.identifier]
             rename = True
 
-        existing_f_t = old_service_feature_types.filter(name=name)
+        existing_f_t = old_service_feature_types.filter(identifier=name)
         if existing_f_t.count() == 0:
             # does not exist -> must be new
             # add the new feature type
@@ -297,7 +307,7 @@ def update_wfs(old: Service, new: Service, diff: dict, links: dict, keep_custom_
             # exists already and needs to be overwritten
             existing_f_t = existing_f_t[0]
             if rename:
-                existing_f_t.name = feature_type.name
+                existing_f_t.identifier = feature_type.identifier
             existing_f_t.save()
             #transform_lists_to_m2m_collections(existing_f_t)
             existing_f_t = update_feature_type(existing_f_t, feature_type, keep_custom_metadata)
@@ -306,7 +316,7 @@ def update_wfs(old: Service, new: Service, diff: dict, links: dict, keep_custom_
     for removable in diff["feature_types"]["removed"]:
         #old.featuretypes.remove(removable)
         try:
-            pers_feature_type = FeatureType.objects.get(service=old, name=removable.name)
+            pers_feature_type = FeatureType.objects.get(service=old, identifier=removable.identifier)
             pers_feature_type.delete()
         except ObjectDoesNotExist:
             pass

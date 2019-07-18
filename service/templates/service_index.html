@@ -30,6 +30,9 @@
         </div>
     </div>
     {% if metadata_list_wms|length > 0 %}
+    <div class="filter-container">
+        <input class="search-field" type="text" name="text-filter" placeholder="{% trans 'Enter text to filter' %}">
+    </div>
     <table class="overview-table">
         <tr>
             <th class="table-header">
@@ -60,8 +63,8 @@
             </th>
         </tr>
         {% for md in metadata_list_wms %}
-            <tr>
-                <td class="table-cell">
+            <tr class="service">
+                <td class="table-cell" data-type="title">
                     <a href="{% url 'service:detail' id=md.id %}" title="{% trans 'Open details' %}">{{ md.title }}</a>
                 </td>
                 {% if select_default == 'layers' %}
@@ -121,6 +124,9 @@
         </div>
     </div>
     {% if metadata_list_wfs|length > 0 %}
+    <div class="filter-container">
+        <input class="search-field" type="text" name="text-filter" placeholder="{% trans 'Enter text to filter' %}">
+    </div>
     <table class="overview-table">
         <tr>
             <th class="table-header">
@@ -146,8 +152,8 @@
             </th>
         </tr>
         {% for wfs in metadata_list_wfs %}
-            <tr>
-                <td class="table-cell">
+            <tr class="service">
+                <td class="table-cell" data-type="title">
                     <a href="{% url 'service:detail' id=wfs.id %}" title="{% trans 'Open details' %}">{{ wfs.title }}</a>
                 </td>
                 <td class="table-cell">

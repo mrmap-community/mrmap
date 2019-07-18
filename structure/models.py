@@ -55,16 +55,16 @@ class Role(models.Model):
 
 
 class Contact(models.Model):
-    person_name = models.CharField(max_length=200, default="", null=True)
-    email = models.CharField(max_length=100, null=True)
-    phone = models.CharField(max_length=100, null=True)
-    facsimile = models.CharField(max_length=100, null=True)
-    city = models.CharField(max_length=100, null=True)
-    postal_code = models.CharField(max_length=100, null=True)
-    address_type = models.CharField(max_length=100, null=True)
-    address = models.CharField(max_length=100, null=True)
-    state_or_province = models.CharField(max_length=100, null=True)
-    country = models.CharField(max_length=100, null=True)
+    person_name = models.CharField(max_length=200, default="", null=True, blank=True)
+    email = models.CharField(max_length=100, null=True, blank=True)
+    phone = models.CharField(max_length=100, null=True, blank=True)
+    facsimile = models.CharField(max_length=100, null=True, blank=True)
+    city = models.CharField(max_length=100, null=True, blank=True)
+    postal_code = models.CharField(max_length=100, null=True, blank=True)
+    address_type = models.CharField(max_length=100, null=True, blank=True)
+    address = models.CharField(max_length=100, null=True, blank=True)
+    state_or_province = models.CharField(max_length=100, null=True, blank=True)
+    country = models.CharField(max_length=100, null=True, blank=True)
 
     def __str__(self):
         return self.person_name
@@ -75,7 +75,7 @@ class Contact(models.Model):
 
 class Organization(Contact):
     organization_name = models.CharField(max_length=255, null=True, default="")
-    description = models.TextField(null=True)
+    description = models.TextField(null=True, blank=True)
     parent = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True)
     is_auto_generated = models.BooleanField(default=True)
 

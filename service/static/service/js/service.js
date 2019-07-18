@@ -197,4 +197,20 @@ $(document).ready(function(){
         updateEntity(id, entity);
     });
 
+
+    $(".search-field").on("input", function(){
+        var elem = $(this);
+        var input = elem.val();
+        var services = elem.parent().next(".overview-table").find(".service");
+        services.each(function(i, service){
+            service = $(service);
+            var title = service.find("[data-type='title']").text().trim();
+            if(title.includes(input)){
+                service.show();
+            }else{
+                service.hide();
+            }
+        });
+    });
+
 });

@@ -334,6 +334,47 @@ tr:nth-child(odd){
     background-color: white;
 }
 
+.filter-container{
+    margin: 1em 0;
+}
+
+.search-field{
+    border: 1px solid var(--primary-color);
+    line-height: 1.5em;
+    padding: 10px;
+    background-color: white;
+    color: var(--secondary-color);
+    border-radius: 1em;
+}
+.search-field::placeholder{
+    color: var(--secondary-color);
+
+}
+
+.listable-container{
+    display: flex;
+    -webkit-display: flex;
+    -webkit-flex-wrap: wrap;
+    flex-wrap: wrap;
+    min-width: 100%;
+}
+
+.listable{
+    margin: 0 1em 0 0;
+    padding:  5px;
+    border: 0px solid;
+    border-radius: 10px;
+    background-color: var(--secondary-color);
+    color: white;
+    -webkit-display: flex;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+a.listable:hover{
+    background-color: var(--secondary-color-light);
+}
+
 .overview-table{
     margin: 0 0 40px 0;
 }

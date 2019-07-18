@@ -45,9 +45,9 @@
     </tr>
     <tr>
         <th>{% trans 'Members' %}</th>
-        <td>
+        <td class="listable-container">
             {% for member in members %}
-                {{ member.username }}<br>
+                <span class="listable">{{ member.username }}</span>
             {% endfor %}
         </td>
     </tr>
@@ -57,9 +57,9 @@
     </tr>
     <tr>
         <th>{% trans 'Suborganizations' %}</th>
-        <td>
+        <td class="listable-container">
             {% for sub_org in sub_organizations %}
-            <a href="{% url 'structure:detail-organization' sub_org.id %}">{{ sub_org }}</a><br>
+                <a class="listable" href="{% url 'structure:detail-organization' sub_org.id %}">{{ sub_org }}</a><br>
             {% endfor %}
         </td>
     </tr>

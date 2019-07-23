@@ -35,7 +35,11 @@ METADATA_RESTORING_SUCCESS = _("Metadata restored to original")
 METADATA_EDITING_SUCCESS = _("Metadata editing successful")
 METADATA_IS_ORIGINAL = _("Metadata is original. No need for restoring anything.")
 
+REQUEST_ACTIVATION_TIMEOVER = _("The request was not activated in time. Request was deleted.")
+
 PUBLISH_REQUEST_SENT = _("Publish request has been sent to the organization!")
+PUBLISH_REQUEST_ACCEPTED = _("Publisher request accepted for group '{}'")
+PUBLISH_REQUEST_DENIED = _("Publisher request denied for group '{}'")
 PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER = _("Your group already is a publisher for this organization!")
 PUBLISH_REQUEST_ABORTED_OWN_ORG = _("You cannot be a publisher to your group's own organization! You publish by default like this.")
 PUBLISH_REQUEST_ABORTED_IS_PENDING = _("Your group already has sent a request. Please be patient!")

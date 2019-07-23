@@ -27,6 +27,7 @@ class DefaultContext:
             "PATH": request.path.split("/")[1],
             "LANGUAGE_CODE": request.LANGUAGE_CODE,
             "user_permissions": permissions,  #user_helper.get_permissions(user)
+            "user": user,
         }
         self.add_context(context)
 

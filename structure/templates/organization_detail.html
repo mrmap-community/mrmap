@@ -15,7 +15,7 @@
 <hr>
 <div class="container-row">
     <div class="container-left">
-        {% if 'can_edit_organization' in user_permissions %}
+        {% if 'can_edit_organization' in user_permissions and user in members %}
             <div id="edit-button" class="button-container" data-parent="{{ organization.id }}" typeof="structure/organizations">
                 <img src="{% static 'structure/images/icn_edit.png' %}">
                 <span>{% trans 'Edit organization' %}</span>
@@ -27,7 +27,7 @@
             <span>{% trans 'Become a publisher' %}</span>
         </div>
     </div>
-    {% if 'can_delete_organization' in user_permissions %}
+    {% if 'can_delete_organization' in user_permissions and user in members %}
         <div class="container-right">
             <div class="delete-container" data-parent="{{ organization.id }}" typeof="structure/organizations">
                 <img src="{% static 'service/images/icn_minus.png' %}">
@@ -104,11 +104,13 @@
     </tr>
 </table>
 
-<div id="show-all">
-    <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
-    {% trans 'Show all services' %} ({{ services|length }})
-</div>
-<div class="subelements hidden">
+
+<div class="collapsible-wrapper">
+    <div class="collapsible-title">
+        <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+        {% trans 'Show all services' %} ({{ services|length }})
+    </div>
+    <div class="subelements hidden">
     <table class="detail-table">
         <tr>
             <th>
@@ -142,6 +144,17 @@
 
         {% endfor %}
     </table>
+</div>
+</div>
+
+<div class="collapsible-wrapper">
+    <div class="collapsible-title {% if pub_requests_count > 0 %} unread {% endif %}">
+        <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+        {% trans 'Publishers and requests' %}
+    </div>
+    <div class="subelements hidden">
+         {% include 'index_publish_requests.html' %}
+    </div>
 </div>
 
 {% endblock %}

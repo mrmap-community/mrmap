@@ -1,9 +1,5 @@
-{% extends 'base.html' %}
-{% load static i18n %}
 
-{% block title %}
-{% trans 'Publishing Requests' %}
-{% endblock %}
+{% load static i18n %}
 
 {% block head %}
     <link rel="stylesheet" type="text/css" href="{% static '/structure/css/publish_requests.css' %}" media="all" />
@@ -11,65 +7,51 @@
 {% endblock %}
 
 {% block body %}
-
-<a href="{% url 'structure:index' %}">
-    <h3 class="back-title">
-        <img src="{% static 'service/images/icn_back.png' %}">
-        {% trans 'Overview' %}
-    </h3>
-</a>
-<hr>
-<div class="container-row">
-    <div class="container-left">
-    </div>
-    <div class="container-right">
-    </div>
-</div>
-
 {% if pub_requests.count > 0 %}
 
-<h2>{% trans 'Publishing Requests' %}</h2>
-<table class="overview-table">
-    <tr>
-        <th class="table-header">{% trans 'Requesting group' %}</th>
-        <th class="table-header">{% trans 'Group organization' %}</th>
-        <th class="table-header">{% trans 'Message' %}</th>
-        <th class="table-header">{% trans 'Activation until' %}</th>
-        <th class="table-header">{% trans 'Action' %}</th>
-    </tr>
-    {% for request in pub_requests %}
-        <tr data-id="{{ request.id }}" data-parent="{{ organization.id }}">
-            <td class="table-cell">
-                <a href="{% url 'structure:detail-organization' request.group.id %}">{{ request.group }}</a>
-            </td>
-            <td class="table-cell">
-                {% if request.group.organization is not None %}
-                    <a href="{% url 'structure:detail-organization' request.group.organization.id %}">{{ request.group.organization }}</a>
-                {% else %}
-                    {{ request.group.organization }}
-                {% endif %}
-            </td>
-            <td class="table-cell message-cell">
-                {{ request.message }}
-            </td>
-            <td class="table-cell">
-                {{ request.activation_until }}
-            </td>
-            <td class="table-cell action-cell">
-                {% if 'can_react_to_publishing_requests' in user_permissions %}
-                    <img class="img-interactive" src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Accept' %}" id="accept-request">
-                    <img class="img-interactive" src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Decline' %}" id="decline-request">
-                {% else %}
-                    {% trans 'You have no permission to change this!' %}
-                {% endif %}
-            </td>
+    {% if user in members %}
+    <h2>{% trans 'Publishing Requests' %}</h2>
+    <table class="overview-table">
+        <tr>
+            <th class="table-header">{% trans 'Requesting group' %}</th>
+            <th class="table-header">{% trans 'Group organization' %}</th>
+            <th class="table-header">{% trans 'Message' %}</th>
+            <th class="table-header">{% trans 'Activation until' %}</th>
+            <th class="table-header">{% trans 'Action' %}</th>
         </tr>
-    {% endfor %}
-</table>
+        {% for request in pub_requests %}
+            <tr data-id="{{ request.id }}" data-parent="{{ organization.id }}">
+                <td class="table-cell">
+                    <a href="{% url 'structure:detail-organization' request.group.id %}">{{ request.group }}</a>
+                </td>
+                <td class="table-cell">
+                    {% if request.group.organization is not None %}
+                        <a href="{% url 'structure:detail-organization' request.group.organization.id %}">{{ request.group.organization }}</a>
+                    {% else %}
+                        {{ request.group.organization }}
+                    {% endif %}
+                </td>
+                <td class="table-cell message-cell">
+                    {{ request.message }}
+                </td>
+                <td class="table-cell">
+                    {{ request.activation_until }}
+                </td>
+                <td class="table-cell action-cell">
+                    {% if 'can_toggle_publish_requests' in user_permissions and user in members %}
+                        <img class="img-interactive" src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Accept' %}" id="accept-request">
+                        <img class="img-interactive" src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Decline' %}" id="decline-request">
+                    {% else %}
+                        {% trans 'You have no permission to change this!' %}
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
 {% endif %}
 
 {% if show_registering_for %}
-<h2>{{ group.name }}</h2>
 <h2>{% trans 'Publishing for' %}</h2>
 <table class="overview-table">
     <tr>
@@ -82,7 +64,7 @@
                 <a href="{% url 'structure:detail-organization' org.id %}">{{ org }}</a>
             </td>
             <td class="table-cell">
-                {% if 'can_react_to_publishing_requests' in user_permissions %}
+                {% if 'can_toggle_publish_requests' in user_permissions and user in group.users.all %}
                 <button class="button delete-container" data-id="{{ org.id }}" data-parent="{{ group.id }}" title="{% trans 'Stop being publisher' %}">
                     <img src="{% static 'service/images/icn_minus.png' %}">
                     <span>{% trans 'Stop being publisher' %}</span>
@@ -117,10 +99,14 @@
                 {% endif %}
             </td>
             <td class="table-cell">
+                {% if 'can_remove_publisher' in user_permissions and user in members%}
                 <button class="button delete-container" data-parent="{{ publisher.id }}" data-id="{{ organization.id }}" title="{% trans 'Remove publisher' %}">
                     <img src="{% static 'service/images/icn_minus.png' %}">
                     <span>{% trans 'Remove publisher' %}</span>
                 </button>
+                {% else %}
+                {% trans 'You have no permission to change this!' %}
+                {% endif %}
             </td>
         </tr>
     {% endfor %}

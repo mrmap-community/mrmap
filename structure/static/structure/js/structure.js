@@ -37,10 +37,10 @@ $(document).ready(function(){
 
     filterOrgsByCheckbox();
 
-    $("#show-all").click(function(){
+    $(".collapsible-title").click(function(){
         var elem = $(this);
-        var orgs = $(".subelements");
-        orgs.toggle("slow");
+        var elements = elem.siblings(".subelements");
+        elements.toggle("slow");
         var img = elem.find("img");
         toggleCollapsibleSymbol(img);
     });

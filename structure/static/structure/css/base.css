@@ -191,9 +191,9 @@ a{
 }
 
 #navbar-logo{
-    padding: 10px;
-    max-height: 40px;
-    max-width: 40px;
+    padding: 1em;
+    max-height: 2.5em;
+    max-width: 2.5em;
 }
 
 .navigation-bar-left{
@@ -206,6 +206,10 @@ a{
     flex-direction: row;
     align-items: center;
     justify-content: center;
+}
+
+.account-name{
+    font-weight: bold;
 }
 
 .primary-color{

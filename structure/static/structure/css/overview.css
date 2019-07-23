@@ -43,13 +43,13 @@
 }
 
 
-#show-all img{
+.collapsible-title img{
     padding: 0 10px 0 0;
     -webkit-filter: invert(1.0);
     filter: invert(1.0);
 }
 
-#show-all{
+.collapsible-title{
     margin: 10px 0;
     display: flex;
     align-items: center;
@@ -60,7 +60,7 @@
 }
 
 
-#show-all:hover{
+.collapsible-title:hover{
     cursor: pointer;
     background-color: var(--secondary-color-light);
 }

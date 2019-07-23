@@ -22,27 +22,18 @@
     <table class="overview-table">
         <tr>
             <th class="overview-table-header">
-                {% trans 'Relation' %}
-            </th>
-            <th class="overview-table-header">
                 {% trans 'Name' %}
             </th>
             <th class="overview-table-header">
                 {% trans 'Description' %}
-            </th>
-            <th class="overview-table-header">
-                {% trans 'Publisher' %}
             </th>
         </tr>
         {% for org_key, org_val in user_organizations.items %}
             {% if org_val is not None %}
                 <tr>
                     <td class="overview-table-cell">
-                        {{ org_key }}
-                    </td>
-                    <td class="overview-table-cell">
                         <a href="{% url 'structure:detail-organization' org_val.id %}">{{ org_val.organization_name }}</a>
-                        <a href="{% url 'structure:index-publish-request' org_val.id %}">
+                        <a href="{% url 'structure:detail-organization' org_val.id %}">
                             {% if pub_requests_count > 0 %}
                                 <span class="notification-badge unread" title="{% trans 'New publish requests' %}">
                                     {{ pub_requests_count }}
@@ -53,11 +44,6 @@
                     <td class="overview-table-cell">
                         {{ org_val.description }}
                     </td>
-                    <td class="overview-table-cell">
-                        <a href="{% url 'structure:index-publish-request' org_val.id %}">
-                            <button class="button submit-button">{% trans 'Show' %}</button>
-                        </a>
-                    </td>
                 </tr>
             {% endif %}
         {% endfor %}
@@ -65,7 +51,7 @@
     {% endif %}
 
     {% if all_organizations|length > 0 %}
-        <div id="show-all">
+        <div class="collapsible-title">
             <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
             {% trans 'All organizations' %}
         </div>

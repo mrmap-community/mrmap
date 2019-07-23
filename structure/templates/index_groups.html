@@ -27,9 +27,6 @@
             <th class="overview-table-header">
                 {% trans 'Organization' %}
             </th>
-            <th class="overview-table-header">
-                {% trans 'Can publish for' %}
-            </th>
         </tr>
         {% for group in groups %}
             <tr>
@@ -45,11 +42,6 @@
                     {% else %}
                         {{ group.organization }}
                     {% endif %}
-                </td>
-                <td class="overview-table-cell">
-                    <a href="{% url 'structure:publisher-group' group.id %}">
-                        <button class="button submit-button">{% trans 'Show' %}</button>
-                    </a>
                 </td>
             </tr>
         {% endfor %}

@@ -11,7 +11,8 @@ from django.utils.translation import gettext_lazy as _
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_SENT, \
-    PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING
+    PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
+    PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.models import Service
@@ -125,11 +126,20 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
     sub_orgs = Organization.objects.filter(parent=org)
     services = Service.objects.filter(metadata__contact=org, is_root=True)
     template = "organization_detail.html"
+
+    # list publishers
+    pub_requests = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=id)
+    all_publishing_groups = Group.objects.filter(publish_for_organizations__id=id)
+    pub_requests_count = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=user.organization).count()
+
     params = {
         "organization": org,
         "members": members,
         "sub_organizations": sub_orgs,
         "services": services,
+        "pub_requests": pub_requests,
+        "all_publisher": all_publishing_groups,
+        "pub_requests_count": pub_requests_count,
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
@@ -239,30 +249,6 @@ def new_org(request: HttpRequest, user: User):
 
 
 @check_session
-def list_publish_request(request: HttpRequest, id: int, user: User):
-    """ Index for all publishers and publish requests
-
-    Args:
-        request (HttpRequest): The incoming request
-        id (int): The organization's id
-        user (User): The acting user
-    Returns:
-        A rendered view
-    """
-    template = "index_publish_requests.html"
-    pub_requests = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=id)
-    all_publishing_groups = Group.objects.filter(publish_for_organizations__id=id)
-    organization = Organization.objects.get(id=id)
-    params = {
-        "pub_requests": pub_requests,
-        "all_publisher": all_publishing_groups,
-        "organization": organization,
-    }
-    context = DefaultContext(request, params, user)
-    return render(request, template, context.get_context())
-
-
-@check_session
 @check_permission(Permission(can_toggle_publish_requests=True))
 def toggle_publish_request(request: HttpRequest, id: int, user: User):
     """ Activate or decline the publishing request.
@@ -285,8 +271,13 @@ def toggle_publish_request(request: HttpRequest, id: int, user: User):
     if is_accepted and pub_request.activation_until >= now:
         # add organization to group_publisher manager
         pub_request.group.publish_for_organizations.add(organization)
+        messages.add_message(request, messages.SUCCESS, PUBLISH_REQUEST_ACCEPTED.format(pub_request.group.name))
+    elif not is_accepted:
+        messages.add_message(request, messages.SUCCESS, PUBLISH_REQUEST_DENIED.format(pub_request.group.name))
+    elif pub_request.activation_until < now:
+        messages.add_message(request, messages.ERROR, REQUEST_ACTIVATION_TIMEOVER)
     pub_request.delete()
-    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/organizations/list-publish-request/" + str(organization.id)).get_response()
+    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/organizations/detail/" + str(organization.id)).get_response()
 
 
 @check_session
@@ -307,7 +298,7 @@ def remove_publisher(request: HttpRequest, id: int, user: User):
     group = Group.objects.get(id=group_id, publish_for_organizations=org)
     group.publish_for_organizations.remove(org)
 
-    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/organizations/list-publish-request/" + str(id)).get_response()
+    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/organizations/detail/" + str(id)).get_response()
 
 @check_session
 @check_permission(Permission(can_request_to_become_publisher=True))
@@ -386,11 +377,13 @@ def detail_group(request: HttpRequest, id: int, user: User):
     group = Group.objects.get(id=id)
     members = group.users.all()
     template = "group_detail.html"
+    t = user in members
     params = {
         "group": group,
         "permissions": user.get_permissions(),  # user_helper.get_permissions(user=user),
         "group_permissions": user.get_permissions(group),  # user_helper.get_permissions(group=group),
-        "members": members
+        "members": members,
+        "show_registering_for": True,
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())

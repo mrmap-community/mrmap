@@ -51,8 +51,8 @@ def index(request: HttpRequest, user: User, service_type=None):
         if display_service_type == 'layers':
             # show single layers instead of grouped service
             is_root = False
-    md_list_wfs = None
-    md_list_wms = None
+    paginator_wms = None
+    paginator_wfs = None
     if service_type is None or service_type == ServiceTypes.WMS.value:
         md_list_wms = Metadata.objects.filter(
             service__servicetype__name="wms",
@@ -60,18 +60,18 @@ def index(request: HttpRequest, user: User, service_type=None):
             created_by__in=user.groups.all(),
             service__is_deleted=False,
         ).order_by("title")
-        paginator_wms = Paginator(md_list_wms, results_per_page)
+        paginator_wms = Paginator(md_list_wms, results_per_page).get_page(wms_page)
     if service_type is None or service_type == ServiceTypes.WFS.value:
         md_list_wfs = Metadata.objects.filter(
             service__servicetype__name="wfs",
             created_by__in=user.groups.all(),
             service__is_deleted=False,
         ).order_by("title")
-        paginator_wfs = Paginator(md_list_wfs, results_per_page)
+        paginator_wfs = Paginator(md_list_wfs, results_per_page).get_page(wfs_page)
     rpp_select = [5, 10, 15, 20]
     params = {
-        "metadata_list_wms": paginator_wms.get_page(wms_page),
-        "metadata_list_wfs": paginator_wfs.get_page(wfs_page),
+        "metadata_list_wms": paginator_wms,
+        "metadata_list_wfs": paginator_wfs,
         "select_default": request.session.get("displayServices", None),
         "only_type": service_type,
         "user": user,

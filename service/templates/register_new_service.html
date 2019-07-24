@@ -133,7 +133,7 @@
                             <option value="None">{% trans 'No other' %}</option>
                             {% for group in user.groups.all %}
                                 {% for org in group.publish_for_organizations.all %}
-                                    <option value="{{ org.id }}">{{ org }}</option>
+                                    <option value="{{ org.id }}" data-parent="{{ group.id }}">{{ org }}</option>
                                 {% endfor %}
                             {% endfor %}
                         </select>
@@ -170,24 +170,25 @@
         var selectedGroup = element.val();
         element = $("#publishable-organizations-select");
         var groupOrgs = JSON.parse(element.attr("data-links"))[selectedGroup];
-
         var options = element.find("option");
+
         var somethingEnabled = false;
-        $.each(options, function(i){
-            var val = parseInt($(options[i]).val());
-            if($(options[i]).val() == "None"){
+        options.each(function(i){
+            var option = $(options[i]);
+            var val = parseInt(option.val());
+            var parent = option.attr("data-parent");
+            if(option.val() == "None"){
                 // the default value for no other organization shall be used
                 // skip in a jquery manner
                 return;
             }
-
-            if(groupOrgs.includes(val)){
-                $(options[i]).attr("disabled", false);
-                $(options[i]).attr("hidden", false);
+            if(option.attr("data-parent") != selectedGroup){
+                option.attr("disabled", false);
+                option.attr("hidden", false);
                 somethingEnabled = true;
             }else{
-                $(options[i]).attr("disabled", true);
-                $(options[i]).attr("hidden", true);
+                option.attr("disabled", true);
+                option.attr("hidden", true);
             }
         });
         //element.attr("disabled", !somethingEnabled);

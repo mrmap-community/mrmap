@@ -1,6 +1,7 @@
 import json
 
 from django.contrib import messages
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
@@ -35,6 +36,15 @@ def index(request: HttpRequest, user: User, service_type=None):
          A view
     """
     template = "service_index.html"
+    try:
+        wms_page = int(request.GET.get("wmsp", 1))
+        wfs_page = int(request.GET.get("wfsp", 1))
+        results_per_page = int(request.GET.get("rpp", 5))
+        if wms_page < 1 or wfs_page < 1 or results_per_page < 1:
+            raise ValueError
+    except ValueError as e:
+        return redirect("service:index")
+
     display_service_type = request.session.get("displayServices", None)
     is_root = True
     if display_service_type is not None:
@@ -49,19 +59,24 @@ def index(request: HttpRequest, user: User, service_type=None):
             service__is_root=is_root,
             created_by__in=user.groups.all(),
             service__is_deleted=False,
-        )
+        ).order_by("title")
+        paginator_wms = Paginator(md_list_wms, results_per_page)
     if service_type is None or service_type == ServiceTypes.WFS.value:
         md_list_wfs = Metadata.objects.filter(
             service__servicetype__name="wfs",
             created_by__in=user.groups.all(),
             service__is_deleted=False,
-        )
+        ).order_by("title")
+        paginator_wfs = Paginator(md_list_wfs, results_per_page)
+    rpp_select = [5, 10, 15, 20]
     params = {
-        "metadata_list_wms": md_list_wms,
-        "metadata_list_wfs": md_list_wfs,
+        "metadata_list_wms": paginator_wms.get_page(wms_page),
+        "metadata_list_wfs": paginator_wfs.get_page(wfs_page),
         "select_default": request.session.get("displayServices", None),
         "only_type": service_type,
         "user": user,
+        "rpp_select_options": rpp_select,
+        "rpp": results_per_page,
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())

@@ -57,10 +57,15 @@
         </div>
         <div class="subelements hidden">
             <div class="filter-container">
-                <input class="search-field" type="text" name="text-filter" placeholder="{% trans 'Enter text to filter' %}">
-                <br>
-                <label for="checkbox-real-orgs">{% trans 'Only real organizations' %}</label>
-                <input id="checkbox-real-orgs" type="checkbox" checked="checked" name="checkbox-real-orgs" title="{% trans 'Only real organizations' %}">
+                <div class="container-left">
+                    <div>
+                    <input class="search-field" type="text" name="text-filter" placeholder="{% trans 'Enter text to filter' %}">
+                        <div>
+                            <label for="checkbox-real-orgs">{% trans 'Only real organizations' %}</label>
+                            <input id="checkbox-real-orgs" type="checkbox" checked="checked" name="checkbox-real-orgs" title="{% trans 'Only real organizations' %}">
+                        </div>
+                    </div>
+                </div>
             </div>
             <table class="detail-table">
                 <tr>

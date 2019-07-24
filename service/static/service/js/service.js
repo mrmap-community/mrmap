@@ -154,8 +154,26 @@ $(document).on("click", ".sublayer-headline", function(){
     toggleCollapsibleSymbol(img);
 });
 
+function changeGetParam(param, newVal){
+    var query = location.search;
+    var params = new URLSearchParams(query);
+    params.set(param, newVal);
+    query = params.toString();
+    location.search = query;
+}
 
 $(document).ready(function(){
+
+    $(".rpp-select").change(function(){
+        var val = $(this).val();
+        changeGetParam("rpp", val);
+    });
+
+    $(".pagination-input").change(function(){
+        var val = $(this).val();
+        var type = $(this).attr("data-type");
+        changeGetParam(type, val);
+    });
 
     $(".deactivate-container, .activate-container").click(function(){
         var id = $(this).attr("data-parent");
@@ -201,7 +219,8 @@ $(document).ready(function(){
     $(".search-field").on("input", function(){
         var elem = $(this);
         var input = elem.val();
-        var services = elem.parent().next(".overview-table").find(".service");
+        var type = elem.attr("data-type");
+        var services = $(".service[data-type='" + type + "']");
         services.each(function(i, service){
             service = $(service);
             var title = service.find("[data-type='title']").text().trim();

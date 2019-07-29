@@ -1,7 +1,7 @@
 import uuid
 
 from django.contrib.gis.geos import Polygon
-from django.db import models
+from django.db import models, transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
 
@@ -238,6 +238,39 @@ class Service(Resource):
 
     def __str__(self):
         return str(self.id)
+
+    @transaction.atomic
+    def delete_layer_data(self, layer):
+        """ Delete all layer data like related iso metadata
+
+        Args:
+            layer (Layer): The current layer object
+        Returns:
+            nothing
+        """
+        # remove related metadata
+        iso_mds = MetadataRelation.objects.filter(metadata_1=layer.metadata)
+        for iso_md in iso_mds:
+            md_2 = iso_md.metadata_2
+            md_2.delete()
+            iso_md.delete()
+        layer.delete()
+
+    @transaction.atomic
+    def delete(self, using=None, keep_parents=False):
+        """ Overwrites default delete method
+
+        Recursively remove layer children
+
+        :param using:
+        :param keep_parents:
+        :return:
+        """
+        layers = self.child_service.all()
+        for layer in layers:
+            self.delete_layer_data(layer)
+        self.metadata.delete()
+        super().delete()
 
     def __get_children(self, current, layers: list):
         """ Recursive appending of all layers

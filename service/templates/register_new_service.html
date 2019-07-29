@@ -182,7 +182,7 @@
                 // skip in a jquery manner
                 return;
             }
-            if(option.attr("data-parent") != selectedGroup){
+            if(option.attr("data-parent") == selectedGroup){
                 option.attr("disabled", false);
                 option.attr("hidden", false);
                 somethingEnabled = true;

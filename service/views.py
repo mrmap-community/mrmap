@@ -1,5 +1,6 @@
 import json
 
+import time
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -15,7 +16,7 @@ from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, SERVICE_UPDATE_ABORTED_NO_DIFF
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-from MapSkinner.settings import ROOT_URL
+from MapSkinner.settings import ROOT_URL, EXEC_TIME_PRINT
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
 from service.helper.enums import ServiceTypes
@@ -115,8 +116,6 @@ def remove(request: HttpRequest, user: User):
         return BackendAjaxResponse(html=html).get_response()
     else:
         # remove service and all of the related content
-        # service.is_deleted = True
-        # service.save()
         service.delete()
         return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 
@@ -252,6 +251,7 @@ def new_service(request: HttpRequest, user: User):
     url_dict = service_helper.split_service_uri(cap_url)
     params = {}
     try:
+        t_start = time.time()
         service = service_helper.get_service_model_instance(
             url_dict.get("service"),
             url_dict.get("version"),
@@ -264,6 +264,7 @@ def new_service(request: HttpRequest, user: User):
         service = service["service"]
         service_helper.persist_service_model_instance(service)
         params["service"] = raw_service
+        print(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
     except (ConnectionError, InvalidURL) as e:
         params["error"] = e.args[0]
         raise e

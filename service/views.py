@@ -36,12 +36,15 @@ def index(request: HttpRequest, user: User, service_type=None):
          A view
     """
     template = "service_index.html"
+    rpp_select = [5, 10, 15, 20]
     try:
         wms_page = int(request.GET.get("wmsp", 1))
         wfs_page = int(request.GET.get("wfsp", 1))
         results_per_page = int(request.GET.get("rpp", 5))
         if wms_page < 1 or wfs_page < 1 or results_per_page < 1:
             raise ValueError
+        if results_per_page not in rpp_select:
+            results_per_page = 5
     except ValueError as e:
         return redirect("service:index")
 
@@ -68,7 +71,6 @@ def index(request: HttpRequest, user: User, service_type=None):
             service__is_deleted=False,
         ).order_by("title")
         paginator_wfs = Paginator(md_list_wfs, results_per_page).get_page(wfs_page)
-    rpp_select = [5, 10, 15, 20]
     params = {
         "metadata_list_wms": paginator_wms,
         "metadata_list_wfs": paginator_wfs,

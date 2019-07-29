@@ -30,19 +30,25 @@
             <input class="search-field" type="text" name="text-filter" data-type="wfs" placeholder="{% trans 'Enter text to filter' %}">
         </div>
         <div class="container-center">
+            {% if metadata_list_wfs.paginator.num_pages > 1 %}
             <div>
                 <div class="pagination-wrapper">
+                    {% if metadata_list_wfs.number != 1 %}
                     <a class="pagination-page" href="?wmsp={{ metadata_list_wms.number }}&wfsp=1&rpp={{ rpp }}">
                         1
                     </a>
                     <span>...</span>
+                    {% endif %}
                     <input class="pagination-input" data-type="wmsp" type="number" min="1" value="{{ metadata_list_wfs.number }}">
+                    {% if metadata_list_wfs.number != metadata_list_wfs.paginator.num_pages %}
                     <span>...</span>
                     <a class="pagination-page" href="?wmsp={{ metadata_list_wms.paginator.num_pages }}&wfsp={{ metadata_list_wfs.number }}&rpp={{ rpp }}">
                         {{ metadata_list_wfs.paginator.num_pages }}
                     </a>
+                    {% endif %}
                 </div>
             </div>
+            {% endif %}
         </div>
         <div class="container-right">
         </div>

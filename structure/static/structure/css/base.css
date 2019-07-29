@@ -134,16 +134,17 @@ a{
 .modal-close{
     float: right;
     position: relative;
-    top: -20px;
-    right: -20px;
+    top: -2em;
+    right: -2em;
     padding: 10px 15px 10px 15px;
-    border: 1px solid black;
-    border-radius: 5px;
+    border: 1px solid var(--secondary-color);
+    border-radius: 100%;
     background-color: white;
 }
 .modal-close:hover{
     color: white;
-    border: 1px solid var(--secondary-color);
+    font-weight: bold;
+    border: 1px solid white;
     background-color: var(--secondary-color);
     cursor: pointer;
 }
@@ -219,10 +220,10 @@ a{
 .pagination-input{
     margin: 0 0.25em;
     width: 3em;
-    background-color: unset;
+    background-color: var(--secondary-color);
     border: 1px solid var(--secondary-color);
     border-radius: 5px;
-    color: var(--secondary-color);
+    color: white;
     text-align: center;
 }
 
@@ -236,15 +237,16 @@ a{
     border-radius: 5px;
     text-align: center;
     padding: 0 0.3em 0 0.3em;
-    color: var(--secondary-color);
+    color: white;
+    background-color: var(--secondary-color);
     border: 1px solid var(--secondary-color);
     margin: 0 0.25em;
     display: inline-block;
 }
 
 .pagination-page.current, .pagination-page:hover{
-    color: white;
-    background-color: var(--secondary-color);
+    color: var(--secondary-color);
+    background-color: white;
 }
 .pagination-page:hover{
     cursor:pointer;

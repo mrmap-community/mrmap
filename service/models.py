@@ -43,10 +43,13 @@ class MetadataOrigin(models.Model):
 class MetadataRelation(models.Model):
     metadata_1 = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadate_from")
     metadata_2 = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadate_to")
+    relation_type = models.CharField(max_length=255, null=True, blank=True)
+    internal = models.BooleanField(default=False)
     origin = models.ForeignKey(MetadataOrigin, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.metadata_1.title + " -> " + self.metadata_2.title
+
 
 class Metadata(Resource):
     title = models.CharField(max_length=255)
@@ -279,7 +282,6 @@ class Layer(Service):
     is_cascaded = models.BooleanField(default=False)
     scale_min = models.FloatField(default=0)
     scale_max = models.FloatField(default=0)
-    #bbox_lat_lon = models.CharField(max_length=255, default='{"minx":-90.0, "miny":-180.0, "maxx": 90.0, "maxy":180.0}')
     bbox_lat_lon = models.PolygonField(default=Polygon(
         (
             (-90.0, -180.0),
@@ -289,7 +291,7 @@ class Layer(Service):
             (-90.0, -180.0),
         )
     ))
-    iso_metadata = None
+    iso_metadata = []
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

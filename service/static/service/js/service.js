@@ -218,12 +218,12 @@ $(document).ready(function(){
 
     $(".search-field").on("input", function(){
         var elem = $(this);
-        var input = elem.val();
+        var input = elem.val().toUpperCase();
         var type = elem.attr("data-type");
         var services = $(".service[data-type='" + type + "']");
         services.each(function(i, service){
             service = $(service);
-            var title = service.find("[data-type='title']").text().trim();
+            var title = service.find("[data-type='title']").text().trim().toUpperCase();
             if(title.includes(input)){
                 service.show();
             }else{

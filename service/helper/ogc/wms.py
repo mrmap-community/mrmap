@@ -371,13 +371,14 @@ class OGCWebMapService(OGCWebService):
 
             # check for possible ISO metadata
             if self.__has_iso_metadata(layer):
-                # run parsing on this metadata!
-                iso_uri = service_helper.try_get_attribute_from_xml_element(xml_elem=layer, attribute="{http://www.w3.org/1999/xlink}href", elem="./MetadataURL/OnlineResource")
-                iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
-                layer_obj.iso_metadata = iso_metadata
+                iso_metadata_xml_elements = service_helper.try_get_element_from_xml(xml_elem=layer, elem="./MetadataURL/OnlineResource")
+                for iso_xml in iso_metadata_xml_elements:
+                    iso_uri = service_helper.try_get_attribute_from_xml_element(xml_elem=iso_xml, attribute="{http://www.w3.org/1999/xlink}href")
+                    iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
+                    layer_obj.iso_metadata.append(iso_metadata)
 
             self.layers.append(layer_obj)
-            sublayers = layer.xpath("./Layer")
+            sublayers = service_helper.try_get_element_from_xml(elem="./Layer", xml_elem=layer)
             if parent is not None:
                 parent.child_layer.append(layer_obj)
             position += 1
@@ -585,10 +586,7 @@ class OGCWebMapService(OGCWebService):
             layer.describe_layer_uri = layer_obj.describe_layer_uri
             layer.get_capabilities_uri = layer_obj.get_capabilities_uri
 
-            if layer_obj.iso_metadata is not None:
-                iso_metadata = layer_obj.iso_metadata.get_db_model()
-                layer.iso_metadata = iso_metadata
-
+            layer.iso_metadata = layer_obj.iso_metadata
 
             if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
                 # ToDo: Rework dimension persisting! Currently simply ignore it...
@@ -729,9 +727,8 @@ class OGCWebMapService(OGCWebService):
         for layer in layers:
             md = layer.metadata
             md.save()
-            iso_md = layer.iso_metadata
-            if iso_md is not None:
-                iso_md.save()
+            for iso_md in layer.iso_metadata:
+                iso_md = iso_md.get_db_model()
                 metadata_relation = MetadataRelation()
                 metadata_relation.metadata_1 = md
                 metadata_relation.metadata_2 = iso_md
@@ -739,6 +736,7 @@ class OGCWebMapService(OGCWebService):
                     name=iso_md.origin
                 )[0]
                 metadata_relation.save()
+                md.related_metadata.add(metadata_relation)
 
             layer.metadata = md
 

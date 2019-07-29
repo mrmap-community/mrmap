@@ -62,13 +62,13 @@ $(document).ready(function(){
 
     $(".search-field").on("input", function(){
         var elem = $(this);
-        var input = elem.val();
+        var input = elem.val().toUpperCase();
         var orgs = $(".org");
         var onlyRealOrgs = $("#checkbox-real-orgs").is(":checked");
         orgs.each(function(i, org){
             org = $(org);
-            var name = org.find("[data-type='name']").text().trim();
-            var descr = org.find("[data-type='descr']").text().trim();
+            var name = org.find("[data-type='name']").text().trim().toUpperCase();
+            var descr = org.find("[data-type='descr']").text().trim().toUpperCase();
             var isRealOrg = org.find("[data-type='auto-gen']").attr("data-toggle") == 'False';
             if((name.includes(input) || descr.includes(input))){
                 if(onlyRealOrgs && isRealOrg){

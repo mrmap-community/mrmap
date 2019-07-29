@@ -666,7 +666,16 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                 "maxx": service_helper.try_get_attribute_from_xml_element(elem="./wfs:LatLongBoundingBox", xml_elem=node, attribute="maxx"),
                 "maxy": service_helper.try_get_attribute_from_xml_element(elem="./wfs:LatLongBoundingBox", xml_elem=node, attribute="maxy"),
             }
-            feature_type.bbox_lat_lon = bbox
+            # create polygon element from simple bbox dict
+
+            bounding_points = (
+                (float(bbox["minx"]), float(bbox["miny"])),
+                (float(bbox["minx"]), float(bbox["maxy"])),
+                (float(bbox["maxx"]), float(bbox["maxy"])),
+                (float(bbox["maxx"]), float(bbox["miny"])),
+                (float(bbox["minx"]), float(bbox["miny"]))
+            )
+            feature_type.bbox_lat_lon = Polygon(bounding_points)
 
             # reference systems
             # append only the ...ToFeatureType objects, since the reference systems will be created automatically
@@ -687,7 +696,6 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             elements_namespaces = self._get_featuretype_elements_namespaces(feature_type, service_type_version)
 
             # put the feature types objects with keywords and reference systems into the dict for the persisting process
-            # will happen later
             self.feature_type_list[feature_type.identifier] = {
                 "feature_type": feature_type,
                 "keyword_list": kw_list,
@@ -730,6 +738,13 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
         XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
 
     def get_version_specific_metadata(self, xml_obj):
+        """ Runs metadata parsing for data which is only present in this version
+
+        Args:
+            xml_obj: The xml metadata object
+        Returns:
+             nothing
+        """
         epsg_api = EpsgApi()
         # featuretype keywords are different than in older versions
         feature_type_list = service_helper.try_get_element_from_xml(elem="//wfs:FeatureType", xml_elem=xml_obj)
@@ -749,7 +764,7 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
                 keyword_list.append(kw)
             self.feature_type_list[name]["keyword_list"] = keyword_list
 
-            # srs are now called crs -> do it again!
+            # srs are now called crs -> parse for crs again!
             # CRS
             ## default
             crs = service_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:DefaultCRS")

@@ -250,7 +250,14 @@ def new_service(request: HttpRequest, user: User):
     url_dict = service_helper.split_service_uri(cap_url)
     params = {}
     try:
-        service = service_helper.get_service_model_instance(url_dict.get("service"), url_dict.get("version"), url_dict.get("base_uri"), user, register_group, register_for_organization)
+        service = service_helper.get_service_model_instance(
+            url_dict.get("service"),
+            url_dict.get("version"),
+            url_dict.get("base_uri"),
+            user,
+            register_group,
+            register_for_organization
+        )
         raw_service = service["raw_data"]
         service = service["service"]
         service_helper.persist_service_model_instance(service)

@@ -40,4 +40,4 @@ class OGCLayer:
         self.style = {}
         self.child_layer = []
 
-        self.iso_metadata = None
+        self.iso_metadata = []

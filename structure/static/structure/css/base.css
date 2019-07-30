@@ -2,6 +2,7 @@
 
 html{
     font-family: 'Helvetica';
+    height: 100%;
 }
 h1,h2,h3,h4{
     margin: 0;
@@ -10,10 +11,52 @@ h1,h2,h3,h4{
 body{
     margin: 0;
     padding: 0 0 5vh 0;
+    position:relative;
 }
 body.background{
     background-image: url("/static/structure/images/background.png");
     background-repeat: repeat;
+}
+
+footer{
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    height: 40px;
+    background-color: white;
+    border: 1px solid var(--primary-color-light);
+    -webkit-display: flex;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: gray;
+}
+
+#current-lang{
+    padding: 1em;
+}
+
+#current-lang:hover{
+    cursor: pointer;
+}
+
+#lang-selector{
+    background-color: white;
+    color: gray;
+    border: 1px solid lightgray;
+    padding: 0.25em;
+    border-radius: 0.25em;
+
+    position: absolute;
+    bottom: 40px;
+}
+.lang-item{
+    padding: 1em;
+}
+.lang-item:hover{
+    cursor: pointer;
+    background-color: lightgray;
 }
 
 a{

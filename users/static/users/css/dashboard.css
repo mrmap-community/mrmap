@@ -86,13 +86,14 @@ span.sidebar-entry:hover{
     background-color: var(--secondary-color);
     color: white;
     font-weight: bold;
+    min-width: 10em;
 }
 .tile:hover{
     background-color: var(--secondary-color-light);
 }
 
 .tile-bg-img{
-    height: 100%;
+    height: 80%;
     filter: blur(3px);
     opacity: 0.15;
 }

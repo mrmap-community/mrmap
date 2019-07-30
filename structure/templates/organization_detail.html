@@ -106,7 +106,7 @@
 
 
 <div class="collapsible-wrapper">
-    <div class="collapsible-title">
+    <div id="all-org-services" class="collapsible-title">
         <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
         {% trans 'Show all services' %} ({{ services|length }})
     </div>
@@ -148,7 +148,7 @@
 </div>
 
 <div class="collapsible-wrapper">
-    <div class="collapsible-title {% if pub_requests_count > 0 %} unread {% endif %}">
+    <div id="publish-wrapper" class="collapsible-title {% if pub_requests_count > 0 %} unread {% endif %}">
         <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
         {% trans 'Publishers and requests' %}
     </div>

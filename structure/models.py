@@ -187,6 +187,7 @@ class User(Contact):
         """
         return check_password(password, self.password)
 
+
 class UserActivation(models.Model):
     user = models.ForeignKey(User, null=False, blank=False, on_delete=models.DO_NOTHING)
     activation_until = models.DateTimeField(null=True)
@@ -196,12 +197,24 @@ class UserActivation(models.Model):
         return self.user.username
 
 
+class GroupActivity(models.Model):
+    group = models.ForeignKey(Group, on_delete=models.CASCADE)
+    description = models.CharField(max_length=255, blank=True, null=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
+    metadata = models.CharField(max_length=255, blank=True, null=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.description
+
+
 class PendingRequest(models.Model):
     type = models.CharField(max_length=255) # defines what type of request this is
     group = models.ForeignKey(Group, related_name="pending_publish_requests", on_delete=models.DO_NOTHING)
     organization = models.ForeignKey(Organization, related_name="pending_publish_requests", on_delete=models.DO_NOTHING)
     message = models.TextField(null=True, blank=True)
     activation_until = models.DateTimeField(null=True)
+    created_on = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.group.name + " > " + self.organization.organization_name

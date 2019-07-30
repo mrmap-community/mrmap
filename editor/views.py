@@ -6,7 +6,7 @@ from django.shortcuts import render, redirect
 # Create your views here.
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
-    METADATA_IS_ORIGINAL
+    METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED
 from MapSkinner.responses import DefaultContext
 from MapSkinner.settings import ROOT_URL
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
@@ -14,7 +14,9 @@ from service.helper.enums import ServiceTypes
 from service.models import Metadata, Keyword, Category, ReferenceSystem, FeatureType, Layer
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import User, Permission
+from structure.models import User, Permission, GroupActivity
+from users.helper import user_helper
+
 
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))
@@ -108,6 +110,7 @@ def edit(request: HttpRequest, id: int, user: User):
             metadata.is_custom = True
             metadata.save()
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
+            user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, metadata.title)
             return redirect("editor:index")
         else:
             messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
@@ -217,13 +220,10 @@ def restore(request: HttpRequest, id: int, user: User):
     if not metadata.is_custom:
         messages.add_message(request, messages.INFO, METADATA_IS_ORIGINAL)
         return redirect(request.META.get("HTTP_REFERER"))
-    # identifier = None
-    # if not metadata.is_root():
-    #     # we need to restore a single layer or feature type
-    #     identifier = metadata.service.layer.identifier
     metadata.restore()
     metadata.save()
     messages.add_message(request, messages.INFO, METADATA_RESTORING_SUCCESS)
+    user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_RESTORED, metadata.title)
     return redirect("editor:index")
 
 

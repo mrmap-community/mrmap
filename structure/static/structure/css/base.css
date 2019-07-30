@@ -455,9 +455,7 @@ a.listable:hover{
 }
 
 .button{
-    /*
-    margin-top: 10px;
-    */
+    margin-right: 10px;
     padding: 10px;
     border: 0px solid var(--secondary-color-light);
     background-color: var(--secondary-color);

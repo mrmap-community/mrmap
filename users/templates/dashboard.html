@@ -45,12 +45,12 @@
         <h2 class="headline">{% trans 'My services' %}</h2>
         <div class="tiles-wrapper">
             <a class="tile" href="{% url 'service:wms' %}">
-                <span>{% trans 'WMS' %}</span>
-                <span class="badge">{{ wms_count }}</span>
+                <span>{% trans 'WMS' %}<span class="badge">{{ wms_count }}</span></span>
+                <img class="tile-bg-img" src="{% static 'structure/images/icn_wms.png' %}">
             </a>
             <a class="tile" href="{% url 'service:wfs' %}">
-                <span>{% trans 'WFS' %}</span>
-                <span class="badge">{{ wfs_count }}</span>
+                <span>{% trans 'WFS' %}<span class="badge">{{ wfs_count }}</span></span>
+                <img class="tile-bg-img" src="{% static 'structure/images/icn_wfs.png' %}">
             </a>
             <a class="tile" href="{% url 'service:index' %}">
                 <span>{% trans 'All' %}</span>
@@ -60,9 +60,11 @@
         <div class="tiles-wrapper">
             <a class="tile" href="{% url 'structure:groups' %}">
                 <span>{% trans 'Groups' %}</span>
+                <img class="tile-bg-img" src="{% static 'structure/images/icn_group.png' %}">
             </a>
             <a class="tile" href="{% url 'structure:organizations' %}">
                 <span>{% trans 'Organizations' %}</span>
+                <img class="tile-bg-img" src="{% static 'structure/images/icn_organization.png' %}">
             </a>
         </div>
     </div>

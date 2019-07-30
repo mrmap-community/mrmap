@@ -80,15 +80,21 @@ span.sidebar-entry:hover{
     font-size: 1.4em;
     display: flex;
     min-height: 4em;
-    flex-grow: 1;
+    flex-grow: 2;
     align-items: center;
-    justify-content: center;
+    justify-content: space-evenly;
     background-color: var(--secondary-color);
     color: white;
     font-weight: bold;
 }
 .tile:hover{
     background-color: var(--secondary-color-light);
+}
+
+.tile-bg-img{
+    height: 100%;
+    filter: blur(3px);
+    opacity: 0.15;
 }
 
 .badge{

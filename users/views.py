@@ -43,14 +43,19 @@ def login(request: HttpRequest):
     """
     template = "login.html"
     login_form = LoginForm(request.POST)
-    if login_form.is_valid():
-        username = login_form.cleaned_data.get("username")
-        password = login_form.cleaned_data.get("password")
-        user = user_helper.get_user(username=username)
+    # check if user is still logged in!
+    user_id = request.session.get("user_id")
+    if login_form.is_valid() or user_id is not None:
+        if user_id is not None:
+            user = user_helper.get_user(user_id=user_id)
+        else:
+            username = login_form.cleaned_data.get("username")
+            password = login_form.cleaned_data.get("password")
+            user = user_helper.get_user(username=username)
+            if not user.is_password_valid(password):
+                messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
+                return redirect("login")
         if user is None:
-            messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
-            return redirect("login")
-        if not user.is_password_valid(password):
             messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
             return redirect("login")
         if not user.is_active:
@@ -70,6 +75,23 @@ def login(request: HttpRequest):
     }
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
+
+
+@check_session
+def home_view(request: HttpRequest, user: User):
+    """ Renders the dashboard / home view of the user
+
+    Args:
+        request: The incoming request
+        user: The performing user
+    Returns:
+         A rendered view
+    """
+    template = ""
+    params = {}
+    context = DefaultContext(request, params, user)
+    return render(request, template, context.get_context())
+
 
 @check_session
 def account(request: HttpRequest, user: User):
@@ -203,6 +225,7 @@ def logout(request: HttpRequest, user: User):
     """
     user.logged_in = False
     user.save()
+    del request.session["user_id"]
     messages.add_message(request, messages.SUCCESS, LOGOUT_SUCCESS)
     return redirect('login')
 

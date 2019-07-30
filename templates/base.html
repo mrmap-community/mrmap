@@ -24,7 +24,13 @@
     {% include 'messages.html' %}
     <nav class="navigation-bar">
         <div class="navigation-bar-left">
-            <img id="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" title="Map your s*** together!">
+            <img class="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" title="Map your s*** together!">
+
+            <div class="navigation-menu {% if PATH == 'dashboard' %}active-menu{% endif %}">
+                <a class="navigation-title" href="{% url 'home' %}" title="{% trans 'Dashboard' %}">
+                    {% trans 'Home' %}
+                </a>
+            </div>
             <div class="navigation-menu {% if PATH == 'structure' %}active-menu{% endif %}">
                 <a class="navigation-title" href="{% url 'structure:index' %}">
                     {% trans 'Structure' %}

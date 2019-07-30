@@ -191,7 +191,7 @@ a{
     box-shadow: 0 0 5px black;
 }
 
-#navbar-logo{
+.navbar-logo{
     padding: 1em;
     max-height: 2.5em;
     max-width: 2.5em;

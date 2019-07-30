@@ -35,6 +35,7 @@ def check_session(function):
                 return redirect("login")
         user = user_helper.get_user(user_id=request.session.get("user_id"))
         if user is None:
+            del request.session["user_id"]
             messages.add_message(request, messages.ERROR, LOGOUT_FORCED)
             return redirect("login")
         return function(request=request, user=user, *args, **kwargs)

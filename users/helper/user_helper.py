@@ -11,7 +11,7 @@ from django.http import HttpRequest
 
 from MapSkinner.settings import SESSION_EXPIRATION
 from service.models import Metadata
-from structure.models import Permission, Group, User
+from structure.models import Permission, Group, User, GroupActivity
 
 
 def get_user(username: str=None, user_id: int=None):
@@ -48,3 +48,23 @@ def is_session_expired(request: HttpRequest):
         return False
     else:
         return True
+
+def create_group_activity(group: Group, user: User, msg, metadata_title: str):
+    """ Creates a group activity record for logging group actions.
+
+    This covers basically changes on metadata aka services
+
+    Args:
+        group (Group): The metadata related group
+        user (User): The performing user
+        msg (str): The description
+        metadata_title (str): The related metadata's title
+    Returns:
+        nothing
+    """
+    group_activity = GroupActivity()
+    group_activity.metadata = metadata_title
+    group_activity.user = user
+    group_activity.group = group
+    group_activity.description = msg
+    group_activity.save()

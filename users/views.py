@@ -26,9 +26,10 @@ from MapSkinner.messages import FORM_INPUT_INVALID, ACCOUNT_UPDATE_SUCCESS, USER
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import SESSION_EXPIRATION, ROOT_URL
 from MapSkinner.utils import sha256
-from structure.config import USER_ACTIVATION_TIME_WINDOW
+from service.models import Metadata
+from structure.config import USER_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import LoginForm, RegistrationForm
-from structure.models import User, UserActivation
+from structure.models import User, UserActivation, PendingRequest, GroupActivity
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm
 from users.helper import user_helper
 
@@ -66,7 +67,7 @@ def login(request: HttpRequest):
         user.save()
         request.session["user_id"] = user.id
         request.session.set_expiry(SESSION_EXPIRATION)
-        return redirect('structure:index')
+        return redirect('home')
     login_form = LoginForm()
     params = {
         "login_form": login_form,
@@ -87,8 +88,27 @@ def home_view(request: HttpRequest, user: User):
     Returns:
          A rendered view
     """
-    template = ""
-    params = {}
+    template = "dashboard.html"
+    user_services_wms = md_list_wms = Metadata.objects.filter(
+            service__servicetype__name="wms",
+            service__is_root=True,
+            created_by__in=user.groups.all(),
+            service__is_deleted=False,
+        ).count()
+    user_services_wfs = Metadata.objects.filter(
+            service__servicetype__name="wfs",
+            service__is_root=True,
+            created_by__in=user.groups.all(),
+            service__is_deleted=False,
+        ).count()
+    group_activities = GroupActivity.objects.filter(group__in=user.groups.all()).order_by("-created_on")
+    pending_requests = PendingRequest.objects.filter(organization=user.organization)
+    params = {
+        "wms_count": user_services_wms,
+        "wfs_count": user_services_wfs,
+        "requests": pending_requests,
+        "group_activities": group_activities,
+    }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
 

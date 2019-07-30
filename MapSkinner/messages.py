@@ -9,6 +9,20 @@ This file holds all messages that are used system-wide
 """
 from django.utils.translation import gettext_lazy as _
 
+# GROUP ACTIVITIES #
+
+PUBLISHING_REQUEST_CREATED = _("Publish request created")
+SERVICE_REGISTERED = _("Service registered")
+SERVICE_REMOVED = _("Service removed")
+SERVICE_UPDATED = _("Service updated")
+SERVICE_MD_EDITED = _("Service metadata edited")
+SERVICE_ACTIVATED = _("Service activated")
+SERVICE_DEACTIVATED = _("Service deactivated")
+SERVICE_MD_RESTORED = _("Service metadata restored")
+GROUP_EDITED = _("Group edited")
+
+####################
+
 FORM_INPUT_INVALID = _("The input was not valid.")
 
 USERNAME_OR_PW_INVALID = _("Username or password incorrect")

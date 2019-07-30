@@ -130,6 +130,11 @@ $(document).on("click", "#eeImg", function(){
 
 
 $(document).ready(function(){
+    // hide messages after 10 seconds automatically
+    setTimeout(function(){
+        $(".messages").click();
+    }, 5000);
+
     var eeRotation = 0;
 
     $("#navbar-logo").mousemove(function(event){

@@ -59,7 +59,8 @@ class Metadata(Resource):
 
     contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING)
     terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, null=True)
-    access_constraints = models.TextField(null=True)
+    access_constraints = models.TextField(null=True, blank=True)
+    fees = models.TextField(null=True, blank=True)
 
     status = models.IntegerField(null=True)
     last_harvest_successful = models.BooleanField(null=True)

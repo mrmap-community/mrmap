@@ -412,6 +412,7 @@ class OGCWebFeatureService(OGCWebService):
         md.contact = contact
         md.authority_url = self.service_provider_url
         md.access_constraints = self.service_identification_accessconstraints
+        md.fees = self.service_identification_fees
         md.created_by = group
         md.original_uri = self.service_connect_url
         md.bounding_geometry = self.service_bounding_box

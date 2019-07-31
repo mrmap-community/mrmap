@@ -654,6 +654,7 @@ class OGCWebMapService(OGCWebService):
         metadata.online_resource = ",".join(self.service_provider_onlineresource_linkage)
         metadata.original_uri = self.service_connect_url
         metadata.access_constraints = self.service_identification_accessconstraints
+        metadata.fees = self.service_identification_fees
         metadata.bounding_geometry = self.service_bounding_box
         ## keywords
         for kw in self.service_identification_keywords:

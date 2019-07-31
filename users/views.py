@@ -26,9 +26,10 @@ from MapSkinner.messages import FORM_INPUT_INVALID, ACCOUNT_UPDATE_SUCCESS, USER
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import SESSION_EXPIRATION, ROOT_URL
 from MapSkinner.utils import sha256
-from structure.config import USER_ACTIVATION_TIME_WINDOW
+from service.models import Metadata
+from structure.config import USER_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import LoginForm, RegistrationForm
-from structure.models import User, UserActivation
+from structure.models import User, UserActivation, PendingRequest, GroupActivity
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm
 from users.helper import user_helper
 
@@ -43,14 +44,19 @@ def login(request: HttpRequest):
     """
     template = "login.html"
     login_form = LoginForm(request.POST)
-    if login_form.is_valid():
-        username = login_form.cleaned_data.get("username")
-        password = login_form.cleaned_data.get("password")
-        user = user_helper.get_user(username=username)
+    # check if user is still logged in!
+    user_id = request.session.get("user_id")
+    if login_form.is_valid() or user_id is not None:
+        if user_id is not None:
+            user = user_helper.get_user(user_id=user_id)
+        else:
+            username = login_form.cleaned_data.get("username")
+            password = login_form.cleaned_data.get("password")
+            user = user_helper.get_user(username=username)
+            if not user.is_password_valid(password):
+                messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
+                return redirect("login")
         if user is None:
-            messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
-            return redirect("login")
-        if not user.is_password_valid(password):
             messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
             return redirect("login")
         if not user.is_active:
@@ -61,7 +67,7 @@ def login(request: HttpRequest):
         user.save()
         request.session["user_id"] = user.id
         request.session.set_expiry(SESSION_EXPIRATION)
-        return redirect('structure:index')
+        return redirect('home')
     login_form = LoginForm()
     params = {
         "login_form": login_form,
@@ -70,6 +76,42 @@ def login(request: HttpRequest):
     }
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
+
+
+@check_session
+def home_view(request: HttpRequest, user: User):
+    """ Renders the dashboard / home view of the user
+
+    Args:
+        request: The incoming request
+        user: The performing user
+    Returns:
+         A rendered view
+    """
+    template = "dashboard.html"
+    user_services_wms = md_list_wms = Metadata.objects.filter(
+            service__servicetype__name="wms",
+            service__is_root=True,
+            created_by__in=user.groups.all(),
+            service__is_deleted=False,
+        ).count()
+    user_services_wfs = Metadata.objects.filter(
+            service__servicetype__name="wfs",
+            service__is_root=True,
+            created_by__in=user.groups.all(),
+            service__is_deleted=False,
+        ).count()
+    group_activities = GroupActivity.objects.filter(group__in=user.groups.all()).order_by("-created_on")
+    pending_requests = PendingRequest.objects.filter(organization=user.organization)
+    params = {
+        "wms_count": user_services_wms,
+        "wfs_count": user_services_wfs,
+        "requests": pending_requests,
+        "group_activities": group_activities,
+    }
+    context = DefaultContext(request, params, user)
+    return render(request, template, context.get_context())
+
 
 @check_session
 def account(request: HttpRequest, user: User):
@@ -203,6 +245,7 @@ def logout(request: HttpRequest, user: User):
     """
     user.logged_in = False
     user.save()
+    del request.session["user_id"]
     messages.add_message(request, messages.SUCCESS, LOGOUT_SUCCESS)
     return redirect('login')
 

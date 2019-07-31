@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 {% load i18n static %}
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
     <title>
@@ -24,7 +24,15 @@
     {% include 'messages.html' %}
     <nav class="navigation-bar">
         <div class="navigation-bar-left">
-            <img id="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" title="Map your s*** together!">
+            <a href="{% url 'home' %}" title="{% trans 'Dashboard' %}">
+                <img class="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" title="Map your s*** together!">
+            </a>
+
+            <div class="navigation-menu {% if PATH == 'home' %}active-menu{% endif %}">
+                <a class="navigation-title" href="{% url 'home' %}" title="{% trans 'Dashboard' %}">
+                    {% trans 'Home' %}
+                </a>
+            </div>
             <div class="navigation-menu {% if PATH == 'structure' %}active-menu{% endif %}">
                 <a class="navigation-title" href="{% url 'structure:index' %}">
                     {% trans 'Structure' %}
@@ -92,7 +100,15 @@
 </body>
 
 <footer>
-
+    <div>
+        <div id="current-lang">
+            <span>{{ LANGUAGE_CODE|upper }}</span>
+        </div>
+        <div id="lang-selector" class="hide">
+            <div class="lang-item" data-value="en" title="{% trans 'English' %}">EN</div>
+            <div class="lang-item" data-value="de" title="{% trans 'Deutsch' %}">DE</div>
+        </div>
+    </div>
 </footer>
 
 </html>

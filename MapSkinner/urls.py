@@ -29,4 +29,5 @@ urlpatterns = [
     path('service/', include('service.urls')),
     path('editor/', include('editor.urls')),
     path('captcha/', include('captcha.urls')),
+    path("i18n/", include("django.conf.urls.i18n")),
 ]

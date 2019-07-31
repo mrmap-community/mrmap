@@ -130,6 +130,11 @@ $(document).on("click", "#eeImg", function(){
 
 
 $(document).ready(function(){
+    // hide messages after 10 seconds automatically
+    setTimeout(function(){
+        $(".messages").click();
+    }, 5000);
+
     var eeRotation = 0;
 
     $("#navbar-logo").mousemove(function(event){
@@ -209,5 +214,46 @@ $(document).ready(function(){
         addEntity(entity);
     });
 
+    $("html").click(function(){
+        var langMenu = $("#current-lang");
+        if(langMenu.hasClass("open")){
+            langMenu.click();
+        }
+    });
+
+    $("#current-lang").click(function(event){
+        event.stopPropagation();
+        var elem = $(this);
+        elem.toggleClass("open");
+        $("#lang-selector").slideToggle();
+    });
+
+
+    $(".lang-item").click(function(){
+        var elem = $(this);
+        var val = elem.attr("data-value");
+        // activate selected language via ajax call
+        $.ajax({
+            url: "/i18n/setlang/",
+            headers: {
+                "X-CSRFToken": getCookie("csrftoken")
+            },
+            data: {
+                'language': val
+            },
+            type: 'post',
+            dataType: 'json',
+            success: function(data) {
+                location.reload();
+            },
+            timeout: 10000,
+            error: function(jqXHR, textStatus, errorThrown){
+                if(textStatus === "timeout"){
+                    alert("A timeout occured.");
+                }
+            }
+        })
+
+    });
 
 });

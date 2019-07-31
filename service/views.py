@@ -14,7 +14,8 @@ from requests.exceptions import InvalidURL
 
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
-from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, SERVICE_UPDATE_ABORTED_NO_DIFF
+from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, SERVICE_UPDATE_ABORTED_NO_DIFF, \
+    SERVICE_REMOVED, SERVICE_ACTIVATED, SERVICE_REGISTERED, SERVICE_UPDATED, SERVICE_DEACTIVATED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL, EXEC_TIME_PRINT
 from service.forms import ServiceURIForm
@@ -23,6 +24,7 @@ from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType
 from structure.models import User, Organization, Group, Permission
+from users.helper import user_helper
 
 
 @check_session
@@ -116,6 +118,7 @@ def remove(request: HttpRequest, user: User):
         return BackendAjaxResponse(html=html).get_response()
     else:
         # remove service and all of the related content
+        user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
         service.delete()
         return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 
@@ -140,6 +143,12 @@ def activate(request: HttpRequest, user:User):
     if service.servicetype == "wms":
         root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
         service_helper.change_layer_status_recursively(root_layer, new_status)
+
+    if service.metadata.is_active:
+        msg = SERVICE_ACTIVATED
+    else:
+        msg = SERVICE_DEACTIVATED
+    user_helper.create_group_activity(service.metadata.created_by, user, msg, service.metadata.title)
 
     return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 
@@ -265,6 +274,7 @@ def new_service(request: HttpRequest, user: User):
         service_helper.persist_service_model_instance(service)
         params["service"] = raw_service
         print(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
+        user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
     except (ConnectionError, InvalidURL) as e:
         params["error"] = e.args[0]
         raise e
@@ -351,6 +361,7 @@ def update_service(request: HttpRequest, user: User, id: int):
         old_service.save()
         del request.session["keep-metadata"]
         del request.session["update"]
+        user_helper.create_group_activity(old_service.metadata.created_by, user, SERVICE_UPDATED, old_service.metadata.title)
         return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL,str(old_service.metadata.id))).get_response()
     else:
         # otherwise

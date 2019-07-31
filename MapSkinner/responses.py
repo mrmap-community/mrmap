@@ -7,7 +7,7 @@ Created on: 15.04.19
 """
 from django.http import JsonResponse, HttpRequest
 
-from MapSkinner.settings import ROOT_URL
+from MapSkinner.settings import ROOT_URL, VERSION, GIT_REPO_URI
 from structure.models import User
 from users.helper import user_helper
 
@@ -28,6 +28,8 @@ class DefaultContext:
             "LANGUAGE_CODE": request.LANGUAGE_CODE,
             "user_permissions": permissions,  #user_helper.get_permissions(user)
             "user": user,
+            "VERSION": VERSION,
+            "GIT_REPO_URI": GIT_REPO_URI,
         }
         self.add_context(context)
 

@@ -22,6 +22,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.1/howto/deployment/checklist/
 
+VERSION = "0.2.0"
+GIT_REPO_URI = "https://git.osgeo.org/gitea/hollsandre/MapSkinner/src/branch/pre_master"
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
 

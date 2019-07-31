@@ -137,13 +137,9 @@ $(document).ready(function(){
 
     var eeRotation = 0;
 
-    $("#navbar-logo").mousemove(function(event){
+    $("#ee-trggr").mousemove(function(event){
         var element = $(this);
         // check if ctrl key is pressed
-        if(!event.ctrlKey){
-            element.mouseleave();
-            return;
-        }
         eeRotation += 2;
         element.css({"transform": "rotate(" + eeRotation +"deg)"});
         if(eeRotation == 360){

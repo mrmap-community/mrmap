@@ -80,44 +80,44 @@
             <h4>{% trans 'Service:' %}</h4>
             <table class="form-table">
                 <tr>
-                    <td class="field-label">{% trans 'Title': %}</td>
+                    <td class="field-label">{% trans 'Title' %}:</td>
                     <td class="field">{{ service.service_identification_title }}</td>
                 </tr>
                 <tr>
-                    <td class="field-label">{% trans 'Type': %}</td>
+                    <td class="field-label">{% trans 'Type' %}:</td>
                     <td class="field">{{ service.service_type.value }}</td>
                 </tr>
                 <tr>
-                    <td class="field-label">{% trans 'Abstract': %}</td>
+                    <td class="field-label">{% trans 'Abstract' %}:</td>
                     <td class="field">{{ service.service_identification_abstract }}</td>
                 </tr>
                 <tr>
-                    <td class="field-label">{% trans 'Fees': %}</td>
+                    <td class="field-label">{% trans 'Fees' %}:</td>
                     <td class="field">{{ service.service_identification_fees }}</td>
                 </tr>
                 {% if service.service_type.value == "wms" %}
                 <tr>
-                    <td class="field-label">{% trans 'Number of layers': %}</td>
+                    <td class="field-label">{% trans 'Number of layers' %}:</td>
                     <td class="field">{{ service.layers|length }}</td>
                 </tr>
                 {% endif %}
                 <tr>
-                    <td class="field-label">{% trans 'Online resources': %}</td>
+                    <td class="field-label">{% trans 'Online resources' %}:</td>
                     <td class="field">{{ service.service_provider_onlineresource_linkage }}</td>
                 </tr>
             </table>
             <h4>{% trans 'Contact:' %}</h4>
             <table class="form-table">
                 <tr>
-                    <td class="field-label">{% trans 'Data provider': %}</td>
+                    <td class="field-label">{% trans 'Data provider' %}:</td>
                     <td class="field">{{ service.service_provider_providername }}</td>
                 </tr>
                 <tr>
-                    <td class="field-label">{% trans 'Responsible person': %}</td>
+                    <td class="field-label">{% trans 'Responsible person' %}:</td>
                     <td class="field">{{ service.service_provider_responsibleparty_individualname }}</td>
                 </tr>
                 <tr>
-                    <td class="field-label">{% trans 'E-Mail': %}</td>
+                    <td class="field-label">{% trans 'E-Mail' %}:</td>
                     <td class="field">{{ service.service_provider_address_electronicmailaddress }}</td>
                 </tr>
             </table>

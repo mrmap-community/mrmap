@@ -10,7 +10,6 @@ h1,h2,h3,h4{
 
 body{
     margin: 0;
-    padding: 0 0 5vh 0;
     position:relative;
 }
 body.background{
@@ -19,18 +18,19 @@ body.background{
 }
 
 footer{
-    position: fixed;
+    position: absolute;
     bottom: 0;
     right: 0;
     left: 0;
     height: 40px;
     background-color: white;
-    border: 1px solid var(--primary-color-light);
+    border-top: 1px solid var(--primary-color-light);
     -webkit-display: flex;
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
     color: gray;
+    padding: 0 1em;
 }
 
 #current-lang{
@@ -140,7 +140,9 @@ a{
 }
 
 #body-content{
-    padding: 50px 1vw 0 1vw;
+    padding: 50px 1vw 40px 1vw;
+    position: relative;
+    min-height: 100vh;
 }
 
 

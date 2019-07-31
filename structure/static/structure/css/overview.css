@@ -30,16 +30,19 @@
     display: flex;
     align-items: center;
     justify-content: flex-start;
+    flex-grow: 1;
 }
 .container-center{
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-grow: 1;
 }
 .container-right{
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    flex-grow: 1;
 }
 
 

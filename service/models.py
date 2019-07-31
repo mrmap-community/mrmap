@@ -171,6 +171,13 @@ class Metadata(Resource):
         self.categories.clear()
         self.is_custom = False
 
+
+class CapabilityDocument(Resource):
+    related_metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
+    original_capability_document = models.TextField()
+    current_capability_document = models.TextField(null=True, blank=True)
+
+
 class TermsOfUse(Resource):
     name = models.CharField(max_length=100)
     symbol_url = models.CharField(max_length=100)

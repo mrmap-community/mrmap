@@ -25,9 +25,9 @@ from service.helper.iso.isoMetadata import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
-from service.helper import service_helper
+from service.helper import service_helper, xml_helper
 from service.models import ServiceType, Service, Metadata, Layer, Dimension, MimeType, Keyword, ReferenceSystem, \
-    MetadataRelation, MetadataOrigin
+    MetadataRelation, MetadataOrigin, CapabilityDocument
 from structure.models import Organization, Group
 from structure.models import User
 
@@ -78,8 +78,8 @@ class OGCWebMapService(OGCWebService):
         if self.service_capabilities_xml is None:
             # load xml, might have been forgotten
             self.get_capabilities()
-        layer_xml = service_helper.parse_xml(xml=self.service_capabilities_xml)
-        layer_xml = service_helper.try_get_element_from_xml(xml_elem=layer_xml, elem="//Layer/Name[text()='{}']/parent::Layer".format(identifier))
+        layer_xml = xml_helper.parse_xml(xml=self.service_capabilities_xml)
+        layer_xml = xml_helper.try_get_element_from_xml(xml_elem=layer_xml, elem="//Layer/Name[text()='{}']/parent::Layer".format(identifier))
         if len(layer_xml) > 0:
             layer_xml = layer_xml[0]
         else:
@@ -94,7 +94,7 @@ class OGCWebMapService(OGCWebService):
              nothing
         """
         # get xml as iterable object
-        xml_obj = service_helper.parse_xml(xml=self.service_capabilities_xml)
+        xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
 
         start_time = time.time()
         self.get_service_metadata(xml_obj=xml_obj)
@@ -145,28 +145,28 @@ class OGCWebMapService(OGCWebService):
 
     ### IDENTIFIER ###
     def __parse_identifier(self, layer, layer_obj):
-        layer_obj.identifier = service_helper.try_get_text_from_xml_element(elem="./Name", xml_elem=layer)
+        layer_obj.identifier = xml_helper.try_get_text_from_xml_element(elem="./Name", xml_elem=layer)
         if layer_obj.identifier is None:
             layer_obj.identifier = service_helper.generate_name(layer_obj.capability_projection_system)
 
     ### KEYWORDS ###
     def __parse_keywords(self, layer, layer_obj):
-        keywords = service_helper.try_get_element_from_xml(elem="./KeywordList/Keyword", xml_elem=layer)
+        keywords = xml_helper.try_get_element_from_xml(elem="./KeywordList/Keyword", xml_elem=layer)
         for keyword in keywords:
             layer_obj.capability_keywords.append(keyword.text)
 
     ### ABSTRACT ###
     def __parse_abstract(self, layer, layer_obj):
-        layer_obj.abstract = service_helper.try_get_text_from_xml_element(elem="./Abstract", xml_elem=layer)
+        layer_obj.abstract = xml_helper.try_get_text_from_xml_element(elem="./Abstract", xml_elem=layer)
 
     ### TITLE ###
     def __parse_title(self, layer, layer_obj):
-        layer_obj.title = service_helper.try_get_text_from_xml_element(elem="./Title", xml_elem=layer)
+        layer_obj.title = xml_helper.try_get_text_from_xml_element(elem="./Title", xml_elem=layer)
 
     ### SRS/CRS     PROJECTION SYSTEM ###
     @abstractmethod
     def __parse_projection_system(self, layer, layer_obj):
-        srs = service_helper.try_get_element_from_xml(elem="./SRS", xml_elem=layer)
+        srs = xml_helper.try_get_element_from_xml(elem="./SRS", xml_elem=layer)
         for elem in srs:
             layer_obj.capability_projection_system.append(elem.text)
 
@@ -174,7 +174,7 @@ class OGCWebMapService(OGCWebService):
     @abstractmethod
     def __parse_lat_lon_bounding_box(self, layer, layer_obj):
         try:
-            bbox = service_helper.try_get_element_from_xml(elem="./LatLonBoundingBox", xml_elem=layer)[0]
+            bbox = xml_helper.try_get_element_from_xml(elem="./LatLonBoundingBox", xml_elem=layer)[0]
             attrs = ["minx", "miny", "maxx", "maxy"]
             for attr in attrs:
                 layer_obj.capability_bbox_lat_lon[attr] = bbox.get(attr)
@@ -216,7 +216,7 @@ class OGCWebMapService(OGCWebService):
     ### SCALE HINT ###
     def __parse_scale_hint(self, layer, layer_obj):
         try:
-            scales = service_helper.try_get_element_from_xml(elem="./ScaleHint", xml_elem=layer)[0]
+            scales = xml_helper.try_get_element_from_xml(elem="./ScaleHint", xml_elem=layer)[0]
             attrs = ["min", "max"]
             for attr in attrs:
                 layer_obj.capability_scale_hint[attr] = scales.get(attr)
@@ -318,7 +318,7 @@ class OGCWebMapService(OGCWebService):
 
     ### STYLES ###
     def __parse_style(self, layer, layer_obj):
-        style = service_helper.try_get_element_from_xml("./Style", layer)
+        style = xml_helper.try_get_element_from_xml("./Style", layer)
         elements = {
             "name": "./Name",
             "title": "./Title",
@@ -327,7 +327,7 @@ class OGCWebMapService(OGCWebService):
             "uri": "./LegendURL/OnlineResource"
         }
         for key, val in elements.items():
-            tmp = service_helper.try_get_element_from_xml(elem=val, xml_elem=style)
+            tmp = xml_helper.try_get_element_from_xml(elem=val, xml_elem=style)
             try:
                 elements[key] = tmp[0]
             except (IndexError, TypeError) as error:
@@ -347,7 +347,7 @@ class OGCWebMapService(OGCWebService):
         Returns:
              True if element has iso metadata, false otherwise
         """
-        iso_metadata = service_helper.try_get_element_from_xml(xml_elem=xml, elem="./MetadataURL")
+        iso_metadata = xml_helper.try_get_element_from_xml(xml_elem=xml, elem="./MetadataURL")
         return len(iso_metadata) != 0
 
     def __get_layers_recursive(self, layers, parent=None, position=0):
@@ -371,14 +371,14 @@ class OGCWebMapService(OGCWebService):
 
             # check for possible ISO metadata
             if self.__has_iso_metadata(layer):
-                iso_metadata_xml_elements = service_helper.try_get_element_from_xml(xml_elem=layer, elem="./MetadataURL/OnlineResource")
+                iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(xml_elem=layer, elem="./MetadataURL/OnlineResource")
                 for iso_xml in iso_metadata_xml_elements:
-                    iso_uri = service_helper.try_get_attribute_from_xml_element(xml_elem=iso_xml, attribute="{http://www.w3.org/1999/xlink}href")
+                    iso_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem=iso_xml, attribute="{http://www.w3.org/1999/xlink}href")
                     iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
                     layer_obj.iso_metadata.append(iso_metadata)
 
             self.layers.append(layer_obj)
-            sublayers = service_helper.try_get_element_from_xml(elem="./Layer", xml_elem=layer)
+            sublayers = xml_helper.try_get_element_from_xml(elem="./Layer", xml_elem=layer)
             if parent is not None:
                 parent.child_layer.append(layer_obj)
             position += 1
@@ -716,6 +716,7 @@ class OGCWebMapService(OGCWebService):
         if service.root_layer is not None:
             self.__persist_child_layers([service.root_layer], service)
 
+
     @transaction.atomic
     def __persist_child_layers(self, layers, parent_service, parent_layer=None):
         """ Persist all layer children
@@ -839,7 +840,7 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
 
     def __parse_lat_lon_bounding_box(self, layer, layer_obj):
         try:
-            bbox = service_helper.try_get_element_from_xml("./EX_GeographicBoundingBox", layer)[0]
+            bbox = xml_helper.try_get_element_from_xml("./EX_GeographicBoundingBox", layer)[0]
             attrs = {
                 "westBoundLongitude": "minx",
                 "eastBoundLongitude": "maxx",
@@ -852,7 +853,7 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
             pass
 
     def __parse_projection_system(self, layer, layer_obj):
-        crs = service_helper.try_get_element_from_xml("./CRS", layer)
+        crs = xml_helper.try_get_element_from_xml("./CRS", layer)
         for elem in crs:
             layer_obj.capability_projection_system.append(elem.text)
 

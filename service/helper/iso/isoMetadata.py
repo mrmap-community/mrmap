@@ -14,7 +14,7 @@ from django.db import transaction
 from MapSkinner.settings import XML_NAMESPACES
 from MapSkinner import utils
 from service.config import INSPIRE_LEGISLATION_FILE
-from service.helper import service_helper
+from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType
 from service.helper.epsg_api import EpsgApi
@@ -118,57 +118,57 @@ class ISOMetadata:
              nothing
         """
         xml = self.raw_metadata
-        xml_obj = service_helper.parse_xml(xml)
-        self.file_identifier = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:fileIdentifier/gco:CharacterString")
-        self.create_date = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:dateStamp/gco:Date")
-        self.last_change_date = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:dateStamp/gco:Date")
-        self.hierarchy_level = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:hierarchyLevel/gmd:MD_ScopeCode")
+        xml_obj = xml_helper.parse_xml(xml)
+        self.file_identifier = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:fileIdentifier/gco:CharacterString")
+        self.create_date = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:dateStamp/gco:Date")
+        self.last_change_date = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:dateStamp/gco:Date")
+        self.hierarchy_level = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:hierarchyLevel/gmd:MD_ScopeCode")
         if self.hierarchy_level == "service":
             xpath_type = "srv:SV_ServiceIdentification"
         else:
             xpath_type = "gmd:MD_DataIdentification"
-        self.title = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString".format(xpath_type))
-        self.abstract = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:abstract/gco:CharacterString".format(xpath_type))
+        self.title = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString".format(xpath_type))
+        self.abstract = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:abstract/gco:CharacterString".format(xpath_type))
 
-        keywords = service_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString".format(xpath_type))
+        keywords = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString".format(xpath_type))
         for keyword in keywords:
-            self.keywords.append(service_helper.try_get_text_from_xml_element(keyword))
+            self.keywords.append(xml_helper.try_get_text_from_xml_element(keyword))
 
-        iso_categories = service_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:topicCategory/gmd:MD_TopicCategoryCode".format(xpath_type))
+        iso_categories = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:topicCategory/gmd:MD_TopicCategoryCode".format(xpath_type))
         for iso_category in iso_categories:
-            self.iso_categories.append(service_helper.try_get_text_from_xml_element(iso_category))
+            self.iso_categories.append(xml_helper.try_get_text_from_xml_element(iso_category))
 
-        self.download_link = service_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource[gmd:function/gmd:CI_OnLineFunctionCode/@codeListValue="download"]/gmd:linkage/gmd:URL')
-        self.transfer_size = service_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:transferSize/gco:Real')
-        self.preview_image = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:graphicOverview/gmd:MD_BrowseGraphic/gmd:fileName/gco:CharacterString".format(xpath_type))
-        self.bounding_box["min_x"] = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:westBoundLongitude/gco:Decimal".format(xpath_type))
-        self.bounding_box["min_y"] = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:southBoundLatitude/gco:Decimal".format(xpath_type))
-        self.bounding_box["max_x"] = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:eastBoundLongitude/gco:Decimal".format(xpath_type))
-        self.bounding_box["max_y"] = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:northBoundLatitude/gco:Decimal".format(xpath_type))
+        self.download_link = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource[gmd:function/gmd:CI_OnLineFunctionCode/@codeListValue="download"]/gmd:linkage/gmd:URL')
+        self.transfer_size = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:transferSize/gco:Real')
+        self.preview_image = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:graphicOverview/gmd:MD_BrowseGraphic/gmd:fileName/gco:CharacterString".format(xpath_type))
+        self.bounding_box["min_x"] = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:westBoundLongitude/gco:Decimal".format(xpath_type))
+        self.bounding_box["min_y"] = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:southBoundLatitude/gco:Decimal".format(xpath_type))
+        self.bounding_box["max_x"] = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:eastBoundLongitude/gco:Decimal".format(xpath_type))
+        self.bounding_box["max_y"] = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:northBoundLatitude/gco:Decimal".format(xpath_type))
 
-        polygons = service_helper.try_get_element_from_xml(xml_elem=xml_obj, elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:MultiSurface'.format(xpath_type))
+        polygons = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:MultiSurface'.format(xpath_type))
         if len(polygons) > 0:
-            surface_elements = service_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:MultiSurface/gml:surfaceMember".format(xpath_type))
+            surface_elements = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:MultiSurface/gml:surfaceMember".format(xpath_type))
             i = 0
             for element in surface_elements:
                 self.polygonal_extent_exterior.append(self.parse_polygon(element))
                 i += 1
         else:
-            polygons = service_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:Polygon'.format(xpath_type))
+            polygons = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:Polygon'.format(xpath_type))
             if polygons is not None:
-                polygon = service_helper.try_get_single_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon".format(xpath_type))
+                polygon = xml_helper.try_get_single_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon".format(xpath_type))
                 self.polygonal_extent_exterior.append(self.parse_polygon(polygon))
 
-        self.tmp_extent_begin = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:beginPosition".format(xpath_type))
+        self.tmp_extent_begin = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:beginPosition".format(xpath_type))
         if self.tmp_extent_begin is None:
             self.tmp_extent_begin = "1900-01-01"
 
-        self.tmp_extent_end = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:endPosition".format(xpath_type))
+        self.tmp_extent_end = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:endPosition".format(xpath_type))
         if self.tmp_extent_end is None:
             self.tmp_extent_end = "1900-01-01"
 
-        equivalent_scale = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:spatialResolution/gmd:MD_Resolution/gmd:equivalentScale/gmd:MD_RepresentativeFraction/gmd:denominator/gco:Integer".format(xpath_type))
-        ground_res = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gco:Distance".format(xpath_type))
+        equivalent_scale = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:spatialResolution/gmd:MD_Resolution/gmd:equivalentScale/gmd:MD_RepresentativeFraction/gmd:denominator/gco:Integer".format(xpath_type))
+        ground_res = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:spatialResolution/gmd:MD_Resolution/gmd:distance/gco:Distance".format(xpath_type))
         if equivalent_scale is not None and int(equivalent_scale) > 0:
             self.spatial_res_val = equivalent_scale
             self.spatial_res_type = "scaleDenominator"
@@ -176,21 +176,21 @@ class ISOMetadata:
             self.spatial_res_val = ground_res
             self.spatial_res_type = "groundDistance"
 
-        self.ref_system = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier/gmd:code/gco:CharacterString")
+        self.ref_system = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier/gmd:code/gco:CharacterString")
         epsg_api = EpsgApi()
         if self.ref_system is not None:
             self.ref_system = "EPSG:{}".format(epsg_api.get_subelements(self.ref_system).get("code"))
 
-        self.lineage = service_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:dataQualityInfo/gmd:DQ_DataQuality/gmd:lineage/gmd:LI_Lineage/gmd:statement/gco:CharacterString")
+        self.lineage = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:dataQualityInfo/gmd:DQ_DataQuality/gmd:lineage/gmd:LI_Lineage/gmd:statement/gco:CharacterString")
 
-        restriction_code_attr_val = service_helper.try_get_element_from_xml(xml_elem=xml_obj, elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useConstraints/gmd:MD_RestrictionCode/@codeListValue'.format(xpath_type))
+        restriction_code_attr_val = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:resourceConstraints/gmd:MD_LegalConstraints/gmd:useConstraints/gmd:MD_RestrictionCode/@codeListValue'.format(xpath_type))
         if len(restriction_code_attr_val) >= 2:
             legal_constraints = ""
             if restriction_code_attr_val[0] == 'license' and restriction_code_attr_val[1] == 'otherRestrictions':
-                other_constraints = service_helper.try_get_element_from_xml(xml_elem=xml_obj, elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:useConstraints/gmd:MD_RestrictionCode/@codeListValue="otherRestrictions"]/gmd:otherConstraints/gco:CharacterString'.format(xpath_type))
+                other_constraints = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:useConstraints/gmd:MD_RestrictionCode/@codeListValue="otherRestrictions"]/gmd:otherConstraints/gco:CharacterString'.format(xpath_type))
                 for constraint in other_constraints:
                     try:
-                        tmp_constraint = service_helper.try_get_text_from_xml_element(xml_elem=constraint)
+                        tmp_constraint = xml_helper.try_get_text_from_xml_element(xml_elem=constraint)
                         constraint_json = json.loads(tmp_constraint)
                         self.license_source_note = constraint_json.get("quelle", None)
                         self.license_json = constraint_json
@@ -200,10 +200,10 @@ class ISOMetadata:
                         legal_constraints += tmp_constraint + ";"
             self.fees = legal_constraints
 
-        self.access_constraints = service_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:accessConstraints/gmd:MD_RestrictionCode/@codeListValue="otherRestrictions"]/gmd:otherConstraints/gco:CharacterString'.format(xpath_type))
-        self.responsible_party = service_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:pointOfContact/gmd:CI_ResponsibleParty/gmd:organisationName/gco:CharacterString'.format(xpath_type))
-        self.contact_email = service_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:pointOfContact/gmd:CI_ResponsibleParty/gmd:contactInfo/gmd:CI_Contact/gmd:address/gmd:CI_Address/gmd:electronicMailAddress/gco:CharacterString'.format(xpath_type))
-        update_frequency = service_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj, attribute="codeListValue", elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceAndUpdateFrequency/gmd:MD_MaintenanceFrequencyCode'.format(xpath_type))
+        self.access_constraints = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:accessConstraints/gmd:MD_RestrictionCode/@codeListValue="otherRestrictions"]/gmd:otherConstraints/gco:CharacterString'.format(xpath_type))
+        self.responsible_party = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:pointOfContact/gmd:CI_ResponsibleParty/gmd:organisationName/gco:CharacterString'.format(xpath_type))
+        self.contact_email = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:pointOfContact/gmd:CI_ResponsibleParty/gmd:contactInfo/gmd:CI_Contact/gmd:address/gmd:CI_Address/gmd:electronicMailAddress/gco:CharacterString'.format(xpath_type))
+        update_frequency = xml_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj, attribute="codeListValue", elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceAndUpdateFrequency/gmd:MD_MaintenanceFrequencyCode'.format(xpath_type))
         if update_frequency in self.valid_update_frequencies:
             self.update_frequency = update_frequency
 
@@ -219,7 +219,7 @@ class ISOMetadata:
                 "date": regislation.get("date", "1900-01-01"),
                 "pass": None,
             }
-            statement = service_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:dataQualityInfo/gmd:DQ_DataQuality/gmd:report/gmd:DQ_DomainConsistency/gmd:result/gmd:DQ_ConformanceResult[gmd:specification/gmd:CI_Citation/gmd:title/gco:CharacterString="{}" and gmd:specification/gmd:CI_Citation/gmd:date/gmd:CI_Date/gmd:date/gco:Date="{}"]/gmd:pass/gco:Boolean'.format(reg["name"], reg["date"]))
+            statement = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:dataQualityInfo/gmd:DQ_DataQuality/gmd:report/gmd:DQ_DomainConsistency/gmd:result/gmd:DQ_ConformanceResult[gmd:specification/gmd:CI_Citation/gmd:title/gco:CharacterString="{}" and gmd:specification/gmd:CI_Citation/gmd:date/gmd:CI_Date/gmd:date/gco:Date="{}"]/gmd:pass/gco:Boolean'.format(reg["name"], reg["date"]))
             statement_val = utils.resolve_boolean_attribute_val(statement)
             if statement_val is None:
                 reg["pass"] = "not declared"
@@ -242,13 +242,13 @@ class ISOMetadata:
         polygon = Polygon()
         relative_ring_xpath = "./gml:Polygon/gml:exterior/gml:LinearRing/gml:posList"
         relative_coordinate_xpath = "./gml:Polygon/gml:exterior/gml:LinearRing/gml:coordinates"
-        pos_list = service_helper.try_get_element_from_xml(xml_elem=polygon_elem, elem=relative_ring_xpath)
+        pos_list = xml_helper.try_get_element_from_xml(xml_elem=polygon_elem, elem=relative_ring_xpath)
         min_x = 10000
         max_x = 0
         min_y = 100000
         max_y = 0
         if len(pos_list) > 0:
-            exterior_ring_points = service_helper.try_get_text_from_xml_element(xml_elem=polygon_elem, elem=relative_ring_xpath)
+            exterior_ring_points = xml_helper.try_get_text_from_xml_element(xml_elem=polygon_elem, elem=relative_ring_xpath)
             if len(exterior_ring_points) > 0:
                 # posList is only space separated
                 points_list = exterior_ring_points.split(" ")
@@ -268,7 +268,7 @@ class ISOMetadata:
                     inner_points = (inner_points) + p
         else:
             # try to read coordinates
-            exterior_ring_points = service_helper.try_get_text_from_xml_element(xml_elem=polygon_elem, elem=relative_coordinate_xpath)
+            exterior_ring_points = xml_helper.try_get_text_from_xml_element(xml_elem=polygon_elem, elem=relative_coordinate_xpath)
             # two coordinates of one point are comma separated
             # problems with ', ' or ' ,' -> must be deleted before
             exterior_ring_points = exterior_ring_points.replace(', ', ',').replace(' ,', ',')

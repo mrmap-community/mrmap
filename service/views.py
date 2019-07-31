@@ -142,7 +142,7 @@ def activate(request: HttpRequest, user:User):
     # get root_layer of service and start changing of all statuses
     if service.servicetype == "wms":
         root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
-        service_helper.change_layer_status_recursively(root_layer, new_status)
+        service_helper.activate_layer_recursive(root_layer, new_status)
 
     if service.metadata.is_active:
         msg = SERVICE_ACTIVATED
@@ -269,9 +269,16 @@ def new_service(request: HttpRequest, user: User):
             register_group,
             register_for_organization
         )
+
+        # get return values
         raw_service = service["raw_data"]
         service = service["service"]
+        xml = raw_service.service_capabilities_xml
+
+        # persist everything
         service_helper.persist_service_model_instance(service)
+        service_helper.persist_capabilities_doc(service, xml)
+
         params["service"] = raw_service
         print(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
         user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)

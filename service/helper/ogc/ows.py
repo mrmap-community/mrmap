@@ -6,7 +6,7 @@ from abc import abstractmethod
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from service.helper import service_helper
+from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
 from service.helper.iso.isoMetadata import ISOMetadata
@@ -151,7 +151,7 @@ class OGCWebService:
         elem = "//inspire_common:URL"  # for wms by default
         if self.service_type is ServiceTypes.WFS:
             elem = "//wfs:MetadataURL"
-        service_md_link = service_helper.try_get_text_from_xml_element(elem=elem, xml_elem=xml_obj)
+        service_md_link = xml_helper.try_get_text_from_xml_element(elem=elem, xml_elem=xml_obj)
         # get iso metadata xml object
         if service_md_link is None:
             # no iso metadata provided

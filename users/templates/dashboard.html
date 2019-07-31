@@ -31,7 +31,7 @@
                 <span class="sidebar-entry">
                     <span class="bold">{{ group_activity.metadata }}</span>
                     <br>
-                    <span>{{ group_activity.description }} {% trans 'by' %}</span>
+                    <span>{% trans group_activity.description %} {% trans 'by' %}</span>
                     <span class="bold">{{ group_activity.user }}</span>
                     <br>
                     {{ group_activity.created_on|date:"d.m.Y, H:i" }}

@@ -10,21 +10,6 @@
 
 <div class="dashboard">
     <div class="sidebar left">
-        <h3 class="headline">{% trans 'Last activities' %}</h3>
-        <div class="activities-history">
-            {% for group_activity in group_activities %}
-                <span class="sidebar-entry">
-                    <span class="bold">{{ group_activity.metadata }}</span>
-                    <br>
-                    <span>{{ group_activity.description }} {% trans 'by' %}</span>
-                    <span class="bold">{{ group_activity.user }}</span>
-                    <br>
-                    {{ group_activity.created_on|date:"d.m.Y, H:i" }}
-                </span>
-            {% empty %}
-                <span class="sidebar-entry">{% trans 'No activities' %}</span>
-            {% endfor %}
-        </div>
         <h3 class="headline">{% trans 'Pending requests' %}</h3>
         <div class="pending-requests">
             {% for request in requests %}
@@ -39,6 +24,21 @@
                 <span class="sidebar-entry">{% trans 'No requests' %}</span>
             {% endfor %}
 
+        </div>
+        <h3 class="headline">{% trans 'Last activities' %}</h3>
+        <div class="activities-history">
+            {% for group_activity in group_activities %}
+                <span class="sidebar-entry">
+                    <span class="bold">{{ group_activity.metadata }}</span>
+                    <br>
+                    <span>{{ group_activity.description }} {% trans 'by' %}</span>
+                    <span class="bold">{{ group_activity.user }}</span>
+                    <br>
+                    {{ group_activity.created_on|date:"d.m.Y, H:i" }}
+                </span>
+            {% empty %}
+                <span class="sidebar-entry">{% trans 'No activities' %}</span>
+            {% endfor %}
         </div>
     </div>
     <div class="content-wrapper">

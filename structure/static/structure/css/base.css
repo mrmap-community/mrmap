@@ -404,12 +404,12 @@ a{
 
 table{
     border-collapse: collapse;
+    table-layout: auto;
     width: 100%;
 }
 
 th, td{
     padding: 5px;
-    max-width: 10em;
 }
 
 th{
@@ -494,7 +494,6 @@ a.listable:hover{
 }
 
 .detail-table th{
-    width: 200px;
 }
 
 .button{

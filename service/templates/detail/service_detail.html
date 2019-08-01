@@ -49,11 +49,24 @@
                 </div>
             </a>
         {% endif %}
-        <a href="{{ root_metadata.original_uri }}" target="_blank" title="{% trans 'Open original metadata in new tab' %}">
-            <div class="button-container">
-                <span>{% trans 'Capabilities (XML)' %}</span>
+        <div id="capabilities-container">
+            <div id="capabilities-toggler" class="button-container">
+                <span>{% trans 'Capabilities' %}</span>
             </div>
+            <div id="capabilities-list" class="hide">
+                <a target="_blank" href="{% url 'service:get-capabilities' root_metadata.id  %}?original=True">
+                    <div class="button-container">{% trans 'Original' %}</div>
+                </a>
+                <a target="_blank" href="{% url 'service:get-capabilities' root_metadata.id %}">
+                    <div class="button-container">{% trans 'Current' %}</div>
+                </a>
+            </div>
+
+        </div>
+        <!--
+        <a href="{{ root_metadata.original_uri }}" target="_blank" title="{% trans 'Open original metadata in new tab' %}">
         </a>
+        -->
     </div>
     {% if 'can_remove_service' in user_permissions %}
         <div class="container-right">

@@ -219,5 +219,6 @@ def persist_capabilities_doc(service: Service, xml: str):
     # save original capabilities document
     cap_doc = CapabilityDocument()
     cap_doc.original_capability_document = xml
+    cap_doc.current_capability_document = xml
     cap_doc.related_metadata = service.metadata
     cap_doc.save()

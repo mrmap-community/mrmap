@@ -120,8 +120,8 @@ def try_get_text_from_xml_element(xml_elem, elem: str=None):
     """ Returns the text of an xml element
 
     Args:
-        elem:
-        xml_elem:
+        elem: The requested element tag name
+        xml_elem: The current xml element
     Returns:
         A string if text was found, otherwise None
     """
@@ -131,3 +131,22 @@ def try_get_text_from_xml_element(xml_elem, elem: str=None):
         return xml_elem.text
     except AttributeError:
         return None
+
+
+def write_text_to_element(xml_elem, elem: str=None, txt: str=None):
+    """ Write new text to a xml element.
+
+    Elem can be used to refer to a subelement of the current xml_elem
+
+    Args:
+        xml_elem: The current xml element
+        elem (str): The requested element tag name
+        txt (str): The new text for the element
+    Returns:
+         xml_elem: The modified xml element
+    """
+    if xml_elem is not None:
+        if elem is not None:
+            xml_elem = try_get_single_element_from_xml(elem=elem, xml_elem=xml_elem)
+        xml_elem.text = txt
+    return xml_elem

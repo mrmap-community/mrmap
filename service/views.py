@@ -4,7 +4,7 @@ import time
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -22,7 +22,7 @@ from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
-from service.models import Metadata, Layer, Service, FeatureType
+from service.models import Metadata, Layer, Service, FeatureType, CapabilityDocument
 from structure.models import User, Organization, Group, Permission
 from users.helper import user_helper
 
@@ -151,6 +151,26 @@ def activate(request: HttpRequest, user:User):
     user_helper.create_group_activity(service.metadata.created_by, user, msg, service.metadata.title)
 
     return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
+
+
+def get_capabilities(request: HttpRequest, id: int):
+    """ Returns the current capabilities xml file
+
+    Args:
+        request (HttpRequest): The incoming request
+        user (User): The performing user
+        id (int): The metadata id
+    Returns:
+         A HttpResponse containing the xml file
+    """
+    request_original = utils.resolve_boolean_attribute_val(request.GET.get("original", False))
+    cap_doc = CapabilityDocument.objects.get(related_metadata__id=id)
+    if request_original:
+        doc = cap_doc.current_capability_document
+    else:
+        doc = cap_doc.original_capability_document
+    return HttpResponse(doc, content_type='application/xml')
+
 
 @check_session
 def session(request: HttpRequest, user:User):
@@ -328,6 +348,7 @@ def update_service(request: HttpRequest, user: User, id: int):
     # parse new capabilities into db model
     registrating_group = old_service.created_by
     new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user, register_group=registrating_group)
+    xml = new_service["raw_data"].service_capabilities_xml
     new_service = new_service["service"]
 
     # Collect differences
@@ -364,6 +385,10 @@ def update_service(request: HttpRequest, user: User, id: int):
 
         elif new_service.servicetype.name == ServiceTypes.WMS.value:
             old_service = update_helper.update_wms(old_service, new_service, diff, links, keep_custom_metadata)
+
+        cap_document = CapabilityDocument.objects.get(related_metadata=old_service.metadata)
+        cap_document.current_capability_document = xml
+        cap_document.save()
 
         old_service.save()
         del request.session["keep-metadata"]

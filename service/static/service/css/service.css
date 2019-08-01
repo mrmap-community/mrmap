@@ -1,3 +1,13 @@
+#capabilities-container{
+    position: relative;
+}
+
+#capabilities-list{
+    position: absolute;
+    width: 100%;
+}
+
+
 .collapsible-table{
     padding: 0 0 0 1vw;
 }

@@ -7,6 +7,7 @@ urlpatterns = [
     path('/<service_type>', index, name='index'),
     path('session', session, name='session'),
     path('activate/', activate, name='activate'),
+    path('capabilities/<int:id>', get_capabilities, name='get-capabilities'),
 
     path('new/register-form', register_form, name='register-form'),
     path('new/', new_service, name='wms'),

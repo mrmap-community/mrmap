@@ -48,7 +48,7 @@ span.sidebar-entry:hover{
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    max-height: 50%;
+    max-height: 75vh;
 }
 
 .bold{

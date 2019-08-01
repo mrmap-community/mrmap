@@ -232,4 +232,21 @@ $(document).ready(function(){
         });
     });
 
+    $("#capabilities-toggler").click(function(event){
+        event.stopPropagation();
+        var elem = $(this);
+        var capabilities = $("#capabilities-list");
+        elem.toggleClass("open");
+        capabilities.slideToggle();
+    });
+
+    $("html").click(function(){
+        var capToggler = $("#capabilities-toggler");
+        if(capToggler.hasClass("open")){
+            capToggler.click();
+        }
+    });
+
+
+
 });

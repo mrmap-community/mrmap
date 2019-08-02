@@ -126,7 +126,7 @@ class User(Contact):
             service__is_root=True,
             created_by__in=self.groups.all(),
             service__is_deleted=False,
-        )
+        ).order_by("title")
         if type is not None:
             md_list = md_list.filter(service__servicetype__name=type.name.lower())
         # convert to list

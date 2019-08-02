@@ -73,6 +73,8 @@ class ISOMetadata:
         self.interoperability_list = []
         self.origin = origin
 
+        self.is_broken = False
+
         XML_NAMESPACES["gmd"] = "http://www.isotc211.org/2005/gmd"
         XML_NAMESPACES["gco"] = "http://www.isotc211.org/2005/gco"
         XML_NAMESPACES["gml"] = "http://www.opengis.net/gml"
@@ -86,6 +88,18 @@ class ISOMetadata:
         # load uri and start parsing
         self.get_metadata()
         self.parse_xml()
+
+        MIN_REQUIRED_ISO_MD = [
+            self.file_identifier,
+            self.title,
+            self.responsible_party,
+        ]
+        # check for validity
+        # we expect that at least title and file_identifier exist
+        for attr in MIN_REQUIRED_ISO_MD:
+            if attr is None:
+                self.is_broken = True
+                #raise Exception("INVALID ISO METADATA FOUND")
 
     def get_metadata(self):
         """ Start a network call to retrieve the original capabilities xml document.
@@ -141,10 +155,10 @@ class ISOMetadata:
         self.download_link = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource[gmd:function/gmd:CI_OnLineFunctionCode/@codeListValue="download"]/gmd:linkage/gmd:URL')
         self.transfer_size = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:transferSize/gco:Real')
         self.preview_image = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:graphicOverview/gmd:MD_BrowseGraphic/gmd:fileName/gco:CharacterString".format(xpath_type))
-        self.bounding_box["min_x"] = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:westBoundLongitude/gco:Decimal".format(xpath_type))
-        self.bounding_box["min_y"] = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:southBoundLatitude/gco:Decimal".format(xpath_type))
-        self.bounding_box["max_x"] = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:eastBoundLongitude/gco:Decimal".format(xpath_type))
-        self.bounding_box["max_y"] = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:northBoundLatitude/gco:Decimal".format(xpath_type))
+        self.bounding_box["min_x"] = float(xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:westBoundLongitude/gco:Decimal".format(xpath_type)))
+        self.bounding_box["min_y"] = float(xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:southBoundLatitude/gco:Decimal".format(xpath_type)))
+        self.bounding_box["max_x"] = float(xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:eastBoundLongitude/gco:Decimal".format(xpath_type)))
+        self.bounding_box["max_y"] = float(xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:northBoundLatitude/gco:Decimal".format(xpath_type)))
 
         polygons = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:MultiSurface'.format(xpath_type))
         if len(polygons) > 0:
@@ -158,6 +172,8 @@ class ISOMetadata:
             if polygons is not None:
                 polygon = xml_helper.try_get_single_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon".format(xpath_type))
                 self.polygonal_extent_exterior.append(self.parse_polygon(polygon))
+            else:
+                self.polygonal_extent_exterior.append(self.parse_bbox(self.bounding_box))
 
         self.tmp_extent_begin = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:beginPosition".format(xpath_type))
         if self.tmp_extent_begin is None:
@@ -230,6 +246,15 @@ class ISOMetadata:
                 if not statement_val:
                     self.inspire_interoperability = False
             self.interoperability_list.append(reg)
+
+    def parse_bbox(self, bbox: dict):
+        bounding_points = ((bbox["min_x"], bbox["min_y"]),
+                           (bbox["min_x"], bbox["max_y"]),
+                           (bbox["max_x"], bbox["max_y"]),
+                           (bbox["max_x"], bbox["min_y"]),
+                           (bbox["min_x"], bbox["min_y"]))
+        polygon = Polygon(bounding_points)
+        return polygon
 
     def parse_polygon(self, polygon_elem):
         """ Creates points from continuous polygon points array
@@ -330,8 +355,11 @@ class ISOMetadata:
             metadata.last_modified = self.last_change_date
             metadata.spatial_res_type = self.spatial_res_type
             metadata.spatial_res_value = self.spatial_res_val
+            if self.title is None:
+                self.title = "BROKEN"
             metadata.title = self.title
             metadata.origin = self.origin
+            metadata.is_broken = self.is_broken
             metadata.save()
             if update:
                 metadata.keywords.clean()

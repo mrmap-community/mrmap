@@ -18,13 +18,13 @@ class MetadataEditorForm(ModelForm):
             "abstract",
             "access_constraints",
             "terms_of_use",
-            "metadata_url",
+            # "metadata_url",
             # "keywords",
             # "categories",
             # "reference_system",
         ]
         labels = {
-            "metadata_url": "ISO metadata URL",
+            # "metadata_url": "ISO metadata URL",
         }
 
 class FeatureTypeEditorForm(ModelForm):

@@ -1,5 +1,4 @@
 from django.contrib import messages
-from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 from django.shortcuts import render, redirect
 
@@ -11,11 +10,12 @@ from MapSkinner.responses import DefaultContext
 from MapSkinner.settings import ROOT_URL
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
 from service.helper.enums import ServiceTypes
-from service.models import Metadata, Keyword, Category, ReferenceSystem, FeatureType, Layer
+from service.models import Metadata, Keyword, Category, FeatureType, Layer
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import User, Permission, GroupActivity
+from structure.models import User, Permission
 from users.helper import user_helper
+from editor.helper import editor_helper
 
 
 @check_session
@@ -76,39 +76,12 @@ def edit(request: HttpRequest, id: int, user: User):
     """
     metadata = Metadata.objects.get(id=id)
     editor_form = MetadataEditorForm(request.POST or None)
-    editor_form.fields["metadata_url"].required = False
     editor_form.fields["terms_of_use"].required = False
     if request.method == 'POST':
         if editor_form.is_valid():
             custom_md = editor_form.save(commit=False)
-            metadata.title = custom_md.title
-            metadata.abstract = custom_md.abstract
-            metadata.access_constraints = custom_md.access_constraints
-            metadata.metadata_url = custom_md.metadata_url
-            metadata.terms_of_use = custom_md.terms_of_use
-
-            # get db objects from values
-            # keywords are provided as usual text
-            keywords = editor_form.data.get("keywords").split(",")
-            if len(keywords) == 1 and keywords[0] == '':
-                keywords = []
-            # categories are provided as id's to prevent language related conflicts
-            category_ids = editor_form.data.get("categories").split(",")
-            if len(category_ids) == 1 and category_ids[0] == '':
-                category_ids = []
-
-            metadata.keywords.clear()
-            for kw in keywords:
-                keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-                metadata.keywords.add(keyword)
-
-            for id in category_ids:
-                category = Category.objects.get(id=id)
-                metadata.categories.add(category)
-
-            # save metadata
-            metadata.is_custom = True
-            metadata.save()
+            editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
+            editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, metadata.title)
             return redirect("editor:index")
@@ -133,7 +106,6 @@ def edit(request: HttpRequest, id: int, user: User):
         ]
         template = "editor_edit.html"
         editor_form = MetadataEditorForm(instance=metadata)
-        editor_form.fields["metadata_url"].required = False
         editor_form.fields["terms_of_use"].required = False
         params = {
             "service_metadata": metadata,
@@ -166,21 +138,7 @@ def edit_featuretype(request: HttpRequest, id: int, user:User):
         # save new values to feature type
         if feature_type_editor_form.is_valid():
             custom_ft = feature_type_editor_form.save(False)
-
-            # keywords are provided as usual text
-            keywords = feature_type_editor_form.data.get("keywords").split(",")
-            if len(keywords) == 1 and keywords[0] == '':
-                keywords = []
-
-            feature_type.title = custom_ft.title
-            feature_type.abstract = custom_ft.abstract
-
-            feature_type.keywords.clear()
-            for kw in keywords:
-                keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-                feature_type.keywords.add(keyword)
-            feature_type.is_custom = True
-            feature_type.save()
+            editor_helper.overwrite_featuretype(feature_type, custom_ft, feature_type_editor_form)
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
             return redirect("editor:index")
         else:

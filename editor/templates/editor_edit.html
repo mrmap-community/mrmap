@@ -38,6 +38,17 @@
             <td class="field metadata-editor-field">{{ field }}</td>
         </tr>
         {% endfor %}
+        {% if not service_metadata.is_root %}
+            <tr>
+                <td class="field-label metadata-editor-label">{% trans 'ISO metadata' %}</td>
+                <td class="field metadata-editor-field">
+                {% for iso_md in service_metadata.related_metadata.all %}
+                    <input type="text" class="metadata-url" value="{{ iso_md.metadata_2.metadata_url }}">
+                {% endfor %}
+                    <input id="iso-metadata-url" type="text" class="metadata-url">
+                </td>
+            </tr>
+        {% endif %}
         {% for addable_values in addable_values_list %}
             {% include 'value_selection.html' %}
         {% endfor %}

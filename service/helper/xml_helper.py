@@ -40,6 +40,11 @@ def parse_xml(xml: str, encoding=None):
     return xml_obj
 
 
+def xml_to_string(xml_obj):
+    enc = "UTF-8"
+    return etree.tostring(xml_obj, encoding=enc, method="xml").decode()
+
+
 def get_feature_type_elements_xml(title, service_type_version, service_type, uri):
     connector = CommonConnector(url=uri)
     params = {
@@ -133,6 +138,31 @@ def try_get_text_from_xml_element(xml_elem, elem: str=None):
         return None
 
 
+def find_element_where_text(xml_obj, txt: str):
+    """ Returns all elements that contain the given text
+
+    Args:
+        xml_obj: The xml element
+        txt: The text the user is looking for
+    Returns:
+         The elements that contain the provided text
+    """
+    return xml_obj.xpath("//*[text()='{}']/parent::*".format(txt), namespaces=XML_NAMESPACES)
+
+
+def find_element_where_attr(xml_obj, attr_name, attr_val):
+    """ Returns all elements that contain the given text
+
+    Args:
+        xml_obj: The xml element
+        attr_name: The attribute the user is looking for
+        attr_val: The value the user is expecting there
+    Returns:
+         The elements that contain the provided text
+    """
+    return xml_obj.xpath("//*[@{}='{}']/parent::*".format(attr_name, attr_val), namespaces=XML_NAMESPACES)
+
+
 def write_text_to_element(xml_elem, elem: str=None, txt: str=None):
     """ Write new text to a xml element.
 
@@ -150,3 +180,27 @@ def write_text_to_element(xml_elem, elem: str=None, txt: str=None):
             xml_elem = try_get_single_element_from_xml(elem=elem, xml_elem=xml_elem)
         xml_elem.text = txt
     return xml_elem
+
+
+def remove_element(xml_child):
+    """ Removes a child xml element from its parent xml element
+
+    Args:
+        xml_child: The xml child object that shall be removed
+    Returns:
+         nothing
+    """
+    parent = xml_child.getparent()
+    parent.remove(xml_child)
+
+
+def add_subelement(xml_elem, tag_name):
+    """ Creates a new xml element as a child of xml_elem with the name tag_name
+
+    Args:
+        xml_elem: The xml element
+        tag_name: The tag name for the new element
+    Returns:
+         A new subelement of xml_elem
+    """
+    return etree.SubElement(xml_elem, tag_name)

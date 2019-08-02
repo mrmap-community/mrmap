@@ -158,7 +158,6 @@ def get_capabilities(request: HttpRequest, id: int):
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The performing user
         id (int): The metadata id
     Returns:
          A HttpResponse containing the xml file
@@ -166,9 +165,9 @@ def get_capabilities(request: HttpRequest, id: int):
     request_original = utils.resolve_boolean_attribute_val(request.GET.get("original", False))
     cap_doc = CapabilityDocument.objects.get(related_metadata__id=id)
     if request_original:
-        doc = cap_doc.current_capability_document
-    else:
         doc = cap_doc.original_capability_document
+    else:
+        doc = cap_doc.current_capability_document
     return HttpResponse(doc, content_type='application/xml')
 
 

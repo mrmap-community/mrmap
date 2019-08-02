@@ -374,8 +374,13 @@ class OGCWebMapService(OGCWebService):
                 iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(xml_elem=layer, elem="./MetadataURL/OnlineResource")
                 for iso_xml in iso_metadata_xml_elements:
                     iso_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem=iso_xml, attribute="{http://www.w3.org/1999/xlink}href")
-                    iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
+                    try:
+                        iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
+                    except Exception:
+                        # there are iso metadatas that have been filled wrongly -> if so we will drop them
+                        continue
                     layer_obj.iso_metadata.append(iso_metadata)
+
 
             self.layers.append(layer_obj)
             sublayers = xml_helper.try_get_element_from_xml(elem="./Layer", xml_elem=layer)
@@ -408,6 +413,10 @@ class OGCWebMapService(OGCWebService):
         """
         # Since it may be possible that data providers do not put information where they have to be, we need to
         # build these ugly try catches and always check for list structures where lists could happen
+        try:
+            self.service_file_identifier = xml_obj.xpath("//Service/Name")[0].text
+        except (IndexError, AttributeError) as error:
+            pass
         try:
             self.service_identification_abstract = xml_obj.xpath("//Service/Abstract")[0].text
         except (IndexError, AttributeError) as error:
@@ -528,6 +537,7 @@ class OGCWebMapService(OGCWebService):
             metadata.abstract = layer_obj.abstract
             metadata.online_resource = root_md.online_resource
             metadata.original_uri = root_md.original_uri
+            metadata.identifier = layer_obj.identifier
 
             metadata.contact = contact
             metadata.access_constraints = root_md.access_constraints
@@ -646,9 +656,10 @@ class OGCWebMapService(OGCWebService):
         )[0]
         # metadata
         metadata = Metadata()
-        if self.service_file_identifier is None:
-            self.service_file_identifier = uuid.uuid4()
-        metadata.uuid = self.service_file_identifier
+        if self.service_file_iso_identifier is None:
+            # there was no file identifier found -> we create a new
+            self.service_file_iso_identifier = uuid.uuid4()
+        metadata.uuid = self.service_file_iso_identifier
         metadata.title = self.service_identification_title
         metadata.abstract = self.service_identification_abstract
         metadata.online_resource = ",".join(self.service_provider_onlineresource_linkage)
@@ -656,11 +667,12 @@ class OGCWebMapService(OGCWebService):
         metadata.access_constraints = self.service_identification_accessconstraints
         metadata.fees = self.service_identification_fees
         metadata.bounding_geometry = self.service_bounding_box
-        ## keywords
+        metadata.identifier = self.service_file_identifier
+        # keywords
         for kw in self.service_identification_keywords:
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             metadata.keywords_list.append(keyword)
-        ## contact
+        # contact
         contact = Organization.objects.get_or_create(
             organization_name=self.service_provider_providername,
             person_name=self.service_provider_responsibleparty_individualname,
@@ -674,10 +686,9 @@ class OGCWebMapService(OGCWebService):
             country=self.service_provider_address_country,
         )[0]
         metadata.contact = contact
-        ## other
+        # other
         metadata.is_active = False
         metadata.created_by = group
-        #metadata.save()
 
         service = Service()
         service.availability = 0.0
@@ -688,7 +699,6 @@ class OGCWebMapService(OGCWebService):
         service.created_by = group
         service.metadata = metadata
         service.is_root = True
-        #service.save()
 
         root_layer = self.layers[0]
 

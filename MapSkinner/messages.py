@@ -64,3 +64,5 @@ GROUP_CAN_NOT_BE_OWN_PARENT = _("A group can not be parent to itself!")
 SERVICE_UPDATE_WRONG_TYPE = _("You tried to update a service to another service type. This is not possible!")
 SERVICE_UPDATE_ABORTED_NO_DIFF = _("The provided capabilities document is not different from the currently registered. Update canceled!")
 SERVICE_GENERIC_ERROR = _("The service could not be registered. Please check your metadata and contact an administrator.")
+
+EDITOR_INVALID_ISO_LINK = _("'{}' was invalid.")

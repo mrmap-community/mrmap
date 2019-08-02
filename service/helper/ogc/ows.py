@@ -29,6 +29,7 @@ class OGCWebService:
         
         # service_metadata
         self.service_file_identifier = None
+        self.service_file_iso_identifier = None
         self.service_preview_image = None
         self.service_iso_md_uri = None
         self.service_identification_title = None
@@ -164,7 +165,7 @@ class OGCWebService:
         self.service_create_date = iso_metadata.create_date
         self.service_last_change = iso_metadata.last_change_date
         self.service_iso_md_uri = iso_metadata.uri
-        self.service_file_identifier = iso_metadata.file_identifier
+        self.service_file_iso_identifier = iso_metadata.file_identifier
         self.service_identification_title = iso_metadata.title
         self.service_identification_abstract = iso_metadata.abstract
         bounding_points = (

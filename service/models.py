@@ -52,12 +52,13 @@ class MetadataRelation(models.Model):
 
 
 class Metadata(Resource):
+    identifier = models.CharField(max_length=255, null=True)
     title = models.CharField(max_length=255)
     abstract = models.TextField(null=True, blank=True)
     online_resource = models.CharField(max_length=500, null=True, blank=True)
     original_uri = models.CharField(max_length=500, blank=True, null=True)
 
-    contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING)
+    contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, blank=True, null=True)
     terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, null=True)
     access_constraints = models.TextField(null=True, blank=True)
     fees = models.TextField(null=True, blank=True)
@@ -68,6 +69,7 @@ class Metadata(Resource):
     export_to_csw = models.BooleanField(default=False)
     spatial_res_type = models.CharField(max_length=100, null=True)
     spatial_res_value = models.CharField(max_length=100, null=True)
+    is_broken = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
     is_custom = models.BooleanField(default=False)
     is_inspire_conform = models.BooleanField(default=False)
@@ -77,7 +79,6 @@ class Metadata(Resource):
     bbox = models.DecimalField(decimal_places=2, max_digits=4, null=True)
     dimension = models.CharField(max_length=100, null=True)
     authority_url = models.CharField(max_length=255, null=True)
-    identifier = models.CharField(max_length=255, null=True)
     metadata_url = models.CharField(max_length=255, null=True)
     # other
     keywords = models.ManyToManyField(Keyword)
@@ -171,11 +172,26 @@ class Metadata(Resource):
         self.categories.clear()
         self.is_custom = False
 
+        cap_doc = CapabilityDocument.objects.get(related_metadata=self)
+        cap_doc.restore()
+
 
 class CapabilityDocument(Resource):
     related_metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
     original_capability_document = models.TextField()
     current_capability_document = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return self.related_metadata
+
+    def restore(self):
+        """ We overwrite the current metadata xml with the original
+
+        Returns:
+             nothing
+        """
+        self.current_capability_document = self.original_capability_document
+        self.save()
 
 
 class TermsOfUse(Resource):
@@ -220,7 +236,7 @@ class ServiceType(models.Model):
 
 
 class Service(Resource):
-    metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
+    metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)
     servicetype = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)

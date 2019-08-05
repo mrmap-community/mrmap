@@ -33,7 +33,7 @@
                     {% if 'can_edit_metadata_service' in user_permissions %}
                         <a href="{% url 'editor:restore-featuretype' featuretype.id %}">
                             <div class="button-container">
-                                <span class="container-icon">&#8635;</span>
+                                <span class="reset-icon large">&#8635;</span>
                                 <span>{% trans 'Restore metadata' %}</span>
                             </div>
                         </a>

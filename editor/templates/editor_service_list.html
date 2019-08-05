@@ -19,6 +19,9 @@
                     {% trans 'Original metadata' %}
                 </th>
                 <th class="table-header">
+                    {% trans 'Last modified' %}
+                </th>
+                <th class="table-header">
                     {% trans 'Edit' %}
                 </th>
                 <th class="table-header">
@@ -49,6 +52,9 @@
                         {% else %}
                         <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Custom metadata' %}">
                         {% endif %}
+                    </td>
+                    <td class="table-cell">
+                        {{ metadata.root_metadata.last_modified | localtime }}
                     </td>
                     <td class="table-cell">
                         <a href="{% url 'editor:edit' metadata.root_metadata.id %}" title="{% trans 'Edit metadata' %}">

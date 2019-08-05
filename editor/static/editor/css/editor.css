@@ -10,7 +10,7 @@
     transition:         all 0.50s ease;
 }
 .large{
-    font-size: 2.0em;
+    font-size: 1.5em;
 }
 .button-container:hover .reset-icon{
     -webkit-transform: rotate(180.0deg);

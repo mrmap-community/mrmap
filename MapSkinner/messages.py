@@ -48,7 +48,7 @@ NO_PERMISSION = _("You do not have permissions for this!")
 
 METADATA_RESTORING_SUCCESS = _("Metadata restored to original")
 METADATA_EDITING_SUCCESS = _("Metadata editing successful")
-METADATA_IS_ORIGINAL = _("Metadata is original. No need for restoring anything.")
+METADATA_IS_ORIGINAL = _("Metadata is original. Reset aborted.")
 
 REQUEST_ACTIVATION_TIMEOVER = _("The request was not activated in time. Request was deleted.")
 

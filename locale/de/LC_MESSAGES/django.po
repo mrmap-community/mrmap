@@ -89,8 +89,8 @@ msgid "Metadata editing successful"
 msgstr "Metadaten erfolgreich editiert"
 
 #: MapSkinner/messages.py:51
-msgid "Metadata is original. No need for restoring anything."
-msgstr "Metadaten sind bereits original."
+msgid "Metadata is original. Reset aborted."
+msgstr "Metadaten sind original. Zurücksetzen abgebrochen."
 
 #: MapSkinner/messages.py:53
 msgid "The request was not activated in time. Request was deleted."

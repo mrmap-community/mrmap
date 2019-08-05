@@ -2,15 +2,17 @@
     margin: 2em 0 0 0;
 }
 
-.container-icon{
-    font-size: 2.0em;
+.reset-icon{
     -webkit-transition: all 0.50s ease;
     -moz-transition:    all 0.50s ease;
     -o-transition:      all 0.50s ease;
     -ms-transition:     all 0.50s ease;
     transition:         all 0.50s ease;
 }
-.button-container:hover .container-icon{
+.large{
+    font-size: 2.0em;
+}
+.button-container:hover .reset-icon{
     -webkit-transform: rotate(180.0deg);
     transform: rotate(180.0deg);
 }

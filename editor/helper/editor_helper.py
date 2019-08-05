@@ -8,6 +8,7 @@ Created on: 01.08.19
 from django.contrib import messages
 from django.db import transaction
 from django.http import HttpRequest
+from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
@@ -15,6 +16,53 @@ from service.helper.iso.isoMetadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, CapabilityDocument, MetadataRelation, \
     MetadataOrigin
 from service.helper import xml_helper
+
+
+def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata):
+    """ Overwrites existing capabilities keywords with metadata editor input
+
+    Args:
+        xml_obj (_Element): The parent xml object which holds the KeywordList element
+        metadata (Metadata): The metadata object which holds the edited keyword data
+    Returns:
+         nothing
+    """
+    xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml("./KeywordList", xml_obj)
+    if xml_keywords_list_obj is None:
+        # there are no keywords in this capabilities for this element yet
+        # we need to add an element first!
+        xml_keywords_list_obj = xml_helper.add_subelement(xml_obj, "KeywordList", after="Abstract")
+    xml_keywords_objs = xml_helper.try_get_element_from_xml("./Keyword", xml_keywords_list_obj) or []
+    # first remove all persisted keywords
+    for kw in xml_keywords_objs:
+        xml_keywords_list_obj.remove(kw)
+    # then add all edited
+    for kw in metadata.keywords.all():
+        xml_keyword = xml_helper.add_subelement(xml_keywords_list_obj, "Keyword")
+        xml_helper.write_text_to_element(xml_keyword, txt=kw.keyword)
+
+
+def _overwrite_capabilities_iso_metadata_links(xml_obj: _Element, metadata: Metadata):
+    # get list of all iso md links that really exist (from the metadata object)
+    iso_md_links = metadata.get_related_metadata_uris()
+
+    # get list of all MetadataURL elements from the capabilities element
+    xml_links = xml_helper.try_get_element_from_xml("./MetadataURL", xml_obj)
+    for xml_link in xml_links:
+        xml_online_resource_elem = xml_helper.try_get_element_from_xml("./OnlineResource", xml_link)
+        xml_link_attr = xml_helper.try_get_attribute_from_xml_element(xml_online_resource_elem, "xlink:href")
+        if xml_link_attr in iso_md_links:
+            # we still use this, so we are good
+            # Remove this link from iso_md_links to get an overview of which links are left over in the end
+            # These links must be new then!
+            iso_md_links.remove(xml_link_attr)
+            continue
+        else:
+            # this does not seem to exist anymore -> remove it from the xml
+            xml_helper.remove_element(xml_link)
+    # what is left over in iso_md_links are new links that must be added to the capabilities doc
+    for new_link in iso_md_links:
+        xml_helper.add_iso_md_element(xml_obj, new_link)
 
 
 def overwrite_capabilities_document(metadata: Metadata):
@@ -25,13 +73,23 @@ def overwrite_capabilities_document(metadata: Metadata):
     Returns:
          nothing
     """
-    cap_doc = CapabilityDocument.objects.get(related_metadata=metadata)
+    is_root = metadata.is_root()
+    if is_root:
+        rel_md = metadata
+    else:
+        rel_md = metadata.service.parent_service.metadata
+    cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
     # overwrite all editable data
     identifier = metadata.identifier
     xml_obj_root = xml_helper.parse_xml(cap_doc.current_capability_document)
 
     # find matching xml element in xml doc
-    xml_obj = xml_helper.try_get_single_element_from_xml("//Service/Name[text()='{}']/parent::*".format(identifier), xml_obj_root)
+    if is_root:
+        element_selector = "//Service/Name"
+    else:
+        element_selector = "//Layer/Name"
+    xml_obj = xml_helper.try_get_single_element_from_xml("{}[text()='{}']/parent::*".format(element_selector, identifier), xml_obj_root)
+
     # overwrite data
     elements = {
         "Title": metadata.title,
@@ -39,18 +97,18 @@ def overwrite_capabilities_document(metadata: Metadata):
         "AccessConstraints": metadata.access_constraints,
     }
     for key, val in elements.items():
-        xml_helper.write_text_to_element(xml_obj, "./{}".format(key), val)
+        try:
+            xml_helper.write_text_to_element(xml_obj, "./{}".format(key), val)
+        except AttributeError:
+            # for not is_root this will fail in AccessConstraints querying
+            pass
 
     # handle keywords
-    xml_keywords_objs = xml_helper.try_get_element_from_xml("./KeywordList/Keyword", xml_obj)
-    xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml("./KeywordList", xml_obj)
-    # first remove all current keywords
-    for kw in xml_keywords_objs:
-        xml_keywords_list_obj.remove(kw)
-    # then add all current
-    for kw in metadata.keywords.all():
-        xml_keyword = xml_helper.add_subelement(xml_keywords_list_obj, "Keyword")
-        xml_helper.write_text_to_element(xml_keyword, txt=kw.keyword)
+    _overwrite_capabilities_keywords(xml_obj, metadata)
+
+    # handle iso metadata links
+    _overwrite_capabilities_iso_metadata_links(xml_obj, metadata)
+
 
     # write xml back to database
     xml = xml_helper.xml_to_string(xml_obj_root)
@@ -70,7 +128,10 @@ def _remove_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links:
          nothing
     """
     # remove iso metadata from capabilities document
-    cap_doc = CapabilityDocument.objects.get(related_metadata=metadata)
+    rel_md = metadata
+    if not metadata.is_root():
+        rel_md = metadata.service.parent_service.metadata
+    cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
     cap_doc_txt = cap_doc.current_capability_document
     xml_cap_obj = xml_helper.parse_xml(cap_doc_txt).getroot()
 
@@ -135,10 +196,7 @@ def resolve_iso_metadata_links(request: HttpRequest, metadata: Metadata, editor_
     md_links = editor_form.data.get("iso_metadata_url", "").split(",")
 
     # create list of all persisted and related iso md links
-    existing_iso_mds = metadata.related_metadata.all()
-    existing_iso_links = []
-    for existing_iso_md in existing_iso_mds:
-        existing_iso_links.append(existing_iso_md.metadata_2.metadata_url)
+    existing_iso_links = metadata.get_related_metadata_uris()
 
     try:
         _remove_iso_metadata(metadata, md_links, existing_iso_links)

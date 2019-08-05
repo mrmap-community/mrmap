@@ -21,6 +21,9 @@
                 <th class="table-header">
                     {% trans 'Edit' %}
                 </th>
+                <th class="table-header">
+                    {% trans 'Reset' %}
+                </th>
             </tr>
             {% for metadata in services %}
                 <tr>
@@ -48,9 +51,16 @@
                         {% endif %}
                     </td>
                     <td class="table-cell">
-                        <a href="{% url 'editor:edit' metadata.root_metadata.id %}">
+                        <a href="{% url 'editor:edit' metadata.root_metadata.id %}" title="{% trans 'Edit metadata' %}">
                             <button class="button">
                                 <img src="{% static 'structure/images/icn_edit.png' %}">
+                            </button>
+                        </a>
+                    </td>
+                    <td class="table-cell">
+                        <a href="{% url 'editor:restore' metadata.root_metadata.id %}" title="{% trans 'Reset metadata' %}">
+                            <button class="button button-container {% if not metadata.root_metadata.is_custom and metadata.custom_subelement_metadata|length == 0 %}disabled{% endif %}">
+                                <span class="reset-icon">&#8635;</span>
                             </button>
                         </a>
                     </td>

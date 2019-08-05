@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from service.helper.enums import ServiceTypes
 from structure.models import Group, Organization
+from service.helper import xml_helper
 
 
 class Keyword(models.Model):
@@ -129,6 +130,21 @@ class Metadata(Resource):
         for kw in layer.capability_keywords:
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.keywords.add(keyword)
+
+        original_iso_links = [x.uri for x in layer.iso_metadata]
+        for related_iso in self.related_metadata.all():
+            md_link = related_iso.metadata_2.metadata_url
+            if md_link not in original_iso_links:
+                related_iso.metadata_2.delete()
+                related_iso.delete()
+
+        # restore partially capabilities document
+        if self.is_root():
+            rel_md = self
+        else:
+            rel_md = self.service.parent_service.metadata
+        cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
+        cap_doc.restore_layer(identifier)
         return
 
     def restore(self, identifier: str = None):
@@ -175,6 +191,19 @@ class Metadata(Resource):
         cap_doc = CapabilityDocument.objects.get(related_metadata=self)
         cap_doc.restore()
 
+    def get_related_metadata_uris(self):
+        """ Generates a list of all related metadata online links and returns them
+
+        Returns:
+             links (list): A list containing all online links of related metadata
+        """
+        rel_mds = self.related_metadata.all()
+        links = []
+        for md in rel_mds:
+            links.append(md.metadata_2.metadata_url)
+        return links
+
+
 
 class CapabilityDocument(Resource):
     related_metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
@@ -191,6 +220,33 @@ class CapabilityDocument(Resource):
              nothing
         """
         self.current_capability_document = self.original_capability_document
+        self.save()
+
+    def restore_layer(self, identifier: str):
+        """ Restores only the layer which matches the provided identifier
+
+        Args:
+            identifier (str): The identifier which matches a single layer in the document
+        Returns:
+             nothing
+        """
+        # only restored the layer and it's children
+        cap_doc_curr_obj = xml_helper.parse_xml(self.current_capability_document)
+        cap_doc_orig_obj = xml_helper.parse_xml(self.original_capability_document)
+
+        xml_layer_obj_curr = xml_helper.find_element_where_text(cap_doc_curr_obj, identifier)[0]
+        xml_layer_obj_orig = xml_helper.find_element_where_text(cap_doc_orig_obj, identifier)[0]
+
+        # find position where original element existed
+        parent_orig = xml_helper.get_parent(xml_layer_obj_orig)
+        orig_index = parent_orig.index(xml_layer_obj_orig)
+
+        # insert original element at the original index and remove current element (which now is at index + 1)
+        parent_curr = xml_helper.get_parent(xml_layer_obj_curr)
+        parent_curr.insert(orig_index, xml_layer_obj_orig)
+        parent_curr.remove(xml_layer_obj_curr)
+
+        self.current_capability_document = xml_helper.xml_to_string(cap_doc_curr_obj)
         self.save()
 
 

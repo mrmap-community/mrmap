@@ -79,9 +79,10 @@ def edit(request: HttpRequest, id: int, user: User):
     editor_form.fields["terms_of_use"].required = False
     if request.method == 'POST':
         if editor_form.is_valid():
+
             custom_md = editor_form.save(commit=False)
-            editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
             editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
+            editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, metadata.title)
             return redirect("editor:index")
@@ -175,11 +176,16 @@ def restore(request: HttpRequest, id: int, user: User):
          Redirects back to edit view
     """
     metadata = Metadata.objects.get(id=id)
-    if not metadata.is_custom:
+    children_md = Metadata.objects.filter(service__parent_service__metadata=metadata, is_custom=True)
+    if not metadata.is_custom and len(children_md) == 0:
         messages.add_message(request, messages.INFO, METADATA_IS_ORIGINAL)
         return redirect(request.META.get("HTTP_REFERER"))
-    metadata.restore()
-    metadata.save()
+    if metadata.is_custom:
+        metadata.restore()
+        metadata.save()
+    for md in children_md:
+        md.restore()
+        md.save()
     messages.add_message(request, messages.INFO, METADATA_RESTORING_SUCCESS)
     user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_RESTORED, metadata.title)
     return redirect("editor:index")

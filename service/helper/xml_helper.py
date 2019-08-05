@@ -6,7 +6,7 @@ Created on: 31.07.19
 
 """
 from lxml import etree
-from lxml.etree import XMLSyntaxError
+from lxml.etree import XMLSyntaxError, _Element
 from requests.exceptions import ProxyError
 
 from MapSkinner.settings import XML_NAMESPACES
@@ -194,13 +194,53 @@ def remove_element(xml_child):
     parent.remove(xml_child)
 
 
-def add_subelement(xml_elem, tag_name):
+def add_subelement(xml_elem: _Element, tag_name, after: str = None):
     """ Creates a new xml element as a child of xml_elem with the name tag_name
 
     Args:
         xml_elem: The xml element
         tag_name: The tag name for the new element
+        after (str): The tag name of the element after which the new one should be inserted
     Returns:
          A new subelement of xml_elem
     """
-    return etree.SubElement(xml_elem, tag_name)
+    ret_element = etree.Element(tag_name)
+    if after is not None:
+        after_element = try_get_single_element_from_xml("./{}".format(after), xml_elem)
+        after_element_index = xml_elem.index(after_element) + 1
+        xml_elem.insert(after_element_index, ret_element)
+    else:
+        xml_elem.append(ret_element)
+    return ret_element
+
+
+def add_iso_md_element(xml_obj: _Element, new_link: str):
+    """ Adds a new MetadataURL element to the parent xml_obj
+
+    Args:
+        xml_obj (_Element): The parent xml object which holds all MetadataURL elements
+        new_link (str): The link of the new metadata resource
+    Returns:
+        nothing
+    """
+    iso_elem = etree.Element("MetadataURL", {"type": "ISO19115:2003"}, nsmap={"xlink": "http://www.w3.org/1999/xlink"})
+    iso_elem_format = etree.SubElement(iso_elem, "Format")
+    iso_elem_format.text = "text/xml"
+    iso_elem_resource = etree.SubElement(iso_elem, "OnlineResource", {"{http://www.w3.org/1999/xlink}type": "simple", "{http://www.w3.org/1999/xlink}href": new_link})
+
+    # try to append where other metadaURL elements might already exist
+    # if there are no other elements -> just append it at the end
+    other_iso_md_elements = try_get_element_from_xml("./MetadataURL", xml_obj)
+    if len(other_iso_md_elements):
+        index = 0
+        for other_iso in other_iso_md_elements:
+            i = xml_obj.index(other_iso)
+            if i > index:
+                index = i
+        index += 1
+        xml_obj.insert(index, iso_elem)
+    else:
+        xml_obj.append(iso_elem)
+
+def get_parent(xml_obj: _Element):
+    return xml_obj.getparent()

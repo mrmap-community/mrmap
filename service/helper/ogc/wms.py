@@ -137,11 +137,28 @@ class OGCWebMapService(OGCWebService):
             self.__parse_dimension,
             self.__parse_style,
             self.__parse_identifier,
+            self.__parse_iso_md,
         ]
         for func in parse_functions:
             func(layer=layer_xml, layer_obj=layer_obj)
 
         return layer_obj
+
+    ### ISO METADATA ###
+    def __parse_iso_md(self, layer, layer_obj):
+        # check for possible ISO metadata
+        if self.__has_iso_metadata(layer):
+            iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(xml_elem=layer,
+                                                                            elem="./MetadataURL/OnlineResource")
+            for iso_xml in iso_metadata_xml_elements:
+                iso_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem=iso_xml,
+                                                                        attribute="{http://www.w3.org/1999/xlink}href")
+                try:
+                    iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
+                except Exception:
+                    # there are iso metadatas that have been filled wrongly -> if so we will drop them
+                    continue
+                layer_obj.iso_metadata.append(iso_metadata)
 
     ### IDENTIFIER ###
     def __parse_identifier(self, layer, layer_obj):
@@ -369,18 +386,7 @@ class OGCWebMapService(OGCWebService):
             if self.layers is None:
                 self.layers = []
 
-            # check for possible ISO metadata
-            if self.__has_iso_metadata(layer):
-                iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(xml_elem=layer, elem="./MetadataURL/OnlineResource")
-                for iso_xml in iso_metadata_xml_elements:
-                    iso_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem=iso_xml, attribute="{http://www.w3.org/1999/xlink}href")
-                    try:
-                        iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
-                    except Exception:
-                        # there are iso metadatas that have been filled wrongly -> if so we will drop them
-                        continue
-                    layer_obj.iso_metadata.append(iso_metadata)
-
+            self.__parse_iso_md(layer, layer_obj)
 
             self.layers.append(layer_obj)
             sublayers = xml_helper.try_get_element_from_xml(elem="./Layer", xml_elem=layer)

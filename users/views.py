@@ -24,7 +24,7 @@ from MapSkinner.messages import FORM_INPUT_INVALID, ACCOUNT_UPDATE_SUCCESS, USER
     ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, PASSWORD_CHANGE_NO_MATCH, UNKNOWN_EMAIL, \
     LOGOUT_SUCCESS, PASSWORD_SENT, EMAIL_INVALID, ACTIVATION_LINK_SENT
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
-from MapSkinner.settings import SESSION_EXPIRATION, ROOT_URL
+from MapSkinner.settings import SESSION_EXPIRATION, ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from MapSkinner.utils import sha256
 from service.models import Metadata
 from structure.config import USER_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
@@ -101,7 +101,8 @@ def home_view(request: HttpRequest, user: User):
             created_by__in=user.groups.all(),
             service__is_deleted=False,
         ).count()
-    group_activities = GroupActivity.objects.filter(group__in=user.groups.all()).order_by("-created_on")
+    activities_since = timezone.now() - datetime.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
+    group_activities = GroupActivity.objects.filter(group__in=user.groups.all(), created_on__gte=activities_since).order_by("-created_on")
     pending_requests = PendingRequest.objects.filter(organization=user.organization)
     params = {
         "wms_count": user_services_wms,

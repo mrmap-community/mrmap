@@ -30,14 +30,14 @@
 
 .sidebar-entry{
     color: white;
-    background-color: var(--secondary-color);
+    background-color: var(--secondary-color-light);
     text-align: center;
     padding: 0.5em;
     margin: 0 0 0.5em 0;
 }
 
 .sidebar-entry:hover{
-    background-color: var(--secondary-color-light);
+    background-color: var(--secondary-color);
 }
 span.sidebar-entry:hover{
     cursor: default;
@@ -82,7 +82,7 @@ span.sidebar-entry:hover{
     flex-grow: 2;
     align-items: center;
     justify-content: space-evenly;
-    background-color: var(--secondary-color);
+    background-color: var(--secondary-color-light-light);
     color: white;
     font-weight: bold;
     min-width: 10em;

@@ -206,7 +206,7 @@ def resolve_iso_metadata_links(request: HttpRequest, metadata: Metadata, editor_
     except Exception as e:
         messages.add_message(request, messages.ERROR, e)
 
-
+@transaction.atomic
 def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     """ Overwrites the original data with the custom date
 
@@ -239,6 +239,11 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     for id in category_ids:
         category = Category.objects.get(id=id)
         original_md.categories.add(category)
+    # if md uris shall be tunneld using the proxy, we need to make sure that all metadata elements of the service are aware of this!
+    child_mds = Metadata.objects.filter(service__parent_service=original_md.service.parent_service)
+    for child_md in child_mds:
+        child_md.inherit_proxy_uris = original_md.inherit_proxy_uris
+        child_md.save()
     # save metadata
     original_md.is_custom = True
     original_md.save()

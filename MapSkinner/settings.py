@@ -75,6 +75,9 @@ XML_NAMESPACES = {
 SESSION_EXPIRATION = 1800 # seconds
 SESSION_SAVE_EVERY_REQUEST = True
 
+# Home/Dashboard settings
+LAST_ACTIVITY_DATE_RANGE = 7
+
 # Some special things for govbender
 DEFAULT_CONNECTION_TYPE = ConnectionType.REQUESTS
 DEFAULT_SERVICE_VERSION = VersionTypes.V_1_1_1

@@ -162,12 +162,22 @@ def get_capabilities(request: HttpRequest, id: int):
     Returns:
          A HttpResponse containing the xml file
     """
-    request_original = utils.resolve_boolean_attribute_val(request.GET.get("original", False))
     cap_doc = CapabilityDocument.objects.get(related_metadata__id=id)
-    if request_original:
-        doc = cap_doc.original_capability_document
-    else:
-        doc = cap_doc.current_capability_document
+    doc = cap_doc.current_capability_document
+    return HttpResponse(doc, content_type='application/xml')
+
+
+def get_capabilities_original(request: HttpRequest, id: int):
+    """ Returns the current capabilities xml file
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The metadata id
+    Returns:
+         A HttpResponse containing the xml file
+    """
+    cap_doc = CapabilityDocument.objects.get(related_metadata__id=id)
+    doc = cap_doc.original_capability_document
     return HttpResponse(doc, content_type='application/xml')
 
 

@@ -54,7 +54,7 @@
                 <span>{% trans 'Capabilities' %}</span>
             </div>
             <div id="capabilities-list" class="hide">
-                <a target="_blank" href="{% url 'service:get-capabilities' root_metadata.id  %}?original=True">
+                <a target="_blank" href="{% url 'service:get-capabilities-original' root_metadata.id  %}">
                     <div class="button-container">{% trans 'Original' %}</div>
                 </a>
                 <a target="_blank" href="{% url 'service:get-capabilities' root_metadata.id %}">

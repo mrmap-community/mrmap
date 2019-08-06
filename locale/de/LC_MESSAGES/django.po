@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-07-31 08:59+0200\n"
+"POT-Creation-Date: 2019-08-06 11:35+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -153,6 +153,10 @@ msgstr ""
 "Der Dienst konnte nicht registriert werden. Bitte prüfen Sie die Metadaten "
 "und kontaktieren Sie einen Administrator."
 
+#: MapSkinner/messages.py:68
+msgid "'{}' was invalid."
+msgstr "Die URI ist ungültig."
+
 #: MapSkinner/settings.py:194 templates/base.html:110
 msgid "English"
 msgstr "Englisch"
@@ -161,6 +165,10 @@ msgstr "Englisch"
 msgid "German"
 msgstr "Deutsch"
 
+#: editor/forms.py:29
+msgid "Use metadata proxy"
+msgstr "Benutze Metadatenproxy"
+
 #: editor/templates/editor_edit.html:13
 #: service/templates/detail/service_detail.html:19
 #: structure/templates/group_detail.html:13
@@ -168,17 +176,20 @@ msgstr "Deutsch"
 msgid "Overview"
 msgstr "Übersicht"
 
-#: editor/templates/editor_edit.html:24
-#: service/templates/wfs/containing_featuretypes.html:37
-#: service/templates/wms/containing_layers.html:38
-msgid "Restore metadata"
+#: editor/templates/editor_edit.html:21 editor/templates/editor_edit.html:24
+#: editor/templates/editor_service_list.html:67
+msgid "Reset metadata"
 msgstr "Metadaten wiederherstellen"
 
 #: editor/templates/editor_edit.html:30 templates/base.html:72
 msgid "Metadata Editor"
 msgstr "Metadateneditor"
 
-#: editor/templates/editor_edit.html:45 structure/templates/form.html:113
+#: editor/templates/editor_edit.html:43
+msgid "ISO metadata"
+msgstr "ISO Metadaten"
+
+#: editor/templates/editor_edit.html:56 structure/templates/form.html:113
 #: users/templates/change_password.html:100 users/templates/users_form.html:63
 msgid "Save"
 msgstr "Speichern"
@@ -197,7 +208,7 @@ msgid "Title"
 msgstr "Titel"
 
 #: editor/templates/editor_service_list.html:10
-#: editor/templates/editor_service_list.html:32
+#: editor/templates/editor_service_list.html:38
 #: service/templates/wfs/wfs_index.html:62
 #: service/templates/wfs/wfs_index.html:79
 #: service/templates/wms/wms_index.html:71
@@ -219,15 +230,23 @@ msgid "Registered by group"
 msgstr "Registriert durch Gruppe"
 
 #: editor/templates/editor_service_list.html:19
-#: editor/templates/editor_service_list.html:45
+#: editor/templates/editor_service_list.html:51
 msgid "Original metadata"
 msgstr "Originale Metadaten"
 
 #: editor/templates/editor_service_list.html:22
+msgid "Last modified"
+msgstr "Zuletzt geändert"
+
+#: editor/templates/editor_service_list.html:25
 msgid "Edit"
 msgstr "Bearbeiten"
 
 #: editor/templates/editor_service_list.html:28
+msgid "Reset"
+msgstr ""
+
+#: editor/templates/editor_service_list.html:34
 #: service/templates/wfs/wfs_index.html:75
 #: service/templates/wms/wms_index.html:92
 #: service/templates/wms/wms_index.html:96
@@ -235,15 +254,25 @@ msgstr "Bearbeiten"
 msgid "Open details"
 msgstr "Öffne Details"
 
-#: editor/templates/editor_service_list.html:34
+#: editor/templates/editor_service_list.html:40
 #: service/templates/wfs/wfs_index.html:81
 #: service/templates/wms/wms_index.html:103
 msgid "Not active"
 msgstr "Nicht aktiv"
 
-#: editor/templates/editor_service_list.html:47
+#: editor/templates/editor_service_list.html:53
 msgid "Custom metadata"
 msgstr "Benutzerdefinierte Metadaten"
+
+#: editor/templates/editor_service_list.html:60
+#: service/templates/detail/service_detail.html:46
+#: service/templates/detail/service_detail.html:48
+#: service/templates/wfs/containing_featuretypes.html:25
+#: service/templates/wfs/containing_featuretypes.html:27
+#: service/templates/wms/containing_layers.html:26
+#: service/templates/wms/containing_layers.html:28
+msgid "Edit metadata"
+msgstr "Bearbeite Metadaten"
 
 #: editor/templates/value_selection.html:6
 msgid "Click to remove keyword"
@@ -257,14 +286,14 @@ msgstr "Einträge durch \",\" separieren"
 msgid "You have to choose predefined values. Type in what you are looking for."
 msgstr "Sie müssen die Vorschläge verwenden. Tippen Sie ein wonach Sie suchen."
 
-#: editor/views.py:122 editor/views.py:194
-#: service/templates/detail/service_detail.html:97
+#: editor/views.py:96 editor/views.py:153
+#: service/templates/detail/service_detail.html:110
 #: service/templates/detail/service_detail_child_wfs.html:21
 #: service/templates/detail/service_detail_child_wms.html:20
 msgid "Keywords"
 msgstr "Schlüsselwörter"
 
-#: editor/views.py:128
+#: editor/views.py:102
 msgid "Categories"
 msgstr "Kategorien"
 
@@ -345,7 +374,7 @@ msgid "Type"
 msgstr ""
 
 #: service/templates/check_metadata_form.html:91
-#: service/templates/detail/service_detail.html:87
+#: service/templates/detail/service_detail.html:100
 #: service/templates/detail/service_detail_child_wfs.html:17
 #: service/templates/detail/service_detail_child_wms.html:16
 msgid "Abstract"
@@ -372,7 +401,7 @@ msgid "Responsible person"
 msgstr "Verantwortliche Person:"
 
 #: service/templates/check_metadata_form.html:120
-#: service/templates/detail/service_detail.html:127
+#: service/templates/detail/service_detail.html:140
 #: structure/templates/organization_detail.html:74 users/forms.py:15
 msgid "E-Mail"
 msgstr ""
@@ -397,102 +426,103 @@ msgstr "Aktualisiere Dienst über eine neue URL"
 msgid "Update service"
 msgstr "Aktualisiere Service"
 
-#: service/templates/detail/service_detail.html:46
-#: service/templates/detail/service_detail.html:48
-#: service/templates/wfs/containing_featuretypes.html:25
-#: service/templates/wfs/containing_featuretypes.html:27
-#: service/templates/wms/containing_layers.html:26
-#: service/templates/wms/containing_layers.html:28
-msgid "Edit metadata"
-msgstr "Bearbeite Metadaten"
+#: service/templates/detail/service_detail.html:54
+#: service/templates/service_differences.html:104
+#: service/templates/service_differences.html:105
+msgid "Capabilities"
+msgstr ""
 
-#: service/templates/detail/service_detail.html:52
+#: service/templates/detail/service_detail.html:58
+msgid "Original"
+msgstr "Original"
+
+#: service/templates/detail/service_detail.html:61
+msgid "Current"
+msgstr "Aktuell"
+
+#: service/templates/detail/service_detail.html:67
 msgid "Open original metadata in new tab"
 msgstr "Öffne originale Metadaten in neuem Tab"
 
-#: service/templates/detail/service_detail.html:54
-msgid "Capabilities (XML)"
-msgstr "Capabilities (XML)"
-
-#: service/templates/detail/service_detail.html:62
+#: service/templates/detail/service_detail.html:75
 msgid "Remove service"
 msgstr "Dienst entfernen"
 
-#: service/templates/detail/service_detail.html:71
+#: service/templates/detail/service_detail.html:84
 #: service/templates/detail/service_detail_child_wfs.html:5
 #: service/templates/detail/service_detail_child_wms.html:4
 #: service/templates/wfs/containing_featuretypes_elements.html:25
 msgid "Uuid"
 msgstr ""
 
-#: service/templates/detail/service_detail.html:75
+#: service/templates/detail/service_detail.html:88
 #: structure/templates/organization_detail.html:123
 msgid "Service type"
 msgstr "Diensttyp"
 
-#: service/templates/detail/service_detail.html:79
+#: service/templates/detail/service_detail.html:92
 msgid "Service type version"
 msgstr "Diensttypversion"
 
-#: service/templates/detail/service_detail.html:83
+#: service/templates/detail/service_detail.html:96
 msgid "Last update on"
 msgstr "Aktualisiert am"
 
-#: service/templates/detail/service_detail.html:91
+#: service/templates/detail/service_detail.html:104
 msgid "Online resource"
 msgstr "Onlineresource"
 
-#: service/templates/detail/service_detail.html:102
+#: service/templates/detail/service_detail.html:115
 #: service/templates/detail/service_detail_child_wfs.html:26
 #: service/templates/detail/service_detail_child_wms.html:25
 msgid "No keywords provided"
 msgstr "Keine Schlüsselwörter verfügbar"
 
-#: service/templates/detail/service_detail.html:107
+#: service/templates/detail/service_detail.html:120
 msgid "Access Constraints"
 msgstr "Zugangsbeschränkungen"
 
-#: service/templates/detail/service_detail.html:111
+#: service/templates/detail/service_detail.html:124
 msgid "Responsible Person"
 msgstr "Verantwortliche Person"
 
-#: service/templates/detail/service_detail.html:115 structure/forms.py:30
+#: service/templates/detail/service_detail.html:128 structure/forms.py:30
 #: structure/templates/group_detail.html:39
 #: structure/templates/index_groups.html:28
-#: structure/templates/index_publish_requests.html:58
+#: structure/templates/index_publish_requests.html:57
 msgid "Organization"
 msgstr "Organisation"
 
-#: service/templates/detail/service_detail.html:119 structure/forms.py:66
+#: service/templates/detail/service_detail.html:132 structure/forms.py:66
 #: structure/templates/organization_detail.html:78
 msgid "Phone"
 msgstr "Telefon"
 
-#: service/templates/detail/service_detail.html:123 structure/forms.py:67
+#: service/templates/detail/service_detail.html:136 structure/forms.py:67
 #: structure/templates/organization_detail.html:82
 msgid "Facsimile"
 msgstr "Fax"
 
-#: service/templates/detail/service_detail.html:131 structure/forms.py:63
+#: service/templates/detail/service_detail.html:144 structure/forms.py:63
 #: structure/templates/organization_detail.html:86
 msgid "Address"
 msgstr "Adresse"
 
-#: service/templates/detail/service_detail.html:135 structure/forms.py:65
+#: service/templates/detail/service_detail.html:148 structure/forms.py:65
 #: structure/templates/organization_detail.html:94
 msgid "City"
 msgstr "Stadt"
 
-#: service/templates/detail/service_detail.html:139
+#: service/templates/detail/service_detail.html:152
 msgid "Post code"
 msgstr "Postleitzahl"
 
-#: service/templates/detail/service_detail.html:143
+#: service/templates/detail/service_detail.html:156
 #: structure/templates/organization_detail.html:98
 msgid "State or province"
 msgstr "Bundesland"
 
-#: service/templates/detail/service_detail.html:147
+#: service/templates/detail/service_detail.html:160
 #: structure/templates/organization_detail.html:102
 msgid "Country"
 msgstr "Land"
@@ -760,11 +790,6 @@ msgstr "Aktualisierte Featuretypen"
 msgid "Show capabilities"
 msgstr "Zeige Capabilities"
 
-#: service/templates/service_differences.html:104
-#: service/templates/service_differences.html:105
-msgid "Capabilities"
-msgstr ""
-
 #: service/templates/service_differences.html:111
 msgid ""
 "\n"
@@ -843,6 +868,11 @@ msgstr "Klicke für mehr"
 #: service/templates/wms/containing_layers.html:18
 msgid "Custom Metadata"
 msgstr "Benutzerdefinierte Metadaten"
+
+#: service/templates/wfs/containing_featuretypes.html:37
+#: service/templates/wms/containing_layers.html:38
+msgid "Restore metadata"
+msgstr "Metadaten wiederherstellen"
 
 #: service/templates/wfs/containing_featuretypes.html:47
 #: service/templates/wms/containing_layers.html:48
@@ -929,7 +959,7 @@ msgstr "Letzte Seite"
 msgid "Parent service"
 msgstr "Übergeordneter Dienst"
 
-#: service/views.py:448
+#: service/views.py:489
 msgid "Enter the new capabilities URL of your service."
 msgstr "Geben Sie die neue Capabilities URL des Dienstes ein."
 
@@ -1092,7 +1122,7 @@ msgid "Requesting group"
 msgstr "Anfragende Gruppe"
 
 #: structure/templates/index_publish_requests.html:17
-#: structure/templates/index_publish_requests.html:86
+#: structure/templates/index_publish_requests.html:85
 msgid "Group organization"
 msgstr "Gruppenorganisation"
 
@@ -1101,8 +1131,8 @@ msgid "Activation until"
 msgstr "Aktivierung bis"
 
 #: structure/templates/index_publish_requests.html:20
-#: structure/templates/index_publish_requests.html:59
-#: structure/templates/index_publish_requests.html:87
+#: structure/templates/index_publish_requests.html:58
+#: structure/templates/index_publish_requests.html:86
 msgid "Action"
 msgstr "Aktion"
 
@@ -1115,30 +1145,26 @@ msgid "Decline"
 msgstr "Ablehnen"
 
 #: structure/templates/index_publish_requests.html:45
-#: structure/templates/index_publish_requests.html:73
-#: structure/templates/index_publish_requests.html:108
+#: structure/templates/index_publish_requests.html:72
+#: structure/templates/index_publish_requests.html:107
 msgid "You have no permission to change this!"
 msgstr "Sie haben keine Berechtigung hierfür!"
 
-#: structure/templates/index_publish_requests.html:55
-msgid "Publishing for"
-msgstr "Veröffentlicht für"
-
-#: structure/templates/index_publish_requests.html:68
-#: structure/templates/index_publish_requests.html:70
+#: structure/templates/index_publish_requests.html:67
+#: structure/templates/index_publish_requests.html:69
 msgid "Stop being publisher"
 msgstr "Veröffentlichungen beenden"
 
-#: structure/templates/index_publish_requests.html:82
+#: structure/templates/index_publish_requests.html:81
 msgid "Publishers"
 msgstr "Veröffentlicher"
 
-#: structure/templates/index_publish_requests.html:85
+#: structure/templates/index_publish_requests.html:84
 msgid "Group"
 msgstr "Gruppe"
 
-#: structure/templates/index_publish_requests.html:103
-#: structure/templates/index_publish_requests.html:105
+#: structure/templates/index_publish_requests.html:102
+#: structure/templates/index_publish_requests.html:104
 msgid "Remove publisher"
 msgstr "Entferne Veröffentlicher"
 
@@ -1426,6 +1452,12 @@ msgstr ""
 #: users/views.py:195
 msgid "You can update your account information using this form."
 msgstr "Sie können Ihre Accountinformationen hier ändern"
+
+#~ msgid "Capabilities (XML)"
+#~ msgstr "Capabilities (XML)"
+
+#~ msgid "Publishing for"
+#~ msgstr "Veröffentlicht für"
 
 #~ msgid "Publish request created"
 #~ msgstr "Veröffentlichungrechte beantragt"

@@ -65,9 +65,7 @@ class Metadata(Resource):
     fees = models.TextField(null=True, blank=True)
 
     status = models.IntegerField(null=True)
-    last_harvest_successful = models.BooleanField(null=True)
-    last_harvest_exception = models.CharField(max_length=200, null=True)
-    export_to_csw = models.BooleanField(default=False)
+    inherit_proxy_uris = models.BooleanField(default=False)
     spatial_res_type = models.CharField(max_length=100, null=True)
     spatial_res_value = models.CharField(max_length=100, null=True)
     is_broken = models.BooleanField(default=False)
@@ -77,7 +75,6 @@ class Metadata(Resource):
     has_inspire_downloads = models.BooleanField(default=False)
     bounding_geometry = models.PolygonField(null=True, blank=True)
     # capabilities
-    bbox = models.DecimalField(decimal_places=2, max_digits=4, null=True)
     dimension = models.CharField(max_length=100, null=True)
     authority_url = models.CharField(max_length=255, null=True)
     metadata_url = models.CharField(max_length=255, null=True)

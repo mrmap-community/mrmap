@@ -222,6 +222,7 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     original_md.access_constraints = custom_md.access_constraints
     original_md.metadata_url = custom_md.metadata_url
     original_md.terms_of_use = custom_md.terms_of_use
+    original_md.inherit_proxy_uris = custom_md.inherit_proxy_uris
     # get db objects from values
     # keywords are provided as usual text
     keywords = editor_form.data.get("keywords").split(",")

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-07 07:27+0200\n"
+"POT-Creation-Date: 2019-08-07 10:48+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -93,27 +93,31 @@ msgid "Metadata is original. Reset aborted."
 msgstr "Metadaten sind original. Zurücksetzen abgebrochen."
 
 #: MapSkinner/messages.py:53
+msgid "No datasetId found in metadata!"
+msgstr ""
+
+#: MapSkinner/messages.py:55
 msgid "The request was not activated in time. Request was deleted."
 msgstr ""
 "Die Anfrage wurde nicht rechtzeitig bearbeitet. Anfrage wurde gelöscht."
 
-#: MapSkinner/messages.py:55
+#: MapSkinner/messages.py:57
 msgid "Publish request has been sent to the organization!"
 msgstr "Veröffentlichungsanfrage wurde an die Organisation geschickt!"
 
-#: MapSkinner/messages.py:56
+#: MapSkinner/messages.py:58
 msgid "Publisher request accepted for group '{}'"
 msgstr "Veröffentlichungsanfrage für Gruppe '{}' wurde akzeptiert"
 
-#: MapSkinner/messages.py:57
+#: MapSkinner/messages.py:59
 msgid "Publisher request denied for group '{}'"
 msgstr "Veröffentlichungsanfrage für Gruppe '{}' wurde abgelehnt"
 
-#: MapSkinner/messages.py:58
+#: MapSkinner/messages.py:60
 msgid "Your group already is a publisher for this organization!"
 msgstr "Ihre Gruppe kann bereits für diese Organisation veröffentlichen!"
 
-#: MapSkinner/messages.py:59
+#: MapSkinner/messages.py:61
 msgid ""
 "You cannot be a publisher to your group's own organization! You publish by "
 "default like this."
@@ -121,23 +125,23 @@ msgstr ""
 "Sie können keine Veröffentlichungsrechte für die Gruppe Ihrer Organisation "
 "beantragen. Sie veröffentlichen standardmäßig für diese Organisation."
 
-#: MapSkinner/messages.py:60
+#: MapSkinner/messages.py:62
 msgid "Your group already has sent a request. Please be patient!"
 msgstr ""
 "Ihre Gruppe hat bereits eine Anfrage gesendet. Bitte gedulden Sie sich!"
 
-#: MapSkinner/messages.py:62
+#: MapSkinner/messages.py:64
 msgid "A group can not be parent to itself!"
 msgstr "Eine Gruppe kann sich nicht selbst untergeordnet sein!"
 
-#: MapSkinner/messages.py:64
+#: MapSkinner/messages.py:66
 msgid ""
 "You tried to update a service to another service type. This is not possible!"
 msgstr ""
 "Sie versuchen einen Dienst auf einen anderen Diensttypen zu aktualisieren. "
 "Das ist nicht möglich!"
 
-#: MapSkinner/messages.py:65
+#: MapSkinner/messages.py:67
 msgid ""
 "The provided capabilities document is not different from the currently "
 "registered. Update canceled!"
@@ -145,7 +149,7 @@ msgstr ""
 "Das Capabilities Dokument unterscheidet sich nicht vom aktuell "
 "registrierten. Update abgebrochen!"
 
-#: MapSkinner/messages.py:66
+#: MapSkinner/messages.py:68
 msgid ""
 "The service could not be registered. Please check your metadata and contact "
 "an administrator."
@@ -153,7 +157,7 @@ msgstr ""
 "Der Dienst konnte nicht registriert werden. Bitte prüfen Sie die Metadaten "
 "und kontaktieren Sie einen Administrator."
 
-#: MapSkinner/messages.py:68
+#: MapSkinner/messages.py:70
 msgid "'{}' was invalid."
 msgstr "Die URI ist ungültig."
 
@@ -194,10 +198,6 @@ msgstr "ISO Metadaten"
 msgid "Save"
 msgstr "Speichern"
 
-#: editor/templates/editor_index.html:10
-msgid "Editable services"
-msgstr "Editierbare Dienste"
-
 #: editor/templates/editor_service_list.html:7
 #: service/templates/check_metadata_form.html:83
 #: service/templates/detail/service_detail_child_wfs.html:9
@@ -210,22 +210,22 @@ msgstr "Titel"
 #: editor/templates/editor_service_list.html:10
 #: editor/templates/editor_service_list.html:38
 #: service/templates/wfs/wfs_index.html:62
-#: service/templates/wfs/wfs_index.html:79
-#: service/templates/wms/wms_index.html:71
-#: service/templates/wms/wms_index.html:101
+#: service/templates/wfs/wfs_index.html:87
+#: service/templates/wms/wms_index.html:75
+#: service/templates/wms/wms_index.html:109
 msgid "Active"
 msgstr "Aktiv"
 
 #: editor/templates/editor_service_list.html:13
 #: service/templates/check_metadata_form.html:112
-#: service/templates/wfs/wfs_index.html:66
-#: service/templates/wms/wms_index.html:77
+#: service/templates/wfs/wfs_index.html:68
+#: service/templates/wms/wms_index.html:81
 msgid "Data provider"
 msgstr "Datenanbieter"
 
 #: editor/templates/editor_service_list.html:16
-#: service/templates/wfs/wfs_index.html:68
-#: service/templates/wms/wms_index.html:80
+#: service/templates/wfs/wfs_index.html:71
+#: service/templates/wms/wms_index.html:84
 msgid "Registered by group"
 msgstr "Registriert durch Gruppe"
 
@@ -247,16 +247,16 @@ msgid "Reset"
 msgstr ""
 
 #: editor/templates/editor_service_list.html:34
-#: service/templates/wfs/wfs_index.html:75
-#: service/templates/wms/wms_index.html:92
+#: service/templates/wfs/wfs_index.html:83
 #: service/templates/wms/wms_index.html:96
+#: service/templates/wms/wms_index.html:100
 #: structure/templates/organization_detail.html:132
 msgid "Open details"
 msgstr "Öffne Details"
 
 #: editor/templates/editor_service_list.html:40
-#: service/templates/wfs/wfs_index.html:81
-#: service/templates/wms/wms_index.html:103
+#: service/templates/wfs/wfs_index.html:89
+#: service/templates/wms/wms_index.html:111
 msgid "Not active"
 msgstr "Nicht aktiv"
 
@@ -385,8 +385,9 @@ msgid "Fees"
 msgstr "Gebühren:"
 
 #: service/templates/check_metadata_form.html:100
+#: service/templates/wms/wms_index.html:71
 msgid "Number of layers"
-msgstr "Anzahl der Ebenen:"
+msgstr "Layeranzahl"
 
 #: service/templates/check_metadata_form.html:105
 msgid "Online resources"
@@ -906,23 +907,23 @@ msgstr "Ergebnisse pro Seite"
 msgid "Enter text to filter"
 msgstr "Filtern nach ..."
 
-#: service/templates/wfs/wfs_index.html:64
-#: service/templates/wms/wms_index.html:74
+#: service/templates/wfs/wfs_index.html:65
+#: service/templates/wms/wms_index.html:78
 msgid "Version"
 msgstr ""
 
-#: service/templates/wfs/wfs_index.html:70
-#: service/templates/wms/wms_index.html:83
+#: service/templates/wfs/wfs_index.html:74
+#: service/templates/wms/wms_index.html:87
 msgid "Registered for"
 msgstr "Registriere für"
 
-#: service/templates/wfs/wfs_index.html:72
-#: service/templates/wms/wms_index.html:86
+#: service/templates/wfs/wfs_index.html:77
+#: service/templates/wms/wms_index.html:90
 msgid "Created"
 msgstr "Angelegt"
 
-#: service/templates/wfs/wfs_index.html:107
-#: service/templates/wms/wms_index.html:129
+#: service/templates/wfs/wfs_index.html:115
+#: service/templates/wms/wms_index.html:137
 msgid "None ¯\\_(ツ)_/¯"
 msgstr "Keine ¯\\_(ツ)_/¯"
 
@@ -1414,8 +1415,8 @@ msgid ""
 msgstr ""
 "\n"
 "        Ihr Account wurde erfolgreich aktiviert. Sie werden zur Login Seite "
-"in <span id=\"seconds-counter\"></span> Sekunden weitergeleitet. Falls Sie nicht warten wollen "
-"klicken Sie einfach auf Mr. Map!\n"
+"in <span id=\"seconds-counter\"></span> Sekunden weitergeleitet. Falls Sie "
+"nicht warten wollen klicken Sie einfach auf Mr. Map!\n"
 "        "
 
 #: users/templates/user_registration.html:23
@@ -1454,6 +1455,9 @@ msgstr ""
 #: users/views.py:196
 msgid "You can update your account information using this form."
 msgstr "Sie können Ihre Accountinformationen hier ändern"
+
+#~ msgid "Editable services"
+#~ msgstr "Editierbare Dienste"
 
 #~ msgid ""
 #~ "\n"

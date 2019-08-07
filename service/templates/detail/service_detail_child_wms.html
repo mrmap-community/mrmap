@@ -93,7 +93,7 @@
     <tr>
         <th>{% trans 'Mime types:' %}</th>
         <td>
-            <table>
+            <table class="mime-type-table">
                 {% for format in element.formats.all %}
                 <tr>
                     <th>{{ format.action }}</th>

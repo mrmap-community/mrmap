@@ -224,7 +224,8 @@ $(document).ready(function(){
         services.each(function(i, service){
             service = $(service);
             var title = service.find("[data-type='title']").text().trim().toUpperCase();
-            if(title.includes(input)){
+            var parentService = service.find("[data-type='parent-service']").text().trim().toUpperCase();
+            if(title.includes(input) || parentService.includes(input)){
                 service.show();
             }else{
                 service.hide();

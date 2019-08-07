@@ -82,7 +82,7 @@
         <td class="table-cell" data-type="title">
             <a href="{% url 'service:detail' id=wfs.id %}" title="{% trans 'Open details' %}">{{ wfs.title }}</a>
         </td>
-        <td class="table-cell center">
+        <td class="table-cell center" data-type="parent-service">
             {% if wfs.is_active %}
             <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Active' %}">
             {% else %}

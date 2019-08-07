@@ -504,6 +504,7 @@ a.listable:hover{
 }
 
 .detail-table th{
+    text-align: unset;
 }
 
 .button{

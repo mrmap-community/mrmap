@@ -66,6 +66,10 @@
         <th class="table-header">
             {% trans 'Parent service' %}
         </th>
+        {% else %}
+        <th class="table-header">
+            {% trans 'Number of layers' %}
+        </th>
         {% endif %}
         <th class="table-header">
             {% trans 'Active' %}
@@ -92,8 +96,12 @@
             <a href="{% url 'service:detail' id=md.id %}" title="{% trans 'Open details' %}">{{ md.title }}</a>
         </td>
         {% if select_default == 'layers' %}
-        <td class="table-cell">
+        <td class="table-cell" data-type="parent-service">
             <a href="{% url 'service:detail' id=md.service.parent_service.metadata.id %}" title="{% trans 'Open details' %}">{{ md.service.parent_service.metadata.title }}</a>
+        </td>
+        {% else %}
+        <td class="table-cell center">
+            {{ md.service.child_service.all|length }}
         </td>
         {% endif %}
         <td class="table-cell center">

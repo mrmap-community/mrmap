@@ -12,6 +12,14 @@
     padding: 0 0 0 1vw;
 }
 
+.mime-type-table tr:nth-child(even){
+    background-color: white;
+}
+
+.mime-type-table tr:nth-child(odd){
+    background-color: var(--primary-color-light);
+}
+
 .activate-container{
     display: flex;
     align-items: center;

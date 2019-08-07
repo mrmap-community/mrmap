@@ -50,6 +50,8 @@ METADATA_RESTORING_SUCCESS = _("Metadata restored to original")
 METADATA_EDITING_SUCCESS = _("Metadata editing successful")
 METADATA_IS_ORIGINAL = _("Metadata is original. Reset aborted.")
 
+MISSING_DATASET_ID_IN_METADATA = _("No datasetId found in metadata!")
+
 REQUEST_ACTIVATION_TIMEOVER = _("The request was not activated in time. Request was deleted.")
 
 PUBLISH_REQUEST_SENT = _("Publish request has been sent to the organization!")

@@ -13,16 +13,13 @@
     <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
     <script type="text/javascript" src="{% static '/structure/js/base.js' %}"></script>
     <script type="text/javascript" src="{% static '/structure/js/form.js' %}"></script>
-    <style>
-        body.background{
-            background-image: url({% static 'structure/images/background.png' %});
-            background-repeat: repeat;
-        }
-    </style>
+    <script type="text/javascript" src="{% static '/users/js/users.js' %}"></script>
 </head>
 <body class="background">
 
 {% include 'messages.html' %}
+
+<div class="frame-wrapper">
 
 <div class="frame activation-frame">
     <a href="{% url 'login' %}"><img class="frame-logo" src="{% static '/structure/images/mr_map.png' %}"></a>
@@ -30,10 +27,13 @@
     <h1>{% trans 'Welcome' %} {{ user.username }}!</h1>
     <article class="activation-article">
         {% blocktrans %}
-        Your account was activated successfully. Click on Mr. Map to get to the login page.
+        Your account was activated successfully. You will be redirected to the login page in <span id="seconds-counter"></span> seconds. If you don't want to wait, click on Mr. Map!
         {% endblocktrans %}
     </article>
 </div>
+
+</div>
+{% include 'footer.html' %}
 
 </body>
 </html>

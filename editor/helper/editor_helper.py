@@ -170,7 +170,7 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
             continue
         # ... otherwise create a new iso metadata object
         iso_md = ISOMetadata(link, "editor")
-        iso_md = iso_md.get_db_model()
+        iso_md = iso_md.to_db_model()
         iso_md.save()
         md_relation = MetadataRelation()
         md_relation.metadata_1 = metadata

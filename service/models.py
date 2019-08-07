@@ -82,6 +82,9 @@ class Metadata(Resource):
     keywords = models.ManyToManyField(Keyword)
     categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
+    ## for ISO metadata
+    dataset_id = models.CharField(max_length=255, null=True, blank=True)
+    dataset_id_code_space = models.CharField(max_length=255, null=True, blank=True)
 
     related_metadata = models.ManyToManyField(MetadataRelation)
     origin = None

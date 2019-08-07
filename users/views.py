@@ -343,6 +343,7 @@ def register(request: HttpRequest):
                 return redirect("login")
         else:
             params["not_valid"] = True
+            params["form"] = form
             for error_key, error_val in form.errors.items():
                 for e in error_val.data:
                     messages.add_message(request, messages.ERROR, e.message)

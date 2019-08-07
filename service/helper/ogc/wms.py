@@ -746,7 +746,7 @@ class OGCWebMapService(OGCWebService):
             md = layer.metadata
             md.save()
             for iso_md in layer.iso_metadata:
-                iso_md = iso_md.get_db_model()
+                iso_md = iso_md.to_db_model()
                 metadata_relation = MetadataRelation()
                 metadata_relation.metadata_1 = md
                 metadata_relation.metadata_2 = iso_md

@@ -13,18 +13,12 @@
     <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
     <script type="text/javascript" src="{% static '/structure/js/base.js' %}"></script>
     <script type="text/javascript" src="{% static '/structure/js/form.js' %}"></script>
-    <style>
-        body.background{
-            background-image: url({% static 'structure/images/background.png' %});
-            background-repeat: repeat;
-        }
-    </style>
 </head>
 <body class="background">
 
 {% include 'messages.html' %}
-
-<div class="frame registration-frame">
+<div class="frame-wrapper">
+    <div class="frame registration-frame">
     <div class="registration-sidebar">
         <a href="{% url 'login' %}" title="{% trans 'Back' %}">
             <img class="frame-logo" src="{% static '/structure/images/mr_map.png' %}">
@@ -67,6 +61,7 @@
         </form>
     </div>
 </div>
-
+</div>
+{% include 'footer.html' %}
 </body>
 </html>

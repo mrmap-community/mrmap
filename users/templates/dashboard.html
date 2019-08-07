@@ -9,7 +9,7 @@
 {% block body %}
 
 <div class="dashboard">
-    <div class="sidebar left">
+    <div class="sidebar left background">
         <h3 class="headline">{% trans 'Pending requests' %}</h3>
         <div class="pending-requests">
             {% for request in requests %}
@@ -41,7 +41,7 @@
             {% endfor %}
         </div>
     </div>
-    <div class="content-wrapper">
+    <div class="content-wrapper background">
         <div class="content-tile">
             <h2 class="headline">{% trans 'My services' %}</h2>
             <div class="tiles-wrapper">

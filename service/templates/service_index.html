@@ -9,11 +9,15 @@
 <div class="overview">
 
     {% if only_type == 'wms' or only_type is None %}
-        {% include 'wms/wms_index.html' %}
+        <div class="background">
+            {% include 'wms/wms_index.html' %}
+        </div>
     {% endif %}
 
     {% if only_type == 'wfs' or only_type is None %}
-        {% include 'wfs/wfs_index.html' %}
+        <div class="background">
+            {% include 'wfs/wfs_index.html' %}
+        </div>
     {% endif %}
 
 </div>

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-06 11:35+0200\n"
+"POT-Creation-Date: 2019-08-07 07:27+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -157,11 +157,11 @@ msgstr ""
 msgid "'{}' was invalid."
 msgstr "Die URI ist ungültig."
 
-#: MapSkinner/settings.py:194 templates/base.html:110
+#: MapSkinner/settings.py:197 templates/footer.html:11
 msgid "English"
 msgstr "Englisch"
 
-#: MapSkinner/settings.py:195
+#: MapSkinner/settings.py:198
 msgid "German"
 msgstr "Deutsch"
 
@@ -278,11 +278,11 @@ msgstr "Bearbeite Metadaten"
 msgid "Click to remove keyword"
 msgstr "Klicken um Schlüsselwort zu entfernen"
 
-#: editor/templates/value_selection.html:17
+#: editor/templates/value_selection.html:18
 msgid "Separate entry by \",\""
 msgstr "Einträge durch \",\" separieren"
 
-#: editor/templates/value_selection.html:20
+#: editor/templates/value_selection.html:21
 msgid "You have to choose predefined values. Type in what you are looking for."
 msgstr "Sie müssen die Vorschläge verwenden. Tippen Sie ein wonach Sie suchen."
 
@@ -884,7 +884,7 @@ msgid "Show elements"
 msgstr "Zeige Elemente"
 
 #: service/templates/wfs/wfs_index.html:5 templates/base.html:65
-#: users/templates/dashboard.html:52
+#: users/templates/dashboard.html:53
 msgid "WFS"
 msgstr ""
 
@@ -931,7 +931,7 @@ msgid "Show sublayers"
 msgstr "Zeige Unterebenen"
 
 #: service/templates/wms/wms_index.html:5 templates/base.html:60
-#: users/templates/dashboard.html:48
+#: users/templates/dashboard.html:49
 msgid "WMS"
 msgstr ""
 
@@ -1066,7 +1066,7 @@ msgstr "Veröffentlicht für"
 
 #: structure/templates/index_groups.html:7
 #: structure/templates/remove_organization_confirmation.html:28
-#: templates/base.html:43 users/templates/dashboard.html:62
+#: templates/base.html:43 users/templates/dashboard.html:66
 msgid "Groups"
 msgstr "Gruppen"
 
@@ -1080,7 +1080,7 @@ msgid "You are member of the following groups:"
 msgstr "Sie sind Mitglied der folgenden Gruppen:"
 
 #: structure/templates/index_organizations.html:10 templates/base.html:48
-#: users/templates/dashboard.html:66
+#: users/templates/dashboard.html:70
 msgid "Organizations"
 msgstr "Organisationen"
 
@@ -1287,7 +1287,7 @@ msgstr ""
 msgid "Logout"
 msgstr "Ausloggen"
 
-#: templates/base.html:111
+#: templates/footer.html:12
 msgid "Deutsch"
 msgstr ""
 
@@ -1308,27 +1308,27 @@ msgid "Delete account"
 msgstr "Account entfernen"
 
 #: users/templates/change_password.html:94
-#: users/templates/user_registration.html:36
+#: users/templates/user_registration.html:30
 msgid "Password must contain the following:"
 msgstr "Passwort muss folgendes enthalten:"
 
 #: users/templates/change_password.html:95
-#: users/templates/user_registration.html:37
+#: users/templates/user_registration.html:31
 msgid "Lowercase letters"
 msgstr "Kleinbuchstaben"
 
 #: users/templates/change_password.html:96
-#: users/templates/user_registration.html:38
+#: users/templates/user_registration.html:32
 msgid "Uppercase letters"
 msgstr "Großbuchstaben"
 
 #: users/templates/change_password.html:97
-#: users/templates/user_registration.html:39
+#: users/templates/user_registration.html:33
 msgid "At least one Number"
 msgstr "Mindestens eine Zahl"
 
 #: users/templates/change_password.html:98
-#: users/templates/user_registration.html:40
+#: users/templates/user_registration.html:34
 msgid "At least 9 characters"
 msgstr "Mindestens 9 Zeichen/Ziffern"
 
@@ -1352,27 +1352,27 @@ msgstr "von"
 msgid "No activities"
 msgstr "Keine Aktivitäten"
 
-#: users/templates/dashboard.html:45
+#: users/templates/dashboard.html:46
 msgid "My services"
 msgstr "Meine Dienste"
 
-#: users/templates/dashboard.html:56
+#: users/templates/dashboard.html:57
 msgid "All"
 msgstr "Alle"
 
-#: users/templates/dashboard.html:59
+#: users/templates/dashboard.html:63
 msgid "Groups and organizations"
 msgstr "Gruppen und Organisationen"
 
-#: users/templates/login.html:45
+#: users/templates/login.html:39
 msgid "Forgot password"
 msgstr "Passwort vergessen"
 
-#: users/templates/login.html:47
+#: users/templates/login.html:41
 msgid "Sign in"
 msgstr "Einloggen"
 
-#: users/templates/login.html:48
+#: users/templates/login.html:42
 msgid "Register"
 msgstr "Registrieren"
 
@@ -1400,27 +1400,29 @@ msgstr ""
 msgid "Send password"
 msgstr "Senden"
 
-#: users/templates/user_activation.html:30
+#: users/templates/user_activation.html:27
 msgid "Welcome"
 msgstr "Willkommen"
 
-#: users/templates/user_activation.html:32
+#: users/templates/user_activation.html:29
 msgid ""
 "\n"
-"        Your account was activated successfully. Click on Mr. Map to get to "
-"the login page.\n"
+"        Your account was activated successfully. You will be redirected to "
+"the login page in <span id=\"seconds-counter\"></span> seconds. If you don't "
+"want to wait, click on Mr. Map!\n"
 "        "
 msgstr ""
 "\n"
-"        Ihr Account wurde erfolgreich aktiviert. Klicken Sie auf Mr. Map um "
-"zur Startseite zurückzukehren.\n"
+"        Ihr Account wurde erfolgreich aktiviert. Sie werden zur Login Seite "
+"in <span id=\"seconds-counter\"></span> Sekunden weitergeleitet. Falls Sie nicht warten wollen "
+"klicken Sie einfach auf Mr. Map!\n"
 "        "
 
-#: users/templates/user_registration.html:29
+#: users/templates/user_registration.html:23
 msgid "Back"
 msgstr "Zurück"
 
-#: users/templates/user_registration.html:65 users/views.py:305
+#: users/templates/user_registration.html:59 users/views.py:306
 msgid "Sign up"
 msgstr "Einloggen"
 
@@ -1428,7 +1430,7 @@ msgstr "Einloggen"
 msgid "Sign in for Mr. Map"
 msgstr "Nutzen Sie Mr. Map"
 
-#: users/views.py:75 users/views.py:304
+#: users/views.py:75 users/views.py:305
 msgid ""
 "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy "
 "eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam "
@@ -1441,7 +1443,7 @@ msgid ""
 "amet. "
 msgstr ""
 
-#: users/views.py:164
+#: users/views.py:165
 msgid ""
 "Please insert your new password. You have to fulfill the password "
 "constraints."
@@ -1449,9 +1451,20 @@ msgstr ""
 "Bitte geben Sie Ihr neues Passwort ein. Das Passwort muss den Vorgaben "
 "entsprechen."
 
-#: users/views.py:195
+#: users/views.py:196
 msgid "You can update your account information using this form."
 msgstr "Sie können Ihre Accountinformationen hier ändern"
+
+#~ msgid ""
+#~ "\n"
+#~ "        Your account was activated successfully. Click on Mr. Map to get "
+#~ "to the login page.\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "        Ihr Account wurde erfolgreich aktiviert. Klicken Sie auf Mr. Map "
+#~ "um zur Startseite zurückzukehren.\n"
+#~ "        "
 
 #~ msgid "Capabilities (XML)"
 #~ msgstr "Capabilities (XML)"

@@ -6,11 +6,14 @@ Created on: 04.07.2019
 
 """
 import json
+import urllib
 
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+from lxml.etree import _Element
 
+from MapSkinner.messages import MISSING_DATASET_ID_IN_METADATA
 from MapSkinner.settings import XML_NAMESPACES
 from MapSkinner import utils
 from service.config import INSPIRE_LEGISLATION_FILE
@@ -32,6 +35,8 @@ class ISOMetadata:
         # referenced from mapbender metadata parsing
         self.file_identifier = None
         self.create_date = None
+        self.dataset_id = None
+        self.dataset_id_code_space = None
         self.last_change_date = None
         self.hierarchy_level = None
         self.title = None
@@ -124,9 +129,72 @@ class ISOMetadata:
         else:
             self.raw_metadata = ows_connector.text
 
+    def _parse_xml_dataset_id(self, xml_obj: _Element, xpath_type: str):
+        """ Parse the dataset id and it's code space from the metadata xml
+
+        Args:
+            xml_obj (_Element): The xml element
+            xpath_type (str): The element identificator which is determined by SV_ServiceIdentification or MD_DataIdentification
+        Returns:
+            nothing
+        """
+        # First check if MD_Identifier is set, then check if RS_Identifier is used!
+        # Initialize datasetid
+        self.dataset_id = 'undefined'
+        code = xml_helper.try_get_text_from_xml_element(elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString'.format(xpath_type), xml_elem=xml_obj)
+        if code is not None and len(code) != '':
+            # new implementation:
+            # http://inspire.ec.europa.eu/file/1705/download?token=iSTwpRWd&usg=AOvVaw18y1aTdkoMCBxpIz7tOOgu
+            # from 2017-03-02 - the MD_Identifier - see C.2.5 Unique resource identifier - it is separated with a slash - the codespace should be everything after the last slash
+            # now try to check if a single slash is available and if the md_identifier is a url
+            parsed_url = urllib.parse.urlsplit(code)
+            if parsed_url.scheme == "http" or parsed_url.scheme == "https" and "/" in parsed_url.path:
+                tmp = code.split("/")
+                self.dataset_id = tmp[len(tmp) - 1]
+                self.dataset_id_code_space = code.replace(self.dataset_id, "")
+            elif parsed_url.scheme == "http" or parsed_url.scheme == "https" and "#" in code:
+                tmp = code.split("#")
+                self.dataset_id = tmp[1]
+                self.dataset_id_code_space = tmp[0]
+            else:
+                self.dataset_id = code
+                self.dataset_id_code_space = ""
+        else:
+            # try to read code from RS_Identifier
+            code = xml_helper.try_get_text_from_xml_element(elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier/gmd:code/gco:CharacterString'.format(xpath_type), xml_elem=xml_obj)
+            code_space = xml_helper.try_get_text_from_xml_element(elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:RS_Identifier/gmd:codeSpace/gco:CharacterString".format(xpath_type), xml_elem=xml_obj)
+            if code_space is not None and code is not None and len(code_space) > 0 and len(code) > 0:
+                self.dataset_id = code
+                self.dataset_id_code_space = code_space
+            else:
+                raise Exception(MISSING_DATASET_ID_IN_METADATA)
+
+    def _parse_xml_polygons(self, xml_obj: _Element, xpath_type: str):
+        """ Parse the polygon information from the xml document
+
+        Args:
+            xml_obj (_Element): The xml element
+            xpath_type (str): The element identificator which is determined by SV_ServiceIdentification or MD_DataIdentification
+        Returns:
+             nothing
+        """
+        polygons = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:MultiSurface'.format(xpath_type))
+        if len(polygons) > 0:
+            surface_elements = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:MultiSurface/gml:surfaceMember".format(xpath_type))
+            i = 0
+            for element in surface_elements:
+                self.polygonal_extent_exterior.append(self.parse_polygon(element))
+                i += 1
+        else:
+            polygons = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:Polygon'.format(xpath_type))
+            if polygons is not None:
+                polygon = xml_helper.try_get_single_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon".format(xpath_type))
+                self.polygonal_extent_exterior.append(self.parse_polygon(polygon))
+            else:
+                self.polygonal_extent_exterior.append(self.parse_bbox(self.bounding_box))
 
     def parse_xml(self):
-        """ Reads the needed data from the xml into the ISOMetadata
+        """ Reads the needed data from the xml and writes to an ISOMetadata instance (self)
 
         Returns:
              nothing
@@ -142,6 +210,7 @@ class ISOMetadata:
         else:
             xpath_type = "gmd:MD_DataIdentification"
         self.title = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString".format(xpath_type))
+        self._parse_xml_dataset_id(xml_obj, xpath_type)
         self.abstract = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:abstract/gco:CharacterString".format(xpath_type))
 
         keywords = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString".format(xpath_type))
@@ -160,20 +229,7 @@ class ISOMetadata:
         self.bounding_box["max_x"] = float(xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:eastBoundLongitude/gco:Decimal".format(xpath_type)))
         self.bounding_box["max_y"] = float(xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:northBoundLatitude/gco:Decimal".format(xpath_type)))
 
-        polygons = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:MultiSurface'.format(xpath_type))
-        if len(polygons) > 0:
-            surface_elements = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:MultiSurface/gml:surfaceMember".format(xpath_type))
-            i = 0
-            for element in surface_elements:
-                self.polygonal_extent_exterior.append(self.parse_polygon(element))
-                i += 1
-        else:
-            polygons = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:Polygon'.format(xpath_type))
-            if polygons is not None:
-                polygon = xml_helper.try_get_single_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon".format(xpath_type))
-                self.polygonal_extent_exterior.append(self.parse_polygon(polygon))
-            else:
-                self.polygonal_extent_exterior.append(self.parse_bbox(self.bounding_box))
+        self._parse_xml_polygons(xml_obj, xpath_type)
 
         self.tmp_extent_begin = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:temporalElement/gmd:EX_TemporalExtent/gmd:extent/gml:TimePeriod/gml:beginPosition".format(xpath_type))
         if self.tmp_extent_begin is None:
@@ -321,7 +377,7 @@ class ISOMetadata:
         return polygon
 
     @transaction.atomic
-    def get_db_model(self):
+    def to_db_model(self):
         """ Get corresponding metadata object from database or create it if not found!
 
         Returns:
@@ -360,6 +416,8 @@ class ISOMetadata:
             metadata.title = self.title
             metadata.origin = self.origin
             metadata.is_broken = self.is_broken
+            metadata.dataset_id = self.dataset_id
+            metadata.dataset_id_code_space = self.dataset_id_code_space
             metadata.save()
             if update:
                 metadata.keywords.clean()

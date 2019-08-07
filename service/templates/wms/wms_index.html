@@ -6,7 +6,7 @@
         {% if 'can_register_service' in user_permissions %}
         <div class="overview-action">
             <span class="add-button" title="{% trans 'Register new' %}" datatype="wms" typeof="service">
-                +
+                &#xFF0B;
             </span>
         </div>
         {% endif %}
@@ -96,14 +96,14 @@
             <a href="{% url 'service:detail' id=md.service.parent_service.metadata.id %}" title="{% trans 'Open details' %}">{{ md.service.parent_service.metadata.title }}</a>
         </td>
         {% endif %}
-        <td class="table-cell">
+        <td class="table-cell center">
             {% if md.is_active %}
             <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Active' %}">
             {% else %}
             <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Not active' %}">
             {% endif %}
         </td>
-        <td class="table-cell">
+        <td class="table-cell center">
             {{ md.service.servicetype.version }}
         </td>
         <td class="table-cell" title="{{ md.contact.organization_name }}">

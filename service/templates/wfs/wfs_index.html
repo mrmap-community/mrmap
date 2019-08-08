@@ -59,6 +59,9 @@
             {% trans 'Title' %}
         </th>
         <th class="table-header">
+            {% trans 'Number of featuretypes' %}
+        </th>
+        <th class="table-header">
             {% trans 'Active' %}
         </th>
         <th class="table-header">
@@ -81,6 +84,9 @@
     <tr class="service" data-type="wfs">
         <td class="table-cell" data-type="title">
             <a href="{% url 'service:detail' id=wfs.id %}" title="{% trans 'Open details' %}">{{ wfs.title }}</a>
+        </td>
+        <td class="table-cell center">
+            {{ wfs.service.featuretypes.all|length }}
         </td>
         <td class="table-cell center" data-type="parent-service">
             {% if wfs.is_active %}

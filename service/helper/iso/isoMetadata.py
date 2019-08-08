@@ -14,14 +14,14 @@ from django.db import transaction
 from lxml.etree import _Element
 
 from MapSkinner.messages import MISSING_DATASET_ID_IN_METADATA
-from MapSkinner.settings import XML_NAMESPACES
+from MapSkinner.settings import XML_NAMESPACES, MD_TYPE_DATASET
 from MapSkinner import utils
 from service.config import INSPIRE_LEGISLATION_FILE
 from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType
 from service.helper.epsg_api import EpsgApi
-from service.models import Metadata, Keyword
+from service.models import Metadata, Keyword, MetadataType
 from structure.models import Organization
 
 
@@ -394,6 +394,8 @@ class ISOMetadata:
         except ObjectDoesNotExist:
             # object does not seem to exist -> create it!
             metadata = Metadata()
+            md_type = MetadataType.objects.get_or_create(type=MD_TYPE_DATASET)[0]
+            metadata.metadata_type = md_type
             new = True
         if update or new:
             metadata.uuid = self.file_identifier

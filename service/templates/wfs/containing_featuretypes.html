@@ -12,8 +12,8 @@
             <h3 class="layer-title" title="{% trans 'Click to expand' %}" data-id="{{ featuretype.id }}" data-type="wfs">
                 <img class="collapse-img" src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
                 <span class="{% if featuretype.is_custom %}custom-metadata-headline{% endif %}">
-                    {{ featuretype.title }}
-                    {% if featuretype.is_custom %}
+                    {{ featuretype.metadata.title }}
+                    {% if featuretype.metadata.is_custom %}
                     <img class="invert"  src="{% static 'structure/images/icn_edit.png' %}" title="{% trans 'Custom Metadata' %}">
                     {% endif %}
                 </span>
@@ -22,7 +22,7 @@
                 <div class="container-row">
                 <div class="container-left">
                     {% if 'can_edit_metadata_service' in user_permissions %}
-                        <a href="{% url 'editor:edit-featuretype' featuretype.id %}" title="{% trans 'Edit metadata' %}">
+                        <a href="{% url 'editor:edit' featuretype.metadata.id %}" title="{% trans 'Edit metadata' %}">
                             <div class="button-container">
                                 <span>{% trans 'Edit metadata' %}</span>
                             </div>
@@ -31,7 +31,7 @@
                 </div>
                 <div class="container-right">
                     {% if 'can_edit_metadata_service' in user_permissions %}
-                        <a href="{% url 'editor:restore-featuretype' featuretype.id %}">
+                        <a href="{% url 'editor:restore' featuretype.metadata.id %}">
                             <div class="button-container">
                                 <span class="reset-icon large">&#8635;</span>
                                 <span>{% trans 'Restore metadata' %}</span>

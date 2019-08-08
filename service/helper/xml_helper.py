@@ -35,10 +35,9 @@ def parse_xml(xml: str, encoding=None):
             # there might be problems e.g. with german Umlaute ä,ö,ü, ...
             # try to parse again but with the correct encoding
             return parse_xml(xml, xml_obj.docinfo.encoding)
-    except XMLSyntaxError:
+    except XMLSyntaxError as e:
         xml_obj = None
     return xml_obj
-
 
 def xml_to_string(xml_obj):
     enc = "UTF-8"
@@ -76,7 +75,6 @@ def try_get_single_element_from_xml(elem: str, xml_elem):
     Returns:
          ret_val: The found element(s), otherwise None
     """
-
     tmp = try_get_element_from_xml(elem=elem, xml_elem=xml_elem)
     try:
         return tmp[0]

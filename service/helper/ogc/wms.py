@@ -16,7 +16,7 @@ from copy import copy
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from MapSkinner.settings import EXEC_TIME_PRINT
+from MapSkinner.settings import EXEC_TIME_PRINT, MD_TYPE_LAYER, MD_TYPE_SERVICE
 from MapSkinner import utils
 from service.config import ALLOWED_SRS
 from service.helper.enums import VersionTypes
@@ -27,7 +27,7 @@ from service.helper.ogc.layer import OGCLayer
 
 from service.helper import service_helper, xml_helper
 from service.models import ServiceType, Service, Metadata, Layer, Dimension, MimeType, Keyword, ReferenceSystem, \
-    MetadataRelation, MetadataOrigin, CapabilityDocument
+    MetadataRelation, MetadataOrigin, CapabilityDocument, MetadataType
 from structure.models import Organization, Group
 from structure.models import User
 
@@ -147,7 +147,7 @@ class OGCWebMapService(OGCWebService):
     ### ISO METADATA ###
     def __parse_iso_md(self, layer, layer_obj):
         # check for possible ISO metadata
-        if self.__has_iso_metadata(layer):
+        if self.has_iso_metadata(layer):
             iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(xml_elem=layer,
                                                                             elem="./MetadataURL/OnlineResource")
             for iso_xml in iso_metadata_xml_elements:
@@ -356,17 +356,6 @@ class OGCWebMapService(OGCWebService):
         elements["uri"] = elements["uri"].get("xlink:href") if elements["uri"] is not None else None
         layer_obj.style = elements
 
-    def __has_iso_metadata(self, xml):
-        """ Checks whether the xml element has an iso 19115 metadata record or not
-
-        Args:
-            xml: The xml etree object
-        Returns:
-             True if element has iso metadata, false otherwise
-        """
-        iso_metadata = xml_helper.try_get_element_from_xml(xml_elem=xml, elem="./MetadataURL")
-        return len(iso_metadata) != 0
-
     def __get_layers_recursive(self, layers, parent=None, position=0):
         """ Recursive Iteration over all children and subchildren.
 
@@ -538,6 +527,8 @@ class OGCWebMapService(OGCWebService):
         # iterate over all layers
         for layer_obj in layers:
             metadata = Metadata()
+            md_type = MetadataType.objects.get_or_create(type=MD_TYPE_LAYER)[0]
+            metadata.metadata_type = md_type
             metadata.title = layer_obj.title
             metadata.uuid = uuid.uuid4()
             metadata.abstract = layer_obj.abstract
@@ -662,6 +653,8 @@ class OGCWebMapService(OGCWebService):
         )[0]
         # metadata
         metadata = Metadata()
+        md_type = MetadataType.objects.get_or_create(type=MD_TYPE_SERVICE)[0]
+        metadata.metadata_type = md_type
         if self.service_file_iso_identifier is None:
             # there was no file identifier found -> we create a new
             self.service_file_iso_identifier = uuid.uuid4()

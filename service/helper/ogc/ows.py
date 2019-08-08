@@ -117,6 +117,20 @@ class OGCWebService:
     def check_ogc_exception(self):
         pass
 
+    def has_iso_metadata(self, xml):
+        """ Checks whether the xml element has an iso 19115 metadata record or not
+
+        Args:
+            xml: The xml etree object
+        Returns:
+             True if element has iso metadata, false otherwise
+        """
+        iso_metadata = xml_helper.try_get_element_from_xml(xml_elem=xml, elem="./MetadataURL")
+        if len(iso_metadata) == 0:
+            iso_metadata = xml_helper.try_get_element_from_xml(xml_elem=xml, elem="./wfs:MetadataURL")
+        return len(iso_metadata) != 0
+
+
     """
     Methods that have to be implemented in the sub classes
     """
@@ -134,14 +148,7 @@ class OGCWebService:
 
     @abstractmethod
     def get_service_iso_metadata(self, xml_obj):
-        """ Parse iso metadata for the whole service and merge the data with the capabilities service metadata.
-
-        Since there might be differences between the ISO metadata and the capabilities metadata we need to declare
-        a few best practices:
-        1. Lists of information (e.g. keywords, spatial reference systems, ...) should be merged without duplicates
-        2. If an information is already set...
-            2.1. ... and the found information does not differ from the set one -> do nothing
-            2.2. ... and the found information differs from the set one -> DO NOTHING! Yes this is strange but we have no way to qualify which
+        """
 
         Args:
             xml_obj: The xml etree object which is used for parsing

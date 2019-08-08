@@ -12,6 +12,7 @@ from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
+from MapSkinner.settings import XML_NAMESPACES
 from service.helper.iso.isoMetadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, CapabilityDocument, MetadataRelation, \
     MetadataOrigin
@@ -27,18 +28,31 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata):
     Returns:
          nothing
     """
-    xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml("./KeywordList", xml_obj)
+    ns_keyword_prefix = ""
+    ns_prefix = ""
+    keyword_container_tag = "KeywordList"
+    keyword_prefix = ""
+    if metadata.service.servicetype.name == 'wfs':
+        ns_keyword_prefix_s = "ows"
+        ns_keyword_prefix = "{}:".format(ns_keyword_prefix_s)
+        ns_prefix = "wfs:"
+        keyword_container_tag = "Keywords"
+        keyword_prefix = "{" + XML_NAMESPACES[ns_keyword_prefix_s] + "}"
+    xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml("./{}{}".format(ns_keyword_prefix, keyword_container_tag), xml_obj)
     if xml_keywords_list_obj is None:
         # there are no keywords in this capabilities for this element yet
         # we need to add an element first!
-        xml_keywords_list_obj = xml_helper.add_subelement(xml_obj, "KeywordList", after="Abstract")
-    xml_keywords_objs = xml_helper.try_get_element_from_xml("./Keyword", xml_keywords_list_obj) or []
+        xml_keywords_list_obj = xml_helper.add_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Abstract".format(ns_prefix))
+
+    xml_keywords_objs = xml_helper.try_get_element_from_xml("./{}Keyword".format(ns_keyword_prefix), xml_keywords_list_obj) or []
+
     # first remove all persisted keywords
     for kw in xml_keywords_objs:
         xml_keywords_list_obj.remove(kw)
+
     # then add all edited
     for kw in metadata.keywords.all():
-        xml_keyword = xml_helper.add_subelement(xml_keywords_list_obj, "Keyword")
+        xml_keyword = xml_helper.add_subelement(xml_keywords_list_obj, "{}Keyword".format(keyword_prefix))
         xml_helper.write_text_to_element(xml_keyword, txt=kw.keyword)
 
 
@@ -79,15 +93,25 @@ def overwrite_capabilities_document(metadata: Metadata):
     else:
         rel_md = metadata.service.parent_service.metadata
     cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
+
     # overwrite all editable data
     identifier = metadata.identifier
     xml_obj_root = xml_helper.parse_xml(cap_doc.current_capability_document)
 
     # find matching xml element in xml doc
+    service_type = metadata.service.servicetype.name
     if is_root:
-        element_selector = "//Service/Name"
+        if service_type == "wms":
+            element_selector = "//Service/Name"
+        elif service_type == "wfs":
+            element_selector = "//ows:ServiceIdentification/ows:Title"
+            identifier = metadata.title
     else:
-        element_selector = "//Layer/Name"
+        if service_type == "wms":
+            element_selector = "//Layer/Name"
+        elif service_type == "wfs":
+            element_selector = "//FeatureType/Name"
+
     xml_obj = xml_helper.try_get_single_element_from_xml("{}[text()='{}']/parent::*".format(element_selector, identifier), xml_obj_root)
 
     # overwrite data
@@ -108,7 +132,6 @@ def overwrite_capabilities_document(metadata: Metadata):
 
     # handle iso metadata links
     _overwrite_capabilities_iso_metadata_links(xml_obj, metadata)
-
 
     # write xml back to database
     xml = xml_helper.xml_to_string(xml_obj_root)

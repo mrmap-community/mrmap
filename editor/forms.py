@@ -35,7 +35,7 @@ class MetadataEditorForm(ModelForm):
 
 class FeatureTypeEditorForm(ModelForm):
     class Meta:
-        model = FeatureType
+        model = Metadata
         fields = [
             "title",
             "abstract",

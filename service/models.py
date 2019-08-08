@@ -82,6 +82,7 @@ class Metadata(Resource):
     keywords = models.ManyToManyField(Keyword)
     categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
+    metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
     ## for ISO metadata
     dataset_id = models.CharField(max_length=255, null=True, blank=True)
     dataset_id_code_space = models.CharField(max_length=255, null=True, blank=True)
@@ -204,6 +205,12 @@ class Metadata(Resource):
         return links
 
 
+class MetadataType(models.Model):
+    type = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return self.type
+
 
 class CapabilityDocument(Resource):
     related_metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
@@ -320,7 +327,7 @@ class Service(Resource):
         return str(self.id)
 
     @transaction.atomic
-    def delete_layer_data(self, layer):
+    def delete_child_data(self, child):
         """ Delete all layer data like related iso metadata
 
         Args:
@@ -329,26 +336,35 @@ class Service(Resource):
             nothing
         """
         # remove related metadata
-        iso_mds = MetadataRelation.objects.filter(metadata_1=layer.metadata)
+        iso_mds = MetadataRelation.objects.filter(metadata_1=child.metadata)
         for iso_md in iso_mds:
             md_2 = iso_md.metadata_2
             md_2.delete()
             iso_md.delete()
-        layer.delete()
+        if isinstance(child, FeatureType):
+            # no other way to remove feature type metadata on service deleting
+            child.metadata.delete()
+        child.delete()
 
     @transaction.atomic
     def delete(self, using=None, keep_parents=False):
         """ Overwrites default delete method
 
-        Recursively remove layer children
+        Recursively remove children
 
-        :param using:
-        :param keep_parents:
-        :return:
+        Args;
+            using:
+            keep_parents:
+        Returns:
         """
-        layers = self.child_service.all()
-        for layer in layers:
-            self.delete_layer_data(layer)
+        if self.servicetype.name == 'wms':
+            layers = self.child_service.all()
+            for layer in layers:
+                self.delete_child_data(layer)
+        elif self.servicetype.name == 'wfs':
+            feature_types = self.featuretypes.all()
+            for f_t in feature_types:
+                self.delete_child_data(f_t)
         self.metadata.delete()
         super().delete()
 
@@ -473,13 +489,10 @@ class Style(models.Model):
 
 
 class FeatureType(Resource):
-    identifier = models.CharField(max_length=255)
-    title = models.CharField(max_length=255)
-    abstract = models.TextField(null=True)
-    is_custom = models.BooleanField(default=False)
-    searchable = models.BooleanField(default=False)
+    metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
+    service = models.ForeignKey(Service, null=True,  blank=True, on_delete=models.CASCADE, related_name="featuretypes")
+    is_searchable = models.BooleanField(default=False)
     default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True, related_name="default_srs")
-    additional_srs = models.ManyToManyField(ReferenceSystem)
     inspire_download = models.BooleanField(default=False)
     bbox_lat_lon = models.PolygonField(default=Polygon(
         (
@@ -490,11 +503,9 @@ class FeatureType(Resource):
             (-90.0, -180.0),
         )
     ))
-    keywords = models.ManyToManyField(Keyword)
     formats = models.ManyToManyField(MimeType)
     elements = models.ManyToManyField('FeatureTypeElement')
     namespaces = models.ManyToManyField('Namespace')
-    service = models.ForeignKey(Service, null=True,  blank=True, on_delete=models.CASCADE, related_name="featuretypes")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -504,11 +515,17 @@ class FeatureType(Resource):
         self.formats_list = []
         self.elements_list = []
         self.namespaces_list = []
+        self.dataset_md_list = []
 
     def __str__(self):
-        return self.identifier
+        return self.metadata.identifier
 
     def restore(self):
+        """ Reset the metadata to it's original capabilities content
+
+        Returns:
+             nothing
+        """
         from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
         from service.helper import service_helper
         if self.service is None:
@@ -521,18 +538,18 @@ class FeatureType(Resource):
         if service is None:
             return
         service.get_capabilities()
-        service.get_single_feature_type_metadata(self.identifier)
-        result = service.feature_type_list.get(self.identifier, {})
+        service.get_single_feature_type_metadata(self.metadata.identifier)
+        result = service.feature_type_list.get(self.metadata.identifier, {})
         original_ft = result.get("feature_type")
         keywords = result.get("keyword_list")
 
         # now restore the "metadata"
         self.title = original_ft.title
         self.abstract = original_ft.abstract
-        self.keywords.clear()
+        self.metadata.keywords.clear()
         for kw in keywords:
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            self.keywords.add(keyword)
+            self.metadata.keywords.add(keyword)
         self.is_custom = False
 
 

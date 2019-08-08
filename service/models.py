@@ -399,6 +399,8 @@ class Service(Resource):
 
 
 class Layer(Service):
+    class Meta:
+        ordering = ["position"]
     identifier = models.CharField(max_length=500, null=True)
     hits = models.IntegerField(default=0)
     preview_image = models.CharField(max_length=100)

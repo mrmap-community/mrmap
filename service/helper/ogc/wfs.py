@@ -9,7 +9,8 @@ from django.contrib.gis.geos import Polygon
 from django.db import transaction
 from lxml.etree import _Element
 
-from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE
+from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, \
+    MULTITHREADING_THRESHOLD
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
 from MapSkinner.utils import execute_threads
 from service.config import ALLOWED_SRS
@@ -222,10 +223,17 @@ class OGCWebFeatureService(OGCWebService):
         epsg_api = EpsgApi()
         # Feature types
         thread_list = []
-        for xml_feature_type in feature_type_list:
-            thread_list.append(threading.Thread(target=self._get_feature_type_metadata, args=(xml_feature_type, epsg_api, service_type_version)))
-            #self._get_feature_type_metadata(xml_feature_type, epsg_api, service_type_version)
-        execute_threads(thread_list)
+
+        # decide whether to use multithreading or iterative approach
+        if len(feature_type_list) > MULTITHREADING_THRESHOLD:
+            for xml_feature_type in feature_type_list:
+                thread_list.append(threading.Thread(target=self._get_feature_type_metadata, args=(xml_feature_type, epsg_api, service_type_version)))
+                #self._get_feature_type_metadata(xml_feature_type, epsg_api, service_type_version)
+            execute_threads(thread_list)
+        else:
+            for xml_feature_type in feature_type_list:
+                self._get_feature_type_metadata(xml_feature_type, epsg_api, service_type_version)
+
 
     @abstractmethod
     def _get_featuretype_elements_namespaces(self, feature_type, service_type_version:str):

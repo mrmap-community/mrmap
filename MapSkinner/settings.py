@@ -78,6 +78,9 @@ SESSION_SAVE_EVERY_REQUEST = True
 # Home/Dashboard settings
 LAST_ACTIVITY_DATE_RANGE = 7
 
+# Threshold which indicates when to use multithreading instead of iterative approaches
+MULTITHREADING_THRESHOLD = 20
+
 # Metadata types
 MD_TYPE_FEATURETYPE = "featuretype"
 MD_TYPE_DATASET = "dataset"

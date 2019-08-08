@@ -12,12 +12,15 @@ from abc import abstractmethod
 import time
 
 from copy import copy
+from threading import Thread
 
+from django import db
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from MapSkinner.settings import EXEC_TIME_PRINT, MD_TYPE_LAYER, MD_TYPE_SERVICE
+from MapSkinner.settings import EXEC_TIME_PRINT, MD_TYPE_LAYER, MD_TYPE_SERVICE, MULTITHREADING_THRESHOLD
 from MapSkinner import utils
+from MapSkinner.utils import execute_threads
 from service.config import ALLOWED_SRS
 from service.helper.enums import VersionTypes
 from service.helper.epsg_api import EpsgApi
@@ -356,6 +359,34 @@ class OGCWebMapService(OGCWebService):
         elements["uri"] = elements["uri"].get("xlink:href") if elements["uri"] is not None else None
         layer_obj.style = elements
 
+    def _parse_single_layer(self, layer, parent, position):
+        """ Parses data from an xml <Layer> element into the OGCWebMapLayer object.
+
+        Runs recursive through own children for further parsing
+
+        Args:
+            layer: The layer xml element
+            parent: The parent OGCWebMapLayer object
+            position: The current position of this layer object in relation to it's siblings
+        Returns:
+            nothing
+        """
+        # iterate over all top level layer and find their children
+        layer_obj = self._start_single_layer_parsing(layer)
+        layer_obj.parent = parent
+        layer_obj.position = position
+        if self.layers is None:
+            self.layers = []
+        self.__parse_iso_md(layer, layer_obj)
+        self.layers.append(layer_obj)
+        sublayers = xml_helper.try_get_element_from_xml(elem="./Layer", xml_elem=layer)
+        if parent is not None:
+            parent.child_layer.append(layer_obj)
+        position += 1
+
+        self.__get_layers_recursive(layers=sublayers, parent=layer_obj)
+
+
     def __get_layers_recursive(self, layers, parent=None, position=0):
         """ Recursive Iteration over all children and subchildren.
 
@@ -367,26 +398,19 @@ class OGCWebMapService(OGCWebService):
             position: The position inside the layer tree, which is more like an order number
         :return:
         """
+        thread_list = []
         for layer in layers:
-            # iterate over all top level layer and find their children
-            layer_obj = self._start_single_layer_parsing(layer)
-            layer_obj.parent = parent
-            layer_obj.position = position
-            if self.layers is None:
-                self.layers = []
-
-            self.__parse_iso_md(layer, layer_obj)
-
-            self.layers.append(layer_obj)
-            sublayers = xml_helper.try_get_element_from_xml(elem="./Layer", xml_elem=layer)
-            if parent is not None:
-                parent.child_layer.append(layer_obj)
+            #self.x(layer, parent, position)
+            thread_list.append(
+                Thread(target=self._parse_single_layer,
+                       args=(layer, parent, position))
+            )
             position += 1
-            self.__get_layers_recursive(layers=sublayers, parent=layer_obj, position=position)
+        execute_threads(thread_list)
 
 
     def get_layers(self, xml_obj):
-        """ Parses all layers of a service and creates objects for it.
+        """ Parses all layers of a service and creates OGCWebMapLayer objects from each.
 
         Uses recursion on the inside to get all children.
 
@@ -400,7 +424,8 @@ class OGCWebMapService(OGCWebService):
         self.__get_layers_recursive(layers)
 
     def get_service_metadata(self, xml_obj):
-        """ This private function holds the main parsable elements which are part of every wms specification starting at 1.0.0
+        """ Parses all <Service> information which can be found in every wms specification since 1.0.0
+
         Args:
             xml_obj: The iterable xml object tree
         Returns:
@@ -509,6 +534,129 @@ class OGCWebMapService(OGCWebService):
             pass
 
     @transaction.atomic
+    def __create_single_layer_model_instance(self, layer_obj, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
+                         published_for: Organization, root_md: Metadata, user: User, contact, parent=None):
+        """ Transforms a OGCWebMapLayer object to Layer model (models.py)
+
+        Args:
+            layer_obj (OGCWebMapServiceLayer): The OGCWebMapLayer object which holds all data
+            layers (list): A list of layers
+            service_type (ServiceType): The type of the service this function has to deal with
+            wms (Service): The root or parent service which holds all these layers
+            creator (Group): The group that started the registration process
+            publisher (Organization): The organization that publishes the service
+            published_for (Organization): The organization for which the first organization publishes this data (e.g. 'in the name of')
+            root_md (Metadata): The metadata of the root service (parameter 'wms')
+            user (User): The performing user
+            contact (Contact): The contact object (Organization)
+            parent: The parent layer object to this layer
+        Returns:
+            nothing
+        """
+        metadata = Metadata()
+        md_type = MetadataType(type=MD_TYPE_LAYER)
+        metadata.metadata_type = md_type
+        metadata.title = layer_obj.title
+        metadata.uuid = uuid.uuid4()
+        metadata.abstract = layer_obj.abstract
+        metadata.online_resource = root_md.online_resource
+        metadata.original_uri = root_md.original_uri
+        metadata.identifier = layer_obj.identifier
+        metadata.contact = contact
+        metadata.access_constraints = root_md.access_constraints
+        metadata.is_active = False
+        metadata.created_by = creator
+
+        # handle keywords of this layer
+        for kw in layer_obj.capability_keywords:
+            # keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            keyword = Keyword(keyword=kw)
+            metadata.keywords_list.append(keyword)
+
+        # handle reference systems
+        for sys in layer_obj.capability_projection_system:
+            parts = self.epsg_api.get_subelements(sys)
+            # check if this srs is allowed for us. If not, skip it!
+            if parts.get("code") not in ALLOWED_SRS:
+                continue
+            # ref_sys = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
+            ref_sys = ReferenceSystem(code=parts.get("code"), prefix=parts.get("prefix"))
+            metadata.reference_system_list.append(ref_sys)
+
+        layer = Layer()
+        layer.uuid = uuid.uuid4()
+        layer.metadata = metadata
+        layer.identifier = layer_obj.identifier
+        layer.servicetype = service_type
+        layer.position = layer_obj.position
+        layer.parent_layer = parent
+        if layer.parent_layer is not None:
+            layer.parent_layer.children_list.append(layer)
+        layer.is_queryable = layer_obj.is_queryable
+        layer.is_cascaded = layer_obj.is_cascaded
+        layer.registered_by = creator
+        layer.is_opaque = layer_obj.is_opaque
+        layer.scale_min = layer_obj.capability_scale_hint.get("min")
+        layer.scale_max = layer_obj.capability_scale_hint.get("max")
+
+        # create bounding box polygon
+        bounding_points = (
+            (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["miny"])),
+            (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["maxy"])),
+            (float(layer_obj.capability_bbox_lat_lon["maxx"]), float(layer_obj.capability_bbox_lat_lon["maxy"])),
+            (float(layer_obj.capability_bbox_lat_lon["maxx"]), float(layer_obj.capability_bbox_lat_lon["miny"])),
+            (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["miny"]))
+        )
+        layer.bbox_lat_lon = Polygon(bounding_points)
+        layer.created_by = creator
+        layer.published_for = published_for
+        layer.published_by = publisher
+        layer.parent_service = wms
+        layer.get_styles_uri = layer_obj.get_styles_uri
+        layer.get_legend_graphic_uri = layer_obj.get_legend_graphic_uri
+        layer.get_feature_info_uri = layer_obj.get_feature_info_uri
+        layer.get_map_uri = layer_obj.get_map_uri
+        layer.describe_layer_uri = layer_obj.describe_layer_uri
+        layer.get_capabilities_uri = layer_obj.get_capabilities_uri
+        layer.iso_metadata = layer_obj.iso_metadata
+        if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
+            # ToDo: Rework dimension persisting! Currently simply ignore it...
+            pass
+            # for dimension in layer_obj.dimension:
+            #     dim = Dimension()
+            #     # dim.layer = layer
+            #     dim.name = layer_obj.dimension.get("name")
+            #     dim.units = layer_obj.dimension.get("units")
+            #     dim.default = layer_obj.dimension.get("default")
+            #     dim.extent = layer_obj.dimension.get("extent")
+            #     # ToDo: Refine for inherited and nearest_value and so on
+            #     layer.dimension = dim
+            #     #dim.save()
+
+        if wms.root_layer is None:
+            # no root layer set yet
+            wms.root_layer = layer
+
+        # iterate over all available mime types and actions
+        for action, format_list in layer_obj.format_list.items():
+            for _format in format_list:
+                #service_to_format = MimeType.objects.get_or_create(
+                #    action=action,
+                #    mime_type=_format,
+                #    created_by=creator
+                #)[0]
+                service_to_format = MimeType(
+                    action=action,
+                    mime_type=_format,
+                    created_by=creator
+                )
+                layer.formats_list.append(service_to_format)
+        if len(layer_obj.child_layer) > 0:
+            parent_layer = copy(layer)
+            self.__create_layer_model_instance(layers=layer_obj.child_layer, service_type=service_type, wms=wms, creator=creator, root_md=root_md,
+                     publisher=publisher, published_for=published_for, parent=parent_layer, user=user, contact=contact)
+
+    @transaction.atomic
     def __create_layer_model_instance(self, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
                          published_for: Organization, root_md: Metadata, user: User, contact, parent=None):
         """ Iterates over all layers given by the service and persist them, including additional data like metadata and so on.
@@ -521,115 +669,29 @@ class OGCWebMapService(OGCWebService):
             publisher (Organization): The organization that publishes the service
             published_for (Organization): The organization for which the first organization publishes this data (e.g. 'in the name of')
             root_md (Metadata): The metadata of the root service (parameter 'wms')
+            user (User): The performing user
+            contact (Contact): The contact object (Organization)
+            parent: The parent layer object to this layer
         Returns:
+            nothing
         """
-
         # iterate over all layers
+        # There were attempts to implement a multithreaded approach in here but due to the problem of n-depth of layer hierarchy
+        # there was no working solution so far which worked.
         for layer_obj in layers:
-            metadata = Metadata()
-            md_type = MetadataType.objects.get_or_create(type=MD_TYPE_LAYER)[0]
-            metadata.metadata_type = md_type
-            metadata.title = layer_obj.title
-            metadata.uuid = uuid.uuid4()
-            metadata.abstract = layer_obj.abstract
-            metadata.online_resource = root_md.online_resource
-            metadata.original_uri = root_md.original_uri
-            metadata.identifier = layer_obj.identifier
-
-            metadata.contact = contact
-            metadata.access_constraints = root_md.access_constraints
-            metadata.is_active = False
-            metadata.created_by = creator
-
-            # handle keywords of this layer
-            for kw in layer_obj.capability_keywords:
-                keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-                metadata.keywords_list.append(keyword)
-                #metadata.keywords.add(keyword)
-
-            # handle reference systems
-            for sys in layer_obj.capability_projection_system:
-                parts = self.epsg_api.get_subelements(sys)
-                # check if this srs is allowed for us. If not, skip it!
-                if parts.get("code") not in ALLOWED_SRS:
-                    continue
-                ref_sys = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
-                metadata.reference_system_list.append(ref_sys)
-                #metadata.reference_system.add(ref_sys)
-
-            layer = Layer()
-            layer.uuid = uuid.uuid4()
-            layer.metadata = metadata
-            layer.identifier = layer_obj.identifier
-            layer.servicetype = service_type
-            layer.position = layer_obj.position
-            layer.parent_layer = parent
-            if layer.parent_layer is not None:
-                layer.parent_layer.children_list.append(layer)
-            layer.is_queryable = layer_obj.is_queryable
-            layer.is_cascaded = layer_obj.is_cascaded
-            layer.registered_by = creator
-            layer.is_opaque = layer_obj.is_opaque
-            layer.scale_min = layer_obj.capability_scale_hint.get("min")
-            layer.scale_max = layer_obj.capability_scale_hint.get("max")
-            # create bounding box polygon
-            bounding_points = (
-                (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["miny"])),
-                (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["maxy"])),
-                (float(layer_obj.capability_bbox_lat_lon["maxx"]), float(layer_obj.capability_bbox_lat_lon["maxy"])),
-                (float(layer_obj.capability_bbox_lat_lon["maxx"]), float(layer_obj.capability_bbox_lat_lon["miny"])),
-                (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["miny"]))
+            self.__create_single_layer_model_instance(
+                layer_obj,
+                layers,
+                service_type,
+                wms,
+                creator,
+                publisher,
+                published_for,
+                root_md,
+                user,
+                contact,
+                parent,
             )
-            layer.bbox_lat_lon = Polygon(bounding_points)
-
-            layer.created_by = creator
-            layer.published_for = published_for
-            layer.published_by = publisher
-            layer.parent_service = wms
-            layer.get_styles_uri = layer_obj.get_styles_uri
-            layer.get_legend_graphic_uri = layer_obj.get_legend_graphic_uri
-            layer.get_feature_info_uri = layer_obj.get_feature_info_uri
-            layer.get_map_uri = layer_obj.get_map_uri
-            layer.describe_layer_uri = layer_obj.describe_layer_uri
-            layer.get_capabilities_uri = layer_obj.get_capabilities_uri
-
-            layer.iso_metadata = layer_obj.iso_metadata
-
-            if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
-                # ToDo: Rework dimension persisting! Currently simply ignore it...
-                pass
-                # for dimension in layer_obj.dimension:
-                #     dim = Dimension()
-                #     # dim.layer = layer
-                #     dim.name = layer_obj.dimension.get("name")
-                #     dim.units = layer_obj.dimension.get("units")
-                #     dim.default = layer_obj.dimension.get("default")
-                #     dim.extent = layer_obj.dimension.get("extent")
-                #     # ToDo: Refine for inherited and nearest_value and so on
-                #     layer.dimension = dim
-                #     #dim.save()
-
-            if wms.root_layer is None:
-                # no root layer set yet
-                wms.root_layer = layer
-
-            #layer.save()
-
-            # iterate over all available mime types and actions
-            for action, format_list in layer_obj.format_list.items():
-                for _format in format_list:
-                    service_to_format = MimeType.objects.get_or_create(
-                        action=action,
-                        mime_type=_format,
-                        created_by=creator
-                    )[0]
-                    #layer.formats.add(service_to_format)
-                    layer.formats_list.append(service_to_format)
-
-            if len(layer_obj.child_layer) > 0:
-                parent_layer = copy(layer)
-                self.__create_layer_model_instance(layers=layer_obj.child_layer, service_type=service_type, wms=wms, creator=creator, root_md=root_md,
-                         publisher=publisher, published_for=published_for, parent=parent_layer, user=user, contact=contact)
 
     @transaction.atomic
     def create_service_model_instance(self, user: User, register_group, register_for_organization):
@@ -730,6 +792,8 @@ class OGCWebMapService(OGCWebService):
     def __persist_child_layers(self, layers, parent_service, parent_layer=None):
         """ Persist all layer children
 
+        Everything that has just been constructed will get a database record
+
         Args:
             parent_layer:
         Returns:
@@ -737,6 +801,9 @@ class OGCWebMapService(OGCWebService):
         """
         for layer in layers:
             md = layer.metadata
+            md_type = md.metadata_type
+            md_type = MetadataType.objects.get_or_create(type=md_type.type)[0]
+            md.metadata_type = md_type
             md.save()
             for iso_md in layer.iso_metadata:
                 iso_md = iso_md.to_db_model()
@@ -753,10 +820,12 @@ class OGCWebMapService(OGCWebService):
 
             # handle keywords of this layer
             for kw in layer.metadata.keywords_list:
+                kw = Keyword.objects.get_or_create(keyword=kw.keyword)[0]
                 layer.metadata.keywords.add(kw)
 
             # handle reference systems
             for sys in layer.metadata.reference_system_list:
+                sys = ReferenceSystem.objects.get_or_create(code=sys.code, prefix=sys.prefix)[0]
                 layer.metadata.reference_system.add(sys)
 
             if layer.dimension is not None:
@@ -770,6 +839,10 @@ class OGCWebMapService(OGCWebService):
 
             # iterate over all available mime types and actions
             for _format in layer.formats_list:
+                _format = MimeType.objects.get_or_create(
+                    action=_format.action,
+                    mime_type=_format.mime_type,
+                )[0]
                 layer.formats.add(_format)
 
             if len(layer.children_list) > 0:

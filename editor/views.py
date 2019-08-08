@@ -98,7 +98,6 @@ def edit(request: HttpRequest, id: int, user: User):
             messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
             return redirect("editor:edit", id)
     else:
-        #metadata = Metadata.objects.get(id=id)
         addable_values_list = [
             {
                 "title": _("Keywords"),

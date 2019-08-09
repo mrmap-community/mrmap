@@ -22,9 +22,9 @@
                 <div class="container-row">
                 <div class="container-left">
                     {% if 'can_edit_metadata_service' in user_permissions %}
-                        <a href="{% url 'editor:edit' featuretype.metadata.id %}" title="{% trans 'Edit metadata' %}">
+                        <a href="{% url 'editor:edit' featuretype.metadata.id %}" title="{% trans 'Edit featuretype' %}">
                             <div class="button-container">
-                                <span>{% trans 'Edit metadata' %}</span>
+                                <span>{% trans 'Edit featuretype' %}</span>
                             </div>
                         </a>
                     {% endif %}

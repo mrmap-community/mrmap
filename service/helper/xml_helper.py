@@ -109,6 +109,7 @@ def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str = Non
     Returns:
         A string if attribute was found, otherwise None
     """
+
     if elem is None:
         tmp = [xml_elem]
     else:
@@ -117,6 +118,9 @@ def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str = Non
         return tmp[0].get(attribute)
     except (IndexError, AttributeError) as e:
         return None
+
+def set_attribute(xml_elem, attribute: str, value: str):
+    xml_elem.set(attribute, value)
 
 
 def try_get_text_from_xml_element(xml_elem, elem: str=None):

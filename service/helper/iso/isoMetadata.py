@@ -7,6 +7,7 @@ Created on: 04.07.2019
 """
 import json
 import urllib
+import uuid
 
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist
@@ -167,7 +168,8 @@ class ISOMetadata:
                 self.dataset_id = code
                 self.dataset_id_code_space = code_space
             else:
-                raise Exception(MISSING_DATASET_ID_IN_METADATA)
+                #raise Exception(MISSING_DATASET_ID_IN_METADATA)
+                self.is_broken = True
 
     def _parse_xml_polygons(self, xml_obj: _Element, xpath_type: str):
         """ Parse the polygon information from the xml document
@@ -202,6 +204,8 @@ class ISOMetadata:
         xml = self.raw_metadata
         xml_obj = xml_helper.parse_xml(xml)
         self.file_identifier = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:fileIdentifier/gco:CharacterString")
+        if self.file_identifier is None:
+            self.file_identifier = uuid.uuid4()
         self.create_date = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:dateStamp/gco:Date")
         self.last_change_date = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:dateStamp/gco:Date")
         self.hierarchy_level = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:hierarchyLevel/gmd:MD_ScopeCode")
@@ -224,10 +228,13 @@ class ISOMetadata:
         self.download_link = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource[gmd:function/gmd:CI_OnLineFunctionCode/@codeListValue="download"]/gmd:linkage/gmd:URL')
         self.transfer_size = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:transferSize/gco:Real')
         self.preview_image = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:graphicOverview/gmd:MD_BrowseGraphic/gmd:fileName/gco:CharacterString".format(xpath_type))
-        self.bounding_box["min_x"] = float(xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:westBoundLongitude/gco:Decimal".format(xpath_type)))
-        self.bounding_box["min_y"] = float(xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:southBoundLatitude/gco:Decimal".format(xpath_type)))
-        self.bounding_box["max_x"] = float(xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:eastBoundLongitude/gco:Decimal".format(xpath_type)))
-        self.bounding_box["max_y"] = float(xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:northBoundLatitude/gco:Decimal".format(xpath_type)))
+        try:
+            self.bounding_box["min_x"] = float(xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:westBoundLongitude/gco:Decimal".format(xpath_type)))
+            self.bounding_box["min_y"] = float(xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:southBoundLatitude/gco:Decimal".format(xpath_type)))
+            self.bounding_box["max_x"] = float(xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:eastBoundLongitude/gco:Decimal".format(xpath_type)))
+            self.bounding_box["max_y"] = float(xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:northBoundLatitude/gco:Decimal".format(xpath_type)))
+        except TypeError:
+            self.bounding_box = None
 
         self._parse_xml_polygons(xml_obj, xpath_type)
 
@@ -304,12 +311,14 @@ class ISOMetadata:
             self.interoperability_list.append(reg)
 
     def parse_bbox(self, bbox: dict):
-        bounding_points = ((bbox["min_x"], bbox["min_y"]),
-                           (bbox["min_x"], bbox["max_y"]),
-                           (bbox["max_x"], bbox["max_y"]),
-                           (bbox["max_x"], bbox["min_y"]),
-                           (bbox["min_x"], bbox["min_y"]))
-        polygon = Polygon(bounding_points)
+        polygon = Polygon()
+        if bbox is not None:
+            bounding_points = ((bbox["min_x"], bbox["min_y"]),
+                               (bbox["min_x"], bbox["max_y"]),
+                               (bbox["max_x"], bbox["max_y"]),
+                               (bbox["max_x"], bbox["min_y"]),
+                               (bbox["min_x"], bbox["min_y"]))
+            polygon = Polygon(bounding_points)
         return polygon
 
     def parse_polygon(self, polygon_elem):

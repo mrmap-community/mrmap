@@ -81,16 +81,20 @@ def edit(request: HttpRequest, id: int, user: User):
         if editor_form.is_valid():
 
             custom_md = editor_form.save(commit=False)
+            if not metadata.is_root():
+                # this is for the case that we are working on a non root element which is not allowed to change the
+                # inheritance setting for the whole service -> we act like it didn't change
+                custom_md.inherit_proxy_uris = metadata.inherit_proxy_uris
             editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
             editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
-            if metadata.service.servicetype.name == 'wms':
+            _type = metadata.get_service_type()
+            if _type == 'wms':
                 parent_service = metadata.service.parent_service
-                if parent_service is None:
-                    # happens if is root
+                if metadata.is_root():
                     parent_service = metadata.service
-            elif metadata.service.servicetype.name == 'wfs':
-                parent_service = metadata.service
+            elif _type == 'wfs':
+                parent_service = metadata.featuretype.service
 
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, "{}: {}".format(parent_service.metadata.title, metadata.title))
             return redirect("editor:index")
@@ -115,7 +119,8 @@ def edit(request: HttpRequest, id: int, user: User):
         template = "editor_edit.html"
         editor_form = MetadataEditorForm(instance=metadata)
         editor_form.fields["terms_of_use"].required = False
-        l = list(metadata.related_metadata.all())
+        if not metadata.is_root():
+            del editor_form.fields["inherit_proxy_uris"]
         params = {
             "service_metadata": metadata,
             "addable_values_list": addable_values_list,
@@ -195,7 +200,11 @@ def restore(request: HttpRequest, id: int, user: User):
         md.restore()
         md.save()
     messages.add_message(request, messages.INFO, METADATA_RESTORING_SUCCESS)
-    user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_RESTORED, "{}: {}".format(metadata.service.parent_service.metadata.title, metadata.title))
+    if not metadata.is_root():
+        parent_metadata = metadata.service.parent_service.metadata
+    else:
+        parent_metadata = metadata
+    user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_RESTORED, "{}: {}".format(parent_metadata.title, metadata.title))
     return redirect("editor:index")
 
 

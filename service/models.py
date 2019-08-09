@@ -99,18 +99,28 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    def get_service_type(self):
+        """ Performs a check on which service type is described by the metadata record
+
+        Returns:
+             service_type (str): The service type as string ('wms' or 'wfs')
+        """
+        service_type = None
+        if self.metadata_type.type == 'layer':
+            service_type = 'wms'
+        elif self.metadata_type.type == 'featuretype':
+            service_type = 'wfs'
+        else:
+            service_type = self.service.parent_service.servicetype.name
+        return service_type
+
     def is_root(self):
         """ Checks whether the metadata describes a root service or a layer/featuretype
 
         Returns:
              is_root (bool): True if there is no parent service to the described service, False otherwise
         """
-        is_root = False
-        service = self.service
-        if service is not None:
-            if service.parent_service is None:
-                is_root = True
-        return is_root
+        return self.metadata_type.type == 'service'
 
     def _restore_layer_md(self, service, identifier: str = None):
         """ Private function for retrieving single layer metadata
@@ -188,6 +198,7 @@ class Metadata(Resource):
         # by default no categories
         self.categories.clear()
         self.is_custom = False
+        self.inherit_proxy_uris = False
 
         cap_doc = CapabilityDocument.objects.get(related_metadata=self)
         cap_doc.restore()
@@ -491,7 +502,7 @@ class Style(models.Model):
 
 
 class FeatureType(Resource):
-    metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
+    metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="featuretype")
     service = models.ForeignKey(Service, null=True,  blank=True, on_delete=models.CASCADE, related_name="featuretypes")
     is_searchable = models.BooleanField(default=False)
     default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True, related_name="default_srs")

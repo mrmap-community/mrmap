@@ -58,24 +58,12 @@ def split_service_uri(uri):
     Returns:
         ret_dict(dict): Contains the URI's components
     """
-    ret_dict = {}
-
-    cap_url_dict = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(uri).query))
-    cap_url_query = urllib.parse.urlsplit(uri).query
-    ret_dict["service"] = resolve_service_enum(cap_url_dict.get("SERVICE", None))
-    ret_dict["request"] = cap_url_dict.get("REQUEST", None)
-    ret_dict["version"] = resolve_version_enum(cap_url_dict.get("VERSION", DEFAULT_SERVICE_VERSION))
-    ret_dict["base_uri"] = uri.replace(cap_url_query, "")
-    service_keywords = ["REQUEST", "SERVICE", "VERSION"]
-    additional_params = []
-    for param_key, param_val in cap_url_dict.items():
-        if param_key not in service_keywords:
-            # append it back on the base uri
-            additional_params.append(param_key + "=" + param_val)
-    ret_dict["base_uri"] += "&".join(additional_params)
-
+    uri = uri.lower()
+    ret_dict = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(uri).query))
+    ret_dict["base_uri"] = uri
+    ret_dict["service"] = resolve_service_enum(ret_dict.get("service", None))
+    ret_dict["version"] = resolve_version_enum(ret_dict.get("version", DEFAULT_SERVICE_VERSION))
     return ret_dict
-
 
 
 def resolve_keywords_array_string(keywords: str):

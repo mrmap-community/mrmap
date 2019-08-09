@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-07 10:48+0200\n"
+"POT-Creation-Date: 2019-08-09 08:45+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -161,11 +161,11 @@ msgstr ""
 msgid "'{}' was invalid."
 msgstr "Die URI ist ungültig."
 
-#: MapSkinner/settings.py:197 templates/footer.html:11
+#: MapSkinner/settings.py:206 templates/footer.html:11
 msgid "English"
 msgstr "Englisch"
 
-#: MapSkinner/settings.py:198
+#: MapSkinner/settings.py:207
 msgid "German"
 msgstr "Deutsch"
 
@@ -189,11 +189,11 @@ msgstr "Metadaten wiederherstellen"
 msgid "Metadata Editor"
 msgstr "Metadateneditor"
 
-#: editor/templates/editor_edit.html:43
+#: editor/templates/editor_edit.html:52
 msgid "ISO metadata"
 msgstr "ISO Metadaten"
 
-#: editor/templates/editor_edit.html:56 structure/templates/form.html:113
+#: editor/templates/editor_edit.html:65 structure/templates/form.html:113
 #: users/templates/change_password.html:100 users/templates/users_form.html:63
 msgid "Save"
 msgstr "Speichern"
@@ -209,8 +209,8 @@ msgstr "Titel"
 
 #: editor/templates/editor_service_list.html:10
 #: editor/templates/editor_service_list.html:38
-#: service/templates/wfs/wfs_index.html:62
-#: service/templates/wfs/wfs_index.html:87
+#: service/templates/wfs/wfs_index.html:65
+#: service/templates/wfs/wfs_index.html:93
 #: service/templates/wms/wms_index.html:75
 #: service/templates/wms/wms_index.html:109
 msgid "Active"
@@ -218,13 +218,13 @@ msgstr "Aktiv"
 
 #: editor/templates/editor_service_list.html:13
 #: service/templates/check_metadata_form.html:112
-#: service/templates/wfs/wfs_index.html:68
+#: service/templates/wfs/wfs_index.html:71
 #: service/templates/wms/wms_index.html:81
 msgid "Data provider"
 msgstr "Datenanbieter"
 
 #: editor/templates/editor_service_list.html:16
-#: service/templates/wfs/wfs_index.html:71
+#: service/templates/wfs/wfs_index.html:74
 #: service/templates/wms/wms_index.html:84
 msgid "Registered by group"
 msgstr "Registriert durch Gruppe"
@@ -247,7 +247,7 @@ msgid "Reset"
 msgstr ""
 
 #: editor/templates/editor_service_list.html:34
-#: service/templates/wfs/wfs_index.html:83
+#: service/templates/wfs/wfs_index.html:86
 #: service/templates/wms/wms_index.html:96
 #: service/templates/wms/wms_index.html:100
 #: structure/templates/organization_detail.html:132
@@ -255,7 +255,7 @@ msgid "Open details"
 msgstr "Öffne Details"
 
 #: editor/templates/editor_service_list.html:40
-#: service/templates/wfs/wfs_index.html:89
+#: service/templates/wfs/wfs_index.html:95
 #: service/templates/wms/wms_index.html:111
 msgid "Not active"
 msgstr "Nicht aktiv"
@@ -267,12 +267,8 @@ msgstr "Benutzerdefinierte Metadaten"
 #: editor/templates/editor_service_list.html:60
 #: service/templates/detail/service_detail.html:46
 #: service/templates/detail/service_detail.html:48
-#: service/templates/wfs/containing_featuretypes.html:25
-#: service/templates/wfs/containing_featuretypes.html:27
-#: service/templates/wms/containing_layers.html:26
-#: service/templates/wms/containing_layers.html:28
-msgid "Edit metadata"
-msgstr "Bearbeite Metadaten"
+msgid "Edit service"
+msgstr "Dienst bearbeiten"
 
 #: editor/templates/value_selection.html:6
 msgid "Click to remove keyword"
@@ -286,14 +282,14 @@ msgstr "Einträge durch \",\" separieren"
 msgid "You have to choose predefined values. Type in what you are looking for."
 msgstr "Sie müssen die Vorschläge verwenden. Tippen Sie ein wonach Sie suchen."
 
-#: editor/views.py:96 editor/views.py:153
+#: editor/views.py:103 editor/views.py:162
 #: service/templates/detail/service_detail.html:110
 #: service/templates/detail/service_detail_child_wfs.html:21
 #: service/templates/detail/service_detail_child_wms.html:20
 msgid "Keywords"
 msgstr "Schlüsselwörter"
 
-#: editor/views.py:102
+#: editor/views.py:109
 msgid "Categories"
 msgstr "Kategorien"
 
@@ -417,7 +413,7 @@ msgstr "Deaktiviere Service"
 
 #: service/templates/detail/service_detail.html:34
 msgid "Activate service"
-msgstr "Aktiviere Service"
+msgstr "Dienst aktivieren"
 
 #: service/templates/detail/service_detail.html:41
 msgid "Update service using a new url"
@@ -425,7 +421,7 @@ msgstr "Aktualisiere Dienst über eine neue URL"
 
 #: service/templates/detail/service_detail.html:42
 msgid "Update service"
-msgstr "Aktualisiere Service"
+msgstr "Dienst aktualisieren"
 
 #: service/templates/detail/service_detail.html:54
 #: service/templates/service_differences.html:104
@@ -870,6 +866,11 @@ msgstr "Klicke für mehr"
 msgid "Custom Metadata"
 msgstr "Benutzerdefinierte Metadaten"
 
+#: service/templates/wfs/containing_featuretypes.html:25
+#: service/templates/wfs/containing_featuretypes.html:27
+msgid "Edit featuretype"
+msgstr "Featuretyp bearbeiten"
+
 #: service/templates/wfs/containing_featuretypes.html:37
 #: service/templates/wms/containing_layers.html:38
 msgid "Restore metadata"
@@ -907,22 +908,26 @@ msgstr "Ergebnisse pro Seite"
 msgid "Enter text to filter"
 msgstr "Filtern nach ..."
 
-#: service/templates/wfs/wfs_index.html:65
+#: service/templates/wfs/wfs_index.html:62
+msgid "Number of featuretypes"
+msgstr "Featuretypeanzahl"
+
+#: service/templates/wfs/wfs_index.html:68
 #: service/templates/wms/wms_index.html:78
 msgid "Version"
 msgstr ""
 
-#: service/templates/wfs/wfs_index.html:74
+#: service/templates/wfs/wfs_index.html:77
 #: service/templates/wms/wms_index.html:87
 msgid "Registered for"
 msgstr "Registriere für"
 
-#: service/templates/wfs/wfs_index.html:77
+#: service/templates/wfs/wfs_index.html:80
 #: service/templates/wms/wms_index.html:90
 msgid "Created"
 msgstr "Angelegt"
 
-#: service/templates/wfs/wfs_index.html:115
+#: service/templates/wfs/wfs_index.html:121
 #: service/templates/wms/wms_index.html:137
 msgid "None ¯\\_(ツ)_/¯"
 msgstr "Keine ¯\\_(ツ)_/¯"
@@ -930,6 +935,11 @@ msgstr "Keine ¯\\_(ツ)_/¯"
 #: service/templates/wms/containing_layers.html:8
 msgid "Show sublayers"
 msgstr "Zeige Unterebenen"
+
+#: service/templates/wms/containing_layers.html:26
+#: service/templates/wms/containing_layers.html:28
+msgid "Edit layer"
+msgstr "Ebene bearbeiten"
 
 #: service/templates/wms/wms_index.html:5 templates/base.html:60
 #: users/templates/dashboard.html:49
@@ -960,7 +970,7 @@ msgstr "Letzte Seite"
 msgid "Parent service"
 msgstr "Übergeordneter Dienst"
 
-#: service/views.py:489
+#: service/views.py:490
 msgid "Enter the new capabilities URL of your service."
 msgstr "Geben Sie die neue Capabilities URL des Dienstes ein."
 
@@ -1456,8 +1466,8 @@ msgstr ""
 msgid "You can update your account information using this form."
 msgstr "Sie können Ihre Accountinformationen hier ändern"
 
-#~ msgid "Editable services"
-#~ msgstr "Editierbare Dienste"
+#~ msgid "Edit metadata"
+#~ msgstr "Bearbeite Metadaten"
 
 #~ msgid ""
 #~ "\n"

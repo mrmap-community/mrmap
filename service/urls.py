@@ -23,4 +23,7 @@ urlpatterns = [
     path('wfs/', wfs, name='wfs'),
     path('detail/<int:id>', detail, name='detail'),
     path('detail-child/<int:id>', detail_child, name='detail-child'),
+
+    # dataset metadata proxy
+    path('metadata/<int:id>', metadata_proxy, name='metadata-proxy')
 ]

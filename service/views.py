@@ -20,6 +20,7 @@ from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL, EXEC_TIME_PRINT
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
+from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType, CapabilityDocument
@@ -228,7 +229,7 @@ def register_form(request: HttpRequest, user: User):
         cap_url = POST_params.get("uri", "")
         url_dict = service_helper.split_service_uri(cap_url)
 
-        if url_dict["request"] != "GetCapabilities":
+        if url_dict["request"] != "getcapabilities":
             # not allowed!
             error = True
 
@@ -293,7 +294,7 @@ def new_service(request: HttpRequest, user: User):
         service = service_helper.get_service_model_instance(
             url_dict.get("service"),
             url_dict.get("version"),
-            url_dict.get("base_uri"),
+            cap_url,
             user,
             register_group,
             register_for_organization
@@ -551,3 +552,19 @@ def detail_child(request: HttpRequest, id, user:User):
     }
     html = render_to_string(template_name=template, context=params)
     return BackendAjaxResponse(html=html).get_response()
+
+
+def metadata_proxy(request: HttpRequest, id: int):
+    """ Returns the xml document which is resolved by the metadata id.
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The metadata id
+    Returns:
+         HttpResponse
+    """
+    dataset_metadata = Metadata.objects.get(id=id)
+    con = CommonConnector(url=dataset_metadata.metadata_url)
+    con.load()
+    xml_raw = con.content
+    return HttpResponse(xml_raw, content_type='application/xml')

@@ -23,9 +23,9 @@
                 <div class="container-row">
                 <div class="container-left">
                     {% if 'can_edit_metadata_service' in user_permissions %}
-                        <a href="{% url 'editor:edit' layer.metadata.id %}" title="{% trans 'Edit metadata' %}">
+                        <a href="{% url 'editor:edit' layer.metadata.id %}" title="{% trans 'Edit layer' %}">
                             <div class="button-container">
-                                <span>{% trans 'Edit metadata' %}</span>
+                                <span>{% trans 'Edit layer' %}</span>
                             </div>
                         </a>
                     {% endif %}

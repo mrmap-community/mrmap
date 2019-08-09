@@ -12,19 +12,20 @@ from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
-from MapSkinner.settings import XML_NAMESPACES
+from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
 from service.helper.iso.isoMetadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, CapabilityDocument, MetadataRelation, \
     MetadataOrigin
 from service.helper import xml_helper
 
 
-def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata):
+def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _type: str):
     """ Overwrites existing capabilities keywords with metadata editor input
 
     Args:
         xml_obj (_Element): The parent xml object which holds the KeywordList element
         metadata (Metadata): The metadata object which holds the edited keyword data
+        _type (str): Defines if this is a wms or wfs
     Returns:
          nothing
     """
@@ -32,7 +33,7 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata):
     ns_prefix = ""
     keyword_container_tag = "KeywordList"
     keyword_prefix = ""
-    if metadata.service.servicetype.name == 'wfs':
+    if _type == 'wfs':
         ns_keyword_prefix_s = "ows"
         ns_keyword_prefix = "{}:".format(ns_keyword_prefix_s)
         ns_prefix = "wfs:"
@@ -90,8 +91,10 @@ def overwrite_capabilities_document(metadata: Metadata):
     is_root = metadata.is_root()
     if is_root:
         rel_md = metadata
-    else:
+    elif metadata.metadata_type.type == 'layer':
         rel_md = metadata.service.parent_service.metadata
+    elif metadata.metadata_type.type == 'featuretype':
+        rel_md = metadata.featuretype.service.metadata
     cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
 
     # overwrite all editable data
@@ -99,18 +102,18 @@ def overwrite_capabilities_document(metadata: Metadata):
     xml_obj_root = xml_helper.parse_xml(cap_doc.current_capability_document)
 
     # find matching xml element in xml doc
-    service_type = metadata.service.servicetype.name
+    _type = metadata.get_service_type()
     if is_root:
-        if service_type == "wms":
+        if _type == "wms":
             element_selector = "//Service/Name"
-        elif service_type == "wfs":
+        elif _type == "wfs":
             element_selector = "//ows:ServiceIdentification/ows:Title"
             identifier = metadata.title
     else:
-        if service_type == "wms":
+        if _type == "wms":
             element_selector = "//Layer/Name"
-        elif service_type == "wfs":
-            element_selector = "//FeatureType/Name"
+        elif _type == "wfs":
+            element_selector = "//wfs:FeatureType/wfs:Name"
 
     xml_obj = xml_helper.try_get_single_element_from_xml("{}[text()='{}']/parent::*".format(element_selector, identifier), xml_obj_root)
 
@@ -127,8 +130,9 @@ def overwrite_capabilities_document(metadata: Metadata):
             # for not is_root this will fail in AccessConstraints querying
             pass
 
+
     # handle keywords
-    _overwrite_capabilities_keywords(xml_obj, metadata)
+    _overwrite_capabilities_keywords(xml_obj, metadata, _type)
 
     # handle iso metadata links
     _overwrite_capabilities_iso_metadata_links(xml_obj, metadata)
@@ -229,6 +233,43 @@ def resolve_iso_metadata_links(request: HttpRequest, metadata: Metadata, editor_
     except Exception as e:
         messages.add_message(request, messages.ERROR, e)
 
+
+@transaction.atomic
+def set_dataset_metadata_proxy(metadata: Metadata, use_proxy: bool):
+    """ Set or unsets the metadata proxy for the dataset metadata uris
+
+    Args:
+        metadata (Metadata): The service metadata object
+        use_proxy (bool): Whether the proxy shall be activated or deactivated
+    Returns:
+         nothing
+    """
+    cap_doc = CapabilityDocument.objects.get(related_metadata=metadata)
+    cap_doc_curr = cap_doc.current_capability_document
+    xml_obj = xml_helper.parse_xml(cap_doc_curr)
+    # get <MetadataURL> xml elements
+    xml_metadata_elements = xml_helper.try_get_element_from_xml("//MetadataURL/OnlineResource", xml_obj)
+    for xml_metadata in xml_metadata_elements:
+        attr = "{http://www.w3.org/1999/xlink}href"
+        # get metadata url
+        metadata_uri = xml_helper.try_get_attribute_from_xml_element(xml_metadata, attribute=attr)
+        if use_proxy:
+            # find metadata record which matches the metadata uri
+            dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
+            uri = "{}{}/service/metadata/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
+        else:
+            # metadata uri contains the proxy uri
+            # so we need to extract the id from the uri!
+            md_uri_list = metadata_uri.split("/")
+            md_id = md_uri_list[len(md_uri_list) - 1]
+            dataset_md_record = Metadata.objects.get(id=md_id)
+            uri = dataset_md_record.metadata_url
+        xml_helper.set_attribute(xml_metadata, attr, uri)
+    xml_obj_str = xml_helper.xml_to_string(xml_obj)
+    cap_doc.current_capability_document = xml_obj_str
+    cap_doc.save()
+
+
 @transaction.atomic
 def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     """ Overwrites the original data with the custom date
@@ -245,7 +286,6 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     original_md.access_constraints = custom_md.access_constraints
     original_md.metadata_url = custom_md.metadata_url
     original_md.terms_of_use = custom_md.terms_of_use
-    original_md.inherit_proxy_uris = custom_md.inherit_proxy_uris
     # get db objects from values
     # keywords are provided as usual text
     keywords = editor_form.data.get("keywords").split(",")
@@ -262,11 +302,23 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     for id in category_ids:
         category = Category.objects.get(id=id)
         original_md.categories.add(category)
-    # if md uris shall be tunneld using the proxy, we need to make sure that all metadata elements of the service are aware of this!
-    child_mds = Metadata.objects.filter(service__parent_service=original_md.service.parent_service)
-    for child_md in child_mds:
-        child_md.inherit_proxy_uris = original_md.inherit_proxy_uris
-        child_md.save()
+
+    # change capabilities document so that all <MetadataURL> elements are called through mr map
+    if original_md.inherit_proxy_uris != custom_md.inherit_proxy_uris:
+        if not original_md.is_root():
+            root_md = original_md.service.parent_service.metadata
+        else:
+            root_md = original_md
+        set_dataset_metadata_proxy(root_md, custom_md.inherit_proxy_uris)
+
+        original_md.inherit_proxy_uris = custom_md.inherit_proxy_uris
+        # if md uris shall be tunneld using the proxy, we need to make sure that all metadata elements of the service are aware of this!
+        child_mds = Metadata.objects.filter(service__parent_service=original_md.service.parent_service)
+        for child_md in child_mds:
+            child_md.inherit_proxy_uris = original_md.inherit_proxy_uris
+            child_md.save()
+
+
     # save metadata
     original_md.is_custom = True
     original_md.save()

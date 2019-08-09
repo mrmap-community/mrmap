@@ -295,6 +295,7 @@ class OGCWebFeatureService(OGCWebService):
         md = Metadata()
         md_type = MetadataType.objects.get_or_create(type=MD_TYPE_FEATURETYPE)[0]
         md.metadata_type = md_type
+        md.uuid = uuid.uuid4()
         f_t.metadata = md
         f_t.uuid = uuid.uuid4()
         md.title = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Title")
@@ -466,7 +467,7 @@ class OGCWebFeatureService(OGCWebService):
         # feature types
         for feature_type_key, feature_type_val in self.feature_type_list.items():
             f_t = feature_type_val.get("feature_type")
-            f_t.created_by = group
+            f_t.metadata.created_by = group
             f_t.service = service
             f_t.metadata.contact = contact
 

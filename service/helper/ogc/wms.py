@@ -20,7 +20,7 @@ from django.db import transaction
 
 from MapSkinner.settings import EXEC_TIME_PRINT, MD_TYPE_LAYER, MD_TYPE_SERVICE, MULTITHREADING_THRESHOLD
 from MapSkinner import utils
-from MapSkinner.utils import execute_threads
+from MapSkinner.utils import execute_threads, sha256
 from service.config import ALLOWED_SRS
 from service.helper.enums import VersionTypes
 from service.helper.epsg_api import EpsgApi
@@ -167,7 +167,8 @@ class OGCWebMapService(OGCWebService):
     def __parse_identifier(self, layer, layer_obj):
         layer_obj.identifier = xml_helper.try_get_text_from_xml_element(elem="./Name", xml_elem=layer)
         if layer_obj.identifier is None:
-            layer_obj.identifier = service_helper.generate_name(layer_obj.capability_projection_system)
+            u = str(uuid.uuid4())
+            layer_obj.identifier = sha256(u)
 
     ### KEYWORDS ###
     def __parse_keywords(self, layer, layer_obj):
@@ -377,7 +378,6 @@ class OGCWebMapService(OGCWebService):
         layer_obj.position = position
         if self.layers is None:
             self.layers = []
-        self.__parse_iso_md(layer, layer_obj)
         self.layers.append(layer_obj)
         sublayers = xml_helper.try_get_element_from_xml(elem="./Layer", xml_elem=layer)
         if parent is not None:
@@ -398,15 +398,22 @@ class OGCWebMapService(OGCWebService):
             position: The position inside the layer tree, which is more like an order number
         :return:
         """
-        thread_list = []
-        for layer in layers:
-            #self.x(layer, parent, position)
-            thread_list.append(
-                Thread(target=self._parse_single_layer,
-                       args=(layer, parent, position))
-            )
-            position += 1
-        execute_threads(thread_list)
+        # decide whether to user multithreading or iterative approach
+
+        if len(layers) > MULTITHREADING_THRESHOLD:
+            thread_list = []
+            for layer in layers:
+                thread_list.append(
+                    Thread(target=self._parse_single_layer,
+                           args=(layer, parent, position))
+                )
+                position += 1
+            execute_threads(thread_list)
+        else:
+            for layer in layers:
+                self._parse_single_layer(layer, parent, position)
+                position += 1
+
 
 
     def get_layers(self, xml_obj):

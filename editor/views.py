@@ -90,11 +90,15 @@ def edit(request: HttpRequest, id: int, user: User):
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
             _type = metadata.get_service_type()
             if _type == 'wms':
-                parent_service = metadata.service.parent_service
                 if metadata.is_root():
                     parent_service = metadata.service
+                else:
+                    parent_service = metadata.service.parent_service
             elif _type == 'wfs':
-                parent_service = metadata.featuretype.service
+                if metadata.is_root():
+                    parent_service = metadata.service
+                else:
+                    parent_service = metadata.featuretype.service
 
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, "{}: {}".format(parent_service.metadata.title, metadata.title))
             return redirect("editor:index")
@@ -189,19 +193,32 @@ def restore(request: HttpRequest, id: int, user: User):
          Redirects back to edit view
     """
     metadata = Metadata.objects.get(id=id)
-    children_md = Metadata.objects.filter(service__parent_service__metadata=metadata, is_custom=True)
+    service_type = metadata.get_service_type()
+    if service_type == 'wms':
+        children_md = Metadata.objects.filter(service__parent_service__metadata=metadata, is_custom=True)
+    elif service_type == 'wfs':
+        children_md = Metadata.objects.filter(featuretype__service__metadata=metadata, is_custom=True)
+
     if not metadata.is_custom and len(children_md) == 0:
         messages.add_message(request, messages.INFO, METADATA_IS_ORIGINAL)
         return redirect(request.META.get("HTTP_REFERER"))
+
     if metadata.is_custom:
         metadata.restore()
         metadata.save()
+
     for md in children_md:
-        md.restore()
+        md.restore(md.identifier)
         md.save()
     messages.add_message(request, messages.INFO, METADATA_RESTORING_SUCCESS)
     if not metadata.is_root():
-        parent_metadata = metadata.service.parent_service.metadata
+        if service_type == 'wms':
+            parent_metadata = metadata.service.parent_service.metadata
+        elif service_type == 'wfs':
+            parent_metadata = metadata.featuretype.service.metadata
+        else:
+            # This case is not important now
+            pass
     else:
         parent_metadata = metadata
     user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_RESTORED, "{}: {}".format(parent_metadata.title, metadata.title))

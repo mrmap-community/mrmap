@@ -229,7 +229,7 @@ def register_form(request: HttpRequest, user: User):
         cap_url = POST_params.get("uri", "")
         url_dict = service_helper.split_service_uri(cap_url)
 
-        if url_dict["request"] != "getcapabilities":
+        if url_dict["request"].lower() != "getcapabilities":
             # not allowed!
             error = True
 
@@ -278,6 +278,7 @@ def new_service(request: HttpRequest, user: User):
     POST_params = request.POST.dict()
 
     cap_url = POST_params.get("uri", "")
+    cap_url = cap_url.replace("&amp;", "&")
     register_group = POST_params.get("registerGroup")
     register_for_organization = POST_params.get("registerForOrg")
 
@@ -294,7 +295,7 @@ def new_service(request: HttpRequest, user: User):
         service = service_helper.get_service_model_instance(
             url_dict.get("service"),
             url_dict.get("version"),
-            cap_url,
+            url_dict.get("base_uri"),
             user,
             register_group,
             register_for_organization

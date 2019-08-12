@@ -11,7 +11,7 @@
         <div class="collapsible-table">
             <h3 class="layer-title" title="{% trans 'Click to expand' %}" data-id="{{ featuretype.id }}" data-type="wfs">
                 <img class="collapse-img" src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
-                <span class="{% if featuretype.is_custom %}custom-metadata-headline{% endif %}">
+                <span class="{% if featuretype.metadata.is_custom %}custom-metadata-headline{% endif %}">
                     {{ featuretype.metadata.title }}
                     {% if featuretype.metadata.is_custom %}
                     <img class="invert"  src="{% static 'structure/images/icn_edit.png' %}" title="{% trans 'Custom Metadata' %}">

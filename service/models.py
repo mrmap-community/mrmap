@@ -106,12 +106,12 @@ class Metadata(Resource):
              service_type (str): The service type as string ('wms' or 'wfs')
         """
         service_type = None
-        if self.metadata_type.type == 'layer':
+        if self.is_root():
+            return self.service.servicetype.name
+        elif self.metadata_type.type == 'layer':
             service_type = 'wms'
         elif self.metadata_type.type == 'featuretype':
             service_type = 'wfs'
-        else:
-            service_type = self.service.parent_service.servicetype.name
         return service_type
 
     def is_root(self):
@@ -155,8 +155,129 @@ class Metadata(Resource):
         else:
             rel_md = self.service.parent_service.metadata
         cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
-        cap_doc.restore_layer(identifier)
+        cap_doc.restore_subelement(identifier)
         return
+
+    def _restore_feature_type_md(self, service, identifier: str = None):
+        """ Private function for retrieving single featuretype metadata
+
+        Args:
+            service (OGCWebMapService): An empty OGCWebMapService object to load and parse the metadata
+            identifier (str): The identifier string of the layer
+        Returns:
+             nothing, it changes the Metadata object itself
+        """
+        # parse single layer
+        identifier = self.identifier
+        f_t = service.get_feature_type_by_identifier(identifier)
+        f_t_obj = f_t.get("feature_type", None)
+        f_t_iso_links = f_t.get("dataset_md_list", [])
+        self.title = f_t_obj.metadata.title
+        self.abstract = f_t_obj.metadata.abstract
+        self.is_custom = False
+        self.keywords.clear()
+        for kw in f_t_obj.metadata.keywords_list:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            self.keywords.add(keyword)
+
+        for related_iso in self.related_metadata.all():
+            md_link = related_iso.metadata_2.metadata_url
+            if md_link not in f_t_iso_links:
+                related_iso.metadata_2.delete()
+                related_iso.delete()
+
+        # restore partially capabilities document
+        if self.is_root():
+            rel_md = self
+        else:
+            rel_md = self.featuretype.service.metadata
+        cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
+        cap_doc.restore_subelement(identifier)
+        return
+
+    def _restore_wms(self, identifier: str = None):
+        """ Restore the metadata of a wms service
+
+        Args;
+            identifier (str): Identifies which layer should be restored.
+        Returns:
+             nothing
+        """
+        from service.helper.ogc.wms import OGCWebMapServiceFactory
+        from service.helper import service_helper
+        service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
+        service = None
+        service = OGCWebMapServiceFactory()
+        service = service.get_ogc_wms(version=service_version, service_connect_url=self.original_uri)
+        service.get_capabilities()
+        service.create_from_capabilities(metadata_only=True)
+
+        # check if whole service shall be restored or single layer
+        if not self.is_root():
+            return self._restore_layer_md(service, identifier)
+
+        self.title = service.service_identification_title
+        self.abstract = service.service_identification_abstract
+        self.access_constraints = service.service_identification_accessconstraints
+        keywords = service.service_identification_keywords
+        self.keywords.clear()
+        for kw in keywords:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            self.keywords.add(keyword)
+
+        # by default no categories
+        self.categories.clear()
+        self.is_custom = False
+        self.inherit_proxy_uris = False
+
+        cap_doc = CapabilityDocument.objects.get(related_metadata=self)
+        cap_doc.restore()
+
+    def _restore_wfs(self, identifier: str = None):
+        """ Restore the metadata of a wfs service
+
+        Args;
+            identifier (str): Identifies which layer should be restored.
+        Returns:
+             nothing
+        """
+        from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
+        from service.helper import service_helper
+
+        # Prepare 'service' for further handling
+        # If no identifier is provided, we deal with a root metadata
+        is_root = identifier is None
+        if is_root:
+            service = self.service
+        else:
+            service = self.featuretype.service
+        service_version = service_helper.resolve_version_enum(service.servicetype.version)
+        service_tmp = OGCWebFeatureServiceFactory()
+        service_tmp = service_tmp.get_ogc_wfs(version=service_version, service_connect_url=self.original_uri)
+        if service_tmp is None:
+            return
+        service_tmp.get_capabilities()
+        service_tmp.create_from_capabilities(metadata_only=True)
+        # check if whole service shall be restored or single layer
+        if not self.is_root():
+            return self._restore_feature_type_md(service_tmp, identifier)
+
+        self.title = service_tmp.service_identification_title
+        self.abstract = service_tmp.service_identification_abstract
+        self.access_constraints = service_tmp.service_identification_accessconstraints
+        keywords = service_tmp.service_identification_keywords
+        self.keywords.clear()
+        for kw in keywords:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            self.keywords.add(keyword)
+
+        # by default no categories
+        self.categories.clear()
+        self.is_custom = False
+        self.inherit_proxy_uris = False
+
+        cap_doc = CapabilityDocument.objects.get(related_metadata=service.metadata)
+        cap_doc.restore()
 
     def restore(self, identifier: str = None):
         """ Load original metadata from capabilities and ISO metadata
@@ -166,42 +287,13 @@ class Metadata(Resource):
         Returns:
              nothing
         """
-        from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
-        from service.helper.ogc.wms import OGCWebMapServiceFactory
-        from service.helper import service_helper
-        if self.service is None:
-            return
-        service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
-        service = None
-        if self.service.servicetype.name == ServiceTypes.WMS.value:
-            service = OGCWebMapServiceFactory()
-            service = service.get_ogc_wms(version=service_version, service_connect_url=self.original_uri)
-            # check if whole service shall be restored or single layer
-            if not self.is_root():
-                return self._restore_layer_md(service, identifier)
 
-        elif self.service.servicetype.name == ServiceTypes.WFS.value:
-            service = OGCWebFeatureServiceFactory()
-            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.original_uri)
-        if service is None:
-            return
-        service.get_capabilities()
-        service.create_from_capabilities(metadata_only=True)
-        self.title = service.service_identification_title
-        self.abstract = service.service_identification_abstract
-        self.access_constraints = service.service_identification_accessconstraints
-        keywords = service.service_identification_keywords
-        self.keywords.clear()
-        for kw in keywords:
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            self.keywords.add(keyword)
-        # by default no categories
-        self.categories.clear()
-        self.is_custom = False
-        self.inherit_proxy_uris = False
-
-        cap_doc = CapabilityDocument.objects.get(related_metadata=self)
-        cap_doc.restore()
+        # identify whether this is a wfs or wms (we need to handle them in different ways)
+        service_type = self.get_service_type()
+        if service_type == 'wfs':
+            self._restore_wfs(identifier)
+        elif service_type == 'wms':
+            self._restore_wms(identifier)
 
     def get_related_metadata_uris(self):
         """ Generates a list of all related metadata online links and returns them
@@ -240,7 +332,7 @@ class CapabilityDocument(Resource):
         self.current_capability_document = self.original_capability_document
         self.save()
 
-    def restore_layer(self, identifier: str):
+    def restore_subelement(self, identifier: str):
         """ Restores only the layer which matches the provided identifier
 
         Args:

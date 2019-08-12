@@ -37,13 +37,23 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
         ns_keyword_prefix_s = "ows"
         ns_keyword_prefix = "{}:".format(ns_keyword_prefix_s)
         ns_prefix = "wfs:"
+        if metadata.is_root():
+            # for the <ows:ServiceIdentification> element we need the prefix "ows:"
+            ns_prefix = "ows:"
         keyword_container_tag = "Keywords"
         keyword_prefix = "{" + XML_NAMESPACES[ns_keyword_prefix_s] + "}"
     xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml("./{}{}".format(ns_keyword_prefix, keyword_container_tag), xml_obj)
     if xml_keywords_list_obj is None:
         # there are no keywords in this capabilities for this element yet
         # we need to add an element first!
-        xml_keywords_list_obj = xml_helper.add_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Abstract".format(ns_prefix))
+        try:
+            xml_keywords_list_obj = xml_helper.add_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Abstract".format(ns_prefix))
+        except TypeError as e:
+            # there seems to be no <Abstract> element. We add simply after <Title> and also create a new Abstract element
+            xml_keywords_list_obj = xml_helper.add_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Title".format(ns_prefix))
+            xml_helper.add_subelement(xml_obj, "{}".format("Abstract"),
+                                      after="{}Title".format(ns_prefix))
+
 
     xml_keywords_objs = xml_helper.try_get_element_from_xml("./{}Keyword".format(ns_keyword_prefix), xml_keywords_list_obj) or []
 
@@ -117,25 +127,31 @@ def overwrite_capabilities_document(metadata: Metadata):
 
     xml_obj = xml_helper.try_get_single_element_from_xml("{}[text()='{}']/parent::*".format(element_selector, identifier), xml_obj_root)
 
-    # overwrite data
-    elements = {
-        "Title": metadata.title,
-        "Abstract": metadata.abstract,
-        "AccessConstraints": metadata.access_constraints,
-    }
-    for key, val in elements.items():
-        try:
-            xml_helper.write_text_to_element(xml_obj, "./{}".format(key), val)
-        except AttributeError:
-            # for not is_root this will fail in AccessConstraints querying
-            pass
-
 
     # handle keywords
     _overwrite_capabilities_keywords(xml_obj, metadata, _type)
 
     # handle iso metadata links
     _overwrite_capabilities_iso_metadata_links(xml_obj, metadata)
+
+    # overwrite data
+    elements = {
+        "Title": metadata.title,
+        "Abstract": metadata.abstract,
+        "AccessConstraints": metadata.access_constraints,
+    }
+    service_type = metadata.get_service_type()
+    if service_type == 'wfs':
+        prefix = "wfs:"
+    else:
+        prefix = ""
+    for key, val in elements.items():
+        try:
+            xml_helper.write_text_to_element(xml_obj, "./{}{}".format(prefix, key), val)
+        except AttributeError:
+            # for not is_root this will fail in AccessConstraints querying
+            pass
+
 
     # write xml back to database
     xml = xml_helper.xml_to_string(xml_obj_root)

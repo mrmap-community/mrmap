@@ -204,13 +204,13 @@ def restore(request: HttpRequest, id: int, user: User):
         return redirect(request.META.get("HTTP_REFERER"))
 
     if metadata.is_custom:
-        metadata.restore()
+        metadata.restore(metadata.identifier)
         metadata.save()
 
     for md in children_md:
         md.restore(md.identifier)
         md.save()
-    messages.add_message(request, messages.INFO, METADATA_RESTORING_SUCCESS)
+    messages.add_message(request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
     if not metadata.is_root():
         if service_type == 'wms':
             parent_metadata = metadata.service.parent_service.metadata
@@ -243,5 +243,5 @@ def restore_featuretype(request: HttpRequest, id: int, user: User):
         return redirect(request.META.get("HTTP_REFERER"))
     feature_type.restore()
     feature_type.save()
-    messages.add_message(request, messages.INFO, METADATA_RESTORING_SUCCESS)
+    messages.add_message(request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
     return redirect("editor:index")

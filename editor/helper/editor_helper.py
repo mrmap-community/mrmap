@@ -172,8 +172,12 @@ def _remove_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links:
     """
     # remove iso metadata from capabilities document
     rel_md = metadata
+    service_type = metadata.get_service_type()
     if not metadata.is_root():
-        rel_md = metadata.service.parent_service.metadata
+        if service_type == 'wms':
+            rel_md = metadata.service.parent_service.metadata
+        elif service_type == 'wfs':
+            rel_md = metadata.featuretype.service.metadata
     cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
     cap_doc_txt = cap_doc.current_capability_document
     xml_cap_obj = xml_helper.parse_xml(cap_doc_txt).getroot()

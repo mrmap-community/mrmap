@@ -278,6 +278,7 @@ def set_dataset_metadata_proxy(metadata: Metadata, use_proxy: bool):
             dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
             uri = "{}{}/service/metadata/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
         else:
+            # this means we have our own proxy uri in here and want to restore the original one
             # metadata uri contains the proxy uri
             # so we need to extract the id from the uri!
             md_uri_list = metadata_uri.split("/")

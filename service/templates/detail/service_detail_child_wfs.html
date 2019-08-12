@@ -7,20 +7,20 @@
     </tr>
     <tr>
         <th>{% trans 'Title' %}</th>
-        <td>{{ element.title }}</td>
+        <td>{{ element.metadata.title }}</td>
     </tr>
     <tr>
         <th>{% trans 'Name' %}</th>
-        <td>{{ element.identifier }}</td>
+        <td>{{ element.metadata.identifier }}</td>
     </tr>
     <tr>
         <th>{% trans 'Abstract' %}</th>
-        <td>{{ element.abstract }}</td>
+        <td>{{ element.metadata.abstract }}</td>
     </tr>
     <tr>
         <th>{% trans 'Keywords' %}</th>
         <td class="listable-container">
-            {% for kw in element.keywords.all %}
+            {% for kw in element.metadata.keywords.all %}
                     <span class="listable">{{ kw }}</span>
             {% empty %}
                 {% trans 'No keywords provided' %}
@@ -52,7 +52,7 @@
     <tr>
         <th>{% trans 'Additional reference systems:' %}</th>
         <td class="listable-container">
-            {% for rs in element.additional_srs.all %}
+            {% for rs in element.metadata.reference_system.all %}
                     <span class="listable">{{ rs.prefix }}{{ rs.code }}</span>
             {% empty %}
                 {% trans 'No additional reference systems provided' %}
@@ -62,14 +62,14 @@
     <tr>
         <th>{% trans 'Mime types:' %}</th>
         <td>
-            <table>
+            <table class="mime-type-table">
                 {% for format in element.formats.all %}
                 <tr>
                     <td>{{ format.mime_type }}</td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td>{% trans 'No additional reference systems provided' %}</td>
+                    <td>{% trans 'No mime types provided' %}</td>
                 </tr>
                 {% endfor %}
             </table>

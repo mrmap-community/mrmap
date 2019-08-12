@@ -1,5 +1,4 @@
 from django.contrib import messages
-from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 from django.shortcuts import render, redirect
 
@@ -11,11 +10,12 @@ from MapSkinner.responses import DefaultContext
 from MapSkinner.settings import ROOT_URL
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
 from service.helper.enums import ServiceTypes
-from service.models import Metadata, Keyword, Category, ReferenceSystem, FeatureType, Layer
+from service.models import Metadata, Keyword, Category, FeatureType, Layer
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import User, Permission, GroupActivity
+from structure.models import User, Permission
 from users.helper import user_helper
+from editor.helper import editor_helper
 
 
 @check_session
@@ -46,7 +46,7 @@ def index(request: HttpRequest, user:User):
     wfs_services = user.get_services(ServiceTypes.WFS)
     wfs_list = []
     for wfs in wfs_services:
-        custom_children = FeatureType.objects.filter(service__metadata=wfs, is_custom=True)
+        custom_children = FeatureType.objects.filter(service__metadata=wfs, metadata__is_custom=True)
         tmp = {
             "root_metadata": wfs,
             "custom_subelement_metadata": custom_children,
@@ -76,47 +76,36 @@ def edit(request: HttpRequest, id: int, user: User):
     """
     metadata = Metadata.objects.get(id=id)
     editor_form = MetadataEditorForm(request.POST or None)
-    editor_form.fields["metadata_url"].required = False
     editor_form.fields["terms_of_use"].required = False
     if request.method == 'POST':
         if editor_form.is_valid():
+
             custom_md = editor_form.save(commit=False)
-            metadata.title = custom_md.title
-            metadata.abstract = custom_md.abstract
-            metadata.access_constraints = custom_md.access_constraints
-            metadata.metadata_url = custom_md.metadata_url
-            metadata.terms_of_use = custom_md.terms_of_use
-
-            # get db objects from values
-            # keywords are provided as usual text
-            keywords = editor_form.data.get("keywords").split(",")
-            if len(keywords) == 1 and keywords[0] == '':
-                keywords = []
-            # categories are provided as id's to prevent language related conflicts
-            category_ids = editor_form.data.get("categories").split(",")
-            if len(category_ids) == 1 and category_ids[0] == '':
-                category_ids = []
-
-            metadata.keywords.clear()
-            for kw in keywords:
-                keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-                metadata.keywords.add(keyword)
-
-            for id in category_ids:
-                category = Category.objects.get(id=id)
-                metadata.categories.add(category)
-
-            # save metadata
-            metadata.is_custom = True
-            metadata.save()
+            if not metadata.is_root():
+                # this is for the case that we are working on a non root element which is not allowed to change the
+                # inheritance setting for the whole service -> we act like it didn't change
+                custom_md.inherit_proxy_uris = metadata.inherit_proxy_uris
+            editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
+            editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
-            user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, metadata.title)
+            _type = metadata.get_service_type()
+            if _type == 'wms':
+                if metadata.is_root():
+                    parent_service = metadata.service
+                else:
+                    parent_service = metadata.service.parent_service
+            elif _type == 'wfs':
+                if metadata.is_root():
+                    parent_service = metadata.service
+                else:
+                    parent_service = metadata.featuretype.service
+
+            user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, "{}: {}".format(parent_service.metadata.title, metadata.title))
             return redirect("editor:index")
         else:
             messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
             return redirect("editor:edit", id)
     else:
-        #metadata = Metadata.objects.get(id=id)
         addable_values_list = [
             {
                 "title": _("Keywords"),
@@ -133,8 +122,9 @@ def edit(request: HttpRequest, id: int, user: User):
         ]
         template = "editor_edit.html"
         editor_form = MetadataEditorForm(instance=metadata)
-        editor_form.fields["metadata_url"].required = False
         editor_form.fields["terms_of_use"].required = False
+        if not metadata.is_root():
+            del editor_form.fields["inherit_proxy_uris"]
         params = {
             "service_metadata": metadata,
             "addable_values_list": addable_values_list,
@@ -166,21 +156,7 @@ def edit_featuretype(request: HttpRequest, id: int, user:User):
         # save new values to feature type
         if feature_type_editor_form.is_valid():
             custom_ft = feature_type_editor_form.save(False)
-
-            # keywords are provided as usual text
-            keywords = feature_type_editor_form.data.get("keywords").split(",")
-            if len(keywords) == 1 and keywords[0] == '':
-                keywords = []
-
-            feature_type.title = custom_ft.title
-            feature_type.abstract = custom_ft.abstract
-
-            feature_type.keywords.clear()
-            for kw in keywords:
-                keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-                feature_type.keywords.add(keyword)
-            feature_type.is_custom = True
-            feature_type.save()
+            editor_helper.overwrite_featuretype(feature_type, custom_ft, feature_type_editor_form)
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
             return redirect("editor:index")
         else:
@@ -193,7 +169,7 @@ def edit_featuretype(request: HttpRequest, id: int, user:User):
             {
                 "title": _("Keywords"),
                 "name": "keywords",
-                "values": feature_type.keywords.all(),
+                "values": feature_type.metadata.keywords.all(),
                 "all_values": Keyword.objects.all().order_by("keyword"),
             }
         ]
@@ -217,13 +193,35 @@ def restore(request: HttpRequest, id: int, user: User):
          Redirects back to edit view
     """
     metadata = Metadata.objects.get(id=id)
-    if not metadata.is_custom:
+    service_type = metadata.get_service_type()
+    if service_type == 'wms':
+        children_md = Metadata.objects.filter(service__parent_service__metadata=metadata, is_custom=True)
+    elif service_type == 'wfs':
+        children_md = Metadata.objects.filter(featuretype__service__metadata=metadata, is_custom=True)
+
+    if not metadata.is_custom and len(children_md) == 0:
         messages.add_message(request, messages.INFO, METADATA_IS_ORIGINAL)
         return redirect(request.META.get("HTTP_REFERER"))
-    metadata.restore()
-    metadata.save()
-    messages.add_message(request, messages.INFO, METADATA_RESTORING_SUCCESS)
-    user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_RESTORED, metadata.title)
+
+    if metadata.is_custom:
+        metadata.restore(metadata.identifier)
+        metadata.save()
+
+    for md in children_md:
+        md.restore(md.identifier)
+        md.save()
+    messages.add_message(request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
+    if not metadata.is_root():
+        if service_type == 'wms':
+            parent_metadata = metadata.service.parent_service.metadata
+        elif service_type == 'wfs':
+            parent_metadata = metadata.featuretype.service.metadata
+        else:
+            # This case is not important now
+            pass
+    else:
+        parent_metadata = metadata
+    user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_RESTORED, "{}: {}".format(parent_metadata.title, metadata.title))
     return redirect("editor:index")
 
 
@@ -245,5 +243,5 @@ def restore_featuretype(request: HttpRequest, id: int, user: User):
         return redirect(request.META.get("HTTP_REFERER"))
     feature_type.restore()
     feature_type.save()
-    messages.add_message(request, messages.INFO, METADATA_RESTORING_SUCCESS)
+    messages.add_message(request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
     return redirect("editor:index")

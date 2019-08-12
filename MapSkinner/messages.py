@@ -48,7 +48,9 @@ NO_PERMISSION = _("You do not have permissions for this!")
 
 METADATA_RESTORING_SUCCESS = _("Metadata restored to original")
 METADATA_EDITING_SUCCESS = _("Metadata editing successful")
-METADATA_IS_ORIGINAL = _("Metadata is original. No need for restoring anything.")
+METADATA_IS_ORIGINAL = _("Metadata is original. Reset aborted.")
+
+MISSING_DATASET_ID_IN_METADATA = _("No datasetId found in metadata!")
 
 REQUEST_ACTIVATION_TIMEOVER = _("The request was not activated in time. Request was deleted.")
 
@@ -64,3 +66,5 @@ GROUP_CAN_NOT_BE_OWN_PARENT = _("A group can not be parent to itself!")
 SERVICE_UPDATE_WRONG_TYPE = _("You tried to update a service to another service type. This is not possible!")
 SERVICE_UPDATE_ABORTED_NO_DIFF = _("The provided capabilities document is not different from the currently registered. Update canceled!")
 SERVICE_GENERIC_ERROR = _("The service could not be registered. Please check your metadata and contact an administrator.")
+
+EDITOR_INVALID_ISO_LINK = _("'{}' was invalid.")

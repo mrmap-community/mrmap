@@ -75,6 +75,18 @@ XML_NAMESPACES = {
 SESSION_EXPIRATION = 1800 # seconds
 SESSION_SAVE_EVERY_REQUEST = True
 
+# Home/Dashboard settings
+LAST_ACTIVITY_DATE_RANGE = 7
+
+# Threshold which indicates when to use multithreading instead of iterative approaches
+MULTITHREADING_THRESHOLD = 20
+
+# Metadata types
+MD_TYPE_FEATURETYPE = "featuretype"
+MD_TYPE_DATASET = "dataset"
+MD_TYPE_SERVICE = "service"
+MD_TYPE_LAYER = "layer"
+
 # Some special things for govbender
 DEFAULT_CONNECTION_TYPE = ConnectionType.REQUESTS
 DEFAULT_SERVICE_VERSION = VersionTypes.V_1_1_1

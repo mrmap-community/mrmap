@@ -6,7 +6,7 @@ from abc import abstractmethod
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from service.helper import service_helper
+from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
 from service.helper.iso.isoMetadata import ISOMetadata
@@ -29,6 +29,7 @@ class OGCWebService:
         
         # service_metadata
         self.service_file_identifier = None
+        self.service_file_iso_identifier = None
         self.service_preview_image = None
         self.service_iso_md_uri = None
         self.service_identification_title = None
@@ -116,6 +117,20 @@ class OGCWebService:
     def check_ogc_exception(self):
         pass
 
+    def has_iso_metadata(self, xml):
+        """ Checks whether the xml element has an iso 19115 metadata record or not
+
+        Args:
+            xml: The xml etree object
+        Returns:
+             True if element has iso metadata, false otherwise
+        """
+        iso_metadata = xml_helper.try_get_element_from_xml(xml_elem=xml, elem="./MetadataURL")
+        if len(iso_metadata) == 0:
+            iso_metadata = xml_helper.try_get_element_from_xml(xml_elem=xml, elem="./wfs:MetadataURL")
+        return len(iso_metadata) != 0
+
+
     """
     Methods that have to be implemented in the sub classes
     """
@@ -133,14 +148,7 @@ class OGCWebService:
 
     @abstractmethod
     def get_service_iso_metadata(self, xml_obj):
-        """ Parse iso metadata for the whole service and merge the data with the capabilities service metadata.
-
-        Since there might be differences between the ISO metadata and the capabilities metadata we need to declare
-        a few best practices:
-        1. Lists of information (e.g. keywords, spatial reference systems, ...) should be merged without duplicates
-        2. If an information is already set...
-            2.1. ... and the found information does not differ from the set one -> do nothing
-            2.2. ... and the found information differs from the set one -> DO NOTHING! Yes this is strange but we have no way to qualify which
+        """
 
         Args:
             xml_obj: The xml etree object which is used for parsing
@@ -151,7 +159,7 @@ class OGCWebService:
         elem = "//inspire_common:URL"  # for wms by default
         if self.service_type is ServiceTypes.WFS:
             elem = "//wfs:MetadataURL"
-        service_md_link = service_helper.try_get_text_from_xml_element(elem=elem, xml_elem=xml_obj)
+        service_md_link = xml_helper.try_get_text_from_xml_element(elem=elem, xml_elem=xml_obj)
         # get iso metadata xml object
         if service_md_link is None:
             # no iso metadata provided
@@ -164,7 +172,7 @@ class OGCWebService:
         self.service_create_date = iso_metadata.create_date
         self.service_last_change = iso_metadata.last_change_date
         self.service_iso_md_uri = iso_metadata.uri
-        self.service_file_identifier = iso_metadata.file_identifier
+        self.service_file_iso_identifier = iso_metadata.file_identifier
         self.service_identification_title = iso_metadata.title
         self.service_identification_abstract = iso_metadata.abstract
         bounding_points = (

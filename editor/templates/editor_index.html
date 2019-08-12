@@ -7,15 +7,18 @@
 
 {% block body %}
 <div class="editor-body">
-    <h2>{% trans 'Editable services' %}:</h2>
     {% with 'WMS' as service_type %}
         {% with wms as services %}
-            {% include 'editor_service_list.html' %}
+            <div class="background">
+                {% include 'editor_service_list.html' %}
+            </div>
         {% endwith %}
     {% endwith %}
     {% with 'WFS' as service_type %}
         {% with wfs as services %}
-            {% include 'editor_service_list.html' %}
+            <div class="background">
+                {% include 'editor_service_list.html' %}
+            </div>
         {% endwith %}
     {% endwith %}
 

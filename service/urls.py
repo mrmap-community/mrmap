@@ -7,6 +7,8 @@ urlpatterns = [
     path('/<service_type>', index, name='index'),
     path('session', session, name='session'),
     path('activate/', activate, name='activate'),
+    path('capabilities/<int:id>', get_capabilities, name='get-capabilities'),
+    path('capabilities/<int:id>/original', get_capabilities_original, name='get-capabilities-original'),
 
     path('new/register-form', register_form, name='register-form'),
     path('new/', new_service, name='wms'),
@@ -21,4 +23,7 @@ urlpatterns = [
     path('wfs/', wfs, name='wfs'),
     path('detail/<int:id>', detail, name='detail'),
     path('detail-child/<int:id>', detail_child, name='detail-child'),
+
+    # dataset metadata proxy
+    path('metadata/<int:id>', metadata_proxy, name='metadata-proxy')
 ]

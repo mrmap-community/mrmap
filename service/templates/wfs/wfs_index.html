@@ -6,7 +6,7 @@
         {% if 'can_register_service' in user_permissions %}
             <div class="overview-action">
                 <span class="add-button" title="{% trans 'Register new' %}" datatype="wfs" typeof="service">
-                    +
+                    &#xFF0B;
                 </span>
             </div>
         {% endif %}
@@ -59,49 +59,63 @@
             {% trans 'Title' %}
         </th>
         <th class="table-header">
+            {% trans 'Number of featuretypes' %}
+        </th>
+        <th class="table-header">
             {% trans 'Active' %}
-        </th><th class="table-header">
+        </th>
+        <th class="table-header">
         {% trans 'Version' %}
-    </th><th class="table-header">
-        {% trans 'Data provider' %}
-    </th><th class="table-header">
-        {% trans 'Registered by group' %}
-    </th><th class="table-header">
-        {% trans 'Registered for' %}
-    </th><th class="table-header">
-        {% trans 'Created' %}
-    </th></tr>{% for wfs in metadata_list_wfs %}<tr class="service" data-type="wfs">
-    <td class="table-cell" data-type="title">
-        <a href="{% url 'service:detail' id=wfs.id %}" title="{% trans 'Open details' %}">{{ wfs.title }}</a>
-    </td>
-    <td class="table-cell">
-        {% if wfs.is_active %}
-        <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Active' %}">
-        {% else %}
-        <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Not active' %}">
-        {% endif %}
-    </td>
-    <td class="table-cell">
-        {{ wfs.service.servicetype.version }}
-    </td>
-    <td class="table-cell">
-        <a href="{% url 'structure:detail-organization' wfs.contact.id %}">{{ wfs.contact.organization_name }}</a>
-    </td>
-    <td class="table-cell">
-        <a href="{% url 'structure:detail-group' wfs.service.created_by.id %}">{{ wfs.service.created_by }}</a>
-    </td>
-    <td class="table-cell">
-        {% if wfs.service.published_for is not None %}
-        <a href="{% url 'structure:detail-organization' wfs.service.published_for.id %}">{{ wfs.service.published_for }}</a>
-        {% else %}
-        {{ wfs.service.published_for }}
-        {% endif %}
-    </td>
-    <td class="table-cell">
-        {{ wfs.created | localtime }}
-    </td>
-</tr>
-    </tr>{% endfor %}
+        </th>
+            <th class="table-header">
+            {% trans 'Data provider' %}
+        </th>
+            <th class="table-header">
+            {% trans 'Registered by group' %}
+        </th>
+            <th class="table-header">
+            {% trans 'Registered for' %}
+        </th>
+            <th class="table-header">
+            {% trans 'Created' %}
+        </th>
+    </tr>
+    {% for wfs in metadata_list_wfs %}
+    <tr class="service" data-type="wfs">
+        <td class="table-cell" data-type="title">
+            <a href="{% url 'service:detail' id=wfs.id %}" title="{% trans 'Open details' %}">{{ wfs.title }}</a>
+        </td>
+        <td class="table-cell center">
+            {{ wfs.service.featuretypes.all|length }}
+        </td>
+        <td class="table-cell center" data-type="parent-service">
+            {% if wfs.is_active %}
+            <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Active' %}">
+            {% else %}
+            <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Not active' %}">
+            {% endif %}
+        </td>
+        <td class="table-cell">
+            {{ wfs.service.servicetype.version }}
+        </td>
+        <td class="table-cell">
+            <a href="{% url 'structure:detail-organization' wfs.contact.id %}">{{ wfs.contact.organization_name }}</a>
+        </td>
+        <td class="table-cell">
+            <a href="{% url 'structure:detail-group' wfs.service.created_by.id %}">{{ wfs.service.created_by }}</a>
+        </td>
+        <td class="table-cell">
+            {% if wfs.service.published_for is not None %}
+            <a href="{% url 'structure:detail-organization' wfs.service.published_for.id %}">{{ wfs.service.published_for }}</a>
+            {% else %}
+            {{ wfs.service.published_for }}
+            {% endif %}
+        </td>
+        <td class="table-cell">
+            {{ wfs.created | localtime }}
+        </td>
+    </tr>
+    {% endfor %}
 </table>
 {% else %}
 {% trans 'None ¯\_(ツ)_/¯' %}

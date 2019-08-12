@@ -4,7 +4,7 @@ import time
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -20,9 +20,10 @@ from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL, EXEC_TIME_PRINT
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
+from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
-from service.models import Metadata, Layer, Service, FeatureType
+from service.models import Metadata, Layer, Service, FeatureType, CapabilityDocument
 from structure.models import User, Organization, Group, Permission
 from users.helper import user_helper
 
@@ -142,7 +143,7 @@ def activate(request: HttpRequest, user:User):
     # get root_layer of service and start changing of all statuses
     if service.servicetype == "wms":
         root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
-        service_helper.change_layer_status_recursively(root_layer, new_status)
+        service_helper.activate_layer_recursive(root_layer, new_status)
 
     if service.metadata.is_active:
         msg = SERVICE_ACTIVATED
@@ -151,6 +152,35 @@ def activate(request: HttpRequest, user:User):
     user_helper.create_group_activity(service.metadata.created_by, user, msg, service.metadata.title)
 
     return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
+
+
+def get_capabilities(request: HttpRequest, id: int):
+    """ Returns the current capabilities xml file
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The metadata id
+    Returns:
+         A HttpResponse containing the xml file
+    """
+    cap_doc = CapabilityDocument.objects.get(related_metadata__id=id)
+    doc = cap_doc.current_capability_document
+    return HttpResponse(doc, content_type='application/xml')
+
+
+def get_capabilities_original(request: HttpRequest, id: int):
+    """ Returns the current capabilities xml file
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The metadata id
+    Returns:
+         A HttpResponse containing the xml file
+    """
+    cap_doc = CapabilityDocument.objects.get(related_metadata__id=id)
+    doc = cap_doc.original_capability_document
+    return HttpResponse(doc, content_type='application/xml')
+
 
 @check_session
 def session(request: HttpRequest, user:User):
@@ -199,7 +229,7 @@ def register_form(request: HttpRequest, user: User):
         cap_url = POST_params.get("uri", "")
         url_dict = service_helper.split_service_uri(cap_url)
 
-        if url_dict["request"] != "GetCapabilities":
+        if url_dict["request"].lower() != "getcapabilities":
             # not allowed!
             error = True
 
@@ -248,6 +278,7 @@ def new_service(request: HttpRequest, user: User):
     POST_params = request.POST.dict()
 
     cap_url = POST_params.get("uri", "")
+    cap_url = cap_url.replace("&amp;", "&")
     register_group = POST_params.get("registerGroup")
     register_for_organization = POST_params.get("registerForOrg")
 
@@ -269,9 +300,16 @@ def new_service(request: HttpRequest, user: User):
             register_group,
             register_for_organization
         )
+
+        # get return values
         raw_service = service["raw_data"]
         service = service["service"]
+        xml = raw_service.service_capabilities_xml
+
+        # persist everything
         service_helper.persist_service_model_instance(service)
+        service_helper.persist_capabilities_doc(service, xml)
+
         params["service"] = raw_service
         print(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
         user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
@@ -321,6 +359,7 @@ def update_service(request: HttpRequest, user: User, id: int):
     # parse new capabilities into db model
     registrating_group = old_service.created_by
     new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user, register_group=registrating_group)
+    xml = new_service["raw_data"].service_capabilities_xml
     new_service = new_service["service"]
 
     # Collect differences
@@ -357,6 +396,10 @@ def update_service(request: HttpRequest, user: User, id: int):
 
         elif new_service.servicetype.name == ServiceTypes.WMS.value:
             old_service = update_helper.update_wms(old_service, new_service, diff, links, keep_custom_metadata)
+
+        cap_document = CapabilityDocument.objects.get(related_metadata=old_service.metadata)
+        cap_document.current_capability_document = xml
+        cap_document.save()
 
         old_service.save()
         del request.session["keep-metadata"]
@@ -510,3 +553,19 @@ def detail_child(request: HttpRequest, id, user:User):
     }
     html = render_to_string(template_name=template, context=params)
     return BackendAjaxResponse(html=html).get_response()
+
+
+def metadata_proxy(request: HttpRequest, id: int):
+    """ Returns the xml document which is resolved by the metadata id.
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The metadata id
+    Returns:
+         HttpResponse
+    """
+    dataset_metadata = Metadata.objects.get(id=id)
+    con = CommonConnector(url=dataset_metadata.metadata_url)
+    con.load()
+    xml_raw = con.content
+    return HttpResponse(xml_raw, content_type='application/xml')

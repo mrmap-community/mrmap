@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from service.helper.enums import ServiceTypes
 from structure.models import Group, Organization
+from service.helper import xml_helper
 
 
 class Keyword(models.Model):
@@ -52,36 +53,39 @@ class MetadataRelation(models.Model):
 
 
 class Metadata(Resource):
+    identifier = models.CharField(max_length=255, null=True)
     title = models.CharField(max_length=255)
     abstract = models.TextField(null=True, blank=True)
     online_resource = models.CharField(max_length=500, null=True, blank=True)
     original_uri = models.CharField(max_length=500, blank=True, null=True)
 
-    contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING)
+    contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, blank=True, null=True)
     terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, null=True)
-    access_constraints = models.TextField(null=True)
+    access_constraints = models.TextField(null=True, blank=True)
+    fees = models.TextField(null=True, blank=True)
 
     status = models.IntegerField(null=True)
-    last_harvest_successful = models.BooleanField(null=True)
-    last_harvest_exception = models.CharField(max_length=200, null=True)
-    export_to_csw = models.BooleanField(default=False)
+    inherit_proxy_uris = models.BooleanField(default=False)
     spatial_res_type = models.CharField(max_length=100, null=True)
     spatial_res_value = models.CharField(max_length=100, null=True)
+    is_broken = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
     is_custom = models.BooleanField(default=False)
     is_inspire_conform = models.BooleanField(default=False)
     has_inspire_downloads = models.BooleanField(default=False)
     bounding_geometry = models.PolygonField(null=True, blank=True)
     # capabilities
-    bbox = models.DecimalField(decimal_places=2, max_digits=4, null=True)
     dimension = models.CharField(max_length=100, null=True)
     authority_url = models.CharField(max_length=255, null=True)
-    identifier = models.CharField(max_length=255, null=True)
     metadata_url = models.CharField(max_length=255, null=True)
     # other
     keywords = models.ManyToManyField(Keyword)
     categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
+    metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
+    ## for ISO metadata
+    dataset_id = models.CharField(max_length=255, null=True, blank=True)
+    dataset_id_code_space = models.CharField(max_length=255, null=True, blank=True)
 
     related_metadata = models.ManyToManyField(MetadataRelation)
     origin = None
@@ -95,18 +99,28 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    def get_service_type(self):
+        """ Performs a check on which service type is described by the metadata record
+
+        Returns:
+             service_type (str): The service type as string ('wms' or 'wfs')
+        """
+        service_type = None
+        if self.is_root():
+            return self.service.servicetype.name
+        elif self.metadata_type.type == 'layer':
+            service_type = 'wms'
+        elif self.metadata_type.type == 'featuretype':
+            service_type = 'wfs'
+        return service_type
+
     def is_root(self):
         """ Checks whether the metadata describes a root service or a layer/featuretype
 
         Returns:
              is_root (bool): True if there is no parent service to the described service, False otherwise
         """
-        is_root = False
-        service = self.service
-        if service is not None:
-            if service.parent_service is None:
-                is_root = True
-        return is_root
+        return self.metadata_type.type == 'service'
 
     def _restore_layer_md(self, service, identifier: str = None):
         """ Private function for retrieving single layer metadata
@@ -127,7 +141,143 @@ class Metadata(Resource):
         for kw in layer.capability_keywords:
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.keywords.add(keyword)
+
+        original_iso_links = [x.uri for x in layer.iso_metadata]
+        for related_iso in self.related_metadata.all():
+            md_link = related_iso.metadata_2.metadata_url
+            if md_link not in original_iso_links:
+                related_iso.metadata_2.delete()
+                related_iso.delete()
+
+        # restore partially capabilities document
+        if self.is_root():
+            rel_md = self
+        else:
+            rel_md = self.service.parent_service.metadata
+        cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
+        cap_doc.restore_subelement(identifier)
         return
+
+    def _restore_feature_type_md(self, service, identifier: str = None):
+        """ Private function for retrieving single featuretype metadata
+
+        Args:
+            service (OGCWebMapService): An empty OGCWebMapService object to load and parse the metadata
+            identifier (str): The identifier string of the layer
+        Returns:
+             nothing, it changes the Metadata object itself
+        """
+        # parse single layer
+        identifier = self.identifier
+        f_t = service.get_feature_type_by_identifier(identifier)
+        f_t_obj = f_t.get("feature_type", None)
+        f_t_iso_links = f_t.get("dataset_md_list", [])
+        self.title = f_t_obj.metadata.title
+        self.abstract = f_t_obj.metadata.abstract
+        self.is_custom = False
+        self.keywords.clear()
+        for kw in f_t_obj.metadata.keywords_list:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            self.keywords.add(keyword)
+
+        for related_iso in self.related_metadata.all():
+            md_link = related_iso.metadata_2.metadata_url
+            if md_link not in f_t_iso_links:
+                related_iso.metadata_2.delete()
+                related_iso.delete()
+
+        # restore partially capabilities document
+        if self.is_root():
+            rel_md = self
+        else:
+            rel_md = self.featuretype.service.metadata
+        cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
+        cap_doc.restore_subelement(identifier)
+        return
+
+    def _restore_wms(self, identifier: str = None):
+        """ Restore the metadata of a wms service
+
+        Args;
+            identifier (str): Identifies which layer should be restored.
+        Returns:
+             nothing
+        """
+        from service.helper.ogc.wms import OGCWebMapServiceFactory
+        from service.helper import service_helper
+        service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
+        service = None
+        service = OGCWebMapServiceFactory()
+        service = service.get_ogc_wms(version=service_version, service_connect_url=self.original_uri)
+        service.get_capabilities()
+        service.create_from_capabilities(metadata_only=True)
+
+        # check if whole service shall be restored or single layer
+        if not self.is_root():
+            return self._restore_layer_md(service, identifier)
+
+        self.title = service.service_identification_title
+        self.abstract = service.service_identification_abstract
+        self.access_constraints = service.service_identification_accessconstraints
+        keywords = service.service_identification_keywords
+        self.keywords.clear()
+        for kw in keywords:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            self.keywords.add(keyword)
+
+        # by default no categories
+        self.categories.clear()
+        self.is_custom = False
+        self.inherit_proxy_uris = False
+
+        cap_doc = CapabilityDocument.objects.get(related_metadata=self)
+        cap_doc.restore()
+
+    def _restore_wfs(self, identifier: str = None):
+        """ Restore the metadata of a wfs service
+
+        Args;
+            identifier (str): Identifies which layer should be restored.
+        Returns:
+             nothing
+        """
+        from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
+        from service.helper import service_helper
+
+        # Prepare 'service' for further handling
+        # If no identifier is provided, we deal with a root metadata
+        is_root = identifier is None
+        if is_root:
+            service = self.service
+        else:
+            service = self.featuretype.service
+        service_version = service_helper.resolve_version_enum(service.servicetype.version)
+        service_tmp = OGCWebFeatureServiceFactory()
+        service_tmp = service_tmp.get_ogc_wfs(version=service_version, service_connect_url=self.original_uri)
+        if service_tmp is None:
+            return
+        service_tmp.get_capabilities()
+        service_tmp.create_from_capabilities(metadata_only=True)
+        # check if whole service shall be restored or single layer
+        if not self.is_root():
+            return self._restore_feature_type_md(service_tmp, identifier)
+
+        self.title = service_tmp.service_identification_title
+        self.abstract = service_tmp.service_identification_abstract
+        self.access_constraints = service_tmp.service_identification_accessconstraints
+        keywords = service_tmp.service_identification_keywords
+        self.keywords.clear()
+        for kw in keywords:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            self.keywords.add(keyword)
+
+        # by default no categories
+        self.categories.clear()
+        self.is_custom = False
+        self.inherit_proxy_uris = False
+
+        cap_doc = CapabilityDocument.objects.get(related_metadata=service.metadata)
+        cap_doc.restore()
 
     def restore(self, identifier: str = None):
         """ Load original metadata from capabilities and ISO metadata
@@ -137,38 +287,78 @@ class Metadata(Resource):
         Returns:
              nothing
         """
-        from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
-        from service.helper.ogc.wms import OGCWebMapServiceFactory
-        from service.helper import service_helper
-        if self.service is None:
-            return
-        service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
-        service = None
-        if self.service.servicetype.name == ServiceTypes.WMS.value:
-            service = OGCWebMapServiceFactory()
-            service = service.get_ogc_wms(version=service_version, service_connect_url=self.original_uri)
-            # check if whole service shall be restored or single layer
-            if not self.is_root():
-                return self._restore_layer_md(service, identifier)
 
-        elif self.service.servicetype.name == ServiceTypes.WFS.value:
-            service = OGCWebFeatureServiceFactory()
-            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.original_uri)
-        if service is None:
-            return
-        service.get_capabilities()
-        service.create_from_capabilities(metadata_only=True)
-        self.title = service.service_identification_title
-        self.abstract = service.service_identification_abstract
-        self.access_constraints = service.service_identification_accessconstraints
-        keywords = service.service_identification_keywords
-        self.keywords.clear()
-        for kw in keywords:
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            self.keywords.add(keyword)
-        # by default no categories
-        self.categories.clear()
-        self.is_custom = False
+        # identify whether this is a wfs or wms (we need to handle them in different ways)
+        service_type = self.get_service_type()
+        if service_type == 'wfs':
+            self._restore_wfs(identifier)
+        elif service_type == 'wms':
+            self._restore_wms(identifier)
+
+    def get_related_metadata_uris(self):
+        """ Generates a list of all related metadata online links and returns them
+
+        Returns:
+             links (list): A list containing all online links of related metadata
+        """
+        rel_mds = self.related_metadata.all()
+        links = []
+        for md in rel_mds:
+            links.append(md.metadata_2.metadata_url)
+        return links
+
+
+class MetadataType(models.Model):
+    type = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return self.type
+
+
+class CapabilityDocument(Resource):
+    related_metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
+    original_capability_document = models.TextField()
+    current_capability_document = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return self.related_metadata
+
+    def restore(self):
+        """ We overwrite the current metadata xml with the original
+
+        Returns:
+             nothing
+        """
+        self.current_capability_document = self.original_capability_document
+        self.save()
+
+    def restore_subelement(self, identifier: str):
+        """ Restores only the layer which matches the provided identifier
+
+        Args:
+            identifier (str): The identifier which matches a single layer in the document
+        Returns:
+             nothing
+        """
+        # only restored the layer and it's children
+        cap_doc_curr_obj = xml_helper.parse_xml(self.current_capability_document)
+        cap_doc_orig_obj = xml_helper.parse_xml(self.original_capability_document)
+
+        xml_layer_obj_curr = xml_helper.find_element_where_text(cap_doc_curr_obj, identifier)[0]
+        xml_layer_obj_orig = xml_helper.find_element_where_text(cap_doc_orig_obj, identifier)[0]
+
+        # find position where original element existed
+        parent_orig = xml_helper.get_parent(xml_layer_obj_orig)
+        orig_index = parent_orig.index(xml_layer_obj_orig)
+
+        # insert original element at the original index and remove current element (which now is at index + 1)
+        parent_curr = xml_helper.get_parent(xml_layer_obj_curr)
+        parent_curr.insert(orig_index, xml_layer_obj_orig)
+        parent_curr.remove(xml_layer_obj_curr)
+
+        self.current_capability_document = xml_helper.xml_to_string(cap_doc_curr_obj)
+        self.save()
+
 
 class TermsOfUse(Resource):
     name = models.CharField(max_length=100)
@@ -212,7 +402,7 @@ class ServiceType(models.Model):
 
 
 class Service(Resource):
-    metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
+    metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)
     servicetype = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
@@ -240,7 +430,7 @@ class Service(Resource):
         return str(self.id)
 
     @transaction.atomic
-    def delete_layer_data(self, layer):
+    def delete_child_data(self, child):
         """ Delete all layer data like related iso metadata
 
         Args:
@@ -249,26 +439,35 @@ class Service(Resource):
             nothing
         """
         # remove related metadata
-        iso_mds = MetadataRelation.objects.filter(metadata_1=layer.metadata)
+        iso_mds = MetadataRelation.objects.filter(metadata_1=child.metadata)
         for iso_md in iso_mds:
             md_2 = iso_md.metadata_2
             md_2.delete()
             iso_md.delete()
-        layer.delete()
+        if isinstance(child, FeatureType):
+            # no other way to remove feature type metadata on service deleting
+            child.metadata.delete()
+        child.delete()
 
     @transaction.atomic
     def delete(self, using=None, keep_parents=False):
         """ Overwrites default delete method
 
-        Recursively remove layer children
+        Recursively remove children
 
-        :param using:
-        :param keep_parents:
-        :return:
+        Args;
+            using:
+            keep_parents:
+        Returns:
         """
-        layers = self.child_service.all()
-        for layer in layers:
-            self.delete_layer_data(layer)
+        if self.servicetype.name == 'wms':
+            layers = self.child_service.all()
+            for layer in layers:
+                self.delete_child_data(layer)
+        elif self.servicetype.name == 'wfs':
+            feature_types = self.featuretypes.all()
+            for f_t in feature_types:
+                self.delete_child_data(f_t)
         self.metadata.delete()
         super().delete()
 
@@ -303,6 +502,8 @@ class Service(Resource):
 
 
 class Layer(Service):
+    class Meta:
+        ordering = ["position"]
     identifier = models.CharField(max_length=500, null=True)
     hits = models.IntegerField(default=0)
     preview_image = models.CharField(max_length=100)
@@ -393,13 +594,10 @@ class Style(models.Model):
 
 
 class FeatureType(Resource):
-    identifier = models.CharField(max_length=255)
-    title = models.CharField(max_length=255)
-    abstract = models.TextField(null=True)
-    is_custom = models.BooleanField(default=False)
-    searchable = models.BooleanField(default=False)
+    metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="featuretype")
+    service = models.ForeignKey(Service, null=True,  blank=True, on_delete=models.CASCADE, related_name="featuretypes")
+    is_searchable = models.BooleanField(default=False)
     default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True, related_name="default_srs")
-    additional_srs = models.ManyToManyField(ReferenceSystem)
     inspire_download = models.BooleanField(default=False)
     bbox_lat_lon = models.PolygonField(default=Polygon(
         (
@@ -410,11 +608,9 @@ class FeatureType(Resource):
             (-90.0, -180.0),
         )
     ))
-    keywords = models.ManyToManyField(Keyword)
     formats = models.ManyToManyField(MimeType)
     elements = models.ManyToManyField('FeatureTypeElement')
     namespaces = models.ManyToManyField('Namespace')
-    service = models.ForeignKey(Service, null=True,  blank=True, on_delete=models.CASCADE, related_name="featuretypes")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -424,11 +620,17 @@ class FeatureType(Resource):
         self.formats_list = []
         self.elements_list = []
         self.namespaces_list = []
+        self.dataset_md_list = []
 
     def __str__(self):
-        return self.identifier
+        return self.metadata.identifier
 
     def restore(self):
+        """ Reset the metadata to it's original capabilities content
+
+        Returns:
+             nothing
+        """
         from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
         from service.helper import service_helper
         if self.service is None:
@@ -441,18 +643,18 @@ class FeatureType(Resource):
         if service is None:
             return
         service.get_capabilities()
-        service.get_single_feature_type_metadata(self.identifier)
-        result = service.feature_type_list.get(self.identifier, {})
+        service.get_single_feature_type_metadata(self.metadata.identifier)
+        result = service.feature_type_list.get(self.metadata.identifier, {})
         original_ft = result.get("feature_type")
         keywords = result.get("keyword_list")
 
         # now restore the "metadata"
         self.title = original_ft.title
         self.abstract = original_ft.abstract
-        self.keywords.clear()
+        self.metadata.keywords.clear()
         for kw in keywords:
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            self.keywords.add(keyword)
+            self.metadata.keywords.add(keyword)
         self.is_custom = False
 
 

@@ -7,7 +7,28 @@ $(document).on("click", ".selected-value", function(){
     $(this).remove();
 });
 
+$(document).on("input.metadata-url", "input", function(){
+    var elem = $(this);
+    var inputs = $("input.metadata-url");
+    var lastInput = inputs.last();
+    var allFull = true;
+    inputs.each(function(i, input){
+        input = $(input);
+        if(input.val().trim().length == 0){
+            allFull = false;
+            return;
+        }
+    });
+    if(allFull){
+        var newInput = $("<input/>")
+            .attr("class", "metadata-url")
+            .attr("type", "text");
+        lastInput.after(newInput);
+    }
+});
+
 $(document).ready(function(){
+
 
     $(".value-input").on("input", function(){
         var elem = $(this);
@@ -51,7 +72,25 @@ $(document).ready(function(){
 
     $("#metadata-form").submit(function(event){
         //event.preventDefault();
-        // put keywords, categories and reference system in the correct input labels
+        // put iso metadata uris in correct input field
+        var isoLinks = $("input.metadata-url");
+        var isoLinkField = $("#iso-metadata-url");
+        var linksArray = [];
+        isoLinks.each(function(i, isoLink){
+            isoLink = $(isoLink);
+            if(isoLink.val().trim().length > 0){
+                linksArray.push(isoLink.val());
+            }
+        });
+
+        isoLinkField.append($('<input>', {
+                    type: 'hidden',
+                    name: "iso_metadata_url",
+                    value: linksArray.join(",")
+                })
+                );
+
+        // put keywords, categories and reference system in the correct input fields
         var names = $(["keywords", "categories"]);
         names.each(function(i, name){
             var itemRow = $("#" + name);

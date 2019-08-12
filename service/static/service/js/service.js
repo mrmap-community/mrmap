@@ -224,12 +224,30 @@ $(document).ready(function(){
         services.each(function(i, service){
             service = $(service);
             var title = service.find("[data-type='title']").text().trim().toUpperCase();
-            if(title.includes(input)){
+            var parentService = service.find("[data-type='parent-service']").text().trim().toUpperCase();
+            if(title.includes(input) || parentService.includes(input)){
                 service.show();
             }else{
                 service.hide();
             }
         });
     });
+
+    $("#capabilities-toggler").click(function(event){
+        event.stopPropagation();
+        var elem = $(this);
+        var capabilities = $("#capabilities-list");
+        elem.toggleClass("open");
+        capabilities.slideToggle();
+    });
+
+    $("html").click(function(){
+        var capToggler = $("#capabilities-toggler");
+        if(capToggler.hasClass("open")){
+            capToggler.click();
+        }
+    });
+
+
 
 });

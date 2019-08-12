@@ -6,6 +6,10 @@
     overflow-y: auto;
 }
 
+.form-table td{
+    border: unset;
+}
+
 .field-label, .field{
     font-size: 1.2em;
 }

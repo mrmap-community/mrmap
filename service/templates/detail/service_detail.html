@@ -43,17 +43,30 @@
             </div>
         {% endif %}
         {% if 'can_edit_metadata_service' in user_permissions %}
-            <a href="{% url 'editor:edit' root_metadata.id %}" title="{% trans 'Edit metadata' %}">
+            <a href="{% url 'editor:edit' root_metadata.id %}" title="{% trans 'Edit service' %}">
                 <div class="button-container">
-                    <span>{% trans 'Edit metadata' %}</span>
+                    <span>{% trans 'Edit service' %}</span>
                 </div>
             </a>
         {% endif %}
-        <a href="{{ root_metadata.original_uri }}" target="_blank" title="{% trans 'Open original metadata in new tab' %}">
-            <div class="button-container">
-                <span>{% trans 'Capabilities (XML)' %}</span>
+        <div id="capabilities-container">
+            <div id="capabilities-toggler" class="button-container">
+                <span>{% trans 'Capabilities' %}</span>
             </div>
+            <div id="capabilities-list" class="hide">
+                <a target="_blank" href="{% url 'service:get-capabilities-original' root_metadata.id  %}">
+                    <div class="button-container">{% trans 'Original' %}</div>
+                </a>
+                <a target="_blank" href="{% url 'service:get-capabilities' root_metadata.id %}">
+                    <div class="button-container">{% trans 'Current' %}</div>
+                </a>
+            </div>
+
+        </div>
+        <!--
+        <a href="{{ root_metadata.original_uri }}" target="_blank" title="{% trans 'Open original metadata in new tab' %}">
         </a>
+        -->
     </div>
     {% if 'can_remove_service' in user_permissions %}
         <div class="container-right">

@@ -132,7 +132,10 @@ $(document).on("click", "#eeImg", function(){
 $(document).ready(function(){
     // hide messages after 10 seconds automatically
     setTimeout(function(){
-        $(".messages").click();
+        var msg = $(".messages");
+        if(msg.is(":visible")){
+            $(".messages").click();
+        }
     }, 5000);
 
     var eeRotation = 0;

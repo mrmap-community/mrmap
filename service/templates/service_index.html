@@ -8,6 +8,12 @@
 {% block body %}
 <div class="overview">
 
+    {% if pending_tasks|length > 0 %}
+        <div class="background">
+            {% include 'pending_tasks.html' %}
+        </div>
+    {% endif %}
+
     {% if only_type == 'wms' or only_type is None %}
         <div class="background">
             {% include 'wms/wms_index.html' %}

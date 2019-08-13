@@ -1,4 +1,5 @@
 from django.contrib.auth.hashers import check_password
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
 from service.helper.enums import ServiceTypes
@@ -7,8 +8,9 @@ from service.helper.enums import ServiceTypes
 class PendingTask(models.Model):
     task_id = models.CharField(max_length=500, null=True, blank=True)
     description = models.TextField()
-    progress = models.FloatField(null=True, blank=True)
+    progress = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)])
     is_finished = models.BooleanField(default=False)
+    created_by = models.ForeignKey('Group', null=True, blank=True, on_delete=models.DO_NOTHING)
 
     def __str__(self):
         return self.task_id

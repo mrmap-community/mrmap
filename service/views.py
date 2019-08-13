@@ -39,6 +39,8 @@ def index(request: HttpRequest, user: User, service_type=None):
          A view
     """
     template = "service_index.html"
+
+    # possible results per page values
     rpp_select = [5, 10, 15, 20]
     try:
         wms_page = int(request.GET.get("wmsp", 1))
@@ -49,14 +51,16 @@ def index(request: HttpRequest, user: User, service_type=None):
         if results_per_page not in rpp_select:
             results_per_page = 5
     except ValueError as e:
+        # since parameters could be changed directly in the uri, we need to make sure to avoid problems
         return redirect("service:index")
 
+    # whether whole services or single layers should be displayed
     display_service_type = request.session.get("displayServices", None)
     is_root = True
     if display_service_type is not None:
-        if display_service_type == 'layers':
-            # show single layers instead of grouped service
-            is_root = False
+        is_root = display_service_type != "layers"
+
+    # get services
     paginator_wms = None
     paginator_wfs = None
     if service_type is None or service_type == ServiceTypes.WMS.value:
@@ -74,6 +78,11 @@ def index(request: HttpRequest, user: User, service_type=None):
             service__is_deleted=False,
         ).order_by("title")
         paginator_wfs = Paginator(md_list_wfs, results_per_page).get_page(wfs_page)
+
+    # get pending tasks
+    pending_tasks = PendingTask.objects.filter(created_by__in=user.groups.all())
+    for task in pending_tasks:
+        task.description = json.loads(task.description)
     params = {
         "metadata_list_wms": paginator_wms,
         "metadata_list_wfs": paginator_wfs,
@@ -82,6 +91,7 @@ def index(request: HttpRequest, user: User, service_type=None):
         "user": user,
         "rpp_select_options": rpp_select,
         "rpp": results_per_page,
+        "pending_tasks": pending_tasks,
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
@@ -290,6 +300,7 @@ def new_service(request: HttpRequest, user: User):
 
     # create db object, so we know which pending task is still ongoing
     pending_task_db = PendingTask()
+    pending_task.created_by = register_group
     pending_task_db.task_id = pending_task.task_id
     pending_task_db.description = json.dumps({
         "service": cap_url,

@@ -452,6 +452,13 @@ tr:nth-child(odd){
     color: var(--secondary-color);
     border-radius: 1em;
 }
+
+.search-field:focus{
+    -webkit-box-shadow: 0 0 10px var(--primary-color);
+    -moz-box-shadow: 0 0 10px var(--primary-color);
+    box-shadow: 0 0 10px var(--primary-color);
+}
+
 .search-field::placeholder{
     color: var(--secondary-color);
 
@@ -505,6 +512,7 @@ a.listable:hover{
 
 .detail-table th{
     text-align: unset;
+    width: 20%;
 }
 
 .button{
@@ -520,12 +528,12 @@ a.listable:hover{
 
 .button:hover{
     cursor:pointer;
-    background-color: var(--secondary-color-light);
 }
 
 .discard-button{
     background-color: red;
     border: 1px solid red;
+    margin-top: 0.5rem;
 }
 .discard-button:hover{
     cursor: pointer;

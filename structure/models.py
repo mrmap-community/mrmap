@@ -4,6 +4,16 @@ from django.db import models
 from service.helper.enums import ServiceTypes
 
 
+class PendingTask(models.Model):
+    task_id = models.CharField(max_length=500, null=True, blank=True)
+    description = models.TextField()
+    progress = models.FloatField(null=True, blank=True)
+    is_finished = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.task_id
+
+
 class Permission(models.Model):
     can_create_organization = models.BooleanField(default=False)
     can_edit_organization = models.BooleanField(default=False)

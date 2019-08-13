@@ -9,22 +9,21 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from lxml.etree import XMLSyntaxError, XPathEvalError
-from requests.exceptions import InvalidURL
 
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
-from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, SERVICE_UPDATE_ABORTED_NO_DIFF, \
-    SERVICE_REMOVED, SERVICE_ACTIVATED, SERVICE_REGISTERED, SERVICE_UPDATED, SERVICE_DEACTIVATED
+from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
+    SERVICE_REMOVED, SERVICE_ACTIVATED, SERVICE_UPDATED, SERVICE_DEACTIVATED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-from MapSkinner.settings import ROOT_URL, EXEC_TIME_PRINT
+from MapSkinner.settings import ROOT_URL
+from service import tasks
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType, CapabilityDocument
-from structure.models import User, Organization, Group, Permission
+from structure.models import User, Permission, PendingTask
 from users.helper import user_helper
 
 
@@ -259,7 +258,7 @@ def register_form(request: HttpRequest, user: User):
         params = {
             "form": uri_form,
             "action_url": ROOT_URL + "/service/new/register-form",
-            "button_text": "Continue",
+            "button_text": "Next",
         }
     html = render_to_string(request=request, template_name=template, context=params)
     return BackendAjaxResponse(html).get_response()
@@ -282,45 +281,29 @@ def new_service(request: HttpRequest, user: User):
     register_group = POST_params.get("registerGroup")
     register_for_organization = POST_params.get("registerForOrg")
 
-    register_group = Group.objects.get(id=register_group)
-    if utils.resolve_none_string(register_for_organization) is not None:
-        register_for_organization = Organization.objects.get(id=register_for_organization)
-    else:
-        register_for_organization = None
-
     url_dict = service_helper.split_service_uri(cap_url)
-    params = {}
-    try:
-        t_start = time.time()
-        service = service_helper.get_service_model_instance(
-            url_dict.get("service"),
-            url_dict.get("version"),
-            url_dict.get("base_uri"),
-            user,
-            register_group,
-            register_for_organization
-        )
+    url_dict["service"] = url_dict["service"].value
+    url_dict["version"] = url_dict["version"].value
 
-        # get return values
-        raw_service = service["raw_data"]
-        service = service["service"]
-        xml = raw_service.service_capabilities_xml
+    # run creation async!
+    pending_task = tasks.async_new_service.delay(url_dict, user.id, register_group, register_for_organization)
 
-        # persist everything
-        service_helper.persist_service_model_instance(service)
-        service_helper.persist_capabilities_doc(service, xml)
+    # create db object, so we know which pending task is still ongoing
+    pending_task_db = PendingTask()
+    pending_task_db.task_id = pending_task.task_id
+    pending_task_db.description = json.dumps({
+        "service": cap_url,
+        "phase": "parsing",
+    })
 
-        params["service"] = raw_service
-        print(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
-        user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
-    except (ConnectionError, InvalidURL) as e:
-        params["error"] = e.args[0]
-        raise e
-    except (BaseException, XMLSyntaxError, XPathEvalError) as e:
-        params["unknown_error"] = e
-        raise e
+    pending_task_db.save()
 
-    template = "check_metadata_form.html"
+    params = {
+        "pending_task": pending_task,
+        "url_dict": url_dict,
+    }
+
+    template = "new_service_progress.html"
     html = render_to_string(template_name=template, request=request, context=params)
     return BackendAjaxResponse(html=html).get_response()
 

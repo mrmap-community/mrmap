@@ -1,5 +1,7 @@
 import datetime
+import json
 
+from celery.result import AsyncResult
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
@@ -9,6 +11,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner import utils
+from MapSkinner.celery_app import app
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_SENT, \
     PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
@@ -18,7 +21,7 @@ from MapSkinner.settings import ROOT_URL
 from service.models import Service
 from structure.config import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganization
-from structure.models import Group, Role, Permission, Organization, PendingRequest
+from structure.models import Group, Role, Permission, Organization, PendingRequest, PendingTask
 from structure.models import User
 from users.helper import user_helper
 
@@ -57,6 +60,48 @@ def index(request: HttpRequest, user: User):
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
+
+
+#@check_session
+def task(request: HttpRequest): #, user: User):
+    """ Returns information about the pending task
+
+    Args:
+        request:
+    Returns:
+         nothing
+    """
+    params = {
+        "description": "",
+        "id": "",
+        "state": "",
+        "info": "",
+    }
+    try:
+        id = request.GET.get("id", "")
+        task = AsyncResult(id, app=app)
+        params.update({
+            "id": task.id,
+            "state": task.state,
+            "info": task.info,
+        })
+    except AttributeError:
+        pass
+    try:
+        task_db = PendingTask.objects.get(task_id=id)
+        params["description"] = task_db.description
+    except ObjectDoesNotExist:
+        # this happens if the db record already was deleted
+        # just fake the progress as it would be finished!
+        params["info"] = {
+            "current": 100,
+        }
+        params["description"] = json.dumps({
+            "service": "",
+            "phase": "finished",
+        })
+        pass
+    return BackendAjaxResponse(html="", task=params).get_response()
 
 
 @check_session

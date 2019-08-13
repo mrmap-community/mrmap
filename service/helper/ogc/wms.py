@@ -5,7 +5,6 @@
 .. moduleauthor:: Armin Retterath <armin.retterath@gmail.com>
 
 """
-import json
 import uuid
 from abc import abstractmethod
 
@@ -14,7 +13,6 @@ import time
 from copy import copy
 from threading import Thread
 
-from django import db
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
@@ -28,9 +26,9 @@ from service.helper.iso.isoMetadata import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
-from service.helper import service_helper, xml_helper
-from service.models import ServiceType, Service, Metadata, Layer, Dimension, MimeType, Keyword, ReferenceSystem, \
-    MetadataRelation, MetadataOrigin, CapabilityDocument, MetadataType
+from service.helper import xml_helper
+from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
+    MetadataRelation, MetadataOrigin, MetadataType
 from structure.models import Organization, Group
 from structure.models import User
 
@@ -685,6 +683,7 @@ class OGCWebMapService(OGCWebService):
         # iterate over all layers
         # There were attempts to implement a multithreaded approach in here but due to the problem of n-depth of layer hierarchy
         # there was no working solution so far which worked.
+
         for layer_obj in layers:
             self.__create_single_layer_model_instance(
                 layer_obj,

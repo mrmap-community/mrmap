@@ -25,7 +25,10 @@
 
 
     #capabilities-uri{
-        width: 80%;
+        width: 100%;
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        -webkit-box-sizing: border-box;
     }
 
     .form-table{
@@ -48,9 +51,11 @@
     }
 
     .submit-button{
+        margin: 0.5rem;
         display: flex;
         align-items: center;
         justify-content: center;
+        float: right;
         background-color: var(--secondary-color-light);
     }
 
@@ -151,7 +156,7 @@
                     {% trans 'Depending on the numbers of layers or featuretypes provided by this service, the update process can take a while. Please be patient. Do not click around furiously.' %}
                 </span>
             </div>
-            <input type="submit" class="button submit-button" value="{% trans 'Continue' %}">
+            <input type="submit" class="button submit-button" value="{% trans 'Next' %}">
             <!--
             <a href="{% url 'service:update-service'  service.id  %}"><div class="submit-button button">{% trans 'Continue' %}</div></a>
             -->

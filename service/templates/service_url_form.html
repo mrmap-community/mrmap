@@ -26,10 +26,12 @@
     }
 
     .submit-button{
+        margin: 0.5rem;
         display: flex;
         align-items: center;
         justify-content: center;
         background-color: var(--secondary-color);
+        float: right;
     }
 
     .submit-button:hover{
@@ -38,7 +40,10 @@
 
 
     #capabilities-uri{
-        width: 80%;
+        width: 100%;
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        -webkit-box-sizing: border-box;
     }
 
     .form-table{
@@ -75,15 +80,15 @@
                     <div id="request-uri" class="field">{{ field }}</div>
                 {% endfor %}
             </div>
-            <input class="button submit-button" value="{{ button_text }}">
+            <button class="button submit-button">{{ button_text }}</button>
         </form>
-        <!--<button id="service-register-button" class="button submit-button">{{ button_text }}</button>-->
     </div>
 </div>
 <script>
     {% include 'modal-dialog-scripts.html' %}
 
-    $(".submit-button").click(function(){
+    $(".submit-button").click(function(event){
+        event.preventDefault();
         {% if service_id is not None %}
             checkServiceRequestURI(true, {{ service_id }});
         {% else %}

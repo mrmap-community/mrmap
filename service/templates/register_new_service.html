@@ -25,7 +25,10 @@
 
 
     #capabilities-uri{
-        width: 80%;
+        width: 100%;
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        -webkit-box-sizing: border-box;
     }
 
     .form-table{
@@ -48,10 +51,12 @@
     }
 
     .submit-button{
+        margin: 0.5rem;
         display: flex;
         align-items: center;
         justify-content: center;
         background-color: var(--secondary-color);
+        float: right;
     }
 
     .submit-button:hover{
@@ -156,7 +161,7 @@
                 <div class="loading-spinner hide">
                     <i class="fas fa-circle-notch fa-spin"></i>
                 </div>
-                <span id="submit-text">{% trans 'Continue' %}</span>
+                <span id="submit-text">{% trans 'Next' %}</span>
             </button>
         {% endif %}
     </div>

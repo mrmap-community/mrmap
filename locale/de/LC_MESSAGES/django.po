@@ -676,8 +676,8 @@ msgstr ""
 #: service/templates/register_new_service.html:159
 #: service/templates/update_service.html:154
 #: service/templates/update_service.html:156
-msgid "Continue"
-msgstr "Fortfahren"
+msgid "Next"
+msgstr "Weiter"
 
 #: service/templates/register_new_service.html:202
 #: service/templates/remove_service_confirmation.html:61

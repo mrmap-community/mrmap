@@ -5,6 +5,7 @@ from collections import OrderedDict
 
 import time
 
+from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 from lxml.etree import _Element
@@ -18,7 +19,7 @@ from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.isoMetadata import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
-from service.helper import service_helper, xml_helper
+from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
     FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType
 from structure.models import Organization, User
@@ -100,7 +101,7 @@ class OGCWebFeatureService(OGCWebService):
         abstract = True
 
     @abstractmethod
-    def create_from_capabilities(self, metadata_only: bool = False):
+    def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):
         """ Fills the object with data from the capabilities document
 
         Returns:
@@ -121,7 +122,7 @@ class OGCWebFeatureService(OGCWebService):
 
         if not metadata_only:
             start_time = time.time()
-            self.get_feature_type_metadata(xml_obj)
+            self.get_feature_type_metadata(xml_obj, async_task)
             print(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
 
 
@@ -230,7 +231,7 @@ class OGCWebFeatureService(OGCWebService):
 
 
     @transaction.atomic
-    def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version:str):
+    def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version: str, async_task: Task = None, step_size: float = None):
         """ Get featuretype metadata of a single featuretype
 
         Args:
@@ -240,6 +241,10 @@ class OGCWebFeatureService(OGCWebService):
         Returns:
             feature_type_list(dict): A dict containing all different metadatas for this featuretype and it's children
         """
+        # update async task if this is called async
+        if async_task is not None and step_size is not None:
+            task_helper.update_progress_by_step(async_task, step_size)
+
         f_t = FeatureType()
         md = Metadata()
         md_type = MetadataType.objects.get_or_create(type=MD_TYPE_FEATURETYPE)[0]
@@ -326,7 +331,7 @@ class OGCWebFeatureService(OGCWebService):
         }
 
     @abstractmethod
-    def get_feature_type_metadata(self, xml_obj):
+    def get_feature_type_metadata(self, xml_obj, async_task: Task = None):
         """ Parse the capabilities document <FeatureTypeList> metadata into the self object
 
         This abstract implementation follows the wfs specification for version 1.1.0
@@ -344,14 +349,20 @@ class OGCWebFeatureService(OGCWebService):
         # Feature types
         thread_list = []
 
+        len_ft_list = len(feature_type_list)
+
+        # calculate the step size for an async call
+        # 55 is the diff from the last process update (10) to the next static one (65)
+        step_size = float(85 / len_ft_list)
+        print("stepsize: {}".format(step_size))
         # decide whether to use multithreading or iterative approach
-        if len(feature_type_list) > MULTITHREADING_THRESHOLD:
+        if len_ft_list > MULTITHREADING_THRESHOLD:
             for xml_feature_type in feature_type_list:
-                thread_list.append(threading.Thread(target=self._get_feature_type_metadata, args=(xml_feature_type, epsg_api, service_type_version)))
+                thread_list.append(threading.Thread(target=self._get_feature_type_metadata, args=(xml_feature_type, epsg_api, service_type_version, async_task, step_size)))
             execute_threads(thread_list)
         else:
             for xml_feature_type in feature_type_list:
-                self._get_feature_type_metadata(xml_feature_type, epsg_api, service_type_version)
+                self._get_feature_type_metadata(xml_feature_type, epsg_api, service_type_version, async_task, step_size)
 
 
     @abstractmethod

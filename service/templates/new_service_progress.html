@@ -107,6 +107,11 @@
         background-color: var(--secondary-color);
         width: 1%;
     }
+    .progress-bar.number{
+        color: white;
+        font-size: 0.8em;
+        text-align: center;
+    }
 </style>
 
 {% block body %}
@@ -127,6 +132,7 @@
         <div class="progress-bar-wrapper">
             <div class="progress-bar bg"></div>
             <div class="progress-bar fg"></div>
+            <div class="progress-bar number"></div>
         </div>
         <button class="submit-button button">
             <span class="loading-spinner">
@@ -179,7 +185,9 @@
                     progress = progress["current"];
 
                     // write new progress to bar
+                    var pgNum = progress + "%";
                     $(".fg").css("width", progress + "%");
+                    $(".number").html(pgNum)
 
                     if(progress == 100){
                         // we are done!

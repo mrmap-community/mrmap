@@ -622,6 +622,7 @@ a.listable:hover{
 .progress-bar-wrapper{
     height: 1rem;
     position: relative;
+    border: 1px solid var(--secondary-color);
 }
 .progress-bar{
     width: 100%;
@@ -641,6 +642,7 @@ a.listable:hover{
     color: white;
     font-size: 0.8em;
     text-align: center;
+
 }
 
 .pending-task-table .task-title, .pending-task-table .task-phase{

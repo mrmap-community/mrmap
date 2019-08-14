@@ -79,7 +79,7 @@ SESSION_SAVE_EVERY_REQUEST = True
 LAST_ACTIVITY_DATE_RANGE = 7
 
 # Threshold which indicates when to use multithreading instead of iterative approaches
-MULTITHREADING_THRESHOLD = 20
+MULTITHREADING_THRESHOLD = 2000
 
 # Metadata types
 MD_TYPE_FEATURETYPE = "featuretype"

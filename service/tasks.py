@@ -57,7 +57,8 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
     curr_task_id = async_new_service.request.id
 
     # set progress for current task to 0
-    task_helper.update_progress(async_new_service, 0)
+    if curr_task_id is not None:
+        task_helper.update_progress(async_new_service, 0)
 
     # restore objects from ids
     user = User.objects.get(id=user_id)
@@ -71,7 +72,8 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         register_for_organization = None
 
     try:
-        task_helper.update_progress(async_new_service, 10)
+        if curr_task_id is not None:
+            task_helper.update_progress(async_new_service, 10)
 
         t_start = time.time()
         service = service_helper.get_service_model_instance(
@@ -80,24 +82,27 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             url_dict.get("base_uri"),
             user,
             register_group,
-            register_for_organization
+            register_for_organization,
+            async_task=async_new_service,
         )
 
         # update progress
-        task_helper.update_progress(async_new_service, 65)
+        if curr_task_id is not None:
+            task_helper.update_progress(async_new_service, 90)
 
         # get return values
         raw_service = service["raw_data"]
         service = service["service"]
 
         # get db object
-        pending_task = PendingTask.objects.get(task_id=curr_task_id)
-        # update db pending task information
-        pending_task.description = json.dumps({
-            "service": service.metadata.title,
-            "phase": "persisting",
-        })
-        pending_task.save()
+        if curr_task_id is not None:
+            pending_task = PendingTask.objects.get(task_id=curr_task_id)
+            # update db pending task information
+            pending_task.description = json.dumps({
+                "service": service.metadata.title,
+                "phase": "persisting",
+            })
+            pending_task.save()
 
         xml = raw_service.service_capabilities_xml
 
@@ -105,20 +110,30 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         service_helper.persist_service_model_instance(service)
 
         # update progress
-        task_helper.update_progress(async_new_service, 90)
+        if curr_task_id is not None:
+            task_helper.update_progress(async_new_service, 95)
 
         service_helper.persist_capabilities_doc(service, xml)
 
         print(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
         user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
 
-        task_helper.update_progress(async_new_service, 100)
+        if curr_task_id is not None:
+            task_helper.update_progress(async_new_service, 100)
 
         # delete pending task from db
-        pending_task = PendingTask.objects.get(task_id=curr_task_id)
-        pending_task.delete()
+        if curr_task_id is not None:
+            pending_task = PendingTask.objects.get(task_id=curr_task_id)
+            pending_task.delete()
 
     except (ConnectionError, InvalidURL) as e:
         raise e
     except (BaseException, XMLSyntaxError, XPathEvalError) as e:
+        if curr_task_id is not None:
+            pending_task = PendingTask.objects.get(task_id=curr_task_id)
+            pending_task.description = json.dumps({
+                "current": "0",
+                "exception": e.__str__(),
+            })
+            pending_task.save()
         raise e

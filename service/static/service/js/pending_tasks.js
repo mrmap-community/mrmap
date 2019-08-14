@@ -35,7 +35,7 @@ function checkTaskStatus(tasks){
                 if(progress != null){
                     progress = progress["current"];
                     // write new progress to bar
-                    var pgNum = progress + "%";
+                    var pgNum = parseFloat(progress).toFixed(2) + "%";
                     progressBar.css("width", pgNum);
                     numberElement.html(pgNum)
                     if(progress == 100){
@@ -48,7 +48,7 @@ function checkTaskStatus(tasks){
             })
             .always(function(data){
             });
-        }, 1000);
+        }, 500);
 
     });
 

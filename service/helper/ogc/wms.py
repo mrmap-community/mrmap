@@ -13,6 +13,7 @@ import time
 from copy import copy
 from threading import Thread
 
+from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
@@ -26,7 +27,7 @@ from service.helper.iso.isoMetadata import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
-from service.helper import xml_helper
+from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
     MetadataRelation, MetadataOrigin, MetadataType
 from structure.models import Organization, Group
@@ -88,7 +89,7 @@ class OGCWebMapService(OGCWebService):
         return self._start_single_layer_parsing(layer_xml)
 
     @abstractmethod
-    def create_from_capabilities(self, metadata_only: bool = False):
+    def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):
         """ Fills the object with data from the capabilities document
 
         Returns:
@@ -109,7 +110,7 @@ class OGCWebMapService(OGCWebService):
 
         if not metadata_only:
             start_time = time.time()
-            self.get_layers(xml_obj=xml_obj)
+            self.get_layers(xml_obj=xml_obj, async_task=async_task)
             print(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
 
     def _start_single_layer_parsing(self, layer_xml):
@@ -358,7 +359,7 @@ class OGCWebMapService(OGCWebService):
         elements["uri"] = elements["uri"].get("xlink:href") if elements["uri"] is not None else None
         layer_obj.style = elements
 
-    def _parse_single_layer(self, layer, parent, position):
+    def _parse_single_layer(self, layer, parent, position, step_size: float = None, async_task: Task = None):
         """ Parses data from an xml <Layer> element into the OGCWebMapLayer object.
 
         Runs recursive through own children for further parsing
@@ -370,6 +371,9 @@ class OGCWebMapService(OGCWebService):
         Returns:
             nothing
         """
+        if step_size is not None and async_task is not None:
+            task_helper.update_progress_by_step(async_task, step_size)
+
         # iterate over all top level layer and find their children
         layer_obj = self._start_single_layer_parsing(layer)
         layer_obj.parent = parent
@@ -382,10 +386,10 @@ class OGCWebMapService(OGCWebService):
             parent.child_layer.append(layer_obj)
         position += 1
 
-        self.__get_layers_recursive(layers=sublayers, parent=layer_obj)
+        self.__get_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size, async_task=async_task)
 
 
-    def __get_layers_recursive(self, layers, parent=None, position=0):
+    def __get_layers_recursive(self, layers, parent=None, position=0, step_size: float = None, async_task: Task = None):
         """ Recursive Iteration over all children and subchildren.
 
         Creates OGCWebMapLayer objects for each xml layer and fills it with the layer content.
@@ -396,8 +400,8 @@ class OGCWebMapService(OGCWebService):
             position: The position inside the layer tree, which is more like an order number
         :return:
         """
-        # decide whether to user multithreading or iterative approach
 
+        # decide whether to user multithreading or iterative approach
         if len(layers) > MULTITHREADING_THRESHOLD:
             thread_list = []
             for layer in layers:
@@ -409,12 +413,12 @@ class OGCWebMapService(OGCWebService):
             execute_threads(thread_list)
         else:
             for layer in layers:
-                self._parse_single_layer(layer, parent, position)
+                self._parse_single_layer(layer, parent, position, step_size=step_size, async_task=async_task)
                 position += 1
 
 
 
-    def get_layers(self, xml_obj):
+    def get_layers(self, xml_obj, async_task: Task = None):
         """ Parses all layers of a service and creates OGCWebMapLayer objects from each.
 
         Uses recursion on the inside to get all children.
@@ -425,8 +429,16 @@ class OGCWebMapService(OGCWebService):
              nothing
         """
         # get most upper parent layer, which normally lives directly in <Capability>
-        layers = xml_obj.xpath("//Capability/Layer")
-        self.__get_layers_recursive(layers)
+        layers = xml_helper.try_get_element_from_xml("//Capability/Layer", xml_obj)
+        total_layers = xml_helper.try_get_element_from_xml("//Layer", xml_obj)
+
+        # calculate the step size for an async call
+        # 55 is the diff from the last process update (10) to the next static one (65)
+        len_layers = len(total_layers)
+        step_size = float(85 / len_layers)
+        print("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
+
+        self.__get_layers_recursive(layers, step_size=step_size, async_task=async_task)
 
     def get_service_metadata(self, xml_obj):
         """ Parses all <Service> information which can be found in every wms specification since 1.0.0

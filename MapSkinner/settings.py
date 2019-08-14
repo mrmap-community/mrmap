@@ -228,6 +228,9 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
+# Progress bar
+PROGRESS_STATUS_AFTER_PARSING = 90  # indicates at how much % status we are after the parsing
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.1/howto/static-files/
 

@@ -15,7 +15,7 @@ from requests.exceptions import InvalidURL
 
 from MapSkinner import utils
 from MapSkinner.messages import SERVICE_REGISTERED
-from MapSkinner.settings import EXEC_TIME_PRINT
+from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
 from service.models import Service
 from structure.models import User, Group, Organization, PendingTask
 
@@ -72,9 +72,6 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         register_for_organization = None
 
     try:
-        if curr_task_id is not None:
-            task_helper.update_progress(async_new_service, 10)
-
         t_start = time.time()
         service = service_helper.get_service_model_instance(
             url_dict.get("service"),
@@ -88,7 +85,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
 
         # update progress
         if curr_task_id is not None:
-            task_helper.update_progress(async_new_service, 90)
+            task_helper.update_progress(async_new_service, PROGRESS_STATUS_AFTER_PARSING)
 
         # get return values
         raw_service = service["raw_data"]

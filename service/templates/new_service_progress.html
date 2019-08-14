@@ -185,7 +185,7 @@
                     progress = progress["current"];
 
                     // write new progress to bar
-                    var pgNum = progress + "%";
+                    var pgNum = parseFloat(progress).toFixed(2) + "%";
                     $(".fg").css("width", progress + "%");
                     $(".number").html(pgNum)
 

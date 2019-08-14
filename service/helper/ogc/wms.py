@@ -17,7 +17,8 @@ from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from MapSkinner.settings import EXEC_TIME_PRINT, MD_TYPE_LAYER, MD_TYPE_SERVICE, MULTITHREADING_THRESHOLD
+from MapSkinner.settings import EXEC_TIME_PRINT, MD_TYPE_LAYER, MD_TYPE_SERVICE, MULTITHREADING_THRESHOLD, \
+    PROGRESS_STATUS_AFTER_PARSING
 from MapSkinner import utils
 from MapSkinner.utils import execute_threads, sha256
 from service.config import ALLOWED_SRS
@@ -435,7 +436,7 @@ class OGCWebMapService(OGCWebService):
         # calculate the step size for an async call
         # 55 is the diff from the last process update (10) to the next static one (65)
         len_layers = len(total_layers)
-        step_size = float(85 / len_layers)
+        step_size = float(PROGRESS_STATUS_AFTER_PARSING / len_layers)
         print("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
 
         self.__get_layers_recursive(layers, step_size=step_size, async_task=async_task)
@@ -863,7 +864,8 @@ class OGCWebMapService(OGCWebService):
                 )[0]
                 layer.formats.add(_format)
 
-            if len(layer.children_list) > 0:
+            layer_children_list = layer.children_list
+            if len(layer_children_list) > 0:
                 self.__persist_child_layers(layer.children_list, parent_service, layer)
 
 

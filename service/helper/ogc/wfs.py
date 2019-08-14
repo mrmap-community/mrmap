@@ -11,7 +11,7 @@ from django.db import transaction
 from lxml.etree import _Element
 
 from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, \
-    MULTITHREADING_THRESHOLD
+    MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
 from MapSkinner.utils import execute_threads
 from service.config import ALLOWED_SRS
@@ -353,7 +353,7 @@ class OGCWebFeatureService(OGCWebService):
 
         # calculate the step size for an async call
         # 55 is the diff from the last process update (10) to the next static one (65)
-        step_size = float(85 / len_ft_list)
+        step_size = float(PROGRESS_STATUS_AFTER_PARSING / len_ft_list)
         print("stepsize: {}".format(step_size))
         # decide whether to use multithreading or iterative approach
         if len_ft_list > MULTITHREADING_THRESHOLD:

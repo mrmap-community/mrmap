@@ -23,7 +23,7 @@ from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType, CapabilityDocument
-from structure.models import User, Permission, PendingTask
+from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
 
 
@@ -300,7 +300,7 @@ def new_service(request: HttpRequest, user: User):
 
     # create db object, so we know which pending task is still ongoing
     pending_task_db = PendingTask()
-    pending_task.created_by = register_group
+    pending_task_db.created_by = Group.objects.get(id=register_group)
     pending_task_db.task_id = pending_task.task_id
     pending_task_db.description = json.dumps({
         "service": cap_url,

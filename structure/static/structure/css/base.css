@@ -637,3 +637,15 @@ a.listable:hover{
     background-color: var(--secondary-color);
     width: 1%;
 }
+.progress-bar.number{
+    color: white;
+    font-size: 0.8em;
+    text-align: center;
+}
+
+.pending-task-table .task-title, .pending-task-table .task-phase{
+    width: 15rem;
+}
+.pending-task-table .task-phase{
+    text-align: center;
+}

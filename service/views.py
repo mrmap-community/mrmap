@@ -23,6 +23,7 @@ from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType, CapabilityDocument
+from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
 
@@ -129,7 +130,14 @@ def remove(request: HttpRequest, user: User):
     else:
         # remove service and all of the related content
         user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
-        service.delete()
+
+        # set service as deleted, so it won't be listed anymore in the index view until completely removed
+        service.is_deleted = True
+        service.save()
+
+        # call removing as async task
+        async_remove_service_task.delay(service_id)
+
         return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 
 @check_session

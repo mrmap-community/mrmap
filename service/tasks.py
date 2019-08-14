@@ -16,11 +16,26 @@ from requests.exceptions import InvalidURL
 from MapSkinner import utils
 from MapSkinner.messages import SERVICE_REGISTERED
 from MapSkinner.settings import EXEC_TIME_PRINT
+from service.models import Service
 from structure.models import User, Group, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
 from users.helper import user_helper
 
+
+@shared_task(name="async_remove_service_task")
+def async_remove_service_task(service_id: int):
+    """ Async call for removing of services
+
+    Since this is something that can happen in the background, we should push it to the background!
+
+    Args;
+        service_id (int): The id of the service which shall be removed
+    Returns:
+         nothing
+    """
+    service = Service.objects.get(id=service_id)
+    service.delete()
 
 
 @shared_task(name="async_new_service_task")

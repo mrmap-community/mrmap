@@ -147,6 +147,7 @@
     });
 
     $(document).ready(function(){
+        sessionStorage.setItem("reloadOnClose", true);
         // run delayed requests for task progress
         var interval = setInterval(function(){
             var taskId = $("#pending-service").attr("data-id");

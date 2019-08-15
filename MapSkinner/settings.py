@@ -120,6 +120,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'editor',
     'captcha',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -228,6 +229,17 @@ CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+
+
+# API
+REST_FRAMEWORK = {
+    # Use Django's standard `django.contrib.auth` permissions,
+    # or allow read-only access for unauthenticated users.
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
+    ]
+}
+
 
 # Progress bar
 PROGRESS_STATUS_AFTER_PARSING = 90  # indicates at how much % status we are after the parsing

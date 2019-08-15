@@ -17,3 +17,7 @@ argon2-cffi
 Werkzeug
 pysxm
 celery
+
+djangorestframework
+markdown
+django-filter

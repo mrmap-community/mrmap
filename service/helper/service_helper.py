@@ -60,8 +60,12 @@ def split_service_uri(uri):
         ret_dict(dict): Contains the URI's components
     """
     ret_dict = {}
-
     cap_url_dict = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(uri).query))
+    for key, val in cap_url_dict.items():
+        key_l = key
+        key_u = key.upper()
+        del cap_url_dict[key_l]
+        cap_url_dict[key_u] = val
     cap_url_query = urllib.parse.urlsplit(uri).query
     ret_dict["service"] = resolve_service_enum(cap_url_dict.get("SERVICE", None))
     ret_dict["request"] = cap_url_dict.get("REQUEST", None)

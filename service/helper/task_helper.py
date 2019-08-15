@@ -5,8 +5,29 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 13.08.19
 
 """
+import json
+
 from celery import Task
 from celery.result import AsyncResult
+
+from structure.models import PendingTask
+
+
+def update_service_description(task: Task, service: str):
+    """ Set a new value to the 'service' element of the pending task description
+
+    Args:
+        task (Task): The asynchronous celery task object
+        step (float): The relative step
+    Returns:
+        nothing
+    """
+    id = task.request.id
+    pend_task = PendingTask.objects.get(task_id=id)
+    descr_dict = json.loads(pend_task.description)
+    descr_dict["service"] = service
+    pend_task.description = json.dumps(descr_dict)
+    pend_task.save()
 
 
 def update_progress_by_step(task: Task, step: float):
@@ -26,8 +47,9 @@ def update_progress_by_step(task: Task, step: float):
         # update with new progress
         update_progress(task, curr)
     except ValueError:
-        print(task.request)
-        exit(-1)
+        pass
+        #print(task.request)
+        #exit(-1)
 
 
 def update_progress(task: Task, new_status: int):

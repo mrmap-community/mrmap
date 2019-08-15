@@ -18,7 +18,7 @@ from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
 from MapSkinner.settings import EXEC_TIME_PRINT, MD_TYPE_LAYER, MD_TYPE_SERVICE, MULTITHREADING_THRESHOLD, \
-    PROGRESS_STATUS_AFTER_PARSING
+    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES
 from MapSkinner import utils
 from MapSkinner.utils import execute_threads, sha256
 from service.config import ALLOWED_SRS
@@ -100,7 +100,7 @@ class OGCWebMapService(OGCWebService):
         xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
 
         start_time = time.time()
-        self.get_service_metadata(xml_obj=xml_obj)
+        self.get_service_metadata(xml_obj=xml_obj, async_task=async_task)
         print(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
 
         start_time = time.time()
@@ -441,7 +441,7 @@ class OGCWebMapService(OGCWebService):
 
         self.__get_layers_recursive(layers, step_size=step_size, async_task=async_task)
 
-    def get_service_metadata(self, xml_obj):
+    def get_service_metadata(self, xml_obj, async_task: Task = None):
         """ Parses all <Service> information which can be found in every wms specification since 1.0.0
 
         Args:
@@ -449,107 +449,41 @@ class OGCWebMapService(OGCWebService):
         Returns:
             Nothing
         """
-        # Since it may be possible that data providers do not put information where they have to be, we need to
-        # build these ugly try catches and always check for list structures where lists could happen
-        try:
-            self.service_file_identifier = xml_obj.xpath("//Service/Name")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_identification_abstract = xml_obj.xpath("//Service/Abstract")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_identification_title = xml_obj.xpath("//Service/Title")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_identification_fees = xml_obj.xpath("//Service/Fees")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_identification_accessconstraints = xml_obj.xpath("//Service/AccessConstraints")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_providername = \
-            xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactOrganization")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_url = xml_obj.xpath("//AuthorityURL")[0].get("xlink:href")
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_contact_contactinstructions = xml_obj.xpath("//Service/ContactInformation")[0]
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_responsibleparty_individualname = \
-            xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactPerson")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_responsibleparty_positionname = \
-            xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactPosition")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_telephone_voice = \
-            xml_obj.xpath("//Service/ContactInformation/ContactVoiceTelephone")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_telephone_facsimile = \
-            xml_obj.xpath("//Service/ContactInformation/ContactFacsimileTelephone")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_electronicmailaddress = \
-            xml_obj.xpath("//Service/ContactInformation/ContactElectronicMailAddress")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            keywords = xml_obj.xpath("//Service/KeywordList/Keyword")
-            kw = []
-            for keyword in keywords:
-                kw.append(keyword.text)
-            self.service_identification_keywords = kw
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            elements = xml_obj.xpath("//Service/OnlineResource")
-            ors = []
-            for element in elements:
-                ors.append(element.get("{http://www.w3.org/1999/xlink}href"))
-            self.service_provider_onlineresource_linkage = ors
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_country = \
-            xml_obj.xpath("//Service/ContactInformation/ContactAddress/Country")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_postalcode = \
-            xml_obj.xpath("//Service/ContactInformation/ContactAddress/PostCode")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_city = xml_obj.xpath("//Service/ContactInformation/ContactAddress/City")[
-                0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_state_or_province = \
-            xml_obj.xpath("//Service/ContactInformation/ContactAddress/StateOrProvince")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address = xml_obj.xpath("//Service/ContactInformation/ContactAddress/Address")[
-                0].text
-        except (IndexError, AttributeError) as error:
-            pass
+        self.service_file_identifier = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/Name")
+        self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/Abstract")
+        self.service_identification_title = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/Title")
+
+        if async_task is not None:
+            task_helper.update_service_description(async_task, self.service_identification_title)
+
+        self.service_identification_fees = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/Fees")
+        self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/AccessConstraints")
+        self.service_provider_providername = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactPersonPrimary/ContactOrganization")
+        self.service_provider_url = xml_helper.try_get_attribute_from_xml_element(elem="//AuthorityURL", xml_elem=xml_obj, attribute="{http://www.w3.org/1999/xlink}href")
+        self.service_provider_contact_contactinstructions = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//Service/ContactInformation")
+        self.service_provider_responsibleparty_individualname = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactPersonPrimary/ContactPerson")
+        self.service_provider_responsibleparty_positionname = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactPersonPrimary/ContactPosition")
+        self.service_provider_telephone_voice = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactVoiceTelephone")
+        self.service_provider_telephone_facsimile = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactFacsimileTelephone")
+        self.service_provider_address_electronicmailaddress = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactElectronicMailAddress")
+
+        keywords = xml_helper.try_get_element_from_xml("//Service/KeywordList/Keyword", xml_obj)
+        kw = []
+        for keyword in keywords:
+            kw.append(keyword.text)
+        self.service_identification_keywords = kw
+
+        elements = xml_helper.try_get_element_from_xml("//Service/OnlineResource", xml_obj)
+        ors = []
+        for element in elements:
+            ors.append(element.get("{http://www.w3.org/1999/xlink}href"))
+        self.service_provider_onlineresource_linkage = ors
+
+        self.service_provider_address_country = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/Country")
+        self.service_provider_address_postalcode = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/PostCode")
+        self.service_provider_address_city = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/City")
+        self.service_provider_address_state_or_province = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/StateOrProvince")
+        self.service_provider_address = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/Address")
 
     @transaction.atomic
     def __create_single_layer_model_instance(self, layer_obj, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
@@ -939,6 +873,8 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         self.layer_limit = None
         self.max_width = None
         self.max_height = None
+
+        XML_NAMESPACES["default"] = XML_NAMESPACES["wms"]
 
     def __parse_lat_lon_bounding_box(self, layer, layer_obj):
         try:

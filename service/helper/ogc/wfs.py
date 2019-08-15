@@ -110,11 +110,13 @@ class OGCWebFeatureService(OGCWebService):
         # get xml as iterable object
         xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
         # parse service metadata
-        thread_list = [
-            threading.Thread(target=self.get_service_metadata, args=(xml_obj,)),
-            threading.Thread(target=self.get_capability_metadata, args=(xml_obj,)),
-        ]
-        execute_threads(thread_list)
+        self.get_service_metadata(xml_obj, async_task)
+        self.get_capability_metadata(xml_obj)
+        #thread_list = [
+        #    threading.Thread(target=self.get_service_metadata, args=(xml_obj,)),
+        #    threading.Thread(target=self.get_capability_metadata, args=(xml_obj,)),
+        #]
+        #execute_threads(thread_list)
 
         # always execute version specific tasks AFTER multithreading
         # Otherwise we might face race conditions which lead to loss of data!
@@ -127,7 +129,7 @@ class OGCWebFeatureService(OGCWebService):
 
 
     @abstractmethod
-    def get_service_metadata(self, xml_obj):
+    def get_service_metadata(self, xml_obj, async_task: Task = None):
         """ Parse the capability document <Service> metadata into the self object
 
         Args:
@@ -136,6 +138,10 @@ class OGCWebFeatureService(OGCWebService):
              Nothing
         """
         self.service_identification_title = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Title")
+
+        if async_task is not None:
+            task_helper.update_service_description(async_task, self.service_identification_title)
+
         self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Abstract")
         self.service_identification_fees = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Fees")
         self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:AccessConstraints")
@@ -354,7 +360,7 @@ class OGCWebFeatureService(OGCWebService):
         # calculate the step size for an async call
         # 55 is the diff from the last process update (10) to the next static one (65)
         step_size = float(PROGRESS_STATUS_AFTER_PARSING / len_ft_list)
-        print("stepsize: {}".format(step_size))
+
         # decide whether to use multithreading or iterative approach
         if len_ft_list > MULTITHREADING_THRESHOLD:
             for xml_feature_type in feature_type_list:
@@ -632,7 +638,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         XML_NAMESPACES["lvermgeo"] = "http://www.lvermgeo.rlp.de/lvermgeo"
         XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs")
 
-    def get_service_metadata(self, xml_obj):
+    def get_service_metadata(self, xml_obj, async_task: Task = None):
         """ Parse the wfs <Service> metadata into the self object
 
         Args:

@@ -69,6 +69,7 @@ XML_NAMESPACES = {
     "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset",
     "ms": "http://mapserver.gis.umn.edu/mapserver",
     "xsd": "http://www.w3.org/2001/XMLSchema",
+    "sld": "http://www.opengis.net/sld",
 }
 
 # Session refreshes on every request!

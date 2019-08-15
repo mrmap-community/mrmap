@@ -10,7 +10,7 @@ import urllib
 import uuid
 
 from django.contrib.gis.geos import Polygon
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db import transaction
 from lxml.etree import _Element
 
@@ -413,10 +413,20 @@ class ISOMetadata:
             # metadata.bbox = self.bounding_box
             if len(self.polygonal_extent_exterior) > 0:
                 metadata.bounding_geometry = self.polygonal_extent_exterior[0]
-            # hopefully find the contact using the email!
-            metadata.contact = Organization.objects.get_or_create(
-                organization_name=self.responsible_party
-            )[0]
+
+            try:
+                metadata.contact = Organization.objects.get_or_create(
+                    organization_name=self.responsible_party,
+                    email=self.contact_email,
+                )[0]
+            except MultipleObjectsReturned:
+                # okay, we need to create a unique organization
+                # "unique" since it will only be identified using organization_name and email
+                metadata.contact = Organization.objects.get_or_create(
+                    organization_name="{}#1".format(self.responsible_party),
+                    email=self.contact_email,
+                )[0]
+
             metadata.is_inspire_conform = self.inspire_interoperability
             metadata.metadata_url = self.uri
             metadata.last_modified = self.last_change_date

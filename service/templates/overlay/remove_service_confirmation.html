@@ -2,14 +2,11 @@
 {% load static i18n %}
 
 <style>
+    {% include 'overlay/modal-dialog-style.html' %}
+
     .submit-button:hover{
         background-color: red;
         border: 1px solid red;
-    }
-
-    .modal-content{
-        max-height: 75vh;
-        overflow-y: auto;
     }
 
     .discard-button{
@@ -57,7 +54,7 @@
 </div>
 
 <script>
-    {% include 'modal-dialog-scripts.html' %}
+    {% include 'overlay/modal-dialog-scripts.html' %}
 
     $(".button").click(function(){
         var spinner = $(this).children(".loading-spinner");

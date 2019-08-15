@@ -1,7 +1,4 @@
 
-{% load i18n static %}
-
-<style>
 
     .field-label, .field{
         font-size: 1.2em;
@@ -62,43 +59,48 @@
         max-height: 75vh;
         overflow-y: auto;
     }
-</style>
 
-{% block body %}
+    .modal-footer{
+        -webkit-display: flex;
+        display: flex;
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+    }
 
-<div class="modal-dialog">
-    <div class="modal-close" title="{% trans 'Close' %}">
-        x
-    </div>
-    <div class="modal-content">
-        <article>{{ article }}</article>
-        <form class="form-table" action="{{ action_url }}" method="post">
-            {% csrf_token %}
-            <div class="field">
-                {% for field in form %}
-                    <div class="field-label">{{ field.label_tag }}</div>
-                    <div id="request-uri" class="field">{{ field }}</div>
-                {% endfor %}
-            </div>
-            <button class="button submit-button">{{ button_text }}</button>
-        </form>
-    </div>
-</div>
-<script>
-    {% include 'modal-dialog-scripts.html' %}
+    .modal-page-indicator{
+        width: 1rem;
+        height: 1rem;
+        border: 1px solid var(--secondary-color);
+        border-radius: 50%;
+        margin: 0.25rem;
+    }
+    .modal-page-indicator.active{
+        background-color: var(--secondary-color);
+    }
 
-    $(".submit-button").click(function(event){
-        event.preventDefault();
-        {% if service_id is not None %}
-            checkServiceRequestURI(true, {{ service_id }});
-        {% else %}
-            checkServiceRequestURI(false);
-        {% endif %}
-    });
+    .loading-spinner{
+        border: none;
+        color: white;
+        padding: 0 10px 0 0;
+    }
 
-    $(document).ready(function(){
-        $("#capabilities-uri").focus();
-    });
-</script>
 
-{% endblock %}
+
+    .form-advice{
+        display: flex;
+        align-items: center;
+        justify-content: space-evenly;
+        background-color: var(--secondary-color);
+        padding: 10px;
+        margin: 10px 0 10px 0;
+    }
+
+    .form-advice span{
+        text-align: justify;
+        color: white;
+        font-weight: bold;
+        max-width: 60vw;
+    }
+    .form-advice img{
+    }

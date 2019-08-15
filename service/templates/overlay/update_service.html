@@ -1,6 +1,8 @@
 {% load i18n static %}
 <style>
 
+    {% include 'overlay/modal-dialog-style.html' %}
+    <!--
     .field-label, .field{
         font-size: 1.2em;
     }
@@ -85,6 +87,7 @@
         max-height: 75vh;
         overflow-y: auto;
     }
+    -->
 </style>
 
 {% block body %}
@@ -162,12 +165,13 @@
             -->
         </form>
         {% endif %}
+    {% include 'overlay/modal-dialog-footer.html' %}
     </div>
 </div>
 
 <script>
 
-    {% include 'modal-dialog-scripts.html' %}
+    {% include 'overlay/modal-dialog-scripts.html' %}
 
     /*
     $(".submit-button").click(function(){

@@ -108,7 +108,7 @@ def remove(request: HttpRequest, user: User):
     Returns:
         A rendered view
     """
-    template = "remove_service_confirmation.html"
+    template = "overlay/remove_service_confirmation.html"
     service_id = request.GET.dict().get("id")
     confirmed = request.GET.dict().get("confirmed")
     service = get_object_or_404(Service, id=service_id)
@@ -238,7 +238,7 @@ def register_form(request: HttpRequest, user: User):
     Returns:
         BackendAjaxResponse
     """
-    template = "service_url_form.html"
+    template = "overlay/service_url_form.html"
     POST_params = request.POST.dict()
     if POST_params.get("uri", None) is not None:
 
@@ -264,19 +264,21 @@ def register_form(request: HttpRequest, user: User):
                 "full_uri": cap_url,
                 "user": user,
                 "group_publishable_orgs": json.dumps(group_orgs),
+                "page_indicator_list": [False, True, False],
             }
         except AttributeError as e:
             params = {
                 "error": e,
             }
 
-        template = "register_new_service.html"
+        template = "overlay/register_new_service.html"
     else:
         uri_form = ServiceURIForm()
         params = {
             "form": uri_form,
             "action_url": ROOT_URL + "/service/new/register-form",
             "button_text": "Next",
+            "page_indicator_list": [True, False, False],
         }
     html = render_to_string(request=request, template_name=template, context=params)
     return BackendAjaxResponse(html).get_response()
@@ -320,9 +322,10 @@ def new_service(request: HttpRequest, user: User):
     params = {
         "pending_task": pending_task,
         "url_dict": url_dict,
+        "page_indicator_list": [False, False, True],
     }
 
-    template = "new_service_progress.html"
+    template = "overlay/new_service_progress.html"
     html = render_to_string(template_name=template, request=request, context=params)
     return BackendAjaxResponse(html=html).get_response()
 
@@ -414,6 +417,7 @@ def update_service(request: HttpRequest, user: User, id: int):
             "diff": diff,
             "old_service": old_service,
             "new_service": new_service,
+            "page_indicator_list": [False, True],
         }
         #request.session["update_confirmed"] = True
     context = DefaultContext(request, params, user)
@@ -447,11 +451,11 @@ def update_service_form(request: HttpRequest, user:User, id: int):
     Returns:
          A BackendAjaxResponse
     """
-    template = "service_url_form.html"
+    template = "overlay/service_url_form.html"
     uri_form = ServiceURIForm(request.POST or None)
     params = {}
     if request.method == 'POST':
-        template = "update_service.html"
+        template = "overlay/update_service.html"
         if uri_form.is_valid():
             error = False
             cap_url = uri_form.data.get("uri", "")
@@ -473,6 +477,7 @@ def update_service_form(request: HttpRequest, user:User, id: int):
                     "service_type": url_dict["service"].value,
                     "request_action": url_dict["request"],
                     "full_uri": cap_url,
+                    "page_indicator_list": [False, True],
                 }
                 request.session["update"] = {
                     "full_uri": cap_url,
@@ -480,11 +485,13 @@ def update_service_form(request: HttpRequest, user:User, id: int):
             except AttributeError:
                 params = {
                     "error": error,
+                    "page_indicator_list": [False, True],
                 }
 
         else:
             params = {
                 "error": FORM_INPUT_INVALID,
+                "page_indicator_list": [False, True],
             }
 
     else:
@@ -493,6 +500,7 @@ def update_service_form(request: HttpRequest, user:User, id: int):
             "article": _("Enter the new capabilities URL of your service."),
             "action_url": ROOT_URL + "/service/register-form/" + str(id),
             "button_text": "Update",
+            "page_indicator_list": [True, False],
         }
     params["service_id"] = id
     html = render_to_string(template_name=template, request=request, context=params)

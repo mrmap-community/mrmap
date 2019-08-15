@@ -9,6 +9,7 @@ Created on: 16.04.19
 import json
 import urllib
 
+from celery import Task
 
 from MapSkinner.settings import DEFAULT_SERVICE_VERSION, XML_NAMESPACES
 from service.helper.common_connector import CommonConnector
@@ -59,8 +60,12 @@ def split_service_uri(uri):
         ret_dict(dict): Contains the URI's components
     """
     ret_dict = {}
-
     cap_url_dict = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(uri).query))
+    for key, val in cap_url_dict.items():
+        key_l = key
+        key_u = key.upper()
+        del cap_url_dict[key_l]
+        cap_url_dict[key_u] = val
     cap_url_query = urllib.parse.urlsplit(uri).query
     ret_dict["service"] = resolve_service_enum(cap_url_dict.get("SERVICE", None))
     ret_dict["request"] = cap_url_dict.get("REQUEST", None)
@@ -122,7 +127,7 @@ def activate_layer_recursive(root_layer, new_status):
         activate_layer_recursive(layer, new_status)
 
 
-def get_service_model_instance(service_type, version, base_uri, user, register_group, register_for_organization=None):
+def get_service_model_instance(service_type, version, base_uri, user, register_group, register_for_organization=None, async_task: Task = None):
     """ Creates a database model from given service information and persists it.
 
     Due to the many-to-many relationships used in the models there is currently no way (without extending the models) to
@@ -146,7 +151,7 @@ def get_service_model_instance(service_type, version, base_uri, user, register_g
         wms = wms_factory.get_ogc_wms(version=version, service_connect_url=base_uri)
         # let it load it's capabilities
         wms.get_capabilities()
-        wms.create_from_capabilities()
+        wms.create_from_capabilities(async_task=async_task)
         service = wms.create_service_model_instance(user, register_group, register_for_organization)
         ret_dict["raw_data"] = wms
     else:
@@ -155,7 +160,9 @@ def get_service_model_instance(service_type, version, base_uri, user, register_g
         wfs = wfs_factory.get_ogc_wfs(version=version, service_connect_url=base_uri)
         # let it load it's capabilities
         wfs.get_capabilities()
-        wfs.create_from_capabilities()
+
+        # since we iterate through featuretypes, we can use async task here
+        wfs.create_from_capabilities(async_task=async_task)
         service = wfs.create_service_model_instance(user, register_group, register_for_organization)
         ret_dict["raw_data"] = wfs
     ret_dict["service"] = service

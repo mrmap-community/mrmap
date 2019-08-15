@@ -2,14 +2,15 @@
 {% load static i18n %}
 
 <style>
+    {% include 'overlay/modal-dialog-style.html' %}
+
     .submit-button:hover{
         background-color: red;
         border: 1px solid red;
     }
 
-    .modal-content{
-        max-height: 75vh;
-        overflow-y: auto;
+    .discard-button{
+        float: right;
     }
 </style>
 
@@ -41,19 +42,19 @@
                 <td>{{ sub_elements|length }}</td>
             </tr>
         </table>
-        <div class="discard-button button">
-            <div class="loading-spinner hide">
+        <button class="discard-button button">
+            <span class="loading-spinner hide">
                 <i class="fas fa-circle-notch fa-spin"></i>
-            </div>
+            </span>
             <span id="button-text">
                 {% trans 'Yes, remove!' %}
             </span>
-        </div>
+        </button>
     </div>
 </div>
 
 <script>
-    {% include 'modal-dialog-scripts.html' %}
+    {% include 'overlay/modal-dialog-scripts.html' %}
 
     $(".button").click(function(){
         var spinner = $(this).children(".loading-spinner");
@@ -66,7 +67,7 @@
         $("#button-text").hide();
         spinner.show();
         $(this).width(width);
-        replaceButtonWithSpinner($(this));
+        //replaceButtonWithSpinner($(this));
         removeEntity({{ service.id }},true, 'service');
     });
 </script>

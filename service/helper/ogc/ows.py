@@ -3,6 +3,7 @@
 
 from abc import abstractmethod
 
+from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
@@ -135,11 +136,11 @@ class OGCWebService:
     Methods that have to be implemented in the sub classes
     """
     @abstractmethod
-    def create_from_capabilities(self, metadata_only: bool = False):
+    def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):
         pass
 
     @abstractmethod
-    def get_service_metadata(self, xml_obj):
+    def get_service_metadata(self, xml_obj, async_task: Task = None):
         pass
 
     @abstractmethod

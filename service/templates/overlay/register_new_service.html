@@ -1,85 +1,6 @@
 {% load i18n static %}
 <style>
-
-    .field-label, .field{
-        font-size: 1.2em;
-    }
-
-    .field input{
-        color: gray;
-        background-color: white;
-        border: 1px solid gray;
-        border-radius: 0.25rem;
-        padding: 0.375rem 0.75rem;
-    }
-
-    .field input:focus{
-        -webkit-box-shadow: 0 0 10px var(--primary-color);
-        -moz-box-shadow: 0 0 10px var(--primary-color);
-        box-shadow: 0 0 10px var(--primary-color);
-    }
-
-    .form-submit-area{
-        padding: 20px 0;
-    }
-
-
-    #capabilities-uri{
-        width: 80%;
-    }
-
-    .form-table{
-        font-size: 0.9em !important;
-        color: black;
-    }
-    .form-table tbody{
-        border: 1px solid var(--primary-color-light);
-        border-radius: 10px;
-        padding: 10px;
-    }
-    .form-table td{
-
-    }
-
-    .loading-spinner{
-        border: none;
-        color: white;
-        padding: 0 10px 0 0;
-    }
-
-    .submit-button{
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: var(--secondary-color);
-    }
-
-    .submit-button:hover{
-        background-color: var(--secondary-color-light);
-    }
-
-    .form-advice{
-        display: flex;
-        align-items: center;
-        justify-content: space-evenly;
-        background-color: var(--secondary-color);
-        padding: 10px;
-        margin: 10px 0 10px 0;
-    }
-
-    .form-advice span{
-        text-align: justify;
-        color: white;
-        font-weight: bold;
-        max-width: 60vw;
-    }
-    .form-advice img{
-    }
-
-    .modal-content{
-        max-height: 75vh;
-        overflow-y: auto;
-    }
+    {% include 'overlay/modal-dialog-style.html' %}
 </style>
 
 {% block body %}
@@ -156,15 +77,16 @@
                 <div class="loading-spinner hide">
                     <i class="fas fa-circle-notch fa-spin"></i>
                 </div>
-                <span id="submit-text">{% trans 'Continue' %}</span>
+                <span id="submit-text">{% trans 'Next' %}</span>
             </button>
         {% endif %}
+    {% include 'overlay/modal-dialog-footer.html' %}
     </div>
 </div>
 
 <script>
 
-    {% include 'modal-dialog-scripts.html' %}
+    {% include 'overlay/modal-dialog-scripts.html' %}
 
     function checkGroupPublishableOrganizations(element){
         var selectedGroup = element.val();

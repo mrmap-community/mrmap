@@ -1,6 +1,10 @@
 
     $(".modal-close, .close-button").click(function(){
         toggleOverlay("");
+        if(sessionStorage.getItem("reloadOnClose")){
+            sessionStorage.removeItem("reloadOnClose")
+            location.reload();
+        }
     });
 
     $(document).on("keydown, keypress", function(event){

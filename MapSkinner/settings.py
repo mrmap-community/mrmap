@@ -69,6 +69,7 @@ XML_NAMESPACES = {
     "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset",
     "ms": "http://mapserver.gis.umn.edu/mapserver",
     "xsd": "http://www.w3.org/2001/XMLSchema",
+    "sld": "http://www.opengis.net/sld",
 }
 
 # Session refreshes on every request!
@@ -79,7 +80,7 @@ SESSION_SAVE_EVERY_REQUEST = True
 LAST_ACTIVITY_DATE_RANGE = 7
 
 # Threshold which indicates when to use multithreading instead of iterative approaches
-MULTITHREADING_THRESHOLD = 20
+MULTITHREADING_THRESHOLD = 2000
 
 # Metadata types
 MD_TYPE_FEATURETYPE = "featuretype"
@@ -220,7 +221,16 @@ USE_L10N = True
 
 USE_TZ = True
 
+# CELERY STUFF
+BROKER_URL = 'redis://localhost:6379'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
 
+# Progress bar
+PROGRESS_STATUS_AFTER_PARSING = 90  # indicates at how much % status we are after the parsing
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.1/howto/static-files/

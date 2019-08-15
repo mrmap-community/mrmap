@@ -3,6 +3,8 @@ from django.contrib import admin
 # Register your models here.
 from structure.models import *
 
+class PendingTaskAdmin(admin.ModelAdmin):
+    list_display = [p.name for p in PendingTask._meta.fields]
 
 class RoleAdmin(admin.ModelAdmin):
     list_display = [p.name for p in Role._meta.fields]
@@ -33,6 +35,7 @@ class PendingRequestAdmin(admin.ModelAdmin):
     list_display = ['type', 'group', 'organization', 'activation_until']
 
 
+admin.site.register(PendingTask, PendingTaskAdmin)
 admin.site.register(User, UserAdmin)
 admin.site.register(UserActivation, UserActivationAdmin)
 admin.site.register(Role, RoleAdmin)

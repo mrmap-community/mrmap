@@ -1,6 +1,8 @@
 {% load i18n static %}
 <style>
 
+    {% include 'overlay/modal-dialog-style.html' %}
+    <!--
     .field-label, .field{
         font-size: 1.2em;
     }
@@ -25,7 +27,10 @@
 
 
     #capabilities-uri{
-        width: 80%;
+        width: 100%;
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        -webkit-box-sizing: border-box;
     }
 
     .form-table{
@@ -48,9 +53,11 @@
     }
 
     .submit-button{
+        margin: 0.5rem;
         display: flex;
         align-items: center;
         justify-content: center;
+        float: right;
         background-color: var(--secondary-color-light);
     }
 
@@ -80,6 +87,7 @@
         max-height: 75vh;
         overflow-y: auto;
     }
+    -->
 </style>
 
 {% block body %}
@@ -151,18 +159,19 @@
                     {% trans 'Depending on the numbers of layers or featuretypes provided by this service, the update process can take a while. Please be patient. Do not click around furiously.' %}
                 </span>
             </div>
-            <input type="submit" class="button submit-button" value="{% trans 'Continue' %}">
+            <input type="submit" class="button submit-button" value="{% trans 'Next' %}">
             <!--
             <a href="{% url 'service:update-service'  service.id  %}"><div class="submit-button button">{% trans 'Continue' %}</div></a>
             -->
         </form>
         {% endif %}
+    {% include 'overlay/modal-dialog-footer.html' %}
     </div>
 </div>
 
 <script>
 
-    {% include 'modal-dialog-scripts.html' %}
+    {% include 'overlay/modal-dialog-scripts.html' %}
 
     /*
     $(".submit-button").click(function(){

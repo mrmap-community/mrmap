@@ -5,7 +5,6 @@
 .. moduleauthor:: Armin Retterath <armin.retterath@gmail.com>
 
 """
-import json
 import uuid
 from abc import abstractmethod
 
@@ -14,11 +13,12 @@ import time
 from copy import copy
 from threading import Thread
 
-from django import db
+from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from MapSkinner.settings import EXEC_TIME_PRINT, MD_TYPE_LAYER, MD_TYPE_SERVICE, MULTITHREADING_THRESHOLD
+from MapSkinner.settings import EXEC_TIME_PRINT, MD_TYPE_LAYER, MD_TYPE_SERVICE, MULTITHREADING_THRESHOLD, \
+    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES
 from MapSkinner import utils
 from MapSkinner.utils import execute_threads, sha256
 from service.config import ALLOWED_SRS
@@ -28,9 +28,9 @@ from service.helper.iso.isoMetadata import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
-from service.helper import service_helper, xml_helper
-from service.models import ServiceType, Service, Metadata, Layer, Dimension, MimeType, Keyword, ReferenceSystem, \
-    MetadataRelation, MetadataOrigin, CapabilityDocument, MetadataType
+from service.helper import xml_helper, task_helper
+from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
+    MetadataRelation, MetadataOrigin, MetadataType
 from structure.models import Organization, Group
 from structure.models import User
 
@@ -90,7 +90,7 @@ class OGCWebMapService(OGCWebService):
         return self._start_single_layer_parsing(layer_xml)
 
     @abstractmethod
-    def create_from_capabilities(self, metadata_only: bool = False):
+    def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):
         """ Fills the object with data from the capabilities document
 
         Returns:
@@ -100,7 +100,7 @@ class OGCWebMapService(OGCWebService):
         xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
 
         start_time = time.time()
-        self.get_service_metadata(xml_obj=xml_obj)
+        self.get_service_metadata(xml_obj=xml_obj, async_task=async_task)
         print(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
 
         start_time = time.time()
@@ -111,7 +111,7 @@ class OGCWebMapService(OGCWebService):
 
         if not metadata_only:
             start_time = time.time()
-            self.get_layers(xml_obj=xml_obj)
+            self.get_layers(xml_obj=xml_obj, async_task=async_task)
             print(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
 
     def _start_single_layer_parsing(self, layer_xml):
@@ -360,7 +360,7 @@ class OGCWebMapService(OGCWebService):
         elements["uri"] = elements["uri"].get("xlink:href") if elements["uri"] is not None else None
         layer_obj.style = elements
 
-    def _parse_single_layer(self, layer, parent, position):
+    def _parse_single_layer(self, layer, parent, position, step_size: float = None, async_task: Task = None):
         """ Parses data from an xml <Layer> element into the OGCWebMapLayer object.
 
         Runs recursive through own children for further parsing
@@ -372,6 +372,9 @@ class OGCWebMapService(OGCWebService):
         Returns:
             nothing
         """
+        if step_size is not None and async_task is not None:
+            task_helper.update_progress_by_step(async_task, step_size)
+
         # iterate over all top level layer and find their children
         layer_obj = self._start_single_layer_parsing(layer)
         layer_obj.parent = parent
@@ -384,10 +387,10 @@ class OGCWebMapService(OGCWebService):
             parent.child_layer.append(layer_obj)
         position += 1
 
-        self.__get_layers_recursive(layers=sublayers, parent=layer_obj)
+        self.__get_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size, async_task=async_task)
 
 
-    def __get_layers_recursive(self, layers, parent=None, position=0):
+    def __get_layers_recursive(self, layers, parent=None, position=0, step_size: float = None, async_task: Task = None):
         """ Recursive Iteration over all children and subchildren.
 
         Creates OGCWebMapLayer objects for each xml layer and fills it with the layer content.
@@ -398,8 +401,8 @@ class OGCWebMapService(OGCWebService):
             position: The position inside the layer tree, which is more like an order number
         :return:
         """
-        # decide whether to user multithreading or iterative approach
 
+        # decide whether to user multithreading or iterative approach
         if len(layers) > MULTITHREADING_THRESHOLD:
             thread_list = []
             for layer in layers:
@@ -411,12 +414,12 @@ class OGCWebMapService(OGCWebService):
             execute_threads(thread_list)
         else:
             for layer in layers:
-                self._parse_single_layer(layer, parent, position)
+                self._parse_single_layer(layer, parent, position, step_size=step_size, async_task=async_task)
                 position += 1
 
 
 
-    def get_layers(self, xml_obj):
+    def get_layers(self, xml_obj, async_task: Task = None):
         """ Parses all layers of a service and creates OGCWebMapLayer objects from each.
 
         Uses recursion on the inside to get all children.
@@ -427,10 +430,18 @@ class OGCWebMapService(OGCWebService):
              nothing
         """
         # get most upper parent layer, which normally lives directly in <Capability>
-        layers = xml_obj.xpath("//Capability/Layer")
-        self.__get_layers_recursive(layers)
+        layers = xml_helper.try_get_element_from_xml("//Capability/Layer", xml_obj)
+        total_layers = xml_helper.try_get_element_from_xml("//Layer", xml_obj)
 
-    def get_service_metadata(self, xml_obj):
+        # calculate the step size for an async call
+        # 55 is the diff from the last process update (10) to the next static one (65)
+        len_layers = len(total_layers)
+        step_size = float(PROGRESS_STATUS_AFTER_PARSING / len_layers)
+        print("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
+
+        self.__get_layers_recursive(layers, step_size=step_size, async_task=async_task)
+
+    def get_service_metadata(self, xml_obj, async_task: Task = None):
         """ Parses all <Service> information which can be found in every wms specification since 1.0.0
 
         Args:
@@ -438,107 +449,41 @@ class OGCWebMapService(OGCWebService):
         Returns:
             Nothing
         """
-        # Since it may be possible that data providers do not put information where they have to be, we need to
-        # build these ugly try catches and always check for list structures where lists could happen
-        try:
-            self.service_file_identifier = xml_obj.xpath("//Service/Name")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_identification_abstract = xml_obj.xpath("//Service/Abstract")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_identification_title = xml_obj.xpath("//Service/Title")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_identification_fees = xml_obj.xpath("//Service/Fees")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_identification_accessconstraints = xml_obj.xpath("//Service/AccessConstraints")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_providername = \
-            xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactOrganization")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_url = xml_obj.xpath("//AuthorityURL")[0].get("xlink:href")
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_contact_contactinstructions = xml_obj.xpath("//Service/ContactInformation")[0]
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_responsibleparty_individualname = \
-            xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactPerson")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_responsibleparty_positionname = \
-            xml_obj.xpath("//Service/ContactInformation/ContactPersonPrimary/ContactPosition")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_telephone_voice = \
-            xml_obj.xpath("//Service/ContactInformation/ContactVoiceTelephone")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_telephone_facsimile = \
-            xml_obj.xpath("//Service/ContactInformation/ContactFacsimileTelephone")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_electronicmailaddress = \
-            xml_obj.xpath("//Service/ContactInformation/ContactElectronicMailAddress")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            keywords = xml_obj.xpath("//Service/KeywordList/Keyword")
-            kw = []
-            for keyword in keywords:
-                kw.append(keyword.text)
-            self.service_identification_keywords = kw
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            elements = xml_obj.xpath("//Service/OnlineResource")
-            ors = []
-            for element in elements:
-                ors.append(element.get("{http://www.w3.org/1999/xlink}href"))
-            self.service_provider_onlineresource_linkage = ors
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_country = \
-            xml_obj.xpath("//Service/ContactInformation/ContactAddress/Country")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_postalcode = \
-            xml_obj.xpath("//Service/ContactInformation/ContactAddress/PostCode")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_city = xml_obj.xpath("//Service/ContactInformation/ContactAddress/City")[
-                0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address_state_or_province = \
-            xml_obj.xpath("//Service/ContactInformation/ContactAddress/StateOrProvince")[0].text
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            self.service_provider_address = xml_obj.xpath("//Service/ContactInformation/ContactAddress/Address")[
-                0].text
-        except (IndexError, AttributeError) as error:
-            pass
+        self.service_file_identifier = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/Name")
+        self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/Abstract")
+        self.service_identification_title = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/Title")
+
+        if async_task is not None:
+            task_helper.update_service_description(async_task, self.service_identification_title)
+
+        self.service_identification_fees = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/Fees")
+        self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/AccessConstraints")
+        self.service_provider_providername = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactPersonPrimary/ContactOrganization")
+        self.service_provider_url = xml_helper.try_get_attribute_from_xml_element(elem="//AuthorityURL", xml_elem=xml_obj, attribute="{http://www.w3.org/1999/xlink}href")
+        self.service_provider_contact_contactinstructions = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//Service/ContactInformation")
+        self.service_provider_responsibleparty_individualname = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactPersonPrimary/ContactPerson")
+        self.service_provider_responsibleparty_positionname = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactPersonPrimary/ContactPosition")
+        self.service_provider_telephone_voice = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactVoiceTelephone")
+        self.service_provider_telephone_facsimile = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactFacsimileTelephone")
+        self.service_provider_address_electronicmailaddress = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactElectronicMailAddress")
+
+        keywords = xml_helper.try_get_element_from_xml("//Service/KeywordList/Keyword", xml_obj)
+        kw = []
+        for keyword in keywords:
+            kw.append(keyword.text)
+        self.service_identification_keywords = kw
+
+        elements = xml_helper.try_get_element_from_xml("//Service/OnlineResource", xml_obj)
+        ors = []
+        for element in elements:
+            ors.append(element.get("{http://www.w3.org/1999/xlink}href"))
+        self.service_provider_onlineresource_linkage = ors
+
+        self.service_provider_address_country = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/Country")
+        self.service_provider_address_postalcode = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/PostCode")
+        self.service_provider_address_city = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/City")
+        self.service_provider_address_state_or_province = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/StateOrProvince")
+        self.service_provider_address = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/Address")
 
     @transaction.atomic
     def __create_single_layer_model_instance(self, layer_obj, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
@@ -685,6 +630,7 @@ class OGCWebMapService(OGCWebService):
         # iterate over all layers
         # There were attempts to implement a multithreaded approach in here but due to the problem of n-depth of layer hierarchy
         # there was no working solution so far which worked.
+
         for layer_obj in layers:
             self.__create_single_layer_model_instance(
                 layer_obj,
@@ -852,7 +798,8 @@ class OGCWebMapService(OGCWebService):
                 )[0]
                 layer.formats.add(_format)
 
-            if len(layer.children_list) > 0:
+            layer_children_list = layer.children_list
+            if len(layer_children_list) > 0:
                 self.__persist_child_layers(layer.children_list, parent_service, layer)
 
 
@@ -926,6 +873,8 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         self.layer_limit = None
         self.max_width = None
         self.max_height = None
+
+        XML_NAMESPACES["default"] = XML_NAMESPACES["wms"]
 
     def __parse_lat_lon_bounding_box(self, layer, layer_obj):
         try:

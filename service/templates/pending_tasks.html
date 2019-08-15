@@ -1,0 +1,33 @@
+{% load static i18n %}
+
+<div class="pending-task-wrapper">
+    <h3>{% trans 'Pending tasks' %}</h3>
+    <table class="overview-table pending-task-table">
+        <tr>
+            <th class="table-header">{% trans 'Service' %}</th>
+            <th class="table-header">{% trans 'Phase' %}</th>
+            <th class="table-header">{% trans 'Progress' %}</th>
+        </tr>
+        {% for task in pending_tasks %}
+            <tr data-type="pending-task">
+                <td class="table-cell task-title">
+                    <span class="loading-spinner">
+                        <i class="fas fa-circle-notch fa-spin"></i>
+                    </span>
+                    <span class="task-description">
+                        {{ task.description.service }}
+                    </span>
+                </td>
+                <td class="table-cell task-phase">{{ task.description.phase }}</td>
+                <td class="table-cell">
+                    <div class="progress-bar-wrapper">
+                        <div class="progress-bar bg"></div>
+                        <div class="progress-bar fg" data-id="{{ task.task_id }}"></div>
+                        <div class="progress-bar number"></div>
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+
+    </table>
+</div>

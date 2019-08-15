@@ -4,6 +4,9 @@ from structure.views import *
 app_name = 'structure'
 urlpatterns = [
     path('', index, name='index'),
+
+    path('task/', task, name='task'),
+
     path('groups/', groups, name='groups'),
     path('groups/detail/<id>', detail_group, name='detail-group'),
     path('groups/edit/<id>', edit_group, name='edit-group'),

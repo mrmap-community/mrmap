@@ -9,22 +9,22 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from lxml.etree import XMLSyntaxError, XPathEvalError
-from requests.exceptions import InvalidURL
 
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
-from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, SERVICE_UPDATE_ABORTED_NO_DIFF, \
-    SERVICE_REMOVED, SERVICE_ACTIVATED, SERVICE_REGISTERED, SERVICE_UPDATED, SERVICE_DEACTIVATED
+from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
+    SERVICE_REMOVED, SERVICE_ACTIVATED, SERVICE_UPDATED, SERVICE_DEACTIVATED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-from MapSkinner.settings import ROOT_URL, EXEC_TIME_PRINT
+from MapSkinner.settings import ROOT_URL
+from service import tasks
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType, CapabilityDocument
-from structure.models import User, Organization, Group, Permission
+from service.tasks import async_remove_service_task
+from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
 
 
@@ -40,6 +40,8 @@ def index(request: HttpRequest, user: User, service_type=None):
          A view
     """
     template = "service_index.html"
+
+    # possible results per page values
     rpp_select = [5, 10, 15, 20]
     try:
         wms_page = int(request.GET.get("wmsp", 1))
@@ -50,14 +52,16 @@ def index(request: HttpRequest, user: User, service_type=None):
         if results_per_page not in rpp_select:
             results_per_page = 5
     except ValueError as e:
+        # since parameters could be changed directly in the uri, we need to make sure to avoid problems
         return redirect("service:index")
 
+    # whether whole services or single layers should be displayed
     display_service_type = request.session.get("displayServices", None)
     is_root = True
     if display_service_type is not None:
-        if display_service_type == 'layers':
-            # show single layers instead of grouped service
-            is_root = False
+        is_root = display_service_type != "layers"
+
+    # get services
     paginator_wms = None
     paginator_wfs = None
     if service_type is None or service_type == ServiceTypes.WMS.value:
@@ -75,6 +79,11 @@ def index(request: HttpRequest, user: User, service_type=None):
             service__is_deleted=False,
         ).order_by("title")
         paginator_wfs = Paginator(md_list_wfs, results_per_page).get_page(wfs_page)
+
+    # get pending tasks
+    pending_tasks = PendingTask.objects.filter(created_by__in=user.groups.all())
+    for task in pending_tasks:
+        task.description = json.loads(task.description)
     params = {
         "metadata_list_wms": paginator_wms,
         "metadata_list_wfs": paginator_wfs,
@@ -83,6 +92,7 @@ def index(request: HttpRequest, user: User, service_type=None):
         "user": user,
         "rpp_select_options": rpp_select,
         "rpp": results_per_page,
+        "pending_tasks": pending_tasks,
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
@@ -98,7 +108,7 @@ def remove(request: HttpRequest, user: User):
     Returns:
         A rendered view
     """
-    template = "remove_service_confirmation.html"
+    template = "overlay/remove_service_confirmation.html"
     service_id = request.GET.dict().get("id")
     confirmed = request.GET.dict().get("confirmed")
     service = get_object_or_404(Service, id=service_id)
@@ -120,7 +130,14 @@ def remove(request: HttpRequest, user: User):
     else:
         # remove service and all of the related content
         user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
-        service.delete()
+
+        # set service as deleted, so it won't be listed anymore in the index view until completely removed
+        service.is_deleted = True
+        service.save()
+
+        # call removing as async task
+        async_remove_service_task.delay(service_id)
+
         return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 
 @check_session
@@ -221,7 +238,7 @@ def register_form(request: HttpRequest, user: User):
     Returns:
         BackendAjaxResponse
     """
-    template = "service_url_form.html"
+    template = "overlay/service_url_form.html"
     POST_params = request.POST.dict()
     if POST_params.get("uri", None) is not None:
 
@@ -247,19 +264,21 @@ def register_form(request: HttpRequest, user: User):
                 "full_uri": cap_url,
                 "user": user,
                 "group_publishable_orgs": json.dumps(group_orgs),
+                "page_indicator_list": [False, True, False],
             }
         except AttributeError as e:
             params = {
                 "error": e,
             }
 
-        template = "register_new_service.html"
+        template = "overlay/register_new_service.html"
     else:
         uri_form = ServiceURIForm()
         params = {
             "form": uri_form,
             "action_url": ROOT_URL + "/service/new/register-form",
-            "button_text": "Continue",
+            "button_text": "Next",
+            "page_indicator_list": [True, False, False],
         }
     html = render_to_string(request=request, template_name=template, context=params)
     return BackendAjaxResponse(html).get_response()
@@ -282,45 +301,31 @@ def new_service(request: HttpRequest, user: User):
     register_group = POST_params.get("registerGroup")
     register_for_organization = POST_params.get("registerForOrg")
 
-    register_group = Group.objects.get(id=register_group)
-    if utils.resolve_none_string(register_for_organization) is not None:
-        register_for_organization = Organization.objects.get(id=register_for_organization)
-    else:
-        register_for_organization = None
-
     url_dict = service_helper.split_service_uri(cap_url)
-    params = {}
-    try:
-        t_start = time.time()
-        service = service_helper.get_service_model_instance(
-            url_dict.get("service"),
-            url_dict.get("version"),
-            url_dict.get("base_uri"),
-            user,
-            register_group,
-            register_for_organization
-        )
+    url_dict["service"] = url_dict["service"].value
+    url_dict["version"] = url_dict["version"].value
 
-        # get return values
-        raw_service = service["raw_data"]
-        service = service["service"]
-        xml = raw_service.service_capabilities_xml
+    # run creation async!
+    pending_task = tasks.async_new_service.delay(url_dict, user.id, register_group, register_for_organization)
 
-        # persist everything
-        service_helper.persist_service_model_instance(service)
-        service_helper.persist_capabilities_doc(service, xml)
+    # create db object, so we know which pending task is still ongoing
+    pending_task_db = PendingTask()
+    pending_task_db.created_by = Group.objects.get(id=register_group)
+    pending_task_db.task_id = pending_task.task_id
+    pending_task_db.description = json.dumps({
+        "service": cap_url,
+        "phase": "parsing",
+    })
 
-        params["service"] = raw_service
-        print(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
-        user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
-    except (ConnectionError, InvalidURL) as e:
-        params["error"] = e.args[0]
-        raise e
-    except (BaseException, XMLSyntaxError, XPathEvalError) as e:
-        params["unknown_error"] = e
-        raise e
+    pending_task_db.save()
 
-    template = "check_metadata_form.html"
+    params = {
+        "pending_task": pending_task,
+        "url_dict": url_dict,
+        "page_indicator_list": [False, False, True],
+    }
+
+    template = "overlay/new_service_progress.html"
     html = render_to_string(template_name=template, request=request, context=params)
     return BackendAjaxResponse(html=html).get_response()
 
@@ -412,6 +417,7 @@ def update_service(request: HttpRequest, user: User, id: int):
             "diff": diff,
             "old_service": old_service,
             "new_service": new_service,
+            "page_indicator_list": [False, True],
         }
         #request.session["update_confirmed"] = True
     context = DefaultContext(request, params, user)
@@ -445,11 +451,11 @@ def update_service_form(request: HttpRequest, user:User, id: int):
     Returns:
          A BackendAjaxResponse
     """
-    template = "service_url_form.html"
+    template = "overlay/service_url_form.html"
     uri_form = ServiceURIForm(request.POST or None)
     params = {}
     if request.method == 'POST':
-        template = "update_service.html"
+        template = "overlay/update_service.html"
         if uri_form.is_valid():
             error = False
             cap_url = uri_form.data.get("uri", "")
@@ -471,6 +477,7 @@ def update_service_form(request: HttpRequest, user:User, id: int):
                     "service_type": url_dict["service"].value,
                     "request_action": url_dict["request"],
                     "full_uri": cap_url,
+                    "page_indicator_list": [False, True],
                 }
                 request.session["update"] = {
                     "full_uri": cap_url,
@@ -478,11 +485,13 @@ def update_service_form(request: HttpRequest, user:User, id: int):
             except AttributeError:
                 params = {
                     "error": error,
+                    "page_indicator_list": [False, True],
                 }
 
         else:
             params = {
                 "error": FORM_INPUT_INVALID,
+                "page_indicator_list": [False, True],
             }
 
     else:
@@ -491,6 +500,7 @@ def update_service_form(request: HttpRequest, user:User, id: int):
             "article": _("Enter the new capabilities URL of your service."),
             "action_url": ROOT_URL + "/service/register-form/" + str(id),
             "button_text": "Update",
+            "page_indicator_list": [True, False],
         }
     params["service_id"] = id
     html = render_to_string(template_name=template, request=request, context=params)

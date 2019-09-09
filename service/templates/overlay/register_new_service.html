@@ -40,7 +40,7 @@
                 <tr>
                     <td class="field-label">{% trans 'Registering with group:' %}</td>
                     <td class="field">
-                        <select id="user-groups-select">
+                        <select id="user-groups-select" class="default-select">
                             {% for group in user.groups.all %}
                                 <option value="{{ group.id }}">{{ group }}</option>
                             {% endfor %}
@@ -50,7 +50,7 @@
                 <tr>
                     <td class="field-label">{% trans 'Registering for other organization:' %}</td>
                     <td class="field">
-                        <select id="publishable-organizations-select" data-links="{{ group_publishable_orgs }}">
+                        <select id="publishable-organizations-select" class="default-select" data-links="{{ group_publishable_orgs }}">
                             <option value="None">{% trans 'No other' %}</option>
                             {% for group in user.groups.all %}
                                 {% for org in group.publish_for_organizations.all %}

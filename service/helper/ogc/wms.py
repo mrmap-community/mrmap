@@ -70,6 +70,12 @@ class OGCWebMapService(OGCWebService):
     class Meta:
         abstract = True
 
+    def get_parser_prefix(self):
+        prefix = ""
+        if isinstance(self, OGCWebMapService_1_3_0) or isinstance(self, OGCWebMapService_1_1_0):
+            prefix = "wms:"
+        return prefix
+
     def get_layer_by_identifier(self, identifier: str):
         """ Returns the layer identified by the parameter 'identifier' as OGCWebMapServiceLayer object
 
@@ -114,45 +120,14 @@ class OGCWebMapService(OGCWebService):
             self.get_layers(xml_obj=xml_obj, async_task=async_task)
             print(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
 
-    def _start_single_layer_parsing(self, layer_xml):
-        """ Runs the complete parsing process for a single layer
-
-        Args:
-            layer_xml: The xml element of the desired layer
-        Returns:
-             layer_obj (OGCWebMapServiceLayer): The layer object containing all metadata information
-        """
-        layer_obj = OGCWebMapServiceLayer()
-        # iterate over single parsing functions -> improves maintainability
-        parse_functions = [
-            self.__parse_keywords,
-            self.__parse_abstract,
-            self.__parse_title,
-            self.__parse_projection_system,
-            self.__parse_lat_lon_bounding_box,
-            self.__parse_bounding_box,
-            self.__parse_scale_hint,
-            self.__parse_queryable,
-            self.__parse_opaque,
-            self.__parse_cascaded,
-            self.__parse_request_uris,
-            self.__parse_formats,
-            self.__parse_dimension,
-            self.__parse_style,
-            self.__parse_identifier,
-            self.__parse_iso_md,
-        ]
-        for func in parse_functions:
-            func(layer=layer_xml, layer_obj=layer_obj)
-
-        return layer_obj
-
     ### ISO METADATA ###
-    def __parse_iso_md(self, layer, layer_obj):
+    def parse_iso_md(self, layer, layer_obj):
         # check for possible ISO metadata
         if self.has_iso_metadata(layer):
             iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(xml_elem=layer,
-                                                                            elem="./MetadataURL/OnlineResource")
+                                                                            elem="./{}MetadataURL/{}OnlineResource".format(
+                                                                                self.get_parser_prefix(), self.get_parser_prefix()
+                                                                            ))
             for iso_xml in iso_metadata_xml_elements:
                 iso_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem=iso_xml,
                                                                         attribute="{http://www.w3.org/1999/xlink}href")
@@ -164,64 +139,62 @@ class OGCWebMapService(OGCWebService):
                 layer_obj.iso_metadata.append(iso_metadata)
 
     ### IDENTIFIER ###
-    def __parse_identifier(self, layer, layer_obj):
-        layer_obj.identifier = xml_helper.try_get_text_from_xml_element(elem="./Name", xml_elem=layer)
+    def parse_identifier(self, layer, layer_obj):
+        layer_obj.identifier = xml_helper.try_get_text_from_xml_element(elem="./{}Name".format(self.get_parser_prefix()), xml_elem=layer)
         if layer_obj.identifier is None:
             u = str(uuid.uuid4())
             layer_obj.identifier = sha256(u)
 
     ### KEYWORDS ###
-    def __parse_keywords(self, layer, layer_obj):
-        keywords = xml_helper.try_get_element_from_xml(elem="./KeywordList/Keyword", xml_elem=layer)
+    def parse_keywords(self, layer, layer_obj):
+        keywords = xml_helper.try_get_element_from_xml(elem="./{}KeywordList/{}Keyword".format(self.get_parser_prefix(), self.get_parser_prefix()), xml_elem=layer)
         for keyword in keywords:
             layer_obj.capability_keywords.append(keyword.text)
 
     ### ABSTRACT ###
-    def __parse_abstract(self, layer, layer_obj):
-        layer_obj.abstract = xml_helper.try_get_text_from_xml_element(elem="./Abstract", xml_elem=layer)
+    def parse_abstract(self, layer, layer_obj):
+        layer_obj.abstract = xml_helper.try_get_text_from_xml_element(elem="./{}Abstract".format(self.get_parser_prefix()), xml_elem=layer)
 
     ### TITLE ###
-    def __parse_title(self, layer, layer_obj):
-        layer_obj.title = xml_helper.try_get_text_from_xml_element(elem="./Title", xml_elem=layer)
+    def parse_title(self, layer, layer_obj):
+        layer_obj.title = xml_helper.try_get_text_from_xml_element(elem="./{}Title".format(self.get_parser_prefix()), xml_elem=layer)
 
     ### SRS/CRS     PROJECTION SYSTEM ###
-    @abstractmethod
-    def __parse_projection_system(self, layer, layer_obj):
-        srs = xml_helper.try_get_element_from_xml(elem="./SRS", xml_elem=layer)
+    def parse_projection_system(self, layer, layer_obj):
+        srs = xml_helper.try_get_element_from_xml(elem="./{}SRS".format(self.get_parser_prefix()), xml_elem=layer)
         for elem in srs:
             layer_obj.capability_projection_system.append(elem.text)
 
     ### BOUNDING BOX    LAT LON ###
-    @abstractmethod
-    def __parse_lat_lon_bounding_box(self, layer, layer_obj):
+    def parse_lat_lon_bounding_box(self, layer, layer_obj):
         try:
-            bbox = xml_helper.try_get_element_from_xml(elem="./LatLonBoundingBox", xml_elem=layer)[0]
+            bbox = xml_helper.try_get_element_from_xml(elem="./{}LatLonBoundingBox".format(self.get_parser_prefix()), xml_elem=layer)[0]
             attrs = ["minx", "miny", "maxx", "maxy"]
             for attr in attrs:
-                layer_obj.capability_bbox_lat_lon[attr] = bbox.get(attr)
+                val = bbox.get(attr, 0)
+                if val is None:
+                    val = 0
+                layer_obj.capability_bbox_lat_lon[attr] = val
         except IndexError:
             pass
 
     ### BOUNDING BOX ###
-    def __parse_bounding_box_generic(self, layer, layer_obj, elem_name):
-        try:
-            bboxs = layer.xpath("./BoundingBox")
-            for bbox in bboxs:
-                srs = bbox.get(elem_name)
-                srs_dict = {
-                    "minx": "",
-                    "miny": "",
-                    "maxx": "",
-                    "maxy": "",
-                }
-                attrs = ["minx", "miny", "maxx", "maxy"]
-                for attr in attrs:
-                    srs_dict[attr] = bbox.get(attr)
-                layer_obj.capability_bbox_srs[srs] = srs_dict
-        except (AttributeError, IndexError) as error:
-            pass
+    def parse_bounding_box_generic(self, layer, layer_obj, elem_name):
+        bboxs = xml_helper.try_get_element_from_xml(elem="./BoundingBox", xml_elem=layer)
+        for bbox in bboxs:
+            srs = bbox.get(elem_name)
+            srs_dict = {
+                "minx": "",
+                "miny": "",
+                "maxx": "",
+                "maxy": "",
+            }
+            attrs = ["minx", "miny", "maxx", "maxy"]
+            for attr in attrs:
+                srs_dict[attr] = bbox.get(attr)
+            layer_obj.capability_bbox_srs[srs] = srs_dict
 
-    def __parse_bounding_box(self, layer, layer_obj):
+    def parse_bounding_box(self, layer, layer_obj):
         # switch depending on service version
         elem_name = "SRS"
         if self.service_version is VersionTypes.V_1_0_0:
@@ -232,12 +205,12 @@ class OGCWebMapService(OGCWebService):
             pass
         if self.service_version is VersionTypes.V_1_3_0:
             elem_name = "CRS"
-        self.__parse_bounding_box_generic(layer=layer, layer_obj=layer_obj, elem_name=elem_name)
+        self.parse_bounding_box_generic(layer=layer, layer_obj=layer_obj, elem_name=elem_name)
 
     ### SCALE HINT ###
-    def __parse_scale_hint(self, layer, layer_obj):
+    def parse_scale_hint(self, layer, layer_obj):
         try:
-            scales = xml_helper.try_get_element_from_xml(elem="./ScaleHint", xml_elem=layer)[0]
+            scales = xml_helper.try_get_element_from_xml(elem="./{}ScaleHint".format(self.get_parser_prefix()), xml_elem=layer)[0]
             attrs = ["min", "max"]
             for attr in attrs:
                 layer_obj.capability_scale_hint[attr] = scales.get(attr)
@@ -245,7 +218,7 @@ class OGCWebMapService(OGCWebService):
             pass
 
     ### IS QUERYABLE ###
-    def __parse_queryable(self, layer, layer_obj):
+    def parse_queryable(self, layer, layer_obj):
             try:
                 is_queryable = layer.get("queryable")
                 if is_queryable is None:
@@ -257,7 +230,7 @@ class OGCWebMapService(OGCWebService):
                 pass
 
     ### IS OPAQUE ###
-    def __parse_opaque(self, layer, layer_obj):
+    def parse_opaque(self, layer, layer_obj):
             try:
                 is_opaque = layer.get("opaque")
                 if is_opaque is None:
@@ -269,7 +242,7 @@ class OGCWebMapService(OGCWebService):
                 pass
 
     ### IS CASCADED ###
-    def __parse_cascaded(self, layer, layer_obj):
+    def parse_cascaded(self, layer, layer_obj):
             try:
                 is_opaque = layer.get("cascaded")
                 if is_opaque is None:
@@ -281,7 +254,7 @@ class OGCWebMapService(OGCWebService):
                 pass
 
     ### REQUEST URIS ###
-    def __parse_request_uris(self, layer, layer_obj):
+    def parse_request_uris(self, layer, layer_obj):
         attributes = {
             "cap": "//GetCapabilities/DCPType/HTTP/Get/OnlineResource",
             "map": "//GetMap/DCPType/HTTP/Get/OnlineResource",
@@ -305,14 +278,13 @@ class OGCWebMapService(OGCWebService):
         layer_obj.get_styles_uri = attributes.get("style")
 
     ### FORMATS ###
-    @abstractmethod
-    def __parse_formats(self, layer, layer_obj):
+    def parse_formats(self, layer, layer_obj):
         actions = ["GetMap", "GetCapabilities", "GetFeatureInfo", "DescribeLayer", "GetLegendGraphic", "GetStyles"]
         results = {}
         for action in actions:
             try:
                 results[action] = []
-                format_list = layer.xpath("//" + action + "/Format")
+                format_list = xml_helper.try_get_element_from_xml(elem="//{}/{}Format".format(action, self.get_parser_prefix()), xml_elem=layer)
                 for format in format_list:
                     results[action].append(format.text)
             except AttributeError:
@@ -320,12 +292,11 @@ class OGCWebMapService(OGCWebService):
         layer_obj.format_list = results
 
     ### DIMENSIONS ###
-    @abstractmethod
-    def __parse_dimension(self, layer, layer_obj):
+    def parse_dimension(self, layer, layer_obj):
         dims_list = []
         try:
-            dim = layer.xpath("./Dimension")[0]
-            ext = layer.xpath("./Extent")[0]
+            dim = xml_helper.try_get_single_element_from_xml(elem="./{}Dimension".format(self.get_parser_prefix()), xml_elem=layer)
+            ext = xml_helper.try_get_single_element_from_xml(elem="./{}Extent".format(self.get_parser_prefix()), xml_elem=layer)
             dim_dict = {
                 "name": dim.get("name"),
                 "units": dim.get("units"),
@@ -338,14 +309,15 @@ class OGCWebMapService(OGCWebService):
         layer_obj.dimension = dims_list
 
     ### STYLES ###
-    def __parse_style(self, layer, layer_obj):
-        style = xml_helper.try_get_element_from_xml("./Style", layer)
+    def parse_style(self, layer, layer_obj):
+        parser_prefix = self.get_parser_prefix()
+        style = xml_helper.try_get_element_from_xml("./{}Style".format(parser_prefix), layer)
         elements = {
-            "name": "./Name",
-            "title": "./Title",
-            "width": "./LegendURL",
-            "height": "./LegendURL",
-            "uri": "./LegendURL/OnlineResource"
+            "name": "./Name".format(parser_prefix),
+            "title": "./Title".format(parser_prefix),
+            "width": "./LegendURL".format(parser_prefix),
+            "height": "./LegendURL".format(parser_prefix),
+            "uri": "./{}LegendURL/{}OnlineResource".format(parser_prefix, parser_prefix)
         }
         for key, val in elements.items():
             tmp = xml_helper.try_get_element_from_xml(elem=val, xml_elem=style)
@@ -359,6 +331,41 @@ class OGCWebMapService(OGCWebService):
         elements["height"] = elements["height"].get("height") if elements["height"] is not None else None
         elements["uri"] = elements["uri"].get("xlink:href") if elements["uri"] is not None else None
         layer_obj.style = elements
+
+
+    def _start_single_layer_parsing(self, layer_xml):
+        """ Runs the complete parsing process for a single layer
+
+        Args:
+            layer_xml: The xml element of the desired layer
+        Returns:
+             layer_obj (OGCWebMapServiceLayer): The layer object containing all metadata information
+        """
+        layer_obj = OGCWebMapServiceLayer()
+        # iterate over single parsing functions -> improves maintainability
+        parse_functions = [
+            self.parse_keywords,
+            self.parse_abstract,
+            self.parse_title,
+            self.parse_projection_system,
+            self.parse_lat_lon_bounding_box,
+            self.parse_bounding_box,
+            self.parse_scale_hint,
+            self.parse_queryable,
+            self.parse_opaque,
+            self.parse_cascaded,
+            self.parse_request_uris,
+            self.parse_formats,
+            self.parse_dimension,
+            self.parse_style,
+            self.parse_identifier,
+            self.parse_iso_md,
+        ]
+        for func in parse_functions:
+            func(layer=layer_xml, layer_obj=layer_obj)
+
+        return layer_obj
+
 
     def _parse_single_layer(self, layer, parent, position, step_size: float = None, async_task: Task = None):
         """ Parses data from an xml <Layer> element into the OGCWebMapLayer object.
@@ -382,15 +389,15 @@ class OGCWebMapService(OGCWebService):
         if self.layers is None:
             self.layers = []
         self.layers.append(layer_obj)
-        sublayers = xml_helper.try_get_element_from_xml(elem="./Layer", xml_elem=layer)
+        sublayers = xml_helper.try_get_element_from_xml(elem="./{}Layer".format(self.get_parser_prefix()), xml_elem=layer)
         if parent is not None:
             parent.child_layer.append(layer_obj)
         position += 1
 
-        self.__get_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size, async_task=async_task)
+        self.get_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size, async_task=async_task)
 
 
-    def __get_layers_recursive(self, layers, parent=None, position=0, step_size: float = None, async_task: Task = None):
+    def get_layers_recursive(self, layers, parent=None, position=0, step_size: float = None, async_task: Task = None):
         """ Recursive Iteration over all children and subchildren.
 
         Creates OGCWebMapLayer objects for each xml layer and fills it with the layer content.
@@ -430,8 +437,8 @@ class OGCWebMapService(OGCWebService):
              nothing
         """
         # get most upper parent layer, which normally lives directly in <Capability>
-        layers = xml_helper.try_get_element_from_xml("//Capability/Layer", xml_obj)
-        total_layers = xml_helper.try_get_element_from_xml("//Layer", xml_obj)
+        layers = xml_helper.try_get_element_from_xml(elem="//{}Capability/{}Layer".format(self.get_parser_prefix(), self.get_parser_prefix()), xml_elem=xml_obj)
+        total_layers = xml_helper.try_get_element_from_xml(elem="//{}Layer".format(self.get_parser_prefix()), xml_elem=xml_obj)
 
         # calculate the step size for an async call
         # 55 is the diff from the last process update (10) to the next static one (65)
@@ -439,7 +446,7 @@ class OGCWebMapService(OGCWebService):
         step_size = float(PROGRESS_STATUS_AFTER_PARSING / len_layers)
         print("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
 
-        self.__get_layers_recursive(layers, step_size=step_size, async_task=async_task)
+        self.get_layers_recursive(layers, step_size=step_size, async_task=async_task)
 
     def get_service_metadata(self, xml_obj, async_task: Task = None):
         """ Parses all <Service> information which can be found in every wms specification since 1.0.0
@@ -449,41 +456,102 @@ class OGCWebMapService(OGCWebService):
         Returns:
             Nothing
         """
-        self.service_file_identifier = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/Name")
-        self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/Abstract")
-        self.service_identification_title = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/Title")
+        parser_prefix = self.get_parser_prefix()
 
-        if async_task is not None:
-            task_helper.update_service_description(async_task, self.service_identification_title)
+        self.service_file_identifier = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Name".format(parser_prefix, parser_prefix))
+        self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Abstract".format(parser_prefix, parser_prefix))
+        self.service_identification_title = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Title".format(parser_prefix, parser_prefix))
 
-        self.service_identification_fees = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/Fees")
-        self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/AccessConstraints")
-        self.service_provider_providername = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactPersonPrimary/ContactOrganization")
-        self.service_provider_url = xml_helper.try_get_attribute_from_xml_element(elem="//AuthorityURL", xml_elem=xml_obj, attribute="{http://www.w3.org/1999/xlink}href")
-        self.service_provider_contact_contactinstructions = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//Service/ContactInformation")
-        self.service_provider_responsibleparty_individualname = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactPersonPrimary/ContactPerson")
-        self.service_provider_responsibleparty_positionname = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactPersonPrimary/ContactPosition")
-        self.service_provider_telephone_voice = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactVoiceTelephone")
-        self.service_provider_telephone_facsimile = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactFacsimileTelephone")
-        self.service_provider_address_electronicmailaddress = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactElectronicMailAddress")
+        #if async_task is not None:
+        #    task_helper.update_service_description(async_task, self.service_identification_title)
 
-        keywords = xml_helper.try_get_element_from_xml("//Service/KeywordList/Keyword", xml_obj)
+        self.service_identification_fees = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Fees".format(parser_prefix, parser_prefix))
+        self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}AccessConstraints".format(parser_prefix, parser_prefix))
+        self.service_provider_providername = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactPersonPrimary/{}ContactOrganization".format(
+            parser_prefix,
+            parser_prefix,
+            parser_prefix,
+            parser_prefix
+        ))
+        self.service_provider_url = xml_helper.try_get_attribute_from_xml_element(elem="//{}AuthorityURL".format(parser_prefix), xml_elem=xml_obj, attribute="{http://www.w3.org/1999/xlink}href")
+        self.service_provider_contact_contactinstructions = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//{}Service/{}ContactInformation".format(parser_prefix, parser_prefix))
+        self.service_provider_responsibleparty_individualname = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactPersonPrimary/{}ContactPerson".format(
+            parser_prefix,
+            parser_prefix,
+            parser_prefix,
+            parser_prefix
+        ))
+        self.service_provider_responsibleparty_positionname = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactPersonPrimary/{}ContactPosition".format(
+            parser_prefix,
+            parser_prefix,
+            parser_prefix,
+            parser_prefix
+        ))
+        self.service_provider_telephone_voice = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactVoiceTelephone".format(
+            parser_prefix,
+            parser_prefix,
+            parser_prefix
+        ))
+        self.service_provider_telephone_facsimile = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactFacsimileTelephone".format(
+            parser_prefix,
+            parser_prefix,
+            parser_prefix
+        ))
+        self.service_provider_address_electronicmailaddress = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactElectronicMailAddress".format(
+            parser_prefix,
+            parser_prefix,
+            parser_prefix
+        ))
+
+        keywords = xml_helper.try_get_element_from_xml("//{}Service/{}KeywordList/{}Keyword".format(
+            parser_prefix,
+            parser_prefix,
+            parser_prefix
+        ), xml_obj)
         kw = []
         for keyword in keywords:
             kw.append(keyword.text)
         self.service_identification_keywords = kw
 
-        elements = xml_helper.try_get_element_from_xml("//Service/OnlineResource", xml_obj)
+        elements = xml_helper.try_get_element_from_xml("//{}Service/{}OnlineResource".format(
+            parser_prefix,
+            parser_prefix
+        ), xml_obj)
         ors = []
         for element in elements:
             ors.append(element.get("{http://www.w3.org/1999/xlink}href"))
         self.service_provider_onlineresource_linkage = ors
 
-        self.service_provider_address_country = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/Country")
-        self.service_provider_address_postalcode = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/PostCode")
-        self.service_provider_address_city = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/City")
-        self.service_provider_address_state_or_province = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/StateOrProvince")
-        self.service_provider_address = xml_helper.try_get_text_from_xml_element(xml_obj, "//Service/ContactInformation/ContactAddress/Address")
+        self.service_provider_address_country = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactAddress/{}Country".format(
+            parser_prefix,
+            parser_prefix,
+            parser_prefix,
+            parser_prefix,
+        ))
+        self.service_provider_address_postalcode = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactAddress/{}PostCode".format(
+            parser_prefix,
+            parser_prefix,
+            parser_prefix,
+            parser_prefix,
+        ))
+        self.service_provider_address_city = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactAddress/{}City".format(
+            parser_prefix,
+            parser_prefix,
+            parser_prefix,
+            parser_prefix,
+        ))
+        self.service_provider_address_state_or_province = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactAddress/{}StateOrProvince".format(
+            parser_prefix,
+            parser_prefix,
+            parser_prefix,
+            parser_prefix,
+        ))
+        self.service_provider_address = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactAddress/{}Address".format(
+            parser_prefix,
+            parser_prefix,
+            parser_prefix,
+            parser_prefix,
+        ))
 
     @transaction.atomic
     def __create_single_layer_model_instance(self, layer_obj, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
@@ -660,7 +728,6 @@ class OGCWebMapService(OGCWebService):
         orga_publisher = user.organization
 
         group = register_group
-
         # fill objects
         service_type = ServiceType.objects.get_or_create(
             name=self.service_type.value,
@@ -876,9 +943,17 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
 
         XML_NAMESPACES["default"] = XML_NAMESPACES["wms"]
 
-    def __parse_lat_lon_bounding_box(self, layer, layer_obj):
+    def parse_lat_lon_bounding_box(self, layer, layer_obj):
+        """ Version specific implementation of the bounding box parsing
+
+        Args:
+            layer: The xml element which holds the layer info (parsing from)
+            layer_obj: The backend model which holds the layer data (parsing to)
+        Returns:
+             nothing
+        """
         try:
-            bbox = xml_helper.try_get_element_from_xml("./EX_GeographicBoundingBox", layer)[0]
+            bbox = xml_helper.try_get_element_from_xml("./{}EX_GeographicBoundingBox".format(self.get_parser_prefix()), layer)[0]
             attrs = {
                 "westBoundLongitude": "minx",
                 "eastBoundLongitude": "maxx",
@@ -886,19 +961,38 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
                 "northBoundLatitude": "maxy",
             }
             for key, val in attrs.items():
-                layer_obj.capability_bbox_lat_lon[val] = bbox.get(key)
+                tmp = xml_helper.try_get_text_from_xml_element(xml_elem=bbox, elem="./{}{}".format(self.get_parser_prefix(), key))
+                if tmp is None:
+                    tmp = 0
+                layer_obj.capability_bbox_lat_lon[val] = tmp
         except IndexError:
             pass
 
-    def __parse_projection_system(self, layer, layer_obj):
-        crs = xml_helper.try_get_element_from_xml("./CRS", layer)
+    def parse_projection_system(self, layer, layer_obj):
+        """ Version specific implementation of the projection system parsing
+
+        Args:
+            layer: The xml element which holds the layer info (parsing from)
+            layer_obj: The backend model which holds the layer data (parsing to)
+        Returns:
+             nothing
+        """
+        crs = xml_helper.try_get_element_from_xml("./{}CRS".format(self.get_parser_prefix()), layer)
         for elem in crs:
             layer_obj.capability_projection_system.append(elem.text)
 
-    def __parse_dimension(self, layer, layer_obj):
+    def parse_dimension(self, layer, layer_obj):
+        """ The version specific implementation of the dimension parsing
+
+        Args:
+            layer: The xml element which holds the layer info (parsing from)
+            layer_obj: The backend model which holds the layer data (parsing to)
+        Returns:
+             nothing
+        """
         dims_list = []
         try:
-            dims = layer.xpath("./Dimension")
+            dims = xml_helper.try_get_element_from_xml(elem="./{}Dimension".format(self.get_parser_prefix()), xml_elem=layer)
             for dim in dims:
                 dim_dict = {
                     "name": dim.get("name"),
@@ -913,21 +1007,23 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         layer_obj.dimension = dims_list
 
     def get_version_specific_service_metadata(self, xml_obj):
+        """ The version specific implementation of service metadata parsing
+
+        There are elements in the <Service> part fo the GetCapabilities document which are not covered in the regular
+        service metadata parsing due to the fact, they are only used in the newest version of WMS which is by far not
+        regularly used.
+
+        Args:
+            xml_obj: The xml element
+        Returns:
+             nothing
+        """
         # layer limit is new
-        try:
-            layer_limit = xml_obj.xpath("//LayerLimit")[0].text
-            self.layer_limit = layer_limit
-        except (IndexError, AttributeError) as error:
-            pass
+        layer_limit = xml_helper.try_get_text_from_xml_element(elem="//{}LayerLimit".format(self.get_parser_prefix()), xml_elem=xml_obj)
+        self.layer_limit = layer_limit
         # max height and width is new
-        try:
-            max_width = xml_obj.xpath("//MaxWidth")[0].text
-            self.max_width = max_width
-        except (IndexError, AttributeError) as error:
-            pass
-        try:
-            max_height = xml_obj.xpath("//MaxHeight")[0].text
-            self.max_height = max_height
-        except (IndexError, AttributeError) as error:
-            pass
+        max_width = xml_helper.try_get_text_from_xml_element(elem="//{}MaxWidth".format(self.get_parser_prefix()), xml_elem=xml_obj)
+        self.max_width = max_width
+        max_height = xml_helper.try_get_text_from_xml_element(elem="//{}MaxHeight".format(self.get_parser_prefix()), xml_elem=xml_obj)
+        self.max_height = max_height
         self.get_layers(xml_obj=xml_obj)

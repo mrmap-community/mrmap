@@ -15,12 +15,10 @@ from rest_framework import routers
 from api.views import ServiceViewSet, LayerViewSet
 
 router = routers.DefaultRouter()
-router.register('services', ServiceViewSet)
-router.register('layers', LayerViewSet)
+router.register('services', ServiceViewSet, basename="Service")
+router.register('layers', LayerViewSet, basename="Layer")
 
 
 urlpatterns = [
-    #path('', include('rest_framework.urls')),
     path("", include(router.urls)),
-
 ]

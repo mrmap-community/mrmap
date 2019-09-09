@@ -7,7 +7,8 @@ Created on: 15.08.19
 """
 from rest_framework import serializers
 
-from service.models import Service, Layer, Metadata, ServiceType
+from service.models import Service, Layer, Metadata, ServiceType, Keyword
+from structure.models import Contact, Organization
 
 
 class ServiceTypeSerializer(serializers.ModelSerializer):
@@ -18,7 +19,25 @@ class ServiceTypeSerializer(serializers.ModelSerializer):
             "version"
         ]
 
+class OrganizationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = [
+            "id",
+            "organization_name",
+            "is_auto_generated",
+            "person_name",
+            "email",
+            "phone",
+            "facsimile",
+            "city",
+            "city",
+            "country",
+        ]
+
+
 class MetadataSerializer(serializers.ModelSerializer):
+    contact = OrganizationSerializer()
     class Meta:
         model = Metadata
         fields = [
@@ -26,27 +45,28 @@ class MetadataSerializer(serializers.ModelSerializer):
             "identifier",
             "title",
             "abstract",
+            #"keywords",
             "online_resource",
             "original_uri",
+            "contact",
         ]
 
 class ServiceSerializer(serializers.ModelSerializer):
     metadata = MetadataSerializer()
+    servicetype = ServiceTypeSerializer()
     class Meta:
         model = Service
         fields = [
             "id",
             "uuid",
             "metadata",
-            "is_available",
-            "is_active",
-            "servicetype"
+            "servicetype",
         ]
 
 
 class LayerSerializer(serializers.ModelSerializer):
     metadata = MetadataSerializer()
-    parent_service = ServiceSerializer()
+    #parent_service = ServiceSerializer()
     servicetype = ServiceTypeSerializer()
     class Meta:
         model = Layer
@@ -57,6 +77,8 @@ class LayerSerializer(serializers.ModelSerializer):
             "metadata",
             "is_available",
             "is_active",
+            #"bbox_lat_lon",
             "parent_service",
-            "servicetype"
+            "child_layer",
+            "servicetype",
         ]

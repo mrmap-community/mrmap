@@ -8,7 +8,7 @@ Created on: 15.08.19
 from rest_framework import serializers
 
 from service.models import Service, Layer, Metadata, ServiceType, Keyword
-from structure.models import Contact, Organization
+from structure.models import Contact, Organization, Group
 
 
 class ServiceTypeSerializer(serializers.ModelSerializer):
@@ -21,6 +21,7 @@ class ServiceTypeSerializer(serializers.ModelSerializer):
             "name",
             "version"
         ]
+
 
 class OrganizationSerializer(serializers.ModelSerializer):
     """ Serializer for Organization model
@@ -42,6 +43,22 @@ class OrganizationSerializer(serializers.ModelSerializer):
         ]
 
 
+class GroupSerializer(serializers.ModelSerializer):
+    """ Serializer for Organization model
+
+    """
+    class Meta:
+        model = Group
+        fields = [
+            "id",
+            "name",
+            "description",
+            "organization",
+            "role",
+            "publish_for_organizations",
+        ]
+
+
 class MetadataSerializer(serializers.ModelSerializer):
     """ Serializer for Metadata model
 
@@ -54,11 +71,11 @@ class MetadataSerializer(serializers.ModelSerializer):
             "identifier",
             "title",
             "abstract",
-            #"keywords",
             "online_resource",
             "original_uri",
             "contact",
         ]
+
 
 class ServiceSerializer(serializers.ModelSerializer):
     """ Serializer for Service model
@@ -82,7 +99,6 @@ class LayerSerializer(serializers.ModelSerializer):
 
     """
     metadata = MetadataSerializer()
-    #parent_service = ServiceSerializer()
     servicetype = ServiceTypeSerializer()
     class Meta:
         model = Layer
@@ -93,7 +109,6 @@ class LayerSerializer(serializers.ModelSerializer):
             "metadata",
             "is_available",
             "is_active",
-            #"bbox_lat_lon",
             "parent_service",
             "child_layer",
             "servicetype",

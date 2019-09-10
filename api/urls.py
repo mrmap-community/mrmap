@@ -12,12 +12,13 @@ from django.urls import path, include
 # Routers provide an easy way of automatically determining the URL conf.
 from rest_framework import routers
 
-from api.views import ServiceViewSet, LayerViewSet, OrganizationViewSet
+from api.views import ServiceViewSet, LayerViewSet, OrganizationViewSet, GroupViewSet
 
 router = routers.DefaultRouter()
 router.register('services', ServiceViewSet, basename="Service")
 router.register('layers', LayerViewSet, basename="Layer")
 router.register('organizations', OrganizationViewSet, basename="Organization")
+router.register('groups', GroupViewSet, basename="Group")
 
 
 urlpatterns = [

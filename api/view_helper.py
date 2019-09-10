@@ -46,6 +46,24 @@ def filter_queryset_service_query(queryset, query):
     return queryset
 
 
+def filter_queryset_group_organization_id(queryset, orgid):
+    """ Filters a given REST framework queryset by a given organization.
+
+    Only keeps groups which are related to the organization.
+
+    Args:
+        queryset: A queryset containing elements
+        orgid: An organization id
+    Returns:
+        queryset: The given queryset which only contains matching elements
+    """
+    if orgid is not None:
+        queryset = queryset.filter(
+            Q(organization=orgid)
+        )
+    return queryset
+
+
 def filter_queryset_services_organization_id(queryset, orgid):
     """ Filters a given REST framework queryset by a given organization.
 

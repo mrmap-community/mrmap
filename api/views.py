@@ -5,9 +5,9 @@ from rest_framework import viewsets
 
 from MapSkinner import utils
 from api import view_helper
-from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer
+from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer
 from service.models import Service, Layer
-from structure.models import Organization
+from structure.models import Organization, Group
 
 
 class ServiceViewSet(viewsets.ModelViewSet):
@@ -106,6 +106,30 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         # filter by real or auto generated organizations
         auto_generated = self.request.query_params.get("ag", False)
         self.queryset = view_helper.filter_queryset_real_organization(self.queryset, auto_generated)
+
+        return self.queryset
+
+
+
+class GroupViewSet(viewsets.ModelViewSet):
+    """ Overview of all organizations matching the given parameters
+
+        Query parameters:
+            ag: (auto generated) optional, filter for auto_generated organizations vs.
+    """
+    serializer_class = GroupSerializer
+
+    def get_queryset(self):
+        """ Specifies if the queryset shall be filtered or not
+
+        Returns:
+             The queryset
+        """
+        self.queryset = Group.objects.all()
+
+        # filter by organization
+        orgid = self.request.query_params.get("orgid", None)
+        self.queryset = view_helper.filter_queryset_group_organization_id(self.queryset, orgid)
 
         return self.queryset
 

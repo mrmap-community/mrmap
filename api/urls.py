@@ -15,9 +15,9 @@ from rest_framework import routers
 from api.views import ServiceViewSet, LayerViewSet, OrganizationViewSet, GroupViewSet, RoleViewSet
 
 router = routers.DefaultRouter()
+router.register('organizations', OrganizationViewSet, basename="Organization")
 router.register('services', ServiceViewSet, basename="Service")
 router.register('layers', LayerViewSet, basename="Layer")
-router.register('organizations', OrganizationViewSet, basename="Organization")
 router.register('groups', GroupViewSet, basename="Group")
 router.register('role', RoleViewSet, basename="Role")
 

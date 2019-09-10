@@ -22,6 +22,10 @@ class ServiceTypeSerializer(serializers.ModelSerializer):
             "version"
         ]
 
+        # improves performance by 300%!
+        # check out https://hakibenita.com/django-rest-framework-slow for more information
+        read_only_fields = fields
+
 
 class OrganizationSerializer(serializers.ModelSerializer):
     """ Serializer for Organization model
@@ -42,6 +46,10 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "country",
         ]
 
+        # improves performance by 300%!
+        # check out https://hakibenita.com/django-rest-framework-slow for more information
+        read_only_fields = fields
+
 
 class GroupSerializer(serializers.ModelSerializer):
     """ Serializer for Organization model
@@ -58,6 +66,10 @@ class GroupSerializer(serializers.ModelSerializer):
             "publish_for_organizations",
         ]
 
+        # improves performance by 300%!
+        # check out https://hakibenita.com/django-rest-framework-slow for more information
+        read_only_fields = fields
+
 
 class PermissionSerializer(serializers.ModelSerializer):
     """ Serializer for Organization model
@@ -68,6 +80,10 @@ class PermissionSerializer(serializers.ModelSerializer):
         fields = [
             p.name for p in Permission._meta.fields
         ]
+
+        # improves performance by 300%!
+        # check out https://hakibenita.com/django-rest-framework-slow for more information
+        read_only_fields = fields
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -83,6 +99,10 @@ class RoleSerializer(serializers.ModelSerializer):
             "description",
             "permission",
         ]
+
+        # improves performance by 300%!
+        # check out https://hakibenita.com/django-rest-framework-slow for more information
+        read_only_fields = fields
 
 
 class MetadataSerializer(serializers.ModelSerializer):
@@ -102,6 +122,10 @@ class MetadataSerializer(serializers.ModelSerializer):
             "contact",
         ]
 
+        # improves performance by 300%!
+        # check out https://hakibenita.com/django-rest-framework-slow for more information
+        read_only_fields = fields
+
 
 class ServiceSerializer(serializers.ModelSerializer):
     """ Serializer for Service model
@@ -118,6 +142,10 @@ class ServiceSerializer(serializers.ModelSerializer):
             "published_for",
             "servicetype",
         ]
+
+        # improves performance by 300%!
+        # check out https://hakibenita.com/django-rest-framework-slow for more information
+        read_only_fields = fields
 
 
 class LayerSerializer(serializers.ModelSerializer):
@@ -139,3 +167,7 @@ class LayerSerializer(serializers.ModelSerializer):
             "child_layer",
             "servicetype",
         ]
+
+        # improves performance by 300%!
+        # check out https://hakibenita.com/django-rest-framework-slow for more information
+        read_only_fields = fields

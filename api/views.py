@@ -27,12 +27,12 @@ class ServiceViewSet(viewsets.ModelViewSet):
         Returns:
              The queryset
         """
-        queryset = Service.objects.all()
+        self.queryset = Service.objects.all()
 
         # filter by service or service+layers
         las = self.request.query_params.get("las", False)
         las = not utils.resolve_boolean_attribute_val(las)
-        queryset = queryset.filter(
+        self.queryset = self.queryset.filter(
             is_root=las
         )
 
@@ -48,7 +48,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
         org = self.request.query_params.get("orgid", None)
         self.queryset = view_helper.filter_queryset_services_organization_id(self.queryset, org)
 
-        return queryset
+        return self.queryset
 
 
 class LayerViewSet(viewsets.ModelViewSet):

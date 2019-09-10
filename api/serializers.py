@@ -12,6 +12,9 @@ from structure.models import Contact, Organization
 
 
 class ServiceTypeSerializer(serializers.ModelSerializer):
+    """ Serializer for ServiceType model
+
+    """
     class Meta:
         model = ServiceType
         fields = [
@@ -20,6 +23,9 @@ class ServiceTypeSerializer(serializers.ModelSerializer):
         ]
 
 class OrganizationSerializer(serializers.ModelSerializer):
+    """ Serializer for Organization model
+
+    """
     class Meta:
         model = Organization
         fields = [
@@ -37,6 +43,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
 
 class MetadataSerializer(serializers.ModelSerializer):
+    """ Serializer for Metadata model
+
+    """
     contact = OrganizationSerializer()
     class Meta:
         model = Metadata
@@ -52,6 +61,9 @@ class MetadataSerializer(serializers.ModelSerializer):
         ]
 
 class ServiceSerializer(serializers.ModelSerializer):
+    """ Serializer for Service model
+
+    """
     metadata = MetadataSerializer()
     servicetype = ServiceTypeSerializer()
     class Meta:
@@ -60,11 +72,15 @@ class ServiceSerializer(serializers.ModelSerializer):
             "id",
             "uuid",
             "metadata",
+            "published_for",
             "servicetype",
         ]
 
 
 class LayerSerializer(serializers.ModelSerializer):
+    """ Serializer for Layer model
+
+    """
     metadata = MetadataSerializer()
     #parent_service = ServiceSerializer()
     servicetype = ServiceTypeSerializer()

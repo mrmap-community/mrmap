@@ -5,9 +5,9 @@ from rest_framework import viewsets
 
 from MapSkinner import utils
 from api import view_helper
-from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer
+from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, RoleSerializer
 from service.models import Service, Layer
-from structure.models import Organization, Group
+from structure.models import Organization, Group, Role
 
 
 class ServiceViewSet(viewsets.ModelViewSet):
@@ -91,7 +91,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     """ Overview of all organizations matching the given parameters
 
         Query parameters:
-            ag: (auto generated) optional, filter for auto_generated organizations vs.
+
+            ag: (auto generated) optional, filter for auto_generated organizations vs. real organizations
     """
     serializer_class = OrganizationSerializer
 
@@ -110,12 +111,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         return self.queryset
 
 
-
 class GroupViewSet(viewsets.ModelViewSet):
     """ Overview of all organizations matching the given parameters
 
         Query parameters:
-            ag: (auto generated) optional, filter for auto_generated organizations vs.
+
+            orgid: optional, filter for organizations
     """
     serializer_class = GroupSerializer
 
@@ -130,6 +131,26 @@ class GroupViewSet(viewsets.ModelViewSet):
         # filter by organization
         orgid = self.request.query_params.get("orgid", None)
         self.queryset = view_helper.filter_queryset_group_organization_id(self.queryset, orgid)
+
+        return self.queryset
+
+
+class RoleViewSet(viewsets.ModelViewSet):
+    """ Overview of all organizations matching the given parameters
+
+        Query parameters:
+
+            ag: (auto generated) optional, filter for auto_generated organizations vs.
+    """
+    serializer_class = RoleSerializer
+
+    def get_queryset(self):
+        """ Specifies if the queryset shall be filtered or not
+
+        Returns:
+             The queryset
+        """
+        self.queryset = Role.objects.all()
 
         return self.queryset
 

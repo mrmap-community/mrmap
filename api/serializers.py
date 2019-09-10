@@ -8,7 +8,7 @@ Created on: 15.08.19
 from rest_framework import serializers
 
 from service.models import Service, Layer, Metadata, ServiceType, Keyword
-from structure.models import Contact, Organization, Group
+from structure.models import Contact, Organization, Group, Role, Permission
 
 
 class ServiceTypeSerializer(serializers.ModelSerializer):
@@ -56,6 +56,32 @@ class GroupSerializer(serializers.ModelSerializer):
             "organization",
             "role",
             "publish_for_organizations",
+        ]
+
+
+class PermissionSerializer(serializers.ModelSerializer):
+    """ Serializer for Organization model
+
+    """
+    class Meta:
+        model = Permission
+        fields = [
+            p.name for p in Permission._meta.fields
+        ]
+
+
+class RoleSerializer(serializers.ModelSerializer):
+    """ Serializer for Organization model
+
+    """
+    permission = PermissionSerializer()
+    class Meta:
+        model = Role
+        fields = [
+            "id",
+            "name",
+            "description",
+            "permission",
         ]
 
 

@@ -96,19 +96,35 @@ class RoleSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class KeywordSerializer(serializers.Serializer):
+    """ Serializer for Keyword model
+
+    """
+    keyword = serializers.CharField(read_only=True)
+
+
+class MetadataRelationSerializer(serializers.Serializer):
+    """ Serializer for MetadataRelation model
+
+    """
+    id = serializers.PrimaryKeyRelatedField(read_only=True, source="metadata_2")
+
+
 class MetadataSerializer(serializers.Serializer):
     """ Serializer for Metadata model
 
     """
     id = serializers.IntegerField()
     identifier = serializers.CharField()
-    service = serializers.PrimaryKeyRelatedField(read_only=True)
     title = serializers.CharField()
     abstract = serializers.CharField()
     online_resource = serializers.CharField()
     original_uri = serializers.CharField()
-    contact = OrganizationSerializer()
-    related_metadata = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
+    service = serializers.PrimaryKeyRelatedField(read_only=True)
+    organization = serializers.PrimaryKeyRelatedField(read_only=True, source="contact")
+    related_metadata = MetadataRelationSerializer(many=True)
+    keywords = KeywordSerializer(read_only=True, many=True)
+    #contact = OrganizationSerializer()
 
 
 class ServiceSerializer(serializers.Serializer):
@@ -119,19 +135,20 @@ class ServiceSerializer(serializers.Serializer):
     uuid = serializers.UUIDField()
     published_for = serializers.PrimaryKeyRelatedField(read_only=True)
     metadata = serializers.PrimaryKeyRelatedField(read_only=True)
+    is_root = serializers.BooleanField()
     servicetype = ServiceTypeSerializer()
 
 
-class LayerSerializer(serializers.Serializer):
+class LayerSerializer(ServiceSerializer):
     """ Serializer for Layer model
 
     """
-    id = serializers.IntegerField()
-    uuid = serializers.UUIDField()
+    #id = serializers.IntegerField()
+    #uuid = serializers.UUIDField()
     identifier = serializers.CharField()
-    metadata = serializers.PrimaryKeyRelatedField(read_only=True)
+    #metadata = serializers.PrimaryKeyRelatedField(read_only=True)
     is_available = serializers.BooleanField()
     is_active = serializers.BooleanField()
     parent_service = serializers.PrimaryKeyRelatedField(read_only=True)
     child_layer = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
-    servicetype = ServiceTypeSerializer()
+    #servicetype = ServiceTypeSerializer()

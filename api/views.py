@@ -1,4 +1,5 @@
 # Create your views here.
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import viewsets, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
@@ -51,6 +52,10 @@ class ServiceViewSet(viewsets.GenericViewSet):
         org = self.request.query_params.get("orgid", None)
         self.queryset = view_helper.filter_queryset_services_organization_id(self.queryset, org)
 
+        # filter by uuid
+        uuid = self.request.query_params.get("uuid", None)
+        self.queryset = view_helper.filter_queryset_services_uuid(self.queryset, uuid)
+
         return self.queryset
 
     def list(self, request):
@@ -62,8 +67,14 @@ class ServiceViewSet(viewsets.GenericViewSet):
         pass
 
     def retrieve(self, request, pk=None):
-        tmp = Service.objects.get(id=pk)
-        return Response(ServiceSerializer(tmp).data)
+        try:
+            tmp = Layer.objects.get(id=pk)
+            serializer = LayerSerializer(tmp)
+        except ObjectDoesNotExist:
+            tmp = Service.objects.get(id=pk)
+            serializer = ServiceSerializer(tmp)
+
+        return Response(serializer.data)
 
     def update(self, request, pk=None):
         pass
@@ -105,6 +116,10 @@ class LayerViewSet(viewsets.GenericViewSet):
         # filter by qorganization
         org = self.request.query_params.get("orgid", None)
         self.queryset = view_helper.filter_queryset_services_organization_id(self.queryset, org)
+
+        # filter by uuid
+        uuid = self.request.query_params.get("uuid", None)
+        self.queryset = view_helper.filter_queryset_services_uuid(self.queryset, uuid)
 
         return self.queryset
 
@@ -175,6 +190,10 @@ class MetadataViewSet(viewsets.GenericViewSet):
         # filter by query
         query = self.request.query_params.get("q", None)
         self.queryset = view_helper.filter_queryset_metadata_query(self.queryset, query)
+
+        # filter by uuid
+        uuid = self.request.query_params.get("uuid", None)
+        self.queryset = view_helper.filter_queryset_metadata_uuid(self.queryset, uuid)
 
         return self.queryset
 

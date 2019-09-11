@@ -66,6 +66,24 @@ def filter_queryset_metadata_query(queryset, query):
     return queryset
 
 
+def filter_queryset_metadata_uuid(queryset, uuid):
+    """ Filters a given REST framework queryset by a given uuid.
+
+    Only keeps the elements holds the uuid.
+
+    Args:
+        queryset: A queryset containing elements
+        uuid: A uuid
+    Returns:
+        queryset: The given queryset which only contains matching elements
+    """
+    if uuid is not None:
+        queryset = queryset.filter(
+            uuid=uuid
+        ).distinct()
+    return queryset
+
+
 def filter_queryset_group_organization_id(queryset, orgid):
     """ Filters a given REST framework queryset by a given organization.
 
@@ -98,6 +116,24 @@ def filter_queryset_services_organization_id(queryset, orgid):
     if orgid is not None:
         queryset = queryset.filter(
             Q(metadata__contact_id=orgid)
+        )
+    return queryset
+
+
+def filter_queryset_services_uuid(queryset, uuid):
+    """ Filters a given REST framework queryset by a uuid.
+
+    Only keeps the element which has the given uuid.
+
+    Args:
+        queryset: A queryset containing an element
+        uuid: A uuid
+    Returns:
+        queryset: The given queryset which only contains matching elements
+    """
+    if uuid is not None:
+        queryset = queryset.filter(
+            Q(uuid=uuid)
         )
     return queryset
 

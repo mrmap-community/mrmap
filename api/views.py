@@ -1,14 +1,17 @@
 # Create your views here.
-from rest_framework import viewsets
+from rest_framework import viewsets, status
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
 
 from MapSkinner import utils
 from api import view_helper
-from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, RoleSerializer
-from service.models import Service, Layer
+from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, RoleSerializer, \
+    MetadataSerializer
+from service.models import Service, Layer, Metadata
 from structure.models import Organization, Group, Role
 
 
-class ServiceViewSet(viewsets.ModelViewSet):
+class ServiceViewSet(viewsets.GenericViewSet):
     """ Overview of all services matching the given parameters
 
         Query parameters:
@@ -50,8 +53,29 @@ class ServiceViewSet(viewsets.ModelViewSet):
 
         return self.queryset
 
+    def list(self, request):
+        tmp = self.paginate_queryset(self.queryset)
+        serializer = ServiceSerializer(tmp, many=True)
+        return self.get_paginated_response(serializer.data)
 
-class LayerViewSet(viewsets.ModelViewSet):
+    def create(self, request):
+        pass
+
+    def retrieve(self, request, pk=None):
+        tmp = Service.objects.get(id=pk)
+        return Response(ServiceSerializer(tmp).data)
+
+    def update(self, request, pk=None):
+        pass
+
+    def partial_update(self, request, pk=None):
+        pass
+
+    def destroy(self, request, pk=None):
+        pass
+
+
+class LayerViewSet(viewsets.GenericViewSet):
     """ Overview of all layers matching the given parameters
 
         Query parameters:
@@ -84,6 +108,27 @@ class LayerViewSet(viewsets.ModelViewSet):
 
         return self.queryset
 
+    def list(self, request):
+        tmp = self.paginate_queryset(self.queryset)
+        serializer = LayerSerializer(tmp, many=True)
+        return self.get_paginated_response(serializer.data)
+
+    def create(self, request):
+        pass
+
+    def retrieve(self, request, pk=None):
+        tmp = Layer.objects.get(id=pk)
+        return Response(LayerSerializer(tmp).data)
+
+    def update(self, request, pk=None):
+        pass
+
+    def partial_update(self, request, pk=None):
+        pass
+
+    def destroy(self, request, pk=None):
+        pass
+
 
 class OrganizationViewSet(viewsets.ModelViewSet):
     """ Overview of all organizations matching the given parameters
@@ -103,13 +148,59 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         self.queryset = Organization.objects.all()
 
         # filter by real or auto generated organizations
-        auto_generated = self.request.query_params.get("ag", False)
+        auto_generated = self.request.query_params.get("ag", None)
+        auto_generated = utils.resolve_boolean_attribute_val(auto_generated)
         self.queryset = view_helper.filter_queryset_real_organization(self.queryset, auto_generated)
 
         return self.queryset
 
 
-class GroupViewSet(viewsets.ModelViewSet):
+class MetadataViewSet(viewsets.GenericViewSet):
+    """ Overview of all organizations matching the given parameters
+
+        Query parameters:
+
+            ag: (auto generated) optional, filter for auto_generated organizations vs. real organizations
+    """
+    serializer_class = MetadataSerializer
+
+    def get_queryset(self):
+        """ Specifies if the queryset shall be filtered or not
+
+        Returns:
+             The queryset
+        """
+        self.queryset = Metadata.objects.all()
+
+        # filter by query
+        query = self.request.query_params.get("q", None)
+        self.queryset = view_helper.filter_queryset_metadata_query(self.queryset, query)
+
+        return self.queryset
+
+    def list(self, request):
+        tmp = self.paginate_queryset(self.queryset)
+        serializer = MetadataSerializer(tmp, many=True)
+        return self.get_paginated_response(serializer.data)
+
+    def create(self, request):
+        pass
+
+    def retrieve(self, request, pk=None):
+        tmp = Metadata.objects.get(id=pk)
+        return Response(MetadataSerializer(tmp).data)
+
+    def update(self, request, pk=None):
+        pass
+
+    def partial_update(self, request, pk=None):
+        pass
+
+    def destroy(self, request, pk=None):
+        pass
+
+
+class GroupViewSet(viewsets.GenericViewSet):
     """ Overview of all organizations matching the given parameters
 
         Query parameters:
@@ -131,6 +222,27 @@ class GroupViewSet(viewsets.ModelViewSet):
         self.queryset = view_helper.filter_queryset_group_organization_id(self.queryset, orgid)
 
         return self.queryset
+
+    def list(self, request):
+        tmp = self.paginate_queryset(self.queryset)
+        serializer = GroupSerializer(tmp, many=True)
+        return self.get_paginated_response(serializer.data)
+
+    def create(self, request):
+        pass
+
+    def retrieve(self, request, pk=None):
+        tmp = Group.objects.get(id=pk)
+        return Response(ServiceSerializer(tmp).data)
+
+    def update(self, request, pk=None):
+        pass
+
+    def partial_update(self, request, pk=None):
+        pass
+
+    def destroy(self, request, pk=None):
+        pass
 
 
 class RoleViewSet(viewsets.ModelViewSet):

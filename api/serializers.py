@@ -7,8 +7,8 @@ Created on: 15.08.19
 """
 from rest_framework import serializers
 
-from service.models import Service, Layer, Metadata, ServiceType, Keyword
-from structure.models import Contact, Organization, Group, Role, Permission
+from service.models import ServiceType
+from structure.models import Group, Role, Permission
 
 
 class ServiceTypeSerializer(serializers.ModelSerializer):
@@ -27,28 +27,19 @@ class ServiceTypeSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class OrganizationSerializer(serializers.ModelSerializer):
+class OrganizationSerializer(serializers.Serializer):
     """ Serializer for Organization model
 
     """
-    class Meta:
-        model = Organization
-        fields = [
-            "id",
-            "organization_name",
-            "is_auto_generated",
-            "person_name",
-            "email",
-            "phone",
-            "facsimile",
-            "city",
-            "city",
-            "country",
-        ]
-
-        # improves performance by 300%!
-        # check out https://hakibenita.com/django-rest-framework-slow for more information
-        read_only_fields = fields
+    id = serializers.IntegerField()
+    organization_name = serializers.CharField()
+    is_auto_generated = serializers.BooleanField()
+    person_name = serializers.CharField()
+    email = serializers.EmailField()
+    phone = serializers.CharField()
+    facsimile = serializers.CharField()
+    city = serializers.CharField()
+    country = serializers.CharField()
 
 
 class GroupSerializer(serializers.ModelSerializer):
@@ -105,69 +96,42 @@ class RoleSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class MetadataSerializer(serializers.ModelSerializer):
+class MetadataSerializer(serializers.Serializer):
     """ Serializer for Metadata model
 
     """
+    id = serializers.IntegerField()
+    identifier = serializers.CharField()
+    service = serializers.PrimaryKeyRelatedField(read_only=True)
+    title = serializers.CharField()
+    abstract = serializers.CharField()
+    online_resource = serializers.CharField()
+    original_uri = serializers.CharField()
     contact = OrganizationSerializer()
-    class Meta:
-        model = Metadata
-        fields = [
-            "id",
-            "identifier",
-            "title",
-            "abstract",
-            "online_resource",
-            "original_uri",
-            "contact",
-        ]
-
-        # improves performance by 300%!
-        # check out https://hakibenita.com/django-rest-framework-slow for more information
-        read_only_fields = fields
+    related_metadata = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
 
 
-class ServiceSerializer(serializers.ModelSerializer):
+class ServiceSerializer(serializers.Serializer):
     """ Serializer for Service model
 
     """
-    metadata = MetadataSerializer()
+    id = serializers.IntegerField()
+    uuid = serializers.UUIDField()
+    published_for = serializers.PrimaryKeyRelatedField(read_only=True)
+    metadata = serializers.PrimaryKeyRelatedField(read_only=True)
     servicetype = ServiceTypeSerializer()
-    class Meta:
-        model = Service
-        fields = [
-            "id",
-            "uuid",
-            "metadata",
-            "published_for",
-            "servicetype",
-        ]
-
-        # improves performance by 300%!
-        # check out https://hakibenita.com/django-rest-framework-slow for more information
-        read_only_fields = fields
 
 
-class LayerSerializer(serializers.ModelSerializer):
+class LayerSerializer(serializers.Serializer):
     """ Serializer for Layer model
 
     """
-    metadata = MetadataSerializer()
+    id = serializers.IntegerField()
+    uuid = serializers.UUIDField()
+    identifier = serializers.CharField()
+    metadata = serializers.PrimaryKeyRelatedField(read_only=True)
+    is_available = serializers.BooleanField()
+    is_active = serializers.BooleanField()
+    parent_service = serializers.PrimaryKeyRelatedField(read_only=True)
+    child_layer = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
     servicetype = ServiceTypeSerializer()
-    class Meta:
-        model = Layer
-        fields = [
-            "id",
-            "uuid",
-            "identifier",
-            "metadata",
-            "is_available",
-            "is_active",
-            "parent_service",
-            "child_layer",
-            "servicetype",
-        ]
-
-        # improves performance by 300%!
-        # check out https://hakibenita.com/django-rest-framework-slow for more information
-        read_only_fields = fields

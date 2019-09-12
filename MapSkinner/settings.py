@@ -22,6 +22,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.1/howto/deployment/checklist/
 
+VERSION = "0.3.0"
+GIT_REPO_URI = "https://git.osgeo.org/gitea/hollsandre/MapSkinner/src/branch/pre_master"
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
 
@@ -34,16 +37,21 @@ HOST_IP = "127.0.0.1:8000"
 # DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
 ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
-# In hours: how long an activation link is valid for a user
-USER_ACTIVATION_TIME_WINDOW = 24
-
-GENERIC_ERROR_MSG = _("The service could not be registered. Please check your metadata and contact an administrator.")
-
 EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
 
 PROXIES = {
     "http": "http://10.240.20.164:8080",
     "https": "http://10.240.20.164:8080"
+}
+
+CATEGORIES = {
+    "inspire": "https://www.eionet.europa.eu/gemet/getTopmostConcepts?thesaurus_uri=http://inspire.ec.europa.eu/theme/&language={}",
+    "iso": "http://inspire.ec.europa.eu/metadata-codelist/TopicCategory/TopicCategory.{}.json",
+}
+
+CATEGORIES_LANG = {
+    "locale_1": "de",
+    "locale_2": "fr",
 }
 
 XML_NAMESPACES = {
@@ -56,17 +64,31 @@ XML_NAMESPACES = {
     "xsi": "http://www.w3.org/2001/XMLSchema-instance",
     "ave": "http://repository.gdi-de.org/schemas/adv/produkt/alkis-vereinfacht/1.0",
     "inspire_common": "http://inspire.ec.europa.eu/schemas/common/1.0",
+    "inspire_vs": "http://inspire.ec.europa.eu/schemas/inspire_vs/1.0",
     "inspire_dls": "http://inspire.ec.europa.eu/schemas/inspire_dls/1.0",
     "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset",
     "ms": "http://mapserver.gis.umn.edu/mapserver",
     "xsd": "http://www.w3.org/2001/XMLSchema",
+    "sld": "http://www.opengis.net/sld",
 }
 
 # Session refreshes on every request!
 SESSION_EXPIRATION = 1800 # seconds
 SESSION_SAVE_EVERY_REQUEST = True
 
-# Some special things for govbender
+# Home/Dashboard settings
+LAST_ACTIVITY_DATE_RANGE = 7
+
+# Threshold which indicates when to use multithreading instead of iterative approaches
+MULTITHREADING_THRESHOLD = 2000
+
+# Metadata types
+MD_TYPE_FEATURETYPE = "featuretype"
+MD_TYPE_DATASET = "dataset"
+MD_TYPE_SERVICE = "service"
+MD_TYPE_LAYER = "layer"
+
+# Some special things
 DEFAULT_CONNECTION_TYPE = ConnectionType.REQUESTS
 DEFAULT_SERVICE_VERSION = VersionTypes.V_1_1_1
 HTTP_PROXY = "http://10.240.20.164:8080"
@@ -96,7 +118,9 @@ INSTALLED_APPS = [
     'users',
     'structure',
     'django_extensions',
+    'editor',
     'captcha',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -139,7 +163,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'MapSkinner.wsgi.application'
-
 
 # Database
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases
@@ -199,6 +222,21 @@ USE_L10N = True
 USE_TZ = True
 
 
+# CELERY SETTINGS
+BROKER_URL = 'redis://localhost:6379'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+
+# API
+from api.settings import REST_FRAMEWORK
+
+
+# Progress bar
+PROGRESS_STATUS_AFTER_PARSING = 90  # indicates at how much % status we are after the parsing
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.1/howto/static-files/

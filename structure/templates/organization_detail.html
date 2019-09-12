@@ -15,14 +15,19 @@
 <hr>
 <div class="container-row">
     <div class="container-left">
-        {% if 'can_edit_organization' in permissions %}
+        {% if 'can_edit_organization' in user_permissions and user in members %}
             <div id="edit-button" class="button-container" data-parent="{{ organization.id }}" typeof="structure/organizations">
                 <img src="{% static 'structure/images/icn_edit.png' %}">
                 <span>{% trans 'Edit organization' %}</span>
             </div>
         {% endif %}
     </div>
-    {% if 'can_delete_organization' in permissions %}
+    <div class="container-center">
+        <div id="request-publish-button" class="button-container" typeof="structure" datasrc="{{ organization.id }}" title="{% trans 'Request the permission to publish for this organization' %}">
+            <span>{% trans 'Become a publisher' %}</span>
+        </div>
+    </div>
+    {% if 'can_delete_organization' in user_permissions and user in members %}
         <div class="container-right">
             <div class="delete-container" data-parent="{{ organization.id }}" typeof="structure/organizations">
                 <img src="{% static 'service/images/icn_minus.png' %}">
@@ -40,9 +45,9 @@
     </tr>
     <tr>
         <th>{% trans 'Members' %}</th>
-        <td>
+        <td class="listable-container">
             {% for member in members %}
-                {{ member.username }}<br>
+                <span class="listable">{{ member.username }}</span>
             {% endfor %}
         </td>
     </tr>
@@ -52,9 +57,9 @@
     </tr>
     <tr>
         <th>{% trans 'Suborganizations' %}</th>
-        <td>
+        <td class="listable-container">
             {% for sub_org in sub_organizations %}
-            <a href="{% url 'structure:detail-organization' sub_org.id %}">{{ sub_org }}</a><br>
+                <a class="listable" href="{% url 'structure:detail-organization' sub_org.id %}">{{ sub_org }}</a><br>
             {% endfor %}
         </td>
     </tr>
@@ -99,11 +104,13 @@
     </tr>
 </table>
 
-<div id="show-all">
-    <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
-    {% trans 'Show all services' %} ({{ services|length }})
-</div>
-<div class="subelements hidden">
+
+<div class="collapsible-wrapper">
+    <div id="all-org-services" class="collapsible-title">
+        <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+        {% trans 'Show all services' %} ({{ services|length }})
+    </div>
+    <div class="subelements hidden">
     <table class="detail-table">
         <tr>
             <th>
@@ -116,31 +123,38 @@
                 {% trans 'Service type' %}
             </th>
             <th>
-                {% trans 'Published by' %}
+                {% trans 'Registered by' %}
             </th>
         </tr>
         {% for service in services %}
         <tr>
             <td>
-                {% if service.servicetype.name == 'wms' %}
-                    <a href="{% url 'service:detail-wms' service.metadata.id %}">{{ service.metadata.title }}</a>
-                {% elif service.servicetype.name == 'wfs' %}
-                    <a href="{% url 'service:detail-wfs' service.metadata.id %}">{{ service.metadata.title }}</a>
-                {% endif %}
+                <a href="{% url 'service:detail' service.metadata.id %}" title="{% trans 'Open details' %}">{{ service.metadata.title }}</a>
             </td>
             <td>
-                {{ service.metadata.abstract }}
+                <div class="abstract-table-field">{{ service.metadata.abstract }}</div>
             </td>
             <td>
                 {{ service.servicetype }} ({{ service.servicetype.version }})
             </td>
             <td>
-                {{ service.published_by }}
+                <a href="{% url 'structure:detail-group' service.created_by.id %}">{{ service.created_by }}</a>
             </td>
         </tr>
 
         {% endfor %}
     </table>
+</div>
+</div>
+
+<div class="collapsible-wrapper">
+    <div id="publish-wrapper" class="collapsible-title {% if pub_requests_count > 0 %} unread {% endif %}">
+        <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+        {% trans 'Publishers and requests' %}
+    </div>
+    <div class="subelements hidden">
+         {% include 'index_publish_requests.html' %}
+    </div>
 </div>
 
 {% endblock %}

@@ -22,11 +22,37 @@ function toggleServiceActiveStatus(id, active){
     });
 }
 
-function startServiceRegistration(uri, button){
+function startServiceRegistration(uri, registerGroup, registerForOrg, button){
     var oldHtml = button.html();
     button.html("Please wait...");
     $.ajax({
         url: rootUrl + "/service/new/",
+        headers:{
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        data: {
+            "uri": uri,
+            "registerGroup": registerGroup,
+            "registerForOrg": registerForOrg
+        },
+        type: 'post',
+        dataType: 'json'
+    })
+    .done(function(data){
+        changeOverlayContent(data["html"]);
+        button.html(oldHtml);
+    })
+    .always(function(data){
+        checkRedirect(data);
+    });
+}
+
+function startServiceUpdate(uri, button, id){
+    var oldHtml = button.html();
+    button.html("Please wait...");
+    /*
+    $.ajax({
+        url: rootUrl + "/service/update/" + id,
         headers:{
             "X-CSRFToken": getCookie("csrftoken")
         },
@@ -43,19 +69,25 @@ function startServiceRegistration(uri, button){
     .always(function(data){
         checkRedirect(data);
     });
-
+    */
 }
 
-function checkServiceRequestURI(){
+function checkServiceRequestURI(isUpdate, id){
     var uri = $("#request-uri input").val().trim();
     if (uri.length == 0){
         return
+    }
+    var url = "";
+    if(isUpdate){
+        url = rootUrl + "/service/update/register-form/" + id;
+    }else{
+        url = rootUrl + "/service/new/register-form";
     }
     if (!uri.startsWith("http")){
         uri = "http://" + uri; // use http by default
     }
     $.ajax({
-        url: rootUrl + "/service/new/register-form",
+        url: url,
         headers:{
             "X-CSRFToken": getCookie("csrftoken")
         },
@@ -74,7 +106,74 @@ function checkServiceRequestURI(){
 }
 
 
+/*
+ *  THESE FUNCTIONS HAVE TO STAY OUTSIDE THE DOCUMENT.READY BLOCK
+ *  THIS IS DUE TO THE FACT THAT THESE HAVE TO BE FIRED FOR AJAX LOADED HTML CONTENT AS WELL, WHICH WILL NOT WORK IF
+ *  THEY WOULD BE INSIDE THE DOCUMENT.READY BLOCK
+ */
+$(document).on("click", ".layer-title", function(){
+    var elem = $(this);
+    var table = elem.siblings(".subelements");
+    var elemId = elem.attr("data-id");
+    var elemType = elem.attr("data-type");
+    if(!elem.hasClass("loaded") && elemType != "featureTypeElements"){
+        // do the ajax request
+        $.ajax({
+            url: rootUrl + "/service/detail-child/" + elemId,
+            headers: {
+                "X-CSRFToken": getCookie("csrftoken")
+            },
+            data: {
+                "serviceType": elemType
+            },
+            type: 'get',
+            dataType: 'json'
+        }).done(function(data){
+            var html = data["html"];
+            var contentDiv = table.find(".content");
+            contentDiv.html(html);
+            elem.addClass("loaded");
+        }).always(function(data){
+        });
+    }
+    table.toggle("fast");
+    var img = elem.find(".collapse-img");
+    toggleCollapsibleSymbol(img);
+});
+
+/*
+ *  THESE FUNCTIONS HAVE TO STAY OUTSIDE THE DOCUMENT.READY BLOCK
+ *  THIS IS DUE TO THE FACT THAT THESE HAVE TO BE FIRED FOR AJAX LOADED HTML CONTENT AS WELL, WHICH WILL NOT WORK IF
+ *  THEY WOULD BE INSIDE THE DOCUMENT.READY BLOCK
+ */
+$(document).on("click", ".sublayer-headline", function(){
+    var elem = $(this);
+    var table = elem.siblings(".sublayer");
+    table.toggle("fast");
+    var img = elem.find("img");
+    toggleCollapsibleSymbol(img);
+});
+
+function changeGetParam(param, newVal){
+    var query = location.search;
+    var params = new URLSearchParams(query);
+    params.set(param, newVal);
+    query = params.toString();
+    location.search = query;
+}
+
 $(document).ready(function(){
+
+    $(".rpp-select").change(function(){
+        var val = $(this).val();
+        changeGetParam("rpp", val);
+    });
+
+    $(".pagination-input").change(function(){
+        var val = $(this).val();
+        var type = $(this).attr("data-type");
+        changeGetParam(type, val);
+    });
 
     $(".deactivate-container, .activate-container").click(function(){
         var id = $(this).attr("data-parent");
@@ -110,20 +209,45 @@ $(document).ready(function(){
         });
     });
 
-    $(".layer-title").click(function(){
-        var elem = $(this);
-        var table = elem.siblings(".subelements");
-        table.toggle("fast");
-        var img = elem.find("img");
-        toggleCollapsibleSymbol(img);
+    $("#service-update-button").click(function(){
+        var entity = $(this).attr("typeof");
+        var id = $(this).attr("datasrc");
+        updateEntity(id, entity);
     });
 
-    $(".sublayer-headline").click(function(){
+
+    $(".search-field").on("input", function(){
         var elem = $(this);
-        var table = elem.siblings(".sublayer");
-        table.toggle("fast");
-        var img = elem.find("img");
-        toggleCollapsibleSymbol(img);
+        var input = elem.val().toUpperCase();
+        var type = elem.attr("data-type");
+        var services = $(".service[data-type='" + type + "']");
+        services.each(function(i, service){
+            service = $(service);
+            var title = service.find("[data-type='title']").text().trim().toUpperCase();
+            var parentService = service.find("[data-type='parent-service']").text().trim().toUpperCase();
+            if(title.includes(input) || parentService.includes(input)){
+                service.show();
+            }else{
+                service.hide();
+            }
+        });
     });
+
+    $("#capabilities-toggler").click(function(event){
+        event.stopPropagation();
+        var elem = $(this);
+        var capabilities = $("#capabilities-list");
+        elem.toggleClass("open");
+        capabilities.slideToggle();
+    });
+
+    $("html").click(function(){
+        var capToggler = $("#capabilities-toggler");
+        if(capToggler.hasClass("open")){
+            capToggler.click();
+        }
+    });
+
+
 
 });

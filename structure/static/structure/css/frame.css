@@ -1,16 +1,15 @@
 
-body{
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 100px;
-}
-
 .frame-article{
     max-width: 30%;
 }
 article{
     color: gray;
+}
+
+.frame-wrapper{
+    display: flex;
+    padding: 10vh;
+    justify-content: center;
 }
 
 .frame{
@@ -60,4 +59,5 @@ article{
 .registration-sidebar{
     width: 30vw;
     min-width: 100px;
+    text-align: center;
 }

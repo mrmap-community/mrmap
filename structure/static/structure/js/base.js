@@ -30,7 +30,8 @@ function checkRedirect(data){
 }
 
 function toggleNavigationMenu(elem){
-    elem.slideToggle("fast");
+    elem.toggleClass("open");
+    elem.stop(true, true).slideToggle("medium");
 }
 
 function toggleOverlay(html){
@@ -62,6 +63,24 @@ function editEntity(id, entity){
     }).done(function(data){
         var html = data["html"];
         toggleOverlay(html);
+    }).always(function(data){
+        checkRedirect(data);
+    });
+}
+
+function updateEntity(id, entity){
+    $.ajax({
+        url: rootUrl + "/" + entity + "/update/register-form/" + id,
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        data: {},
+        type: 'get',
+        dataType: 'json'
+    }).done(function(data){
+        var html = data["html"];
+        toggleOverlay(html);
+
     }).always(function(data){
         checkRedirect(data);
     });
@@ -105,18 +124,63 @@ function removeEntity(id, confirmed, entity){
     });
 }
 
+$(document).on("click", "#eeImg", function(){
+    toggleOverlay("");
+});
+
 
 $(document).ready(function(){
+    // hide messages after 10 seconds automatically
+    setTimeout(function(){
+        var msg = $(".messages");
+        if(msg.is(":visible")){
+            $(".messages").click();
+        }
+    }, 5000);
+
+    var eeRotation = 0;
+
+    $("#ee-trggr").mousemove(function(event){
+        var element = $(this);
+        // check if ctrl key is pressed
+        eeRotation += 2;
+        element.css({"transform": "rotate(" + eeRotation +"deg)"});
+        if(eeRotation == 360){
+            var overlay = $("#overlay");
+            var eeSound = $("#ee-audio")[0];
+            var img = $("<img/>").attr("src", "/static/structure/images/mr_map.png")
+            .attr("class", "rotating-image")
+            .attr("style", "object-fit: contain;")
+            .attr("id", "eeImg");
+            toggleOverlay(img);
+            eeSound.addEventListener("ended", function(){
+                // remove overlay
+                if($("#overlay").hasClass("show")){
+                    toggleOverlay("");
+                }
+            });
+            eeSound.play();
+            eeRotation = 0;
+        }
+    });
+
+    $("#navbar-logo").mouseleave(function(){
+        var elem = $(this);
+        eeRotation = 0;
+        elem.css({"transform": "rotate(" + eeRotation +"deg)"});
+    });
+
+
     $(".navigation-menu").on("mouseover",function(){
         var list = $(this).find(".navigation-element-list");
-        if(list.is(":hidden")){
+        if(!list.hasClass("open")){
             toggleNavigationMenu(list);
         }
     });
 
     $(".navigation-menu").on("mouseleave",function(){
         var elem = $(this).find(".navigation-element-list");
-        if(!elem.is(":hidden")){
+        if(elem.hasClass("open")){
             toggleNavigationMenu(elem);
         }
     });
@@ -149,5 +213,46 @@ $(document).ready(function(){
         addEntity(entity);
     });
 
+    $("html").click(function(){
+        var langMenu = $("#current-lang");
+        if(langMenu.hasClass("open")){
+            langMenu.click();
+        }
+    });
+
+    $("#current-lang").click(function(event){
+        event.stopPropagation();
+        var elem = $(this);
+        elem.toggleClass("open");
+        $("#lang-selector").slideToggle();
+    });
+
+
+    $(".lang-item").click(function(){
+        var elem = $(this);
+        var val = elem.attr("data-value");
+        // activate selected language via ajax call
+        $.ajax({
+            url: "/i18n/setlang/",
+            headers: {
+                "X-CSRFToken": getCookie("csrftoken")
+            },
+            data: {
+                'language': val
+            },
+            type: 'post',
+            dataType: 'json',
+            success: function(data) {
+                location.reload();
+            },
+            timeout: 10000,
+            error: function(jqXHR, textStatus, errorThrown){
+                if(textStatus === "timeout"){
+                    alert("A timeout occured.");
+                }
+            }
+        })
+
+    });
 
 });

@@ -9,89 +9,44 @@
     <div class="sublayer hidden">
         {% for featuretype in featuretypes %}
         <div class="collapsible-table">
-            <h3 class="layer-title" title="{% trans 'Click to expand' %}">
-                <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
-                {{ featuretype.title }}
+            <h3 class="layer-title" title="{% trans 'Click to expand' %}" data-id="{{ featuretype.id }}" data-type="wfs">
+                <img class="collapse-img" src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+                <span class="{% if featuretype.metadata.is_custom %}custom-metadata-headline{% endif %}">
+                    {{ featuretype.metadata.title }}
+                    {% if featuretype.metadata.is_custom %}
+                    <img class="invert"  src="{% static 'structure/images/icn_edit.png' %}" title="{% trans 'Custom Metadata' %}">
+                    {% endif %}
+                </span>
             </h3>
             <div class="subelements hidden">
-            <table class="detail-table">
-                <tr>
-                    <th>{% trans 'Uuid' %}</th>
-                    <td>{{ featuretype.uuid }}</td>
-                </tr>
-                <tr>
-                    <th>{% trans 'Title' %}</th>
-                    <td>{{ featuretype.title }}</td>
-                </tr>
-                <tr>
-                    <th>{% trans 'Name' %}</th>
-                    <td>{{ featuretype.name }}</td>
-                </tr>
-                <tr>
-                    <th>{% trans 'Abstract' %}</th>
-                    <td>{{ featuretype.abstract }}</td>
-                </tr>
-                <tr>
-                    <th>{% trans 'Keywords' %}</th>
-                    <td>
-                        <table>
-                        {% for kw in featuretypes.keywords.all %}
-                            <tr>
-                                <td>{{ kw }}</td>
-                            </tr>
-                        {% empty %}
-                            {% trans 'No keywords provided' %}
-                        {% endfor %}
-                        </table>
-                    </td>
-                </tr>
-                <tr>
-                    <th>{% trans 'Is searchable' %}</th>
-                    <td>
-                        {% if featuretype.searchable %}
-                        <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
-                        {% else %}
-                        <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
-                        {% endif %}
-                    </td>
-                </tr>
-                <tr>
-                    <th>{% trans 'Bounding box (lat lon)' %}</th>
-                    <td>
-                        {{ featuretype.bbox_lat_lon }}
-                    </td>
-                </tr>
-                <tr>
-                    <th>{% trans 'Default reference system' %}</th>
-                    <td>{{ featuretype.default_srs.prefix }}{{ featuretype.default_srs.code }}</td>
-                </tr>
-                <tr>
-                    <th>{% trans 'Additional reference systems:' %}</th>
-                    <td>
-                        <table>
-                        {% for rs in featuretype.additional_srs.all %}
-                        <tr>
-                            <td>{{ rs.prefix }}{{ rs.code }}</td>
-                        </tr>
-                        {% endfor %}
-                        </table>
-                    </td>
-                </tr>
-                <tr>
-                    <th>{% trans 'Mime types:' %}</th>
-                    <td>
-                        <table>
-                        {% for format in featuretype.formats.all %}
-                        <tr>
-                            <td>{{ format.mime_type }}</td>
-                        </tr>
-                        {% endfor %}
+                <div class="container-row">
+                <div class="container-left">
+                    {% if 'can_edit_metadata_service' in user_permissions %}
+                        <a href="{% url 'editor:edit' featuretype.metadata.id %}" title="{% trans 'Edit featuretype' %}">
+                            <div class="button-container">
+                                <span>{% trans 'Edit featuretype' %}</span>
+                            </div>
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="container-right">
+                    {% if 'can_edit_metadata_service' in user_permissions %}
+                        <a href="{% url 'editor:restore' featuretype.metadata.id %}">
+                            <div class="button-container">
+                                <span class="reset-icon large">&#8635;</span>
+                                <span>{% trans 'Restore metadata' %}</span>
+                            </div>
+                        </a>
+                    {% endif %}
+                </div>
 
-                        </table>
-                    </td>
-                </tr>
-            </table>
-                {% include 'wfs/containing_featuretypes_elements.html' %}
+                </div>
+                <div class="content">
+                    <div class="loading-spinner">
+                        <i class="fas fa-circle-notch fa-spin primary-color"></i>
+                        <span id="submit-text">{% trans 'Loading...' %}</span>
+                    </div>
+                </div>
             </div>
         </div>
 

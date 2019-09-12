@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load static i18n tz %}
+{% block head %}
+    <link rel="stylesheet" type="text/css" href="{% static '/editor/css/editor.css' %}" media="all" />
+
+{% endblock %}
+
+{% block body %}
+<div class="editor-body">
+    {% with 'WMS' as service_type %}
+        {% with wms as services %}
+            <div class="background">
+                {% include 'editor_service_list.html' %}
+            </div>
+        {% endwith %}
+    {% endwith %}
+    {% with 'WFS' as service_type %}
+        {% with wfs as services %}
+            <div class="background">
+                {% include 'editor_service_list.html' %}
+            </div>
+        {% endwith %}
+    {% endwith %}
+
+</div>
+
+
+{% endblock %}

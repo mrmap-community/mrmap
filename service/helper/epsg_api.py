@@ -5,13 +5,10 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 29.04.19
 
 """
-import urllib
-from urllib.parse import urlencode
-
 import requests
 
 from MapSkinner.settings import PROXIES, XML_NAMESPACES
-from service.helper import service_helper
+from service.helper import service_helper, xml_helper
 
 
 class EpsgApi:
@@ -69,19 +66,19 @@ class EpsgApi:
 
         uri=self.registry_uri + self.id_prefix + str(id)
         response = requests.request("Get", url=uri, proxies=PROXIES)
-        response = service_helper.parse_xml(str(response.content.decode()))
-        type = service_helper.try_get_text_from_xml_element(xml_elem=response, elem="//epsg:type")
+        response = xml_helper.parse_xml(str(response.content.decode()))
+        type = xml_helper.try_get_text_from_xml_element(xml_elem=response, elem="//epsg:type")
         if type == "projected":
-            second_level_srs_uri = service_helper.try_get_attribute_from_xml_element(xml_elem=response, elem="//gml:cartesianCS", attribute="{http://www.w3.org/1999/xlink}href")
+            second_level_srs_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem=response, elem="//gml:cartesianCS", attribute="{http://www.w3.org/1999/xlink}href")
         elif type == "geographic 2D":
-            second_level_srs_uri = service_helper.try_get_attribute_from_xml_element(xml_elem=response, elem="//gml:ellipsoidalCS", attribute="{http://www.w3.org/1999/xlink}href")
+            second_level_srs_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem=response, elem="//gml:ellipsoidalCS", attribute="{http://www.w3.org/1999/xlink}href")
         else:
             second_level_srs_uri = ""
 
         uri = self.registry_uri + second_level_srs_uri
         response = requests.request("Get", url=uri, proxies=PROXIES)
-        response = service_helper.parse_xml(str(response.content.decode()))
-        axis = service_helper.try_get_element_from_xml("//gml:axisDirection", response)
+        response = xml_helper.parse_xml(str(response.content.decode()))
+        axis = xml_helper.try_get_element_from_xml("//gml:axisDirection", response)
         order = []
         for a in axis:
             order.append(a.text)

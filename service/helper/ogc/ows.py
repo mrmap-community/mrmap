@@ -1,10 +1,16 @@
 # common classes for handling of OWS (OGC Webservices)
 # for naming conventions see http://portal.opengeospatial.org/files/?artifact_id=38867
+
 from abc import abstractmethod
 
+from celery import Task
+from django.contrib.gis.geos import Polygon
+from django.db import transaction
+
+from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
-from service.helper import service_helper
+from service.helper.iso.isoMetadata import ISOMetadata
 from structure.models import User
 
 
@@ -23,12 +29,20 @@ class OGCWebService:
         self.service_object = None
         
         # service_metadata
+        self.service_file_identifier = None
+        self.service_file_iso_identifier = None
+        self.service_preview_image = None
+        self.service_iso_md_uri = None
         self.service_identification_title = None
         self.service_identification_abstract = None
         self.service_identification_keywords = []
         self.service_identification_fees = None
         self.service_identification_accessconstraints = None
-        
+
+        self.service_last_change = None
+        self.service_create_date = None
+        self.service_bounding_box = None
+
         # service_provider
         self.service_provider_providername = None
         self.service_provider_url = None
@@ -53,16 +67,17 @@ class OGCWebService:
 
 
         # initialize service from url
-        if service_capabilities_xml is not None:
-            # load from given xml
-            print("try to load from given xml document")
-        else:
-            # load from url
-            self.get_capabilities()
+        # if service_capabilities_xml is not None:
+        #     # load from given xml
+        #     print("try to load from given xml document")
+        # else:
+        #     # load from url
+        #     self.get_capabilities()
 
         class Meta:
             abstract = True
-            
+
+
     def get_capabilities(self):
         """ Start a network call to retrieve the original capabilities xml document.
 
@@ -103,15 +118,29 @@ class OGCWebService:
     def check_ogc_exception(self):
         pass
 
+    def has_iso_metadata(self, xml):
+        """ Checks whether the xml element has an iso 19115 metadata record or not
+
+        Args:
+            xml: The xml etree object
+        Returns:
+             True if element has iso metadata, false otherwise
+        """
+        iso_metadata = xml_helper.try_get_element_from_xml(xml_elem=xml, elem="./MetadataURL")
+        if len(iso_metadata) == 0:
+            iso_metadata = xml_helper.try_get_element_from_xml(xml_elem=xml, elem="./wfs:MetadataURL")
+        return len(iso_metadata) != 0
+
+
     """
     Methods that have to be implemented in the sub classes
     """
     @abstractmethod
-    def create_from_capabilities(self):
+    def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):
         pass
 
     @abstractmethod
-    def get_service_metadata(self, xml_obj):
+    def get_service_metadata(self, xml_obj, async_task: Task = None):
         pass
 
     @abstractmethod
@@ -119,15 +148,52 @@ class OGCWebService:
         pass
 
     @abstractmethod
-    def persist(self, user: User):
+    def get_service_iso_metadata(self, xml_obj):
+        """
+
+        Args:
+            xml_obj: The xml etree object which is used for parsing
+        Returns:
+             nothing
+        """
+        # Must parse metadata document and merge metadata into this metadata object
+        elem = "//inspire_common:URL"  # for wms by default
+        if self.service_type is ServiceTypes.WFS:
+            elem = "//wfs:MetadataURL"
+        service_md_link = xml_helper.try_get_text_from_xml_element(elem=elem, xml_elem=xml_obj)
+        # get iso metadata xml object
+        if service_md_link is None:
+            # no iso metadata provided
+            return
+        iso_metadata = ISOMetadata(uri=service_md_link)
+        # add keywords
+        for keyword in iso_metadata.keywords:
+            self.service_identification_keywords.append(keyword)
+        # add multiple other data that can not be found in the capabilities document
+        self.service_create_date = iso_metadata.create_date
+        self.service_last_change = iso_metadata.last_change_date
+        self.service_iso_md_uri = iso_metadata.uri
+        self.service_file_iso_identifier = iso_metadata.file_identifier
+        self.service_identification_title = iso_metadata.title
+        self.service_identification_abstract = iso_metadata.abstract
+        bounding_points = (
+            (float(iso_metadata.bounding_box["min_x"]), float(iso_metadata.bounding_box["min_y"])),
+            (float(iso_metadata.bounding_box["min_x"]), float(iso_metadata.bounding_box["max_y"])),
+            (float(iso_metadata.bounding_box["max_x"]), float(iso_metadata.bounding_box["max_y"])),
+            (float(iso_metadata.bounding_box["max_x"]), float(iso_metadata.bounding_box["min_y"])),
+            (float(iso_metadata.bounding_box["min_x"]), float(iso_metadata.bounding_box["min_y"]))
+        )
+        bbox = Polygon(bounding_points)
+        self.service_bounding_box = bbox
+
+    @abstractmethod
+    def create_service_model_instance(self, user: User, register_group, register_for_organization):
         pass
 
-
-class OWSServiceMetadata:
-    def __init__(self):
-        self.section = "all" # serviceIdentification, serviceProvider, operationMetadata, contents, all
-        # version = ""
-        # update_sequence = ""
+    @transaction.atomic
+    @abstractmethod
+    def persist_service_model(self, service):
+        pass
 
 
 class OWSRequestHandler:

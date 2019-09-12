@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% load i18n static tz %}
+
+{% block head %}
+    <script type="text/javascript" src="{% static '/service/js/service.js' %}"></script>
+    <script type="text/javascript" src="{% static '/service/js/pending_tasks.js' %}"></script>
+{% endblock %}
+
+{% block body %}
+<div class="overview">
+
+    {% if pending_tasks|length > 0 %}
+        <div class="background">
+            {% include 'pending_tasks.html' %}
+        </div>
+    {% endif %}
+
+    {% if only_type == 'wms' or only_type is None %}
+        <div class="background">
+            {% include 'wms/wms_index.html' %}
+        </div>
+    {% endif %}
+
+    {% if only_type == 'wfs' or only_type is None %}
+        <div class="background">
+            {% include 'wfs/wfs_index.html' %}
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

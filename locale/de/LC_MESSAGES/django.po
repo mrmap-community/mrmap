@@ -1,0 +1,1514 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2019-08-09 08:45+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: MapSkinner/messages.py:27
+msgid "The input was not valid."
+msgstr "Eine Eingabe ist ungültig"
+
+#: MapSkinner/messages.py:29
+msgid "Username or password incorrect"
+msgstr "Nutzername oder Passwort falsch"
+
+#: MapSkinner/messages.py:30
+msgid "Account updated successfully!"
+msgstr "Account aktualisiert!"
+
+#: MapSkinner/messages.py:31
+msgid "Your account is currently not activated"
+msgstr "Dieser Account ist nicht aktiviert"
+
+#: MapSkinner/messages.py:32
+msgid "You have been logged out."
+msgstr "Sie wurden ausgeloggt."
+
+#: MapSkinner/messages.py:34
+msgid "Your activation link was invalid. Please contact an administrator."
+msgstr ""
+"Ihr Aktivierungslink war ungültig. Kontaktieren Sie einen Administrator."
+
+#: MapSkinner/messages.py:35
+msgid ""
+"An activation link for your account was sent. Please check your e-mails!"
+msgstr "Ein Aktivierungslink für Ihren Account wurde per E-Mail versendet."
+
+#: MapSkinner/messages.py:37
+msgid "This e-mail is not known"
+msgstr "Diese E-Mail Adresse ist nicht bekannt"
+
+#: MapSkinner/messages.py:38
+msgid "Successfully logged out!"
+msgstr "Erfolgreich ausgeloggt"
+
+#: MapSkinner/messages.py:39
+msgid "The e-mail address was not valid"
+msgstr "Die E-Mail Adresse ist ungültig"
+
+#: MapSkinner/messages.py:41
+msgid "Password successfully changed!"
+msgstr "Passwort erfolgreich geändert!"
+
+#: MapSkinner/messages.py:42
+msgid "Passwords didn't match!"
+msgstr "Passwörter stimmen nicht überein"
+
+#: MapSkinner/messages.py:43
+msgid "A new password has been sent. Please check your e-mails!"
+msgstr "Ein neues Passwort wurde per E-Mail an Sie gesendet."
+
+#: MapSkinner/messages.py:45
+msgid "Session timeout. You have been logged out."
+msgstr "Sitzung abgelaufen. Sie wurden ausgeloggt."
+
+#: MapSkinner/messages.py:47
+msgid "You do not have permissions for this!"
+msgstr "Sie haben hierzu keine Berechtigung!"
+
+#: MapSkinner/messages.py:49
+msgid "Metadata restored to original"
+msgstr "Metadaten auf Originalzustand wiederhergestellt"
+
+#: MapSkinner/messages.py:50
+msgid "Metadata editing successful"
+msgstr "Metadaten erfolgreich editiert"
+
+#: MapSkinner/messages.py:51
+msgid "Metadata is original. Reset aborted."
+msgstr "Metadaten sind original. Zurücksetzen abgebrochen."
+
+#: MapSkinner/messages.py:53
+msgid "No datasetId found in metadata!"
+msgstr ""
+
+#: MapSkinner/messages.py:55
+msgid "The request was not activated in time. Request was deleted."
+msgstr ""
+"Die Anfrage wurde nicht rechtzeitig bearbeitet. Anfrage wurde gelöscht."
+
+#: MapSkinner/messages.py:57
+msgid "Publish request has been sent to the organization!"
+msgstr "Veröffentlichungsanfrage wurde an die Organisation geschickt!"
+
+#: MapSkinner/messages.py:58
+msgid "Publisher request accepted for group '{}'"
+msgstr "Veröffentlichungsanfrage für Gruppe '{}' wurde akzeptiert"
+
+#: MapSkinner/messages.py:59
+msgid "Publisher request denied for group '{}'"
+msgstr "Veröffentlichungsanfrage für Gruppe '{}' wurde abgelehnt"
+
+#: MapSkinner/messages.py:60
+msgid "Your group already is a publisher for this organization!"
+msgstr "Ihre Gruppe kann bereits für diese Organisation veröffentlichen!"
+
+#: MapSkinner/messages.py:61
+msgid ""
+"You cannot be a publisher to your group's own organization! You publish by "
+"default like this."
+msgstr ""
+"Sie können keine Veröffentlichungsrechte für die Gruppe Ihrer Organisation "
+"beantragen. Sie veröffentlichen standardmäßig für diese Organisation."
+
+#: MapSkinner/messages.py:62
+msgid "Your group already has sent a request. Please be patient!"
+msgstr ""
+"Ihre Gruppe hat bereits eine Anfrage gesendet. Bitte gedulden Sie sich!"
+
+#: MapSkinner/messages.py:64
+msgid "A group can not be parent to itself!"
+msgstr "Eine Gruppe kann sich nicht selbst untergeordnet sein!"
+
+#: MapSkinner/messages.py:66
+msgid ""
+"You tried to update a service to another service type. This is not possible!"
+msgstr ""
+"Sie versuchen einen Dienst auf einen anderen Diensttypen zu aktualisieren. "
+"Das ist nicht möglich!"
+
+#: MapSkinner/messages.py:67
+msgid ""
+"The provided capabilities document is not different from the currently "
+"registered. Update canceled!"
+msgstr ""
+"Das Capabilities Dokument unterscheidet sich nicht vom aktuell "
+"registrierten. Update abgebrochen!"
+
+#: MapSkinner/messages.py:68
+msgid ""
+"The service could not be registered. Please check your metadata and contact "
+"an administrator."
+msgstr ""
+"Der Dienst konnte nicht registriert werden. Bitte prüfen Sie die Metadaten "
+"und kontaktieren Sie einen Administrator."
+
+#: MapSkinner/messages.py:70
+msgid "'{}' was invalid."
+msgstr "Die URI ist ungültig."
+
+#: MapSkinner/settings.py:206 templates/footer.html:11
+msgid "English"
+msgstr "Englisch"
+
+#: MapSkinner/settings.py:207
+msgid "German"
+msgstr "Deutsch"
+
+#: editor/forms.py:29
+msgid "Use metadata proxy"
+msgstr "Benutze Metadatenproxy"
+
+#: editor/templates/editor_edit.html:13
+#: service/templates/detail/service_detail.html:19
+#: structure/templates/group_detail.html:13
+#: structure/templates/organization_detail.html:12
+msgid "Overview"
+msgstr "Übersicht"
+
+#: editor/templates/editor_edit.html:21 editor/templates/editor_edit.html:24
+#: editor/templates/editor_service_list.html:67
+msgid "Reset metadata"
+msgstr "Metadaten wiederherstellen"
+
+#: editor/templates/editor_edit.html:30 templates/base.html:72
+msgid "Metadata Editor"
+msgstr "Metadateneditor"
+
+#: editor/templates/editor_edit.html:52
+msgid "ISO metadata"
+msgstr "ISO Metadaten"
+
+#: editor/templates/editor_edit.html:65 structure/templates/form.html:113
+#: users/templates/change_password.html:100 users/templates/users_form.html:63
+msgid "Save"
+msgstr "Speichern"
+
+#: editor/templates/editor_service_list.html:7
+#: service/templates/check_metadata_form.html:83
+#: service/templates/detail/service_detail_child_wfs.html:9
+#: service/templates/detail/service_detail_child_wms.html:12
+#: service/templates/wfs/wfs_index.html:59
+#: service/templates/wms/wms_index.html:63
+msgid "Title"
+msgstr "Titel"
+
+#: editor/templates/editor_service_list.html:10
+#: editor/templates/editor_service_list.html:38
+#: service/templates/wfs/wfs_index.html:65
+#: service/templates/wfs/wfs_index.html:93
+#: service/templates/wms/wms_index.html:75
+#: service/templates/wms/wms_index.html:109
+msgid "Active"
+msgstr "Aktiv"
+
+#: editor/templates/editor_service_list.html:13
+#: service/templates/check_metadata_form.html:112
+#: service/templates/wfs/wfs_index.html:71
+#: service/templates/wms/wms_index.html:81
+msgid "Data provider"
+msgstr "Datenanbieter"
+
+#: editor/templates/editor_service_list.html:16
+#: service/templates/wfs/wfs_index.html:74
+#: service/templates/wms/wms_index.html:84
+msgid "Registered by group"
+msgstr "Registriert durch Gruppe"
+
+#: editor/templates/editor_service_list.html:19
+#: editor/templates/editor_service_list.html:51
+msgid "Original metadata"
+msgstr "Originale Metadaten"
+
+#: editor/templates/editor_service_list.html:22
+msgid "Last modified"
+msgstr "Zuletzt geändert"
+
+#: editor/templates/editor_service_list.html:25
+msgid "Edit"
+msgstr "Bearbeiten"
+
+#: editor/templates/editor_service_list.html:28
+msgid "Reset"
+msgstr ""
+
+#: editor/templates/editor_service_list.html:34
+#: service/templates/wfs/wfs_index.html:86
+#: service/templates/wms/wms_index.html:96
+#: service/templates/wms/wms_index.html:100
+#: structure/templates/organization_detail.html:132
+msgid "Open details"
+msgstr "Öffne Details"
+
+#: editor/templates/editor_service_list.html:40
+#: service/templates/wfs/wfs_index.html:95
+#: service/templates/wms/wms_index.html:111
+msgid "Not active"
+msgstr "Nicht aktiv"
+
+#: editor/templates/editor_service_list.html:53
+msgid "Custom metadata"
+msgstr "Benutzerdefinierte Metadaten"
+
+#: editor/templates/editor_service_list.html:60
+#: service/templates/detail/service_detail.html:46
+#: service/templates/detail/service_detail.html:48
+msgid "Edit service"
+msgstr "Dienst bearbeiten"
+
+#: editor/templates/value_selection.html:6
+msgid "Click to remove keyword"
+msgstr "Klicken um Schlüsselwort zu entfernen"
+
+#: editor/templates/value_selection.html:18
+msgid "Separate entry by \",\""
+msgstr "Einträge durch \",\" separieren"
+
+#: editor/templates/value_selection.html:21
+msgid "You have to choose predefined values. Type in what you are looking for."
+msgstr "Sie müssen die Vorschläge verwenden. Tippen Sie ein wonach Sie suchen."
+
+#: editor/views.py:103 editor/views.py:162
+#: service/templates/detail/service_detail.html:110
+#: service/templates/detail/service_detail_child_wfs.html:21
+#: service/templates/detail/service_detail_child_wms.html:20
+msgid "Keywords"
+msgstr "Schlüsselwörter"
+
+#: editor/views.py:109
+msgid "Categories"
+msgstr "Kategorien"
+
+#: service/forms.py:13
+msgid "GetRequest URI"
+msgstr ""
+
+#: service/templates/check_metadata_form.html:52
+#: service/templates/register_new_service.html:87
+#: service/templates/remove_service_confirmation.html:17
+#: service/templates/service_url_form.html:65
+#: service/templates/update_service.html:87 structure/templates/form.html:78
+#: structure/templates/remove_group_confirmation.html:12
+#: structure/templates/remove_organization_confirmation.html:11
+#: structure/templates/request_publish_permission.html:55
+#: users/templates/change_password.html:75 users/templates/users_form.html:45
+msgid "Close"
+msgstr "Schließen"
+
+#: service/templates/check_metadata_form.html:57
+#: service/templates/check_metadata_form.html:67
+msgid "An error occured"
+msgstr "Ein Fehler ist aufgetreten"
+
+#: service/templates/check_metadata_form.html:59
+#, python-format
+msgid ""
+"\n"
+"                Service could not be loaded. <br>\n"
+"                The following HTTP error was raised during connection: <b>"
+"%(error)s</b> <br>\n"
+"                Please make sure the service is publicly available.\n"
+"                "
+msgstr ""
+"\n"
+"                Dienst konnte nicht geladen werden. <br>\n"
+"                Der folgende HTTP Fehler trat auf:: <b>%(error)s</b> <br>\n"
+"                Stellen Sie sicher, dass der Dienst öffentlich zugänglich "
+"ist.\n"
+"                "
+
+#: service/templates/check_metadata_form.html:65
+#: service/templates/check_metadata_form.html:75
+#: service/templates/register_new_service.html:95
+#: service/templates/update_service.html:95
+msgid "Okay"
+msgstr ""
+
+#: service/templates/check_metadata_form.html:69
+#, python-format
+msgid ""
+"\n"
+"                Service could not be loaded. <br>\n"
+"                The following error occured: <b>%(unknown_error)s</b> <br>\n"
+"                Please contact an administrator to inform about this issue.\n"
+"                "
+msgstr ""
+"\n"
+"                Dienst konnte nicht geladen werden. <br>\n"
+"                Der folgende Fehler trat auf: : <b>%(unknown_error)s</b> "
+"<br>\n"
+"                Bitte kontaktieren Sie einen Administrator.\n"
+"                "
+
+#: service/templates/check_metadata_form.html:77
+msgid ""
+"The service has been registered. The following is an extract from the "
+"metadata."
+msgstr "Der Dienst wurde registriert. Es folgt ein Auszug aus den Metadaten."
+
+#: service/templates/check_metadata_form.html:80
+msgid "Service:"
+msgstr "Dienst"
+
+#: service/templates/check_metadata_form.html:87
+#: service/templates/wfs/containing_featuretypes_elements.html:33
+msgid "Type"
+msgstr ""
+
+#: service/templates/check_metadata_form.html:91
+#: service/templates/detail/service_detail.html:100
+#: service/templates/detail/service_detail_child_wfs.html:17
+#: service/templates/detail/service_detail_child_wms.html:16
+msgid "Abstract"
+msgstr "Beschreibung"
+
+#: service/templates/check_metadata_form.html:95
+msgid "Fees"
+msgstr "Gebühren:"
+
+#: service/templates/check_metadata_form.html:100
+#: service/templates/wms/wms_index.html:71
+msgid "Number of layers"
+msgstr "Layeranzahl"
+
+#: service/templates/check_metadata_form.html:105
+msgid "Online resources"
+msgstr "Onlineresource:"
+
+#: service/templates/check_metadata_form.html:109
+msgid "Contact:"
+msgstr "Kontakt:"
+
+#: service/templates/check_metadata_form.html:116
+msgid "Responsible person"
+msgstr "Verantwortliche Person:"
+
+#: service/templates/check_metadata_form.html:120
+#: service/templates/detail/service_detail.html:140
+#: structure/templates/organization_detail.html:74 users/forms.py:15
+msgid "E-Mail"
+msgstr ""
+
+#: service/templates/check_metadata_form.html:125
+msgid "Finish"
+msgstr "Fertig"
+
+#: service/templates/detail/service_detail.html:29
+msgid "Deactivate service"
+msgstr "Deaktiviere Service"
+
+#: service/templates/detail/service_detail.html:34
+msgid "Activate service"
+msgstr "Dienst aktivieren"
+
+#: service/templates/detail/service_detail.html:41
+msgid "Update service using a new url"
+msgstr "Aktualisiere Dienst über eine neue URL"
+
+#: service/templates/detail/service_detail.html:42
+msgid "Update service"
+msgstr "Dienst aktualisieren"
+
+#: service/templates/detail/service_detail.html:54
+#: service/templates/service_differences.html:104
+#: service/templates/service_differences.html:105
+msgid "Capabilities"
+msgstr ""
+
+#: service/templates/detail/service_detail.html:58
+msgid "Original"
+msgstr "Original"
+
+#: service/templates/detail/service_detail.html:61
+msgid "Current"
+msgstr "Aktuell"
+
+#: service/templates/detail/service_detail.html:67
+msgid "Open original metadata in new tab"
+msgstr "Öffne originale Metadaten in neuem Tab"
+
+#: service/templates/detail/service_detail.html:75
+msgid "Remove service"
+msgstr "Dienst entfernen"
+
+#: service/templates/detail/service_detail.html:84
+#: service/templates/detail/service_detail_child_wfs.html:5
+#: service/templates/detail/service_detail_child_wms.html:4
+#: service/templates/wfs/containing_featuretypes_elements.html:25
+msgid "Uuid"
+msgstr ""
+
+#: service/templates/detail/service_detail.html:88
+#: structure/templates/organization_detail.html:123
+msgid "Service type"
+msgstr "Diensttyp"
+
+#: service/templates/detail/service_detail.html:92
+msgid "Service type version"
+msgstr "Diensttypversion"
+
+#: service/templates/detail/service_detail.html:96
+msgid "Last update on"
+msgstr "Aktualisiert am"
+
+#: service/templates/detail/service_detail.html:104
+msgid "Online resource"
+msgstr "Onlineresource"
+
+#: service/templates/detail/service_detail.html:115
+#: service/templates/detail/service_detail_child_wfs.html:26
+#: service/templates/detail/service_detail_child_wms.html:25
+msgid "No keywords provided"
+msgstr "Keine Schlüsselwörter verfügbar"
+
+#: service/templates/detail/service_detail.html:120
+msgid "Access Constraints"
+msgstr "Zugangsbeschränkungen"
+
+#: service/templates/detail/service_detail.html:124
+msgid "Responsible Person"
+msgstr "Verantwortliche Person"
+
+#: service/templates/detail/service_detail.html:128 structure/forms.py:30
+#: structure/templates/group_detail.html:39
+#: structure/templates/index_groups.html:28
+#: structure/templates/index_publish_requests.html:57
+msgid "Organization"
+msgstr "Organisation"
+
+#: service/templates/detail/service_detail.html:132 structure/forms.py:66
+#: structure/templates/organization_detail.html:78
+msgid "Phone"
+msgstr "Telefon"
+
+#: service/templates/detail/service_detail.html:136 structure/forms.py:67
+#: structure/templates/organization_detail.html:82
+msgid "Facsimile"
+msgstr "Fax"
+
+#: service/templates/detail/service_detail.html:144 structure/forms.py:63
+#: structure/templates/organization_detail.html:86
+msgid "Address"
+msgstr "Adresse"
+
+#: service/templates/detail/service_detail.html:148 structure/forms.py:65
+#: structure/templates/organization_detail.html:94
+msgid "City"
+msgstr "Stadt"
+
+#: service/templates/detail/service_detail.html:152
+msgid "Post code"
+msgstr "Postleitzahl"
+
+#: service/templates/detail/service_detail.html:156
+#: structure/templates/organization_detail.html:98
+msgid "State or province"
+msgstr "Bundesland"
+
+#: service/templates/detail/service_detail.html:160
+#: structure/templates/organization_detail.html:102
+msgid "Country"
+msgstr "Land"
+
+#: service/templates/detail/service_detail_child_wfs.html:13
+#: service/templates/wfs/containing_featuretypes_elements.html:29
+#: structure/templates/index_groups.html:22
+#: structure/templates/index_organizations.html:25
+#: structure/templates/index_organizations.html:73
+#: structure/templates/organization_detail.html:117
+msgid "Name"
+msgstr ""
+
+#: service/templates/detail/service_detail_child_wfs.html:31
+msgid "Is searchable"
+msgstr "Durchsuchbar"
+
+#: service/templates/detail/service_detail_child_wfs.html:34
+#: service/templates/detail/service_detail_child_wms.html:33
+#: service/templates/detail/service_detail_child_wms.html:43
+#: service/templates/detail/service_detail_child_wms.html:53
+#: service/templates/detail/service_detail_child_wms.html:63
+msgid "Yes"
+msgstr "Ja"
+
+#: service/templates/detail/service_detail_child_wfs.html:36
+#: service/templates/detail/service_detail_child_wms.html:35
+#: service/templates/detail/service_detail_child_wms.html:45
+#: service/templates/detail/service_detail_child_wms.html:55
+#: service/templates/detail/service_detail_child_wms.html:65
+msgid "No"
+msgstr "Nein"
+
+#: service/templates/detail/service_detail_child_wfs.html:41
+#: service/templates/detail/service_detail_child_wms.html:78
+msgid "Bounding box (lat lon)"
+msgstr "Ausdehnung"
+
+#: service/templates/detail/service_detail_child_wfs.html:47
+msgid "Default reference system"
+msgstr "Standard Referenzsystem"
+
+#: service/templates/detail/service_detail_child_wfs.html:53
+msgid "Additional reference systems:"
+msgstr "Weitere Referenzsysteme:"
+
+#: service/templates/detail/service_detail_child_wfs.html:58
+#: service/templates/detail/service_detail_child_wfs.html:72
+#: service/templates/detail/service_detail_child_wms.html:89
+msgid "No additional reference systems provided"
+msgstr "Keine weiteren Referenzsysteme verfügbar"
+
+#: service/templates/detail/service_detail_child_wfs.html:63
+#: service/templates/detail/service_detail_child_wms.html:94
+msgid "Mime types:"
+msgstr "Datentypen:"
+
+#: service/templates/detail/service_detail_child_wms.html:8
+msgid "Identifier"
+msgstr "Identifikator"
+
+#: service/templates/detail/service_detail_child_wms.html:30
+msgid "Is available"
+msgstr "Verfügbar"
+
+#: service/templates/detail/service_detail_child_wms.html:40
+msgid "Is queryable"
+msgstr "Abfragbar"
+
+#: service/templates/detail/service_detail_child_wms.html:50
+msgid "Is opaque"
+msgstr "Durchsichtig"
+
+#: service/templates/detail/service_detail_child_wms.html:60
+msgid "Is cascaded"
+msgstr "Kaskadiert"
+
+#: service/templates/detail/service_detail_child_wms.html:70
+msgid "Hits"
+msgstr "Aufrufe"
+
+#: service/templates/detail/service_detail_child_wms.html:74
+msgid "Scale range"
+msgstr "Zoomstufen"
+
+#: service/templates/detail/service_detail_child_wms.html:84
+msgid "Reference systems:"
+msgstr "Referenzsysteme:"
+
+#: service/templates/register_new_service.html:93
+#: service/templates/update_service.html:93
+msgid "The URI is invalid."
+msgstr "Die URI ist ungültig."
+
+#: service/templates/register_new_service.html:94
+#: service/templates/update_service.html:94
+msgid "Please check and try again."
+msgstr "Bitte prüfen und erneut versuchen."
+
+#: service/templates/register_new_service.html:99
+msgid "You are about to register this service."
+msgstr "Sie werden diesen Dienst registrieren."
+
+#: service/templates/register_new_service.html:104
+#: service/templates/update_service.html:130
+msgid "OGC Request:"
+msgstr ""
+
+#: service/templates/register_new_service.html:108
+#: service/templates/update_service.html:103
+#: service/templates/update_service.html:134
+msgid "OGC service:"
+msgstr "OGC Dienst:"
+
+#: service/templates/register_new_service.html:112
+#: service/templates/update_service.html:107
+#: service/templates/update_service.html:138
+msgid "OGC Version:"
+msgstr ""
+
+#: service/templates/register_new_service.html:116
+#: service/templates/update_service.html:111
+#: service/templates/update_service.html:142
+msgid "URI:"
+msgstr ""
+
+#: service/templates/register_new_service.html:120
+msgid "Registering with group:"
+msgstr "Registriert mit Gruppe:"
+
+#: service/templates/register_new_service.html:130
+msgid "Registering for other organization:"
+msgstr "Registriert für eine andere Organization:"
+
+#: service/templates/register_new_service.html:133
+msgid "No other"
+msgstr "Keine weitere"
+
+#: service/templates/register_new_service.html:148
+#: service/templates/update_service.html:149
+msgid "Please note:"
+msgstr "Bitte beachten Sie:"
+
+#: service/templates/register_new_service.html:150
+msgid ""
+"Depending on the numbers of layers or featuretypes provided by this service, "
+"the registration process can take up to a minute. Please be patient. Do not "
+"click around furiously."
+msgstr ""
+"Abhängig von der Anzahl der Kartenebenen und Featuretypes in diesem Dienst, "
+"kann der Registrierungsvorgang bis zu einer Minute dauern. Seien Sie bitte "
+"geduldig.Klicken Sie nicht wild umher."
+
+#: service/templates/register_new_service.html:159
+#: service/templates/update_service.html:154
+#: service/templates/update_service.html:156
+msgid "Next"
+msgstr "Weiter"
+
+#: service/templates/register_new_service.html:202
+#: service/templates/remove_service_confirmation.html:61
+#: service/templates/service_differences.html:144
+#: service/templates/update_service.html:172
+msgid "Mr. Map is doing his best. Please wait..."
+msgstr "Mr. Map arbeitet hart. Bitte warten..."
+
+#: service/templates/remove_service_confirmation.html:22
+msgid "You are about to remove this service."
+msgstr "Sie entfernen gerade diesen Dienst."
+
+#: service/templates/remove_service_confirmation.html:23
+msgid "This will remove all related subelements and metadata."
+msgstr "Dies wird alle verknüpften Unterelemente und Metadaten entfernen."
+
+#: service/templates/remove_service_confirmation.html:24
+#: service/templates/update_service.html:124
+#: structure/templates/remove_group_confirmation.html:17
+#: structure/templates/remove_organization_confirmation.html:16
+msgid "Do you want to continue?"
+msgstr "Wollen Sie fortfahren?"
+
+#: service/templates/remove_service_confirmation.html:28
+msgid "ID:"
+msgstr ""
+
+#: service/templates/remove_service_confirmation.html:32
+msgid "Title:"
+msgstr "Titel:"
+
+#: service/templates/remove_service_confirmation.html:36
+msgid "Abstract:"
+msgstr "Beschreibung:"
+
+#: service/templates/remove_service_confirmation.html:40
+msgid "Number of subelements:"
+msgstr "Anzahl der Unterelemente"
+
+#: service/templates/remove_service_confirmation.html:49
+#: structure/templates/remove_group_confirmation.html:49
+#: structure/templates/remove_organization_confirmation.html:40
+msgid "Yes, remove!"
+msgstr "Ja, entferne!"
+
+#: service/templates/service_differences.html:16
+msgid "New Service"
+msgstr "Neuer Dienst"
+
+#: service/templates/service_differences.html:17
+msgid "Old Service"
+msgstr "Alter Dienst"
+
+#: service/templates/service_differences.html:20
+msgid "Service title"
+msgstr "Diensttitel"
+
+#: service/templates/service_differences.html:27
+#: service/templates/service_differences.html:37
+msgid "New Layer"
+msgstr "Neue Ebene"
+
+#: service/templates/service_differences.html:29
+#: service/templates/service_differences.html:67
+msgid ""
+"Drag and drop the new layer onto the old layer, if you know it has been "
+"renamed."
+msgstr ""
+"Halten und Ziehen Sie die neue Ebene auf die alte, falls Sie genau wissen, "
+"dass diese umbenannt wurde."
+
+#: service/templates/service_differences.html:44
+#: service/templates/service_differences.html:50
+msgid "Removed Layer"
+msgstr "Entfernte Ebenen"
+
+#: service/templates/service_differences.html:46
+msgid "Drop a new layer on this old layer if you want to map it."
+msgstr ""
+"Ziehen Sie eine neue Ebene auf eine alte, falls Sie diese verknüpfen wollen."
+
+#: service/templates/service_differences.html:57
+msgid "Layer"
+msgstr "Ebene"
+
+#: service/templates/service_differences.html:65
+#: service/templates/service_differences.html:75
+msgid "New Feature Types"
+msgstr "Neue Featuretypen"
+
+#: service/templates/service_differences.html:82
+#: service/templates/service_differences.html:88
+msgid "Removed Feature Types"
+msgstr "Entfernte Featuretypen"
+
+#: service/templates/service_differences.html:84
+msgid "Drop a new feature type on this old one if you want to map it."
+msgstr ""
+"Ziehen Sie einen neuen Featuretypen auf einen alten, falls Sie diese "
+"verknüpfen wollen."
+
+#: service/templates/service_differences.html:95
+msgid "Updated Feature Types"
+msgstr "Aktualisierte Featuretypen"
+
+#: service/templates/service_differences.html:103
+msgid "Show capabilities"
+msgstr "Zeige Capabilities"
+
+#: service/templates/service_differences.html:111
+msgid ""
+"\n"
+"        You can link a new service layer to an old layer by simply\n"
+"        drag and drop it on the old layer. This is needed if you didn't "
+"remove an existing layer but simply renamed it and want to\n"
+"        keep the persistency of the underlying data!\n"
+"\n"
+"        <br>\n"
+"\n"
+"        Undo your changes by doubleclicking on the dragged element.\n"
+"        "
+msgstr ""
+"\n"
+"        Sie können eine neue Ebene mit einer alten verknüfen\n"
+"        indem Sie die neue einfach auf die alte ziehen. Das ist notwendig "
+"fallsSie eine existierende Ebene umbenannt haben und alle Abhängigkeiten "
+"beibehalten möchten!\n"
+"\n"
+"        <br>\n"
+"\n"
+"        Ein Doppelklick auf das gezogene Element macht die Aktion "
+"rückgängig.\n"
+"        "
+
+#: service/templates/service_differences.html:125
+msgid "Discard"
+msgstr "Abbrechen"
+
+#: service/templates/service_differences.html:133
+msgid "Yes, update it!"
+msgstr "Ja, aktualisiere!"
+
+#: service/templates/update_service.html:100
+msgid "Existing service"
+msgstr "Existierender Dienst"
+
+#: service/templates/update_service.html:115
+msgid "Keep custom metadata:"
+msgstr "Behalte benutzerdefinierte Metadaten:"
+
+#: service/templates/update_service.html:117
+msgid "Keep custom metadata"
+msgstr "Behalte benutzerdefinierte Metadaten"
+
+#: service/templates/update_service.html:123
+msgid "You are about to update this service."
+msgstr "Sie werden diesen Dienst aktualisieren."
+
+#: service/templates/update_service.html:127
+msgid "New service"
+msgstr "Neuer Dienst"
+
+#: service/templates/update_service.html:151
+msgid ""
+"Depending on the numbers of layers or featuretypes provided by this service, "
+"the update process can take a while. Please be patient. Do not click around "
+"furiously."
+msgstr ""
+"Abhängig von der Anzahl der Kartenebenen und Featuretypes in diesem Dienst, "
+"kann der Registrierungsvorgang bis zu einer Minute dauern. Seien Sie bitte "
+"geduldig.Klicken Sie nicht wild umher."
+
+#: service/templates/wfs/containing_featuretypes.html:7
+msgid "Show featuretypes"
+msgstr "Zeige Featuretypen"
+
+#: service/templates/wfs/containing_featuretypes.html:12
+#: service/templates/wfs/containing_featuretypes_elements.html:13
+#: service/templates/wms/containing_layers.html:13
+msgid "Click to expand"
+msgstr "Klicke für mehr"
+
+#: service/templates/wfs/containing_featuretypes.html:17
+#: service/templates/wfs/containing_featuretypes_elements.html:18
+#: service/templates/wms/containing_layers.html:18
+msgid "Custom Metadata"
+msgstr "Benutzerdefinierte Metadaten"
+
+#: service/templates/wfs/containing_featuretypes.html:25
+#: service/templates/wfs/containing_featuretypes.html:27
+msgid "Edit featuretype"
+msgstr "Featuretyp bearbeiten"
+
+#: service/templates/wfs/containing_featuretypes.html:37
+#: service/templates/wms/containing_layers.html:38
+msgid "Restore metadata"
+msgstr "Metadaten wiederherstellen"
+
+#: service/templates/wfs/containing_featuretypes.html:47
+#: service/templates/wms/containing_layers.html:48
+msgid "Loading..."
+msgstr "Lade..."
+
+#: service/templates/wfs/containing_featuretypes_elements.html:8
+msgid "Show elements"
+msgstr "Zeige Elemente"
+
+#: service/templates/wfs/wfs_index.html:5 templates/base.html:65
+#: users/templates/dashboard.html:53
+msgid "WFS"
+msgstr ""
+
+#: service/templates/wfs/wfs_index.html:8
+#: service/templates/wms/wms_index.html:8
+msgid "Register new"
+msgstr "Neu registrieren"
+
+#: service/templates/wfs/wfs_index.html:20
+#: service/templates/wfs/wfs_index.html:21
+#: service/templates/wms/wms_index.html:24
+#: service/templates/wms/wms_index.html:25
+msgid "Results per page"
+msgstr "Ergebnisse pro Seite"
+
+#: service/templates/wfs/wfs_index.html:30
+#: service/templates/wms/wms_index.html:34
+#: structure/templates/index_organizations.html:62
+msgid "Enter text to filter"
+msgstr "Filtern nach ..."
+
+#: service/templates/wfs/wfs_index.html:62
+msgid "Number of featuretypes"
+msgstr "Featuretypeanzahl"
+
+#: service/templates/wfs/wfs_index.html:68
+#: service/templates/wms/wms_index.html:78
+msgid "Version"
+msgstr ""
+
+#: service/templates/wfs/wfs_index.html:77
+#: service/templates/wms/wms_index.html:87
+msgid "Registered for"
+msgstr "Registriere für"
+
+#: service/templates/wfs/wfs_index.html:80
+#: service/templates/wms/wms_index.html:90
+msgid "Created"
+msgstr "Angelegt"
+
+#: service/templates/wfs/wfs_index.html:121
+#: service/templates/wms/wms_index.html:137
+msgid "None ¯\\_(ツ)_/¯"
+msgstr "Keine ¯\\_(ツ)_/¯"
+
+#: service/templates/wms/containing_layers.html:8
+msgid "Show sublayers"
+msgstr "Zeige Unterebenen"
+
+#: service/templates/wms/containing_layers.html:26
+#: service/templates/wms/containing_layers.html:28
+msgid "Edit layer"
+msgstr "Ebene bearbeiten"
+
+#: service/templates/wms/wms_index.html:5 templates/base.html:60
+#: users/templates/dashboard.html:49
+msgid "WMS"
+msgstr ""
+
+#: service/templates/wms/wms_index.html:16
+msgid "Show services"
+msgstr "Zeige Dienste"
+
+#: service/templates/wms/wms_index.html:17
+msgid "Show layers"
+msgstr "Zeige Ebenen"
+
+#: service/templates/wms/wms_index.html:41
+msgid "First page"
+msgstr "Erste Seite"
+
+#: service/templates/wms/wms_index.html:46
+msgid "Enter page number"
+msgstr "Seitennummer eingeben"
+
+#: service/templates/wms/wms_index.html:49
+msgid "Last page"
+msgstr "Letzte Seite"
+
+#: service/templates/wms/wms_index.html:67
+msgid "Parent service"
+msgstr "Übergeordneter Dienst"
+
+#: service/views.py:490
+msgid "Enter the new capabilities URL of your service."
+msgstr "Geben Sie die neue Capabilities URL des Dienstes ein."
+
+#: structure/forms.py:10 structure/forms.py:56
+msgid "Username"
+msgstr "Nutzername"
+
+#: structure/forms.py:11 structure/forms.py:57 users/forms.py:19
+msgid "Password"
+msgstr "Passwort"
+
+#: structure/forms.py:35 structure/templates/index_publish_requests.html:18
+msgid "Message"
+msgstr "Nachricht"
+
+#: structure/forms.py:45
+msgid "Contact person"
+msgstr "Kontaktperson"
+
+#: structure/forms.py:58 users/forms.py:20
+msgid "Password again"
+msgstr "Passwort (wiederholen)"
+
+#: structure/forms.py:60
+msgid "First name"
+msgstr "Vorname"
+
+#: structure/forms.py:61
+msgid "Last name"
+msgstr "Nachname"
+
+#: structure/forms.py:62
+msgid "E-mail address"
+msgstr "E-Mail Adresse"
+
+#: structure/forms.py:64 structure/templates/organization_detail.html:90
+msgid "Postal code"
+msgstr "Postleitzahl"
+
+#: structure/forms.py:68
+msgid "I want to sign up for the newsletter"
+msgstr "Ich möchte den Newsletter abonnieren"
+
+#: structure/forms.py:69
+msgid "I want to participate in surveys"
+msgstr "Ich möchte an Umfragen teilnehmen"
+
+#: structure/forms.py:70
+msgid ""
+"I understand and accept that my data will be automatically processed and "
+"securely stored, as it is stated in the general data protection regulation "
+"(GDPR)."
+msgstr ""
+"Ich verstehe und akzeptiere, dass meine Daten automatisch verarbeitet und "
+"sichergespeichert werden. Es gilt die Datenschutzbestimmung."
+
+#: structure/forms.py:71
+msgid "I'm not a robot"
+msgstr "Ich bin kein Roboter"
+
+#: structure/management/commands/setup.py:133
+msgid "The default role for all groups. Has no permissions."
+msgstr "Die Standardrolle für alle Gruppen. Hat keine Berechtigungen"
+
+#: structure/templates/group_detail.html:22
+msgid "Edit group"
+msgstr "Bearbeite Gruppe"
+
+#: structure/templates/group_detail.html:30
+msgid "Delete group"
+msgstr "Lösche Gruppe"
+
+#: structure/templates/group_detail.html:43
+#: structure/templates/index_groups.html:25
+#: structure/templates/index_organizations.html:28
+#: structure/templates/index_organizations.html:76
+#: structure/templates/organization_detail.html:43
+#: structure/templates/organization_detail.html:120
+msgid "Description"
+msgstr "Beschreibung"
+
+#: structure/templates/group_detail.html:47
+#: structure/templates/organization_detail.html:47
+#: structure/templates/remove_group_confirmation.html:29
+msgid "Members"
+msgstr "Mitglieder"
+
+#: structure/templates/group_detail.html:55
+#: structure/templates/index_organizations.html:82
+#: structure/templates/organization_detail.html:55
+#: structure/templates/remove_group_confirmation.html:37
+#: structure/templates/remove_organization_confirmation.html:36
+msgid "Parent"
+msgstr "Untersteht"
+
+#: structure/templates/group_detail.html:59
+#: structure/templates/remove_group_confirmation.html:41
+msgid "Permissions"
+msgstr "Berechtigungen"
+
+#: structure/templates/group_detail.html:70
+msgid "Publishes for"
+msgstr "Veröffentlicht für"
+
+#: structure/templates/index_groups.html:7
+#: structure/templates/remove_organization_confirmation.html:28
+#: templates/base.html:43 users/templates/dashboard.html:66
+msgid "Groups"
+msgstr "Gruppen"
+
+#: structure/templates/index_groups.html:10
+#: structure/templates/index_organizations.html:13
+msgid "Create new"
+msgstr "Neue anlegen"
+
+#: structure/templates/index_groups.html:18
+msgid "You are member of the following groups:"
+msgstr "Sie sind Mitglied der folgenden Gruppen:"
+
+#: structure/templates/index_organizations.html:10 templates/base.html:48
+#: users/templates/dashboard.html:70
+msgid "Organizations"
+msgstr "Organisationen"
+
+#: structure/templates/index_organizations.html:21
+msgid "You are member of the following organizations:"
+msgstr "Sie sind Mitglied der folgenden Organisationen:"
+
+#: structure/templates/index_organizations.html:38
+msgid "New publish requests"
+msgstr "Neue Veröffentlichungsanfragen"
+
+#: structure/templates/index_organizations.html:56
+msgid "All organizations"
+msgstr "Alle Organisationen"
+
+#: structure/templates/index_organizations.html:64
+#: structure/templates/index_organizations.html:65
+msgid "Only real organizations"
+msgstr "Nur echte Organisationen"
+
+#: structure/templates/index_organizations.html:79
+msgid "Real organization"
+msgstr "Echte Organisationen"
+
+#: structure/templates/index_organizations.html:95
+msgid "Automatically generated by service registration."
+msgstr "Automatisch bei Dienstregistrierung angelegt"
+
+#: structure/templates/index_organizations.html:97
+msgid "Created by administrator."
+msgstr "Von Administrator angelegt"
+
+#: structure/templates/index_publish_requests.html:13
+msgid "Publishing Requests"
+msgstr "Veröffentlichungsanfragen"
+
+#: structure/templates/index_publish_requests.html:16
+msgid "Requesting group"
+msgstr "Anfragende Gruppe"
+
+#: structure/templates/index_publish_requests.html:17
+#: structure/templates/index_publish_requests.html:85
+msgid "Group organization"
+msgstr "Gruppenorganisation"
+
+#: structure/templates/index_publish_requests.html:19
+msgid "Activation until"
+msgstr "Aktivierung bis"
+
+#: structure/templates/index_publish_requests.html:20
+#: structure/templates/index_publish_requests.html:58
+#: structure/templates/index_publish_requests.html:86
+msgid "Action"
+msgstr "Aktion"
+
+#: structure/templates/index_publish_requests.html:42
+msgid "Accept"
+msgstr "Akzeptieren"
+
+#: structure/templates/index_publish_requests.html:43
+msgid "Decline"
+msgstr "Ablehnen"
+
+#: structure/templates/index_publish_requests.html:45
+#: structure/templates/index_publish_requests.html:72
+#: structure/templates/index_publish_requests.html:107
+msgid "You have no permission to change this!"
+msgstr "Sie haben keine Berechtigung hierfür!"
+
+#: structure/templates/index_publish_requests.html:67
+#: structure/templates/index_publish_requests.html:69
+msgid "Stop being publisher"
+msgstr "Veröffentlichungen beenden"
+
+#: structure/templates/index_publish_requests.html:81
+msgid "Publishers"
+msgstr "Veröffentlicher"
+
+#: structure/templates/index_publish_requests.html:84
+msgid "Group"
+msgstr "Gruppe"
+
+#: structure/templates/index_publish_requests.html:102
+#: structure/templates/index_publish_requests.html:104
+msgid "Remove publisher"
+msgstr "Entferne Veröffentlicher"
+
+#: structure/templates/organization_detail.html:21
+msgid "Edit organization"
+msgstr "Bearbeite Organisation"
+
+#: structure/templates/organization_detail.html:26
+msgid "Request the permission to publish for this organization"
+msgstr "Veröffentlichungsanfrage an diese Organisation stellen"
+
+#: structure/templates/organization_detail.html:27
+msgid "Become a publisher"
+msgstr "Veröffentlicher werden"
+
+#: structure/templates/organization_detail.html:34
+msgid "Delete organization"
+msgstr "Entferne Organisation"
+
+#: structure/templates/organization_detail.html:59
+msgid "Suborganizations"
+msgstr "Suborganisationen"
+
+#: structure/templates/organization_detail.html:67
+msgid "Contact"
+msgstr "Kontakt"
+
+#: structure/templates/organization_detail.html:70
+msgid "Person"
+msgstr ""
+
+#: structure/templates/organization_detail.html:111
+msgid "Show all services"
+msgstr "Zeige alle Dienste"
+
+#: structure/templates/organization_detail.html:126
+msgid "Registered by"
+msgstr "Registriert von"
+
+#: structure/templates/organization_detail.html:153
+msgid "Publishers and requests"
+msgstr "Veröffentlicher und Anfragen"
+
+#: structure/templates/remove_group_confirmation.html:16
+msgid "You are about to remove this group."
+msgstr "Sie sind dabei diese Gruppe zu entfernen."
+
+#: structure/templates/remove_group_confirmation.html:21
+#: structure/templates/remove_organization_confirmation.html:20
+msgid "Name:"
+msgstr ""
+
+#: structure/templates/remove_group_confirmation.html:25
+#: structure/templates/remove_organization_confirmation.html:24
+msgid "Description:"
+msgstr "Beschreibung:"
+
+#: structure/templates/remove_organization_confirmation.html:15
+msgid "You are about to remove this organization."
+msgstr "Sie sind dabei dese Organisation zu entfernen."
+
+#: structure/views.py:177
+msgid "You are editing the organization"
+msgstr "Sie bearbeiten die Organisation"
+
+#: structure/views.py:244
+msgid ""
+"You are creating a new organization. Please make sure the organization does "
+"not exist yet to avoid duplicates! You can see if a similar named "
+"organization already exists by typing the organization name in the related "
+"field."
+msgstr ""
+"Sie erstellen eine neue Organisation. Bitte stellen Sie sicher, dass diese "
+"Organisationnicht bereits existiert! Sie können dies prüfen, indem Sie den "
+"Namen Ihrer Organisationeintippen."
+
+#: structure/views.py:357
+msgid "Send"
+msgstr "Senden"
+
+#: structure/views.py:358
+msgid ""
+"You need to ask for permission to become a publisher. Please select your "
+"group for which you want to have publishing permissions and explain why you "
+"need them."
+msgstr ""
+"Sie müssen nach einer Erlaubnis zum Veröffentlichen fragen. Bitte wählen "
+"Siedie Gruppe aus, für die Sie Veröffentlichungsrechte brauchen und erklären "
+"Sieweshalb sie Ihnen gewährt werden soll."
+
+#: structure/views.py:424
+msgid "You are creating a new group."
+msgstr "Sie erstellen eine neue Gruppe."
+
+#: structure/views.py:514
+msgid "You are editing the group"
+msgstr "Sie bearbeiten die Gruppe"
+
+#: templates/base.html:27 templates/base.html:32
+msgid "Dashboard"
+msgstr ""
+
+#: templates/base.html:33
+msgid "Home"
+msgstr "Home"
+
+#: templates/base.html:38
+msgid "Structure"
+msgstr "Struktur"
+
+#: templates/base.html:55
+msgid "Services"
+msgstr "Dienste"
+
+#: templates/base.html:77
+msgid "Account"
+msgstr ""
+
+#: templates/base.html:81
+msgid "Logout"
+msgstr "Ausloggen"
+
+#: templates/footer.html:12
+msgid "Deutsch"
+msgstr ""
+
+#: templates/messages.html:3
+msgid "Click to hide"
+msgstr "Klicken zum Verstecken"
+
+#: users/templates/account.html:13
+msgid "Edit account"
+msgstr "Account bearbeiten"
+
+#: users/templates/account.html:17
+msgid "Change password"
+msgstr "Passwort ändern"
+
+#: users/templates/account.html:23
+msgid "Delete account"
+msgstr "Account entfernen"
+
+#: users/templates/change_password.html:94
+#: users/templates/user_registration.html:30
+msgid "Password must contain the following:"
+msgstr "Passwort muss folgendes enthalten:"
+
+#: users/templates/change_password.html:95
+#: users/templates/user_registration.html:31
+msgid "Lowercase letters"
+msgstr "Kleinbuchstaben"
+
+#: users/templates/change_password.html:96
+#: users/templates/user_registration.html:32
+msgid "Uppercase letters"
+msgstr "Großbuchstaben"
+
+#: users/templates/change_password.html:97
+#: users/templates/user_registration.html:33
+msgid "At least one Number"
+msgstr "Mindestens eine Zahl"
+
+#: users/templates/change_password.html:98
+#: users/templates/user_registration.html:34
+msgid "At least 9 characters"
+msgstr "Mindestens 9 Zeichen/Ziffern"
+
+#: users/templates/dashboard.html:13
+msgid "Pending requests"
+msgstr "Ausstehende Anfragen"
+
+#: users/templates/dashboard.html:24
+msgid "No requests"
+msgstr "Keine Anfragen"
+
+#: users/templates/dashboard.html:28
+msgid "Last activities"
+msgstr "Letzte Aktivitäten"
+
+#: users/templates/dashboard.html:34
+msgid "by"
+msgstr "von"
+
+#: users/templates/dashboard.html:40
+msgid "No activities"
+msgstr "Keine Aktivitäten"
+
+#: users/templates/dashboard.html:46
+msgid "My services"
+msgstr "Meine Dienste"
+
+#: users/templates/dashboard.html:57
+msgid "All"
+msgstr "Alle"
+
+#: users/templates/dashboard.html:63
+msgid "Groups and organizations"
+msgstr "Gruppen und Organisationen"
+
+#: users/templates/login.html:39
+msgid "Forgot password"
+msgstr "Passwort vergessen"
+
+#: users/templates/login.html:41
+msgid "Sign in"
+msgstr "Einloggen"
+
+#: users/templates/login.html:42
+msgid "Register"
+msgstr "Registrieren"
+
+#: users/templates/password_reset.html:30
+msgid "Password reset"
+msgstr "Passwort zurücksetzen"
+
+#: users/templates/password_reset.html:32
+msgid ""
+"\n"
+"        We can help you reset your password. Simply enter the e-mail address "
+"of your account and you will receive a newly generated password which can be "
+"used to login again.\n"
+"        Remember to change your password again immediately after you logged "
+"in successfully!\n"
+"        "
+msgstr ""
+"\n"
+"        Wir können Ihnen helfen Ihr Passwort zurückzusetzen. Geben Sie "
+"hierzu einfach die E-Mail Adresse ihres Accounts ein.Prüfen Sie anschließend "
+"Ihr E-Mail Postfach.\n"
+"        "
+
+#: users/templates/password_reset.html:48
+msgid "Send password"
+msgstr "Senden"
+
+#: users/templates/user_activation.html:27
+msgid "Welcome"
+msgstr "Willkommen"
+
+#: users/templates/user_activation.html:29
+msgid ""
+"\n"
+"        Your account was activated successfully. You will be redirected to "
+"the login page in <span id=\"seconds-counter\"></span> seconds. If you don't "
+"want to wait, click on Mr. Map!\n"
+"        "
+msgstr ""
+"\n"
+"        Ihr Account wurde erfolgreich aktiviert. Sie werden zur Login Seite "
+"in <span id=\"seconds-counter\"></span> Sekunden weitergeleitet. Falls Sie "
+"nicht warten wollen klicken Sie einfach auf Mr. Map!\n"
+"        "
+
+#: users/templates/user_registration.html:23
+msgid "Back"
+msgstr "Zurück"
+
+#: users/templates/user_registration.html:59 users/views.py:306
+msgid "Sign up"
+msgstr "Einloggen"
+
+#: users/views.py:74
+msgid "Sign in for Mr. Map"
+msgstr "Nutzen Sie Mr. Map"
+
+#: users/views.py:75 users/views.py:305
+msgid ""
+"Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy "
+"eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam "
+"voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet "
+"clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit "
+"amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam "
+"nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed "
+"diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet "
+"clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit "
+"amet. "
+msgstr ""
+
+#: users/views.py:165
+msgid ""
+"Please insert your new password. You have to fulfill the password "
+"constraints."
+msgstr ""
+"Bitte geben Sie Ihr neues Passwort ein. Das Passwort muss den Vorgaben "
+"entsprechen."
+
+#: users/views.py:196
+msgid "You can update your account information using this form."
+msgstr "Sie können Ihre Accountinformationen hier ändern"
+
+#~ msgid "Edit metadata"
+#~ msgstr "Bearbeite Metadaten"
+
+#~ msgid ""
+#~ "\n"
+#~ "        Your account was activated successfully. Click on Mr. Map to get "
+#~ "to the login page.\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "        Ihr Account wurde erfolgreich aktiviert. Klicken Sie auf Mr. Map "
+#~ "um zur Startseite zurückzukehren.\n"
+#~ "        "
+
+#~ msgid "Capabilities (XML)"
+#~ msgstr "Capabilities (XML)"
+
+#~ msgid "Publishing for"
+#~ msgstr "Veröffentlicht für"
+
+#~ msgid "Publish request created"
+#~ msgstr "Veröffentlichungrechte beantragt"
+
+#~ msgid "Service registered"
+#~ msgstr "Dienst registriert"
+
+#~ msgid "Service removed"
+#~ msgstr "Dienst entfernt"
+
+#~ msgid "Service updated"
+#~ msgstr "Dienst aktualisiert"
+
+#~ msgid "Service metadata edited"
+#~ msgstr "Metadaten editiert"
+
+#~ msgid "Service activated"
+#~ msgstr "Dienst aktiviert"
+
+#~ msgid "Service deactivated"
+#~ msgstr "Dienst deaktiviert"
+
+#~ msgid "Service metadata restored"
+#~ msgstr "Metadaten wiederhergestellt"
+
+#~ msgid "Group edited"
+#~ msgstr "Gruppe editiert"

@@ -10,9 +10,14 @@
     <div class="sublayer hidden">
         {% for element in featuretype_elements %}
         <div class="collapsible-table">
-            <h3 class="layer-title" title="{% trans 'Click to expand' %}">
+            <h3 class="layer-title" title="{% trans 'Click to expand' %}" data-type="featureTypeElements">
                 <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
-                {{ element.name }}
+                <span class="{% if element.is_custom %}custom-metadata-headline{% endif %}">
+                    {{ element.name }}
+                    {% if element.is_custom %}
+                    <img class="invert"  src="{% static 'structure/images/icn_edit.png' %}" title="{% trans 'Custom Metadata' %}">
+                    {% endif %}
+                </span>
             </h3>
             <div class="subelements hidden">
             <table class="detail-table">

@@ -2,7 +2,7 @@
 
 
 .overview-title-actions-container{
-    padding: 10px 0;
+    padding: 2em 0 0 0;
     display: flex;
     align-items: center;
     flex-direction: row;
@@ -10,13 +10,15 @@
 }
 
 .add-button{
-    display: inline-block;
-    text-align: center;
-    vertical-align: middle;
+    -webkit-display: flex;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     background-color: var(--primary-color);
     border-radius: 50%;
-    padding: 5px 10px 5px 10px;
-    margin: 0 0 0 10px;
+    width: 2.5rem;
+    height: 2.5rem;
+    margin: 0 0 0 1rem;
     color: white;
     font-weight: bold;
     font-size: 1.2em;
@@ -30,26 +32,29 @@
     display: flex;
     align-items: center;
     justify-content: flex-start;
+    flex-grow: 1;
 }
 .container-center{
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-grow: 1;
 }
 .container-right{
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    flex-grow: 1;
 }
 
 
-#show-all img{
+.collapsible-title img{
     padding: 0 10px 0 0;
     -webkit-filter: invert(1.0);
     filter: invert(1.0);
 }
 
-#show-all{
+.collapsible-title{
     margin: 10px 0;
     display: flex;
     align-items: center;
@@ -60,7 +65,12 @@
 }
 
 
-#show-all:hover{
+.collapsible-title:hover{
     cursor: pointer;
     background-color: var(--secondary-color-light);
+}
+
+.abstract-table-field{
+    max-height: 5em;
+    overflow: auto;
 }

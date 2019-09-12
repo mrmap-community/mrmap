@@ -7,17 +7,29 @@ Created on: 15.04.19
 """
 from django.http import JsonResponse, HttpRequest
 
-from MapSkinner.settings import ROOT_URL
+from MapSkinner.settings import ROOT_URL, VERSION, GIT_REPO_URI
+from structure.models import User
+from users.helper import user_helper
+
 
 class DefaultContext:
     """ Contains the default values that have to be set on every rendering process!
 
     """
 
-    def __init__(self, request: HttpRequest, context: dict):
+    def __init__(self, request: HttpRequest, context: dict, user: User = None):
+        if user is not None:
+            permissions = user.get_permissions()
+        else:
+            permissions = []
         self.context = {
             "ROOT_URL": ROOT_URL,
+            "PATH": request.path.split("/")[1],
             "LANGUAGE_CODE": request.LANGUAGE_CODE,
+            "user_permissions": permissions,  #user_helper.get_permissions(user)
+            "user": user,
+            "VERSION": VERSION,
+            "GIT_REPO_URI": GIT_REPO_URI,
         }
         self.add_context(context)
 

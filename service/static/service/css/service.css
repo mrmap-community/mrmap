@@ -1,5 +1,23 @@
+#capabilities-container{
+    position: relative;
+}
+
+#capabilities-list{
+    position: absolute;
+    width: 100%;
+}
+
+
 .collapsible-table{
     padding: 0 0 0 1vw;
+}
+
+.mime-type-table tr:nth-child(even){
+    background-color: white;
+}
+
+.mime-type-table tr:nth-child(odd){
+    background-color: var(--primary-color-light);
 }
 
 .activate-container{
@@ -13,19 +31,31 @@
 
 }
 
+.listable-container{
+    display: flex;
+    -webkit-display: flex;
+    -webkit-flex-wrap: wrap;
+    flex-wrap: wrap;
+    min-width: 100%;
+}
+
+.listable{
+    margin: 0 1em 0 0;
+    padding:  5px;
+    border: 0px solid;
+    border-radius: 10px;
+    background-color: var(--secondary-color);
+    color: white;
+    -webkit-display: flex;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
 
 .deactivate-container img, .activate-container img{
     padding: 0 10px 0 0;
     -webkit-filter: brightness(0.0) invert(1.0);
     filter: brightness(0.0) invert(1.0);
-}
-
-
-
-.loading-spinner{
-    border: none;
-    color: white;
-    padding: 10px
 }
 
 .sublayer-container{
@@ -52,3 +82,27 @@
     cursor: pointer;
     background-color: var(--secondary-color-light);
 }
+
+.update{
+    padding: 5px;
+    color: white;
+    border-radius: 5px;
+}
+
+.update.removed{
+    background-color: red;
+}
+.update.new{
+    background-color: green;
+}
+
+.update.new:hover{
+    cursor: grab;
+    opacity: 0.8;
+}
+.update.removed:hover{
+    cursor: default;
+    opacity: 0.8;
+}
+
+

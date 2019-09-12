@@ -1,0 +1,83 @@
+.editor-body{
+    margin: 2em 0 0 0;
+}
+
+.reset-icon{
+    -webkit-transition: all 0.50s ease;
+    -moz-transition:    all 0.50s ease;
+    -o-transition:      all 0.50s ease;
+    -ms-transition:     all 0.50s ease;
+    transition:         all 0.50s ease;
+}
+.large{
+    font-size: 1.5em;
+}
+.button-container:hover .reset-icon{
+    -webkit-transform: rotate(180.0deg);
+    transform: rotate(180.0deg);
+}
+
+.metadata-editor-label{
+    width: 10vw;
+    min-width: 5em;
+}
+
+.large-select{
+    height: 10em;
+}
+
+.selected-values-wrapper{
+    margin: 1em 0 1em 0;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-flex-wrap: wrap;
+    flex-wrap: wrap;
+}
+
+.selected-value{
+    display: -webkit-flex;
+    display: flex;
+    align-items: center;
+    justify-items: space-evenly;
+    padding: 0.5em;
+    background-color: var(--primary-color-dark);
+    color: white;
+    border-radius: 0.5em;
+    margin: 0 1em 0.5em 0;
+}
+.selected-value > img{
+    -webkit-filter: invert(1.0);
+    filter: invert(1.0);
+}
+
+.selected-value:hover{
+    background-color: red;
+    color: white;
+    cursor: pointer;
+}
+
+.checkbox-input{
+    float: left !important;
+    width: unset !important;
+}
+
+.metadata-editor-field input,
+.metadata-editor-field textarea,
+.metadata-editor-field select{
+    background-color: white;
+    color: var(--secondary);
+    border: 1px solid gray;
+    width: 100%;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+.metadata-editor-field input,
+.metadata-editor-field textarea{
+    padding: 1em;
+}
+
+.metadata-editor-field datalist span{
+    background-color: white;
+    color: black;
+}
+

@@ -1,5 +1,5 @@
 # Mr. Map (aka Mapskinner)
-<img src="structure/static/structure/images/mr_map.png" width="200">
+<img src="https://git.osgeo.org/gitea/hollsandre/MapSkinner/raw/branch/pre_master/structure/static/structure/images/mr_map.png" width="200">
 
 ![alt Mr. Map|20%](structure/static/structure/images/mr_map.png)
 ## About

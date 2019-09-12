@@ -1,4 +1,6 @@
 # Mr. Map (aka Mapskinner)
+<img src="structure/static/structure/images/mr_map.png" width="200">
+
 ![alt Mr. Map|20%](structure/static/structure/images/mr_map.png)
 ## About
 Mr. Map is a service registry for web map services ([WMS](https://www.opengeospatial.org/standards/wms)) 

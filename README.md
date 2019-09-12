@@ -24,7 +24,8 @@ The system provides the following functionalities:
 * Service management
   * Register web map services in all current versions (1.0.0 - 1.3.0)
   * Register web feature services in all current versions (1.0.0 - 2.0.2)
-  * Automatic create organizations from service metadata
+  * Create automatically organizations from service metadata
+  * Generate public links for your registered services (GetCapabilities) to use in any map viewer which supports WMS/WFS imports
 * Metadata Editor 
   * Edit describing service metadata such as titles, abstracts, keywords and so on
   * Edit describing metadata for every subelement such as map layers or feature types
@@ -35,7 +36,9 @@ The system provides the following functionalities:
 * Dashboard
   * Have an overview on all newest activities of your groups, all your registered services or 
   pending publisher requests
-  
+* Catalogue and API
+  * Find services using the catalogue JSON interface 
+  * Have reading access to metadata, whole services, layers, organizations or groups
   
 
 
@@ -54,14 +57,12 @@ git clone https://git.osgeo.org/gitea/hollsandre/MapSkinner
 cd /opt/MapSkinner 
 pip install -r requirements.txt  
 
-python manage.py makemigrations service  
-python manage.py makemigrations structure  
+python manage.py makemigrations
 python manage.py migrate  
 ```
 
 ## Initial setup:
-Call the setup command and follow the prompt instructions to generate the system's superuser 
+Call the setup command and follow the prompt instructions to generate the system's superuser and load default elements
 ```shell
-cd .../MapSkinner
 python manage.py setup
 ```

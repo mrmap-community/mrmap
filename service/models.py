@@ -506,8 +506,8 @@ class Layer(Service):
         ordering = ["position"]
     identifier = models.CharField(max_length=500, null=True)
     hits = models.IntegerField(default=0)
-    preview_image = models.CharField(max_length=100)
-    preview_extend = models.CharField(max_length=100)
+    preview_image = models.CharField(max_length=100, blank=True, null=True)
+    preview_extent = models.CharField(max_length=100, blank=True, null=True)
     preview_legend = models.CharField(max_length=100)
     parent_layer = models.ForeignKey("self", on_delete=models.CASCADE, null=True, related_name="child_layer")
     position = models.IntegerField(default=0)

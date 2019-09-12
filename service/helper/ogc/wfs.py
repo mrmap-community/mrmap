@@ -124,7 +124,7 @@ class OGCWebFeatureService(OGCWebService):
 
         if not metadata_only:
             start_time = time.time()
-            self.get_feature_type_metadata(xml_obj, async_task)
+            self.get_feature_type_metadata(xml_obj=xml_obj, async_task=async_task)
             print(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
 
 
@@ -344,6 +344,7 @@ class OGCWebFeatureService(OGCWebService):
 
         Args:
             xml_obj: A minidom object which holds the xml content
+            async_task: The async task object
         Returns:
              Nothing
         """
@@ -707,7 +708,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         self.get_feature_with_lock_uri["get"] = get.get("GetFeatureWithLock", None)
         self.get_feature_with_lock_uri["post"] = post.get("GetFeatureWithLock", None)
 
-    def get_feature_type_metadata(self, xml_obj):
+    def get_feature_type_metadata(self, xml_obj, async_task: Task = None):
         """ Parse the wfs <Service> metadata into the self object
 
         Args:
@@ -719,6 +720,9 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                                                                                  attribute="version",
                                                                                  elem="//wfs:WFS_Capabilities")
         feat_nodes = xml_helper.try_get_element_from_xml("/wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType", xml_obj)
+
+        step_size = float(PROGRESS_STATUS_AFTER_PARSING / len(feat_nodes))
+
         for node in feat_nodes:
             feature_type = FeatureType()
             metadata = Metadata()
@@ -787,6 +791,10 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                 "element_list": elements_namespaces["element_list"],
                 "ns_list": elements_namespaces["ns_list"],
             }
+
+            # update async task if this is called async
+            if async_task is not None and step_size is not None:
+                task_helper.update_progress_by_step(async_task, step_size)
 
 
 class OGCWebFeatureService_1_1_0(OGCWebFeatureService):

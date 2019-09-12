@@ -88,7 +88,7 @@ MD_TYPE_DATASET = "dataset"
 MD_TYPE_SERVICE = "service"
 MD_TYPE_LAYER = "layer"
 
-# Some special things for govbender
+# Some special things
 DEFAULT_CONNECTION_TYPE = ConnectionType.REQUESTS
 DEFAULT_SERVICE_VERSION = VersionTypes.V_1_1_1
 HTTP_PROXY = "http://10.240.20.164:8080"
@@ -120,6 +120,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'editor',
     'captcha',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -162,7 +163,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'MapSkinner.wsgi.application'
-
 
 # Database
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases
@@ -221,13 +221,19 @@ USE_L10N = True
 
 USE_TZ = True
 
-# CELERY STUFF
+
+# CELERY SETTINGS
 BROKER_URL = 'redis://localhost:6379'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379'
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+
+
+# API
+from api.settings import REST_FRAMEWORK
+
 
 # Progress bar
 PROGRESS_STATUS_AFTER_PARSING = 90  # indicates at how much % status we are after the parsing

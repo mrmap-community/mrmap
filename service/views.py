@@ -307,6 +307,7 @@ def new_service(request: HttpRequest, user: User):
 
     # run creation async!
     pending_task = tasks.async_new_service.delay(url_dict, user.id, register_group, register_for_organization)
+    #pending_task = tasks.async_new_service(url_dict, user.id, register_group, register_for_organization)
 
     # create db object, so we know which pending task is still ongoing
     pending_task_db = PendingTask()

@@ -89,7 +89,7 @@ def home_view(request: HttpRequest, user: User):
          A rendered view
     """
     template = "dashboard.html"
-    user_services_wms = md_list_wms = Metadata.objects.filter(
+    user_services_wms = Metadata.objects.filter(
             service__servicetype__name="wms",
             service__is_root=True,
             created_by__in=user.groups.all(),

@@ -24,7 +24,7 @@ router.register('metadata', MetadataViewSet, basename="metadata")
 router.register('service', ServiceViewSet, basename="service")
 router.register('layer', LayerViewSet, basename="layer")
 router.register('group', GroupViewSet, basename="group")
-router.register('role', RoleViewSet, basename="role")
+#router.register('role', RoleViewSet, basename="role")
 
 
 urlpatterns = [

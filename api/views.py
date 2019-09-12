@@ -208,7 +208,8 @@ class MetadataViewSet(viewsets.GenericViewSet):
 
         Query parameters:
 
-            ag: (auto generated) optional, filter for auto_generated organizations vs. real organizations
+            q: optional, filters for the given query. Matches against title, abstract and keywords
+            uuid: optional, filters for the given uuid and returns only the matching element
     """
     serializer_class = MetadataSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS

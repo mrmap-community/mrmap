@@ -66,10 +66,26 @@ def filter_queryset_metadata_query(queryset, query):
     return queryset
 
 
+def filter_queryset_metadata_service_type(queryset, type: str):
+    """ Filters a given REST framework queryset by a given service type as string
+
+    Args:
+        queryset: A queryset containing elements
+        type: A string of 'wms' or 'wfs'
+    Returns:
+        queryset: The given queryset which only contains matching elements
+    """
+    if type is not None:
+        queryset = queryset.filter(
+            service__servicetype__name=type
+        )
+    return queryset
+
+
 def filter_queryset_metadata_uuid(queryset, uuid):
     """ Filters a given REST framework queryset by a given uuid.
 
-    Only keeps the elements holds the uuid.
+    Only keeps the element which holds the uuid.
 
     Args:
         queryset: A queryset containing elements
@@ -80,7 +96,7 @@ def filter_queryset_metadata_uuid(queryset, uuid):
     if uuid is not None:
         queryset = queryset.filter(
             uuid=uuid
-        ).distinct()
+        )
     return queryset
 
 

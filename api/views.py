@@ -1,13 +1,15 @@
 # Create your views here.
 from django.core.exceptions import ObjectDoesNotExist
-from rest_framework import viewsets, status
-from rest_framework.pagination import PageNumberPagination
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from rest_framework import viewsets
 from rest_framework.response import Response
 
 from MapSkinner import utils
 from api import view_helper
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, RoleSerializer, \
-    MetadataSerializer
+    MetadataSerializer, CatalogueMetadataSerializer
+from api.settings import API_CACHE_TIME
 from service.models import Service, Layer, Metadata
 from structure.models import Organization, Group, Role
 
@@ -58,6 +60,9 @@ class ServiceViewSet(viewsets.GenericViewSet):
 
         return self.queryset
 
+    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
+    # Cache requested url for 1 hour
+    @method_decorator(cache_page(API_CACHE_TIME))
     def list(self, request):
         tmp = self.paginate_queryset(self.queryset)
         serializer = ServiceSerializer(tmp, many=True)
@@ -66,6 +71,9 @@ class ServiceViewSet(viewsets.GenericViewSet):
     def create(self, request):
         pass
 
+    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
+    # Cache requested url for 1 hour
+    @method_decorator(cache_page(API_CACHE_TIME))
     def retrieve(self, request, pk=None):
         try:
             tmp = Layer.objects.get(id=pk)
@@ -123,6 +131,9 @@ class LayerViewSet(viewsets.GenericViewSet):
 
         return self.queryset
 
+    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
+    # Cache requested url for 1 hour
+    @method_decorator(cache_page(API_CACHE_TIME))
     def list(self, request):
         tmp = self.paginate_queryset(self.queryset)
         serializer = LayerSerializer(tmp, many=True)
@@ -131,6 +142,9 @@ class LayerViewSet(viewsets.GenericViewSet):
     def create(self, request):
         pass
 
+    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
+    # Cache requested url for 1 hour
+    @method_decorator(cache_page(API_CACHE_TIME))
     def retrieve(self, request, pk=None):
         tmp = Layer.objects.get(id=pk)
         return Response(LayerSerializer(tmp).data)
@@ -197,6 +211,9 @@ class MetadataViewSet(viewsets.GenericViewSet):
 
         return self.queryset
 
+    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
+    # Cache requested url for 1 hour
+    @method_decorator(cache_page(API_CACHE_TIME))
     def list(self, request):
         tmp = self.paginate_queryset(self.queryset)
         serializer = MetadataSerializer(tmp, many=True)
@@ -205,6 +222,9 @@ class MetadataViewSet(viewsets.GenericViewSet):
     def create(self, request):
         pass
 
+    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
+    # Cache requested url for 1 hour
+    @method_decorator(cache_page(API_CACHE_TIME))
     def retrieve(self, request, pk=None):
         tmp = Metadata.objects.get(id=pk)
         return Response(MetadataSerializer(tmp).data)
@@ -242,6 +262,9 @@ class GroupViewSet(viewsets.GenericViewSet):
 
         return self.queryset
 
+    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
+    # Cache requested url for 1 hour
+    @method_decorator(cache_page(API_CACHE_TIME))
     def list(self, request):
         tmp = self.paginate_queryset(self.queryset)
         serializer = GroupSerializer(tmp, many=True)
@@ -250,6 +273,9 @@ class GroupViewSet(viewsets.GenericViewSet):
     def create(self, request):
         pass
 
+    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
+    # Cache requested url for 1 hour
+    @method_decorator(cache_page(API_CACHE_TIME))
     def retrieve(self, request, pk=None):
         tmp = Group.objects.get(id=pk)
         return Response(ServiceSerializer(tmp).data)
@@ -265,11 +291,8 @@ class GroupViewSet(viewsets.GenericViewSet):
 
 
 class RoleViewSet(viewsets.ModelViewSet):
-    """ Overview of all organizations matching the given parameters
+    """ Overview of all roles
 
-        Query parameters:
-
-            ag: (auto generated) optional, filter for auto_generated organizations vs.
     """
     serializer_class = RoleSerializer
 
@@ -283,3 +306,46 @@ class RoleViewSet(viewsets.ModelViewSet):
 
         return self.queryset
 
+
+class CatalogueViewSet(viewsets.GenericViewSet):
+    """ Combines the serializers for a 'usual' catalogue api which provides most of the important information
+
+        Query parameters:
+
+            q: optional, query
+            type: optional, specifies which type of resource shall be fetched ('wms' or 'wfs')
+    """
+    serializer_class = CatalogueMetadataSerializer
+
+    def get_queryset(self):
+        """ Specifies if the queryset shall be filtered or not
+
+        Returns:
+             The queryset
+        """
+        self.queryset = Metadata.objects.all()
+
+        # filter by service type
+        type = self.request.query_params.get("type", None)
+        self.queryset = view_helper.filter_queryset_metadata_service_type(self.queryset, type)
+
+        # filter by query
+        query = self.request.query_params.get("q", None)
+        self.queryset = view_helper.filter_queryset_metadata_query(self.queryset, query)
+
+        return self.queryset
+
+    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
+    # Cache requested url for 1 hour
+    @method_decorator(cache_page(API_CACHE_TIME))
+    def list(self, request):
+        tmp = self.paginate_queryset(self.queryset)
+        serializer = CatalogueMetadataSerializer(tmp, many=True)
+        return self.get_paginated_response(serializer.data)
+
+    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
+    # Cache requested url for 1 hour
+    @method_decorator(cache_page(API_CACHE_TIME))
+    def retrieve(self, request, pk=None):
+        tmp = Metadata.objects.get(id=pk)
+        return Response(CatalogueMetadataSerializer(tmp).data)

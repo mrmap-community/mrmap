@@ -12,14 +12,18 @@ from django.urls import path, include
 # Routers provide an easy way of automatically determining the URL conf.
 from rest_framework import routers
 
-from api.views import ServiceViewSet, LayerViewSet, OrganizationViewSet, GroupViewSet, RoleViewSet, MetadataViewSet
+from api.views import ServiceViewSet, LayerViewSet, OrganizationViewSet, GroupViewSet, RoleViewSet, MetadataViewSet, \
+    CatalogueViewSet
 
-router = routers.DefaultRouter()
-router.register('organizations', OrganizationViewSet, basename="organization")
+router = routers.DefaultRouter(trailing_slash=False)
+# catalogue api
+router.register('catalogue', CatalogueViewSet, basename="catalogue")
+# modular parts of api
+router.register('organization', OrganizationViewSet, basename="organization")
 router.register('metadata', MetadataViewSet, basename="metadata")
-router.register('services', ServiceViewSet, basename="service")
-router.register('layers', LayerViewSet, basename="layer")
-router.register('groups', GroupViewSet, basename="group")
+router.register('service', ServiceViewSet, basename="service")
+router.register('layer', LayerViewSet, basename="layer")
+router.register('group', GroupViewSet, basename="group")
 router.register('role', RoleViewSet, basename="role")
 
 

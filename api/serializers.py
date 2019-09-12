@@ -143,12 +143,33 @@ class LayerSerializer(ServiceSerializer):
     """ Serializer for Layer model
 
     """
-    #id = serializers.IntegerField()
-    #uuid = serializers.UUIDField()
+    id = serializers.IntegerField()
+    uuid = serializers.UUIDField()
     identifier = serializers.CharField()
-    #metadata = serializers.PrimaryKeyRelatedField(read_only=True)
     is_available = serializers.BooleanField()
     is_active = serializers.BooleanField()
     parent_service = serializers.PrimaryKeyRelatedField(read_only=True)
     child_layer = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
-    #servicetype = ServiceTypeSerializer()
+    servicetype = ServiceTypeSerializer()
+
+
+class CatalogueMetadataSerializer(serializers.Serializer):
+    """ Serializer for Metadata model
+
+    """
+    id = serializers.IntegerField()
+    identifier = serializers.CharField()
+    title = serializers.CharField()
+    abstract = serializers.CharField()
+    bounding_geometry = serializers.CharField()  # ToDo: Use gis module to serialize the models.PolygonField()
+    online_resource = serializers.CharField()
+    original_uri = serializers.CharField()
+    fees = serializers.CharField()
+    access_constraints = serializers.CharField()
+    terms_of_use = serializers.PrimaryKeyRelatedField(read_only=True)
+    service = ServiceSerializer(read_only=True)
+    organization = OrganizationSerializer(read_only=True, source="contact")
+    related_metadata = MetadataRelationSerializer(many=True)
+    keywords = KeywordSerializer(read_only=True, many=True)
+    categories = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
+

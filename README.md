@@ -1,7 +1,6 @@
 # Mr. Map (aka Mapskinner)
 <img src="https://git.osgeo.org/gitea/hollsandre/MapSkinner/raw/branch/pre_master/structure/static/structure/images/mr_map.png" width="200">
 
-![alt Mr. Map|20%](structure/static/structure/images/mr_map.png)
 ## About
 Mr. Map is a service registry for web map services ([WMS](https://www.opengeospatial.org/standards/wms)) 
 and web feature services ([WFS](https://www.opengeospatial.org/standards/wfs)) as introduced by the 

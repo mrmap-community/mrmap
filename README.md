@@ -1,6 +1,17 @@
-# MapSkinner
+# Mr. Map (aka Mapskinner)
+![alt Mr. Map](...pre_master/structure/static/structure/images/mr_map.png)
+## About
+Mr. Map is a service registry for web map services ([WMS](https://www.opengeospatial.org/standards/wms)) 
+and web feature services ([WFS](https://www.opengeospatial.org/standards/wfs)) as introduced by the 
+Open Geospatial Consortium [OGC](http://www.opengeospatial.org/).
 
-New Geoportal project
+Since most GIS solutions out there are specified on a specific use case or aged without proper support, the need
+for an open source, generic geospatial registry system is high.
+
+Mr. Map is currently under development by the central spatial infrastructure of Rhineland-Palatinate 
+([GDI-RP](https://www.geoportal.rlp.de/mediawiki/index.php/Zentrale_Stelle_GDI-RP)), Germany.
+![alt GDI-RP](https://www.geoportal.rlp.de/static/useroperations/images/logo-gdi.png)
+
 
 ## Install:
 

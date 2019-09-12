@@ -10,7 +10,7 @@ for an open source, generic geospatial registry system is high.
 
 Mr. Map is currently under development by the central spatial infrastructure of Rhineland-Palatinate 
 ([GDI-RP](https://www.geoportal.rlp.de/mediawiki/index.php/Zentrale_Stelle_GDI-RP)), Germany.
-<img src="https://www.geoportal.rlp.de/static/useroperations/images/logo-gdi.png" width="100">
+<img src="https://www.geoportal.rlp.de/static/useroperations/images/logo-gdi.png" width="200">
 
 
 ## Install:

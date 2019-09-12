@@ -3,15 +3,28 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from rest_framework import viewsets
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
 from MapSkinner import utils
 from api import view_helper
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, RoleSerializer, \
     MetadataSerializer, CatalogueMetadataSerializer
-from api.settings import API_CACHE_TIME
+from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS
 from service.models import Service, Layer, Metadata
 from structure.models import Organization, Group, Role
+
+
+class APIPagination(PageNumberPagination):
+    """ Pagination class for this API
+
+    Overwrites the default PageNumberPagination such that the following GET parameters can be used to
+    modify the pagination style:
+
+        rpp (int): Number of results per page
+
+    """
+    page_size_query_param = "rpp"
 
 
 class ServiceViewSet(viewsets.GenericViewSet):
@@ -26,6 +39,8 @@ class ServiceViewSet(viewsets.GenericViewSet):
 
     """
     serializer_class = ServiceSerializer
+    http_method_names = API_ALLOWED_HTTP_METHODS
+    pagination_class = APIPagination
 
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
@@ -104,6 +119,8 @@ class LayerViewSet(viewsets.GenericViewSet):
     """
 
     serializer_class = LayerSerializer
+    http_method_names = API_ALLOWED_HTTP_METHODS
+    pagination_class = APIPagination
 
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
@@ -167,6 +184,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             ag: (auto generated) optional, filter for auto_generated organizations vs. real organizations
     """
     serializer_class = OrganizationSerializer
+    http_method_names = API_ALLOWED_HTTP_METHODS
+    pagination_class = APIPagination
 
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
@@ -185,13 +204,15 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
 
 class MetadataViewSet(viewsets.GenericViewSet):
-    """ Overview of all organizations matching the given parameters
+    """ Overview of all metadata matching the given parameters
 
         Query parameters:
 
             ag: (auto generated) optional, filter for auto_generated organizations vs. real organizations
     """
     serializer_class = MetadataSerializer
+    http_method_names = API_ALLOWED_HTTP_METHODS
+    pagination_class = APIPagination
 
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
@@ -240,13 +261,15 @@ class MetadataViewSet(viewsets.GenericViewSet):
 
 
 class GroupViewSet(viewsets.GenericViewSet):
-    """ Overview of all organizations matching the given parameters
+    """ Overview of all groups matching the given parameters
 
         Query parameters:
 
             orgid: optional, filter for organizations
     """
     serializer_class = GroupSerializer
+    http_method_names = API_ALLOWED_HTTP_METHODS
+    pagination_class = APIPagination
 
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
@@ -295,6 +318,8 @@ class RoleViewSet(viewsets.ModelViewSet):
 
     """
     serializer_class = RoleSerializer
+    http_method_names = API_ALLOWED_HTTP_METHODS
+    pagination_class = APIPagination
 
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
@@ -316,6 +341,9 @@ class CatalogueViewSet(viewsets.GenericViewSet):
             type: optional, specifies which type of resource shall be fetched ('wms' or 'wfs')
     """
     serializer_class = CatalogueMetadataSerializer
+    http_method_names = API_ALLOWED_HTTP_METHODS
+    pagination_class = APIPagination
+
 
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not

@@ -15,7 +15,7 @@ from rest_framework import routers
 from api.views import ServiceViewSet, LayerViewSet, OrganizationViewSet, GroupViewSet, RoleViewSet, MetadataViewSet, \
     CatalogueViewSet
 
-router = routers.DefaultRouter(trailing_slash=False)
+router = routers.DefaultRouter()
 # catalogue api
 router.register('catalogue', CatalogueViewSet, basename="catalogue")
 # modular parts of api

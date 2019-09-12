@@ -146,6 +146,8 @@ class LayerSerializer(ServiceSerializer):
     id = serializers.IntegerField()
     uuid = serializers.UUIDField()
     identifier = serializers.CharField()
+    preview_image = serializers.CharField()
+    preview_extent = serializers.CharField()
     is_available = serializers.BooleanField()
     is_active = serializers.BooleanField()
     parent_service = serializers.PrimaryKeyRelatedField(read_only=True)

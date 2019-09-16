@@ -66,3 +66,11 @@ Call the setup command and follow the prompt instructions to generate the system
 ```shell
 python manage.py setup
 ```
+
+
+## Important
+Since the registration, deletion and perspectively a lot of other functionalities use an asynchronous worker approach, so the user won't have to wait until the last action finishes, the server always should have run this command before the usage:
+```shell
+celery -A MapSkinner worker -l info
+```
+If a task didn't finish due to reasons, you can delete the related **Pending task** record from the table.

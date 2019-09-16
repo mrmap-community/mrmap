@@ -41,7 +41,7 @@ def filter_queryset_service_query(queryset, query):
         queryset = queryset.filter(
             Q(metadata__title__icontains=query) |
             Q(metadata__abstract__icontains=query) |
-            Q(metadata__keywords__keyword=query)
+            Q(metadata__keywords__keyword__icontains=query)
         ).distinct()
     return queryset
 
@@ -61,7 +61,7 @@ def filter_queryset_metadata_query(queryset, query):
         queryset = queryset.filter(
             Q(title__icontains=query) |
             Q(abstract__icontains=query) |
-            Q(keywords__keyword=query)
+            Q(keywords__keyword__icontains=query)
         ).distinct()
     return queryset
 

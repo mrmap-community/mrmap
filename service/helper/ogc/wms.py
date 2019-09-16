@@ -553,7 +553,7 @@ class OGCWebMapService(OGCWebService):
             parser_prefix,
         ))
 
-    @transaction.atomic
+
     def __create_single_layer_model_instance(self, layer_obj, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
                          published_for: Organization, root_md: Metadata, user: User, contact, parent=None):
         """ Transforms a OGCWebMapLayer object to Layer model (models.py)
@@ -589,8 +589,8 @@ class OGCWebMapService(OGCWebService):
 
         # handle keywords of this layer
         for kw in layer_obj.capability_keywords:
-            # keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            keyword = Keyword(keyword=kw)
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            #keyword = Keyword(keyword=kw)
             metadata.keywords_list.append(keyword)
 
         # handle reference systems
@@ -676,7 +676,7 @@ class OGCWebMapService(OGCWebService):
             self.__create_layer_model_instance(layers=layer_obj.child_layer, service_type=service_type, wms=wms, creator=creator, root_md=root_md,
                      publisher=publisher, published_for=published_for, parent=parent_layer, user=user, contact=contact)
 
-    @transaction.atomic
+
     def __create_layer_model_instance(self, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
                          published_for: Organization, root_md: Metadata, user: User, contact, parent=None):
         """ Iterates over all layers given by the service and persist them, including additional data like metadata and so on.
@@ -714,7 +714,6 @@ class OGCWebMapService(OGCWebService):
                 parent,
             )
 
-    @transaction.atomic
     def create_service_model_instance(self, user: User, register_group, register_for_organization):
         """ Persists the web map service and all of its related content and data
 
@@ -840,7 +839,7 @@ class OGCWebMapService(OGCWebService):
 
             # handle keywords of this layer
             for kw in layer.metadata.keywords_list:
-                kw = Keyword.objects.get_or_create(keyword=kw.keyword)[0]
+                #kw = Keyword.objects.get_or_create(keyword=kw.keyword)[0]
                 layer.metadata.keywords.add(kw)
 
             # handle reference systems

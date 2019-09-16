@@ -236,7 +236,6 @@ class OGCWebFeatureService(OGCWebService):
         self.get_gml_object_uri["post"] = post.get("ListStoredQueries", None)
 
 
-    @transaction.atomic
     def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version: str, async_task: Task = None, step_size: float = None):
         """ Get featuretype metadata of a single featuretype
 
@@ -433,7 +432,6 @@ class OGCWebFeatureService(OGCWebService):
             self._get_feature_type_metadata(feature_type, epsg_api, service_type_version)
 
     @abstractmethod
-    @transaction.atomic
     def create_service_model_instance(self, user: User, register_group, register_for_organization):
         """ Map all data from the WebFeatureService classes to their database models
 

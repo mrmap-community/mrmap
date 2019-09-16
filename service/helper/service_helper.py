@@ -121,8 +121,17 @@ def generate_name(srs_list: list=[]):
 
 
 def activate_layer_recursive(root_layer, new_status):
+    """ Walk recursive through all layers of a wms and set the activity status new
+
+    Args:
+        root_layer: The root layer, where the recursion begins
+        new_status: The new status that will be persisted
+    Returns:
+         nothing
+    """
     root_layer.metadata.is_active = new_status
     root_layer.metadata.save()
+    root_layer.save()
     for layer in root_layer.child_layer.all():
         activate_layer_recursive(layer, new_status)
 

@@ -157,8 +157,9 @@ def activate(request: HttpRequest, user:User):
     service = Service.objects.get(id=service_id)
     service.metadata.is_active = new_status
     service.metadata.save()
+    service.save()
     # get root_layer of service and start changing of all statuses
-    if service.servicetype == "wms":
+    if service.servicetype.name == "wms":
         root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
         service_helper.activate_layer_recursive(root_layer, new_status)
 
@@ -180,7 +181,10 @@ def get_capabilities(request: HttpRequest, id: int):
     Returns:
          A HttpResponse containing the xml file
     """
-    cap_doc = CapabilityDocument.objects.get(related_metadata__id=id)
+    md = Metadata.objects.get(id=id)
+    if not md.is_active:
+        return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
+    cap_doc = CapabilityDocument.objects.get(related_metadata=md)
     doc = cap_doc.current_capability_document
     return HttpResponse(doc, content_type='application/xml')
 
@@ -194,7 +198,10 @@ def get_capabilities_original(request: HttpRequest, id: int):
     Returns:
          A HttpResponse containing the xml file
     """
-    cap_doc = CapabilityDocument.objects.get(related_metadata__id=id)
+    md = Metadata.objects.get(id=id)
+    if not md.is_active:
+        return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
+    cap_doc = CapabilityDocument.objects.get(related_metadata=md)
     doc = cap_doc.original_capability_document
     return HttpResponse(doc, content_type='application/xml')
 

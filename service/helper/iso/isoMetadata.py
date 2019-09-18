@@ -8,17 +8,19 @@ Created on: 04.07.2019
 import json
 import urllib
 import uuid
+from django.utils import timezone
 
+from dateutil.parser import parse
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db import transaction
+from django.utils.timezone import utc
 from lxml.etree import _Element
 
-from MapSkinner.messages import MISSING_DATASET_ID_IN_METADATA
 from MapSkinner.settings import XML_NAMESPACES, MD_TYPE_DATASET
 from MapSkinner import utils
 from service.config import INSPIRE_LEGISLATION_FILE
-from service.helper import service_helper, xml_helper
+from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType
 from service.helper.epsg_api import EpsgApi
@@ -208,6 +210,14 @@ class ISOMetadata:
             self.file_identifier = uuid.uuid4()
         self.create_date = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:dateStamp/gco:Date")
         self.last_change_date = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:dateStamp/gco:Date")
+
+        # try to transform the last_change_date into a datetime object
+        try:
+            self.last_change_date = parse(self.last_change_date)
+        except (ValueError, OverflowError) as e:
+            # if this is not possible due to wrong input, just use the current time...
+            self.last_change_date = timezone.now()
+
         self.hierarchy_level = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:hierarchyLevel/gmd:MD_ScopeCode")
         if self.hierarchy_level == "service":
             xpath_type = "srv:SV_ServiceIdentification"
@@ -396,9 +406,13 @@ class ISOMetadata:
         update = False
         new = False
         try:
-            metadata = Metadata.objects.get(uuid=self.file_identifier, original_uri=self.uri)
+            metadata = Metadata.objects.get(uuid=self.file_identifier, metadata_url=self.uri)
+
             # check if the parsed metadata might be newer
-            if metadata.last_modified != self.last_change_date:
+            # make sure both date time objects will be comparable
+            persisted_change = metadata.last_remote_change.replace(tzinfo=utc)
+            new_change = self.last_change_date.replace(tzinfo=utc)
+            if persisted_change <= new_change:
                 update = True
         except ObjectDoesNotExist:
             # object does not seem to exist -> create it!
@@ -429,7 +443,7 @@ class ISOMetadata:
 
             metadata.is_inspire_conform = self.inspire_interoperability
             metadata.metadata_url = self.uri
-            metadata.last_modified = self.last_change_date
+            metadata.last_remote_change = self.last_change_date
             metadata.spatial_res_type = self.spatial_res_type
             metadata.spatial_res_value = self.spatial_res_val
             if self.title is None:
@@ -441,7 +455,7 @@ class ISOMetadata:
             metadata.dataset_id_code_space = self.dataset_id_code_space
             metadata.save()
             if update:
-                metadata.keywords.clean()
+                metadata.keywords.clear()
             for kw in self.keywords:
                 keyword = Keyword.objects.get_or_create(keyword=kw)[0]
                 metadata.keywords.add(keyword)

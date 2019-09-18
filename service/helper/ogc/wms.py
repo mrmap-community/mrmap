@@ -133,7 +133,7 @@ class OGCWebMapService(OGCWebService):
                                                                         attribute="{http://www.w3.org/1999/xlink}href")
                 try:
                     iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
-                except Exception:
+                except Exception as e:
                     # there are iso metadatas that have been filled wrongly -> if so we will drop them
                     continue
                 layer_obj.iso_metadata.append(iso_metadata)

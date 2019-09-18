@@ -64,6 +64,7 @@ class Metadata(Resource):
     access_constraints = models.TextField(null=True, blank=True)
     fees = models.TextField(null=True, blank=True)
 
+    last_remote_change = models.DateTimeField(null=True, blank=True)  # the date time, when the metadata was changed where it comes from
     status = models.IntegerField(null=True)
     inherit_proxy_uris = models.BooleanField(default=False)
     spatial_res_type = models.CharField(max_length=100, null=True)
@@ -74,10 +75,12 @@ class Metadata(Resource):
     is_inspire_conform = models.BooleanField(default=False)
     has_inspire_downloads = models.BooleanField(default=False)
     bounding_geometry = models.PolygonField(null=True, blank=True)
+
     # capabilities
     dimension = models.CharField(max_length=100, null=True)
     authority_url = models.CharField(max_length=255, null=True)
     metadata_url = models.CharField(max_length=255, null=True)
+
     # other
     keywords = models.ManyToManyField(Keyword)
     categories = models.ManyToManyField('Category')

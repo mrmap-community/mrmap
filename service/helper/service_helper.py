@@ -139,8 +139,8 @@ def activate_layer_recursive(root_layer, new_status):
             metadata_2=md.metadata_2,
             metadata_1__is_active=True,
         )
-        if dependencies.count() >= 1:
-            # we still have multiple dependencies on this relation, we can not deactivate the metadata
+        if dependencies.count() >= 1 and md not in dependencies:
+            # we still have multiple dependencies on this relation (besides us), we can not deactivate the metadata
             pass
         else:
             # since we have no more dependencies on this metadata, we can set it inactive

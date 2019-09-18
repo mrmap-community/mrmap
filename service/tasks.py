@@ -14,13 +14,47 @@ from lxml.etree import XMLSyntaxError, XPathEvalError
 from requests.exceptions import InvalidURL
 
 from MapSkinner import utils
-from MapSkinner.messages import SERVICE_REGISTERED
+from MapSkinner.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
-from service.models import Service
+from service.models import Service, Layer
 from structure.models import User, Group, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
 from users.helper import user_helper
+
+
+@shared_task(name="async_activate_service")
+def async_activate_service(param_POST: dict, user_id: int):
+    """ Async call for activating a service, its subelements and all of their related metadata
+
+    Args:
+        param_POST (dict): The post parameter of the incoming request
+        user_id (int): The user id of the performing user
+    Returns:
+        nothing
+    """
+    user = User.objects.get(id=user_id)
+    service_id = param_POST.get("id", -1)
+    new_status = utils.resolve_boolean_attribute_val(param_POST.get("active", False))
+
+    # get service and change status
+    service = Service.objects.get(id=service_id)
+    service.metadata.is_active = new_status
+    service.metadata.save()
+    service.save()
+
+    # get root_layer of service and start changing of all statuses
+    # also check all related metadata and activate them too
+    if service.servicetype.name == "wms":
+        root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
+        service_helper.activate_layer_recursive(root_layer, new_status)
+
+    if service.metadata.is_active:
+        msg = SERVICE_ACTIVATED
+    else:
+        msg = SERVICE_DEACTIVATED
+
+    user_helper.create_group_activity(service.metadata.created_by, user, msg, service.metadata.title)
 
 
 @shared_task(name="async_remove_service_task")

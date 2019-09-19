@@ -22,7 +22,7 @@ from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
-from service.models import Metadata, Layer, Service, FeatureType, CapabilityDocument
+from service.models import Metadata, Layer, Service, FeatureType, Document
 from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
@@ -169,7 +169,7 @@ def get_capabilities(request: HttpRequest, id: int):
     md = Metadata.objects.get(id=id)
     if not md.is_active:
         return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
-    cap_doc = CapabilityDocument.objects.get(related_metadata=md)
+    cap_doc = Document.objects.get(related_metadata=md)
     doc = cap_doc.current_capability_document
     return HttpResponse(doc, content_type='application/xml')
 
@@ -186,7 +186,7 @@ def get_capabilities_original(request: HttpRequest, id: int):
     md = Metadata.objects.get(id=id)
     if not md.is_active:
         return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
-    cap_doc = CapabilityDocument.objects.get(related_metadata=md)
+    cap_doc = Document.objects.get(related_metadata=md)
     doc = cap_doc.original_capability_document
     return HttpResponse(doc, content_type='application/xml')
 
@@ -395,7 +395,7 @@ def update_service(request: HttpRequest, user: User, id: int):
         elif new_service.servicetype.name == ServiceTypes.WMS.value:
             old_service = update_helper.update_wms(old_service, new_service, diff, links, keep_custom_metadata)
 
-        cap_document = CapabilityDocument.objects.get(related_metadata=old_service.metadata)
+        cap_document = Document.objects.get(related_metadata=old_service.metadata)
         cap_document.current_capability_document = xml
         cap_document.save()
 

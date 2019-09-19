@@ -30,7 +30,7 @@ class KeywordAdmin(admin.ModelAdmin):
     pass
 
 
-class CapabilityDocumentAdmin(admin.ModelAdmin):
+class DocumentAdmin(admin.ModelAdmin):
     list_display = ('related_metadata', 'created')
 
 
@@ -75,7 +75,7 @@ class NamespaceAdmin(admin.ModelAdmin):
     list_display = ('name', 'uri', 'version')
 
 
-admin.site.register(CapabilityDocument, CapabilityDocumentAdmin)
+admin.site.register(Document, DocumentAdmin)
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(CategoryOrigin, CategoryOriginAdmin)
 admin.site.register(ServiceType, ServiceTypeAdmin)

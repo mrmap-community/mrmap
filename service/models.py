@@ -183,7 +183,7 @@ class Metadata(Resource):
             rel_md = self
         else:
             rel_md = self.service.parent_service.metadata
-        cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
+        cap_doc = Document.objects.get(related_metadata=rel_md)
         cap_doc.restore_subelement(identifier)
         return
 
@@ -220,7 +220,7 @@ class Metadata(Resource):
             rel_md = self
         else:
             rel_md = self.featuretype.service.metadata
-        cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
+        cap_doc = Document.objects.get(related_metadata=rel_md)
         cap_doc.restore_subelement(identifier)
         return
 
@@ -259,7 +259,7 @@ class Metadata(Resource):
         self.is_custom = False
         self.inherit_proxy_uris = False
 
-        cap_doc = CapabilityDocument.objects.get(related_metadata=self)
+        cap_doc = Document.objects.get(related_metadata=self)
         cap_doc.restore()
 
     def _restore_wfs(self, identifier: str = None):
@@ -305,7 +305,7 @@ class Metadata(Resource):
         self.is_custom = False
         self.inherit_proxy_uris = False
 
-        cap_doc = CapabilityDocument.objects.get(related_metadata=service.metadata)
+        cap_doc = Document.objects.get(related_metadata=service.metadata)
         cap_doc.restore()
 
     def restore(self, identifier: str = None):
@@ -344,13 +344,15 @@ class MetadataType(models.Model):
         return self.type
 
 
-class CapabilityDocument(Resource):
+class Document(Resource):
     related_metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
     original_capability_document = models.TextField()
     current_capability_document = models.TextField(null=True, blank=True)
+    service_metadata_document = models.TextField(null=True, blank=True)
+    dataset_metadata_document = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return self.related_metadata
+        return self.related_metadata.title
 
     def restore(self):
         """ We overwrite the current metadata xml with the original

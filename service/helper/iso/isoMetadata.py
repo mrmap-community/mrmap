@@ -24,7 +24,7 @@ from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType
 from service.helper.epsg_api import EpsgApi
-from service.models import Metadata, Keyword, MetadataType
+from service.models import Metadata, Keyword, MetadataType, Document
 from structure.models import Organization
 
 
@@ -407,7 +407,6 @@ class ISOMetadata:
         new = False
         try:
             metadata = Metadata.objects.get(uuid=self.file_identifier, metadata_url=self.uri)
-
             # check if the parsed metadata might be newer
             # make sure both date time objects will be comparable
             persisted_change = metadata.last_remote_change.replace(tzinfo=utc)
@@ -420,11 +419,12 @@ class ISOMetadata:
             md_type = MetadataType.objects.get_or_create(type=MD_TYPE_DATASET)[0]
             metadata.metadata_type = md_type
             new = True
+
         if update or new:
             metadata.uuid = self.file_identifier
             metadata.abstract = self.abstract
             metadata.access_constraints = self.access_constraints
-            # metadata.bbox = self.bounding_box
+
             if len(self.polygonal_extent_exterior) > 0:
                 metadata.bounding_geometry = self.polygonal_extent_exterior[0]
 
@@ -454,6 +454,14 @@ class ISOMetadata:
             metadata.dataset_id = self.dataset_id
             metadata.dataset_id_code_space = self.dataset_id_code_space
             metadata.save()
+
+            # create document object to persist the dataset metadata document
+            document = Document.objects.get_or_create(
+                related_metadata=metadata
+            )[0]
+            document.dataset_metadata_document = self.raw_metadata
+            document.save()
+
             if update:
                 metadata.keywords.clear()
             for kw in self.keywords:

@@ -105,6 +105,56 @@ function checkServiceRequestURI(isUpdate, id){
     });
 }
 
+/**
+ * Starts an ajax request to the server and loads the table content
+ */
+function getTableContent(elemId, elemType, table){
+    $.ajax({
+        url: rootUrl + "/service/detail-child/" + elemId,
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        data: {
+            "serviceType": elemType
+        },
+        type: 'get',
+        dataType: 'json'
+    }).done(function(data){
+        var html = data["html"];
+        var contentDiv = table.find(".content");
+        contentDiv.html(html);
+        elem.addClass("loaded");
+    }).always(function(data){
+    });
+}
+
+/**
+ * Starts an ajax request to the server and checks if the processed subelement has a dataset metadata related to.
+ * If so, the dataset metadata button will be displayed
+ */
+function toggleDatasetMetadataButton(elemId, elemType, table){
+    $.ajax({
+        url: rootUrl + "/service/get-dataset-metadata/" + elemId,
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken")
+        },
+        data: {
+            "serviceType": elemType
+        },
+        type: 'get',
+        dataType: 'json'
+    }).done(function(data){
+        var hasDatasetMetadata = data["has_dataset_doc"];
+        if(hasDatasetMetadata){
+            // show the dataset metadata button
+            var selector = 'a[data-id="' + elemId + '"]';
+            var button = table.find(selector);
+            button.toggleClass("hide");
+        }
+    }).always(function(data){
+    });
+}
+
 
 /*
  *  THESE FUNCTIONS HAVE TO STAY OUTSIDE THE DOCUMENT.READY BLOCK
@@ -117,24 +167,11 @@ $(document).on("click", ".layer-title", function(){
     var elemId = elem.attr("data-id");
     var elemType = elem.attr("data-type");
     if(!elem.hasClass("loaded") && elemType != "featureTypeElements"){
-        // do the ajax request
-        $.ajax({
-            url: rootUrl + "/service/detail-child/" + elemId,
-            headers: {
-                "X-CSRFToken": getCookie("csrftoken")
-            },
-            data: {
-                "serviceType": elemType
-            },
-            type: 'get',
-            dataType: 'json'
-        }).done(function(data){
-            var html = data["html"];
-            var contentDiv = table.find(".content");
-            contentDiv.html(html);
-            elem.addClass("loaded");
-        }).always(function(data){
-        });
+        // do the ajax request for loading the detail view table content
+        getTableContent(elemId, elemType, table);
+
+        // do the ajax request for loading the dataset metadata button
+        toggleDatasetMetadataButton(elemId, elemType, table);
     }
     table.toggle("fast");
     var img = elem.find(".collapse-img");

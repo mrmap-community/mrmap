@@ -7,6 +7,10 @@ urlpatterns = [
     path('/<service_type>', index, name='index'),
     path('session', session, name='session'),
     path('activate/', activate, name='activate'),
+
+    path('dataset/<int:id>', get_dataset_metadata, name='get-dataset-metadata'),
+    path('get-dataset-metadata/<int:id>', get_dataset_metadata_button, name='get-dataset-metadata-button'),
+
     path('capabilities/<int:id>', get_capabilities, name='get-capabilities'),
     path('capabilities/<int:id>/original', get_capabilities_original, name='get-capabilities-original'),
 
@@ -27,3 +31,5 @@ urlpatterns = [
     # dataset metadata proxy
     path('metadata/<int:id>', metadata_proxy, name='metadata-proxy')
 ]
+
+

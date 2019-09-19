@@ -48,7 +48,7 @@ function checkTaskStatus(tasks){
             })
             .always(function(data){
             });
-        }, 250);
+        }, 1000);
 
     });
 

@@ -150,24 +150,9 @@ def activate(request: HttpRequest, user:User):
     Returns:
          An Ajax response
     """
+    # run activation async!
     param_POST = request.POST.dict()
-    service_id = param_POST.get("id", -1)
-    new_status = utils.resolve_boolean_attribute_val(param_POST.get("active", False))
-    # get service and change status
-    service = Service.objects.get(id=service_id)
-    service.metadata.is_active = new_status
-    service.metadata.save()
-    service.save()
-    # get root_layer of service and start changing of all statuses
-    if service.servicetype.name == "wms":
-        root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
-        service_helper.activate_layer_recursive(root_layer, new_status)
-
-    if service.metadata.is_active:
-        msg = SERVICE_ACTIVATED
-    else:
-        msg = SERVICE_DEACTIVATED
-    user_helper.create_group_activity(service.metadata.created_by, user, msg, service.metadata.title)
+    pending_task = tasks.async_activate_service.delay(param_POST, user.id)
 
     return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 

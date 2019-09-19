@@ -64,6 +64,7 @@ class Metadata(Resource):
     access_constraints = models.TextField(null=True, blank=True)
     fees = models.TextField(null=True, blank=True)
 
+    last_remote_change = models.DateTimeField(null=True, blank=True)  # the date time, when the metadata was changed where it comes from
     status = models.IntegerField(null=True)
     inherit_proxy_uris = models.BooleanField(default=False)
     spatial_res_type = models.CharField(max_length=100, null=True)
@@ -74,10 +75,12 @@ class Metadata(Resource):
     is_inspire_conform = models.BooleanField(default=False)
     has_inspire_downloads = models.BooleanField(default=False)
     bounding_geometry = models.PolygonField(null=True, blank=True)
+
     # capabilities
     dimension = models.CharField(max_length=100, null=True)
     authority_url = models.CharField(max_length=255, null=True)
     metadata_url = models.CharField(max_length=255, null=True)
+
     # other
     keywords = models.ManyToManyField(Keyword)
     categories = models.ManyToManyField('Category')
@@ -98,6 +101,32 @@ class Metadata(Resource):
 
     def __str__(self):
         return self.title
+
+    def delete(self, using=None, keep_parents=False):
+        """ Overwriting of the regular delete function
+
+        Checks if the current processed metadata is part of a MetadataRelation, which indicates, that it is still used
+        somewhere else, maybe by another service. If there is only one MetadataRelation found for this metadata record,
+        we can delete it safely..
+
+        Args:
+            using: The regular 'using' parameter
+            keep_parents: The regular 'keep_parents' parameter
+        Returns:
+            nothing
+        """
+        # check if there are MetadataRelations on this metadata record
+        # if so, we can not remove it until these relations aren't used anymore
+        dependencies = MetadataRelation.objects.filter(
+            metadata_2=self
+        )
+        if dependencies.count() > 1:
+            # if there are more than one dependency, we should not remove it
+            # the one dependency we can expect at least is the relation to the current metadata record
+            return
+        else:
+            # if we have one or less relations to this metadata record, we can remove it anyway
+            super().delete(using, keep_parents)
 
     def get_service_type(self):
         """ Performs a check on which service type is described by the metadata record

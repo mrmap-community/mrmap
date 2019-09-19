@@ -16,7 +16,7 @@ from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
-from service.models import Service, CapabilityDocument, MetadataRelation
+from service.models import Service, Document, MetadataRelation
 from MapSkinner.utils import sha256
 
 
@@ -247,7 +247,7 @@ def persist_capabilities_doc(service: Service, xml: str):
          nothing
     """
     # save original capabilities document
-    cap_doc = CapabilityDocument()
+    cap_doc = Document()
     cap_doc.original_capability_document = xml
     cap_doc.current_capability_document = xml
     cap_doc.related_metadata = service.metadata

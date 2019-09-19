@@ -14,7 +14,7 @@ from requests.exceptions import MissingSchema
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
 from service.helper.iso.isoMetadata import ISOMetadata
-from service.models import Metadata, Keyword, Category, FeatureType, CapabilityDocument, MetadataRelation, \
+from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
     MetadataOrigin
 from service.helper import xml_helper
 
@@ -105,7 +105,7 @@ def overwrite_capabilities_document(metadata: Metadata):
         rel_md = metadata.service.parent_service.metadata
     elif metadata.metadata_type.type == 'featuretype':
         rel_md = metadata.featuretype.service.metadata
-    cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
+    cap_doc = Document.objects.get(related_metadata=rel_md)
 
     # overwrite all editable data
     identifier = metadata.identifier
@@ -178,7 +178,7 @@ def _remove_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links:
             rel_md = metadata.service.parent_service.metadata
         elif service_type == 'wfs':
             rel_md = metadata.featuretype.service.metadata
-    cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
+    cap_doc = Document.objects.get(related_metadata=rel_md)
     cap_doc_txt = cap_doc.current_capability_document
     xml_cap_obj = xml_helper.parse_xml(cap_doc_txt).getroot()
 
@@ -264,7 +264,7 @@ def set_dataset_metadata_proxy(metadata: Metadata, use_proxy: bool):
     Returns:
          nothing
     """
-    cap_doc = CapabilityDocument.objects.get(related_metadata=metadata)
+    cap_doc = Document.objects.get(related_metadata=metadata)
     cap_doc_curr = cap_doc.current_capability_document
     xml_obj = xml_helper.parse_xml(cap_doc_curr)
     # get <MetadataURL> xml elements

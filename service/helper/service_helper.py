@@ -101,7 +101,6 @@ def resolve_keywords_array_string(keywords: str):
     return ret_list
 
 
-
 def generate_name(srs_list: list=[]):
     """ Generates a name made from a list of spatial reference systems
 

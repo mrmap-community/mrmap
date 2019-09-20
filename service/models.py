@@ -56,8 +56,9 @@ class Metadata(Resource):
     identifier = models.CharField(max_length=255, null=True)
     title = models.CharField(max_length=255)
     abstract = models.TextField(null=True, blank=True)
-    online_resource = models.CharField(max_length=500, null=True, blank=True)
-    original_uri = models.CharField(max_length=500, blank=True, null=True)
+    online_resource = models.CharField(max_length=500, null=True, blank=True)  # where the service data can be found
+    capabilities_original_uri = models.CharField(max_length=500, blank=True, null=True)
+    service_metadata_original_uri = models.CharField(max_length=500, blank=True, null=True)
 
     contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, blank=True, null=True)
     terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, null=True)
@@ -237,7 +238,7 @@ class Metadata(Resource):
         service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
         service = None
         service = OGCWebMapServiceFactory()
-        service = service.get_ogc_wms(version=service_version, service_connect_url=self.original_uri)
+        service = service.get_ogc_wms(version=service_version, service_connect_url=self.capabilities_original_uri)
         service.get_capabilities()
         service.create_from_capabilities(metadata_only=True)
 
@@ -282,7 +283,7 @@ class Metadata(Resource):
             service = self.featuretype.service
         service_version = service_helper.resolve_version_enum(service.servicetype.version)
         service_tmp = OGCWebFeatureServiceFactory()
-        service_tmp = service_tmp.get_ogc_wfs(version=service_version, service_connect_url=self.original_uri)
+        service_tmp = service_tmp.get_ogc_wfs(version=service_version, service_connect_url=self.capabilities_original_uri)
         if service_tmp is None:
             return
         service_tmp.get_capabilities()
@@ -670,7 +671,7 @@ class FeatureType(Resource):
         service = None
         if self.service.servicetype.name == ServiceTypes.WFS.value:
             service = OGCWebFeatureServiceFactory()
-            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.service.metadata.original_uri)
+            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.service.metadata.capabilities_original_uri)
         if service is None:
             return
         service.get_capabilities()

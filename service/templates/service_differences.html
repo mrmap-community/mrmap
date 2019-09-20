@@ -101,8 +101,8 @@
     {% endif %}
     <tr>
         <th>{% trans 'Show capabilities' %}</th>
-        <td><a href="{{ old_service.metadata.original_uri }}" target="_blank"><button class="button submit-button">{% trans 'Capabilities' %}</button></a></td>
-        <td><a href="{{ new_service.metadata.original_uri }}" target="_blank"><button class="button submit-button">{% trans 'Capabilities' %}</button></a></td>
+        <td><a href="{{ old_service.metadata.capabilities_original_uri }}" target="_blank"><button class="button submit-button">{% trans 'Capabilities' %}</button></a></td>
+        <td><a href="{{ new_service.metadata.capabilities_original_uri }}" target="_blank"><button class="button submit-button">{% trans 'Capabilities' %}</button></a></td>
     </tr>
 </table>
 <div class="advice">

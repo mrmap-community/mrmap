@@ -580,7 +580,7 @@ class OGCWebMapService(OGCWebService):
         metadata.uuid = uuid.uuid4()
         metadata.abstract = layer_obj.abstract
         metadata.online_resource = root_md.online_resource
-        metadata.original_uri = root_md.original_uri
+        metadata.capabilities_original_uri = root_md.capabilities_original_uri
         metadata.identifier = layer_obj.identifier
         metadata.contact = contact
         metadata.access_constraints = root_md.access_constraints
@@ -743,7 +743,7 @@ class OGCWebMapService(OGCWebService):
         metadata.title = self.service_identification_title
         metadata.abstract = self.service_identification_abstract
         metadata.online_resource = ",".join(self.service_provider_onlineresource_linkage)
-        metadata.original_uri = self.service_connect_url
+        metadata.capabilities_original_uri = self.service_connect_url
         metadata.access_constraints = self.service_identification_accessconstraints
         metadata.fees = self.service_identification_fees
         metadata.bounding_geometry = self.service_bounding_box

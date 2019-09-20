@@ -2,6 +2,7 @@ import json
 
 import time
 from django.contrib import messages
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse
@@ -22,7 +23,7 @@ from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
-from service.models import Metadata, Layer, Service, FeatureType, Document
+from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation
 from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
@@ -155,6 +156,66 @@ def activate(request: HttpRequest, user:User):
     pending_task = tasks.async_activate_service.delay(param_POST, user.id)
 
     return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
+
+
+def get_dataset_metadata(request: HttpRequest, id: int):
+    """ Returns the dataset metadata xml file for a given metadata id
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The metadata id
+    Returns:
+         A HttpResponse containing the xml file
+    """
+    md = Metadata.objects.get(id=id)
+    if not md.is_active:
+        return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
+    if md.metadata_type != 'dataset':
+        try:
+            # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
+            md = MetadataRelation.objects.get(
+                metadata_1=md,
+            ).metadata_2
+        except ObjectDoesNotExist:
+            return HttpResponse(content=_("No dataset metadata found"), status=404)
+
+    document = Document.objects.get(related_metadata=md)
+
+    return HttpResponse(document.dataset_metadata_document, content_type='application/xml')
+
+
+def get_dataset_metadata_button(request: HttpRequest, id: int):
+    """ Checks whether an element (layer or featuretype) has a dataset metadata record.
+
+    This function is used for ajax calls from the client, to check dynamically on an opened subelement if there
+    are dataset metadata to get.
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The element id
+    Returns:
+         A BackendAjaxResponse, containing a boolean, whether the requested element has a dataset metadata record or not
+    """
+    elementType = request.GET.get("serviceType")
+    if elementType == "wms":
+        element = Layer.objects.get(id=id)
+    elif elementType == "wfs":
+        element = FeatureType.objects.get(id=id)
+    md = element.metadata
+    try:
+        # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
+        md_2 = MetadataRelation.objects.get(
+            metadata_1=md,
+        ).metadata_2
+        doc = Document.objects.get(
+            related_metadata=md_2
+        )
+        has_dataset_doc = doc.dataset_metadata_document is not None
+    except ObjectDoesNotExist:
+        has_dataset_doc = False
+
+    return BackendAjaxResponse(html="", has_dataset_doc=has_dataset_doc).get_response()
+
 
 
 def get_capabilities(request: HttpRequest, id: int):
@@ -529,7 +590,21 @@ def detail(request: HttpRequest, id, user:User):
     service = get_object_or_404(Service, id=service_md.service.id)
     layers = Layer.objects.filter(parent_service=service_md.service)
     layers_md_list = layers.filter(parent_layer=None)
+
+    try:
+        related_md = MetadataRelation.objects.get(
+            metadata_1=service_md,
+            metadata_2__metadata_type__type='dataset',
+        )
+        document = Document.objects.get(
+            related_metadata=related_md.metadata_2
+        )
+        has_dataset_metadata = document.dataset_metadata_document is not None
+    except ObjectDoesNotExist:
+        has_dataset_metadata = False
+
     params = {
+        "has_dataset_metadata": has_dataset_metadata,
         "root_metadata": service_md,
         "root_service": service,
         "layers": layers_md_list,
@@ -539,7 +614,16 @@ def detail(request: HttpRequest, id, user:User):
 
 
 @check_session
-def detail_child(request: HttpRequest, id, user:User):
+def detail_child(request: HttpRequest, id, user: User):
+    """ Returns a rendered html overview of the element with the given id
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The element id
+        user (User): The performing user
+    Returns:
+         A rendered view for ajax insertion
+    """
     elementType = request.GET.get("serviceType")
     if elementType == "wms":
         template = "detail/service_detail_child_wms.html"
@@ -550,6 +634,7 @@ def detail_child(request: HttpRequest, id, user:User):
     else:
         template = ""
         element = None
+
     params = {
         "element": element,
         "user_permissions": user.get_permissions(),

@@ -346,7 +346,7 @@ class MetadataType(models.Model):
 
 class Document(Resource):
     related_metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
-    original_capability_document = models.TextField()
+    original_capability_document = models.TextField(null=True, blank=True)
     current_capability_document = models.TextField(null=True, blank=True)
     service_metadata_document = models.TextField(null=True, blank=True)
     dataset_metadata_document = models.TextField(null=True, blank=True)

@@ -590,7 +590,21 @@ def detail(request: HttpRequest, id, user:User):
     service = get_object_or_404(Service, id=service_md.service.id)
     layers = Layer.objects.filter(parent_service=service_md.service)
     layers_md_list = layers.filter(parent_layer=None)
+
+    try:
+        related_md = MetadataRelation.objects.get(
+            metadata_1=service_md,
+            metadata_2__metadata_type__type='dataset',
+        )
+        document = Document.objects.get(
+            related_metadata=related_md.metadata_2
+        )
+        has_dataset_metadata = document.dataset_metadata_document is not None
+    except ObjectDoesNotExist:
+        has_dataset_metadata = False
+
     params = {
+        "has_dataset_metadata": has_dataset_metadata,
         "root_metadata": service_md,
         "root_service": service,
         "layers": layers_md_list,

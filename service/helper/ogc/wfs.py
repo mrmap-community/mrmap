@@ -110,7 +110,7 @@ class OGCWebFeatureService(OGCWebService):
         # get xml as iterable object
         xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
         # parse service metadata
-        self.get_service_metadata(xml_obj, async_task)
+        self.get_service_metadata_from_capabilities(xml_obj, async_task)
         self.get_capability_metadata(xml_obj)
         #thread_list = [
         #    threading.Thread(target=self.get_service_metadata, args=(xml_obj,)),
@@ -129,7 +129,7 @@ class OGCWebFeatureService(OGCWebService):
 
 
     @abstractmethod
-    def get_service_metadata(self, xml_obj, async_task: Task = None):
+    def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         """ Parse the capability document <Service> metadata into the self object
 
         Args:
@@ -637,7 +637,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         XML_NAMESPACES["lvermgeo"] = "http://www.lvermgeo.rlp.de/lvermgeo"
         XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs")
 
-    def get_service_metadata(self, xml_obj, async_task: Task = None):
+    def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         """ Parse the wfs <Service> metadata into the self object
 
         Args:

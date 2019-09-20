@@ -105,12 +105,19 @@ class OGCWebMapService(OGCWebService):
         # get xml as iterable object
         xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
 
+        # check if 'real' service metadata exist
         start_time = time.time()
-        self.get_service_metadata(xml_obj=xml_obj, async_task=async_task)
+        has_service_metadata = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL") is not None
+
+        if has_service_metadata:
+            self.get_service_metadata(xml_obj=xml_obj, async_task=async_task)
+        else:
+            self.get_service_metadata_from_capabilities(xml_obj=xml_obj, async_task=async_task)
         print(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
 
+        # parse possible linked dataset metadata
         start_time = time.time()
-        self.get_service_iso_metadata(xml_obj=xml_obj)
+        self.get_service_dataset_metadata(xml_obj=xml_obj)
         print(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
 
         self.get_version_specific_metadata(xml_obj=xml_obj)
@@ -448,7 +455,7 @@ class OGCWebMapService(OGCWebService):
 
         self.get_layers_recursive(layers, step_size=step_size, async_task=async_task)
 
-    def get_service_metadata(self, xml_obj, async_task: Task = None):
+    def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         """ Parses all <Service> information which can be found in every wms specification since 1.0.0
 
         Args:

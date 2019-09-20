@@ -140,6 +140,10 @@ class OGCWebService:
         pass
 
     @abstractmethod
+    def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
+        pass
+
+    @abstractmethod
     def get_service_metadata(self, xml_obj, async_task: Task = None):
         pass
 
@@ -148,7 +152,7 @@ class OGCWebService:
         pass
 
     @abstractmethod
-    def get_service_iso_metadata(self, xml_obj):
+    def get_service_dataset_metadata(self, xml_obj):
         """
 
         Args:

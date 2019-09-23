@@ -496,6 +496,14 @@ class Service(Resource):
             keep_parents:
         Returns:
         """
+        # remove related metadata
+        linked_mds = MetadataRelation.objects.filter(metadata_1=self.metadata)
+        for linked_md in linked_mds:
+            md_2 = linked_md.metadata_2
+            md_2.delete()
+            linked_md.delete()
+
+        # remove subelements
         if self.servicetype.name == 'wms':
             layers = self.child_service.all()
             for layer in layers:
@@ -522,7 +530,6 @@ class Service(Resource):
             if len(layer.children_list) > 0:
                 self.__get_children(layer, layers)
 
-
     def get_all_layers(self):
         """ Returns all layers in a list that can be found in this service
 
@@ -535,6 +542,25 @@ class Service(Resource):
         layers = []
         self.__get_children(self.root_layer, layers)
         return layers
+
+    def activate_service(self, is_active: bool):
+        """ Toggles the activity status of a service and it's metadata
+
+        Args:
+            is_active (bool): Whether the service shall be activated or not
+        Returns:
+             nothing
+        """
+        self.is_active = is_active
+        self.metadata.is_active = is_active
+
+        linked_mds = self.metadata.related_metadata.all()
+        for md_relation in linked_mds:
+            md_relation.metadata_2.is_active = is_active
+            md_relation.metadata_2.save()
+
+        self.metadata.save()
+        self.save()
 
 
 class Layer(Service):
@@ -571,6 +597,38 @@ class Layer(Service):
 
     def __str__(self):
         return str(self.identifier)
+
+    def activate_layer_recursive(self, new_status):
+        """ Walk recursive through all layers of a wms and set the activity status new
+
+        Args:
+            root_layer: The root layer, where the recursion begins
+            new_status: The new status that will be persisted
+        Returns:
+             nothing
+        """
+        self.metadata.is_active = new_status
+        self.metadata.save()
+        self.save()
+
+        # check for all related metadata, we need to toggle their active status as well
+        rel_md = self.metadata.related_metadata.all()
+        for md in rel_md:
+            dependencies = MetadataRelation.objects.filter(
+                metadata_2=md.metadata_2,
+                metadata_1__is_active=True,
+            )
+            if dependencies.count() >= 1 and md not in dependencies:
+                # we still have multiple dependencies on this relation (besides us), we can not deactivate the metadata
+                pass
+            else:
+                # since we have no more dependencies on this metadata, we can set it inactive
+                md.metadata_2.is_active = new_status
+                md.metadata_2.save()
+                md.save()
+
+        for layer in self.child_layer.all():
+            layer.activate_layer_recursive(new_status)
 
 
 class Module(Service):

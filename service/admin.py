@@ -39,7 +39,7 @@ class MetadataOriginAdmin(admin.ModelAdmin):
 
 
 class MetadataAdmin(admin.ModelAdmin):
-    list_display = ('title', 'identifier', 'metadata_type', 'is_broken', 'contact', 'uuid')
+    list_display = ('title', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact', 'uuid')
 
 
 class MetadataRelationAdmin(admin.ModelAdmin):

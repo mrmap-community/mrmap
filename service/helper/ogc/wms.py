@@ -341,7 +341,6 @@ class OGCWebMapService(OGCWebService):
         elements["uri"] = elements["uri"].get("xlink:href") if elements["uri"] is not None else None
         layer_obj.style = elements
 
-
     def _start_single_layer_parsing(self, layer_xml):
         """ Runs the complete parsing process for a single layer
 
@@ -375,7 +374,6 @@ class OGCWebMapService(OGCWebService):
 
         return layer_obj
 
-
     def _parse_single_layer(self, layer, parent, position, step_size: float = None, async_task: Task = None):
         """ Parses data from an xml <Layer> element into the OGCWebMapLayer object.
 
@@ -405,7 +403,6 @@ class OGCWebMapService(OGCWebService):
 
         self.get_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size, async_task=async_task)
 
-
     def get_layers_recursive(self, layers, parent=None, position=0, step_size: float = None, async_task: Task = None):
         """ Recursive Iteration over all children and subchildren.
 
@@ -432,8 +429,6 @@ class OGCWebMapService(OGCWebService):
             for layer in layers:
                 self._parse_single_layer(layer, parent, position, step_size=step_size, async_task=async_task)
                 position += 1
-
-
 
     def get_layers(self, xml_obj, async_task: Task = None):
         """ Parses all layers of a service and creates OGCWebMapLayer objects from each.
@@ -473,7 +468,6 @@ class OGCWebMapService(OGCWebService):
         iso_md.parse_xml()
         self.linked_service_metadata = iso_md
 
-
     def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         """ Parses all <Service> element information which can be found in every wms specification since 1.0.0
 
@@ -489,8 +483,8 @@ class OGCWebMapService(OGCWebService):
         self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Abstract".format(parser_prefix, parser_prefix))
         self.service_identification_title = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Title".format(parser_prefix, parser_prefix))
 
-        #if async_task is not None:
-        #    task_helper.update_service_description(async_task, self.service_identification_title)
+        if async_task is not None:
+            task_helper.update_service_description(async_task, self.service_identification_title)
 
         self.service_identification_fees = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Fees".format(parser_prefix, parser_prefix))
         self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}AccessConstraints".format(parser_prefix, parser_prefix))
@@ -810,7 +804,8 @@ class OGCWebMapService(OGCWebService):
         service.created_by = group
         service.metadata = metadata
         service.is_root = True
-        service.linked_service_metadata = self.linked_service_metadata.to_db_model(MD_TYPE_SERVICE)
+        if self.linked_service_metadata is not None:
+            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MD_TYPE_SERVICE)
 
         root_layer = self.layers[0]
 
@@ -839,6 +834,10 @@ class OGCWebMapService(OGCWebService):
             )[0]
             md_relation.relation_type = METADATA_RELATION_TYPE_VISUALIZES
             md_relation.save()
+            md.related_metadata.add(md_relation)
+
+        # save again, due to added related metadata
+        md.save()
 
         # metadata keywords
         for kw in md.keywords_list:

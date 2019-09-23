@@ -105,6 +105,7 @@ class OGCWebService:
         ows_connector.load()
         if ows_connector.status_code != 200:
             raise ConnectionError(ows_connector.status_code)
+
         if ows_connector.encoding is not None:
             self.service_capabilities_xml = ows_connector.content.decode(ows_connector.encoding)
         else:
@@ -146,9 +147,21 @@ class OGCWebService:
     def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         pass
 
-    @abstractmethod
     def get_service_metadata(self, uri: str, async_task: Task = None):
-        pass
+        """ Parses all service related information from the linked metadata document
+
+        This does not fill the information into the main metadata record, but creates a new one, which will be linked
+        using a MetadataRelation later.
+
+        Args:
+            uri (str): The service metadata uri
+            async_task: The task object
+        Returns:
+            Nothing
+        """
+        iso_md = ISOMetadata(uri)
+        iso_md.parse_xml()
+        self.linked_service_metadata = iso_md
 
     @abstractmethod
     def get_version_specific_metadata(self, xml_obj):

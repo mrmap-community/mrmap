@@ -31,7 +31,7 @@ class KeywordAdmin(admin.ModelAdmin):
 
 
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ('related_metadata', 'created')
+    list_display = ('related_metadata', 'is_active', 'created')
 
 
 class MetadataOriginAdmin(admin.ModelAdmin):

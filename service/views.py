@@ -359,8 +359,17 @@ def new_service(request: HttpRequest, user: User):
     url_dict["version"] = url_dict["version"].value
 
     # run creation async!
-    pending_task = tasks.async_new_service.delay(url_dict, user.id, register_group, register_for_organization)
-    #pending_task = tasks.async_new_service(url_dict, user.id, register_group, register_for_organization)
+    try:
+        pending_task = tasks.async_new_service.delay(url_dict, user.id, register_group, register_for_organization)
+        #pending_task = tasks.async_new_service(url_dict, user.id, register_group, register_for_organization)
+    except Exception as e:
+        template = "overlay/error.html"
+        params = {
+            "error_code": e.args[0],
+            "page_indicator_list": [False, False, True],
+        }
+        html = render_to_string(template_name=template, request=request, context=params)
+        return BackendAjaxResponse(html).get_response()
 
     # create db object, so we know which pending task is still ongoing
     pending_task_db = PendingTask()

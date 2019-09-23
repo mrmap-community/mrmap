@@ -452,22 +452,6 @@ class OGCWebMapService(OGCWebService):
 
         self.get_layers_recursive(layers, step_size=step_size, async_task=async_task)
 
-    def get_service_metadata(self, uri: str, async_task: Task = None):
-        """ Parses all service related information from the linked metadata document
-
-        This does not fill the information into the main metadata record, but creates a new one, which will be linked
-        using a MetadataRelation later.
-
-        Args:
-            uri (str): The service metadata uri
-            async_task: The task object
-        Returns:
-            Nothing
-        """
-        iso_md = ISOMetadata(uri)
-        iso_md.parse_xml()
-        self.linked_service_metadata = iso_md
-
     def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         """ Parses all <Service> element information which can be found in every wms specification since 1.0.0
 

@@ -186,8 +186,8 @@ def _remove_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links:
     # if there are links in existing_iso_links that do not show up in md_links -> remove them
     for link in existing_iso_links:
         if link not in md_links:
-            missing_md = MetadataRelation.objects.get(metadata_1=metadata, metadata_2__metadata_url=link)
-            missing_md = missing_md.metadata_2
+            missing_md = MetadataRelation.objects.get(metadata_from=metadata, metadata_to__metadata_url=link)
+            missing_md = missing_md.metadata_to
             missing_md.delete()
             # remove from capabilities
             xml_iso_element = xml_helper.find_element_where_attr(xml_cap_obj, "xlink:href", link)
@@ -221,8 +221,8 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
         iso_md = iso_md.to_db_model()
         iso_md.save()
         md_relation = MetadataRelation()
-        md_relation.metadata_1 = metadata
-        md_relation.metadata_2 = iso_md
+        md_relation.metadata_from = metadata
+        md_relation.metadata_to = iso_md
         md_relation.origin = MetadataOrigin.objects.get_or_create(
                 name=iso_md.origin
             )[0]

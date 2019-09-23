@@ -174,8 +174,8 @@ def get_dataset_metadata(request: HttpRequest, id: int):
         try:
             # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
             md = MetadataRelation.objects.get(
-                metadata_1=md,
-            ).metadata_2
+                metadata_from=md,
+            ).metadata_to
         except ObjectDoesNotExist:
             return HttpResponse(content=_("No dataset metadata found"), status=404)
 
@@ -205,8 +205,8 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
     try:
         # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
         md_2 = MetadataRelation.objects.get(
-            metadata_1=md,
-        ).metadata_2
+            metadata_from=md,
+        ).metadata_to
         doc = Document.objects.get(
             related_metadata=md_2
         )
@@ -602,11 +602,11 @@ def detail(request: HttpRequest, id, user:User):
 
     try:
         related_md = MetadataRelation.objects.get(
-            metadata_1=service_md,
-            metadata_2__metadata_type__type='dataset',
+            metadata_from=service_md,
+            metadata_to__metadata_type__type='dataset',
         )
         document = Document.objects.get(
-            related_metadata=related_md.metadata_2
+            related_metadata=related_md.metadata_to
         )
         has_dataset_metadata = document.dataset_metadata_document is not None
     except ObjectDoesNotExist:

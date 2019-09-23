@@ -42,14 +42,14 @@ class MetadataOrigin(models.Model):
 
 
 class MetadataRelation(models.Model):
-    metadata_1 = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadate_from")
-    metadata_2 = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadate_to")
+    metadata_from = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_from")
+    metadata_to = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_to")
     relation_type = models.CharField(max_length=255, null=True, blank=True)
     internal = models.BooleanField(default=False)
     origin = models.ForeignKey(MetadataOrigin, on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.metadata_1.title + " -> " + self.metadata_2.title
+        return "{} {} {}".format(self.metadata_from.title, self.relation_type, self.metadata_to.title)
 
 
 class Metadata(Resource):
@@ -119,7 +119,7 @@ class Metadata(Resource):
         # check if there are MetadataRelations on this metadata record
         # if so, we can not remove it until these relations aren't used anymore
         dependencies = MetadataRelation.objects.filter(
-            metadata_2=self
+            metadata_to=self
         )
         if dependencies.count() > 1:
             # if there are more than one dependency, we should not remove it
@@ -174,9 +174,9 @@ class Metadata(Resource):
 
         original_iso_links = [x.uri for x in layer.iso_metadata]
         for related_iso in self.related_metadata.all():
-            md_link = related_iso.metadata_2.metadata_url
+            md_link = related_iso.metadata_to.metadata_url
             if md_link not in original_iso_links:
-                related_iso.metadata_2.delete()
+                related_iso.metadata_to.delete()
                 related_iso.delete()
 
         # restore partially capabilities document
@@ -211,9 +211,9 @@ class Metadata(Resource):
             self.keywords.add(keyword)
 
         for related_iso in self.related_metadata.all():
-            md_link = related_iso.metadata_2.metadata_url
+            md_link = related_iso.metadata_to.metadata_url
             if md_link not in f_t_iso_links:
-                related_iso.metadata_2.delete()
+                related_iso.metadata_to.delete()
                 related_iso.delete()
 
         # restore partially capabilities document
@@ -334,7 +334,7 @@ class Metadata(Resource):
         rel_mds = self.related_metadata.all()
         links = []
         for md in rel_mds:
-            links.append(md.metadata_2.metadata_url)
+            links.append(md.metadata_to.metadata_url)
         return links
 
 
@@ -475,9 +475,9 @@ class Service(Resource):
             nothing
         """
         # remove related metadata
-        iso_mds = MetadataRelation.objects.filter(metadata_1=child.metadata)
+        iso_mds = MetadataRelation.objects.filter(metadata_from=child.metadata)
         for iso_md in iso_mds:
-            md_2 = iso_md.metadata_2
+            md_2 = iso_md.metadata_to
             md_2.delete()
             iso_md.delete()
         if isinstance(child, FeatureType):
@@ -497,9 +497,9 @@ class Service(Resource):
         Returns:
         """
         # remove related metadata
-        linked_mds = MetadataRelation.objects.filter(metadata_1=self.metadata)
+        linked_mds = MetadataRelation.objects.filter(metadata_from=self.metadata)
         for linked_md in linked_mds:
-            md_2 = linked_md.metadata_2
+            md_2 = linked_md.metadata_to
             md_2.delete()
             linked_md.delete()
 
@@ -556,8 +556,8 @@ class Service(Resource):
 
         linked_mds = self.metadata.related_metadata.all()
         for md_relation in linked_mds:
-            md_relation.metadata_2.is_active = is_active
-            md_relation.metadata_2.save()
+            md_relation.metadata_to.is_active = is_active
+            md_relation.metadata_to.save()
 
         self.metadata.save()
         self.save()
@@ -615,16 +615,16 @@ class Layer(Service):
         rel_md = self.metadata.related_metadata.all()
         for md in rel_md:
             dependencies = MetadataRelation.objects.filter(
-                metadata_2=md.metadata_2,
-                metadata_1__is_active=True,
+                metadata_to=md.metadata_to,
+                metadata_from__is_active=True,
             )
             if dependencies.count() >= 1 and md not in dependencies:
                 # we still have multiple dependencies on this relation (besides us), we can not deactivate the metadata
                 pass
             else:
                 # since we have no more dependencies on this metadata, we can set it inactive
-                md.metadata_2.is_active = new_status
-                md.metadata_2.save()
+                md.metadata_to.is_active = new_status
+                md.metadata_to.save()
                 md.save()
 
         for layer in self.child_layer.all():

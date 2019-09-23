@@ -43,7 +43,7 @@ class MetadataAdmin(admin.ModelAdmin):
 
 
 class MetadataRelationAdmin(admin.ModelAdmin):
-    list_display = ('metadata_1', 'metadata_2', 'origin')
+    list_display = ('metadata_from', 'relation_type', 'metadata_to', 'origin')
 
 
 class TermsOfUseAdmin(admin.ModelAdmin):

@@ -540,8 +540,8 @@ class OGCWebFeatureService(OGCWebService):
         # save linked service metadata
         if service.linked_service_metadata is not None:
             md_relation = MetadataRelation()
-            md_relation.metadata_1 = md
-            md_relation.metadata_2 = service.linked_service_metadata
+            md_relation.metadata_from = md
+            md_relation.metadata_to = service.linked_service_metadata
             md_relation.origin = MetadataOrigin.objects.get_or_create(
                 name='capabilities'
             )[0]
@@ -576,8 +576,8 @@ class OGCWebFeatureService(OGCWebService):
             for dataset_md in f_t.dataset_md_list:
                 dataset_md.save()
                 md_relation = MetadataRelation()
-                md_relation.metadata_1 = f_t.metadata
-                md_relation.metadata_2 = dataset_md
+                md_relation.metadata_from = f_t.metadata
+                md_relation.metadata_to = dataset_md
                 origin = MetadataOrigin.objects.get_or_create(name="capabilities")[0]
                 md_relation.origin = origin
                 md_relation.relation_type = METADATA_RELATION_TYPE_DESCRIBED_BY

@@ -22,6 +22,7 @@ from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
     FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType
+from service.settings import METADATA_RELATION_TYPE_DESCRIBED_BY
 from structure.models import Organization, User
 
 
@@ -562,6 +563,7 @@ class OGCWebFeatureService(OGCWebService):
                 md_relation.metadata_2 = dataset_md
                 origin = MetadataOrigin.objects.get_or_create(name="capabilities")[0]
                 md_relation.origin = origin
+                md_relation.relation_type = METADATA_RELATION_TYPE_DESCRIBED_BY
                 md_relation.save()
                 f_t.metadata.related_metadata.add(md_relation)
 

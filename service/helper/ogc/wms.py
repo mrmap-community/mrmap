@@ -31,6 +31,7 @@ from service.helper.ogc.layer import OGCLayer
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
     MetadataRelation, MetadataOrigin, MetadataType
+from service.settings import METADATA_RELATION_TYPE_VISUALIZES, METADATA_RELATION_TYPE_DESCRIBED_BY
 from structure.models import Organization, Group
 from structure.models import User
 
@@ -105,14 +106,14 @@ class OGCWebMapService(OGCWebService):
         # get xml as iterable object
         xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
 
-        # check if 'real' service metadata exist
         start_time = time.time()
-        has_service_metadata = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL") is not None
+        self.get_service_metadata_from_capabilities(xml_obj=xml_obj, async_task=async_task)
 
-        if has_service_metadata:
-            self.get_service_metadata(xml_obj=xml_obj, async_task=async_task)
-        else:
-            self.get_service_metadata_from_capabilities(xml_obj=xml_obj, async_task=async_task)
+        # check if 'real' service metadata exist
+        service_metadata_uri = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL")
+        if service_metadata_uri is not None:
+            self.get_service_metadata(uri=service_metadata_uri, async_task=async_task)
+
         print(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
 
         # parse possible linked dataset metadata
@@ -455,11 +456,29 @@ class OGCWebMapService(OGCWebService):
 
         self.get_layers_recursive(layers, step_size=step_size, async_task=async_task)
 
+    def get_service_metadata(self, uri: str, async_task: Task = None):
+        """ Parses all service related information from the linked metadata document
+
+        This does not fill the information into the main metadata record, but creates a new one, which will be linked
+        using a MetadataRelation later.
+
+        Args:
+            uri (str): The service metadata uri
+            async_task: The task object
+        Returns:
+            Nothing
+        """
+        iso_md = ISOMetadata(uri)
+        iso_md.parse_xml()
+        self.linked_service_metadata = iso_md
+
+
     def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
-        """ Parses all <Service> information which can be found in every wms specification since 1.0.0
+        """ Parses all <Service> element information which can be found in every wms specification since 1.0.0
 
         Args:
             xml_obj: The iterable xml object tree
+            async_task: The task object
         Returns:
             Nothing
         """
@@ -732,13 +751,14 @@ class OGCWebMapService(OGCWebService):
         """
         orga_published_for = register_for_organization
         orga_publisher = user.organization
-
         group = register_group
+
         # fill objects
         service_type = ServiceType.objects.get_or_create(
             name=self.service_type.value,
             version=self.service_version.value
         )[0]
+
         # metadata
         metadata = Metadata()
         md_type = MetadataType.objects.get_or_create(type=MD_TYPE_SERVICE)[0]
@@ -755,10 +775,12 @@ class OGCWebMapService(OGCWebService):
         metadata.fees = self.service_identification_fees
         metadata.bounding_geometry = self.service_bounding_box
         metadata.identifier = self.service_file_identifier
+
         # keywords
         for kw in self.service_identification_keywords:
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             metadata.keywords_list.append(keyword)
+
         # contact
         contact = Organization.objects.get_or_create(
             organization_name=self.service_provider_providername,
@@ -773,6 +795,7 @@ class OGCWebMapService(OGCWebService):
             country=self.service_provider_address_country,
         )[0]
         metadata.contact = contact
+
         # other
         metadata.is_active = False
         metadata.created_by = group
@@ -786,6 +809,17 @@ class OGCWebMapService(OGCWebService):
         service.created_by = group
         service.metadata = metadata
         service.is_root = True
+
+        # save linked service metadata
+        if self.linked_service_metadata is not None:
+            md_relation = MetadataRelation()
+            md_relation.metadata_1 = metadata
+            md_relation.metadata_2 = self.linked_service_metadata.to_db_model()
+            md_relation.origin = MetadataOrigin.objects.get_or_create(
+                name='capabilities'
+            )[0]
+            md_relation.relation_type = METADATA_RELATION_TYPE_VISUALIZES
+            md_relation.save()
 
         root_layer = self.layers[0]
 
@@ -803,12 +837,15 @@ class OGCWebMapService(OGCWebService):
         # save metadata
         md = service.metadata
         md.save()
+
         # metadata keywords
         for kw in md.keywords_list:
             md.keywords.add(kw)
         service.metadata = md
+
         # save parent service
         service.save()
+
         # save all containing layers
         if service.root_layer is not None:
             self.__persist_child_layers([service.root_layer], service)
@@ -839,6 +876,7 @@ class OGCWebMapService(OGCWebService):
                 metadata_relation.origin = MetadataOrigin.objects.get_or_create(
                     name=iso_md.origin
                 )[0]
+                metadata_relation.relation_type = METADATA_RELATION_TYPE_DESCRIBED_BY
                 metadata_relation.save()
                 md.related_metadata.add(metadata_relation)
 

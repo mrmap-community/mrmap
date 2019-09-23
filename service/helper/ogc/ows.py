@@ -65,6 +65,9 @@ class OGCWebService:
         self.service_provider_telephone_voice = []
         self.service_provider_telephone_facsimile = []
 
+        # other
+        self.linked_service_metadata = None
+
 
         # initialize service from url
         # if service_capabilities_xml is not None:
@@ -144,7 +147,7 @@ class OGCWebService:
         pass
 
     @abstractmethod
-    def get_service_metadata(self, xml_obj, async_task: Task = None):
+    def get_service_metadata(self, uri: str, async_task: Task = None):
         pass
 
     @abstractmethod

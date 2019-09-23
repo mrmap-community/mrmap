@@ -359,8 +359,17 @@ def new_service(request: HttpRequest, user: User):
     url_dict["version"] = url_dict["version"].value
 
     # run creation async!
-    pending_task = tasks.async_new_service.delay(url_dict, user.id, register_group, register_for_organization)
-    #pending_task = tasks.async_new_service(url_dict, user.id, register_group, register_for_organization)
+    try:
+        pending_task = tasks.async_new_service.delay(url_dict, user.id, register_group, register_for_organization)
+        #pending_task = tasks.async_new_service(url_dict, user.id, register_group, register_for_organization)
+    except Exception as e:
+        template = "overlay/error.html"
+        params = {
+            "error_code": e.args[0],
+            "page_indicator_list": [False, False, True],
+        }
+        html = render_to_string(template_name=template, request=request, context=params)
+        return BackendAjaxResponse(html).get_response()
 
     # create db object, so we know which pending task is still ongoing
     pending_task_db = PendingTask()
@@ -433,7 +442,7 @@ def update_service(request: HttpRequest, user: User, id: int):
             return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(old_service.metadata.id))).get_response()
         # check if new capabilities is even different from existing
         # if not we do not need to spend time and money on performing it!
-        # if not service_helper.capabilities_are_different(update_params["full_uri"], old_service.metadata.original_uri):
+        # if not service_helper.capabilities_are_different(update_params["full_uri"], old_service.metadata.capabilities_original_uri):
         #     messages.add_message(request, messages.INFO, SERVICE_UPDATE_ABORTED_NO_DIFF)
         #     return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(old_service.metadata.id))).get_response()
 

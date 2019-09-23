@@ -17,7 +17,8 @@ from django.db import transaction
 from django.utils.timezone import utc
 from lxml.etree import _Element
 
-from MapSkinner.settings import XML_NAMESPACES, MD_TYPE_DATASET
+from MapSkinner.settings import XML_NAMESPACES
+from service.settings import MD_TYPE_DATASET, MD_TYPE_SERVICE
 from MapSkinner import utils
 from service.config import INSPIRE_LEGISLATION_FILE
 from service.helper import xml_helper
@@ -226,10 +227,10 @@ class ISOMetadata:
         self.title = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:citation/gmd:CI_Citation/gmd:title/gco:CharacterString".format(xpath_type))
         self._parse_xml_dataset_id(xml_obj, xpath_type)
         self.abstract = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:abstract/gco:CharacterString".format(xpath_type))
-
         keywords = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:descriptiveKeywords/gmd:MD_Keywords/gmd:keyword/gco:CharacterString".format(xpath_type))
         for keyword in keywords:
-            self.keywords.append(xml_helper.try_get_text_from_xml_element(keyword))
+            if keyword.text is not None and keyword not in self.keywords:
+                self.keywords.append(xml_helper.try_get_text_from_xml_element(keyword))
 
         iso_categories = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:topicCategory/gmd:MD_TopicCategoryCode".format(xpath_type))
         for iso_category in iso_categories:
@@ -396,7 +397,7 @@ class ISOMetadata:
         return polygon
 
     @transaction.atomic
-    def to_db_model(self):
+    def to_db_model(self, type=MD_TYPE_DATASET):
         """ Get corresponding metadata object from database or create it if not found!
 
         Returns:
@@ -416,7 +417,7 @@ class ISOMetadata:
         except ObjectDoesNotExist:
             # object does not seem to exist -> create it!
             metadata = Metadata()
-            md_type = MetadataType.objects.get_or_create(type=MD_TYPE_DATASET)[0]
+            md_type = MetadataType.objects.get_or_create(type=type)[0]
             metadata.metadata_type = md_type
             new = True
 
@@ -459,7 +460,13 @@ class ISOMetadata:
             document = Document.objects.get_or_create(
                 related_metadata=metadata
             )[0]
-            document.dataset_metadata_document = self.raw_metadata
+            if type is MD_TYPE_DATASET:
+                document.dataset_metadata_document = self.raw_metadata
+            elif type is MD_TYPE_SERVICE:
+                document.service_metadata_document = self.raw_metadata
+            else:
+                # ToDo: For future implementations
+                pass
             document.save()
 
             if update:

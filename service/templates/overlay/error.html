@@ -1,0 +1,41 @@
+{% load i18n static %}
+
+<style>
+    {% include 'overlay/modal-dialog-style.html' %}
+
+    #error-code{
+        font-weight: bold;
+    }
+
+</style>
+
+{% block body %}
+<div class="modal-dialog">
+    <div class="modal-close" title="{% trans 'Close' %}">
+        x
+    </div>
+    <div class="modal-content">
+        <h2>{% trans 'Error' %}</h2>
+        <article>
+            {% trans 'Mr. Map detected a problem with the following code during registration:' %}
+            <span id="error-code">{{ error_code }}</span>
+        </article>
+        <article>
+            {% trans 'Please inform an administrator.' %}
+        </article>
+        <button class="submit-button button">
+            <span id="button-text">{% trans 'Finish' %}</span>
+        </button>
+    {% include 'overlay/modal-dialog-footer.html' %}
+    </div>
+</div>
+{% endblock %}
+
+<script>
+    {% include 'overlay/modal-dialog-scripts.html' %}
+
+    $(".submit-button").click(function(){
+        toggleOverlay("");
+        location.reload();
+    });
+</script>

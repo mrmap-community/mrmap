@@ -11,7 +11,8 @@ import re
 
 from requests.exceptions import InvalidURL
 
-from MapSkinner.settings import DEFAULT_CONNECTION_TYPE, HTTP_PROXY, REQUEST_PROXIES
+from service.settings import DEFAULT_CONNECTION_TYPE
+from MapSkinner.settings import HTTP_PROXY, REQUEST_PROXIES
 from service.helper.enums import ConnectionType
 
 try:

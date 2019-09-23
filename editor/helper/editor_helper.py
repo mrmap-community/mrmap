@@ -17,6 +17,7 @@ from service.helper.iso.isoMetadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
     MetadataOrigin
 from service.helper import xml_helper
+from service.settings import METADATA_RELATION_TYPE_DESCRIBED_BY
 
 
 def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _type: str):
@@ -225,6 +226,7 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
         md_relation.origin = MetadataOrigin.objects.get_or_create(
                 name=iso_md.origin
             )[0]
+        md_relation.relation_type = METADATA_RELATION_TYPE_DESCRIBED_BY
         md_relation.save()
         metadata.related_metadata.add(md_relation)
 

@@ -46,8 +46,9 @@ def async_activate_service(param_POST: dict, user_id: int):
     # get root_layer of service and start changing of all statuses
     # also check all related metadata and activate them too
     if service.servicetype.name == "wms":
+        service.activate_service(new_status)
         root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
-        service_helper.activate_layer_recursive(root_layer, new_status)
+        root_layer.activate_layer_recursive(new_status)
 
     if service.metadata.is_active:
         msg = SERVICE_ACTIVATED
@@ -117,7 +118,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             async_task=async_new_service,
         )
 
-        # update progress
+        ## update progress
         if curr_task_id is not None:
             task_helper.update_progress(async_new_service, PROGRESS_STATUS_AFTER_PARSING)
 

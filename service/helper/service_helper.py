@@ -10,7 +10,7 @@ import urllib
 
 from celery import Task
 
-from MapSkinner.settings import DEFAULT_SERVICE_VERSION
+from service.settings import DEFAULT_SERVICE_VERSION
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
@@ -116,39 +116,6 @@ def generate_name(srs_list: list=[]):
         tmp.append(str(id))
     tmp = "".join(tmp)
     return sha256(tmp)
-
-
-def activate_layer_recursive(root_layer, new_status):
-    """ Walk recursive through all layers of a wms and set the activity status new
-
-    Args:
-        root_layer: The root layer, where the recursion begins
-        new_status: The new status that will be persisted
-    Returns:
-         nothing
-    """
-    root_layer.metadata.is_active = new_status
-    root_layer.metadata.save()
-    root_layer.save()
-
-    # check for all related metadata, we need to toggle their active status as well
-    rel_md = root_layer.metadata.related_metadata.all()
-    for md in rel_md:
-        dependencies = MetadataRelation.objects.filter(
-            metadata_2=md.metadata_2,
-            metadata_1__is_active=True,
-        )
-        if dependencies.count() >= 1 and md not in dependencies:
-            # we still have multiple dependencies on this relation (besides us), we can not deactivate the metadata
-            pass
-        else:
-            # since we have no more dependencies on this metadata, we can set it inactive
-            md.metadata_2.is_active = new_status
-            md.metadata_2.save()
-            md.save()
-
-    for layer in root_layer.child_layer.all():
-        activate_layer_recursive(layer, new_status)
 
 
 def get_service_model_instance(service_type, version, base_uri, user, register_group, register_for_organization=None, async_task: Task = None):

@@ -17,7 +17,8 @@ from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from MapSkinner.settings import EXEC_TIME_PRINT, MD_TYPE_LAYER, MD_TYPE_SERVICE, MULTITHREADING_THRESHOLD, \
+from service.settings import MD_TYPE_LAYER, MD_TYPE_SERVICE
+from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
     PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES
 from MapSkinner import utils
 from MapSkinner.utils import execute_threads, sha256
@@ -809,17 +810,7 @@ class OGCWebMapService(OGCWebService):
         service.created_by = group
         service.metadata = metadata
         service.is_root = True
-
-        # save linked service metadata
-        if self.linked_service_metadata is not None:
-            md_relation = MetadataRelation()
-            md_relation.metadata_1 = metadata
-            md_relation.metadata_2 = self.linked_service_metadata.to_db_model()
-            md_relation.origin = MetadataOrigin.objects.get_or_create(
-                name='capabilities'
-            )[0]
-            md_relation.relation_type = METADATA_RELATION_TYPE_VISUALIZES
-            md_relation.save()
+        service.linked_service_metadata = self.linked_service_metadata.to_db_model(MD_TYPE_SERVICE)
 
         root_layer = self.layers[0]
 
@@ -837,6 +828,17 @@ class OGCWebMapService(OGCWebService):
         # save metadata
         md = service.metadata
         md.save()
+
+        # save linked service metadata
+        if service.linked_service_metadata is not None:
+            md_relation = MetadataRelation()
+            md_relation.metadata_1 = md
+            md_relation.metadata_2 = service.linked_service_metadata
+            md_relation.origin = MetadataOrigin.objects.get_or_create(
+                name='capabilities'
+            )[0]
+            md_relation.relation_type = METADATA_RELATION_TYPE_VISUALIZES
+            md_relation.save()
 
         # metadata keywords
         for kw in md.keywords_list:

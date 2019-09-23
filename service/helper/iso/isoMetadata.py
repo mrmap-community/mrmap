@@ -17,7 +17,8 @@ from django.db import transaction
 from django.utils.timezone import utc
 from lxml.etree import _Element
 
-from MapSkinner.settings import XML_NAMESPACES, MD_TYPE_DATASET
+from MapSkinner.settings import XML_NAMESPACES
+from service.settings import MD_TYPE_DATASET
 from MapSkinner import utils
 from service.config import INSPIRE_LEGISLATION_FILE
 from service.helper import xml_helper
@@ -396,7 +397,7 @@ class ISOMetadata:
         return polygon
 
     @transaction.atomic
-    def to_db_model(self):
+    def to_db_model(self, type=MD_TYPE_DATASET):
         """ Get corresponding metadata object from database or create it if not found!
 
         Returns:
@@ -416,7 +417,7 @@ class ISOMetadata:
         except ObjectDoesNotExist:
             # object does not seem to exist -> create it!
             metadata = Metadata()
-            md_type = MetadataType.objects.get_or_create(type=MD_TYPE_DATASET)[0]
+            md_type = MetadataType.objects.get_or_create(type=type)[0]
             metadata.metadata_type = md_type
             new = True
 

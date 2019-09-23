@@ -117,6 +117,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             async_task=async_new_service,
         )
 
+
         # update progress
         if curr_task_id is not None:
             task_helper.update_progress(async_new_service, PROGRESS_STATUS_AFTER_PARSING)

@@ -10,7 +10,7 @@ import urllib
 
 from celery import Task
 
-from MapSkinner.settings import DEFAULT_SERVICE_VERSION
+from service.settings import DEFAULT_SERVICE_VERSION
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi

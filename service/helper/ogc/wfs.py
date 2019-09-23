@@ -10,7 +10,8 @@ from django.contrib.gis.geos import Polygon
 from django.db import transaction
 from lxml.etree import _Element
 
-from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, \
+from service.settings import MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE
+from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT,  \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
 from MapSkinner.utils import execute_threads

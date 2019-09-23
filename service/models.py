@@ -450,6 +450,10 @@ class Service(Resource):
     get_styles_uri = models.CharField(max_length=1000, null=True, blank=True)
     formats = models.ManyToManyField('MimeType', blank=True)
 
+    # used to store ows linked_service_metadata until parsing
+    # will not be part of the db
+    linked_service_metadata = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # non persisting attributes

@@ -1,10 +1,13 @@
 import uuid
+from lxml import etree
 
 from django.contrib.gis.geos import Polygon
 from django.db import models, transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
+from lxml.etree import Element
 
+from MapSkinner.settings import XML_NAMESPACES
 from service.helper.enums import ServiceTypes
 from structure.models import Group, Organization
 from service.helper import xml_helper
@@ -345,6 +348,7 @@ class MetadataType(models.Model):
         return self.type
 
 
+
 class Document(Resource):
     related_metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
     original_capability_document = models.TextField(null=True, blank=True)
@@ -363,11 +367,75 @@ class Document(Resource):
         Returns:
             doc (str): The 'document' content
         """
-        doc = None
+        metadata = Metadata.objects.get(id=id)
+        reduced_nsmap = {
+            "gml": XML_NAMESPACES.get("gml", ""),
+            "srv": XML_NAMESPACES.get("srv", ""),
+            "gmd": XML_NAMESPACES.get("gmd", ""),
+            "gco": XML_NAMESPACES.get("gco", ""),
+            "xlink": XML_NAMESPACES.get("xlink", ""),
+            None : XML_NAMESPACES.get("xsi", ""),
+            "schemaLocation": "http://schemas.opengis.net/csw/2.0.2/profiles/apiso/1.0.0/apiso.xsd",
+        }
+        gmd = "{" + reduced_nsmap.get("gmd") + "}"
+        xsi = "{" + reduced_nsmap.get(None) + "}"
 
+        root = Element("{}MD_Metadata".format(gmd), nsmap=reduced_nsmap, attrib={"{}schemaLocation".format(xsi): reduced_nsmap.get("schemaLocation")})
 
+        subs = {
+            "{}fileIdentifier".format(gmd): self.create_file_identifier(metadata),
+            "{}language".format(gmd): self.create_language(metadata),
+            "{}characterSet".format(gmd): self.create_character_set(metadata),
+            "{}hierarchyLevel".format(gmd): self.create_hierarchy_level(metadata),
+            "{}hierarchyLevelName".format(gmd): self.create_hierarchy_level_name(metadata),
+            "{}contact".format(gmd): self.create_contact(metadata),
+            "{}dateStamp".format(gmd): self.create_date_stamp(metadata),
+            "{}metadataStandardName".format(gmd): self.create_metadata_standard_name(metadata),
+            "{}identificationInfo".format(gmd): self.create_identification_info(metadata),
+            "{}distributionInfo".format(gmd): self.create_distribution_info(metadata),
+            "{}dataQualityInfo".format(gmd): self.create_data_quality_info(metadata),
+        }
+        for sub, func in subs.items():
+            sub_element = xml_helper.create_subelement(root, sub)
+            sub_element_content = func
+            xml_helper.add_subelement(sub_element, sub_element_content)
+
+        doc = etree.tostring(root, xml_declaration=True, encoding="utf-8")
 
         return doc
+
+    def create_data_quality_info(self, metadata):
+        pass
+
+    def create_file_identifier(self, metadata):
+        pass
+
+    def create_language(self, metadata):
+        pass
+
+    def create_character_set(self, metadata):
+        pass
+
+    def create_hierarchy_level(self, metadata):
+        pass
+
+    def create_hierarchy_level_name(self, etadata):
+        pass
+
+    def create_contact(self, metadata):
+        pass
+
+    def create_date_stamp(self, metadata):
+        pass
+
+    def create_metadata_standard_name(self, metadata):
+        pass
+
+    def create_identification_info(self, metadata):
+        pass
+
+    def create_distribution_info(self, metadata):
+        pass
 
     def restore(self):
         """ We overwrite the current metadata xml with the original

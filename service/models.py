@@ -1,4 +1,6 @@
 import uuid
+from collections import OrderedDict
+
 from lxml import etree
 
 from django.contrib.gis.geos import Polygon
@@ -382,19 +384,19 @@ class Document(Resource):
 
         root = Element("{}MD_Metadata".format(gmd), nsmap=reduced_nsmap, attrib={"{}schemaLocation".format(xsi): reduced_nsmap.get("schemaLocation")})
 
-        subs = {
-            "{}fileIdentifier".format(gmd): self.create_file_identifier(metadata),
-            "{}language".format(gmd): self.create_language(metadata),
-            "{}characterSet".format(gmd): self.create_character_set(metadata),
-            "{}hierarchyLevel".format(gmd): self.create_hierarchy_level(metadata),
-            "{}hierarchyLevelName".format(gmd): self.create_hierarchy_level_name(metadata),
-            "{}contact".format(gmd): self.create_contact(metadata),
-            "{}dateStamp".format(gmd): self.create_date_stamp(metadata),
-            "{}metadataStandardName".format(gmd): self.create_metadata_standard_name(metadata),
-            "{}identificationInfo".format(gmd): self.create_identification_info(metadata),
-            "{}distributionInfo".format(gmd): self.create_distribution_info(metadata),
-            "{}dataQualityInfo".format(gmd): self.create_data_quality_info(metadata),
-        }
+        subs = OrderedDict()
+        subs["{}fileIdentifier".format(gmd)] = self.create_file_identifier(metadata, reduced_nsmap)
+        subs["{}language".format(gmd)] = self.create_language(metadata, reduced_nsmap)
+        subs["{}characterSet".format(gmd)] = self.create_character_set(metadata, reduced_nsmap)
+        subs["{}hierarchyLevel".format(gmd)] = self.create_hierarchy_level(metadata, reduced_nsmap)
+        subs["{}hierarchyLevelName".format(gmd)] = self.create_hierarchy_level_name(metadata, reduced_nsmap)
+        subs["{}contact".format(gmd)] = self.create_contact(metadata, reduced_nsmap)
+        subs["{}dateStamp".format(gmd)] = self.create_date_stamp(metadata, reduced_nsmap)
+        subs["{}metadataStandardName".format(gmd)] = self.create_metadata_standard_name(metadata, reduced_nsmap)
+        subs["{}identificationInfo".format(gmd)] = self.create_identification_info(metadata, reduced_nsmap)
+        subs["{}distributionInfo".format(gmd)] = self.create_distribution_info(metadata, reduced_nsmap)
+        subs["{}dataQualityInfo".format(gmd)] = self.create_data_quality_info(metadata, reduced_nsmap)
+
         for sub, func in subs.items():
             sub_element = xml_helper.create_subelement(root, sub)
             sub_element_content = func
@@ -404,38 +406,350 @@ class Document(Resource):
 
         return doc
 
-    def create_data_quality_info(self, metadata):
-        pass
+    def create_file_identifier(self, metadata: Metadata, reduced_nsmap):
+        """ Creates the <gmd:fileIdentifier> element
 
-    def create_file_identifier(self, metadata):
-        pass
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        ret_elem = Element("{" + reduced_nsmap.get("gco", "") + "}" + "CharacterString")
+        ret_elem.text = metadata.uuid
+        return ret_elem
 
-    def create_language(self, metadata):
-        pass
+    def create_language(self, metadata: Metadata, reduced_nsmap):
+        """ Creates the <gmd:language> element
 
-    def create_character_set(self, metadata):
-        pass
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        lang = "ger"  # ToDo: Create here something dynamic so we can provide international metadata as well
+        code_list = "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#LanguageCode"
+        ret_elem = Element(
+            "{" + reduced_nsmap.get("gmd", "") + "}" + "LanguageCode",
+            attrib={
+                "codeList": code_list,
+                "codeListValue": lang,
+            }
+        )
+        ret_elem.text = lang
+        return ret_elem
 
-    def create_hierarchy_level(self, metadata):
-        pass
+    def create_character_set(self, metadata: Metadata, reduced_nsmap):
+        """ Creates the <gmd:characterSet> element
 
-    def create_hierarchy_level_name(self, etadata):
-        pass
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        char_set = "utf-8"
+        char_set_list = "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_CharacterSetCode"
+        ret_elem = Element(
+            "{" + reduced_nsmap.get("gmd", "") + "}" + "MD_CharacterSetCode",
+            attrib={
+                "codeList": char_set_list,
+                "codeListValue": char_set,
+            }
+        )
+        ret_elem.text = char_set
+        return ret_elem
 
-    def create_contact(self, metadata):
-        pass
+    def create_hierarchy_level(self, metadata: Metadata, reduced_nsmap):
+        """ Creates the <gmd:hierarchyLevel> element
 
-    def create_date_stamp(self, metadata):
-        pass
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        hierarchy_level = metadata.metadata_type.type
+        hierarchy_level_list = "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_ScopeCode"
+        ret_elem = Element(
+            "{" + reduced_nsmap.get("gmd", "") + "}" + "MD_ScopeCode",
+            attrib={
+                "codeList": hierarchy_level_list,
+                "codeListValue": hierarchy_level,
+            }
+        )
+        ret_elem.text = hierarchy_level
+        return ret_elem
 
-    def create_metadata_standard_name(self, metadata):
-        pass
+    def create_hierarchy_level_name(self, metadata: Metadata, reduced_nsmap):
+        """ Creates the <gmd:hierarchyLevelName> element
 
-    def create_identification_info(self, metadata):
-        pass
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        service_type = metadata.service.servicetype.name
+        if service_type == "wms":
+            name = "Darstellungsdienst"  # ToDo: Find international solution for this
+        else:
+            name = "Downloadservice"  # ToDo: Find international solution for this
 
-    def create_distribution_info(self, metadata):
-        pass
+        ret_elem = Element("{" + reduced_nsmap.get("gco", "") + "}" + "CharacterString")
+        ret_elem.text = name
+        return ret_elem
+
+    def create_contact(self, metadata: Metadata, reduced_nsmap):
+        """ Creates the <gmd:CI_ResponsibleParty> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             resp_party_elem (_Element): The responsible party xml element
+        """
+        organization = metadata.contact
+
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        resp_party_elem = Element(
+            gmd + "CI_ResponsibleParty"
+        )
+
+        # gmd:individualName
+        if organization.person_name is not None:
+            indiv_name_elem = Element(
+                gmd + "individualName"
+            )
+            char_str_elem = Element(
+                gco + "CharacterString"
+            )
+            char_str_elem.text = organization.person_name
+            xml_helper.add_subelement(indiv_name_elem, char_str_elem)
+            xml_helper.add_subelement(resp_party_elem, indiv_name_elem)
+
+        # gmd:organisationName
+        if organization.organization_name is not None:
+            org_name_elem = Element(
+                gmd + "organisationName"
+            )
+            char_str_elem = Element(
+                gco + "CharacterString"
+            )
+            char_str_elem.text = organization.organization_name
+            xml_helper.add_subelement(org_name_elem, char_str_elem)
+            xml_helper.add_subelement(resp_party_elem, org_name_elem)
+
+        # gmd:positionName
+        # ToDo: We do not persist the position of a person. Maybe this is required in the future, maybe never.
+        # As long as we do not really use this, we fill this element as suggested in the iso19115 workbook, p. 45
+        pos_name_elem = Element(
+            gmd + "positionName",
+            attrib={
+                gco + "nilReason": "unknown",
+            }
+        )
+        resp_party_elem.append(pos_name_elem)
+
+        # gmd:contactInfo
+        contact_info_elem = Element(
+            gmd + "contactInfo"
+        )
+        contact_info_content_elem = self.create_contact_info_element(organization, reduced_nsmap)
+        contact_info_elem.append(contact_info_content_elem)
+        resp_party_elem.append(contact_info_elem)
+
+        # gmd:role
+        role_elem = Element(
+            gmd + "role"
+        )
+        resp_party_elem.append(role_elem)
+
+        return resp_party_elem
+
+    def create_contact_info_element(self, organization: Organization, reduced_nsmap: dict):
+        """ Creates the <gmd:CI_Contact> element with it's subelements
+
+        Args:
+            organization (Organization): The organization object which is used in here
+            reduced_nsmap (dict): The namespace map
+        Returns:
+             contact_elem (_Element): The contact information xml element
+        """
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        contact_elem = Element(
+            gmd + "CI_Contact"
+        )
+        # gmd:phone
+        if organization.phone is not None:
+            phone_elem = Element(
+                gmd + "phone"
+            )
+            ci_phone_elem = Element(
+                gmd + "CI_Telephone"
+            )
+            voice_elem = Element(
+                gmd + "voice"
+            )
+            char_str_elem = Element(
+                gco + "CharacterString"
+            )
+            char_str_elem.text = organization.phone
+
+            ci_phone_elem.append(voice_elem)
+            phone_elem.append(ci_phone_elem)
+            contact_elem.append(phone_elem)
+            voice_elem.append(char_str_elem)
+
+        # gmd:address
+        address_elem = Element(
+            gmd + "address"
+        )
+        ci_address_elem = Element(
+            gmd + "CI_Address"
+        )
+        address_elem.append(ci_address_elem)
+        address_elements = 0
+
+        # gmd:address/../gmd:deliveryPoint
+        if organization.address is not None:
+            address_elements += 1
+            tmp_elem = Element(
+                gmd + "deliveryPoint"
+            )
+            char_str_elem = Element(
+                gco + "CharacterString"
+            )
+            char_str_elem.text = organization.address
+            tmp_elem.append(char_str_elem)
+            ci_address_elem.append(tmp_elem)
+
+        # gmd:address/../gmd:city
+        if organization.city is not None:
+            address_elements += 1
+            tmp_elem = Element(
+                gmd + "city"
+            )
+            char_str_elem = Element(
+                gco + "CharacterString"
+            )
+            char_str_elem.text = organization.city
+            tmp_elem.append(char_str_elem)
+            ci_address_elem.append(tmp_elem)
+
+        # gmd:address/../gmd:administrativeArea
+        # ToDo: We are not doing this, since this information is not provided by the usual metadata
+
+        # gmd:address/../gmd:postalCode
+        if organization.postal_code is not None:
+            address_elements += 1
+            tmp_elem = Element(
+                gmd + "postalCode"
+            )
+            char_str_elem = Element(
+                gco + "CharacterString"
+            )
+            char_str_elem.text = organization.postal_code
+            tmp_elem.append(char_str_elem)
+            ci_address_elem.append(tmp_elem)
+
+        # gmd:address/../gmd:country
+        if organization.country is not None:
+            address_elements += 1
+            tmp_elem = Element(
+                gmd + "country"
+            )
+            char_str_elem = Element(
+                gco + "CharacterString"
+            )
+            char_str_elem.text = organization.country
+            tmp_elem.append(char_str_elem)
+            ci_address_elem.append(tmp_elem)
+
+        # gmd:address/../gmd:electronicMailAddress
+        if organization.email is not None:
+            address_elements += 1
+            tmp_elem = Element(
+                gmd + "electronicMailAddress"
+            )
+            char_str_elem = Element(
+                gco + "CharacterString"
+            )
+            char_str_elem.text = organization.email
+            tmp_elem.append(char_str_elem)
+            ci_address_elem.append(tmp_elem)
+
+        # only add the whole section if we have at least one element inside
+        if address_elements > 0:
+            contact_elem.append(address_elem)
+
+        return contact_elem
+
+
+    def create_date_stamp(self, metadata: Metadata, reduced_nsmap):
+        """ Creates the <gmd:dateStamp> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        ret_elem = Element("test")
+        return ret_elem
+
+    def create_metadata_standard_name(self, metadata: Metadata, reduced_nsmap):
+        """ Creates the <gmd:metadataStandardName> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        ret_elem = Element("test")
+        return ret_elem
+
+    def create_identification_info(self, metadata: Metadata, reduced_nsmap):
+        """ Creates the <gmd:identificationInfo> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        ret_elem = Element("test")
+        return ret_elem
+
+    def create_distribution_info(self, metadata: Metadata, reduced_nsmap):
+        """ Creates the <gmd:distributionInfo> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        ret_elem = Element("test")
+        return ret_elem
+
+    def create_data_quality_info(self, metadata: Metadata, reduced_nsmap):
+        """ Creates the <gmd:dataQualityInfo> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        ret_elem = Element("test")
+        return ret_elem
 
     def restore(self):
         """ We overwrite the current metadata xml with the original

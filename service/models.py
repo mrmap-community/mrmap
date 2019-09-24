@@ -364,6 +364,9 @@ class Document(Resource):
     def generate_service_metadata(self, id: int):
         """ Creates a service metadata as xml, following the ISO19115 standard
 
+        As a guide to this generator, you may read the ISO19115 workbook:
+        ftp://ftp.ncddc.noaa.gov/pub/Metadata/Online_ISO_Training/Intro_to_ISO/workbooks/MI_Metadata.pdf
+
         Args:
             id (int): The metadata record id
         Returns:
@@ -566,6 +569,8 @@ class Document(Resource):
         role_elem = Element(
             gmd + "role"
         )
+        role_content_elem = self.create_role_element(organization, reduced_nsmap)
+        role_elem.append(role_content_elem)
         resp_party_elem.append(role_elem)
 
         return resp_party_elem
@@ -689,6 +694,32 @@ class Document(Resource):
             contact_elem.append(address_elem)
 
         return contact_elem
+
+
+    def create_role_element(self, organization, reduced_nsmap):
+        """ Creates the <gmd:role> element
+
+        Args:
+            organization (Organization): The organization object which is used in here
+            reduced_nsmap (dict): The namespace map
+        Returns:
+             ci_role_elem (_Element): The role information xml element
+        """
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+
+        val_list = "http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_RoleCode"
+        val = "pointOfContact"
+
+        ci_role_elem = Element(
+            gmd + "CI_RoleCode",
+            attrib={
+                "codeList": val_list,
+                "codeListValue": val,
+                "codeSpace": "007"
+            }
+        )
+        ci_role_elem.text = val
+        return ci_role_elem
 
 
     def create_date_stamp(self, metadata: Metadata, reduced_nsmap):

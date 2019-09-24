@@ -355,6 +355,20 @@ class Document(Resource):
     def __str__(self):
         return self.related_metadata.title
 
+    def generate_service_metadata(self, id: int):
+        """ Creates a service metadata as xml, following the ISO19115 standard
+
+        Args:
+            id (int): The metadata record id
+        Returns:
+            doc (str): The 'document' content
+        """
+        doc = None
+
+
+
+        return doc
+
     def restore(self):
         """ We overwrite the current metadata xml with the original
 

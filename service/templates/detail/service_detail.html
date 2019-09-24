@@ -68,8 +68,12 @@
                     <div class="button-container">{% trans 'Current' %}</div>
                 </a>
             </div>
-
         </div>
+            <a data-id="{{ root_service.id }}" href="{% url 'service:get-service-metadata' root_metadata.id %}" title="{% trans 'Get service metadata' %}" target="_blank">
+                <div class="button-container">
+                    <span>{% trans 'Service metadata' %}</span>
+                </div>
+            </a>
         <!--
         <a href="{{ root_metadata.capabilities_original_uri }}" target="_blank" title="{% trans 'Open original metadata in new tab' %}">
         </a>

@@ -14,7 +14,7 @@ from django.utils.translation import gettext_lazy as _
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
-    SERVICE_REMOVED, SERVICE_ACTIVATED, SERVICE_UPDATED, SERVICE_DEACTIVATED
+    SERVICE_REMOVED, SERVICE_ACTIVATED, SERVICE_UPDATED, SERVICE_DEACTIVATED, MULTIPLE_SERVICE_METADATA_FOUND
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
@@ -24,6 +24,7 @@ from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceTypes
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation
+from service.settings import MD_TYPE_SERVICE
 from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
@@ -156,6 +157,47 @@ def activate(request: HttpRequest, user:User):
     pending_task = tasks.async_activate_service.delay(param_POST, user.id)
 
     return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
+
+
+def get_service_metadata(request: HttpRequest, id: int):
+    """ Returns the service metadata xml file for a given metadata id
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The metadata id
+    Returns:
+         A HttpResponse containing the xml file
+    """
+    docs = []
+    doc = None
+
+    # check if the metadata record already has a service metadata document linked
+    md_relations = MetadataRelation.objects.filter(
+        metadata_from__id=id,
+        metadata_to__metadata_type__type=MD_TYPE_SERVICE
+    )
+    for rel in md_relations:
+        md_to = rel.metadata_to
+        tmp_docs = Document.objects.filter(
+            related_metadata=md_to,
+        ).exclude(
+            service_metadata_document=None
+        )
+        docs.extend(tmp_docs)
+
+    if len(docs) > 1:
+        # Something is odd, there are multiple service metadata documents for this metadata record
+        messages.error(request, MULTIPLE_SERVICE_METADATA_FOUND)
+        return redirect("service:detail", id)
+    elif len(docs) == 1:
+        # Everything is fine, we get the service metadata document
+        doc = docs.pop().service_metadata_document
+    else:
+        # There is no service metadata document in the database, we need to create it during runtime
+        tmp_doc = Document()
+        doc = tmp_doc.generate_service_metadata(id)
+
+    return HttpResponse(doc, content_type='application/xml')
 
 
 def get_dataset_metadata(request: HttpRequest, id: int):

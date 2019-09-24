@@ -107,7 +107,7 @@ class MetadataRelationSerializer(serializers.Serializer):
     """ Serializer for MetadataRelation model
 
     """
-    id = serializers.PrimaryKeyRelatedField(read_only=True, source="metadata_2")
+    id = serializers.PrimaryKeyRelatedField(read_only=True, source="metadata_to")
 
 
 class MetadataSerializer(serializers.Serializer):

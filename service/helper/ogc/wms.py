@@ -811,8 +811,8 @@ class OGCWebMapService(OGCWebService):
         # save linked service metadata
         if service.linked_service_metadata is not None:
             md_relation = MetadataRelation()
-            md_relation.metadata_1 = md
-            md_relation.metadata_2 = service.linked_service_metadata
+            md_relation.metadata_from = md
+            md_relation.metadata_to = service.linked_service_metadata
             md_relation.origin = MetadataOrigin.objects.get_or_create(
                 name='capabilities'
             )[0]
@@ -856,8 +856,8 @@ class OGCWebMapService(OGCWebService):
             for iso_md in layer.iso_metadata:
                 iso_md = iso_md.to_db_model()
                 metadata_relation = MetadataRelation()
-                metadata_relation.metadata_1 = md
-                metadata_relation.metadata_2 = iso_md
+                metadata_relation.metadata_from = md
+                metadata_relation.metadata_to = iso_md
                 metadata_relation.origin = MetadataOrigin.objects.get_or_create(
                     name=iso_md.origin
                 )[0]

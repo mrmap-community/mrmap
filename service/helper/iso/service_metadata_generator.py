@@ -5,6 +5,8 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 25.09.19
 
 """
+from django.core.exceptions import ObjectDoesNotExist
+
 from service.models import Metadata
 from service.helper import xml_helper
 from lxml.etree import Element
@@ -933,8 +935,17 @@ class ServiceMetadataGenerator:
         geographic_elem = Element(
             self.gmd + "geographicElement"
         )
-        geographic_content_elem = self._create_bounding_box()
-        geographic_elem.append(geographic_content_elem)
+        try:
+            geographic_content_elem = self._create_bounding_box()
+            geographic_elem.append(geographic_content_elem)
+        except ObjectDoesNotExist:
+            # there was no bounding box in the whole service
+            geographic_elem = Element(
+                self.gmd + "geographicElement",
+                attrib={
+                    self.gco + "nilReason": "unknown"
+                }
+            )
         ret_elem.append(geographic_elem)
 
         # gmd:temporalElement
@@ -966,6 +977,8 @@ class ServiceMetadataGenerator:
         bbox = self.metadata.bounding_geometry
         if bbox is None:
             bbox = self.metadata.find_max_bounding_box()
+        if bbox is None:
+            raise ObjectDoesNotExist
         extent = bbox.extent
 
         ret_elem = Element(

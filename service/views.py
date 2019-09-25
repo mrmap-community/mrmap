@@ -22,6 +22,7 @@ from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceTypes
+from service.helper.iso.service_metadata_generator import ServiceMetadataGenerator
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation
 from service.settings import MD_TYPE_SERVICE
@@ -194,8 +195,8 @@ def get_service_metadata(request: HttpRequest, id: int):
         doc = docs.pop().service_metadata_document
     else:
         # There is no service metadata document in the database, we need to create it during runtime
-        tmp_doc = Document()
-        doc = tmp_doc.generate_service_metadata(id)
+        generator = ServiceMetadataGenerator(md_id=id)
+        doc = generator.generate_service_metadata()
 
     return HttpResponse(doc, content_type='application/xml')
 

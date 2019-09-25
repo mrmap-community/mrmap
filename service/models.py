@@ -1,6 +1,7 @@
 import uuid
 from collections import OrderedDict
 
+from dateutil.parser import parse
 from lxml import etree
 
 from django.contrib.gis.geos import Polygon
@@ -388,17 +389,18 @@ class Document(Resource):
         root = Element("{}MD_Metadata".format(gmd), nsmap=reduced_nsmap, attrib={"{}schemaLocation".format(xsi): reduced_nsmap.get("schemaLocation")})
 
         subs = OrderedDict()
-        subs["{}fileIdentifier".format(gmd)] = self.create_file_identifier(metadata, reduced_nsmap)
-        subs["{}language".format(gmd)] = self.create_language(metadata, reduced_nsmap)
-        subs["{}characterSet".format(gmd)] = self.create_character_set(metadata, reduced_nsmap)
-        subs["{}hierarchyLevel".format(gmd)] = self.create_hierarchy_level(metadata, reduced_nsmap)
-        subs["{}hierarchyLevelName".format(gmd)] = self.create_hierarchy_level_name(metadata, reduced_nsmap)
-        subs["{}contact".format(gmd)] = self.create_contact(metadata, reduced_nsmap)
-        subs["{}dateStamp".format(gmd)] = self.create_date_stamp(metadata, reduced_nsmap)
-        subs["{}metadataStandardName".format(gmd)] = self.create_metadata_standard_name(metadata, reduced_nsmap)
-        subs["{}identificationInfo".format(gmd)] = self.create_identification_info(metadata, reduced_nsmap)
-        subs["{}distributionInfo".format(gmd)] = self.create_distribution_info(metadata, reduced_nsmap)
-        subs["{}dataQualityInfo".format(gmd)] = self.create_data_quality_info(metadata, reduced_nsmap)
+        subs["{}fileIdentifier".format(gmd)] = self._create_file_identifier(metadata, reduced_nsmap)
+        subs["{}language".format(gmd)] = self._create_language(metadata, reduced_nsmap)
+        subs["{}characterSet".format(gmd)] = self._create_character_set(metadata, reduced_nsmap)
+        subs["{}hierarchyLevel".format(gmd)] = self._create_hierarchy_level(metadata, reduced_nsmap)
+        subs["{}hierarchyLevelName".format(gmd)] = self._create_hierarchy_level_name(metadata, reduced_nsmap)
+        subs["{}contact".format(gmd)] = self._create_contact(metadata, reduced_nsmap)
+        subs["{}dateStamp".format(gmd)] = self._create_date_stamp(metadata, reduced_nsmap)
+        subs["{}metadataStandardName".format(gmd)] = self._create_metadata_standard_name(metadata, reduced_nsmap)
+        subs["{}metadataStandardVersion".format(gmd)] = self._create_metadata_standard_version(metadata, reduced_nsmap)
+        subs["{}identificationInfo".format(gmd)] = self._create_identification_info(metadata, reduced_nsmap)
+        subs["{}distributionInfo".format(gmd)] = self._create_distribution_info(metadata, reduced_nsmap)
+        subs["{}dataQualityInfo".format(gmd)] = self._create_data_quality_info(metadata, reduced_nsmap)
 
         for sub, func in subs.items():
             sub_element = xml_helper.create_subelement(root, sub)
@@ -409,7 +411,7 @@ class Document(Resource):
 
         return doc
 
-    def create_file_identifier(self, metadata: Metadata, reduced_nsmap):
+    def _create_file_identifier(self, metadata: Metadata, reduced_nsmap):
         """ Creates the <gmd:fileIdentifier> element
 
         Args:
@@ -422,7 +424,7 @@ class Document(Resource):
         ret_elem.text = metadata.uuid
         return ret_elem
 
-    def create_language(self, metadata: Metadata, reduced_nsmap):
+    def _create_language(self, metadata: Metadata, reduced_nsmap):
         """ Creates the <gmd:language> element
 
         Args:
@@ -443,7 +445,7 @@ class Document(Resource):
         ret_elem.text = lang
         return ret_elem
 
-    def create_character_set(self, metadata: Metadata, reduced_nsmap):
+    def _create_character_set(self, metadata: Metadata, reduced_nsmap):
         """ Creates the <gmd:characterSet> element
 
         Args:
@@ -464,7 +466,7 @@ class Document(Resource):
         ret_elem.text = char_set
         return ret_elem
 
-    def create_hierarchy_level(self, metadata: Metadata, reduced_nsmap):
+    def _create_hierarchy_level(self, metadata: Metadata, reduced_nsmap):
         """ Creates the <gmd:hierarchyLevel> element
 
         Args:
@@ -485,7 +487,7 @@ class Document(Resource):
         ret_elem.text = hierarchy_level
         return ret_elem
 
-    def create_hierarchy_level_name(self, metadata: Metadata, reduced_nsmap):
+    def _create_hierarchy_level_name(self, metadata: Metadata, reduced_nsmap):
         """ Creates the <gmd:hierarchyLevelName> element
 
         Args:
@@ -504,7 +506,7 @@ class Document(Resource):
         ret_elem.text = name
         return ret_elem
 
-    def create_contact(self, metadata: Metadata, reduced_nsmap):
+    def _create_contact(self, metadata: Metadata, reduced_nsmap):
         """ Creates the <gmd:CI_ResponsibleParty> element
 
         Args:
@@ -561,7 +563,7 @@ class Document(Resource):
         contact_info_elem = Element(
             gmd + "contactInfo"
         )
-        contact_info_content_elem = self.create_contact_info_element(organization, reduced_nsmap)
+        contact_info_content_elem = self._create_contact_info_element(organization, metadata, reduced_nsmap)
         contact_info_elem.append(contact_info_content_elem)
         resp_party_elem.append(contact_info_elem)
 
@@ -569,17 +571,18 @@ class Document(Resource):
         role_elem = Element(
             gmd + "role"
         )
-        role_content_elem = self.create_role_element(organization, reduced_nsmap)
+        role_content_elem = self._create_role_element(organization, reduced_nsmap)
         role_elem.append(role_content_elem)
         resp_party_elem.append(role_elem)
 
         return resp_party_elem
 
-    def create_contact_info_element(self, organization: Organization, reduced_nsmap: dict):
+    def _create_contact_info_element(self, organization: Organization, metadata:Metadata, reduced_nsmap: dict):
         """ Creates the <gmd:CI_Contact> element with it's subelements
 
         Args:
             organization (Organization): The organization object which is used in here
+            metadata (Metadata): The metadata object which is used in here
             reduced_nsmap (dict): The namespace map
         Returns:
              contact_elem (_Element): The contact information xml element
@@ -590,26 +593,65 @@ class Document(Resource):
         contact_elem = Element(
             gmd + "CI_Contact"
         )
+
         # gmd:phone
+        phone_elem = Element(
+            gmd + "phone"
+        )
+        ci_phone_elem = Element(
+            gmd + "CI_Telephone"
+        )
         if organization.phone is not None:
-            phone_elem = Element(
-                gmd + "phone"
-            )
-            ci_phone_elem = Element(
-                gmd + "CI_Telephone"
-            )
             voice_elem = Element(
                 gmd + "voice"
             )
-            char_str_elem = Element(
+            voice_char_str_elem = Element(
                 gco + "CharacterString"
             )
-            char_str_elem.text = organization.phone
+            voice_char_str_elem.text = organization.phone
 
+            voice_elem.append(voice_char_str_elem)
             ci_phone_elem.append(voice_elem)
-            phone_elem.append(ci_phone_elem)
-            contact_elem.append(phone_elem)
-            voice_elem.append(char_str_elem)
+
+        if organization.facsimile is not None:
+            facsimile_elem = Element(
+                gmd + "facsimile"
+            )
+            facs_char_str_elem = Element(
+                gco + "CharacterString"
+            )
+            facs_char_str_elem.text = organization.facsimile
+
+            facsimile_elem.append(facs_char_str_elem)
+            ci_phone_elem.append(facsimile_elem)
+
+        phone_elem.append(ci_phone_elem)
+        contact_elem.append(phone_elem)
+
+        address_ret_dict = self._create_address_element(organization, reduced_nsmap)
+        address_elem = address_ret_dict["element"]
+        num_address_subelements = address_ret_dict["num_subelements"]
+
+        # only add the address element if we have at least one subelement inside
+        if num_address_subelements > 0:
+            contact_elem.append(address_elem)
+
+        online_resource_elem = self._create_online_resource(metadata, reduced_nsmap)
+        contact_elem.append(online_resource_elem)
+
+        return contact_elem
+
+    def _create_address_element(self, organization: Organization, reduced_nsmap: dict):
+        """ Creates the <gmd:address> element with it's subelements
+
+        Args:
+            organization (Organization): The organization object which is used in here
+            reduced_nsmap (dict): The namespace map
+        Returns:
+             dict: Contains 'element' and 'num_subelements'
+        """
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
 
         # gmd:address
         address_elem = Element(
@@ -689,14 +731,96 @@ class Document(Resource):
             tmp_elem.append(char_str_elem)
             ci_address_elem.append(tmp_elem)
 
-        # only add the whole section if we have at least one element inside
-        if address_elements > 0:
-            contact_elem.append(address_elem)
 
-        return contact_elem
+        return {
+            "element": address_elem,
+            "num_subelements": address_elements,
+        }
 
+    def _create_online_resource(self, metadata: Metadata, reduced_nsmap: dict):
+        """ Creates the <gmd:CI_OnlineResource> element with it's subelements
 
-    def create_role_element(self, organization, reduced_nsmap):
+        Args:
+            metadata (Metadata): The metadata object which is used in here
+            reduced_nsmap (dict): The namespace map
+        Returns:
+             contact_elem (_Element): The contact information xml element
+        """
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        resource_elem = Element(
+            gmd + "onlineResource"
+        )
+        ci_resource_elem = Element(
+            gmd + "CI_OnlineResource"
+        )
+
+        resource_elem.append(ci_resource_elem)
+
+        # gmd:linkage
+        linkage_elem = Element(
+            gmd + "linkage"
+        )
+        tmp_elem = Element(
+            gmd + "URL"
+        )
+        tmp_elem.text = metadata.capabilities_original_uri
+        ci_resource_elem.append(linkage_elem)
+        linkage_elem.append(tmp_elem)
+
+        # gmd:protocol
+        protocol_elem = Element(
+            gmd + "protocol"
+        )
+        tmp_elem = Element(
+            gmd + "CharacterString"
+        )
+        tmp_elem.text = "HTTP"
+        ci_resource_elem.append(protocol_elem)
+        protocol_elem.append(tmp_elem)
+
+        # gmd:applicationProfile
+        app_profile_elem = Element(
+            gmd + "applicationProfile",
+            attrib={
+                gco + "nilReason": "unknown",
+            }
+        )
+        ci_resource_elem.append(app_profile_elem)
+
+        # gmd:name
+        name_elem = Element(
+            gmd + "name"
+        )
+        tmp_elem = Element(
+            gmd + "CharacterString"
+        )
+        tmp_elem.text = metadata.title
+        ci_resource_elem.append(name_elem)
+        name_elem.append(tmp_elem)
+
+        # gmd:description
+        descr_elem = Element(
+            gmd + "description",
+            attrib={
+                gco + "nilReason": "unknown",
+            }
+        )
+        ci_resource_elem.append(descr_elem)
+
+        # gmd:function
+        func_elem = Element(
+            gmd + "function",
+            attrib={
+                gco + "nilReason": "unknown",
+            }
+        )
+        ci_resource_elem.append(func_elem)
+
+        return resource_elem
+
+    def _create_role_element(self, organization, reduced_nsmap):
         """ Creates the <gmd:role> element
 
         Args:
@@ -721,8 +845,7 @@ class Document(Resource):
         ci_role_elem.text = val
         return ci_role_elem
 
-
-    def create_date_stamp(self, metadata: Metadata, reduced_nsmap):
+    def _create_date_stamp(self, metadata: Metadata, reduced_nsmap):
         """ Creates the <gmd:dateStamp> element
 
         Args:
@@ -731,10 +854,24 @@ class Document(Resource):
         Returns:
              ret_elem (_Element): The requested xml element
         """
-        ret_elem = Element("test")
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        ret_elem = Element(gco + "Date")
+
+        if metadata.last_remote_change is not None:
+            date = metadata.last_remote_change
+
+        elif metadata.last_modified is not None:
+            date = metadata.last_modified
+        else:
+            date = timezone.now()
+
+        date = date.date().__str__()
+        ret_elem.text = date
+
         return ret_elem
 
-    def create_metadata_standard_name(self, metadata: Metadata, reduced_nsmap):
+    def _create_metadata_standard_name(self, metadata: Metadata, reduced_nsmap):
         """ Creates the <gmd:metadataStandardName> element
 
         Args:
@@ -743,10 +880,34 @@ class Document(Resource):
         Returns:
              ret_elem (_Element): The requested xml element
         """
-        ret_elem = Element("test")
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        ret_elem = Element(
+            gco + "CharacterString"
+        )
+        ret_elem.text = "ISO 19115 Geographic information - Metadata"
+
         return ret_elem
 
-    def create_identification_info(self, metadata: Metadata, reduced_nsmap):
+    def _create_metadata_standard_version(self, metadata: Metadata, reduced_nsmap: dict):
+        """ Creates the <gmd:metadataStandardVersion> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        ret_elem = Element(
+            gco + "CharacterString"
+        )
+        ret_elem.text = "ISO 19115:2003(E)"
+
+        return ret_elem
+
+    def _create_identification_info(self, metadata: Metadata, reduced_nsmap):
         """ Creates the <gmd:identificationInfo> element
 
         Args:
@@ -755,10 +916,466 @@ class Document(Resource):
         Returns:
              ret_elem (_Element): The requested xml element
         """
-        ret_elem = Element("test")
+        srv = "{" + reduced_nsmap.get("srv", "") + "}"
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        ret_elem = Element(
+            srv + "SV_ServiceIdentification"
+        )
+
+        # gmd:citation
+        citation_elem = self._create_citation_elem(metadata, reduced_nsmap)
+        ret_elem.append(citation_elem)
+
+        # gmd:abstract
+        abstract_elem = Element(
+            gmd + "abstract"
+        )
+        char_str_elem = Element(
+            gco + "CharacterString"
+        )
+        char_str_elem.text = metadata.abstract
+        abstract_elem.append(char_str_elem)
+        ret_elem.append(abstract_elem)
+
+        # gmd:purpose
+        # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
+        # purpose_elem = Element(
+        #     gmd + "purpose"
+        # )
+
+        # gmd:credit
+        # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
+        # credit_elem = Element(
+        #     gmd + "credit"
+        # )
+
+        # gmd:status
+        # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
+        # status_elem = Element(
+        #     gmd + "status"
+        # )
+
+        # gmd:pointOfContact
+        point_of_contact_elem = Element(
+            gmd + "pointOfContact"
+        )
+        point_of_contact_content_elem = self._create_contact(metadata, reduced_nsmap)
+        point_of_contact_elem.append(point_of_contact_content_elem)
+        ret_elem.append(point_of_contact_elem)
+
+        # gmd:resourceMaintenance
+        # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
+        # resource_maintenance_elem = Element(
+        #     gmd + "resourceMaintenance"
+        # )
+
+        # gmd:graphicOverview
+        # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
+        # graphic_overview_elem = Element(
+        #     gmd + "graphicOverview"
+        # )
+
+        # gmd:resourceFormat
+        # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
+        # resource_format_elem = Element(
+        #     gmd + "resourceFormat"
+        # )
+
+        # gmd:descriptiveKeywords
+        descr_keywords_elem = Element(
+            gmd + "descriptiveKeywords"
+        )
+        descr_keywords_content_elem = self._create_keywords(metadata, reduced_nsmap)
+        descr_keywords_elem.append(descr_keywords_content_elem)
+        ret_elem.append(descr_keywords_elem)
+
+        # gmd:resourceSpecificUsage
+        # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
+        # res_specific_usage_elem = Element(
+        #     gmd + "resourceSpecificUsage"
+        # )
+
+        # gmd:resourceConstraints
+        res_constraints_elem = Element(
+            gmd + "resourceConstraints"
+        )
+        res_constraints_content_elem = self._create_legal_constraints(metadata, reduced_nsmap)
+        res_constraints_elem.append(res_constraints_content_elem)
+        ret_elem.append(res_constraints_elem)
+
+        # gmd:aggregationInfo
+        # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
+        # aggregation_info_elem = Element(
+        #     gmd + "aggregationInfo"
+        # )
+
+        # gmd:serviceType
+        service_type_elem = Element(
+            srv + "serviceType",
+        )
+        locale_name_elem = Element(
+            gco + "LocalName"
+        )
+        # resolve service type according to best practice
+        service_type = metadata.service.servicetype.name
+        if service_type == 'wms':
+            service_type = "WebMapService"
+        elif service_type == 'wfs':
+            service_type = "WebFeatureService"
+        else:
+            service_type = "unknown"
+        service_type_version = metadata.service.servicetype.version
+        locale_name_elem.text = "urn:ogc:serviceType:{}:{}".format(service_type, service_type_version)
+        service_type_elem.append(locale_name_elem)
+        ret_elem.append(service_type_elem)
+
+        # gmd:serviceTypeVersion
+        service_version_elem = Element(
+            srv + "serviceTypeVersion",
+        )
+        char_str_elem = Element(
+            gco + "CharacterString"
+        )
+        char_str_elem.text = service_type_version
+        service_version_elem.append(char_str_elem)
+        ret_elem.append(service_version_elem)
+
+        # gmd:accessProperties
+        # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
+        # access_properties_elem = Element(
+        #     gmd + "accessProperties"
+        # )
+
+        # gmd:restrictions
+        # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
+        # restrictions_elem = Element(
+        #     gmd + "restrictions"
+        # )
+
+        # gmd:keywords
+        # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
+        # keywords_elem = Element(
+        #     gmd + "keywords"
+        # )
+
+        # gmd:extent
+        extent_elem = Element(
+            srv + "extent"
+        )
+        extent_content_elem = self._create_extent(metadata, reduced_nsmap)
+        extent_elem.append(extent_content_elem)
+        ret_elem.append(extent_elem)
+
+        # gmd:couplingType
+        coupling_type_elem = Element(
+            srv + "couplingType"
+        )
+
+        # gmd:coupledResource
+        # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
+        # coupled_res_elem = Element(
+        #     gmd + "coupledResource"
+        # )
+
+        # gmd:containsOperations
+        contains_op_elem = Element(
+            srv + "containsOperations"
+        )
+
+        # gmd:operatesOn
+        # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
+        # operates_on_elem = Element(
+        #     gmd + "operatesOn"
+        # )
+
         return ret_elem
 
-    def create_distribution_info(self, metadata: Metadata, reduced_nsmap):
+    def _create_citation_elem(self, metadata: Metadata, reduced_nsmap: dict):
+        """ Creates the <gmd:citation> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        ret_elem = Element(
+            gmd + "citation"
+        )
+        ci_citation_elem = Element(
+            gmd + "CI_Citation"
+        )
+        ret_elem.append(ci_citation_elem)
+
+        # gmd:title
+        title_elem = Element(
+            gmd + "title"
+        )
+        title_elem.text = metadata.title
+        ci_citation_elem.append(title_elem)
+
+        # gmd:alternateTitle
+        alt_title_elem = Element(
+            gmd + "alternateTitle",
+            attrib={
+                gco + "nilReason": "unknown",
+            }
+        )
+        ci_citation_elem.append(alt_title_elem)
+
+        # gmd:date
+        date_elem = self._create_date_stamp(metadata, reduced_nsmap)
+        ci_citation_elem.append(date_elem)
+
+        # gmd:edition
+        edition_elem = Element(
+            gmd + "edition",
+            attrib={
+                gco + "nilReason": "unknown",
+            }
+        )
+        ci_citation_elem.append(edition_elem)
+
+        # gmd:editionDate
+        edition_date_elem = Element(
+            gmd + "editionDate",
+            attrib={
+                gco + "nilReason": "unknown",
+            }
+        )
+        ci_citation_elem.append(edition_date_elem)
+
+        # gmd:identifier
+        identifier_elem = Element(
+            gmd + "identifier"
+        )
+        identifier_elem.text = metadata.identifier
+        ci_citation_elem.append(identifier_elem)
+
+        # gmd:citedResponsibleParty
+        cited_resp_party_elem = Element(
+            gmd + "citedResponsibleParty"
+        )
+        cited_resp_party_content_elem = self._create_contact(metadata, reduced_nsmap)
+        cited_resp_party_elem.append(cited_resp_party_content_elem)
+        ci_citation_elem.append(cited_resp_party_elem)
+
+        # gmd:presentationForm
+        presentation_form_elem = Element(
+            gmd + "presentationForm",
+            attrib={
+                gco + "nilReason": "unknown",
+            }
+        )
+        ci_citation_elem.append(presentation_form_elem)
+
+        # gmd:series
+        series_elem = Element(
+            gmd + "series",
+            attrib={
+                gco + "nilReason": "unknown",
+            }
+        )
+        ci_citation_elem.append(series_elem)
+
+        # gmd:otherCitationDetails
+        cit_details_elem = Element(
+            gmd + "otherCitationDetails",
+            attrib={
+                gco + "nilReason": "unknown",
+            }
+        )
+        ci_citation_elem.append(cit_details_elem)
+
+        # gmd:collectiveTitle
+        collective_title_elem = Element(
+            gmd + "collectiveTitle",
+            attrib={
+                gco + "nilReason": "unknown",
+            }
+        )
+        ci_citation_elem.append(collective_title_elem)
+
+        # gmd:ISBN
+        isbn_elem = Element(
+            gmd + "ISBN",
+            attrib={
+                gco + "nilReason": "unknown",
+            }
+        )
+        ci_citation_elem.append(isbn_elem)
+
+        # gmd:ISSN
+        issn_elem = Element(
+            gmd + "ISSN",
+            attrib={
+                gco + "nilReason": "unknown",
+            }
+        )
+        ci_citation_elem.append(issn_elem)
+
+        return ret_elem
+
+    def _create_keywords(self, metadata: Metadata, reduced_nsmap: dict):
+        """ Creates the <gmd:MD_Keywords> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        ret_elem = Element(
+            gmd + "MD_Keywords"
+        )
+
+        keywords = metadata.keywords.all()
+        for keyword in keywords:
+            keyword_elem = Element(
+                gmd + "keyword"
+            )
+            char_str_elem = Element(
+                gco + "CharacterString"
+            )
+            char_str_elem.text = keyword.keyword
+            keyword_elem.append(char_str_elem)
+            ret_elem.append(keyword_elem)
+
+        return ret_elem
+
+    def _create_legal_constraints(self, metadata: Metadata, reduced_nsmap: dict):
+        """ Creates the <gmd:MD_LegalConstraints> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        ret_elem = Element(
+            gmd + "MD_LegalConstraints"
+        )
+
+        # gmd:useLimitation
+        use_limitation_elem = Element(
+            gmd + "useLimitation",
+            attrib={
+                gmd + "nilReason": "unknown"
+            }
+        )
+        ret_elem.append(use_limitation_elem)
+
+        # gmd:accessConstraints
+        access_constraints_elem = Element(
+            gmd + "accessConstraints",
+        )
+        code_list = "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_RestrictionCode"
+        code_list_val = "otherRestrictions"
+        md_restr_code_elem = Element(
+            gmd + "MD_RestrictionCode",
+            attrib={
+                "codeList": code_list,
+                "codeListValue": code_list_val,
+            }
+        )
+        md_restr_code_elem.text = code_list_val
+        access_constraints_elem.append(md_restr_code_elem)
+        ret_elem.append(access_constraints_elem)
+
+        # gmd:otherConstraints
+        other_constraints_elem = Element(
+            gmd + "otherConstraints",
+        )
+        char_str_elem = Element(
+            gco + "CharacterString"
+        )
+        constraints_text = "no constraints"
+        if metadata.access_constraints is not None and len(metadata.access_constraints) > 0:
+            constraints_text = metadata.access_constraints
+        char_str_elem.text = constraints_text
+        other_constraints_elem.append(char_str_elem)
+        ret_elem.append(other_constraints_elem)
+
+        return ret_elem
+
+    def _create_extent(self, metadata: Metadata, reduced_nsmap: dict):
+        """ Creates the <gmd:EX_Extent> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        ret_elem = Element(
+            gmd + "EX_Extent"
+        )
+
+        # gmd:description
+        descr_elem = Element(
+            gmd + "description",
+            attrib={
+                gmd + "nilReason": "unknown"
+            }
+        )
+        ret_elem.append(descr_elem)
+
+        # gmd:geographicElement
+        geographic_elem = Element(
+            gmd + "geographicElement"
+        )
+        geographic_content_elem = self._create_bounding_box(metadata, reduced_nsmap)
+        geographic_elem.append(geographic_content_elem)
+        ret_elem.append(geographic_elem)
+
+        # gmd:temporalElement
+        temp_elem = Element(
+            gmd + "temporalElement"
+        )
+
+        # gmd:verticalElement
+        vertical_elem = Element(
+            gmd + "verticalElement"
+        )
+
+
+        return ret_elem
+
+    def _create_bounding_box(self, metadata: Metadata, reduced_nsmap: dict):
+        """ Creates the <gmd:EX_GeographicBoundingBox> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        bbox = metadata.bounding_geometry
+
+        ret_elem = Element(
+            gmd + "EX_GeographicBoundingBox"
+        )
+
+        return ret_elem
+
+    def _create_distribution_info(self, metadata: Metadata, reduced_nsmap):
         """ Creates the <gmd:distributionInfo> element
 
         Args:
@@ -770,7 +1387,7 @@ class Document(Resource):
         ret_elem = Element("test")
         return ret_elem
 
-    def create_data_quality_info(self, metadata: Metadata, reduced_nsmap):
+    def _create_data_quality_info(self, metadata: Metadata, reduced_nsmap):
         """ Creates the <gmd:dataQualityInfo> element
 
         Args:

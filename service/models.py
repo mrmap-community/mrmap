@@ -10,7 +10,7 @@ from django.contrib.gis.db import models
 from django.utils import timezone
 from lxml.etree import Element
 
-from MapSkinner.settings import XML_NAMESPACES
+from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
 from service.helper.enums import ServiceTypes
 from structure.models import Group, Organization
 from service.helper import xml_helper
@@ -93,6 +93,7 @@ class Metadata(Resource):
     categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
     metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
+
     ## for ISO metadata
     dataset_id = models.CharField(max_length=255, null=True, blank=True)
     dataset_id_code_space = models.CharField(max_length=255, null=True, blank=True)
@@ -149,6 +150,29 @@ class Metadata(Resource):
         elif self.metadata_type.type == 'featuretype':
             service_type = 'wfs'
         return service_type
+
+    def find_max_bounding_box(self):
+        """ Returns the largest bounding box of all children
+
+        Saves the found bounding box to bounding_geometry for faster access
+
+        Returns:
+
+        """
+        children = self.service.child_service.all()
+        max_box = None
+        for child in children:
+            bbox = child.layer.bbox_lat_lon
+            if max_box is None:
+                max_box = bbox
+            else:
+                ba = bbox.area
+                ma = max_box.area
+                if ba > ma:
+                    max_box = bbox
+        self.bounding_geometry = max_box
+        self.save()
+        return max_box
 
     def is_root(self):
         """ Checks whether the metadata describes a root service or a layer/featuretype
@@ -765,7 +789,10 @@ class Document(Resource):
         tmp_elem = Element(
             gmd + "URL"
         )
-        tmp_elem.text = metadata.capabilities_original_uri
+        if metadata.inherit_proxy_uris:
+            tmp_elem.text = HTTP_OR_SSL + HOST_NAME + "/service/capabilities/" + str(metadata.id)
+        else:
+            tmp_elem.text = metadata.capabilities_original_uri
         ci_resource_elem.append(linkage_elem)
         linkage_elem.append(tmp_elem)
 
@@ -1070,8 +1097,17 @@ class Document(Resource):
 
         # gmd:couplingType
         coupling_type_elem = Element(
-            srv + "couplingType"
+            srv + "couplingType",
         )
+        coupling_type_content_elem = Element(
+            srv + "SV_CouplingType",
+            attrib={
+                "codeList": "SV_CouplingType",
+                "codeListValue": "tight"
+            }
+        )
+        coupling_type_elem.append(coupling_type_content_elem)
+        ret_elem.append(coupling_type_elem)
 
         # gmd:coupledResource
         # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
@@ -1083,6 +1119,9 @@ class Document(Resource):
         contains_op_elem = Element(
             srv + "containsOperations"
         )
+        contains_op_content_elem = self._create_operation_metadata(metadata, reduced_nsmap)
+        contains_op_elem.append(contains_op_content_elem)
+        ret_elem.append(contains_op_elem)
 
         # gmd:operatesOn
         # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
@@ -1344,14 +1383,19 @@ class Document(Resource):
 
         # gmd:temporalElement
         temp_elem = Element(
-            gmd + "temporalElement"
+            gmd + "temporalElement",
+            attrib={
+                gmd + "nilReason": "unknown"
+            }
         )
 
         # gmd:verticalElement
         vertical_elem = Element(
-            gmd + "verticalElement"
+            gmd + "verticalElement",
+            attrib={
+                gmd + "nilReason": "unknown"
+            }
         )
-
 
         return ret_elem
 
@@ -1368,10 +1412,155 @@ class Document(Resource):
         gco = "{" + reduced_nsmap.get("gco", "") + "}"
 
         bbox = metadata.bounding_geometry
+        if bbox is None:
+            bbox = metadata.find_max_bounding_box()
+        extent = bbox.extent
 
         ret_elem = Element(
             gmd + "EX_GeographicBoundingBox"
         )
+
+        # gmd:extentTypeCode
+        extent_type_code_elem = Element(
+            gmd + "extentTypeCode",
+            attrib={
+                gmd + "nilReason": "unknown"
+            }
+        )
+        ret_elem.append(extent_type_code_elem)
+
+        # gmd:westBoundingLongitude
+        west_bound_elem = Element(
+            gmd + "westBoundLongitude"
+        )
+        decimal_elem = Element(
+            gco + "Decimal"
+        )
+        decimal_elem.text = str(extent[0])
+        west_bound_elem.append(decimal_elem)
+        ret_elem.append(west_bound_elem)
+
+        # gmd:eastBoundingLongitude
+        east_bound_elem = Element(
+            gmd + "eastBoundLongitude"
+        )
+        decimal_elem = Element(
+            gco + "Decimal"
+        )
+        decimal_elem.text = str(extent[2])
+        east_bound_elem.append(decimal_elem)
+        ret_elem.append(east_bound_elem)
+
+        # gmd:southBoundingLongitude
+        south_bound_elem = Element(
+            gmd + "southBoundLatitude"
+        )
+        decimal_elem = Element(
+            gco + "Decimal"
+        )
+        decimal_elem.text = str(extent[1])
+        south_bound_elem.append(decimal_elem)
+        ret_elem.append(south_bound_elem)
+
+        # gmd:northBoundingLongitude
+        north_bound_elem = Element(
+            gmd + "northBoundLatitude"
+        )
+        decimal_elem = Element(
+            gco + "Decimal"
+        )
+        decimal_elem.text = str(extent[3])
+        north_bound_elem.append(decimal_elem)
+        ret_elem.append(north_bound_elem)
+
+        return ret_elem
+
+    def _create_operation_metadata(self, metadata: Metadata, reduced_nsmap: dict):
+        """ Creates the <gmd:SV_OperationMetadata> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+        srv = "{" + reduced_nsmap.get("srv", "") + "}"
+
+        ret_elem = Element(
+            srv + "SV_OperationMetadata"
+        )
+
+        # srv:operationName
+        operation_name_elem = Element(
+            srv + "operationName"
+        )
+        char_str_elem = Element(
+            gco + "CharacterString"
+        )
+        char_str_elem.text = "GetCapabilities"
+        operation_name_elem.append(char_str_elem)
+        ret_elem.append(operation_name_elem)
+
+        # srv:DCP
+        dcp_elem = Element(
+            srv + "DCP"
+        )
+        dcp_list_elem = Element(
+            srv + "DCPList",
+            attrib={
+                "codeList": "DCPList",
+                "codeListValue": "WebService",
+            }
+        )
+        dcp_elem.append(dcp_list_elem)
+        ret_elem.append(dcp_elem)
+
+        # srv:operationDescription
+        operation_descr_elem = Element(
+            srv + "operationDescription"
+        )
+        char_str_elem = Element(
+            gco + "CharacterString"
+        )
+        char_str_elem.text = "Request the service capabilities document"
+        operation_descr_elem.append(char_str_elem)
+        ret_elem.append(operation_descr_elem)
+
+        # srv:invocationName
+        invocation_name_elem = Element(
+            srv + "invocationName",
+            attrib={
+                gmd + "nilReason": "unknown"
+            }
+        )
+        ret_elem.append(invocation_name_elem)
+
+        # srv:parameters
+        parameters_elem = Element(
+            srv + "parameters",
+            attrib={
+                gmd + "nilReason": "unknown"
+            }
+        )
+        ret_elem.append(parameters_elem)
+
+        # srv:connectPoint
+        connect_point_elem = Element(
+            srv + "connectPoint"
+        )
+        connect_point_elem.append(self._create_online_resource(metadata, reduced_nsmap))
+        ret_elem.append(connect_point_elem)
+
+        # srv:dependsOn
+        depends_on_elem = Element(
+            srv + "dependsOn",
+            attrib={
+                gmd + "nilReason": "unknown"
+            }
+        )
+        ret_elem.append(depends_on_elem)
 
         return ret_elem
 

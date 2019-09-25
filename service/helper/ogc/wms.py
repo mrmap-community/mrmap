@@ -633,6 +633,7 @@ class OGCWebMapService(OGCWebService):
             (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["miny"]))
         )
         layer.bbox_lat_lon = Polygon(bounding_points)
+        metadata.bounding_geometry = layer.bbox_lat_lon
         layer.created_by = creator
         layer.published_for = published_for
         layer.published_by = publisher

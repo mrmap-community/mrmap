@@ -1310,7 +1310,7 @@ class Document(Resource):
         use_limitation_elem = Element(
             gmd + "useLimitation",
             attrib={
-                gmd + "nilReason": "unknown"
+                gco + "nilReason": "unknown"
             }
         )
         ret_elem.append(use_limitation_elem)
@@ -1368,7 +1368,7 @@ class Document(Resource):
         descr_elem = Element(
             gmd + "description",
             attrib={
-                gmd + "nilReason": "unknown"
+                gco + "nilReason": "unknown"
             }
         )
         ret_elem.append(descr_elem)
@@ -1385,7 +1385,7 @@ class Document(Resource):
         temp_elem = Element(
             gmd + "temporalElement",
             attrib={
-                gmd + "nilReason": "unknown"
+                gco + "nilReason": "unknown"
             }
         )
 
@@ -1393,7 +1393,7 @@ class Document(Resource):
         vertical_elem = Element(
             gmd + "verticalElement",
             attrib={
-                gmd + "nilReason": "unknown"
+                gco + "nilReason": "unknown"
             }
         )
 
@@ -1424,7 +1424,7 @@ class Document(Resource):
         extent_type_code_elem = Element(
             gmd + "extentTypeCode",
             attrib={
-                gmd + "nilReason": "unknown"
+                gco + "nilReason": "unknown"
             }
         )
         ret_elem.append(extent_type_code_elem)
@@ -1532,7 +1532,7 @@ class Document(Resource):
         invocation_name_elem = Element(
             srv + "invocationName",
             attrib={
-                gmd + "nilReason": "unknown"
+                gco + "nilReason": "unknown"
             }
         )
         ret_elem.append(invocation_name_elem)
@@ -1541,7 +1541,7 @@ class Document(Resource):
         parameters_elem = Element(
             srv + "parameters",
             attrib={
-                gmd + "nilReason": "unknown"
+                gco + "nilReason": "unknown"
             }
         )
         ret_elem.append(parameters_elem)
@@ -1557,7 +1557,7 @@ class Document(Resource):
         depends_on_elem = Element(
             srv + "dependsOn",
             attrib={
-                gmd + "nilReason": "unknown"
+                gco + "nilReason": "unknown"
             }
         )
         ret_elem.append(depends_on_elem)
@@ -1573,7 +1573,173 @@ class Document(Resource):
         Returns:
              ret_elem (_Element): The requested xml element
         """
-        ret_elem = Element("test")
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        ret_elem = Element(
+            gmd + "MD_Distribution"
+        )
+
+        # gmd:distributionFormat
+        distr_format_elem = Element(
+            gmd + "distributionFormat"
+        )
+        distr_format_content_elem = self._create_distribution_format(metadata, reduced_nsmap)
+        distr_format_elem.append(distr_format_content_elem)
+        ret_elem.append(distr_format_elem)
+
+        # gmd:distributor
+        distributor_elem = Element(
+            gmd + "distributor"
+        )
+        distributor_content_elem = self._create_distributor(metadata, reduced_nsmap)
+        distributor_elem.append(distributor_content_elem)
+        ret_elem.append(distributor_elem)
+
+        # gmd:transferOptions
+        transfer_options_elem = Element(
+            gmd + "transferOptions"
+        )
+
+        return ret_elem
+
+    def _create_distribution_format(self, metadata: Metadata, reduced_nsmap: dict):
+        """ Creates the <gmd:MD_Format> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        ret_elem = Element(
+            gmd + "MD_Format",
+        )
+
+        # gmd:name
+        name_elem = Element(
+            gmd + "name",
+            attrib={
+                gco + "nilReason": "inapplicable"
+            }
+        )
+        ret_elem.append(name_elem)
+
+        # gmd:version
+        version_elem = Element(
+            gmd + "version",
+            attrib={
+                gco + "nilReason": "inapplicable"
+            }
+        )
+        ret_elem.append(version_elem)
+
+        return ret_elem
+
+    def _create_distributor(self, metadata: Metadata, reduced_nsmap: dict):
+        """ Creates the <gmd:MD_Distributor> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        ret_elem = Element(
+            gmd + "MD_Distributor"
+        )
+
+        # gmd:distributorContact
+        distributor_contact_elem = Element(
+            gmd + "distributorContact"
+        )
+        distributor_contact_elem.append(self._create_contact(metadata, reduced_nsmap))
+        ret_elem.append(distributor_contact_elem)
+
+        # gmd:distributionOrderProcess
+        distribution_order_elem = Element(
+            gmd + "distributionOrderProcess",
+            attrib={
+                gco + "nilReason": "unknown"
+            }
+        )
+        ret_elem.append(distribution_order_elem)
+
+        # gmd:distributorFormat
+        distributor_format_elem = Element(
+            gmd + "distributorFormat",
+            attrib={
+                gco + "nilReason": "unknown"
+            }
+        )
+        ret_elem.append(distributor_format_elem)
+
+        # gmd:distributorTransferOptions
+        distributor_transfer_options_elem = Element(
+            gmd + "distributorTransferOptions",
+        )
+        distributor_transfer_options_elem.append(self._create_digital_transfer_options(metadata, reduced_nsmap))
+
+        ret_elem.append(distributor_transfer_options_elem)
+
+        return ret_elem
+
+    def _create_digital_transfer_options(self, metadata: Metadata, reduced_nsmap: dict):
+        """ Creates the <gmd:MD_DigitalTransferOptions> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        ret_elem = Element(
+            gmd + "MD_DigitalTransferOptions"
+        )
+
+        # gmd:unitsOfDistribution
+        units_of_distribution_elem = Element(
+            gmd + "unitsOfDistribution",
+            attrib={
+                gco + "nilReason": "unknown"
+            }
+        )
+        ret_elem.append(units_of_distribution_elem)
+
+        # gmd:transferSize
+        transfer_size_elem = Element(
+            gmd + "transferSize",
+            attrib={
+                gco + "nilReason": "unknown"
+            }
+        )
+        ret_elem.append(transfer_size_elem)
+
+        # gmd:onLine
+        online_elem = Element(
+            gmd + "onLine",
+        )
+        online_elem.append(self._create_online_resource(metadata, reduced_nsmap))
+        ret_elem.append(online_elem)
+
+        # gmd:offLine
+        offline_elem = Element(
+            gmd + "offLine",
+            attrib={
+                gco + "nilReason": "unknown"
+            }
+        )
+        ret_elem.append(offline_elem)
+
         return ret_elem
 
     def _create_data_quality_info(self, metadata: Metadata, reduced_nsmap):
@@ -1585,8 +1751,75 @@ class Document(Resource):
         Returns:
              ret_elem (_Element): The requested xml element
         """
-        ret_elem = Element("test")
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        ret_elem = Element(
+            gmd + "DQ_DataQuality"
+        )
+
+        # gmd:scope
+        scope_elem = Element(
+            gmd + "scope"
+        )
+        scope_elem.append(self._create_scope(metadata, reduced_nsmap))
+        ret_elem.append(scope_elem)
+
+        # gmd:report
+        report_elem = Element(
+            gmd + "report"
+        )
+        ret_elem.append(report_elem)
+
+        # gmd:lineage
+        lineage_elem = Element(
+            gmd + "lineage"
+        )
+        ret_elem.append(lineage_elem)
+
         return ret_elem
+
+    def _create_scope(self, metadata: Metadata, reduced_nsmap: dict):
+        """ Creates the <gmd:DQ_Scope> element
+
+        Args:
+            metadata (Metadata): The metadata element, which carries the needed information
+            reduced_nsmap (dict):  The namespace map
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        gmd = "{" + reduced_nsmap.get("gmd", "") + "}"
+        gco = "{" + reduced_nsmap.get("gco", "") + "}"
+
+        ret_elem = Element(
+            gmd + "DQ_Scope"
+        )
+
+        # gmd:level
+        level_elem = Element(
+            gmd + "level"
+        )
+        level_elem.append(self._create_hierarchy_level(metadata, reduced_nsmap))
+        ret_elem.append(level_elem)
+
+        # gmd:extent
+        extent_elem = Element(
+            gmd + "extent"
+        )
+        extent_elem.append(self._create_extent(metadata, reduced_nsmap))
+        ret_elem.append(extent_elem)
+
+        # gmd:levelDescription
+        level_description_elem = Element(
+            gmd + "levelDescription",
+            attrib={
+                gco + "nilReason": "unknown",
+            }
+        )
+        ret_elem.append(level_description_elem)
+
+        return ret_elem
+
 
     def restore(self):
         """ We overwrite the current metadata xml with the original

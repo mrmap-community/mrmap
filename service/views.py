@@ -171,10 +171,12 @@ def get_service_metadata(request: HttpRequest, id: int):
     """
     docs = []
     doc = None
+    metadata = Metadata.objects.get(id=id)
 
     # check if the metadata record already has a service metadata document linked
     md_relations = MetadataRelation.objects.filter(
-        metadata_from__id=id,
+        metadata_from=metadata,
+        metadata__is_active=True,
         metadata_to__metadata_type__type=MD_TYPE_SERVICE
     )
     for rel in md_relations:
@@ -194,6 +196,8 @@ def get_service_metadata(request: HttpRequest, id: int):
         # Everything is fine, we get the service metadata document
         doc = docs.pop().service_metadata_document
     else:
+        if not metadata.is_active:
+            return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
         # There is no service metadata document in the database, we need to create it during runtime
         generator = ServiceMetadataGenerator(md_id=id)
         doc = generator.generate_service_metadata()

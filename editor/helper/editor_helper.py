@@ -13,7 +13,7 @@ from requests.exceptions import MissingSchema
 
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
-from service.helper.iso.isoMetadata import ISOMetadata
+from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
     MetadataOrigin
 from service.helper import xml_helper

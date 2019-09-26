@@ -25,7 +25,7 @@ from MapSkinner.utils import execute_threads, sha256
 from service.config import ALLOWED_SRS
 from service.helper.enums import VersionTypes
 from service.helper.epsg_api import EpsgApi
-from service.helper.iso.isoMetadata import ISOMetadata
+from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 

@@ -40,8 +40,8 @@ def async_activate_service(param_POST: dict, user_id: int):
     # get service and change status
     service = Service.objects.get(id=service_id)
     service.metadata.is_active = new_status
-    service.metadata.save()
-    service.save()
+    service.metadata.save(update_last_modified=False)
+    service.save(update_last_modified=False)
 
     # get root_layer of service and start changing of all statuses
     # also check all related metadata and activate them too

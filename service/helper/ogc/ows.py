@@ -10,7 +10,7 @@ from django.db import transaction
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
-from service.helper.iso.isoMetadata import ISOMetadata
+from service.helper.iso.iso_metadata import ISOMetadata
 from structure.models import User
 
 

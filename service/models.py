@@ -15,6 +15,7 @@ class Keyword(models.Model):
     def __str__(self):
         return self.keyword
 
+
 class Resource(models.Model):
     uuid = models.CharField(max_length=255, default=uuid.uuid4())
     created = models.DateTimeField(auto_now_add=True)
@@ -23,14 +24,17 @@ class Resource(models.Model):
     is_deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
 
-    def save(self, force_insert=False, force_update=False, using=None,
+    def save(self, update_last_modified=True, force_insert=False, force_update=False, using=None,
              update_fields=None):
-        # We always want to have automatically the last timestamp from the latest change!
-        self.last_modified = timezone.now()
-        super().save()
+        if update_last_modified:
+            # We always want to have automatically the last timestamp from the latest change!
+            # ONLY if the function is especially called with a False flag in update_last_modified, we will not change the record's last change
+            self.last_modified = timezone.now()
+        super().save(force_insert, force_update, using, update_fields)
 
     class Meta:
         abstract = True
+
 
 class MetadataOrigin(models.Model):
     name = models.CharField(max_length=255)
@@ -581,10 +585,10 @@ class Service(Resource):
         linked_mds = self.metadata.related_metadata.all()
         for md_relation in linked_mds:
             md_relation.metadata_to.is_active = is_active
-            md_relation.metadata_to.save()
+            md_relation.metadata_to.save(update_last_modified=False)
 
-        self.metadata.save()
-        self.save()
+        self.metadata.save(update_last_modified=False)
+        self.save(update_last_modified=False)
 
 
 class Layer(Service):

@@ -18,7 +18,7 @@ from MapSkinner.utils import execute_threads
 from service.config import ALLOWED_SRS
 from service.helper.enums import VersionTypes, ServiceTypes
 from service.helper.epsg_api import EpsgApi
-from service.helper.iso.isoMetadata import ISOMetadata
+from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \

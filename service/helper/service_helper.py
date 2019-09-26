@@ -12,7 +12,7 @@ from celery import Task
 
 from service.settings import DEFAULT_SERVICE_VERSION
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import VersionTypes, ServiceTypes
+from service.helper.enums import VersionEnum, ServiceEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
@@ -28,7 +28,7 @@ def resolve_version_enum(version:str):
     Returns:
          The matching enum, otherwise None
     """
-    for enum in VersionTypes:
+    for enum in VersionEnum:
         if enum.value == version:
             return enum
     return None
@@ -44,7 +44,7 @@ def resolve_service_enum(service: str):
     """
     if service is None:
         return None
-    for enum in ServiceTypes:
+    for enum in ServiceEnum:
         if str(enum.value).upper() == service.upper():
             return enum
     return None
@@ -136,7 +136,7 @@ def get_service_model_instance(service_type, version, base_uri, user, register_g
     """
 
     ret_dict = {}
-    if service_type is ServiceTypes.WMS:
+    if service_type is ServiceEnum.WMS:
         # create WMS object
         wms_factory = OGCWebMapServiceFactory()
         wms = wms_factory.get_ogc_wms(version=version, service_connect_url=base_uri)
@@ -168,7 +168,7 @@ def persist_service_model_instance(service: Service):
     Returns:
          Nothing
     """
-    if service.servicetype.name == ServiceTypes.WMS.value:
+    if service.servicetype.name == ServiceEnum.WMS.value:
         # create WMS object
         wms_factory = OGCWebMapServiceFactory()
         wms = wms_factory.get_ogc_wms(version=resolve_version_enum(service.servicetype.version))

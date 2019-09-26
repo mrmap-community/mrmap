@@ -5,7 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 03.06.19
 
 """
-from service.helper.enums import ServiceTypes
+from service.helper.enums import ServiceEnum
 from service.models import Service, Layer, FeatureType
 
 
@@ -54,13 +54,13 @@ class ServiceComparator:
              diff (dict): The differences collected
         """
         diff = {}
-        if self.service_1.servicetype.name == ServiceTypes.WMS.value:
+        if self.service_1.servicetype.name == ServiceEnum.WMS.value:
             # Check layer metadata against each other
             # Always iterate over service_1 and check against service_2
             layers = self.service_1.get_all_layers()
             diff["layers"] = self.compare_layers(layers)
 
-        elif self.service_1.servicetype.name == ServiceTypes.WFS.value:
+        elif self.service_1.servicetype.name == ServiceEnum.WFS.value:
             # Check feature services against each other
             # always iterate over service_1 and check against service_2
             diff["feature_types"] = self.compare_feature_types(self.service_1.feature_type_list)

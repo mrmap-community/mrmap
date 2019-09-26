@@ -10,6 +10,7 @@ import json
 from django.core.exceptions import ObjectDoesNotExist
 
 from service.config import INSPIRE_LEGISLATION_FILE
+from service.helper.enums import MetadataEnum
 from service.models import Metadata
 from service.helper import xml_helper
 from lxml.etree import Element
@@ -21,9 +22,9 @@ from django.utils import timezone
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
 
 
-class ServiceMetadataGenerator:
+class MetadataGenerator:
 
-    def __init__(self, md_id: int):
+    def __init__(self, md_id: int, metadata_type: MetadataEnum, use_legislation_amendment=False):
         self.metadata = Metadata.objects.get(id=md_id)
         self.organization = self.metadata.contact
         
@@ -58,6 +59,9 @@ class ServiceMetadataGenerator:
                 "de": "Downloaddienst",
             },
         }
+
+        self.metadata_type = metadata_type.value
+        self.use_legislation_amendment = use_legislation_amendment
 
     def generate_service_metadata(self):
         """ Creates a service self.metadata as xml, following the ISO19115 standard
@@ -1328,7 +1332,12 @@ class ServiceMetadataGenerator:
             "network_services",
         ]
         for legislation in self.regislations["inspire_rules"]:
-            if legislation["group"] in legislation_groups:
+            if legislation["group"] in legislation_groups \
+                    and self.metadata_type in legislation["subject"]:
+                if not self.use_legislation_amendment:
+                    # skip amendments if not desired
+                    if '_amendment' in legislation["type"]:
+                        continue
                 report_elem = Element(
                     self.gmd + "report"
                 )

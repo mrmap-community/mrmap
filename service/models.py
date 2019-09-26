@@ -4,7 +4,7 @@ from django.contrib.gis.geos import Polygon
 from django.db import models, transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
-from service.helper.enums import ServiceTypes
+from service.helper.enums import ServiceEnum
 from structure.models import Group, Organization
 from service.helper import xml_helper
 
@@ -759,7 +759,7 @@ class FeatureType(Resource):
             return
         service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
         service = None
-        if self.service.servicetype.name == ServiceTypes.WFS.value:
+        if self.service.servicetype.name == ServiceEnum.WFS.value:
             service = OGCWebFeatureServiceFactory()
             service = service.get_ogc_wfs(version=service_version, service_connect_url=self.service.metadata.capabilities_original_uri)
         if service is None:

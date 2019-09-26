@@ -21,8 +21,8 @@ from service import tasks
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ServiceTypes
-from service.helper.iso.service_metadata_generator import ServiceMetadataGenerator
+from service.helper.enums import ServiceEnum, MetadataEnum
+from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation
 from service.settings import MD_TYPE_SERVICE
@@ -67,7 +67,7 @@ def index(request: HttpRequest, user: User, service_type=None):
     # get services
     paginator_wms = None
     paginator_wfs = None
-    if service_type is None or service_type == ServiceTypes.WMS.value:
+    if service_type is None or service_type == ServiceEnum.WMS.value:
         md_list_wms = Metadata.objects.filter(
             service__servicetype__name="wms",
             service__is_root=is_root,
@@ -75,7 +75,7 @@ def index(request: HttpRequest, user: User, service_type=None):
             service__is_deleted=False,
         ).order_by("title")
         paginator_wms = Paginator(md_list_wms, results_per_page).get_page(wms_page)
-    if service_type is None or service_type == ServiceTypes.WFS.value:
+    if service_type is None or service_type == ServiceEnum.WFS.value:
         md_list_wfs = Metadata.objects.filter(
             service__servicetype__name="wfs",
             created_by__in=user.groups.all(),
@@ -117,9 +117,9 @@ def remove(request: HttpRequest, user: User):
     service = get_object_or_404(Service, id=service_id)
     service_type = service.servicetype
     sub_elements = None
-    if service_type.name == ServiceTypes.WMS.value:
+    if service_type.name == ServiceEnum.WMS.value:
         sub_elements = Layer.objects.filter(parent_service=service)
-    elif service_type.name == ServiceTypes.WFS.value:
+    elif service_type.name == ServiceEnum.WFS.value:
         sub_elements = service.featuretypes.all()
     metadata = get_object_or_404(Metadata, service=service)
     if confirmed == 'false':
@@ -199,7 +199,7 @@ def get_service_metadata(request: HttpRequest, id: int):
         if not metadata.is_active:
             return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
         # There is no service metadata document in the database, we need to create it during runtime
-        generator = ServiceMetadataGenerator(md_id=id)
+        generator = MetadataGenerator(id, MetadataEnum.service)
         doc = generator.generate_service_metadata()
 
     return HttpResponse(doc, content_type='application/xml')
@@ -325,7 +325,7 @@ def wms(request:HttpRequest, user:User):
     Returns:
          A view
     """
-    return redirect("service:index", ServiceTypes.WMS.value)
+    return redirect("service:index", ServiceEnum.WMS.value)
 
 
 @check_session
@@ -506,10 +506,10 @@ def update_service(request: HttpRequest, user: User, id: int):
         old_service = update_helper.update_service(old_service, new_service)
         old_service.last_modified = timezone.now()
 
-        if new_service.servicetype.name == ServiceTypes.WFS.value:
+        if new_service.servicetype.name == ServiceEnum.WFS.value:
             old_service = update_helper.update_wfs(old_service, new_service, diff, links, keep_custom_metadata)
 
-        elif new_service.servicetype.name == ServiceTypes.WMS.value:
+        elif new_service.servicetype.name == ServiceEnum.WMS.value:
             old_service = update_helper.update_wms(old_service, new_service, diff, links, keep_custom_metadata)
 
         cap_document = Document.objects.get(related_metadata=old_service.metadata)
@@ -627,9 +627,9 @@ def wfs(request:HttpRequest, user:User):
          A view
     """
     params = {
-        "only": ServiceTypes.WFS
+        "only": ServiceEnum.WFS
     }
-    return redirect("service:index", ServiceTypes.WFS.value)
+    return redirect("service:index", ServiceEnum.WFS.value)
 
 
 @check_session

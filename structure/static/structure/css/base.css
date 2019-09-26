@@ -283,14 +283,18 @@ a{
     color: var(--secondary-color);
 }
 
-.default-select{
+.cell-select, .default-select{
     color: black;
     background-color: unset;
     border: 1px solid gray;
     border-radius: 0.25rem;
     padding: 0.375rem 0.75rem;
+}
+
+.cell-select{
     width: 100%;
 }
+
 
 .pagination-page{
     border-radius: 5px;

@@ -45,7 +45,7 @@ def index(request: HttpRequest, user: User, service_type=None):
     template = "service_index.html"
 
     # possible results per page values
-    rpp_select = [5, 10, 15, 20]
+    rpp_select = [5, 10, 15, 20, 50, 100, 200, 500, 1000]
     try:
         wms_page = int(request.GET.get("wmsp", 1))
         wfs_page = int(request.GET.get("wfsp", 1))

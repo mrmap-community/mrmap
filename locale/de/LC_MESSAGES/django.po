@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-08-09 08:45+0200\n"
+"POT-Creation-Date: 2019-09-26 10:15+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -94,7 +94,7 @@ msgstr "Metadaten sind original. Zurücksetzen abgebrochen."
 
 #: MapSkinner/messages.py:53
 msgid "No datasetId found in metadata!"
-msgstr ""
+msgstr "Keine datasetId in den Metadaten gefunden!"
 
 #: MapSkinner/messages.py:55
 msgid "The request was not activated in time. Request was deleted."
@@ -158,14 +158,21 @@ msgstr ""
 "und kontaktieren Sie einen Administrator."
 
 #: MapSkinner/messages.py:70
+msgid ""
+"There are several service metadata documents for this service. Please "
+"contact an administrator."
+msgstr ""
+"Es existieren mehrere Service Metadaten Dokumente für diesen Dienst. Keine Eindeutigkeit feststellbar. Kontaktieren Sie einen Administrator."
+
+#: MapSkinner/messages.py:72
 msgid "'{}' was invalid."
 msgstr "Die URI ist ungültig."
 
-#: MapSkinner/settings.py:206 templates/footer.html:11
+#: MapSkinner/settings.py:203 templates/footer.html:11
 msgid "English"
 msgstr "Englisch"
 
-#: MapSkinner/settings.py:207
+#: MapSkinner/settings.py:204
 msgid "German"
 msgstr "Deutsch"
 
@@ -199,9 +206,9 @@ msgid "Save"
 msgstr "Speichern"
 
 #: editor/templates/editor_service_list.html:7
-#: service/templates/check_metadata_form.html:83
 #: service/templates/detail/service_detail_child_wfs.html:9
 #: service/templates/detail/service_detail_child_wms.html:12
+#: service/templates/overlay/check_metadata_form.html:40
 #: service/templates/wfs/wfs_index.html:59
 #: service/templates/wms/wms_index.html:63
 msgid "Title"
@@ -217,7 +224,7 @@ msgid "Active"
 msgstr "Aktiv"
 
 #: editor/templates/editor_service_list.html:13
-#: service/templates/check_metadata_form.html:112
+#: service/templates/overlay/check_metadata_form.html:69
 #: service/templates/wfs/wfs_index.html:71
 #: service/templates/wms/wms_index.html:81
 msgid "Data provider"
@@ -244,7 +251,7 @@ msgstr "Bearbeiten"
 
 #: editor/templates/editor_service_list.html:28
 msgid "Reset"
-msgstr ""
+msgstr "Zurücksetzen"
 
 #: editor/templates/editor_service_list.html:34
 #: service/templates/wfs/wfs_index.html:86
@@ -282,14 +289,14 @@ msgstr "Einträge durch \",\" separieren"
 msgid "You have to choose predefined values. Type in what you are looking for."
 msgstr "Sie müssen die Vorschläge verwenden. Tippen Sie ein wonach Sie suchen."
 
-#: editor/views.py:103 editor/views.py:162
-#: service/templates/detail/service_detail.html:110
+#: editor/views.py:111 editor/views.py:170
+#: service/templates/detail/service_detail.html:121
 #: service/templates/detail/service_detail_child_wfs.html:21
 #: service/templates/detail/service_detail_child_wms.html:20
 msgid "Keywords"
 msgstr "Schlüsselwörter"
 
-#: editor/views.py:109
+#: editor/views.py:117
 msgid "Categories"
 msgstr "Kategorien"
 
@@ -297,119 +304,17 @@ msgstr "Kategorien"
 msgid "GetRequest URI"
 msgstr ""
 
-#: service/templates/check_metadata_form.html:52
-#: service/templates/register_new_service.html:87
-#: service/templates/remove_service_confirmation.html:17
-#: service/templates/service_url_form.html:65
-#: service/templates/update_service.html:87 structure/templates/form.html:78
-#: structure/templates/remove_group_confirmation.html:12
-#: structure/templates/remove_organization_confirmation.html:11
-#: structure/templates/request_publish_permission.html:55
-#: users/templates/change_password.html:75 users/templates/users_form.html:45
-msgid "Close"
-msgstr "Schließen"
-
-#: service/templates/check_metadata_form.html:57
-#: service/templates/check_metadata_form.html:67
-msgid "An error occured"
-msgstr "Ein Fehler ist aufgetreten"
-
-#: service/templates/check_metadata_form.html:59
-#, python-format
-msgid ""
-"\n"
-"                Service could not be loaded. <br>\n"
-"                The following HTTP error was raised during connection: <b>"
-"%(error)s</b> <br>\n"
-"                Please make sure the service is publicly available.\n"
-"                "
-msgstr ""
-"\n"
-"                Dienst konnte nicht geladen werden. <br>\n"
-"                Der folgende HTTP Fehler trat auf:: <b>%(error)s</b> <br>\n"
-"                Stellen Sie sicher, dass der Dienst öffentlich zugänglich "
-"ist.\n"
-"                "
-
-#: service/templates/check_metadata_form.html:65
-#: service/templates/check_metadata_form.html:75
-#: service/templates/register_new_service.html:95
-#: service/templates/update_service.html:95
-msgid "Okay"
-msgstr ""
-
-#: service/templates/check_metadata_form.html:69
-#, python-format
-msgid ""
-"\n"
-"                Service could not be loaded. <br>\n"
-"                The following error occured: <b>%(unknown_error)s</b> <br>\n"
-"                Please contact an administrator to inform about this issue.\n"
-"                "
-msgstr ""
-"\n"
-"                Dienst konnte nicht geladen werden. <br>\n"
-"                Der folgende Fehler trat auf: : <b>%(unknown_error)s</b> "
-"<br>\n"
-"                Bitte kontaktieren Sie einen Administrator.\n"
-"                "
-
-#: service/templates/check_metadata_form.html:77
-msgid ""
-"The service has been registered. The following is an extract from the "
-"metadata."
-msgstr "Der Dienst wurde registriert. Es folgt ein Auszug aus den Metadaten."
-
-#: service/templates/check_metadata_form.html:80
-msgid "Service:"
-msgstr "Dienst"
-
-#: service/templates/check_metadata_form.html:87
-#: service/templates/wfs/containing_featuretypes_elements.html:33
-msgid "Type"
-msgstr ""
-
-#: service/templates/check_metadata_form.html:91
-#: service/templates/detail/service_detail.html:100
-#: service/templates/detail/service_detail_child_wfs.html:17
-#: service/templates/detail/service_detail_child_wms.html:16
-msgid "Abstract"
-msgstr "Beschreibung"
-
-#: service/templates/check_metadata_form.html:95
-msgid "Fees"
-msgstr "Gebühren:"
-
-#: service/templates/check_metadata_form.html:100
-#: service/templates/wms/wms_index.html:71
-msgid "Number of layers"
-msgstr "Layeranzahl"
-
-#: service/templates/check_metadata_form.html:105
-msgid "Online resources"
-msgstr "Onlineresource:"
-
-#: service/templates/check_metadata_form.html:109
-msgid "Contact:"
-msgstr "Kontakt:"
-
-#: service/templates/check_metadata_form.html:116
-msgid "Responsible person"
-msgstr "Verantwortliche Person:"
-
-#: service/templates/check_metadata_form.html:120
-#: service/templates/detail/service_detail.html:140
-#: structure/templates/organization_detail.html:74 users/forms.py:15
-msgid "E-Mail"
-msgstr ""
-
-#: service/templates/check_metadata_form.html:125
-msgid "Finish"
-msgstr "Fertig"
+#: service/templates/detail/service_detail.html:27
+msgid "Deactivate this service"
+msgstr "Deaktiviere Service"
 
 #: service/templates/detail/service_detail.html:29
 msgid "Deactivate service"
-msgstr "Deaktiviere Service"
+msgstr "Deaktiviere Dienst"
+
+#: service/templates/detail/service_detail.html:32
+msgid "Activate this service"
+msgstr "Aktiviere Dienst"
 
 #: service/templates/detail/service_detail.html:34
 msgid "Activate service"
@@ -423,103 +328,146 @@ msgstr "Aktualisiere Dienst über eine neue URL"
 msgid "Update service"
 msgstr "Dienst aktualisieren"
 
-#: service/templates/detail/service_detail.html:54
+#: service/templates/detail/service_detail.html:53
+#: service/templates/wms/containing_layers.html:34
+msgid "Get dataset metadata"
+msgstr "Öffne Datensatz Metadaten"
+
+#: service/templates/detail/service_detail.html:55
+#: service/templates/wms/containing_layers.html:36
+msgid "Dataset metadata"
+msgstr "Datensatz Metadaten"
+
+#: service/templates/detail/service_detail.html:60
+msgid "Get the capabilities document"
+msgstr "Öffne Capabilities Dokument"
+
+#: service/templates/detail/service_detail.html:61
 #: service/templates/service_differences.html:104
 #: service/templates/service_differences.html:105
 msgid "Capabilities"
 msgstr ""
 
-#: service/templates/detail/service_detail.html:58
+#: service/templates/detail/service_detail.html:64
+msgid "Get the original document"
+msgstr "Öffne Originaldokument"
+
+#: service/templates/detail/service_detail.html:65
 msgid "Original"
 msgstr "Original"
 
-#: service/templates/detail/service_detail.html:61
+#: service/templates/detail/service_detail.html:67
+msgid "Get the current, maybe edited, document"
+msgstr "Öffne das aktuelle, womöglich editierte, Dokument"
+
+#: service/templates/detail/service_detail.html:68
 msgid "Current"
 msgstr "Aktuell"
 
-#: service/templates/detail/service_detail.html:67
+#: service/templates/detail/service_detail.html:72
+msgid "Get service metadata"
+msgstr "Öffne Service Metadaten"
+
+#: service/templates/detail/service_detail.html:74
+msgid "Service metadata"
+msgstr "Service Metadaten"
+
+#: service/templates/detail/service_detail.html:78
 msgid "Open original metadata in new tab"
 msgstr "Öffne originale Metadaten in neuem Tab"
 
-#: service/templates/detail/service_detail.html:75
+#: service/templates/detail/service_detail.html:86
 msgid "Remove service"
 msgstr "Dienst entfernen"
 
-#: service/templates/detail/service_detail.html:84
+#: service/templates/detail/service_detail.html:95
 #: service/templates/detail/service_detail_child_wfs.html:5
 #: service/templates/detail/service_detail_child_wms.html:4
 #: service/templates/wfs/containing_featuretypes_elements.html:25
 msgid "Uuid"
 msgstr ""
 
-#: service/templates/detail/service_detail.html:88
+#: service/templates/detail/service_detail.html:99
 #: structure/templates/organization_detail.html:123
 msgid "Service type"
 msgstr "Diensttyp"
 
-#: service/templates/detail/service_detail.html:92
+#: service/templates/detail/service_detail.html:103
 msgid "Service type version"
 msgstr "Diensttypversion"
 
-#: service/templates/detail/service_detail.html:96
+#: service/templates/detail/service_detail.html:107
 msgid "Last update on"
 msgstr "Aktualisiert am"
 
-#: service/templates/detail/service_detail.html:104
+#: service/templates/detail/service_detail.html:111
+#: service/templates/detail/service_detail_child_wfs.html:17
+#: service/templates/detail/service_detail_child_wms.html:16
+#: service/templates/overlay/check_metadata_form.html:48
+msgid "Abstract"
+msgstr "Beschreibung"
+
+#: service/templates/detail/service_detail.html:115
 msgid "Online resource"
 msgstr "Onlineresource"
 
-#: service/templates/detail/service_detail.html:115
+#: service/templates/detail/service_detail.html:126
 #: service/templates/detail/service_detail_child_wfs.html:26
 #: service/templates/detail/service_detail_child_wms.html:25
 msgid "No keywords provided"
 msgstr "Keine Schlüsselwörter verfügbar"
 
-#: service/templates/detail/service_detail.html:120
+#: service/templates/detail/service_detail.html:131
 msgid "Access Constraints"
 msgstr "Zugangsbeschränkungen"
 
-#: service/templates/detail/service_detail.html:124
+#: service/templates/detail/service_detail.html:135
 msgid "Responsible Person"
 msgstr "Verantwortliche Person"
 
-#: service/templates/detail/service_detail.html:128 structure/forms.py:30
+#: service/templates/detail/service_detail.html:139 structure/forms.py:30
 #: structure/templates/group_detail.html:39
 #: structure/templates/index_groups.html:28
 #: structure/templates/index_publish_requests.html:57
 msgid "Organization"
 msgstr "Organisation"
 
-#: service/templates/detail/service_detail.html:132 structure/forms.py:66
+#: service/templates/detail/service_detail.html:143 structure/forms.py:66
 #: structure/templates/organization_detail.html:78
 msgid "Phone"
 msgstr "Telefon"
 
-#: service/templates/detail/service_detail.html:136 structure/forms.py:67
+#: service/templates/detail/service_detail.html:147 structure/forms.py:67
 #: structure/templates/organization_detail.html:82
 msgid "Facsimile"
 msgstr "Fax"
 
-#: service/templates/detail/service_detail.html:144 structure/forms.py:63
+#: service/templates/detail/service_detail.html:151
+#: service/templates/overlay/check_metadata_form.html:77
+#: structure/templates/organization_detail.html:74 users/forms.py:15
+msgid "E-Mail"
+msgstr ""
+
+#: service/templates/detail/service_detail.html:155 structure/forms.py:63
 #: structure/templates/organization_detail.html:86
 msgid "Address"
 msgstr "Adresse"
 
-#: service/templates/detail/service_detail.html:148 structure/forms.py:65
+#: service/templates/detail/service_detail.html:159 structure/forms.py:65
 #: structure/templates/organization_detail.html:94
 msgid "City"
 msgstr "Stadt"
 
-#: service/templates/detail/service_detail.html:152
+#: service/templates/detail/service_detail.html:163
 msgid "Post code"
 msgstr "Postleitzahl"
 
-#: service/templates/detail/service_detail.html:156
+#: service/templates/detail/service_detail.html:167
 #: structure/templates/organization_detail.html:98
 msgid "State or province"
 msgstr "Bundesland"
 
-#: service/templates/detail/service_detail.html:160
+#: service/templates/detail/service_detail.html:171
 #: structure/templates/organization_detail.html:102
 msgid "Country"
 msgstr "Land"
@@ -567,7 +515,6 @@ msgid "Additional reference systems:"
 msgstr "Weitere Referenzsysteme:"
 
 #: service/templates/detail/service_detail_child_wfs.html:58
-#: service/templates/detail/service_detail_child_wfs.html:72
 #: service/templates/detail/service_detail_child_wms.html:89
 msgid "No additional reference systems provided"
 msgstr "Keine weiteren Referenzsysteme verfügbar"
@@ -576,6 +523,10 @@ msgstr "Keine weiteren Referenzsysteme verfügbar"
 #: service/templates/detail/service_detail_child_wms.html:94
 msgid "Mime types:"
 msgstr "Datentypen:"
+
+#: service/templates/detail/service_detail_child_wfs.html:72
+msgid "No mime types provided"
+msgstr "Keine Mime Typen verfügbar"
 
 #: service/templates/detail/service_detail_child_wms.html:8
 msgid "Identifier"
@@ -609,61 +560,188 @@ msgstr "Zoomstufen"
 msgid "Reference systems:"
 msgstr "Referenzsysteme:"
 
-#: service/templates/register_new_service.html:93
-#: service/templates/update_service.html:93
+#: service/templates/overlay/check_metadata_form.html:9
+#: service/templates/overlay/error.html:14
+#: service/templates/overlay/new_service_progress.html:35
+#: service/templates/overlay/register_new_service.html:8
+#: service/templates/overlay/remove_service_confirmation.html:18
+#: service/templates/overlay/service_url_form.html:13
+#: service/templates/overlay/update_service.html:95
+#: structure/templates/form.html:78
+#: structure/templates/remove_group_confirmation.html:12
+#: structure/templates/remove_organization_confirmation.html:11
+#: structure/templates/request_publish_permission.html:58
+#: users/templates/change_password.html:75 users/templates/users_form.html:45
+msgid "Close"
+msgstr "Schließen"
+
+#: service/templates/overlay/check_metadata_form.html:14
+#: service/templates/overlay/check_metadata_form.html:24
+msgid "An error occured"
+msgstr "Ein Fehler ist aufgetreten"
+
+#: service/templates/overlay/check_metadata_form.html:16
+#, python-format
+msgid ""
+"\n"
+"                Service could not be loaded. <br>\n"
+"                The following HTTP error was raised during connection: <b>"
+"%(error)s</b> <br>\n"
+"                Please make sure the service is publicly available.\n"
+"                "
+msgstr ""
+"\n"
+"                Dienst konnte nicht geladen werden. <br>\n"
+"                Der folgende HTTP Fehler trat auf:: <b>%(error)s</b> <br>\n"
+"                Stellen Sie sicher, dass der Dienst öffentlich zugänglich "
+"ist.\n"
+"                "
+
+#: service/templates/overlay/check_metadata_form.html:22
+#: service/templates/overlay/check_metadata_form.html:32
+#: service/templates/overlay/register_new_service.html:16
+#: service/templates/overlay/update_service.html:103
+msgid "Okay"
+msgstr ""
+
+#: service/templates/overlay/check_metadata_form.html:26
+#, python-format
+msgid ""
+"\n"
+"                Service could not be loaded. <br>\n"
+"                The following error occured: <b>%(unknown_error)s</b> <br>\n"
+"                Please contact an administrator to inform about this issue.\n"
+"                "
+msgstr ""
+"\n"
+"                Dienst konnte nicht geladen werden. <br>\n"
+"                Der folgende Fehler trat auf: : <b>%(unknown_error)s</b> "
+"<br>\n"
+"                Bitte kontaktieren Sie einen Administrator.\n"
+"                "
+
+#: service/templates/overlay/check_metadata_form.html:34
+msgid ""
+"The service has been registered. The following is an extract from the "
+"metadata."
+msgstr "Der Dienst wurde registriert. Es folgt ein Auszug aus den Metadaten."
+
+#: service/templates/overlay/check_metadata_form.html:37
+msgid "Service:"
+msgstr "Dienst"
+
+#: service/templates/overlay/check_metadata_form.html:44
+#: service/templates/wfs/containing_featuretypes_elements.html:33
+msgid "Type"
+msgstr "Typ"
+
+#: service/templates/overlay/check_metadata_form.html:52
+msgid "Fees"
+msgstr "Gebühren:"
+
+#: service/templates/overlay/check_metadata_form.html:57
+#: service/templates/wms/wms_index.html:71
+msgid "Number of layers"
+msgstr "Layeranzahl"
+
+#: service/templates/overlay/check_metadata_form.html:62
+msgid "Online resources"
+msgstr "Onlineresource:"
+
+#: service/templates/overlay/check_metadata_form.html:66
+msgid "Contact:"
+msgstr "Kontakt:"
+
+#: service/templates/overlay/check_metadata_form.html:73
+msgid "Responsible person"
+msgstr "Verantwortliche Person:"
+
+#: service/templates/overlay/check_metadata_form.html:82
+#: service/templates/overlay/error.html:27
+#: service/templates/overlay/new_service_progress.html:57
+msgid "Finish"
+msgstr "Fertig"
+
+#: service/templates/overlay/error.html:18
+msgid "Error"
+msgstr "Fehler"
+
+#: service/templates/overlay/error.html:20
+msgid "Mr. Map detected a problem with the following code during registration:"
+msgstr "Mr. Map hat den folgenden Fehlercode während der Registrierung entdeckt:"
+
+#: service/templates/overlay/error.html:24
+msgid "Please inform an administrator."
+msgstr "Informieren Sie bitte einen Administrator."
+
+#: service/templates/overlay/new_service_progress.html:39
+msgid "Registration ongoing"
+msgstr "Registrierung läuft"
+
+#: service/templates/overlay/new_service_progress.html:41
+msgid "Your service is currently processed. Please be patient!"
+msgstr ""
+"Ihr Dienst wird gerade verarbeitet. Bitte gedulden Sie sich!"
+
+#: service/templates/overlay/new_service_progress.html:45
+msgid "in phase:"
+msgstr "in Phase:"
+
+#: service/templates/overlay/register_new_service.html:14
+#: service/templates/overlay/update_service.html:101
 msgid "The URI is invalid."
 msgstr "Die URI ist ungültig."
 
-#: service/templates/register_new_service.html:94
-#: service/templates/update_service.html:94
+#: service/templates/overlay/register_new_service.html:15
+#: service/templates/overlay/update_service.html:102
 msgid "Please check and try again."
 msgstr "Bitte prüfen und erneut versuchen."
 
-#: service/templates/register_new_service.html:99
+#: service/templates/overlay/register_new_service.html:20
 msgid "You are about to register this service."
 msgstr "Sie werden diesen Dienst registrieren."
 
-#: service/templates/register_new_service.html:104
-#: service/templates/update_service.html:130
+#: service/templates/overlay/register_new_service.html:25
+#: service/templates/overlay/update_service.html:138
 msgid "OGC Request:"
 msgstr ""
 
-#: service/templates/register_new_service.html:108
-#: service/templates/update_service.html:103
-#: service/templates/update_service.html:134
+#: service/templates/overlay/register_new_service.html:29
+#: service/templates/overlay/update_service.html:111
+#: service/templates/overlay/update_service.html:142
 msgid "OGC service:"
 msgstr "OGC Dienst:"
 
-#: service/templates/register_new_service.html:112
-#: service/templates/update_service.html:107
-#: service/templates/update_service.html:138
+#: service/templates/overlay/register_new_service.html:33
+#: service/templates/overlay/update_service.html:115
+#: service/templates/overlay/update_service.html:146
 msgid "OGC Version:"
 msgstr ""
 
-#: service/templates/register_new_service.html:116
-#: service/templates/update_service.html:111
-#: service/templates/update_service.html:142
+#: service/templates/overlay/register_new_service.html:37
+#: service/templates/overlay/update_service.html:119
+#: service/templates/overlay/update_service.html:150
 msgid "URI:"
 msgstr ""
 
-#: service/templates/register_new_service.html:120
+#: service/templates/overlay/register_new_service.html:41
 msgid "Registering with group:"
 msgstr "Registriert mit Gruppe:"
 
-#: service/templates/register_new_service.html:130
+#: service/templates/overlay/register_new_service.html:51
 msgid "Registering for other organization:"
 msgstr "Registriert für eine andere Organization:"
 
-#: service/templates/register_new_service.html:133
+#: service/templates/overlay/register_new_service.html:54
 msgid "No other"
 msgstr "Keine weitere"
 
-#: service/templates/register_new_service.html:148
-#: service/templates/update_service.html:149
+#: service/templates/overlay/register_new_service.html:69
+#: service/templates/overlay/update_service.html:157
 msgid "Please note:"
 msgstr "Bitte beachten Sie:"
 
-#: service/templates/register_new_service.html:150
+#: service/templates/overlay/register_new_service.html:71
 msgid ""
 "Depending on the numbers of layers or featuretypes provided by this service, "
 "the registration process can take up to a minute. Please be patient. Do not "
@@ -673,55 +751,104 @@ msgstr ""
 "kann der Registrierungsvorgang bis zu einer Minute dauern. Seien Sie bitte "
 "geduldig.Klicken Sie nicht wild umher."
 
-#: service/templates/register_new_service.html:159
-#: service/templates/update_service.html:154
-#: service/templates/update_service.html:156
+#: service/templates/overlay/register_new_service.html:80
+#: service/templates/overlay/update_service.html:162
 msgid "Next"
 msgstr "Weiter"
 
-#: service/templates/register_new_service.html:202
-#: service/templates/remove_service_confirmation.html:61
+#: service/templates/overlay/register_new_service.html:124
+#: service/templates/overlay/remove_service_confirmation.html:62
+#: service/templates/overlay/update_service.html:181
 #: service/templates/service_differences.html:144
-#: service/templates/update_service.html:172
 msgid "Mr. Map is doing his best. Please wait..."
 msgstr "Mr. Map arbeitet hart. Bitte warten..."
 
-#: service/templates/remove_service_confirmation.html:22
+#: service/templates/overlay/remove_service_confirmation.html:23
 msgid "You are about to remove this service."
 msgstr "Sie entfernen gerade diesen Dienst."
 
-#: service/templates/remove_service_confirmation.html:23
+#: service/templates/overlay/remove_service_confirmation.html:24
 msgid "This will remove all related subelements and metadata."
 msgstr "Dies wird alle verknüpften Unterelemente und Metadaten entfernen."
 
-#: service/templates/remove_service_confirmation.html:24
-#: service/templates/update_service.html:124
+#: service/templates/overlay/remove_service_confirmation.html:25
+#: service/templates/overlay/update_service.html:132
 #: structure/templates/remove_group_confirmation.html:17
 #: structure/templates/remove_organization_confirmation.html:16
 msgid "Do you want to continue?"
 msgstr "Wollen Sie fortfahren?"
 
-#: service/templates/remove_service_confirmation.html:28
+#: service/templates/overlay/remove_service_confirmation.html:29
 msgid "ID:"
 msgstr ""
 
-#: service/templates/remove_service_confirmation.html:32
+#: service/templates/overlay/remove_service_confirmation.html:33
 msgid "Title:"
 msgstr "Titel:"
 
-#: service/templates/remove_service_confirmation.html:36
+#: service/templates/overlay/remove_service_confirmation.html:37
 msgid "Abstract:"
 msgstr "Beschreibung:"
 
-#: service/templates/remove_service_confirmation.html:40
+#: service/templates/overlay/remove_service_confirmation.html:41
 msgid "Number of subelements:"
 msgstr "Anzahl der Unterelemente"
 
-#: service/templates/remove_service_confirmation.html:49
+#: service/templates/overlay/remove_service_confirmation.html:50
 #: structure/templates/remove_group_confirmation.html:49
 #: structure/templates/remove_organization_confirmation.html:40
 msgid "Yes, remove!"
 msgstr "Ja, entferne!"
+
+#: service/templates/overlay/update_service.html:108
+msgid "Existing service"
+msgstr "Existierender Dienst"
+
+#: service/templates/overlay/update_service.html:123
+msgid "Keep custom metadata:"
+msgstr "Behalte benutzerdefinierte Metadaten:"
+
+#: service/templates/overlay/update_service.html:125
+msgid "Keep custom metadata"
+msgstr "Behalte benutzerdefinierte Metadaten"
+
+#: service/templates/overlay/update_service.html:131
+msgid "You are about to update this service."
+msgstr "Sie werden diesen Dienst aktualisieren."
+
+#: service/templates/overlay/update_service.html:135
+msgid "New service"
+msgstr "Neuer Dienst"
+
+#: service/templates/overlay/update_service.html:159
+msgid ""
+"Depending on the numbers of layers or featuretypes provided by this service, "
+"the update process can take a while. Please be patient. Do not click around "
+"furiously."
+msgstr ""
+"Abhängig von der Anzahl der Kartenebenen und Featuretypes in diesem Dienst, "
+"kann der Registrierungsvorgang bis zu einer Minute dauern. Seien Sie bitte "
+"geduldig.Klicken Sie nicht wild umher."
+
+#: service/templates/overlay/update_service.html:164
+msgid "Continue"
+msgstr "Weiter"
+
+#: service/templates/pending_tasks.html:4
+msgid "Pending tasks"
+msgstr "Aktuelle Prozesse"
+
+#: service/templates/pending_tasks.html:7
+msgid "Service"
+msgstr "Dienst"
+
+#: service/templates/pending_tasks.html:8
+msgid "Phase"
+msgstr "Phase"
+
+#: service/templates/pending_tasks.html:9
+msgid "Progress"
+msgstr "Fortschritt"
 
 #: service/templates/service_differences.html:16
 msgid "New Service"
@@ -820,36 +947,6 @@ msgstr "Abbrechen"
 msgid "Yes, update it!"
 msgstr "Ja, aktualisiere!"
 
-#: service/templates/update_service.html:100
-msgid "Existing service"
-msgstr "Existierender Dienst"
-
-#: service/templates/update_service.html:115
-msgid "Keep custom metadata:"
-msgstr "Behalte benutzerdefinierte Metadaten:"
-
-#: service/templates/update_service.html:117
-msgid "Keep custom metadata"
-msgstr "Behalte benutzerdefinierte Metadaten"
-
-#: service/templates/update_service.html:123
-msgid "You are about to update this service."
-msgstr "Sie werden diesen Dienst aktualisieren."
-
-#: service/templates/update_service.html:127
-msgid "New service"
-msgstr "Neuer Dienst"
-
-#: service/templates/update_service.html:151
-msgid ""
-"Depending on the numbers of layers or featuretypes provided by this service, "
-"the update process can take a while. Please be patient. Do not click around "
-"furiously."
-msgstr ""
-"Abhängig von der Anzahl der Kartenebenen und Featuretypes in diesem Dienst, "
-"kann der Registrierungsvorgang bis zu einer Minute dauern. Seien Sie bitte "
-"geduldig.Klicken Sie nicht wild umher."
-
 #: service/templates/wfs/containing_featuretypes.html:7
 msgid "Show featuretypes"
 msgstr "Zeige Featuretypen"
@@ -872,12 +969,12 @@ msgid "Edit featuretype"
 msgstr "Featuretyp bearbeiten"
 
 #: service/templates/wfs/containing_featuretypes.html:37
-#: service/templates/wms/containing_layers.html:38
+#: service/templates/wms/containing_layers.html:46
 msgid "Restore metadata"
 msgstr "Metadaten wiederherstellen"
 
 #: service/templates/wfs/containing_featuretypes.html:47
-#: service/templates/wms/containing_layers.html:48
+#: service/templates/wms/containing_layers.html:56
 msgid "Loading..."
 msgstr "Lade..."
 
@@ -897,13 +994,13 @@ msgstr "Neu registrieren"
 
 #: service/templates/wfs/wfs_index.html:20
 #: service/templates/wfs/wfs_index.html:21
-#: service/templates/wms/wms_index.html:24
-#: service/templates/wms/wms_index.html:25
+#: service/templates/wms/wms_index.html:20
+#: service/templates/wms/wms_index.html:21
 msgid "Results per page"
 msgstr "Ergebnisse pro Seite"
 
 #: service/templates/wfs/wfs_index.html:30
-#: service/templates/wms/wms_index.html:34
+#: service/templates/wms/wms_index.html:30
 #: structure/templates/index_organizations.html:62
 msgid "Enter text to filter"
 msgstr "Filtern nach ..."
@@ -946,31 +1043,40 @@ msgstr "Ebene bearbeiten"
 msgid "WMS"
 msgstr ""
 
-#: service/templates/wms/wms_index.html:16
-msgid "Show services"
-msgstr "Zeige Dienste"
-
-#: service/templates/wms/wms_index.html:17
-msgid "Show layers"
-msgstr "Zeige Ebenen"
-
-#: service/templates/wms/wms_index.html:41
+#: service/templates/wms/wms_index.html:37
 msgid "First page"
 msgstr "Erste Seite"
 
-#: service/templates/wms/wms_index.html:46
+#: service/templates/wms/wms_index.html:42
 msgid "Enter page number"
 msgstr "Seitennummer eingeben"
 
-#: service/templates/wms/wms_index.html:49
+#: service/templates/wms/wms_index.html:45
 msgid "Last page"
 msgstr "Letzte Seite"
+
+#: service/templates/wms/wms_index.html:55
+msgid "Show services"
+msgstr "Zeige Dienste"
+
+#: service/templates/wms/wms_index.html:56
+msgid "Show layers"
+msgstr "Zeige Ebenen"
 
 #: service/templates/wms/wms_index.html:67
 msgid "Parent service"
 msgstr "Übergeordneter Dienst"
 
-#: service/views.py:490
+#: service/views.py:200 service/views.py:219 service/views.py:279
+#: service/views.py:296
+msgid "423 - The requested resource is currently disabled."
+msgstr "423 - Die angeforderte Ressource ist aktuell deaktiviert."
+
+#: service/views.py:227
+msgid "No dataset metadata found"
+msgstr "Keine Datensatz Metadaten gefunden"
+
+#: service/views.py:610
 msgid "Enter the new capabilities URL of your service."
 msgstr "Geben Sie die neue Capabilities URL des Dienstes ein."
 
@@ -1237,11 +1343,11 @@ msgstr "Beschreibung:"
 msgid "You are about to remove this organization."
 msgstr "Sie sind dabei dese Organisation zu entfernen."
 
-#: structure/views.py:177
+#: structure/views.py:222
 msgid "You are editing the organization"
 msgstr "Sie bearbeiten die Organisation"
 
-#: structure/views.py:244
+#: structure/views.py:289
 msgid ""
 "You are creating a new organization. Please make sure the organization does "
 "not exist yet to avoid duplicates! You can see if a similar named "
@@ -1252,11 +1358,11 @@ msgstr ""
 "Organisationnicht bereits existiert! Sie können dies prüfen, indem Sie den "
 "Namen Ihrer Organisationeintippen."
 
-#: structure/views.py:357
+#: structure/views.py:402
 msgid "Send"
 msgstr "Senden"
 
-#: structure/views.py:358
+#: structure/views.py:403
 msgid ""
 "You need to ask for permission to become a publisher. Please select your "
 "group for which you want to have publishing permissions and explain why you "
@@ -1266,11 +1372,11 @@ msgstr ""
 "Siedie Gruppe aus, für die Sie Veröffentlichungsrechte brauchen und erklären "
 "Sieweshalb sie Ihnen gewährt werden soll."
 
-#: structure/views.py:424
+#: structure/views.py:469
 msgid "You are creating a new group."
 msgstr "Sie erstellen eine neue Gruppe."
 
-#: structure/views.py:514
+#: structure/views.py:559
 msgid "You are editing the group"
 msgstr "Sie bearbeiten die Gruppe"
 
@@ -1465,50 +1571,3 @@ msgstr ""
 #: users/views.py:196
 msgid "You can update your account information using this form."
 msgstr "Sie können Ihre Accountinformationen hier ändern"
-
-#~ msgid "Edit metadata"
-#~ msgstr "Bearbeite Metadaten"
-
-#~ msgid ""
-#~ "\n"
-#~ "        Your account was activated successfully. Click on Mr. Map to get "
-#~ "to the login page.\n"
-#~ "        "
-#~ msgstr ""
-#~ "\n"
-#~ "        Ihr Account wurde erfolgreich aktiviert. Klicken Sie auf Mr. Map "
-#~ "um zur Startseite zurückzukehren.\n"
-#~ "        "
-
-#~ msgid "Capabilities (XML)"
-#~ msgstr "Capabilities (XML)"
-
-#~ msgid "Publishing for"
-#~ msgstr "Veröffentlicht für"
-
-#~ msgid "Publish request created"
-#~ msgstr "Veröffentlichungrechte beantragt"
-
-#~ msgid "Service registered"
-#~ msgstr "Dienst registriert"
-
-#~ msgid "Service removed"
-#~ msgstr "Dienst entfernt"
-
-#~ msgid "Service updated"
-#~ msgstr "Dienst aktualisiert"
-
-#~ msgid "Service metadata edited"
-#~ msgstr "Metadaten editiert"
-
-#~ msgid "Service activated"
-#~ msgstr "Dienst aktiviert"
-
-#~ msgid "Service deactivated"
-#~ msgstr "Dienst deaktiviert"
-
-#~ msgid "Service metadata restored"
-#~ msgstr "Metadaten wiederhergestellt"
-
-#~ msgid "Group edited"
-#~ msgstr "Gruppe editiert"

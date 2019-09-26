@@ -487,7 +487,7 @@ tr:nth-child(odd){
 
 .listable{
     margin: 0.25em 1em 0 0;
-    padding:  5px;
+    padding:  0.5em;
     border: 0px solid;
     border-radius: 10px;
     background-color: var(--secondary-color);
@@ -534,7 +534,7 @@ a.listable:hover{
     border: 0px solid var(--secondary-color-light);
     background-color: var(--secondary-color);
     color: white;
-    border-radius: 5px;
+    border-radius: 0.2rem;
     text-align: center;
     font-size: 1.05em;
 }

@@ -223,12 +223,13 @@ def get_dataset_metadata(request: HttpRequest, id: int):
             md = MetadataRelation.objects.get(
                 metadata_from=md,
             ).metadata_to
+            document = Document.objects.get(related_metadata=md)
+            document = document.dataset_metadata_document
+            if document is None:
+                raise ObjectDoesNotExist
         except ObjectDoesNotExist:
             return HttpResponse(content=_("No dataset metadata found"), status=404)
-
-    document = Document.objects.get(related_metadata=md)
-
-    return HttpResponse(document.dataset_metadata_document, content_type='application/xml')
+    return HttpResponse(document, content_type='application/xml')
 
 
 def get_dataset_metadata_button(request: HttpRequest, id: int):

@@ -17,7 +17,7 @@
 <div class="container-row">
     <div class="container-left">
         {% if 'can_edit_group' in user_permissions %}
-            <div id="edit-button" class="button-container" data-parent="{{ group.id }}" typeof="structure/groups">
+            <div id="edit-button" class="button button-container" data-parent="{{ group.id }}" typeof="structure/groups">
                 <img src="{% static 'structure/images/icn_edit.png' %}">
                 <span>{% trans 'Edit group' %}</span>
             </div>
@@ -25,7 +25,7 @@
     </div>
     {% if 'can_delete_group' in user_permissions %}
         <div class="container-right">
-            <div class="delete-container" data-parent="{{ group.id }}" typeof="structure">
+            <div class="delete-container button" data-parent="{{ group.id }}" typeof="structure">
                 <img src="{% static 'service/images/icn_minus.png' %}">
                 <span>{% trans 'Delete group' %}</span>
             </div>

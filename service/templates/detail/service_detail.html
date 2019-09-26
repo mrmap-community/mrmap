@@ -24,12 +24,12 @@
     <div class="container-left">
         {% if 'can_activate_service' in user_permissions %}
             {% if root_metadata.is_active %}
-                <div class="deactivate-container" data-parent="{{ root_service.id }}">
+                <div class="deactivate-container button" data-parent="{{ root_service.id }}" title="{% trans 'Deactivate this service' %}">
                     <img src="{% static 'service/images/icn_false.png' %}">
                     <span>{% trans 'Deactivate service' %}</span>
                 </div>
             {% else %}
-                <div class="activate-container" data-parent="{{ root_service.id }}">
+                <div class="activate-container button" data-parent="{{ root_service.id }}" title="{% trans 'Activate this service' %}">
                     <img src="{% static 'service/images/icn_true.png' %}">
                     <span>{% trans 'Activate service' %}</span>
                 </div>
@@ -38,42 +38,47 @@
     </div>
     <div class="container-center">
         {% if 'can_update_service' in user_permissions %}
-            <div id="service-update-button" class="button-container" typeof="service" datasrc="{{ root_service.id }}" title="{% trans 'Update service using a new url' %}">
+            <div id="service-update-button" class="button button-container" typeof="service" datasrc="{{ root_service.id }}" title="{% trans 'Update service using a new url' %}">
                 <span>{% trans 'Update service' %}</span>
             </div>
         {% endif %}
         {% if 'can_edit_metadata_service' in user_permissions %}
             <a href="{% url 'editor:edit' root_metadata.id %}" title="{% trans 'Edit service' %}">
-                <div class="button-container">
+                <div class="button-container button">
                     <span>{% trans 'Edit service' %}</span>
                 </div>
             </a>
         {% endif %}
-        {% if has_dataset_metadata %}
-            <a data-id="{{ root_service.id }}" href="{% url 'service:get-dataset-metadata' root_metadata.id %}" title="{% trans 'Get dataset metadata' %}" target="_blank">
-                <div class="button-container">
-                    <span>{% trans 'Dataset metadata' %}</span>
-                </div>
-            </a>
-        {% endif %}
-        <div id="capabilities-container">
-            <div id="capabilities-toggler" class="button-container" title="{% trans 'Get the capabilities document' %}">
+        <div class="collapsible-container">
+            <div class="collapsible-toggler button button-container" title="{% trans 'Get the capabilities document' %}">
                 <span>{% trans 'Capabilities' %}</span>
             </div>
-            <div id="capabilities-list" class="hide">
+            <div class="hide collapsible-list">
                 <a target="_blank" href="{% url 'service:get-capabilities-original' root_metadata.id  %}" title="{% trans 'Get the original document' %}">
-                    <div class="button-container">{% trans 'Original' %}</div>
+                    <div class="button-container button">{% trans 'Original' %}</div>
                 </a>
                 <a target="_blank" href="{% url 'service:get-capabilities' root_metadata.id %}" title="{% trans 'Get the current, maybe edited, document' %}">
-                    <div class="button-container">{% trans 'Current' %}</div>
+                    <div class="button-container button">{% trans 'Current' %}</div>
                 </a>
             </div>
         </div>
-            <a data-id="{{ root_service.id }}" href="{% url 'service:get-service-metadata' root_metadata.id %}" title="{% trans 'Get service metadata' %}" target="_blank">
-                <div class="button-container">
-                    <span>{% trans 'Service metadata' %}</span>
-                </div>
-            </a>
+        <div class="collapsible-container">
+            <div class="collapsible-toggler button button-container" title="{% trans 'Get different metadata documents' %}">
+                <span>{% trans 'Metadata' %}</span>
+            </div>
+            <div class="hide collapsible-list">
+                <a data-id="{{ root_service.id }}" href="{% url 'service:get-service-metadata' root_metadata.id %}" title="{% trans 'Get service metadata' %}" target="_blank">
+                    <div class="button-container button">
+                        <span>{% trans 'Service' %}</span>
+                    </div>
+                </a>
+                <a data-id="{{ root_service.id }}" href="{% url 'service:get-dataset-metadata' root_metadata.id %}" title="{% trans 'Get dataset metadata' %}" target="_blank">
+                    <div class="button-container button">
+                        <span>{% trans 'Dataset' %}</span>
+                    </div>
+                </a>
+            </div>
+        </div>
         <!--
         <a href="{{ root_metadata.capabilities_original_uri }}" target="_blank" title="{% trans 'Open original metadata in new tab' %}">
         </a>
@@ -81,7 +86,7 @@
     </div>
     {% if 'can_remove_service' in user_permissions %}
         <div class="container-right">
-            <div class="delete-container" data-parent="{{ root_service.id }}" typeof="service">
+            <div class="delete-container button" data-parent="{{ root_service.id }}" typeof="service">
                 <img src="{% static 'service/images/icn_minus.png' %}">
                 <span>{% trans 'Remove service' %}</span>
             </div>

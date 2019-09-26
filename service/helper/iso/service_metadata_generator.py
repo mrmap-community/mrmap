@@ -47,6 +47,18 @@ class ServiceMetadataGenerator:
         with open(INSPIRE_LEGISLATION_FILE, "r", encoding="utf-8") as _file:
             self.regislations = json.load(_file)
 
+        # create name LUT
+        self.hierarchy_names = {
+            "wms": {
+                "en": "Web map service",
+                "de": "Darstellungsdienst",
+            },
+            "wfs": {
+                "en": "Web feature service",
+                "de": "Downloaddienst",
+            },
+        }
+
     def generate_service_metadata(self):
         """ Creates a service self.metadata as xml, following the ISO19115 standard
 
@@ -123,7 +135,7 @@ class ServiceMetadataGenerator:
         Returns:
              ret_elem (_Element): The requested xml element
         """
-        char_set = "utf-8"
+        char_set = "utf8"
         char_set_list = "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_CharacterSetCode"
         ret_elem = Element(
             self.gmd + "MD_CharacterSetCode",
@@ -161,10 +173,8 @@ class ServiceMetadataGenerator:
              ret_elem (_Element): The requested xml element
         """
         service_type = self.metadata.service.servicetype.name
-        if service_type == "wms":
-            name = "Darstellungsdienst"  # ToDo: Find international solution for this
-        else:
-            name = "Downloadservice"  # ToDo: Find international solution for this
+
+        name = self.hierarchy_names[service_type]["de"]  # ToDo: Find international solution for this
 
         ret_elem = Element(
             self.gco + "CharacterString"
@@ -469,7 +479,7 @@ class ServiceMetadataGenerator:
         Returns:
              ci_role_elem (_Element): The role information xml element
         """
-        val_list = "http://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml#CI_RoleCode"
+        val_list = "https://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#CI_RoleCode"
         val = "pointOfContact"
 
         ci_role_elem = Element(
@@ -493,6 +503,9 @@ class ServiceMetadataGenerator:
 
         if self.metadata.last_remote_change is not None:
             date = self.metadata.last_remote_change
+
+        elif self.metadata.created is not None:
+            date = self.metadata.created
 
         elif self.metadata.last_modified is not None:
             date = self.metadata.last_modified
@@ -1309,12 +1322,18 @@ class ServiceMetadataGenerator:
         ret_elem.append(scope_elem)
 
         # gmd:report
+        legislation_groups = [
+            "data_specifications",
+            "metadata",
+            "network_services",
+        ]
         for legislation in self.regislations["inspire_rules"]:
-            report_elem = Element(
-                self.gmd + "report"
-            )
-            report_elem.append(self._create_report(legislation))
-            ret_elem.append(report_elem)
+            if legislation["group"] in legislation_groups:
+                report_elem = Element(
+                    self.gmd + "report"
+                )
+                report_elem.append(self._create_report(legislation))
+                ret_elem.append(report_elem)
 
         # gmd:lineage
         lineage_elem = Element(

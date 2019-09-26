@@ -199,7 +199,7 @@ def get_service_metadata(request: HttpRequest, id: int):
         if not metadata.is_active:
             return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
         # There is no service metadata document in the database, we need to create it during runtime
-        generator = MetadataGenerator(id, MetadataEnum.service)
+        generator = MetadataGenerator(id, MetadataEnum.SERVICE)
         doc = generator.generate_service_metadata()
 
     return HttpResponse(doc, content_type='application/xml')

@@ -5,8 +5,11 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 25.09.19
 
 """
+import json
+
 from django.core.exceptions import ObjectDoesNotExist
 
+from service.config import INSPIRE_LEGISLATION_FILE
 from service.models import Metadata
 from service.helper import xml_helper
 from lxml.etree import Element
@@ -39,6 +42,10 @@ class ServiceMetadataGenerator:
         self.gco = "{" + self.reduced_nsmap.get("gco") + "}"
         self.srv = "{" + self.reduced_nsmap.get("srv") + "}"
         self.xsi = "{" + self.reduced_nsmap.get(None) + "}"
+
+        # load inspire legislation
+        with open(INSPIRE_LEGISLATION_FILE, "r", encoding="utf-8") as _file:
+            self.regislations = json.load(_file)
 
     def generate_service_metadata(self):
         """ Creates a service self.metadata as xml, following the ISO19115 standard
@@ -534,7 +541,7 @@ class ServiceMetadataGenerator:
         )
 
         # gmd:citation
-        citation_elem = self._create_citation_elem()
+        citation_elem = self._create_citation()
         ret_elem.append(citation_elem)
 
         # gmd:abstract
@@ -713,7 +720,7 @@ class ServiceMetadataGenerator:
 
         return ret_elem
 
-    def _create_citation_elem(self):
+    def _create_citation(self):
         """ Creates the <gmd:citation> element
 
         Returns:
@@ -1302,10 +1309,12 @@ class ServiceMetadataGenerator:
         ret_elem.append(scope_elem)
 
         # gmd:report
-        report_elem = Element(
-            self.gmd + "report"
-        )
-        ret_elem.append(report_elem)
+        for legislation in self.regislations["inspire_rules"]:
+            report_elem = Element(
+                self.gmd + "report"
+            )
+            report_elem.append(self._create_report(legislation))
+            ret_elem.append(report_elem)
 
         # gmd:lineage
         lineage_elem = Element(
@@ -1347,5 +1356,124 @@ class ServiceMetadataGenerator:
             }
         )
         ret_elem.append(level_description_elem)
+
+        return ret_elem
+
+    def _create_report(self, legislation, pass_val: bool=True):
+        """ Creates the <gmd:DQ_DomainConsistency> element
+
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        ret_elem = Element(
+            self.gmd + "DQ_DomainConsistency",
+            attrib={
+                self.xsi + "type": "gmd:DQ_DomainConsistency_Type",
+            }
+        )
+
+        # gmd:result
+        result_elem = Element(
+            self.gmd + "result"
+        )
+        ret_elem.append(result_elem)
+
+        # gmd:DQ_ConformanceResult
+        dq_conformance_result_elem = Element(
+            self.gmd + "DQ_ConformanceResult",
+            attrib={
+                self.xsi + "type": "gmd:DQ_ConformanceResult_Type",
+            }
+        )
+        result_elem.append(dq_conformance_result_elem)
+
+        # gmd:specification
+        spec_elem = Element(
+            self.gmd + "specification"
+        )
+        spec_elem.append(self._create_report_citation(legislation))
+        dq_conformance_result_elem.append(spec_elem)
+
+        # gmd:explanation
+        explanation_elem = Element(
+            self.gmd + "explanation"
+        )
+        char_str_elem = Element(
+            self.gco + "CharacterString"
+        )
+        char_str_elem.text = "No explanation availabe"
+        explanation_elem.append(char_str_elem)
+        dq_conformance_result_elem.append(explanation_elem)
+
+        # gmd:pass
+        pass_elem = Element(
+            self.gmd + "pass"
+        )
+        bool_elem = Element(
+            self.gco + "Boolean"
+        )
+
+        # change the boolean to lower case to avoid conflict of a 'True'/'False' in other systems where 'true'/'false' is used
+        bool_elem.text = str(pass_val).lower()
+        pass_elem.append(bool_elem)
+        dq_conformance_result_elem.append(pass_elem)
+
+        return ret_elem
+
+    def _create_report_citation(self, legislation):
+        """ Creates the <gmd:CI_Citation> element for a report
+
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        ret_elem = Element(
+            self.gmd + "CI_Citation"
+        )
+
+        # gmd:title
+        title_elem = Element(
+            self.gmd + "title"
+        )
+        char_str_elem = Element(
+            self.gco + "CharacterString"
+        )
+        char_str_elem.text = legislation["label"]["de"]
+        title_elem.append(char_str_elem)
+        ret_elem.append(title_elem)
+
+        # gmd:date
+        code_list = "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/Codelist/ML_gmxCodelists.xml#CI_DateTypeCode"
+        code_list_val = "publication"
+        date_elem = Element(
+            self.gmd + "date"
+        )
+        date_CI_date_elem = Element(
+            self.gmd + "CI_Date"
+        )
+        date_CI_date_date_elem = Element(
+            self.gmd + "date"
+        )
+        date_gco_elem = Element(
+            self.gco + "Date"
+        )
+        date_gco_elem.text = legislation["date"]
+        date_elem.append(date_CI_date_elem)
+        date_CI_date_elem.append(date_CI_date_date_elem)
+        date_CI_date_date_elem.append(date_gco_elem)
+        ret_elem.append(date_elem)
+
+        date_type_elem = Element(
+            self.gmd + "dateType"
+        )
+        date_type_CI_elem = Element(
+            self.gmd + "CI_DateTypeCode",
+            attrib={
+                "codeList": code_list,
+                "codeListValue": code_list_val,
+            }
+        )
+        date_type_CI_elem.text = code_list_val
+        date_type_elem.append(date_type_CI_elem)
+        ret_elem.append(date_type_elem)
 
         return ret_elem

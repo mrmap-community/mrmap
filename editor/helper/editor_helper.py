@@ -13,7 +13,7 @@ from requests.exceptions import MissingSchema
 
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
-from service.helper.iso.isoMetadata import ISOMetadata
+from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
     MetadataOrigin
 from service.helper import xml_helper
@@ -48,12 +48,12 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
         # there are no keywords in this capabilities for this element yet
         # we need to add an element first!
         try:
-            xml_keywords_list_obj = xml_helper.add_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Abstract".format(ns_prefix))
+            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Abstract".format(ns_prefix))
         except TypeError as e:
             # there seems to be no <Abstract> element. We add simply after <Title> and also create a new Abstract element
-            xml_keywords_list_obj = xml_helper.add_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Title".format(ns_prefix))
-            xml_helper.add_subelement(xml_obj, "{}".format("Abstract"),
-                                      after="{}Title".format(ns_prefix))
+            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Title".format(ns_prefix))
+            xml_helper.create_subelement(xml_obj, "{}".format("Abstract"),
+                                         after="{}Title".format(ns_prefix))
 
 
     xml_keywords_objs = xml_helper.try_get_element_from_xml("./{}Keyword".format(ns_keyword_prefix), xml_keywords_list_obj) or []
@@ -64,7 +64,7 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
 
     # then add all edited
     for kw in metadata.keywords.all():
-        xml_keyword = xml_helper.add_subelement(xml_keywords_list_obj, "{}Keyword".format(keyword_prefix))
+        xml_keyword = xml_helper.create_subelement(xml_keywords_list_obj, "{}Keyword".format(keyword_prefix))
         xml_helper.write_text_to_element(xml_keyword, txt=kw.keyword)
 
 

@@ -23,7 +23,7 @@ from MapSkinner import utils
 from service.config import INSPIRE_LEGISLATION_FILE
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ConnectionType
+from service.helper.enums import ConnectionEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Metadata, Keyword, MetadataType, Document
 from structure.models import Organization
@@ -121,7 +121,7 @@ class ISOMetadata:
         """
         ows_connector = CommonConnector(url=self.uri,
                                         auth=None,
-                                        connection_type=ConnectionType.REQUESTS)
+                                        connection_type=ConnectionEnum.REQUESTS)
         ows_connector.http_method = 'GET'
         ows_connector.load()
         if ows_connector.status_code != 200:

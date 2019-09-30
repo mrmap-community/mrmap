@@ -14,16 +14,18 @@ from django.utils.translation import gettext_lazy as _
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
-    SERVICE_REMOVED, SERVICE_ACTIVATED, SERVICE_UPDATED, SERVICE_DEACTIVATED
+    SERVICE_REMOVED, SERVICE_ACTIVATED, SERVICE_UPDATED, SERVICE_DEACTIVATED, MULTIPLE_SERVICE_METADATA_FOUND
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ServiceTypes
+from service.helper.enums import ServiceEnum, MetadataEnum
+from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation
+from service.settings import MD_TYPE_SERVICE
 from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
@@ -43,7 +45,7 @@ def index(request: HttpRequest, user: User, service_type=None):
     template = "service_index.html"
 
     # possible results per page values
-    rpp_select = [5, 10, 15, 20]
+    rpp_select = [5, 10, 15, 20, 50, 100, 200, 500, 1000]
     try:
         wms_page = int(request.GET.get("wmsp", 1))
         wfs_page = int(request.GET.get("wfsp", 1))
@@ -65,7 +67,7 @@ def index(request: HttpRequest, user: User, service_type=None):
     # get services
     paginator_wms = None
     paginator_wfs = None
-    if service_type is None or service_type == ServiceTypes.WMS.value:
+    if service_type is None or service_type == ServiceEnum.WMS.value:
         md_list_wms = Metadata.objects.filter(
             service__servicetype__name="wms",
             service__is_root=is_root,
@@ -73,7 +75,7 @@ def index(request: HttpRequest, user: User, service_type=None):
             service__is_deleted=False,
         ).order_by("title")
         paginator_wms = Paginator(md_list_wms, results_per_page).get_page(wms_page)
-    if service_type is None or service_type == ServiceTypes.WFS.value:
+    if service_type is None or service_type == ServiceEnum.WFS.value:
         md_list_wfs = Metadata.objects.filter(
             service__servicetype__name="wfs",
             created_by__in=user.groups.all(),
@@ -115,9 +117,9 @@ def remove(request: HttpRequest, user: User):
     service = get_object_or_404(Service, id=service_id)
     service_type = service.servicetype
     sub_elements = None
-    if service_type.name == ServiceTypes.WMS.value:
+    if service_type.name == ServiceEnum.WMS.value:
         sub_elements = Layer.objects.filter(parent_service=service)
-    elif service_type.name == ServiceTypes.WFS.value:
+    elif service_type.name == ServiceEnum.WFS.value:
         sub_elements = service.featuretypes.all()
     metadata = get_object_or_404(Metadata, service=service)
     if confirmed == 'false':
@@ -158,6 +160,51 @@ def activate(request: HttpRequest, user:User):
     return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
 
 
+def get_service_metadata(request: HttpRequest, id: int):
+    """ Returns the service metadata xml file for a given metadata id
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The metadata id
+    Returns:
+         A HttpResponse containing the xml file
+    """
+    docs = []
+    doc = None
+    metadata = Metadata.objects.get(id=id)
+
+    # check if the metadata record already has a service metadata document linked
+    md_relations = MetadataRelation.objects.filter(
+        metadata_from=metadata,
+        metadata__is_active=True,
+        metadata_to__metadata_type__type=MD_TYPE_SERVICE
+    )
+    for rel in md_relations:
+        md_to = rel.metadata_to
+        tmp_docs = Document.objects.filter(
+            related_metadata=md_to,
+        ).exclude(
+            service_metadata_document=None
+        )
+        docs.extend(tmp_docs)
+
+    if len(docs) > 1:
+        # Something is odd, there are multiple service metadata documents for this metadata record
+        messages.error(request, MULTIPLE_SERVICE_METADATA_FOUND)
+        return redirect("service:detail", id)
+    elif len(docs) == 1:
+        # Everything is fine, we get the service metadata document
+        doc = docs.pop().service_metadata_document
+    else:
+        if not metadata.is_active:
+            return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
+        # There is no service metadata document in the database, we need to create it during runtime
+        generator = MetadataGenerator(id, MetadataEnum.SERVICE)
+        doc = generator.generate_service_metadata()
+
+    return HttpResponse(doc, content_type='application/xml')
+
+
 def get_dataset_metadata(request: HttpRequest, id: int):
     """ Returns the dataset metadata xml file for a given metadata id
 
@@ -176,12 +223,13 @@ def get_dataset_metadata(request: HttpRequest, id: int):
             md = MetadataRelation.objects.get(
                 metadata_from=md,
             ).metadata_to
+            document = Document.objects.get(related_metadata=md)
+            document = document.dataset_metadata_document
+            if document is None:
+                raise ObjectDoesNotExist
         except ObjectDoesNotExist:
             return HttpResponse(content=_("No dataset metadata found"), status=404)
-
-    document = Document.objects.get(related_metadata=md)
-
-    return HttpResponse(document.dataset_metadata_document, content_type='application/xml')
+    return HttpResponse(document, content_type='application/xml')
 
 
 def get_dataset_metadata_button(request: HttpRequest, id: int):
@@ -278,7 +326,7 @@ def wms(request:HttpRequest, user:User):
     Returns:
          A view
     """
-    return redirect("service:index", ServiceTypes.WMS.value)
+    return redirect("service:index", ServiceEnum.WMS.value)
 
 
 @check_session
@@ -459,10 +507,10 @@ def update_service(request: HttpRequest, user: User, id: int):
         old_service = update_helper.update_service(old_service, new_service)
         old_service.last_modified = timezone.now()
 
-        if new_service.servicetype.name == ServiceTypes.WFS.value:
+        if new_service.servicetype.name == ServiceEnum.WFS.value:
             old_service = update_helper.update_wfs(old_service, new_service, diff, links, keep_custom_metadata)
 
-        elif new_service.servicetype.name == ServiceTypes.WMS.value:
+        elif new_service.servicetype.name == ServiceEnum.WMS.value:
             old_service = update_helper.update_wms(old_service, new_service, diff, links, keep_custom_metadata)
 
         cap_document = Document.objects.get(related_metadata=old_service.metadata)
@@ -580,9 +628,9 @@ def wfs(request:HttpRequest, user:User):
          A view
     """
     params = {
-        "only": ServiceTypes.WFS
+        "only": ServiceEnum.WFS
     }
-    return redirect("service:index", ServiceTypes.WFS.value)
+    return redirect("service:index", ServiceEnum.WFS.value)
 
 
 @check_session

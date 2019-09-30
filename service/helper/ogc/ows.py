@@ -9,8 +9,8 @@ from django.db import transaction
 
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
-from service.helper.iso.isoMetadata import ISOMetadata
+from service.helper.enums import ConnectionEnum, VersionEnum, ServiceEnum
+from service.helper.iso.iso_metadata import ISOMetadata
 from structure.models import User
 
 
@@ -18,7 +18,7 @@ class OGCWebService:
     """ The base class for all derived web services
 
     """
-    def __init__(self, service_connect_url=None, service_type=ServiceTypes.WMS, service_version=VersionTypes.V_1_1_1, auth=None, service_capabilities_xml=None):
+    def __init__(self, service_connect_url=None, service_type=ServiceEnum.WMS, service_version=VersionEnum.V_1_1_1, auth=None, service_capabilities_xml=None):
         self.service_connect_url = service_connect_url
         self.service_type = service_type  # wms, wfs, wcs, ...
         self.service_version = service_version  # 1.0.0, 1.1.0, ...
@@ -100,7 +100,7 @@ class OGCWebService:
                                    '&SERVICE=' + self.service_type.value
         ows_connector = CommonConnector(url=self.service_connect_url,
                                         auth=self.auth,
-                                        connection_type=ConnectionType.REQUESTS)
+                                        connection_type=ConnectionEnum.REQUESTS)
         ows_connector.http_method = 'GET'
         ows_connector.load()
         if ows_connector.status_code != 200:
@@ -178,7 +178,7 @@ class OGCWebService:
         """
         # Must parse metadata document and merge metadata into this metadata object
         elem = "//inspire_common:URL"  # for wms by default
-        if self.service_type is ServiceTypes.WFS:
+        if self.service_type is ServiceEnum.WFS:
             elem = "//wfs:MetadataURL"
         service_md_link = xml_helper.try_get_text_from_xml_element(elem=elem, xml_elem=xml_obj)
         # get iso metadata xml object

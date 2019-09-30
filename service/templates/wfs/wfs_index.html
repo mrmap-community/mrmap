@@ -18,7 +18,7 @@
 <div>
         <div>
             <label for="rpp-select-wfs">{% trans 'Results per page' %}:</label>
-            <select id="rpp-select-wfs" class="rpp-select" title="{% trans 'Results per page' %}:">
+            <select id="rpp-select-wfs" class="rpp-select default-select" title="{% trans 'Results per page' %}:">
                 {% for option in rpp_select_options %}
                     <option value="{{ option }}" {% if option == rpp %}selected="selected"{% endif %}>{{ option }}</option>
                 {% endfor %}

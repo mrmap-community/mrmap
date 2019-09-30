@@ -23,9 +23,9 @@ from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
 from MapSkinner import utils
 from MapSkinner.utils import execute_threads, sha256
 from service.config import ALLOWED_SRS
-from service.helper.enums import VersionTypes
+from service.helper.enums import VersionEnum
 from service.helper.epsg_api import EpsgApi
-from service.helper.iso.isoMetadata import ISOMetadata
+from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
@@ -41,7 +41,7 @@ class OGCWebMapServiceFactory:
     """ Creates the correct OGCWebMapService objects
 
     """
-    def get_ogc_wms(self, version: VersionTypes, service_connect_url=None):
+    def get_ogc_wms(self, version: VersionEnum, service_connect_url=None):
         """ Returns the correct implementation of an OGCWebMapService according to the given version
 
         Args:
@@ -50,13 +50,13 @@ class OGCWebMapServiceFactory:
         Returns:
             An OGCWebMapService
         """
-        if version is VersionTypes.V_1_0_0:
+        if version is VersionEnum.V_1_0_0:
             return OGCWebMapService_1_0_0(service_connect_url=service_connect_url)
-        if version is VersionTypes.V_1_1_0:
+        if version is VersionEnum.V_1_1_0:
             return OGCWebMapService_1_1_0(service_connect_url=service_connect_url)
-        if version is VersionTypes.V_1_1_1:
+        if version is VersionEnum.V_1_1_1:
             return OGCWebMapService_1_1_1(service_connect_url=service_connect_url)
-        if version is VersionTypes.V_1_3_0:
+        if version is VersionEnum.V_1_3_0:
             return OGCWebMapService_1_3_0(service_connect_url=service_connect_url)
 
 
@@ -206,13 +206,13 @@ class OGCWebMapService(OGCWebService):
     def parse_bounding_box(self, layer, layer_obj):
         # switch depending on service version
         elem_name = "SRS"
-        if self.service_version is VersionTypes.V_1_0_0:
+        if self.service_version is VersionEnum.V_1_0_0:
             pass
-        if self.service_version is VersionTypes.V_1_1_0:
+        if self.service_version is VersionEnum.V_1_1_0:
             pass
-        if self.service_version is VersionTypes.V_1_1_1:
+        if self.service_version is VersionEnum.V_1_1_1:
             pass
-        if self.service_version is VersionTypes.V_1_3_0:
+        if self.service_version is VersionEnum.V_1_3_0:
             elem_name = "CRS"
         self.parse_bounding_box_generic(layer=layer, layer_obj=layer_obj, elem_name=elem_name)
 
@@ -633,6 +633,7 @@ class OGCWebMapService(OGCWebService):
             (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["miny"]))
         )
         layer.bbox_lat_lon = Polygon(bounding_points)
+        metadata.bounding_geometry = layer.bbox_lat_lon
         layer.created_by = creator
         layer.published_for = published_for
         layer.published_by = publisher
@@ -913,7 +914,7 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
     """
     def __init__(self, service_connect_url):
         super().__init__(service_connect_url=service_connect_url)
-        self.service_version = VersionTypes.V_1_0_0
+        self.service_version = VersionEnum.V_1_0_0
 
     def __parse_formats(self, layer, layer_obj):
         # ToDo: Find wms 1.0.0 for testing!!!!
@@ -939,7 +940,7 @@ class OGCWebMapService_1_1_0(OGCWebMapService):
     """
     def __init__(self, service_connect_url):
         super().__init__(service_connect_url=service_connect_url)
-        self.service_version = VersionTypes.V_1_1_0
+        self.service_version = VersionEnum.V_1_1_0
 
     def get_version_specific_metadata(self, xml_obj):
         pass
@@ -951,7 +952,7 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
     """
     def __init__(self, service_connect_url=None):
         super().__init__(service_connect_url=service_connect_url)
-        self.service_version = VersionTypes.V_1_1_1
+        self.service_version = VersionEnum.V_1_1_1
 
     def get_version_specific_metadata(self, xml_obj):
         pass
@@ -965,7 +966,7 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
 
     def __init__(self, service_connect_url):
         super().__init__(service_connect_url=service_connect_url)
-        self.service_version = VersionTypes.V_1_3_0
+        self.service_version = VersionEnum.V_1_3_0
         self.layer_limit = None
         self.max_width = None
         self.max_height = None

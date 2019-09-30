@@ -16,9 +16,9 @@ from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT,  \
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
 from MapSkinner.utils import execute_threads
 from service.config import ALLOWED_SRS
-from service.helper.enums import VersionTypes, ServiceTypes
+from service.helper.enums import VersionEnum, ServiceEnum
 from service.helper.epsg_api import EpsgApi
-from service.helper.iso.isoMetadata import ISOMetadata
+from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
@@ -31,7 +31,7 @@ class OGCWebFeatureServiceFactory:
     """ Creates the correct OGCWebFeatureService objects
 
     """
-    def get_ogc_wfs(self, version: VersionTypes, service_connect_url=None):
+    def get_ogc_wfs(self, version: VersionEnum, service_connect_url=None):
         """ Returns the correct implementation of an OGCWebFeatureService according to the given version
 
         Args:
@@ -40,13 +40,13 @@ class OGCWebFeatureServiceFactory:
         Returns:
             An OGCWebFeatureService
         """
-        if version is VersionTypes.V_1_0_0:
+        if version is VersionEnum.V_1_0_0:
             return OGCWebFeatureService_1_0_0(service_connect_url=service_connect_url)
-        if version is VersionTypes.V_1_1_0:
+        if version is VersionEnum.V_1_1_0:
             return OGCWebFeatureService_1_1_0(service_connect_url=service_connect_url)
-        if version is VersionTypes.V_2_0_0:
+        if version is VersionEnum.V_2_0_0:
             return OGCWebFeatureService_2_0_0(service_connect_url=service_connect_url)
-        if version is VersionTypes.V_2_0_2:
+        if version is VersionEnum.V_2_0_2:
             return OGCWebFeatureService_2_0_2(service_connect_url=service_connect_url)
 
 
@@ -648,8 +648,8 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
     def __init__(self, service_connect_url):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionTypes.V_1_0_0,
-            service_type=ServiceTypes.WFS,
+            service_version=VersionEnum.V_1_0_0,
+            service_type=ServiceEnum.WFS,
         )
         XML_NAMESPACES["schemaLocation"] = "http://geodatenlb1.rlp:80/geoserver/schemas/wfs/1.0.0/WFS-capabilities.xsd"
         XML_NAMESPACES["xsi"] = "http://www.w3.org/2001/XMLSchema-instance"
@@ -821,8 +821,8 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
     def __init__(self, service_connect_url):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionTypes.V_1_1_0,
-            service_type=ServiceTypes.WFS,
+            service_version=VersionEnum.V_1_1_0,
+            service_type=ServiceEnum.WFS,
         )
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs"
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows"
@@ -837,8 +837,8 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
     def __init__(self, service_connect_url):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionTypes.V_2_0_0,
-            service_type=ServiceTypes.WFS,
+            service_version=VersionEnum.V_2_0_0,
+            service_type=ServiceEnum.WFS,
         )
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
@@ -903,7 +903,7 @@ class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
     def __init__(self, service_connect_url):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionTypes.V_2_0_2,
-            service_type=ServiceTypes.WFS,
+            service_version=VersionEnum.V_2_0_2,
+            service_type=ServiceEnum.WFS,
         )
 

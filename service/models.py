@@ -4,8 +4,7 @@ from django.contrib.gis.geos import Polygon
 from django.db import models, transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
-
-from service.helper.enums import ServiceTypes
+from service.helper.enums import ServiceEnum
 from structure.models import Group, Organization
 from service.helper import xml_helper
 
@@ -25,14 +24,17 @@ class Resource(models.Model):
     is_deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
 
-    def save(self, force_insert=False, force_update=False, using=None,
+    def save(self, update_last_modified=True, force_insert=False, force_update=False, using=None,
              update_fields=None):
-        # We always want to have automatically the last timestamp from the latest change!
-        self.last_modified = timezone.now()
-        super().save()
+        if update_last_modified:
+            # We always want to have automatically the last timestamp from the latest change!
+            # ONLY if the function is especially called with a False flag in update_last_modified, we will not change the record's last change
+            self.last_modified = timezone.now()
+        super().save(force_insert, force_update, using, update_fields)
 
     class Meta:
         abstract = True
+
 
 class MetadataOrigin(models.Model):
     name = models.CharField(max_length=255)
@@ -87,6 +89,7 @@ class Metadata(Resource):
     categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
     metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
+
     ## for ISO metadata
     dataset_id = models.CharField(max_length=255, null=True, blank=True)
     dataset_id_code_space = models.CharField(max_length=255, null=True, blank=True)
@@ -143,6 +146,29 @@ class Metadata(Resource):
         elif self.metadata_type.type == 'featuretype':
             service_type = 'wfs'
         return service_type
+
+    def find_max_bounding_box(self):
+        """ Returns the largest bounding box of all children
+
+        Saves the found bounding box to bounding_geometry for faster access
+
+        Returns:
+
+        """
+        children = self.service.child_service.all()
+        max_box = None
+        for child in children:
+            bbox = child.layer.bbox_lat_lon
+            if max_box is None:
+                max_box = bbox
+            else:
+                ba = bbox.area
+                ma = max_box.area
+                if ba > ma:
+                    max_box = bbox
+        self.bounding_geometry = max_box
+        self.save()
+        return max_box
 
     def is_root(self):
         """ Checks whether the metadata describes a root service or a layer/featuretype
@@ -355,6 +381,8 @@ class Document(Resource):
     def __str__(self):
         return self.related_metadata.title
 
+
+
     def restore(self):
         """ We overwrite the current metadata xml with the original
 
@@ -557,10 +585,10 @@ class Service(Resource):
         linked_mds = self.metadata.related_metadata.all()
         for md_relation in linked_mds:
             md_relation.metadata_to.is_active = is_active
-            md_relation.metadata_to.save()
+            md_relation.metadata_to.save(update_last_modified=False)
 
-        self.metadata.save()
-        self.save()
+        self.metadata.save(update_last_modified=False)
+        self.save(update_last_modified=False)
 
 
 class Layer(Service):
@@ -731,7 +759,7 @@ class FeatureType(Resource):
             return
         service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
         service = None
-        if self.service.servicetype.name == ServiceTypes.WFS.value:
+        if self.service.servicetype.name == ServiceEnum.WFS.value:
             service = OGCWebFeatureServiceFactory()
             service = service.get_ogc_wfs(version=service_version, service_connect_url=self.service.metadata.capabilities_original_uri)
         if service is None:

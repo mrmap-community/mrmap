@@ -67,4 +67,6 @@ SERVICE_UPDATE_WRONG_TYPE = _("You tried to update a service to another service 
 SERVICE_UPDATE_ABORTED_NO_DIFF = _("The provided capabilities document is not different from the currently registered. Update canceled!")
 SERVICE_GENERIC_ERROR = _("The service could not be registered. Please check your metadata and contact an administrator.")
 
+MULTIPLE_SERVICE_METADATA_FOUND = _("There are several service metadata documents for this service. Please contact an administrator.")
+
 EDITOR_INVALID_ISO_LINK = _("'{}' was invalid.")

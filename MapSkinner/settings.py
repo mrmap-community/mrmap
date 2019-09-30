@@ -14,7 +14,7 @@ import os
 from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-from service.helper.enums import ConnectionType, VersionTypes
+from service.helper.enums import ConnectionEnum, VersionEnum
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -63,6 +63,9 @@ XML_NAMESPACES = {
     "wms": "http://www.opengis.net/wms",
     "xlink": "http://www.w3.org/1999/xlink",
     "gml": "http://www.opengis.net/gml",
+    "gmd": "http://www.isotc211.org/2005/gmd",
+    "gco": "http://www.isotc211.org/2005/gco",
+    "srv": "http://www.isotc211.org/2005/srv",
     "xsi": "http://www.w3.org/2001/XMLSchema-instance",
     "ave": "http://repository.gdi-de.org/schemas/adv/produkt/alkis-vereinfacht/1.0",
     "inspire_common": "http://inspire.ec.europa.eu/schemas/common/1.0",

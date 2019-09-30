@@ -270,19 +270,23 @@ $(document).ready(function(){
         });
     });
 
-    $("#capabilities-toggler").click(function(event){
+    $(".collapsible-toggler").click(function(event){
         event.stopPropagation();
         var elem = $(this);
-        var capabilities = $("#capabilities-list");
+        var list = elem.siblings(".collapsible-list");
         elem.toggleClass("open");
-        capabilities.slideToggle();
+        list.slideToggle();
     });
 
     $("html").click(function(){
-        var capToggler = $("#capabilities-toggler");
-        if(capToggler.hasClass("open")){
-            capToggler.click();
-        }
+        var toggler = $(".collapsible-toggler");
+        toggler.each(function(i, elem){
+            elem = $(elem);
+            if(elem.hasClass("open")){
+                elem.toggleClass("open");
+                elem.siblings(".collapsible-list").slideToggle();
+            }
+        });
     });
 
 

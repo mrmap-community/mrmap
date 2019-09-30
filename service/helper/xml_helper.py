@@ -39,6 +39,7 @@ def parse_xml(xml: str, encoding=None):
         xml_obj = None
     return xml_obj
 
+
 def xml_to_string(xml_obj):
     enc = "UTF-8"
     return etree.tostring(xml_obj, encoding=enc, method="xml").decode()
@@ -196,7 +197,7 @@ def remove_element(xml_child):
     parent.remove(xml_child)
 
 
-def add_subelement(xml_elem: _Element, tag_name, after: str = None):
+def create_subelement(xml_elem: _Element, tag_name, after: str = None):
     """ Creates a new xml element as a child of xml_elem with the name tag_name
 
     Args:
@@ -214,6 +215,19 @@ def add_subelement(xml_elem: _Element, tag_name, after: str = None):
     else:
         xml_elem.append(ret_element)
     return ret_element
+
+
+def add_subelement(parent_elem: _Element, sub_element: _Element):
+    """ Adds an existing xml element after
+
+    Args:
+        parent_elem: The parent xml element
+        sub_element: The sub xml element
+    Returns:
+         parent_elem: The modified xml element, holding the subelement as a child
+    """
+    parent_elem.append(sub_element)
+    return parent_elem
 
 
 def add_iso_md_element(xml_obj: _Element, new_link: str):

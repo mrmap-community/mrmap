@@ -8,6 +8,8 @@ urlpatterns = [
     path('session', session, name='session'),
     path('activate/', activate, name='activate'),
 
+    path('metadata/<int:id>', get_service_metadata, name='get-service-metadata'),
+
     path('dataset/<int:id>', get_dataset_metadata, name='get-dataset-metadata'),
     path('get-dataset-metadata/<int:id>', get_dataset_metadata_button, name='get-dataset-metadata-button'),
 

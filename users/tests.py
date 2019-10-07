@@ -130,6 +130,7 @@ class UserTestCase(TestCase):
 
         ## case 0: User is not logged in -> action has no effect
         # assert action has no effect
+        self.assertEqual(user.logged_in, False)
         client.post(
             "/users/password/edit/",
             data={"password": new_pw, "password_again": new_pw, "user": user}
@@ -139,6 +140,7 @@ class UserTestCase(TestCase):
 
         # login user to pass session checking
         client.post("/", data={"username": user.username, "password": self.pw})
+        user.refresh_from_db()
 
         ## case 1: Input passwords match
         # assert action has effect as expected
@@ -157,5 +159,52 @@ class UserTestCase(TestCase):
         )
         user.refresh_from_db()
         self.assertEqual(user.password, make_password(new_pw, user.salt))
+
+    def test_user_profile_edit(self):
+        """ Tests the profile edit functionality
+
+        Due to multiple possible changes in the profile, this test simply checks whether the user can change it's
+        username if the user is logged in.
+
+        Args:
+        Returns:
+
+        """
+        user = User.objects.get(
+            id=self.user_id
+        )
+        client = Client()
+        new_name = self.username[::-1]
+        params = {
+            "user": user,
+            "username": new_name,
+        }
+
+        ## case 0: User not logged in -> no effect!
+        # assert as expected
+        self.assertEqual(user.logged_in, False)
+        client.post(
+            "/users/edit/",
+            data=params
+        )
+        user.refresh_from_db()
+        self.assertNotEqual(user.username, new_name)
+
+        # login user
+        client.post(
+            "/",
+            data={"username": user.username, "password": self.pw},
+        )
+        user.refresh_from_db()
+        self.assertEqual(user.logged_in, True)
+
+        ## case 1: User logged in -> effect!
+        # assert as expected
+        client.post(
+            "/users/edit/",
+            data=params
+        )
+        user.refresh_from_db()
+        self.assertEqual(user.username, new_name)
 
 

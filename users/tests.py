@@ -1,12 +1,13 @@
 import json
 import os
 
+import datetime
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase, Client
 from django.utils import timezone
 
-from structure.forms import LoginForm
+from MapSkinner.settings import SESSION_EXPIRATION
 from structure.models import User, UserActivation
 
 
@@ -109,5 +110,52 @@ class UserTestCase(TestCase):
         user.refresh_from_db()
         self.assertEqual(response.url, "/")
         self.assertEqual(user.logged_in, False)
+
+    def test_user_password_change(self):
+        """ Tests the password change functionality
+
+        Checks if the password can be changed as expected by providing the new password two times.
+        Checks if the password change will fail if the provided passwords do not match.
+
+        Args;
+        Returns:
+        """
+        user = User.objects.get(
+            id=self.user_id
+        )
+        self.assertEqual(user.password, make_password(self.pw, user.salt))
+        new_pw = "12345"
+
+        client = Client()
+
+        ## case 0: User is not logged in -> action has no effect
+        # assert action has no effect
+        client.post(
+            "/users/password/edit/",
+            data={"password": new_pw, "password_again": new_pw, "user": user}
+        )
+        user.refresh_from_db()
+        self.assertNotEqual(user.password, make_password(new_pw, user.salt))
+
+        # login user to pass session checking
+        client.post("/", data={"username": user.username, "password": self.pw})
+
+        ## case 1: Input passwords match
+        # assert action has effect as expected
+        client.post(
+            "/users/password/edit/",
+            data={"password": new_pw, "password_again": new_pw, "user": user}
+        )
+        user.refresh_from_db()
+        self.assertEqual(user.password, make_password(new_pw, user.salt))
+
+        ## case 2: Input passwords do not match
+        # assert action has no effect
+        client.post(
+            "/users/password/edit/",
+            data={"password": new_pw, "password_again": new_pw[::-1], "user": user}
+        )
+        user.refresh_from_db()
+        self.assertEqual(user.password, make_password(new_pw, user.salt))
 
 

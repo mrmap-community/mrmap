@@ -58,7 +58,6 @@ class Command(BaseCommand):
         superuser.password = make_password(password, salt=superuser.salt)
         superuser.confirmed_dsgvo = timezone.now()
         superuser.is_active = True
-        superuser.name = "root"
         superuser.save()
         msg = "Superuser '" + name + "' was created successfully!"
         self.stdout.write(self.style.SUCCESS(str(msg)))

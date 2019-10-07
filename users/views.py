@@ -44,6 +44,7 @@ def login(request: HttpRequest):
     """
     template = "login.html"
     login_form = LoginForm(request.POST)
+
     # check if user is still logged in!
     user_id = request.session.get("user_id")
     if login_form.is_valid() or user_id is not None:
@@ -332,12 +333,9 @@ def register(request: HttpRequest):
                 user.confirmed_survey = cleaned_data.get("survey")
                 user.is_active = False
                 user.save()
+
                 # create user_activation object to improve checking against activation link
-                user_activation = UserActivation()
-                user_activation.user = user
-                user_activation.activation_until = timezone.now() + datetime.timedelta(hours=USER_ACTIVATION_TIME_WINDOW)
-                user_activation.activation_hash = sha256(user.username + user.salt + str(user_activation.activation_until))
-                user_activation.save()
+                user.create_activation()
 
                 messages.add_message(request, messages.SUCCESS, ACTIVATION_LINK_SENT)
                 return redirect("login")

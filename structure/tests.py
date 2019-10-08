@@ -80,12 +80,10 @@ class StructureTestCase(TestCase):
 
     def test_group_creation(self):
         client = self._get_logged_in_client()
-        g_name = "Testgroup"
+        g_name = "New Testgroup"
         params = {
             "name": g_name,
             "description": "Testdescription",
-            #"parent": 0,
-            #"organization": 0,
             "role": self.role_id,
             "user": self._get_user(),
         }

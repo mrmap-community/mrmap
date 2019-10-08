@@ -15,7 +15,8 @@ from MapSkinner.celery_app import app
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_SENT, \
     PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
-    PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER
+    PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, GROUP_FORM_INVALID, \
+    PUBLISH_PERMISSION_REMOVED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.models import Service
@@ -338,12 +339,13 @@ def remove_publisher(request: HttpRequest, id: int, user: User):
          A BackendAjaxResponse since it is an Ajax request
     """
     post_params = request.POST
-    group_id = post_params.get("publishingGroupId")
+    group_id = int(post_params.get("publishingGroupId"))
     org = Organization.objects.get(id=id)
     group = Group.objects.get(id=group_id, publish_for_organizations=org)
     group.publish_for_organizations.remove(org)
+    messages.success(request, message=PUBLISH_PERMISSION_REMOVED.format(group.name, org.organization_name))
 
-    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/organizations/detail/" + str(id)).get_response()
+    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/").get_response()
 
 @check_session
 @check_permission(Permission(can_request_to_become_publisher=True))
@@ -459,9 +461,13 @@ def new_group(request: HttpRequest, user: User):
                 messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
             else:
                 group.created_by = user
-                group.role = Role.objects.get(name="_default_")
+                if group.role is None:
+                    group.role = Role.objects.get(name="_default_")
                 group.save()
                 user.groups.add(group)
+            return redirect("structure:index")
+        else:
+            messages.error(request, message=GROUP_FORM_INVALID)
             return redirect("structure:index")
     else:
         params = {

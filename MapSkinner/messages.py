@@ -62,7 +62,10 @@ PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER = _("Your group already is a publisher
 PUBLISH_REQUEST_ABORTED_OWN_ORG = _("You cannot be a publisher to your group's own organization! You publish by default like this.")
 PUBLISH_REQUEST_ABORTED_IS_PENDING = _("Your group already has sent a request. Please be patient!")
 
+PUBLISH_PERMISSION_REMOVED = _("Publishing permission of {} for {} removed.")
+
 GROUP_CAN_NOT_BE_OWN_PARENT = _("A group can not be parent to itself!")
+GROUP_FORM_INVALID = _("The form data was not valid.")
 
 SERVICE_UPDATE_WRONG_TYPE = _("You tried to update a service to another service type. This is not possible!")
 SERVICE_UPDATE_ABORTED_NO_DIFF = _("The provided capabilities document is not different from the currently registered. Update canceled!")

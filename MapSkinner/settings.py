@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/2.1/ref/settings/
 """
 
 import os
+
+import sys
 from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -229,6 +231,10 @@ CELERY_TIMEZONE = TIME_ZONE
 
 # API
 from api.settings import REST_FRAMEWORK
+
+# Tests
+if 'test' in sys.argv:
+    CAPTCHA_TEST_MODE = True
 
 
 # Progress bar

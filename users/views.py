@@ -27,7 +27,6 @@ from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import SESSION_EXPIRATION, ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from MapSkinner.utils import sha256
 from service.models import Metadata
-from structure.config import USER_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import LoginForm, RegistrationForm
 from structure.models import User, UserActivation, PendingRequest, GroupActivity
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm

@@ -12,21 +12,22 @@ from django.utils.translation import gettext_lazy as _
 # GROUP ACTIVITIES #
 # These messages HAVE to be untranslated, since they are written into the db
 # and will be translated during the template rendering process automatically
-PUBLISHING_REQUEST_CREATED  = "Publish request created"
-SERVICE_REGISTERED          = "Service registered"
-SERVICE_REMOVED             = "Service removed"
-SERVICE_UPDATED             = "Service updated"
-SERVICE_MD_EDITED           = "Service metadata edited"
-SERVICE_ACTIVATED           = "Service activated"
-SERVICE_DEACTIVATED         = "Service deactivated"
-SERVICE_MD_RESTORED         = "Service metadata restored"
-GROUP_EDITED                = "Group edited"
+PUBLISHING_REQUEST_CREATED = "Publish request created"
+SERVICE_REGISTERED = "Service registered"
+SERVICE_REMOVED = "Service removed"
+SERVICE_UPDATED = "Service updated"
+SERVICE_MD_EDITED = "Service metadata edited"
+SERVICE_ACTIVATED = "Service activated"
+SERVICE_DEACTIVATED = "Service deactivated"
+SERVICE_MD_RESTORED = "Service metadata restored"
+GROUP_EDITED = "Group edited"
 
 ####################
 
 FORM_INPUT_INVALID = _("The input was not valid.")
 
 USERNAME_OR_PW_INVALID = _("Username or password incorrect")
+REGISTRATION_FAILED_MISSING_DATA = _("Registration failed due to missing form data.")
 ACCOUNT_UPDATE_SUCCESS = _("Account updated successfully!")
 ACCOUNT_NOT_ACTIVATED = _("Your account is currently not activated")
 LOGOUT_FORCED = _("You have been logged out.")

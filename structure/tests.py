@@ -45,6 +45,7 @@ class StructureTestCase(TestCase):
             created_by=user
         )
         user.groups.add(group)
+        self.group_id = group.id
 
     def _get_logged_in_client(self):
         """ Helping function to encapsulate the login process
@@ -78,6 +79,14 @@ class StructureTestCase(TestCase):
              user (User): The user
         """
         return User.objects.get(id=self.user_id)
+
+    def _get_group(self):
+        """ Returns the group, which is created in the setUp()
+
+        Returns:
+             group (Group): The group
+        """
+        return Group.objects.get(id=self.group_id)
 
     def _create_new_group(self, client: Client, name: str, parent: Group = None):
         """ Helping function
@@ -150,10 +159,35 @@ class StructureTestCase(TestCase):
 
         """
         user = self._get_user()
-        client = self._get_logged_in_client()
-        g_name = "TestGroup"
 
-        ## case 0: Delete single group without subgroups
+        ## case 0: User not logged in, delete single group
+        client = Client()
+        g_name = "ToBeDeletedGroup"
+        g_descr = "KillMeWithFire"
+        # create group directly to get around the client-not-logged-in-for-creation-thing
+        group = Group.objects.create(
+            name=g_name,
+            created_by=user,
+            description=g_descr,
+        )
+        self.assertEqual(group.name, g_name)
+        self.assertEqual(group.description, g_descr)
+
+        self._remove_group(client, group, user)
+
+        exists = True
+        try:
+            group.refresh_from_db()
+        except ObjectDoesNotExist:
+            exists = False
+
+        self.assertEqual(exists, True, msg="Group could be deleted without user being logged in!")
+        # remove group directly
+        group.delete()
+
+        ## case 1: User logged in, delete single group without subgroups
+        g_name = "TestGroup"
+        client = self._get_logged_in_client()
         self._create_new_group(client, g_name)
         group = Group.objects.get(
             name=g_name
@@ -167,7 +201,7 @@ class StructureTestCase(TestCase):
             exists = False
         self.assertEqual(exists, False, msg="Group still exists")
 
-        ## case 1: Delete group, keep subgroups
+        ## case 2.1: Delete group, keep subgroups
         self._create_new_group(client, g_name)
         group = Group.objects.get(name=g_name)
         g_sub_a_name = "TestGroup_Sub_A"
@@ -199,7 +233,7 @@ class StructureTestCase(TestCase):
         del sub_a_exists
         del sub_b_exists
 
-        ## case 2: Delete group without permission -> expect, that it won't work
+        ## case 2.2: Delete group without permission -> expect, that it won't work
         # manipulate user permission
         role = self._get_role()
         role.permission.can_delete_group = False
@@ -214,6 +248,84 @@ class StructureTestCase(TestCase):
         except ObjectDoesNotExist:
             exists = False
         self.assertEqual(exists, True, msg="Sub group A was removed without permission")
+
+    def test_group_editing(self):
+        """ Tests for editing functionality
+
+        Checks if a not logged in user can edit a group
+        Checks if a logged in user can edit a group
+        Checks if a logged in user can not edit a group using wrong/forbidden input
+
+        Returns:
+
+        """
+        user = self._get_user()
+        group = self._get_group()
+        group_id = group.id
+        new_g_name = "New Groupname"
+        new_descr = "Test Tralala"
+
+        ## case 0: User is not logged in
+        # the editing here should not work
+        client = Client()
+        error = "The user is not logged in, but could edit the group!"
+
+        params = {
+            "user": user,
+            "name": new_g_name,
+            "description": new_descr,
+        }
+
+        client.post("/structure/groups/edit/{}".format(self.group_id), data=params)
+        group.refresh_from_db()
+
+        self.assertNotEqual(group.name, new_g_name, msg=error)
+        self.assertNotEqual(group.description, new_descr, msg=error)
+
+        ## case 1: User is logged in, normal editing case
+        client = self._get_logged_in_client()
+        self._create_new_group(client, "New Parent")
+        new_parent = Group.objects.get(name="New Parent")
+        error = "Created group has unexpected values!"
+
+        params = {
+            "user": user,
+            "name": new_g_name,
+            "description": new_descr,
+            "parent": new_parent.id,
+        }
+
+        self.assertEqual(group.parent, None, msg=error)
+        self.assertNotEqual(group.name, new_g_name, msg=error)
+        self.assertNotEqual(group.description, new_descr, msg=error)
+
+        client.post("/structure/groups/edit/{}".format(self.group_id), data=params)
+
+        group.refresh_from_db()
+        error = "Group is not correctly editable!"
+
+        self.assertEqual(group.id, group_id, msg=error)
+        self.assertEqual(group.parent, new_parent, msg=error)
+        self.assertEqual(group.name, new_g_name, msg=error)
+        self.assertEqual(group.description, new_descr, msg=error)
+
+
+        ## case 1.1: User is logged in, editing form is missing data or contains wrong data
+        params["name"] = None  # name should not be null
+        params["parent"] = group_id  # group can not be it's own parent
+
+        client.post("/structure/groups/edit/{}".format(self.group_id), data=params)
+
+        group.refresh_from_db()
+
+        # we expect that nothing has changed, so we can assert the same constraints as before
+        self.assertEqual(group.id, group_id, msg=error)
+        self.assertEqual(group.parent, new_parent, msg=error)
+        self.assertEqual(group.name, new_g_name, msg=error)
+        self.assertEqual(group.description, new_descr, msg=error)
+
+
+
 
 
 

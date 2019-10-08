@@ -4,6 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase, Client
 from django.utils import timezone
 
+from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME
 from structure.models import Group, User, Role, Permission
 
 
@@ -117,7 +118,9 @@ class StructureTestCase(TestCase):
             "confirmed": True,
             "user": user,
         }
-        client.get("/structure/groups/remove/", data=params)
+
+        # Use the HTTP_REFERER here! This is needed to cover the redirect, forced by the permission check decorator
+        client.get("/structure/groups/remove/", data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
 
     def test_group_creation(self):
         """ Tests the group creation functionality
@@ -193,6 +196,24 @@ class StructureTestCase(TestCase):
 
         self.assertEqual(sub_a_exists, True, msg="Sub group A does not exist anymore")
         self.assertEqual(sub_b_exists, True, msg="Sub group B does not exist anymore")
+        del sub_a_exists
+        del sub_b_exists
+
+        ## case 2: Delete group without permission -> expect, that it won't work
+        # manipulate user permission
+        role = self._get_role()
+        role.permission.can_delete_group = False
+        role.permission.save()
+        role.save()
+
+        # try to remove sub group A
+        self._remove_group(client, group_sub_a, user)
+        exists = True
+        try:
+            group_sub_a.refresh_from_db()
+        except ObjectDoesNotExist:
+            exists = False
+        self.assertEqual(exists, True, msg="Sub group A was removed without permission")
 
 
 

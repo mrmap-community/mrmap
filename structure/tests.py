@@ -78,16 +78,56 @@ class StructureTestCase(TestCase):
         """
         return User.objects.get(id=self.user_id)
 
-    def test_group_creation(self):
-        client = self._get_logged_in_client()
-        g_name = "New Testgroup"
+    def _create_new_group(self, client: Client, name: str, parent: Group = None):
+        """ Helping function
+
+        Calls the create-new-group route
+
+        Args:
+            client (Client): The logged in client
+            name (str): The new group's name
+        Returns:
+
+        """
+        g_name = name
         params = {
             "name": g_name,
             "description": "Testdescription",
             "role": self.role_id,
             "user": self._get_user(),
         }
+        if parent is not None:
+            params["parent"] = parent.id
         client.post("/structure/groups/new/register-form/", data=params)
+
+    def _remove_group(self, client: Client, group: Group, user: User):
+        """ Helping function
+
+        Calls the delete-group route
+
+        Args;
+            client (Client): The logged in client
+            group (Group): The group which shall be deleted
+            user (User): The performing user
+        Returns:
+
+        """
+        params = {
+            "id": group.id,
+            "confirmed": True,
+            "user": user,
+        }
+        client.get("/structure/groups/remove/", data=params)
+
+    def test_group_creation(self):
+        """ Tests the group creation functionality
+
+        Returns:
+
+        """
+        client = self._get_logged_in_client()
+        g_name = "New Testgroup"
+        self._create_new_group(client, g_name)
         exists = True
         try:
             group = Group.objects.get(
@@ -96,3 +136,65 @@ class StructureTestCase(TestCase):
         except ObjectDoesNotExist:
             exists = False
         self.assertEqual(exists, True, msg="Group could not be created")
+        if exists:
+            self.assertEqual(group.role, self._get_role())
+            self.assertEqual(group.name, g_name)
+
+    def test_group_deletion(self):
+        """ Tests the group deletion functionality
+
+        Returns:
+
+        """
+        user = self._get_user()
+        client = self._get_logged_in_client()
+        g_name = "TestGroup"
+
+        ## case 0: Delete single group without subgroups
+        self._create_new_group(client, g_name)
+        group = Group.objects.get(
+            name=g_name
+        )
+        self.assertNotEqual(group.id, None, msg="Group does not exist")
+        self._remove_group(client, group, user)
+        exists = True
+        try:
+            group.refresh_from_db()
+        except ObjectDoesNotExist:
+            exists = False
+        self.assertEqual(exists, False, msg="Group still exists")
+
+        ## case 1: Delete group, keep subgroups
+        self._create_new_group(client, g_name)
+        group = Group.objects.get(name=g_name)
+        g_sub_a_name = "TestGroup_Sub_A"
+        self._create_new_group(client, g_sub_a_name, group)
+        g_sub_b_name = "TestGroup_Sub_B"
+        self._create_new_group(client, g_sub_b_name, group)
+        group_sub_a = Group.objects.get(name=g_sub_a_name)
+        group_sub_b = Group.objects.get(name=g_sub_b_name)
+
+        self.assertNotEqual(group_sub_a.id, None, msg="Sub group A does not exist")
+        self.assertNotEqual(group_sub_b.id, None, msg="Sub group B does not exist")
+        self.assertNotEqual(group.id, None, msg="Group does not exist")
+
+        # delete parent group
+        self._remove_group(client, group, user)
+        sub_a_exists = True
+        sub_b_exists = True
+        try:
+            group_sub_a.refresh_from_db()
+        except ObjectDoesNotExist:
+            sub_a_exists = False
+        try:
+            group_sub_b.refresh_from_db()
+        except ObjectDoesNotExist:
+            sub_b_exists = False
+
+        self.assertEqual(sub_a_exists, True, msg="Sub group A does not exist anymore")
+        self.assertEqual(sub_b_exists, True, msg="Sub group B does not exist anymore")
+
+
+
+
+

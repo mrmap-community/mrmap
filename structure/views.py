@@ -512,9 +512,9 @@ def remove_group(request: HttpRequest, user: User):
         A rendered view
     """
     template = "remove_group_confirmation.html"
-    service_id = request.GET.dict().get("id")
+    group_id = request.GET.dict().get("id")
     confirmed = request.GET.dict().get("confirmed")
-    group = get_object_or_404(Group, id=service_id)
+    group = get_object_or_404(Group, id=group_id)
     permission = group.role.permission
     if confirmed == 'false':
         params = {
@@ -524,6 +524,15 @@ def remove_group(request: HttpRequest, user: User):
         html = render_to_string(template_name=template, context=params, request=request)
         return BackendAjaxResponse(html=html).get_response()
     else:
+
+        # clean subgroups from parent
+        sub_groups = Group.objects.filter(
+            parent=group
+        )
+        for sub in sub_groups:
+            sub.parent = None
+            sub.save()
+
         # remove group and all of the related content
         group.delete()
         return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure").get_response()

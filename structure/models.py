@@ -94,6 +94,7 @@ class Organization(Contact):
     description = models.TextField(null=True, blank=True)
     parent = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True)
     is_auto_generated = models.BooleanField(default=True)
+    created_by = models.ForeignKey('User', related_name='created_by', on_delete=models.DO_NOTHING, null=True, blank=True)
 
     def __str__(self):
         if self.organization_name is None:

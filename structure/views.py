@@ -16,7 +16,8 @@ from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_SENT, \
     PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, GROUP_FORM_INVALID, \
-    PUBLISH_PERMISSION_REMOVED
+    PUBLISH_PERMISSION_REMOVED, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_IS_OTHERS_PROPERTY, \
+    GROUP_IS_OTHERS_PROPERTY
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.models import Service
@@ -205,13 +206,16 @@ def edit_org(request: HttpRequest, id: int, user: User):
     """
     template = "form.html"
     org = Organization.objects.get(id=id)
+    if org.created_by != user:
+        messages.error(request, message=ORGANIZATION_IS_OTHERS_PROPERTY)
+        return redirect("structure:detail-organization", org.id)
     form = OrganizationForm(request.POST or None, instance=org)
     if request.method == "POST":
         if form.is_valid():
             # save changes of group
             org = form.save(commit=False)
             if org.parent == org:
-                messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
+                messages.add_message(request=request, level=messages.ERROR, message=ORGANIZATION_CAN_NOT_BE_OWN_PARENT)
             else:
                 org.save()
         return redirect("structure:detail-organization", org.id)
@@ -241,6 +245,9 @@ def remove_org(request: HttpRequest, user: User):
     _id = request.GET.dict().get("id")
     confirmed = utils.resolve_boolean_attribute_val(request.GET.dict().get("confirmed"))
     org = get_object_or_404(Organization, id=_id)
+    if org.created_by != user:
+        messages.error(request, message=ORGANIZATION_IS_OTHERS_PROPERTY)
+        return redirect("structure:detail-organization", org.id)
     if not confirmed:
         params = {
             "organization": org,
@@ -282,7 +289,9 @@ def new_org(request: HttpRequest, user: User):
             else:
                 org.created_by = user
                 org.save()
-            return redirect("structure:index")
+        else:
+            messages.error(request, message=GROUP_FORM_INVALID)
+        return redirect("structure:index")
     else:
         params = {
             "organizations": orgs,
@@ -515,6 +524,9 @@ def remove_group(request: HttpRequest, user: User):
     group_id = request.GET.dict().get("id")
     confirmed = request.GET.dict().get("confirmed")
     group = get_object_or_404(Group, id=group_id)
+    if group.created_by != user:
+        messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)
+        return redirect("structure:detail-organization", group.id)
     permission = group.role.permission
     if confirmed == 'false':
         params = {
@@ -552,6 +564,9 @@ def edit_group(request: HttpRequest, user: User, id: int):
     """
     template = "form.html"
     group = Group.objects.get(id=id)
+    if group.created_by != user:
+        messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)
+        return redirect("structure:detail-organization", group.id)
     form = GroupForm(request.POST or None, instance=group)
     if request.method == "POST":
         form.fields.get('role').disabled = True

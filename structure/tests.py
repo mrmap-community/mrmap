@@ -5,7 +5,8 @@ from django.test import TestCase, Client
 from django.utils import timezone
 
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME
-from structure.models import Group, User, Role, Permission, Organization
+from structure.config import PENDING_REQUEST_TYPE_PUBLISHING
+from structure.models import Group, User, Role, Permission, Organization, PendingRequest
 
 
 class StructureTestCase(TestCase):
@@ -659,6 +660,16 @@ class StructureTestCase(TestCase):
         self.assertNotEqual(org_of_A.description, old_descr, msg="Organization could be edited by another user!")
 
     def test_organization_deleting(self):
+        """ Tests the organization deleting functionality
+
+        Checks if a not logged in user can delete it's organization
+        Checks if a not logged in user can delete another user's organization
+        Checks if a logged in user can delete it's organization
+        Checks if a logged in user can delete another user's organization
+
+        Returns:
+
+        """
         user_A = self._get_user_A()
         user_B = self._get_user_B()
         # first create an organization that can be deleted
@@ -701,6 +712,7 @@ class StructureTestCase(TestCase):
         ## case 1.2: User logged in, try to delete own organization, has no permission -> fail!
         # manipulate user permission
         role = self._get_role()
+        role_backup = role
         role.permission.can_delete_organization = False
         role.permission.save()
         role.save()
@@ -728,10 +740,72 @@ class StructureTestCase(TestCase):
             exists = False
         self.assertEqual(exists, False, msg="Organization could not be removed!")
 
+    def _create_publish_request(self, client: Client, user: User, group: Group, organization: Organization):
+        """ Helping function
 
+        Calls the create-publish-request route
+
+        Args:
+            client (Client): The logged in client
+            user (User): The performing user
+            group (Group): The group which requests the publish permission
+            organization (Organization): The organization
+
+        Returns:
+
+        """
+        params = {
+            "user": user,
+            "group": group.id,
+            "organization_name": organization.organization_name,
+            "request_msg": "Test msg"
+        }
+
+        client.post("/structure/organizations/publish-request/{}".format(organization.id), data=params)
 
     def test_organization_publish_request_creating(self):
-        pass
+        """ Tests the organization request publish permission functionality
+
+        Checks if a not logged in user can create a publish request
+        Checks if a logged in user can create a publish request
+        Checks if a logged in user can create a publish request with wrong input
+
+        Returns:
+
+        """
+        user_A = self._get_user_A()
+        group_of_A = self._get_group()
+        org = self._get_organization()
+
+        ## case 0: User is not logged in, tries to create a publish request -> fail!
+        client = Client()
+        self._create_publish_request(client, user_A, group_of_A, org)
+        exists = True
+        try:
+            pub_requ = PendingRequest.objects.get(
+                type=PENDING_REQUEST_TYPE_PUBLISHING,
+                group=group_of_A,
+                organization=org,
+            )
+        except ObjectDoesNotExist:
+            exists = False
+        self.assertEqual(exists, False, msg="PendingRequest was created by not logged in user!")
+
+        ## case 1: User is logged in, tries to create a publish request
+        client = self._get_logged_in_client(user_A.id)
+        self._create_publish_request(client, user_A, group_of_A, org)
+        exists = True
+        try:
+            pub_requ = PendingRequest.objects.get(
+                type=PENDING_REQUEST_TYPE_PUBLISHING,
+                group=group_of_A,
+                organization=org,
+            )
+        except ObjectDoesNotExist:
+            exists = False
+        self.assertEqual(exists, True, msg="PendingRequest was not created!")
+        if exists:
+            self.assertGreater(pub_requ.activation_until, timezone.now(), msg="PendingRequest latest activation datetime is not in the future!")
 
     def test_organization_publish_request_creating_toggling(self):
         pass

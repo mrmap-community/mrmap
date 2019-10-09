@@ -472,6 +472,28 @@ class StructureTestCase(TestCase):
             params["parent"] = parent
         client.post("/structure/organizations/new/register-form/", data=params)
 
+    def _remove_organization(self, client: Client, user: User, organization: Organization):
+        """ Helping function
+
+        Calls the remove-organization route
+
+        Args:
+            client (Client): The logged in client
+            user (User): The performing user
+            organization (Organization): The organization
+
+        Returns:
+
+        """
+        params = {
+            "user": user,
+            "id": organization.id,
+            "confirmed": True,
+        }
+        # Use the HTTP_REFERER here! This is needed to cover the redirect, forced by the permission check decorator
+        client.get("/structure/organizations/remove/", data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
+
+
     def test_organization_creation(self):
         """ Tests the organization creation functionality
 
@@ -637,8 +659,76 @@ class StructureTestCase(TestCase):
         self.assertNotEqual(org_of_A.description, old_descr, msg="Organization could be edited by another user!")
 
     def test_organization_deleting(self):
-        # first create an organization that can be
-        pass
+        user_A = self._get_user_A()
+        user_B = self._get_user_B()
+        # first create an organization that can be deleted
+        org_of_B = Organization.objects.create(
+            organization_name="TTT",
+            person_name="PPPP",
+            created_by=user_B,
+        )
+
+        ## case 0.1: User not logged in, try to delete another one's organization -> fail!
+        client = Client()
+        self._remove_organization(client, user_A, org_of_B)
+        exists = True
+        try:
+            org_of_B.refresh_from_db()
+        except ObjectDoesNotExist:
+            exists = False
+        self.assertEqual(exists, True, msg="Organization was removed by a not logged in user, who is not the organization's object owner!")
+
+        ## case 0.2: User not logged in, try to delete own organization -> fail!
+        client = Client()
+        self._remove_organization(client, user_B, org_of_B)
+        exists = True
+        try:
+            org_of_B.refresh_from_db()
+        except ObjectDoesNotExist:
+            exists = False
+        self.assertEqual(exists, True, msg="Organization was removed by the not logged in user!")
+
+        ## case 1.1: User logged in, try to delete another one's organization -> fail
+        client = self._get_logged_in_client(user_A.id)
+        self._remove_organization(client, user_A, org_of_B)
+        exists = True
+        try:
+            org_of_B.refresh_from_db()
+        except ObjectDoesNotExist:
+            exists = False
+        self.assertEqual(exists, True, msg="Organization was removed by another user!")
+
+        ## case 1.2: User logged in, try to delete own organization, has no permission -> fail!
+        # manipulate user permission
+        role = self._get_role()
+        role.permission.can_delete_organization = False
+        role.permission.save()
+        role.save()
+
+        client = self._get_logged_in_client(user_B.id)
+        self._remove_organization(client, user_B, org_of_B)
+        exists = True
+        try:
+            org_of_B.refresh_from_db()
+        except ObjectDoesNotExist:
+            exists = False
+        self.assertEqual(exists, True, msg="Organization was removed without permission!")
+
+        # restore role
+        role.permission.can_delete_organization = True
+        role.permission.save()
+        role.save()
+
+        ## case 2: User logged in, try to delete own organization
+        self._remove_organization(client, user_B, org_of_B)
+        exists = True
+        try:
+            org_of_B.refresh_from_db()
+        except ObjectDoesNotExist:
+            exists = False
+        self.assertEqual(exists, False, msg="Organization could not be removed!")
+
+
 
     def test_organization_publish_request_creating(self):
         pass

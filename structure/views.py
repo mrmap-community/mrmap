@@ -324,7 +324,7 @@ def toggle_publish_request(request: HttpRequest, id: int, user: User):
     pub_request = PendingRequest.objects.get(type=PENDING_REQUEST_TYPE_PUBLISHING, id=post_params.get("requestId"))
     now = timezone.now()
     if is_accepted and pub_request.activation_until >= now:
-        # add organization to group_publisher manager
+        # add organization to group_publisher
         pub_request.group.publish_for_organizations.add(organization)
         messages.add_message(request, messages.SUCCESS, PUBLISH_REQUEST_ACCEPTED.format(pub_request.group.name))
     elif not is_accepted:

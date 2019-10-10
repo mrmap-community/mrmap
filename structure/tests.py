@@ -1,4 +1,6 @@
 import os
+
+from copy import copy
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase, Client
@@ -763,6 +765,28 @@ class StructureTestCase(TestCase):
 
         client.post("/structure/organizations/publish-request/{}".format(organization.id), data=params)
 
+    def _toggle_publish_request(self, client: Client, user: User, organization: Organization, pub_request: PendingRequest, accept: bool):
+        """ Helping function
+
+        Calls the toggle-publish-request route
+
+        Args:
+            client (Client): The logged in client
+            user (User): The performing user
+            organization (Organization): The organization which holds the publish request
+            pub_request (PendingRequest): The publish request
+            accept (bool): Whether to accept the publish request or not
+        Returns:
+
+        """
+        params = {
+            "user": user,
+            "accept": accept,
+            "requestId": pub_request.id,
+        }
+        client.post("/structure/organizations/toggle-publish-request/{}".format(organization.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
+
+
     def test_organization_publish_request_creating(self):
         """ Tests the organization request publish permission functionality
 
@@ -807,8 +831,64 @@ class StructureTestCase(TestCase):
         if exists:
             self.assertGreater(pub_requ.activation_until, timezone.now(), msg="PendingRequest latest activation datetime is not in the future!")
 
-    def test_organization_publish_request_creating_toggling(self):
-        pass
+    def test_organization_publish_request_toggling(self):
+        """ Tests the organization publish request toggling
+
+        Checks if a logged out user can toggle existing pending requests.
+        Checks if a logged in user can toggle existing pending requests.
+
+        Returns:
+
+        """
+        user_B = self._get_user_B()
+
+        org_of_A = self._get_organization()
+        group_of_B = self._get_group()
+        group_of_B.created_by = user_B
+
+
+        # create publish request at first
+        client_logged_in_B = self._get_logged_in_client(user_B.id)
+        self._create_publish_request(client_logged_in_B, user_B, group_of_B, org_of_A)
+        pub_requ = PendingRequest.objects.get(
+            type=PENDING_REQUEST_TYPE_PUBLISHING,
+            organization=org_of_A,
+            group=group_of_B
+        )
+
+        ## case 0: User not logged in, tries to toggle the existing pending request -> fail!
+        client = Client()
+        test_cases = [False, True]
+        for test_case in test_cases:
+            self._toggle_publish_request(client, user_B, org_of_A, pub_requ, test_case)
+            exists = True
+            try:
+                pub_requ.refresh_from_db()
+            except ObjectDoesNotExist:
+                exists = False
+            group_publishes_for_orgs = group_of_B.publish_for_organizations.all()
+            self.assertEqual(org_of_A in group_publishes_for_orgs, False)
+            self.assertEqual(exists, True, msg="Publishing request was toggled by not logged in user!")
+
+        ## case 1.1: User logged in, denies the pending request
+        ## case 1.2: User logged in, accepts the pending request
+        client = client_logged_in_B
+        test_cases = [False, True]
+        for test_case in test_cases:
+            pub_requ_backup = copy(pub_requ)
+            self._toggle_publish_request(client, user_B, org_of_A, pub_requ, test_case)
+            exists = True
+            try:
+                pub_requ.refresh_from_db()
+            except ObjectDoesNotExist:
+                exists = False
+            group_publishes_for_orgs = group_of_B.publish_for_organizations.all()
+            self.assertEqual(org_of_A in group_publishes_for_orgs, test_case)
+            self.assertEqual(exists, False, msg="Publishing request was not removed after toggling!")
+            if not exists:
+                # restore for next iteration
+                pub_requ = pub_requ_backup
+                pub_requ.save()
 
     def test_organization_publish_request_(self):
         pass

@@ -63,6 +63,7 @@ PUBLISH_REQUEST_ABORTED_OWN_ORG = _("You cannot be a publisher to your group's o
 PUBLISH_REQUEST_ABORTED_IS_PENDING = _("Your group already has sent a request. Please be patient!")
 
 PUBLISH_PERMISSION_REMOVED = _("Publishing permission of {} for {} removed.")
+PUBLISH_PERMISSION_REMOVING_DENIED = _("Publish permission removing denied. You are not a member of the organization nor a member of the publishing group!")
 
 GROUP_CAN_NOT_BE_OWN_PARENT = _("A group can not be parent to itself!")
 GROUP_IS_OTHERS_PROPERTY = _("This group is owned by another user. Action denied.")

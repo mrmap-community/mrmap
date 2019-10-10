@@ -14,6 +14,11 @@ from structure.models import Group, User, Role, Permission, Organization, Pendin
 class StructureTestCase(TestCase):
 
     def setUp(self):
+        """ Initial creation of objects that are needed during the tests
+
+        Returns:
+
+        """
         # create user who performs the actions in these tests
         self.username_A = "Testuser_A"
         self.username_B = "Testuser_B"
@@ -140,7 +145,7 @@ class StructureTestCase(TestCase):
         }
         if parent is not None:
             params["parent"] = parent.id
-        client.post("/structure/groups/new/register-form/", data=params)
+        client.post("/structure/groups/new/register-form/", data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
 
     def _remove_group(self, client: Client, group: Group, user: User):
         """ Helping function
@@ -473,7 +478,7 @@ class StructureTestCase(TestCase):
         }
         if parent is not None:
             params["parent"] = parent
-        client.post("/structure/organizations/new/register-form/", data=params)
+        client.post("/structure/organizations/new/register-form/", data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
 
     def _remove_organization(self, client: Client, user: User, organization: Organization):
         """ Helping function
@@ -495,7 +500,6 @@ class StructureTestCase(TestCase):
         }
         # Use the HTTP_REFERER here! This is needed to cover the redirect, forced by the permission check decorator
         client.get("/structure/organizations/remove/", data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
-
 
     def test_organization_creation(self):
         """ Tests the organization creation functionality
@@ -763,7 +767,7 @@ class StructureTestCase(TestCase):
             "request_msg": "Test msg"
         }
 
-        client.post("/structure/organizations/publish-request/{}".format(organization.id), data=params)
+        client.post("/structure/organizations/publish-request/{}".format(organization.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
 
     def _toggle_publish_request(self, client: Client, user: User, organization: Organization, pub_request: PendingRequest, accept: bool):
         """ Helping function
@@ -786,6 +790,24 @@ class StructureTestCase(TestCase):
         }
         client.post("/structure/organizations/toggle-publish-request/{}".format(organization.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
 
+    def _remove_publish_permission(self, client: Client, user: User, organization: Organization, group: Group):
+        """ Helping function
+
+        Calls the remove-publish-permission route
+
+        Args:
+            client (Client): The logged in client
+            user (User): The performing user
+            organization (Organization): The organization which let a group publish
+            group (Group): The group which has the publish permission
+        Returns:
+
+        """
+        params = {
+            "user": user,
+            "publishingGroupId": group.id,
+        }
+        client.post("/structure/organizations/remove-publisher/{}".format(organization.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
 
     def test_organization_publish_request_creating(self):
         """ Tests the organization request publish permission functionality
@@ -846,7 +868,6 @@ class StructureTestCase(TestCase):
         group_of_B = self._get_group()
         group_of_B.created_by = user_B
 
-
         # create publish request at first
         client_logged_in_B = self._get_logged_in_client(user_B.id)
         self._create_publish_request(client_logged_in_B, user_B, group_of_B, org_of_A)
@@ -890,13 +911,101 @@ class StructureTestCase(TestCase):
                 pub_requ = pub_requ_backup
                 pub_requ.save()
 
-    def test_organization_publish_request_(self):
-        pass
+    def test_organization_publish_permission_removing(self):
+        """ Tests the publish permission removing functionality
 
+        Checks if a not logged in user can remove the publish permission of it's group for an organization.
+        Checks if a not logged in user can remove the publish permission of a group for it's organization.
+        Checks if a not logged in user can remove the publish permission of a foreign group for a foreign organization.
+        Checks if a logged in user can remove the publish permission of it's group for an organization.
+        Checks if a logged in user can remove the publish permission of a group for it's organization.
+        Checks if a logged in user can remove the publish permission of a foreign group for a foreign organization.
 
+        Returns:
 
+        """
+        user_A = self._get_user_A()
+        user_B = self._get_user_B()
 
+        group_of_B = self._get_group()
+        group_of_B.created_by = user_B
 
+        # create a seconds group with superuser rights
+        group_of_A = Group.objects.create(
+            name="Group of A",
+            role=self._get_role(),
+            created_by=user_A
+        )
+        user_A.groups.add(group_of_A)
 
+        org_of_A = self._get_organization()
+        client = Client()
+
+        # manipulate the publish permission of group_of_B, that it can publish for org_of_A
+        group_of_B.publish_for_organizations.add(org_of_A)
+
+        ## case 0.1: User not logged in, tries to remove it's group's publish permission -> fails!
+        self._remove_publish_permission(client, user_B, org_of_A, group_of_B)
+        orgs_to_publish_for = group_of_B.publish_for_organizations.all()
+        self.assertTrue(org_of_A in orgs_to_publish_for, msg="Publish Permission was removed by not logged in user!")
+
+        ## case 0.2: User not logged in, tries to remove the publish permission of a group - where user is not a member - for it's organization -> fails!
+        user_A.organization = org_of_A
+        group_of_B.users.remove(user_A)
+        self.assertTrue(user_A not in group_of_B.users.all())
+        self.assertEqual(user_A.organization, org_of_A)
+        self._remove_publish_permission(client, user_A, org_of_A, group_of_B)
+        orgs_to_publish_for = group_of_B.publish_for_organizations.all()
+        self.assertTrue(org_of_A in orgs_to_publish_for, msg="Publish Permission was removed by not logged in user!")
+
+        ## case 0.3: User not logged in, tries to remove the publish permission of a group in another organization -> fails!
+        ## first manipulate the user_A organization
+        user_A.organization = None  # user_A is now not part of org_of_A anymore
+        self.assertTrue(user_A not in group_of_B.users.all())  # user_A is not part of group_of_B
+        self.assertIsNone(user_A.organization)  # user_A is not part of org_of_A
+        ## this means, that user_A is not part of the publishing group nor part of the organization, that provides the publish permission
+        self._remove_publish_permission(client, user_A, org_of_A, group_of_B)
+        orgs_to_publish_for = group_of_B.publish_for_organizations.all()
+        self.assertTrue(org_of_A in orgs_to_publish_for, msg="Publish Permission was removed by not logged in user!")
+
+        ## case 1.1: User logged in, tries to remove it's group's publish permission
+        client = self._get_logged_in_client(user_B.id)
+        user_B.groups.add(group_of_B)
+        self.assertTrue(org_of_A in orgs_to_publish_for)
+        self.assertTrue(group_of_B in user_B.groups.all())
+        self._remove_publish_permission(client, user_B, org_of_A, group_of_B)
+        orgs_to_publish_for = group_of_B.publish_for_organizations.all()
+        self.assertTrue(org_of_A not in orgs_to_publish_for, msg="Publish Permission was not removed!")
+
+        # restore for next test case
+        group_of_B.publish_for_organizations.add(org_of_A)
+
+        ## case 1.2: User logged in, tries to remove the publish permission of a group - where user is not a member - for it's organization
+        orgs_to_publish_for = group_of_B.publish_for_organizations.all()
+        client = self._get_logged_in_client(user_A.id)
+        self.assertTrue(org_of_A in orgs_to_publish_for)
+        user_A.groups.remove(group_of_B)
+        user_A.organization = org_of_A
+        user_A.save()
+        self.assertTrue(user_A not in group_of_B.users.all())  # doublecheck
+        self.assertTrue(user_A.organization, org_of_A)  # doublecheck
+        self._remove_publish_permission(client, user_A, org_of_A, group_of_B)
+        orgs_to_publish_for = group_of_B.publish_for_organizations.all()
+        self.assertTrue(org_of_A not in orgs_to_publish_for, msg="Publish Permission was not removed!")
+
+        # restore for next test case
+        group_of_B.publish_for_organizations.add(org_of_A)
+
+        ## case 1.3: User logged in, tries to remove the publish permission of a group in another organization -> fails!
+        orgs_to_publish_for = group_of_B.publish_for_organizations.all()
+        self.assertTrue(org_of_A in orgs_to_publish_for)
+        user_A.groups.remove(group_of_B)
+        user_A.organization = None
+        user_A.save()
+        self.assertTrue(user_A not in group_of_B.users.all())  # doublecheck
+        self.assertIsNone(user_A.organization)  # doublecheck
+        self._remove_publish_permission(client, user_A, org_of_A, group_of_B)
+        orgs_to_publish_for = group_of_B.publish_for_organizations.all()
+        self.assertTrue(org_of_A in orgs_to_publish_for, msg="Publish Permission was removed by a user which is not in the publishing group, nor in the organization that holds the permissions!")
 
 

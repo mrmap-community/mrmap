@@ -17,7 +17,7 @@ from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT
     PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, GROUP_FORM_INVALID, \
     PUBLISH_PERMISSION_REMOVED, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_IS_OTHERS_PROPERTY, \
-    GROUP_IS_OTHERS_PROPERTY
+    GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.models import Service
@@ -351,6 +351,11 @@ def remove_publisher(request: HttpRequest, id: int, user: User):
     group_id = int(post_params.get("publishingGroupId"))
     org = Organization.objects.get(id=id)
     group = Group.objects.get(id=group_id, publish_for_organizations=org)
+
+    # only allow removing if the user is part of the organization or the group!
+    if group not in user.groups.all() and user.organization != org:
+        messages.error(request, message=PUBLISH_PERMISSION_REMOVING_DENIED)
+        return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/").get_response()
     group.publish_for_organizations.remove(org)
     messages.success(request, message=PUBLISH_PERMISSION_REMOVED.format(group.name, org.organization_name))
 

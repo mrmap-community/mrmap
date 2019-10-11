@@ -5,7 +5,7 @@ app_name='service'
 urlpatterns = [
     path('', index, name='index'),
     path('/<service_type>', index, name='index'),
-    path('session', session, name='session'),
+    path('session', set_session, name='session'),
     path('activate/', activate, name='activate'),
 
     path('metadata/<int:id>', get_service_metadata, name='get-service-metadata'),

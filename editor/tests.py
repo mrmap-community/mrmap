@@ -1,3 +1,15 @@
 from django.test import TestCase
 
-# Create your tests here.
+class EditorTestCase(TestCase):
+
+    def setUp(self):
+        pass
+
+    def test_edit(self):
+        pass
+
+    def test_edit_featuretype(self):
+        pass
+
+    def test_restore(self):
+        pass

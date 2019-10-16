@@ -205,7 +205,7 @@ class User(Contact):
         return check_password(password, self.password)
 
     def create_activation(self):
-        """ Create an activatrion object
+        """ Create an activation object
 
         Returns:
              nothing

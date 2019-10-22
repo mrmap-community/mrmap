@@ -173,7 +173,7 @@ DATABASES = {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': 'mapskinner',
         'USER':'postgres',
-        'PASSWORD':'',
+        'PASSWORD':'postgres',
         'HOST' : '127.0.0.1',
         'PORT' : ''
     }

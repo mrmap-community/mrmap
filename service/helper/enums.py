@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class ConnectionType(Enum):
+class ConnectionEnum(Enum):
     """ Defines all possible connection types
 
     """
@@ -10,7 +10,7 @@ class ConnectionType(Enum):
     URLLIB = "urllib"
 
 
-class VersionTypes(Enum):
+class VersionEnum(Enum):
     """ Defines all supported versions
 
     """
@@ -24,7 +24,7 @@ class VersionTypes(Enum):
     V_2_0_2 = "2.0.2"
 
 
-class ServiceTypes(Enum):
+class ServiceEnum(Enum):
     """ Defines all supported service types
 
     """
@@ -33,3 +33,12 @@ class ServiceTypes(Enum):
     WFS = "wfs"
     WMC = "wmc"
     DATASET = "dataset"
+
+
+class MetadataEnum(Enum):
+    """ Defines all metadata types
+
+    """
+
+    DATASET = "dataset"
+    SERVICE = "service"

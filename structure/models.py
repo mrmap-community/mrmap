@@ -2,7 +2,7 @@ from django.contrib.auth.hashers import check_password
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
-from service.helper.enums import ServiceTypes
+from service.helper.enums import ServiceEnum
 
 
 class PendingTask(models.Model):
@@ -127,7 +127,7 @@ class User(Contact):
     def __str__(self):
         return self.username
 
-    def get_services(self, type: ServiceTypes = None):
+    def get_services(self, type: ServiceEnum = None):
         """ Returns all services which are related to the user
 
         Returns:

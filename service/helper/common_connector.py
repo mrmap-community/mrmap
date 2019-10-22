@@ -11,8 +11,9 @@ import re
 
 from requests.exceptions import InvalidURL
 
-from MapSkinner.settings import DEFAULT_CONNECTION_TYPE, HTTP_PROXY, REQUEST_PROXIES
-from service.helper.enums import ConnectionType
+from service.settings import DEFAULT_CONNECTION_TYPE
+from MapSkinner.settings import HTTP_PROXY, REQUEST_PROXIES
+from service.helper.enums import ConnectionEnum
 
 try:
     from io import BytesIO
@@ -44,10 +45,10 @@ class CommonConnector():
     def load(self, params: dict = None):
         self.init_time = time.time()
         # print(self.http_method)
-        c = ConnectionType.CURL
-        if self.connection_type is ConnectionType.CURL:
+        c = ConnectionEnum.CURL
+        if self.connection_type is ConnectionEnum.CURL:
             response = self.__load_curl(params)
-        elif self.connection_type is ConnectionType.REQUESTS:
+        elif self.connection_type is ConnectionEnum.REQUESTS:
             response = self.__load_requests(params)
         else:
             response = self.__load_urllib()

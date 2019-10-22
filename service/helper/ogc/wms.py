@@ -17,20 +17,22 @@ from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from MapSkinner.settings import EXEC_TIME_PRINT, MD_TYPE_LAYER, MD_TYPE_SERVICE, MULTITHREADING_THRESHOLD, \
+from service.settings import MD_TYPE_LAYER, MD_TYPE_SERVICE
+from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
     PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES
 from MapSkinner import utils
 from MapSkinner.utils import execute_threads, sha256
 from service.config import ALLOWED_SRS
-from service.helper.enums import VersionTypes
+from service.helper.enums import VersionEnum
 from service.helper.epsg_api import EpsgApi
-from service.helper.iso.isoMetadata import ISOMetadata
+from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
     MetadataRelation, MetadataOrigin, MetadataType
+from service.settings import METADATA_RELATION_TYPE_VISUALIZES, METADATA_RELATION_TYPE_DESCRIBED_BY
 from structure.models import Organization, Group
 from structure.models import User
 
@@ -39,7 +41,7 @@ class OGCWebMapServiceFactory:
     """ Creates the correct OGCWebMapService objects
 
     """
-    def get_ogc_wms(self, version: VersionTypes, service_connect_url=None):
+    def get_ogc_wms(self, version: VersionEnum, service_connect_url=None):
         """ Returns the correct implementation of an OGCWebMapService according to the given version
 
         Args:
@@ -48,13 +50,13 @@ class OGCWebMapServiceFactory:
         Returns:
             An OGCWebMapService
         """
-        if version is VersionTypes.V_1_0_0:
+        if version is VersionEnum.V_1_0_0:
             return OGCWebMapService_1_0_0(service_connect_url=service_connect_url)
-        if version is VersionTypes.V_1_1_0:
+        if version is VersionEnum.V_1_1_0:
             return OGCWebMapService_1_1_0(service_connect_url=service_connect_url)
-        if version is VersionTypes.V_1_1_1:
+        if version is VersionEnum.V_1_1_1:
             return OGCWebMapService_1_1_1(service_connect_url=service_connect_url)
-        if version is VersionTypes.V_1_3_0:
+        if version is VersionEnum.V_1_3_0:
             return OGCWebMapService_1_3_0(service_connect_url=service_connect_url)
 
 
@@ -106,11 +108,18 @@ class OGCWebMapService(OGCWebService):
         xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
 
         start_time = time.time()
-        self.get_service_metadata(xml_obj=xml_obj, async_task=async_task)
+        self.get_service_metadata_from_capabilities(xml_obj=xml_obj, async_task=async_task)
+
+        # check if 'real' service metadata exist
+        service_metadata_uri = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//VendorSpecificCapabilities/inspire_vs:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL")
+        if service_metadata_uri is not None:
+            self.get_service_metadata(uri=service_metadata_uri, async_task=async_task)
+
         print(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
 
+        # parse possible linked dataset metadata
         start_time = time.time()
-        self.get_service_iso_metadata(xml_obj=xml_obj)
+        self.get_service_dataset_metadata(xml_obj=xml_obj)
         print(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
 
         self.get_version_specific_metadata(xml_obj=xml_obj)
@@ -133,7 +142,7 @@ class OGCWebMapService(OGCWebService):
                                                                         attribute="{http://www.w3.org/1999/xlink}href")
                 try:
                     iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
-                except Exception:
+                except Exception as e:
                     # there are iso metadatas that have been filled wrongly -> if so we will drop them
                     continue
                 layer_obj.iso_metadata.append(iso_metadata)
@@ -197,13 +206,13 @@ class OGCWebMapService(OGCWebService):
     def parse_bounding_box(self, layer, layer_obj):
         # switch depending on service version
         elem_name = "SRS"
-        if self.service_version is VersionTypes.V_1_0_0:
+        if self.service_version is VersionEnum.V_1_0_0:
             pass
-        if self.service_version is VersionTypes.V_1_1_0:
+        if self.service_version is VersionEnum.V_1_1_0:
             pass
-        if self.service_version is VersionTypes.V_1_1_1:
+        if self.service_version is VersionEnum.V_1_1_1:
             pass
-        if self.service_version is VersionTypes.V_1_3_0:
+        if self.service_version is VersionEnum.V_1_3_0:
             elem_name = "CRS"
         self.parse_bounding_box_generic(layer=layer, layer_obj=layer_obj, elem_name=elem_name)
 
@@ -332,7 +341,6 @@ class OGCWebMapService(OGCWebService):
         elements["uri"] = elements["uri"].get("xlink:href") if elements["uri"] is not None else None
         layer_obj.style = elements
 
-
     def _start_single_layer_parsing(self, layer_xml):
         """ Runs the complete parsing process for a single layer
 
@@ -366,7 +374,6 @@ class OGCWebMapService(OGCWebService):
 
         return layer_obj
 
-
     def _parse_single_layer(self, layer, parent, position, step_size: float = None, async_task: Task = None):
         """ Parses data from an xml <Layer> element into the OGCWebMapLayer object.
 
@@ -396,7 +403,6 @@ class OGCWebMapService(OGCWebService):
 
         self.get_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size, async_task=async_task)
 
-
     def get_layers_recursive(self, layers, parent=None, position=0, step_size: float = None, async_task: Task = None):
         """ Recursive Iteration over all children and subchildren.
 
@@ -424,8 +430,6 @@ class OGCWebMapService(OGCWebService):
                 self._parse_single_layer(layer, parent, position, step_size=step_size, async_task=async_task)
                 position += 1
 
-
-
     def get_layers(self, xml_obj, async_task: Task = None):
         """ Parses all layers of a service and creates OGCWebMapLayer objects from each.
 
@@ -448,11 +452,12 @@ class OGCWebMapService(OGCWebService):
 
         self.get_layers_recursive(layers, step_size=step_size, async_task=async_task)
 
-    def get_service_metadata(self, xml_obj, async_task: Task = None):
-        """ Parses all <Service> information which can be found in every wms specification since 1.0.0
+    def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
+        """ Parses all <Service> element information which can be found in every wms specification since 1.0.0
 
         Args:
             xml_obj: The iterable xml object tree
+            async_task: The task object
         Returns:
             Nothing
         """
@@ -462,8 +467,8 @@ class OGCWebMapService(OGCWebService):
         self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Abstract".format(parser_prefix, parser_prefix))
         self.service_identification_title = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Title".format(parser_prefix, parser_prefix))
 
-        #if async_task is not None:
-        #    task_helper.update_service_description(async_task, self.service_identification_title)
+        if async_task is not None:
+            task_helper.update_service_description(async_task, self.service_identification_title)
 
         self.service_identification_fees = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Fees".format(parser_prefix, parser_prefix))
         self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}AccessConstraints".format(parser_prefix, parser_prefix))
@@ -553,7 +558,7 @@ class OGCWebMapService(OGCWebService):
             parser_prefix,
         ))
 
-    @transaction.atomic
+
     def __create_single_layer_model_instance(self, layer_obj, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
                          published_for: Organization, root_md: Metadata, user: User, contact, parent=None):
         """ Transforms a OGCWebMapLayer object to Layer model (models.py)
@@ -580,7 +585,7 @@ class OGCWebMapService(OGCWebService):
         metadata.uuid = uuid.uuid4()
         metadata.abstract = layer_obj.abstract
         metadata.online_resource = root_md.online_resource
-        metadata.original_uri = root_md.original_uri
+        metadata.capabilities_original_uri = root_md.capabilities_original_uri
         metadata.identifier = layer_obj.identifier
         metadata.contact = contact
         metadata.access_constraints = root_md.access_constraints
@@ -589,8 +594,8 @@ class OGCWebMapService(OGCWebService):
 
         # handle keywords of this layer
         for kw in layer_obj.capability_keywords:
-            # keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            keyword = Keyword(keyword=kw)
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            #keyword = Keyword(keyword=kw)
             metadata.keywords_list.append(keyword)
 
         # handle reference systems
@@ -628,6 +633,7 @@ class OGCWebMapService(OGCWebService):
             (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["miny"]))
         )
         layer.bbox_lat_lon = Polygon(bounding_points)
+        metadata.bounding_geometry = layer.bbox_lat_lon
         layer.created_by = creator
         layer.published_for = published_for
         layer.published_by = publisher
@@ -676,7 +682,7 @@ class OGCWebMapService(OGCWebService):
             self.__create_layer_model_instance(layers=layer_obj.child_layer, service_type=service_type, wms=wms, creator=creator, root_md=root_md,
                      publisher=publisher, published_for=published_for, parent=parent_layer, user=user, contact=contact)
 
-    @transaction.atomic
+
     def __create_layer_model_instance(self, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
                          published_for: Organization, root_md: Metadata, user: User, contact, parent=None):
         """ Iterates over all layers given by the service and persist them, including additional data like metadata and so on.
@@ -714,7 +720,6 @@ class OGCWebMapService(OGCWebService):
                 parent,
             )
 
-    @transaction.atomic
     def create_service_model_instance(self, user: User, register_group, register_for_organization):
         """ Persists the web map service and all of its related content and data
 
@@ -726,13 +731,14 @@ class OGCWebMapService(OGCWebService):
         """
         orga_published_for = register_for_organization
         orga_publisher = user.organization
-
         group = register_group
+
         # fill objects
         service_type = ServiceType.objects.get_or_create(
             name=self.service_type.value,
             version=self.service_version.value
         )[0]
+
         # metadata
         metadata = Metadata()
         md_type = MetadataType.objects.get_or_create(type=MD_TYPE_SERVICE)[0]
@@ -744,15 +750,17 @@ class OGCWebMapService(OGCWebService):
         metadata.title = self.service_identification_title
         metadata.abstract = self.service_identification_abstract
         metadata.online_resource = ",".join(self.service_provider_onlineresource_linkage)
-        metadata.original_uri = self.service_connect_url
+        metadata.capabilities_original_uri = self.service_connect_url
         metadata.access_constraints = self.service_identification_accessconstraints
         metadata.fees = self.service_identification_fees
         metadata.bounding_geometry = self.service_bounding_box
         metadata.identifier = self.service_file_identifier
+
         # keywords
         for kw in self.service_identification_keywords:
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             metadata.keywords_list.append(keyword)
+
         # contact
         contact = Organization.objects.get_or_create(
             organization_name=self.service_provider_providername,
@@ -767,6 +775,7 @@ class OGCWebMapService(OGCWebService):
             country=self.service_provider_address_country,
         )[0]
         metadata.contact = contact
+
         # other
         metadata.is_active = False
         metadata.created_by = group
@@ -780,6 +789,8 @@ class OGCWebMapService(OGCWebService):
         service.created_by = group
         service.metadata = metadata
         service.is_root = True
+        if self.linked_service_metadata is not None:
+            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MD_TYPE_SERVICE)
 
         root_layer = self.layers[0]
 
@@ -797,12 +808,30 @@ class OGCWebMapService(OGCWebService):
         # save metadata
         md = service.metadata
         md.save()
+
+        # save linked service metadata
+        if service.linked_service_metadata is not None:
+            md_relation = MetadataRelation()
+            md_relation.metadata_from = md
+            md_relation.metadata_to = service.linked_service_metadata
+            md_relation.origin = MetadataOrigin.objects.get_or_create(
+                name='capabilities'
+            )[0]
+            md_relation.relation_type = METADATA_RELATION_TYPE_VISUALIZES
+            md_relation.save()
+            md.related_metadata.add(md_relation)
+
+        # save again, due to added related metadata
+        md.save()
+
         # metadata keywords
         for kw in md.keywords_list:
             md.keywords.add(kw)
         service.metadata = md
+
         # save parent service
         service.save()
+
         # save all containing layers
         if service.root_layer is not None:
             self.__persist_child_layers([service.root_layer], service)
@@ -828,11 +857,12 @@ class OGCWebMapService(OGCWebService):
             for iso_md in layer.iso_metadata:
                 iso_md = iso_md.to_db_model()
                 metadata_relation = MetadataRelation()
-                metadata_relation.metadata_1 = md
-                metadata_relation.metadata_2 = iso_md
+                metadata_relation.metadata_from = md
+                metadata_relation.metadata_to = iso_md
                 metadata_relation.origin = MetadataOrigin.objects.get_or_create(
                     name=iso_md.origin
                 )[0]
+                metadata_relation.relation_type = METADATA_RELATION_TYPE_DESCRIBED_BY
                 metadata_relation.save()
                 md.related_metadata.add(metadata_relation)
 
@@ -840,7 +870,7 @@ class OGCWebMapService(OGCWebService):
 
             # handle keywords of this layer
             for kw in layer.metadata.keywords_list:
-                kw = Keyword.objects.get_or_create(keyword=kw.keyword)[0]
+                #kw = Keyword.objects.get_or_create(keyword=kw.keyword)[0]
                 layer.metadata.keywords.add(kw)
 
             # handle reference systems
@@ -884,7 +914,7 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
     """
     def __init__(self, service_connect_url):
         super().__init__(service_connect_url=service_connect_url)
-        self.service_version = VersionTypes.V_1_0_0
+        self.service_version = VersionEnum.V_1_0_0
 
     def __parse_formats(self, layer, layer_obj):
         # ToDo: Find wms 1.0.0 for testing!!!!
@@ -910,7 +940,7 @@ class OGCWebMapService_1_1_0(OGCWebMapService):
     """
     def __init__(self, service_connect_url):
         super().__init__(service_connect_url=service_connect_url)
-        self.service_version = VersionTypes.V_1_1_0
+        self.service_version = VersionEnum.V_1_1_0
 
     def get_version_specific_metadata(self, xml_obj):
         pass
@@ -922,7 +952,7 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
     """
     def __init__(self, service_connect_url=None):
         super().__init__(service_connect_url=service_connect_url)
-        self.service_version = VersionTypes.V_1_1_1
+        self.service_version = VersionEnum.V_1_1_1
 
     def get_version_specific_metadata(self, xml_obj):
         pass
@@ -936,7 +966,7 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
 
     def __init__(self, service_connect_url):
         super().__init__(service_connect_url=service_connect_url)
-        self.service_version = VersionTypes.V_1_3_0
+        self.service_version = VersionEnum.V_1_3_0
         self.layer_limit = None
         self.max_width = None
         self.max_height = None

@@ -12,17 +12,13 @@
         {% endif %}
     </div>
     <div class="container-right">
-        <select id="service-display-selector" title="Group elements">
-            <option value="services" {% if select_default == 'services' %} selected {% endif %}>{% trans 'Show services' %}</option>
-            <option value="layers" {% if select_default == 'layers' %} selected {% endif %}>{% trans 'Show layers' %}</option>
-        </select>
     </div>
 </div>
 {% if metadata_list_wms|length > 0 %}
 <div>
     <div>
         <label for="rpp-select-wms">{% trans 'Results per page' %}:</label>
-        <select id="rpp-select-wms" class="rpp-select" title="{% trans 'Results per page' %}:">
+        <select id="rpp-select-wms" class="rpp-select default-select" title="{% trans 'Results per page' %}:">
             {% for option in rpp_select_options %}
             <option value="{{ option }}" {% if option == rpp %}selected="selected"{% endif %}>{{ option }}</option>
             {% endfor %}
@@ -55,6 +51,10 @@
         {% endif %}
     </div>
     <div class="container-right">
+        <select id="service-display-selector" class="default-select" title="Group elements">
+            <option value="services" {% if select_default == 'services' %} selected {% endif %}>{% trans 'Show services' %}</option>
+            <option value="layers" {% if select_default == 'layers' %} selected {% endif %}>{% trans 'Show layers' %}</option>
+        </select>
     </div>
 </div>
 <table class="overview-table">

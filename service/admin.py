@@ -30,8 +30,8 @@ class KeywordAdmin(admin.ModelAdmin):
     pass
 
 
-class CapabilityDocumentAdmin(admin.ModelAdmin):
-    list_display = ('related_metadata', 'created')
+class DocumentAdmin(admin.ModelAdmin):
+    list_display = ('related_metadata', 'is_active', 'created')
 
 
 class MetadataOriginAdmin(admin.ModelAdmin):
@@ -39,11 +39,11 @@ class MetadataOriginAdmin(admin.ModelAdmin):
 
 
 class MetadataAdmin(admin.ModelAdmin):
-    list_display = ('title', 'identifier', 'metadata_type', 'is_broken', 'contact', 'uuid')
+    list_display = ('title', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact', 'uuid')
 
 
 class MetadataRelationAdmin(admin.ModelAdmin):
-    list_display = ('metadata_1', 'metadata_2', 'origin')
+    list_display = ('metadata_from', 'relation_type', 'metadata_to', 'origin')
 
 
 class TermsOfUseAdmin(admin.ModelAdmin):
@@ -75,7 +75,7 @@ class NamespaceAdmin(admin.ModelAdmin):
     list_display = ('name', 'uri', 'version')
 
 
-admin.site.register(CapabilityDocument, CapabilityDocumentAdmin)
+admin.site.register(Document, DocumentAdmin)
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(CategoryOrigin, CategoryOriginAdmin)
 admin.site.register(ServiceType, ServiceTypeAdmin)

@@ -107,7 +107,7 @@ class MetadataRelationSerializer(serializers.Serializer):
     """ Serializer for MetadataRelation model
 
     """
-    id = serializers.PrimaryKeyRelatedField(read_only=True, source="metadata_2")
+    id = serializers.PrimaryKeyRelatedField(read_only=True, source="metadata_to")
 
 
 class MetadataSerializer(serializers.Serializer):
@@ -115,11 +115,13 @@ class MetadataSerializer(serializers.Serializer):
 
     """
     id = serializers.IntegerField()
+    metadata_type = serializers.CharField()
     identifier = serializers.CharField()
     title = serializers.CharField()
     abstract = serializers.CharField()
     online_resource = serializers.CharField()
     original_uri = serializers.CharField()
+    metadata_url = serializers.CharField()
     service = serializers.PrimaryKeyRelatedField(read_only=True)
     organization = serializers.PrimaryKeyRelatedField(read_only=True, source="contact")
     related_metadata = MetadataRelationSerializer(many=True)

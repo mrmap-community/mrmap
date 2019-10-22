@@ -10,18 +10,20 @@ from django.contrib.gis.geos import Polygon
 from django.db import transaction
 from lxml.etree import _Element
 
-from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, \
+from service.settings import MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, METADATA_RELATION_TYPE_VISUALIZES
+from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT,  \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
 from MapSkinner.utils import execute_threads
 from service.config import ALLOWED_SRS
-from service.helper.enums import VersionTypes, ServiceTypes
+from service.helper.enums import VersionEnum, ServiceEnum
 from service.helper.epsg_api import EpsgApi
-from service.helper.iso.isoMetadata import ISOMetadata
+from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
     FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType
+from service.settings import METADATA_RELATION_TYPE_DESCRIBED_BY
 from structure.models import Organization, User
 
 
@@ -29,7 +31,7 @@ class OGCWebFeatureServiceFactory:
     """ Creates the correct OGCWebFeatureService objects
 
     """
-    def get_ogc_wfs(self, version: VersionTypes, service_connect_url=None):
+    def get_ogc_wfs(self, version: VersionEnum, service_connect_url=None):
         """ Returns the correct implementation of an OGCWebFeatureService according to the given version
 
         Args:
@@ -38,13 +40,13 @@ class OGCWebFeatureServiceFactory:
         Returns:
             An OGCWebFeatureService
         """
-        if version is VersionTypes.V_1_0_0:
+        if version is VersionEnum.V_1_0_0:
             return OGCWebFeatureService_1_0_0(service_connect_url=service_connect_url)
-        if version is VersionTypes.V_1_1_0:
+        if version is VersionEnum.V_1_1_0:
             return OGCWebFeatureService_1_1_0(service_connect_url=service_connect_url)
-        if version is VersionTypes.V_2_0_0:
+        if version is VersionEnum.V_2_0_0:
             return OGCWebFeatureService_2_0_0(service_connect_url=service_connect_url)
-        if version is VersionTypes.V_2_0_2:
+        if version is VersionEnum.V_2_0_2:
             return OGCWebFeatureService_2_0_2(service_connect_url=service_connect_url)
 
 
@@ -109,27 +111,28 @@ class OGCWebFeatureService(OGCWebService):
         """
         # get xml as iterable object
         xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
-        # parse service metadata
-        self.get_service_metadata(xml_obj, async_task)
-        self.get_capability_metadata(xml_obj)
-        #thread_list = [
-        #    threading.Thread(target=self.get_service_metadata, args=(xml_obj,)),
-        #    threading.Thread(target=self.get_capability_metadata, args=(xml_obj,)),
-        #]
-        #execute_threads(thread_list)
 
-        # always execute version specific tasks AFTER multithreading
-        # Otherwise we might face race conditions which lead to loss of data!
-        self.get_version_specific_metadata(xml_obj)
+        # parse service metadata
+        self.get_service_metadata_from_capabilities(xml_obj, async_task)
+        self.get_capability_metadata(xml_obj)
+
+        # check if 'real' linked service metadata exist
+        service_metadata_uri = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ExtendedCapabilities/inspire_dls:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL")
+        if service_metadata_uri is not None:
+            self.get_service_metadata(uri=service_metadata_uri, async_task=async_task)
 
         if not metadata_only:
             start_time = time.time()
             self.get_feature_type_metadata(xml_obj=xml_obj, async_task=async_task)
             print(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
 
+        # always execute version specific tasks AFTER multithreading
+        # Otherwise we might face race conditions which lead to loss of data!
+        self.get_version_specific_metadata(xml_obj)
+
 
     @abstractmethod
-    def get_service_metadata(self, xml_obj, async_task: Task = None):
+    def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         """ Parse the capability document <Service> metadata into the self object
 
         Args:
@@ -139,8 +142,8 @@ class OGCWebFeatureService(OGCWebService):
         """
         self.service_identification_title = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Title")
 
-        if async_task is not None:
-            task_helper.update_service_description(async_task, self.service_identification_title)
+        #if async_task is not None:
+        #    task_helper.update_service_description(async_task, self.service_identification_title)
 
         self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Abstract")
         self.service_identification_fees = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Fees")
@@ -235,8 +238,6 @@ class OGCWebFeatureService(OGCWebService):
         self.get_gml_object_uri["get"] = get.get("ListStoredQueries", None)
         self.get_gml_object_uri["post"] = post.get("ListStoredQueries", None)
 
-
-    @transaction.atomic
     def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version: str, async_task: Task = None, step_size: float = None):
         """ Get featuretype metadata of a single featuretype
 
@@ -416,7 +417,6 @@ class OGCWebFeatureService(OGCWebService):
             "ns_list": ns_list,
         }
 
-
     def get_single_feature_type_metadata(self, identifier):
         if self.service_capabilities_xml is None:
             # load xml, might have been forgotten
@@ -433,7 +433,6 @@ class OGCWebFeatureService(OGCWebService):
             self._get_feature_type_metadata(feature_type, epsg_api, service_type_version)
 
     @abstractmethod
-    @transaction.atomic
     def create_service_model_instance(self, user: User, register_group, register_for_organization):
         """ Map all data from the WebFeatureService classes to their database models
 
@@ -480,7 +479,7 @@ class OGCWebFeatureService(OGCWebService):
         md.access_constraints = self.service_identification_accessconstraints
         md.fees = self.service_identification_fees
         md.created_by = group
-        md.original_uri = self.service_connect_url
+        md.capabilities_original_uri = self.service_connect_url
         md.bounding_geometry = self.service_bounding_box
 
         # Service
@@ -500,6 +499,8 @@ class OGCWebFeatureService(OGCWebService):
         service.is_available = False
         service.is_root = True
         service.metadata = md
+        if self.linked_service_metadata is not None:
+            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MD_TYPE_SERVICE)
 
         # Keywords
         for kw in self.service_identification_keywords:
@@ -512,7 +513,7 @@ class OGCWebFeatureService(OGCWebService):
             f_t.metadata.created_by = group
             f_t.service = service
             f_t.metadata.contact = contact
-            f_t.metadata.original_uri = self.service_connect_url
+            f_t.metadata.capabilities_original_uri = self.service_connect_url
 
             f_t.dataset_md_list = feature_type_val.get("dataset_md_list", [])
             f_t.additional_srs_list = feature_type_val.get("srs_list", [])
@@ -535,8 +536,23 @@ class OGCWebFeatureService(OGCWebService):
         # save metadata
         md = service.metadata
         md.save()
-        service.metadata = md
 
+        # save linked service metadata
+        if service.linked_service_metadata is not None:
+            md_relation = MetadataRelation()
+            md_relation.metadata_from = md
+            md_relation.metadata_to = service.linked_service_metadata
+            md_relation.origin = MetadataOrigin.objects.get_or_create(
+                name='capabilities'
+            )[0]
+            md_relation.relation_type = METADATA_RELATION_TYPE_VISUALIZES
+            md_relation.save()
+            md.related_metadata.add(md_relation)
+
+        # save again, due to added related metadata
+        md.save()
+
+        service.metadata = md
         # save parent service
         service.save()
 
@@ -560,10 +576,11 @@ class OGCWebFeatureService(OGCWebService):
             for dataset_md in f_t.dataset_md_list:
                 dataset_md.save()
                 md_relation = MetadataRelation()
-                md_relation.metadata_1 = f_t.metadata
-                md_relation.metadata_2 = dataset_md
+                md_relation.metadata_from = f_t.metadata
+                md_relation.metadata_to = dataset_md
                 origin = MetadataOrigin.objects.get_or_create(name="capabilities")[0]
                 md_relation.origin = origin
+                md_relation.relation_type = METADATA_RELATION_TYPE_DESCRIBED_BY
                 md_relation.save()
                 f_t.metadata.related_metadata.add(md_relation)
 
@@ -631,15 +648,15 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
     def __init__(self, service_connect_url):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionTypes.V_1_0_0,
-            service_type=ServiceTypes.WFS,
+            service_version=VersionEnum.V_1_0_0,
+            service_type=ServiceEnum.WFS,
         )
         XML_NAMESPACES["schemaLocation"] = "http://geodatenlb1.rlp:80/geoserver/schemas/wfs/1.0.0/WFS-capabilities.xsd"
         XML_NAMESPACES["xsi"] = "http://www.w3.org/2001/XMLSchema-instance"
         XML_NAMESPACES["lvermgeo"] = "http://www.lvermgeo.rlp.de/lvermgeo"
         XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs")
 
-    def get_service_metadata(self, xml_obj, async_task: Task = None):
+    def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         """ Parse the wfs <Service> metadata into the self object
 
         Args:
@@ -804,8 +821,8 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
     def __init__(self, service_connect_url):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionTypes.V_1_1_0,
-            service_type=ServiceTypes.WFS,
+            service_version=VersionEnum.V_1_1_0,
+            service_type=ServiceEnum.WFS,
         )
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs"
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows"
@@ -820,8 +837,8 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
     def __init__(self, service_connect_url):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionTypes.V_2_0_0,
-            service_type=ServiceTypes.WFS,
+            service_version=VersionEnum.V_2_0_0,
+            service_type=ServiceEnum.WFS,
         )
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
@@ -886,7 +903,7 @@ class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
     def __init__(self, service_connect_url):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionTypes.V_2_0_2,
-            service_type=ServiceTypes.WFS,
+            service_version=VersionEnum.V_2_0_2,
+            service_type=ServiceEnum.WFS,
         )
 

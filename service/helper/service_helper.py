@@ -6,18 +6,17 @@ Created on: 16.04.19
 
 """
 
-import json
 import urllib
 
 from celery import Task
 
-from MapSkinner.settings import DEFAULT_SERVICE_VERSION, XML_NAMESPACES
+from service.settings import DEFAULT_SERVICE_VERSION
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import VersionTypes, ServiceTypes
+from service.helper.enums import VersionEnum, ServiceEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
-from service.models import Layer, Metadata, MimeType, Service, CapabilityDocument
+from service.models import Service, Document, MetadataRelation
 from MapSkinner.utils import sha256
 
 
@@ -29,7 +28,7 @@ def resolve_version_enum(version:str):
     Returns:
          The matching enum, otherwise None
     """
-    for enum in VersionTypes:
+    for enum in VersionEnum:
         if enum.value == version:
             return enum
     return None
@@ -45,7 +44,7 @@ def resolve_service_enum(service: str):
     """
     if service is None:
         return None
-    for enum in ServiceTypes:
+    for enum in ServiceEnum:
         if str(enum.value).upper() == service.upper():
             return enum
     return None
@@ -102,7 +101,6 @@ def resolve_keywords_array_string(keywords: str):
     return ret_list
 
 
-
 def generate_name(srs_list: list=[]):
     """ Generates a name made from a list of spatial reference systems
 
@@ -118,13 +116,6 @@ def generate_name(srs_list: list=[]):
         tmp.append(str(id))
     tmp = "".join(tmp)
     return sha256(tmp)
-
-
-def activate_layer_recursive(root_layer, new_status):
-    root_layer.metadata.is_active = new_status
-    root_layer.metadata.save()
-    for layer in root_layer.child_layer.all():
-        activate_layer_recursive(layer, new_status)
 
 
 def get_service_model_instance(service_type, version, base_uri, user, register_group, register_for_organization=None, async_task: Task = None):
@@ -145,7 +136,7 @@ def get_service_model_instance(service_type, version, base_uri, user, register_g
     """
 
     ret_dict = {}
-    if service_type is ServiceTypes.WMS:
+    if service_type is ServiceEnum.WMS:
         # create WMS object
         wms_factory = OGCWebMapServiceFactory()
         wms = wms_factory.get_ogc_wms(version=version, service_connect_url=base_uri)
@@ -177,7 +168,7 @@ def persist_service_model_instance(service: Service):
     Returns:
          Nothing
     """
-    if service.servicetype.name == ServiceTypes.WMS.value:
+    if service.servicetype.name == ServiceEnum.WMS.value:
         # create WMS object
         wms_factory = OGCWebMapServiceFactory()
         wms = wms_factory.get_ogc_wms(version=resolve_version_enum(service.servicetype.version))
@@ -223,7 +214,7 @@ def persist_capabilities_doc(service: Service, xml: str):
          nothing
     """
     # save original capabilities document
-    cap_doc = CapabilityDocument()
+    cap_doc = Document()
     cap_doc.original_capability_document = xml
     cap_doc.current_capability_document = xml
     cap_doc.related_metadata = service.metadata

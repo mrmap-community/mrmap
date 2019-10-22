@@ -14,7 +14,7 @@ import os
 from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-from service.helper.enums import ConnectionType, VersionTypes
+from service.helper.enums import ConnectionEnum, VersionEnum
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -30,6 +30,8 @@ SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
 
 HTTP_OR_SSL = "http://"
 HOST_NAME = "127.0.0.1:8000"
@@ -61,6 +63,9 @@ XML_NAMESPACES = {
     "wms": "http://www.opengis.net/wms",
     "xlink": "http://www.w3.org/1999/xlink",
     "gml": "http://www.opengis.net/gml",
+    "gmd": "http://www.isotc211.org/2005/gmd",
+    "gco": "http://www.isotc211.org/2005/gco",
+    "srv": "http://www.isotc211.org/2005/srv",
     "xsi": "http://www.w3.org/2001/XMLSchema-instance",
     "ave": "http://repository.gdi-de.org/schemas/adv/produkt/alkis-vereinfacht/1.0",
     "inspire_common": "http://inspire.ec.europa.eu/schemas/common/1.0",
@@ -82,15 +87,6 @@ LAST_ACTIVITY_DATE_RANGE = 7
 # Threshold which indicates when to use multithreading instead of iterative approaches
 MULTITHREADING_THRESHOLD = 2000
 
-# Metadata types
-MD_TYPE_FEATURETYPE = "featuretype"
-MD_TYPE_DATASET = "dataset"
-MD_TYPE_SERVICE = "service"
-MD_TYPE_LAYER = "layer"
-
-# Some special things
-DEFAULT_CONNECTION_TYPE = ConnectionType.REQUESTS
-DEFAULT_SERVICE_VERSION = VersionTypes.V_1_1_1
 HTTP_PROXY = "http://10.240.20.164:8080"
 REQUEST_PROXIES = {
     "http": "http://10.240.20.164:8080",

@@ -9,8 +9,8 @@ from django.db import transaction
 
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ConnectionType, VersionTypes, ServiceTypes
-from service.helper.iso.isoMetadata import ISOMetadata
+from service.helper.enums import ConnectionEnum, VersionEnum, ServiceEnum
+from service.helper.iso.iso_metadata import ISOMetadata
 from structure.models import User
 
 
@@ -18,7 +18,7 @@ class OGCWebService:
     """ The base class for all derived web services
 
     """
-    def __init__(self, service_connect_url=None, service_type=ServiceTypes.WMS, service_version=VersionTypes.V_1_1_1, auth=None, service_capabilities_xml=None):
+    def __init__(self, service_connect_url=None, service_type=ServiceEnum.WMS, service_version=VersionEnum.V_1_1_1, auth=None, service_capabilities_xml=None):
         self.service_connect_url = service_connect_url
         self.service_type = service_type  # wms, wfs, wcs, ...
         self.service_version = service_version  # 1.0.0, 1.1.0, ...
@@ -65,6 +65,9 @@ class OGCWebService:
         self.service_provider_telephone_voice = []
         self.service_provider_telephone_facsimile = []
 
+        # other
+        self.linked_service_metadata = None
+
 
         # initialize service from url
         # if service_capabilities_xml is not None:
@@ -97,11 +100,12 @@ class OGCWebService:
                                    '&SERVICE=' + self.service_type.value
         ows_connector = CommonConnector(url=self.service_connect_url,
                                         auth=self.auth,
-                                        connection_type=ConnectionType.REQUESTS)
+                                        connection_type=ConnectionEnum.REQUESTS)
         ows_connector.http_method = 'GET'
         ows_connector.load()
         if ows_connector.status_code != 200:
             raise ConnectionError(ows_connector.status_code)
+
         if ows_connector.encoding is not None:
             self.service_capabilities_xml = ows_connector.content.decode(ows_connector.encoding)
         else:
@@ -140,15 +144,31 @@ class OGCWebService:
         pass
 
     @abstractmethod
-    def get_service_metadata(self, xml_obj, async_task: Task = None):
+    def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         pass
+
+    def get_service_metadata(self, uri: str, async_task: Task = None):
+        """ Parses all service related information from the linked metadata document
+
+        This does not fill the information into the main metadata record, but creates a new one, which will be linked
+        using a MetadataRelation later.
+
+        Args:
+            uri (str): The service metadata uri
+            async_task: The task object
+        Returns:
+            Nothing
+        """
+        iso_md = ISOMetadata(uri)
+        iso_md.parse_xml()
+        self.linked_service_metadata = iso_md
 
     @abstractmethod
     def get_version_specific_metadata(self, xml_obj):
         pass
 
     @abstractmethod
-    def get_service_iso_metadata(self, xml_obj):
+    def get_service_dataset_metadata(self, xml_obj):
         """
 
         Args:
@@ -158,7 +178,7 @@ class OGCWebService:
         """
         # Must parse metadata document and merge metadata into this metadata object
         elem = "//inspire_common:URL"  # for wms by default
-        if self.service_type is ServiceTypes.WFS:
+        if self.service_type is ServiceEnum.WFS:
             elem = "//wfs:MetadataURL"
         service_md_link = xml_helper.try_get_text_from_xml_element(elem=elem, xml_elem=xml_obj)
         # get iso metadata xml object

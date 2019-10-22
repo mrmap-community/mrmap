@@ -4,8 +4,7 @@ from django.contrib.gis.geos import Polygon
 from django.db import models, transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
-
-from service.helper.enums import ServiceTypes
+from service.helper.enums import ServiceEnum
 from structure.models import Group, Organization
 from service.helper import xml_helper
 
@@ -25,14 +24,17 @@ class Resource(models.Model):
     is_deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
 
-    def save(self, force_insert=False, force_update=False, using=None,
+    def save(self, update_last_modified=True, force_insert=False, force_update=False, using=None,
              update_fields=None):
-        # We always want to have automatically the last timestamp from the latest change!
-        self.last_modified = timezone.now()
-        super().save()
+        if update_last_modified:
+            # We always want to have automatically the last timestamp from the latest change!
+            # ONLY if the function is especially called with a False flag in update_last_modified, we will not change the record's last change
+            self.last_modified = timezone.now()
+        super().save(force_insert, force_update, using, update_fields)
 
     class Meta:
         abstract = True
+
 
 class MetadataOrigin(models.Model):
     name = models.CharField(max_length=255)
@@ -42,28 +44,30 @@ class MetadataOrigin(models.Model):
 
 
 class MetadataRelation(models.Model):
-    metadata_1 = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadate_from")
-    metadata_2 = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadate_to")
+    metadata_from = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_from")
+    metadata_to = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_to")
     relation_type = models.CharField(max_length=255, null=True, blank=True)
     internal = models.BooleanField(default=False)
     origin = models.ForeignKey(MetadataOrigin, on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.metadata_1.title + " -> " + self.metadata_2.title
+        return "{} {} {}".format(self.metadata_from.title, self.relation_type, self.metadata_to.title)
 
 
 class Metadata(Resource):
     identifier = models.CharField(max_length=255, null=True)
     title = models.CharField(max_length=255)
     abstract = models.TextField(null=True, blank=True)
-    online_resource = models.CharField(max_length=500, null=True, blank=True)
-    original_uri = models.CharField(max_length=500, blank=True, null=True)
+    online_resource = models.CharField(max_length=500, null=True, blank=True)  # where the service data can be found
+    capabilities_original_uri = models.CharField(max_length=500, blank=True, null=True)
+    service_metadata_original_uri = models.CharField(max_length=500, blank=True, null=True)
 
     contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, blank=True, null=True)
     terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, null=True)
     access_constraints = models.TextField(null=True, blank=True)
     fees = models.TextField(null=True, blank=True)
 
+    last_remote_change = models.DateTimeField(null=True, blank=True)  # the date time, when the metadata was changed where it comes from
     status = models.IntegerField(null=True)
     inherit_proxy_uris = models.BooleanField(default=False)
     spatial_res_type = models.CharField(max_length=100, null=True)
@@ -74,15 +78,18 @@ class Metadata(Resource):
     is_inspire_conform = models.BooleanField(default=False)
     has_inspire_downloads = models.BooleanField(default=False)
     bounding_geometry = models.PolygonField(null=True, blank=True)
+
     # capabilities
     dimension = models.CharField(max_length=100, null=True)
     authority_url = models.CharField(max_length=255, null=True)
     metadata_url = models.CharField(max_length=255, null=True)
+
     # other
     keywords = models.ManyToManyField(Keyword)
     categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
     metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
+
     ## for ISO metadata
     dataset_id = models.CharField(max_length=255, null=True, blank=True)
     dataset_id_code_space = models.CharField(max_length=255, null=True, blank=True)
@@ -99,6 +106,32 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    def delete(self, using=None, keep_parents=False):
+        """ Overwriting of the regular delete function
+
+        Checks if the current processed metadata is part of a MetadataRelation, which indicates, that it is still used
+        somewhere else, maybe by another service. If there is only one MetadataRelation found for this metadata record,
+        we can delete it safely..
+
+        Args:
+            using: The regular 'using' parameter
+            keep_parents: The regular 'keep_parents' parameter
+        Returns:
+            nothing
+        """
+        # check if there are MetadataRelations on this metadata record
+        # if so, we can not remove it until these relations aren't used anymore
+        dependencies = MetadataRelation.objects.filter(
+            metadata_to=self
+        )
+        if dependencies.count() > 1:
+            # if there are more than one dependency, we should not remove it
+            # the one dependency we can expect at least is the relation to the current metadata record
+            return
+        else:
+            # if we have one or less relations to this metadata record, we can remove it anyway
+            super().delete(using, keep_parents)
+
     def get_service_type(self):
         """ Performs a check on which service type is described by the metadata record
 
@@ -113,6 +146,29 @@ class Metadata(Resource):
         elif self.metadata_type.type == 'featuretype':
             service_type = 'wfs'
         return service_type
+
+    def find_max_bounding_box(self):
+        """ Returns the largest bounding box of all children
+
+        Saves the found bounding box to bounding_geometry for faster access
+
+        Returns:
+
+        """
+        children = self.service.child_service.all()
+        max_box = None
+        for child in children:
+            bbox = child.layer.bbox_lat_lon
+            if max_box is None:
+                max_box = bbox
+            else:
+                ba = bbox.area
+                ma = max_box.area
+                if ba > ma:
+                    max_box = bbox
+        self.bounding_geometry = max_box
+        self.save()
+        return max_box
 
     def is_root(self):
         """ Checks whether the metadata describes a root service or a layer/featuretype
@@ -144,9 +200,9 @@ class Metadata(Resource):
 
         original_iso_links = [x.uri for x in layer.iso_metadata]
         for related_iso in self.related_metadata.all():
-            md_link = related_iso.metadata_2.metadata_url
+            md_link = related_iso.metadata_to.metadata_url
             if md_link not in original_iso_links:
-                related_iso.metadata_2.delete()
+                related_iso.metadata_to.delete()
                 related_iso.delete()
 
         # restore partially capabilities document
@@ -154,7 +210,7 @@ class Metadata(Resource):
             rel_md = self
         else:
             rel_md = self.service.parent_service.metadata
-        cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
+        cap_doc = Document.objects.get(related_metadata=rel_md)
         cap_doc.restore_subelement(identifier)
         return
 
@@ -181,9 +237,9 @@ class Metadata(Resource):
             self.keywords.add(keyword)
 
         for related_iso in self.related_metadata.all():
-            md_link = related_iso.metadata_2.metadata_url
+            md_link = related_iso.metadata_to.metadata_url
             if md_link not in f_t_iso_links:
-                related_iso.metadata_2.delete()
+                related_iso.metadata_to.delete()
                 related_iso.delete()
 
         # restore partially capabilities document
@@ -191,7 +247,7 @@ class Metadata(Resource):
             rel_md = self
         else:
             rel_md = self.featuretype.service.metadata
-        cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
+        cap_doc = Document.objects.get(related_metadata=rel_md)
         cap_doc.restore_subelement(identifier)
         return
 
@@ -208,7 +264,7 @@ class Metadata(Resource):
         service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
         service = None
         service = OGCWebMapServiceFactory()
-        service = service.get_ogc_wms(version=service_version, service_connect_url=self.original_uri)
+        service = service.get_ogc_wms(version=service_version, service_connect_url=self.capabilities_original_uri)
         service.get_capabilities()
         service.create_from_capabilities(metadata_only=True)
 
@@ -230,7 +286,7 @@ class Metadata(Resource):
         self.is_custom = False
         self.inherit_proxy_uris = False
 
-        cap_doc = CapabilityDocument.objects.get(related_metadata=self)
+        cap_doc = Document.objects.get(related_metadata=self)
         cap_doc.restore()
 
     def _restore_wfs(self, identifier: str = None):
@@ -253,7 +309,7 @@ class Metadata(Resource):
             service = self.featuretype.service
         service_version = service_helper.resolve_version_enum(service.servicetype.version)
         service_tmp = OGCWebFeatureServiceFactory()
-        service_tmp = service_tmp.get_ogc_wfs(version=service_version, service_connect_url=self.original_uri)
+        service_tmp = service_tmp.get_ogc_wfs(version=service_version, service_connect_url=self.capabilities_original_uri)
         if service_tmp is None:
             return
         service_tmp.get_capabilities()
@@ -276,7 +332,7 @@ class Metadata(Resource):
         self.is_custom = False
         self.inherit_proxy_uris = False
 
-        cap_doc = CapabilityDocument.objects.get(related_metadata=service.metadata)
+        cap_doc = Document.objects.get(related_metadata=service.metadata)
         cap_doc.restore()
 
     def restore(self, identifier: str = None):
@@ -304,7 +360,7 @@ class Metadata(Resource):
         rel_mds = self.related_metadata.all()
         links = []
         for md in rel_mds:
-            links.append(md.metadata_2.metadata_url)
+            links.append(md.metadata_to.metadata_url)
         return links
 
 
@@ -315,13 +371,17 @@ class MetadataType(models.Model):
         return self.type
 
 
-class CapabilityDocument(Resource):
+class Document(Resource):
     related_metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
-    original_capability_document = models.TextField()
+    original_capability_document = models.TextField(null=True, blank=True)
     current_capability_document = models.TextField(null=True, blank=True)
+    service_metadata_document = models.TextField(null=True, blank=True)
+    dataset_metadata_document = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return self.related_metadata
+        return self.related_metadata.title
+
+
 
     def restore(self):
         """ We overwrite the current metadata xml with the original
@@ -418,6 +478,10 @@ class Service(Resource):
     get_styles_uri = models.CharField(max_length=1000, null=True, blank=True)
     formats = models.ManyToManyField('MimeType', blank=True)
 
+    # used to store ows linked_service_metadata until parsing
+    # will not be part of the db
+    linked_service_metadata = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # non persisting attributes
@@ -439,9 +503,9 @@ class Service(Resource):
             nothing
         """
         # remove related metadata
-        iso_mds = MetadataRelation.objects.filter(metadata_1=child.metadata)
+        iso_mds = MetadataRelation.objects.filter(metadata_from=child.metadata)
         for iso_md in iso_mds:
-            md_2 = iso_md.metadata_2
+            md_2 = iso_md.metadata_to
             md_2.delete()
             iso_md.delete()
         if isinstance(child, FeatureType):
@@ -460,6 +524,14 @@ class Service(Resource):
             keep_parents:
         Returns:
         """
+        # remove related metadata
+        linked_mds = MetadataRelation.objects.filter(metadata_from=self.metadata)
+        for linked_md in linked_mds:
+            md_2 = linked_md.metadata_to
+            md_2.delete()
+            linked_md.delete()
+
+        # remove subelements
         if self.servicetype.name == 'wms':
             layers = self.child_service.all()
             for layer in layers:
@@ -486,7 +558,6 @@ class Service(Resource):
             if len(layer.children_list) > 0:
                 self.__get_children(layer, layers)
 
-
     def get_all_layers(self):
         """ Returns all layers in a list that can be found in this service
 
@@ -499,6 +570,25 @@ class Service(Resource):
         layers = []
         self.__get_children(self.root_layer, layers)
         return layers
+
+    def activate_service(self, is_active: bool):
+        """ Toggles the activity status of a service and it's metadata
+
+        Args:
+            is_active (bool): Whether the service shall be activated or not
+        Returns:
+             nothing
+        """
+        self.is_active = is_active
+        self.metadata.is_active = is_active
+
+        linked_mds = self.metadata.related_metadata.all()
+        for md_relation in linked_mds:
+            md_relation.metadata_to.is_active = is_active
+            md_relation.metadata_to.save(update_last_modified=False)
+
+        self.metadata.save(update_last_modified=False)
+        self.save(update_last_modified=False)
 
 
 class Layer(Service):
@@ -535,6 +625,38 @@ class Layer(Service):
 
     def __str__(self):
         return str(self.identifier)
+
+    def activate_layer_recursive(self, new_status):
+        """ Walk recursive through all layers of a wms and set the activity status new
+
+        Args:
+            root_layer: The root layer, where the recursion begins
+            new_status: The new status that will be persisted
+        Returns:
+             nothing
+        """
+        self.metadata.is_active = new_status
+        self.metadata.save()
+        self.save()
+
+        # check for all related metadata, we need to toggle their active status as well
+        rel_md = self.metadata.related_metadata.all()
+        for md in rel_md:
+            dependencies = MetadataRelation.objects.filter(
+                metadata_to=md.metadata_to,
+                metadata_from__is_active=True,
+            )
+            if dependencies.count() >= 1 and md not in dependencies:
+                # we still have multiple dependencies on this relation (besides us), we can not deactivate the metadata
+                pass
+            else:
+                # since we have no more dependencies on this metadata, we can set it inactive
+                md.metadata_to.is_active = new_status
+                md.metadata_to.save()
+                md.save()
+
+        for layer in self.child_layer.all():
+            layer.activate_layer_recursive(new_status)
 
 
 class Module(Service):
@@ -637,9 +759,9 @@ class FeatureType(Resource):
             return
         service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
         service = None
-        if self.service.servicetype.name == ServiceTypes.WFS.value:
+        if self.service.servicetype.name == ServiceEnum.WFS.value:
             service = OGCWebFeatureServiceFactory()
-            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.service.metadata.original_uri)
+            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.service.metadata.capabilities_original_uri)
         if service is None:
             return
         service.get_capabilities()

@@ -13,10 +13,11 @@ from requests.exceptions import MissingSchema
 
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
-from service.helper.iso.isoMetadata import ISOMetadata
-from service.models import Metadata, Keyword, Category, FeatureType, CapabilityDocument, MetadataRelation, \
+from service.helper.iso.iso_metadata import ISOMetadata
+from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
     MetadataOrigin
 from service.helper import xml_helper
+from service.settings import METADATA_RELATION_TYPE_DESCRIBED_BY
 
 
 def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _type: str):
@@ -47,12 +48,12 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
         # there are no keywords in this capabilities for this element yet
         # we need to add an element first!
         try:
-            xml_keywords_list_obj = xml_helper.add_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Abstract".format(ns_prefix))
+            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Abstract".format(ns_prefix))
         except TypeError as e:
             # there seems to be no <Abstract> element. We add simply after <Title> and also create a new Abstract element
-            xml_keywords_list_obj = xml_helper.add_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Title".format(ns_prefix))
-            xml_helper.add_subelement(xml_obj, "{}".format("Abstract"),
-                                      after="{}Title".format(ns_prefix))
+            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Title".format(ns_prefix))
+            xml_helper.create_subelement(xml_obj, "{}".format("Abstract"),
+                                         after="{}Title".format(ns_prefix))
 
 
     xml_keywords_objs = xml_helper.try_get_element_from_xml("./{}Keyword".format(ns_keyword_prefix), xml_keywords_list_obj) or []
@@ -63,7 +64,7 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
 
     # then add all edited
     for kw in metadata.keywords.all():
-        xml_keyword = xml_helper.add_subelement(xml_keywords_list_obj, "{}Keyword".format(keyword_prefix))
+        xml_keyword = xml_helper.create_subelement(xml_keywords_list_obj, "{}Keyword".format(keyword_prefix))
         xml_helper.write_text_to_element(xml_keyword, txt=kw.keyword)
 
 
@@ -105,7 +106,7 @@ def overwrite_capabilities_document(metadata: Metadata):
         rel_md = metadata.service.parent_service.metadata
     elif metadata.metadata_type.type == 'featuretype':
         rel_md = metadata.featuretype.service.metadata
-    cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
+    cap_doc = Document.objects.get(related_metadata=rel_md)
 
     # overwrite all editable data
     identifier = metadata.identifier
@@ -178,15 +179,15 @@ def _remove_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links:
             rel_md = metadata.service.parent_service.metadata
         elif service_type == 'wfs':
             rel_md = metadata.featuretype.service.metadata
-    cap_doc = CapabilityDocument.objects.get(related_metadata=rel_md)
+    cap_doc = Document.objects.get(related_metadata=rel_md)
     cap_doc_txt = cap_doc.current_capability_document
     xml_cap_obj = xml_helper.parse_xml(cap_doc_txt).getroot()
 
     # if there are links in existing_iso_links that do not show up in md_links -> remove them
     for link in existing_iso_links:
         if link not in md_links:
-            missing_md = MetadataRelation.objects.get(metadata_1=metadata, metadata_2__metadata_url=link)
-            missing_md = missing_md.metadata_2
+            missing_md = MetadataRelation.objects.get(metadata_from=metadata, metadata_to__metadata_url=link)
+            missing_md = missing_md.metadata_to
             missing_md.delete()
             # remove from capabilities
             xml_iso_element = xml_helper.find_element_where_attr(xml_cap_obj, "xlink:href", link)
@@ -220,11 +221,12 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
         iso_md = iso_md.to_db_model()
         iso_md.save()
         md_relation = MetadataRelation()
-        md_relation.metadata_1 = metadata
-        md_relation.metadata_2 = iso_md
+        md_relation.metadata_from = metadata
+        md_relation.metadata_to = iso_md
         md_relation.origin = MetadataOrigin.objects.get_or_create(
                 name=iso_md.origin
             )[0]
+        md_relation.relation_type = METADATA_RELATION_TYPE_DESCRIBED_BY
         md_relation.save()
         metadata.related_metadata.add(md_relation)
 
@@ -264,7 +266,7 @@ def set_dataset_metadata_proxy(metadata: Metadata, use_proxy: bool):
     Returns:
          nothing
     """
-    cap_doc = CapabilityDocument.objects.get(related_metadata=metadata)
+    cap_doc = Document.objects.get(related_metadata=metadata)
     cap_doc_curr = cap_doc.current_capability_document
     xml_obj = xml_helper.parse_xml(cap_doc_curr)
     # get <MetadataURL> xml elements

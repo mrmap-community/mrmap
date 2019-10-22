@@ -9,7 +9,7 @@ from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, 
 from MapSkinner.responses import DefaultContext
 from MapSkinner.settings import ROOT_URL
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
-from service.helper.enums import ServiceTypes
+from service.helper.enums import ServiceEnum
 from service.models import Metadata, Keyword, Category, FeatureType, Layer
 from django.utils.translation import gettext_lazy as _
 
@@ -32,7 +32,7 @@ def index(request: HttpRequest, user:User):
     # get all services that are registered by the user
     template = "editor_index.html"
 
-    wms_services = user.get_services(ServiceTypes.WMS)
+    wms_services = user.get_services(ServiceEnum.WMS)
     wms_layers_custom_md = []
     wms_list = []
     for wms in wms_services:
@@ -43,7 +43,7 @@ def index(request: HttpRequest, user:User):
         }
         wms_list.append(tmp)
 
-    wfs_services = user.get_services(ServiceTypes.WFS)
+    wfs_services = user.get_services(ServiceEnum.WFS)
     wfs_list = []
     for wfs in wfs_services:
         custom_children = FeatureType.objects.filter(service__metadata=wfs, metadata__is_custom=True)

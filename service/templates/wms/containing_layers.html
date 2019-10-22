@@ -30,6 +30,14 @@
                         </a>
                     {% endif %}
                 </div>
+                <div class="container-center">
+                    <a data-id="{{ layer.id }}" class="hide" href="{% url 'service:get-dataset-metadata' layer.metadata.id %}" title="{% trans 'Get dataset metadata' %}" target="_blank">
+                        <div class="button-container">
+                            <span>{% trans 'Dataset metadata' %}</span>
+                        </div>
+                    </a>
+
+                </div>
                 <div class="container-right">
                     {% if 'can_edit_metadata_service' in user_permissions %}
                         <a href="{% url 'editor:restore' layer.metadata.id %}">

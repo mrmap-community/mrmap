@@ -46,7 +46,7 @@ The system provides the following functionalities:
 
 ```shell
 apt update  
-apt install git postgis postgresql postgresql-server-dev-all libgdal-dev virtualenv python3-pip curl libgnutls28-dev  
+apt install redis git postgis postgresql postgresql-server-dev-all libgdal-dev virtualenv python3-pip curl libgnutls28-dev  
 
 sudo -u postgres psql -c "CREATE DATABASE mapskinner;"
 sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"

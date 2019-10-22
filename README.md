@@ -46,11 +46,12 @@ The system provides the following functionalities:
 
 ```shell
 apt update  
-apt install postgis postgresql postgresql-server-dev-all libgdal-dev virtualenv python3-pip curl libgnutls28-dev  
+apt install git postgis postgresql postgresql-server-dev-all libgdal-dev virtualenv python3-pip curl libgnutls28-dev  
 
-su - postgres -c "psql -q -c 'CREATE DATABASE mapskinner'"  
+sudo -u postgres psql -c "CREATE DATABASE mapskinner;"
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'postgres';"
 
-virtualenv -ppython3 /opt/env  
+virtualenv -p python3 /opt/env  
 source /opt/env/bin/activate  
 cd /opt/  
 git clone https://git.osgeo.org/gitea/hollsandre/MapSkinner  

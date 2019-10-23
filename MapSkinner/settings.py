@@ -43,10 +43,6 @@ ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
 EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
 
-PROXIES = {
-    "http": "http://10.240.20.164:8080",
-    "https": "http://10.240.20.164:8080"
-}
 
 CATEGORIES = {
     "inspire": "https://www.eionet.europa.eu/gemet/getTopmostConcepts?thesaurus_uri=http://inspire.ec.europa.eu/theme/&language={}",
@@ -90,9 +86,9 @@ LAST_ACTIVITY_DATE_RANGE = 7
 MULTITHREADING_THRESHOLD = 2000
 
 HTTP_PROXY = "http://10.240.20.164:8080"
-REQUEST_PROXIES = {
-    "http": "http://10.240.20.164:8080",
-    "https": "http://10.240.20.164:8080",
+PROXIES = {
+    "http": HTTP_PROXY,
+    "https": HTTP_PROXY,
 }
 
 ALLOWED_HOSTS = [

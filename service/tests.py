@@ -1,6 +1,12 @@
+import os
+
+from django.contrib.auth.hashers import make_password
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from django.test import TestCase, Client
+from django.utils import timezone
 
+from service import tasks
 from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceEnum, VersionEnum
@@ -35,9 +41,15 @@ class ServiceTestCase(TestCase):
             permission=self.perm,
         )
 
+        self.pw = "test"
+        salt = str(os.urandom(25).hex())
+        pw = self.pw
         self.user = User.objects.create(
             username="Testuser",
             is_active=True,
+            salt=salt,
+            password=make_password(pw, salt=salt),
+            confirmed_dsgvo=timezone.now(),
         )
 
         self.group = Group.objects.create(
@@ -61,6 +73,27 @@ class ServiceTestCase(TestCase):
             "type": ServiceEnum.WFS,
             "uri": "https://www.geoportal.rlp.de/mapbender/php/mod_showMetadata.php/../wfs.php?FEATURETYPE_ID=2672&PHPSESSID=7qiruaoul2pdcadcohs7doeu07",
         }
+
+
+        # Since the registration of a service is performed async in an own process, the testing is pretty hard.
+        # Therefore in here we won't perform the regular route testing, but rather run unit tests and check whether the
+        # important components work as expected.
+        # THIS MEANS WE CAN NOT CHECK PERMISSIONS IN HERE; SINCE WE TESTS ON THE LOWER LEVEL OF THE PROCESS
+
+        ## Creating a new service model instance
+        service = service_helper.get_service_model_instance(
+            self.test_wms["type"],
+            self.test_wms["version"],
+            self.test_wms["uri"],
+            self.user,
+            self.group
+        )
+        self.raw_data = service.get("raw_data", None)
+        self.service = service.get("service", None)
+
+        service_helper.persist_service_model_instance(self.service)
+        service_helper.persist_capabilities_doc(self.service, self.raw_data.service_capabilities_xml)
+
 
     def _get_logged_in_client(self, user: User):
         """ Helping function to encapsulate the login process
@@ -280,34 +313,15 @@ class ServiceTestCase(TestCase):
 
         """
 
-        # Since the registration of a service is performed async in an own process, the testing is pretty hard.
-        # Therefore in here we won't perform the regular route testing, but rather run unit tests and check whether the
-        # important components work as expected.
-        # THIS MEANS WE CAN NOT CHECK PERMISSIONS IN HERE; SINCE WE TESTS ON THE LOWER LEVEL OF THE PROCESS
-
-        ## Creating a new service model instance
-        service = service_helper.get_service_model_instance(
-            self.test_wms["type"],
-            self.test_wms["version"],
-            self.test_wms["uri"],
-            self.user,
-            self.group
-        )
-        raw_data = service.get("raw_data", None)
-        service = service.get("service", None)
-
-        service_helper.persist_service_model_instance(service)
-        service_helper.persist_capabilities_doc(service, raw_data.service_capabilities_xml)
-
         # since we have currently no chance to test using self-created test data, we need to work with the regular
         # capabilities documents and their information. Therefore we assume, that the low level xml reading functions
         # from xml_helper are (due to their low complexity) working correctly, and test if the information we can get
         # from there, match to the ones we get after the service creation.
 
         child_layers = Layer.objects.filter(
-            parent_service=service
+            parent_service=self.service
         )
-        cap_xml = xml_helper.parse_xml(raw_data.service_capabilities_xml)
+        cap_xml = xml_helper.parse_xml(self.raw_data.service_capabilities_xml)
         checks = [
             self._test_new_service_check_layer_num,
             self._test_new_service_check_metadata_not_null,
@@ -319,4 +333,111 @@ class ServiceTestCase(TestCase):
             self._test_new_service_check_reference_systems,
         ]
         for check_func in checks:
-            check_func(service, child_layers, cap_xml)
+            check_func(self.service, child_layers, cap_xml)
+
+    def _run_request(self, params: dict, uri: str, request_type: str, client: Client = Client()):
+        """ Helping function which performs a request and returns the response
+
+        Args:
+            params (dict): The parameters
+            uri (str): The request path
+            request_type (str): 'post' or 'get', case insensitive
+            client (Client): The used client object. Creates a new one if no client is provided
+        Returns:
+             The response
+        """
+        request_type = request_type.lower()
+        response = None
+        if request_type == "get":
+            response = client.get(uri, params)
+        elif request_type == "post":
+            response = client.post(uri, params)
+        return response
+
+    def test_activating_service(self):
+        """ Tests if a service can be activated properly.
+
+        Checks if access to resources will be restricted if deactivated.
+
+        Returns:
+
+        """
+
+        # A deactivated service is not reachable from outside
+        # This means we need to fire some requests and check if the documents and links of this service are available
+        self.assertFalse(self.service.is_active)
+
+        ## case 0.0: Service is deactivated -> Original capabilities uri not reachable
+        uri = "/service/capabilities/{}/original".format(self.service.metadata.id)
+        response = self._run_request({}, uri, 'get')
+        self.assertEqual(response.status_code, 423)  # 423 means the resource is currently locked (https://tools.ietf.org/html/rfc4918#section-11.3)
+
+        ## case 0.1: Service is deactivated -> Current capabilities uri not reachable
+        uri = "/service/capabilities/{}".format(self.service.metadata.id)
+        response = self._run_request({}, uri, 'get')
+        self.assertEqual(response.status_code, 423)  # 423 means the resource is currently locked
+
+        ## case 0.2: Service is deactivated -> Current metadata uri not reachable
+        uri = "/service/metadata/{}".format(self.service.metadata.id)
+        response = self._run_request({}, uri, 'get')
+        self.assertEqual(response.status_code, 423)  # 423 means the resource is currently locked
+
+        # check for dataset metadata -> there should be no dataset metadata on a whole service
+        uri = "/service/metadata/dataset/{}".format(self.service.metadata.id)
+        response = self._run_request({}, uri, 'get')
+        self.assertEqual(response.status_code, 423)  # 423 means the resource is currently locked
+
+        # activate service
+        params = {
+            "id": self.service.metadata.id,
+            "active": True,
+            "user": self.user,
+        }
+        # since activating runs async as well, we need to call this function directly
+        tasks.async_activate_service(params, self.user.id)
+        self.service.refresh_from_db()
+        del params
+
+        ## case 1.0: Service is activated -> Original capabilities uri is reachable
+        uri = "/service/capabilities/{}/original".format(self.service.metadata.id)
+        response = self._run_request({}, uri, 'get')
+        self.assertEqual(response.status_code, 200)
+
+        ## case 1.1: Service is deactivated -> Current capabilities uri not reachable
+        uri = "/service/capabilities/{}".format(self.service.metadata.id)
+        response = self._run_request({}, uri, 'get')
+        self.assertEqual(response.status_code, 200)
+
+        ## case 1.2: Service is deactivated -> Current metadata uri not reachable
+        uri = "/service/metadata/{}".format(self.service.metadata.id)
+        response = self._run_request({}, uri, 'get')
+        self.assertEqual(response.status_code, 200)
+
+        # check for dataset metadata -> there should be no dataset metadata on a whole service
+        uri = "/service/metadata/dataset/{}".format(self.service.metadata.id)
+        response = self._run_request({}, uri, 'get')
+        self.assertEqual(response.status_code, 404)
+
+    def test_remove_service(self):
+        """ Tests if a service can be removed with all its children
+
+        Returns:
+
+        """
+        tasks.async_remove_service_task(self.service.id)
+        child_objects = Service.objects.filter(
+            parent_service=self.service
+        )
+        self.assertEqual(child_objects.count(), 0, msg="Not all child elements were removed!")
+        exists = True
+        try:
+            self.service.refresh_from_db()
+        except ObjectDoesNotExist:
+            exists = False
+        self.assertFalse(exists, msg="Service was not removed!")
+
+
+
+
+
+

@@ -58,7 +58,6 @@ class Command(BaseCommand):
         superuser.password = make_password(password, salt=superuser.salt)
         superuser.confirmed_dsgvo = timezone.now()
         superuser.is_active = True
-        superuser.name = "root"
         superuser.save()
         msg = "Superuser '" + name + "' was created successfully!"
         self.stdout.write(self.style.SUCCESS(str(msg)))
@@ -94,23 +93,27 @@ class Command(BaseCommand):
             role = Role.objects.get_or_create(name="_root_")[0]
             if role.permission is None:
                 perm = Permission()
+                for key, val in perm.__dict__.items():
+                    if not isinstance(val, bool) and 'can_' in key:
+                        continue
+                    setattr(perm, key, True)
 
-                perm.can_create_organization = True
-                perm.can_delete_organization = True
-                perm.can_edit_organization = True
+                #perm.can_create_organization = True
+                #perm.can_delete_organization = True
+                #perm.can_edit_organization = True
 
-                perm.can_create_group = True
-                perm.can_delete_group = True
-                perm.can_edit_group = True
+                #perm.can_create_group = True
+                #perm.can_delete_group = True
+                #perm.can_edit_group = True
 
-                perm.can_remove_user_from_group = True
-                perm.can_add_user_to_group = True
+                #perm.can_remove_user_from_group = True
+                #perm.can_add_user_to_group = True
 
-                perm.can_register_service = True
-                perm.can_activate_service = True
-                perm.can_remove_service = True
+                #perm.can_register_service = True
+                #perm.can_activate_service = True
+                #perm.can_remove_service = True
 
-                perm.can_react_to_publishing_requests = True
+                #perm.can_react_to_publishing_requests = True
 
                 perm.save()
                 role.permission = perm

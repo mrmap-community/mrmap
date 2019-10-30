@@ -197,8 +197,8 @@ msgid "Metadata Editor"
 msgstr "Metadateneditor"
 
 #: editor/templates/editor_edit.html:52
-msgid "ISO metadata"
-msgstr "ISO Metadaten"
+msgid "ISO metadata URI"
+msgstr "ISO Metadaten URI"
 
 #: editor/templates/editor_edit.html:65 structure/templates/form.html:113
 #: users/templates/change_password.html:100 users/templates/users_form.html:63

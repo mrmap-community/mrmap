@@ -27,7 +27,6 @@ from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import SESSION_EXPIRATION, ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from MapSkinner.utils import sha256
 from service.models import Metadata
-from structure.config import USER_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import LoginForm, RegistrationForm
 from structure.models import User, UserActivation, PendingRequest, GroupActivity
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm
@@ -44,6 +43,7 @@ def login(request: HttpRequest):
     """
     template = "login.html"
     login_form = LoginForm(request.POST)
+
     # check if user is still logged in!
     user_id = request.session.get("user_id")
     if login_form.is_valid() or user_id is not None:
@@ -53,7 +53,7 @@ def login(request: HttpRequest):
             username = login_form.cleaned_data.get("username")
             password = login_form.cleaned_data.get("password")
             user = user_helper.get_user(username=username)
-            if not user.is_password_valid(password):
+            if user is None or not user.is_password_valid(password):
                 messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
                 return redirect("login")
         if user is None:
@@ -332,12 +332,9 @@ def register(request: HttpRequest):
                 user.confirmed_survey = cleaned_data.get("survey")
                 user.is_active = False
                 user.save()
+
                 # create user_activation object to improve checking against activation link
-                user_activation = UserActivation()
-                user_activation.user = user
-                user_activation.activation_until = timezone.now() + datetime.timedelta(hours=USER_ACTIVATION_TIME_WINDOW)
-                user_activation.activation_hash = sha256(user.username + user.salt + str(user_activation.activation_until))
-                user_activation.save()
+                user.create_activation()
 
                 messages.add_message(request, messages.SUCCESS, ACTIVATION_LINK_SENT)
                 return redirect("login")

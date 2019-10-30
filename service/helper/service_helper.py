@@ -60,17 +60,20 @@ def split_service_uri(uri):
     """
     ret_dict = {}
     cap_url_dict = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(uri).query))
+    service_keywords = ["REQUEST", "SERVICE", "VERSION"]
     for key, val in cap_url_dict.items():
         key_l = key
         key_u = key.upper()
         del cap_url_dict[key_l]
-        cap_url_dict[key_u] = val
+        if key_u not in service_keywords:
+            cap_url_dict[key] = val
+        else:
+            cap_url_dict[key_u] = val
     cap_url_query = urllib.parse.urlsplit(uri).query
     ret_dict["service"] = resolve_service_enum(cap_url_dict.get("SERVICE", None))
     ret_dict["request"] = cap_url_dict.get("REQUEST", None)
     ret_dict["version"] = resolve_version_enum(cap_url_dict.get("VERSION", DEFAULT_SERVICE_VERSION))
     ret_dict["base_uri"] = uri.replace(cap_url_query, "")
-    service_keywords = ["REQUEST", "SERVICE", "VERSION"]
     additional_params = []
     for param_key, param_val in cap_url_dict.items():
         if param_key not in service_keywords:

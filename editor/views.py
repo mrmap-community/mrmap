@@ -5,7 +5,7 @@ from django.shortcuts import render, redirect
 # Create your views here.
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
-    METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED
+    METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION
 from MapSkinner.responses import DefaultContext
 from MapSkinner.settings import ROOT_URL
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
@@ -75,6 +75,12 @@ def edit(request: HttpRequest, id: int, user: User):
         A rendered view
     """
     metadata = Metadata.objects.get(id=id)
+
+    # check if user owns this service by group-relation
+    if metadata.created_by not in user.groups.all():
+        messages.error(request, message=NO_PERMISSION)
+        return redirect("editor:index")
+
     editor_form = MetadataEditorForm(request.POST or None)
     editor_form.fields["terms_of_use"].required = False
     if request.method == 'POST':
@@ -134,9 +140,10 @@ def edit(request: HttpRequest, id: int, user: User):
     context = DefaultContext(request, params)
     return render(request, template, context.get_context())
 
+# ToDo:Remove this function by time, if we can be sure it is safe without!
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))
-def edit_featuretype(request: HttpRequest, id: int, user:User):
+def edit_featuretype(request: HttpRequest, id: int, user: User):
     """ The edit view for FeatureTypes
 
     Since FeatureTypes do not have describing Metadata, we need to handle them separately
@@ -193,6 +200,12 @@ def restore(request: HttpRequest, id: int, user: User):
          Redirects back to edit view
     """
     metadata = Metadata.objects.get(id=id)
+
+    # check if user owns this service by group-relation
+    if metadata.created_by not in user.groups.all():
+        messages.error(request, message=NO_PERMISSION)
+        return redirect("editor:index")
+
     service_type = metadata.get_service_type()
     if service_type == 'wms':
         children_md = Metadata.objects.filter(service__parent_service__metadata=metadata, is_custom=True)
@@ -238,6 +251,12 @@ def restore_featuretype(request: HttpRequest, id: int, user: User):
          A rendered view
     """
     feature_type = FeatureType.objects.get(id=id)
+
+    # check if user owns this service by group-relation
+    if feature_type.created_by not in user.groups.all():
+        messages.error(request, message=NO_PERMISSION)
+        return redirect("editor:index")
+
     if not feature_type.is_custom:
         messages.add_message(request, messages.INFO, METADATA_IS_ORIGINAL)
         return redirect(request.META.get("HTTP_REFERER"))

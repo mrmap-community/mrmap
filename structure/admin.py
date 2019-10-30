@@ -36,11 +36,12 @@ class PendingRequestAdmin(admin.ModelAdmin):
 
 
 admin.site.register(PendingTask, PendingTaskAdmin)
+admin.site.register(Role, RoleAdmin)
+admin.site.register(Organization, OrganizationAdmin)
+
 admin.site.register(User, UserAdmin)
 admin.site.register(UserActivation, UserActivationAdmin)
-admin.site.register(Role, RoleAdmin)
 admin.site.register(Group, GroupAdmin)
 admin.site.register(GroupActivity, GroupActivityAdmin)
-admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Permission, PermissionAdmin)
 admin.site.register(PendingRequest, PendingRequestAdmin)

@@ -42,7 +42,7 @@ class OrganizationForm(ModelForm):
         widget=forms.Textarea(),
         required=False,
     )
-    person_name = forms.CharField(label=_("Contact person"))
+    person_name = forms.CharField(label=_("Contact person"), required=True)
 
     field_order = ["organization_name", "description", "parent"]
 

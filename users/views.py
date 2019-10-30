@@ -53,7 +53,7 @@ def login(request: HttpRequest):
             username = login_form.cleaned_data.get("username")
             password = login_form.cleaned_data.get("password")
             user = user_helper.get_user(username=username)
-            if not user.is_password_valid(password):
+            if user is None or not user.is_password_valid(password):
                 messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
                 return redirect("login")
         if user is None:

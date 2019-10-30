@@ -50,6 +50,10 @@
     filter: invert(1.0);
 }
 
+.selected-value > .close{
+    margin: 0 0 0 0.5rem;
+}
+
 .selected-value:hover{
     background-color: red;
     color: white;

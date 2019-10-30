@@ -15,7 +15,9 @@ from MapSkinner.celery_app import app
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_SENT, \
     PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
-    PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER
+    PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, GROUP_FORM_INVALID, \
+    PUBLISH_PERMISSION_REMOVED, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_IS_OTHERS_PROPERTY, \
+    GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.models import Service
@@ -204,13 +206,16 @@ def edit_org(request: HttpRequest, id: int, user: User):
     """
     template = "form.html"
     org = Organization.objects.get(id=id)
+    if org.created_by != user:
+        messages.error(request, message=ORGANIZATION_IS_OTHERS_PROPERTY)
+        return redirect("structure:detail-organization", org.id)
     form = OrganizationForm(request.POST or None, instance=org)
     if request.method == "POST":
         if form.is_valid():
             # save changes of group
             org = form.save(commit=False)
             if org.parent == org:
-                messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
+                messages.add_message(request=request, level=messages.ERROR, message=ORGANIZATION_CAN_NOT_BE_OWN_PARENT)
             else:
                 org.save()
         return redirect("structure:detail-organization", org.id)
@@ -240,6 +245,9 @@ def remove_org(request: HttpRequest, user: User):
     _id = request.GET.dict().get("id")
     confirmed = utils.resolve_boolean_attribute_val(request.GET.dict().get("confirmed"))
     org = get_object_or_404(Organization, id=_id)
+    if org.created_by != user:
+        messages.error(request, message=ORGANIZATION_IS_OTHERS_PROPERTY)
+        return redirect("structure:detail-organization", org.id)
     if not confirmed:
         params = {
             "organization": org,
@@ -281,7 +289,9 @@ def new_org(request: HttpRequest, user: User):
             else:
                 org.created_by = user
                 org.save()
-            return redirect("structure:index")
+        else:
+            messages.error(request, message=GROUP_FORM_INVALID)
+        return redirect("structure:index")
     else:
         params = {
             "organizations": orgs,
@@ -314,7 +324,7 @@ def toggle_publish_request(request: HttpRequest, id: int, user: User):
     pub_request = PendingRequest.objects.get(type=PENDING_REQUEST_TYPE_PUBLISHING, id=post_params.get("requestId"))
     now = timezone.now()
     if is_accepted and pub_request.activation_until >= now:
-        # add organization to group_publisher manager
+        # add organization to group_publisher
         pub_request.group.publish_for_organizations.add(organization)
         messages.add_message(request, messages.SUCCESS, PUBLISH_REQUEST_ACCEPTED.format(pub_request.group.name))
     elif not is_accepted:
@@ -338,12 +348,18 @@ def remove_publisher(request: HttpRequest, id: int, user: User):
          A BackendAjaxResponse since it is an Ajax request
     """
     post_params = request.POST
-    group_id = post_params.get("publishingGroupId")
+    group_id = int(post_params.get("publishingGroupId"))
     org = Organization.objects.get(id=id)
     group = Group.objects.get(id=group_id, publish_for_organizations=org)
-    group.publish_for_organizations.remove(org)
 
-    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/organizations/detail/" + str(id)).get_response()
+    # only allow removing if the user is part of the organization or the group!
+    if group not in user.groups.all() and user.organization != org:
+        messages.error(request, message=PUBLISH_PERMISSION_REMOVING_DENIED)
+        return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/").get_response()
+    group.publish_for_organizations.remove(org)
+    messages.success(request, message=PUBLISH_PERMISSION_REMOVED.format(group.name, org.organization_name))
+
+    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/").get_response()
 
 @check_session
 @check_permission(Permission(can_request_to_become_publisher=True))
@@ -459,9 +475,13 @@ def new_group(request: HttpRequest, user: User):
                 messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
             else:
                 group.created_by = user
-                group.role = Role.objects.get(name="_default_")
+                if group.role is None:
+                    group.role = Role.objects.get(name="_default_")
                 group.save()
                 user.groups.add(group)
+            return redirect("structure:index")
+        else:
+            messages.error(request, message=GROUP_FORM_INVALID)
             return redirect("structure:index")
     else:
         params = {
@@ -506,9 +526,12 @@ def remove_group(request: HttpRequest, user: User):
         A rendered view
     """
     template = "remove_group_confirmation.html"
-    service_id = request.GET.dict().get("id")
+    group_id = request.GET.dict().get("id")
     confirmed = request.GET.dict().get("confirmed")
-    group = get_object_or_404(Group, id=service_id)
+    group = get_object_or_404(Group, id=group_id)
+    if group.created_by != user:
+        messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)
+        return redirect("structure:detail-organization", group.id)
     permission = group.role.permission
     if confirmed == 'false':
         params = {
@@ -518,6 +541,15 @@ def remove_group(request: HttpRequest, user: User):
         html = render_to_string(template_name=template, context=params, request=request)
         return BackendAjaxResponse(html=html).get_response()
     else:
+
+        # clean subgroups from parent
+        sub_groups = Group.objects.filter(
+            parent=group
+        )
+        for sub in sub_groups:
+            sub.parent = None
+            sub.save()
+
         # remove group and all of the related content
         group.delete()
         return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure").get_response()
@@ -537,6 +569,9 @@ def edit_group(request: HttpRequest, user: User, id: int):
     """
     template = "form.html"
     group = Group.objects.get(id=id)
+    if group.created_by != user:
+        messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)
+        return redirect("structure:detail-organization", group.id)
     form = GroupForm(request.POST or None, instance=group)
     if request.method == "POST":
         form.fields.get('role').disabled = True

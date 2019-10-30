@@ -5,13 +5,13 @@ app_name='service'
 urlpatterns = [
     path('', index, name='index'),
     path('/<service_type>', index, name='index'),
-    path('session', session, name='session'),
+    path('session', set_session, name='session'),
     path('activate/', activate, name='activate'),
 
     path('metadata/<int:id>', get_service_metadata, name='get-service-metadata'),
-
-    path('dataset/<int:id>', get_dataset_metadata, name='get-dataset-metadata'),
-    path('get-dataset-metadata/<int:id>', get_dataset_metadata_button, name='get-dataset-metadata-button'),
+    path('metadata/dataset/<int:id>', get_dataset_metadata, name='get-dataset-metadata'),
+    path('metadata/dataset/check/<int:id>', get_dataset_metadata_button, name='get-dataset-metadata-button'),
+    path('metadata/proxy/<int:id>', metadata_proxy, name='metadata-proxy'),
 
     path('capabilities/<int:id>', get_capabilities, name='get-capabilities'),
     path('capabilities/<int:id>/original', get_capabilities_original, name='get-capabilities-original'),
@@ -30,8 +30,7 @@ urlpatterns = [
     path('detail/<int:id>', detail, name='detail'),
     path('detail-child/<int:id>', detail_child, name='detail-child'),
 
-    # dataset metadata proxy
-    path('metadata/<int:id>', metadata_proxy, name='metadata-proxy')
+
 ]
 
 

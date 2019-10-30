@@ -12,7 +12,7 @@ import re
 from requests.exceptions import InvalidURL
 
 from service.settings import DEFAULT_CONNECTION_TYPE
-from MapSkinner.settings import HTTP_PROXY, REQUEST_PROXIES
+from MapSkinner.settings import HTTP_PROXY, PROXIES
 from service.helper.enums import ConnectionEnum
 
 try:
@@ -140,8 +140,8 @@ class CommonConnector():
     def __load_requests(self, params:dict = None):
         response = None
         proxies = None
-        if len(REQUEST_PROXIES) > 0:
-            proxies = REQUEST_PROXIES
+        if len(PROXIES) > 0:
+            proxies = PROXIES
         if self.auth is not None:
             if self.auth["auth_type"] == 'none':
                 response = requests.request(self.http_method, self.url, params=params, proxies=proxies)

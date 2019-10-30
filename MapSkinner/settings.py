@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/2.1/ref/settings/
 """
 
 import os
+
+import sys
 from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -41,10 +43,6 @@ ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
 EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
 
-PROXIES = {
-    "http": "http://10.240.20.164:8080",
-    "https": "http://10.240.20.164:8080"
-}
 
 CATEGORIES = {
     "inspire": "https://www.eionet.europa.eu/gemet/getTopmostConcepts?thesaurus_uri=http://inspire.ec.europa.eu/theme/&language={}",
@@ -88,9 +86,9 @@ LAST_ACTIVITY_DATE_RANGE = 7
 MULTITHREADING_THRESHOLD = 2000
 
 HTTP_PROXY = "http://10.240.20.164:8080"
-REQUEST_PROXIES = {
-    "http": "http://10.240.20.164:8080",
-    "https": "http://10.240.20.164:8080",
+PROXIES = {
+    "http": HTTP_PROXY,
+    "https": HTTP_PROXY,
 }
 
 ALLOWED_HOSTS = [
@@ -229,6 +227,10 @@ CELERY_TIMEZONE = TIME_ZONE
 
 # API
 from api.settings import REST_FRAMEWORK
+
+# Tests
+if 'test' in sys.argv:
+    CAPTCHA_TEST_MODE = True
 
 
 # Progress bar

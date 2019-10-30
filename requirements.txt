@@ -2,9 +2,9 @@ certifi==2019.3.9
 chardet==3.0.4
 Django==2.2.1
 django-extensions==2.1.6
+django-simple-captcha
 idna==2.8
 lxml==4.3.3
-pkg-resources==0.0.0
 psycopg2==2.8.2
 pycurl==7.43.0.2
 pytz==2019.1
@@ -16,7 +16,7 @@ urllib3==1.24.3
 argon2-cffi
 Werkzeug
 pysxm
-celery
+celery==4.3.0
 
 djangorestframework
 markdown

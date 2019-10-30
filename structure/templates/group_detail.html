@@ -25,7 +25,7 @@
     </div>
     {% if 'can_delete_group' in user_permissions %}
         <div class="container-right">
-            <div class="delete-container button" data-parent="{{ group.id }}" typeof="structure">
+            <div class="delete-container button" data-parent="{{ group.id }}" typeof="structure/groups">
                 <img src="{% static 'service/images/icn_minus.png' %}">
                 <span>{% trans 'Delete group' %}</span>
             </div>

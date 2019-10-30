@@ -12,21 +12,22 @@ from django.utils.translation import gettext_lazy as _
 # GROUP ACTIVITIES #
 # These messages HAVE to be untranslated, since they are written into the db
 # and will be translated during the template rendering process automatically
-PUBLISHING_REQUEST_CREATED  = "Publish request created"
-SERVICE_REGISTERED          = "Service registered"
-SERVICE_REMOVED             = "Service removed"
-SERVICE_UPDATED             = "Service updated"
-SERVICE_MD_EDITED           = "Service metadata edited"
-SERVICE_ACTIVATED           = "Service activated"
-SERVICE_DEACTIVATED         = "Service deactivated"
-SERVICE_MD_RESTORED         = "Service metadata restored"
-GROUP_EDITED                = "Group edited"
+PUBLISHING_REQUEST_CREATED = "Publish request created"
+SERVICE_REGISTERED = "Service registered"
+SERVICE_REMOVED = "Service removed"
+SERVICE_UPDATED = "Service updated"
+SERVICE_MD_EDITED = "Service metadata edited"
+SERVICE_ACTIVATED = "Service activated"
+SERVICE_DEACTIVATED = "Service deactivated"
+SERVICE_MD_RESTORED = "Service metadata restored"
+GROUP_EDITED = "Group edited"
 
 ####################
 
 FORM_INPUT_INVALID = _("The input was not valid.")
 
 USERNAME_OR_PW_INVALID = _("Username or password incorrect")
+REGISTRATION_FAILED_MISSING_DATA = _("Registration failed due to missing form data.")
 ACCOUNT_UPDATE_SUCCESS = _("Account updated successfully!")
 ACCOUNT_NOT_ACTIVATED = _("Your account is currently not activated")
 LOGOUT_FORCED = _("You have been logged out.")
@@ -61,7 +62,15 @@ PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER = _("Your group already is a publisher
 PUBLISH_REQUEST_ABORTED_OWN_ORG = _("You cannot be a publisher to your group's own organization! You publish by default like this.")
 PUBLISH_REQUEST_ABORTED_IS_PENDING = _("Your group already has sent a request. Please be patient!")
 
+PUBLISH_PERMISSION_REMOVED = _("Publishing permission of {} for {} removed.")
+PUBLISH_PERMISSION_REMOVING_DENIED = _("Publish permission removing denied. You are not a member of the organization nor a member of the publishing group!")
+
 GROUP_CAN_NOT_BE_OWN_PARENT = _("A group can not be parent to itself!")
+GROUP_IS_OTHERS_PROPERTY = _("This group is owned by another user. Action denied.")
+GROUP_FORM_INVALID = _("The form data was not valid.")
+ORGANIZATION_FORM_INVALID = GROUP_FORM_INVALID
+ORGANIZATION_CAN_NOT_BE_OWN_PARENT = _("An organization can not be parent to itself!")
+ORGANIZATION_IS_OTHERS_PROPERTY = _("This organization is owned by another user. Action denied.")
 
 SERVICE_UPDATE_WRONG_TYPE = _("You tried to update a service to another service type. This is not possible!")
 SERVICE_UPDATE_ABORTED_NO_DIFF = _("The provided capabilities document is not different from the currently registered. Update canceled!")

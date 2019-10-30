@@ -301,7 +301,7 @@ def get_capabilities_original(request: HttpRequest, id: int):
 
 
 @check_session
-def session(request: HttpRequest, user:User):
+def set_session(request: HttpRequest, user:User):
     """ Can set a value to the django session
 
     Args:

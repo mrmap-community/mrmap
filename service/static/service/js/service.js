@@ -134,7 +134,7 @@ function getTableContent(elemId, elemType, table){
  */
 function toggleDatasetMetadataButton(elemId, elemType, table){
     $.ajax({
-        url: rootUrl + "/service/get-dataset-metadata/" + elemId,
+        url: rootUrl + "/service/metadata/dataset/check/" + elemId,
         headers: {
             "X-CSRFToken": getCookie("csrftoken")
         },

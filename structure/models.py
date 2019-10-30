@@ -1,8 +1,12 @@
+import datetime
 from django.contrib.auth.hashers import check_password
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from django.utils import timezone
 
+from MapSkinner.utils import sha256
 from service.helper.enums import ServiceEnum
+from structure.config import USER_ACTIVATION_TIME_WINDOW
 
 
 class PendingTask(models.Model):
@@ -90,6 +94,7 @@ class Organization(Contact):
     description = models.TextField(null=True, blank=True)
     parent = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True)
     is_auto_generated = models.BooleanField(default=True)
+    created_by = models.ForeignKey('User', related_name='created_by', on_delete=models.DO_NOTHING, null=True, blank=True)
 
     def __str__(self):
         if self.organization_name is None:
@@ -198,6 +203,20 @@ class User(Contact):
              True or False
         """
         return check_password(password, self.password)
+
+    def create_activation(self):
+        """ Create an activation object
+
+        Returns:
+             nothing
+        """
+        # user does not exist yet! We need to create an activation object
+        user_activation = UserActivation()
+        user_activation.user = self
+        user_activation.activation_until = timezone.now() + datetime.timedelta(hours=USER_ACTIVATION_TIME_WINDOW)
+        user_activation.activation_hash = sha256(self.username + self.salt + str(user_activation.activation_until))
+        user_activation.save()
+
 
 
 class UserActivation(models.Model):

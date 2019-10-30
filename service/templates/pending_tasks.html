@@ -4,16 +4,24 @@
     <h3>{% trans 'Pending tasks' %}</h3>
     <table class="overview-table pending-task-table">
         <tr>
+            <th class="table-header small">{% trans 'Status' %}</th>
             <th class="table-header">{% trans 'Service' %}</th>
             <th class="table-header">{% trans 'Phase' %}</th>
             <th class="table-header">{% trans 'Progress' %}</th>
         </tr>
         {% for task in pending_tasks %}
-            <tr data-type="pending-task">
-                <td class="table-cell task-title">
+            <tr data-type="pending-task" data-running="true">
+                <td class="table-cell task-status">
                     <span class="loading-spinner">
                         <i class="fas fa-circle-notch fa-spin"></i>
                     </span>
+                    <div class="remover hide" title="{% trans 'Cancel' %}">
+                        <a href="{% url 'structure:remove-task' task.task_id %}">
+                            <img class="img-interactive" src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Cancel' %}">
+                        </a>
+                    </div>
+                </td>
+                <td class="table-cell task-title">
                     <span class="task-description">
                         {{ task.description.service }}
                     </span>

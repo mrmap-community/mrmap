@@ -11,27 +11,34 @@ function checkTaskStatus(tasks){
             var loadingSpinner = task.find(".loading-spinner");
             var numberElement = task.find(".number");
             $.ajax({
-                url: rootUrl + "/structure/task/",
+                url: rootUrl + "/structure/task/" + taskId,
                 headers: {
                     "X-CSRFToken": getCookie("csrftoken")
                 },
                 data:{
-                    "id": taskId,
                 },
                 type: 'get',
                 dataType: 'json',
             })
             .done(function(data){
-                var task = data["task"];
-                var progress = task["info"];
-                var description = JSON.parse(task["description"]);
+                var task_data = data["task"];
+                var progress = task_data["info"];
+                var description = JSON.parse(task_data["description"]);
+                if(description.exception != null){
+                    // the task failed!
+                    task.attr("data-running", false);
+                    task.find(".bg").addClass("aborted");
+                    task.find(".loading-spinner").hide();
+                    task.find(".remover").show();
+                }
                 // set phase and service name
-                if(description.service.length > 0){
+                if(description.service !== null){
                     descriptionElem.html(description.service);
                 }
-                if(description.phase.length > 0){
+                if(description.phase !== null){
                     phaseElem.html(description.phase);
                 }
+
                 if(progress != null){
                     progress = progress["current"];
                     // write new progress to bar
@@ -54,12 +61,10 @@ function checkTaskStatus(tasks){
 
 }
 
-
 $(document).ready(function(){
     // check for pending task html elements
     var tasks = $("tr[data-type='pending-task']");
     if(tasks.length > 0){
         checkTaskStatus(tasks);
     }
-
 });

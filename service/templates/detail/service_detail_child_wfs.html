@@ -38,7 +38,7 @@
         </td>
     </tr>
     <tr>
-        <th>{% trans 'Bounding box (lat lon)' %}</th>
+        <th>{% trans 'Bounding box' %}</th>
         <td>
             {{ element.bbox_lat_lon.geojson|safe }}
         </td>
@@ -68,9 +68,7 @@
                     <td>{{ format.mime_type }}</td>
                 </tr>
                 {% empty %}
-                <tr>
-                    <td>{% trans 'No mime types provided' %}</td>
-                </tr>
+                {% trans 'No mime types provided' %}
                 {% endfor %}
             </table>
         </td>

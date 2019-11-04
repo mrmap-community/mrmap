@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-04 08:58+0100\n"
+"POT-Creation-Date: 2019-11-04 09:00+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -548,7 +548,7 @@ msgstr "Nein"
 
 #: service/templates/detail/service_detail_child_wfs.html:41
 #: service/templates/detail/service_detail_child_wms.html:78
-msgid "Bounding box (lat lon)"
+msgid "Bounding box"
 msgstr "Ausdehnung"
 
 #: service/templates/detail/service_detail_child_wfs.html:47

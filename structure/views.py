@@ -17,7 +17,7 @@ from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT
     PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, GROUP_FORM_INVALID, \
     PUBLISH_PERMISSION_REMOVED, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_IS_OTHERS_PROPERTY, \
-    GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED
+    GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.models import Service
@@ -64,14 +64,14 @@ def index(request: HttpRequest, user: User):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-#@check_session
-def task(request: HttpRequest): #, user: User):
+def task(request: HttpRequest, id: str):
     """ Returns information about the pending task
 
     Args:
         request:
+        id (str): The task id
     Returns:
-         nothing
+         An ajax view
     """
     params = {
         "description": "",
@@ -80,7 +80,6 @@ def task(request: HttpRequest): #, user: User):
         "info": "",
     }
     try:
-        id = request.GET.get("id", "")
         task = AsyncResult(id, app=app)
         params.update({
             "id": task.id,
@@ -91,6 +90,19 @@ def task(request: HttpRequest): #, user: User):
         pass
     try:
         task_db = PendingTask.objects.get(task_id=id)
+        desc = json.loads(task_db.description)
+        if desc.get("status", None) is None and desc.get("exception", None) is not None:
+            # something went wrong, the task has failed!
+            tmp = {
+                "phase": "Aborted ({})".format(desc.get("exception")),
+                "service": desc.get("service", None),
+                "exception": desc.get("exception")
+            }
+            params["info"] = {
+                "current": 0,
+            }
+            task_db.description = json.dumps(tmp)
+            task_db.save()
         params["description"] = task_db.description
     except ObjectDoesNotExist:
         # this happens if the db record already was deleted
@@ -104,6 +116,25 @@ def task(request: HttpRequest): #, user: User):
         })
         pass
     return BackendAjaxResponse(html="", task=params).get_response()
+
+
+def remove_task(request: HttpRequest, id: str):
+    """ Removes a pending task from the PendingTask table
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (str): The task identifier
+    Returns:
+        A redirect
+    """
+    task = PendingTask.objects.get(
+        task_id=id
+    )
+    descr = json.loads(task.description)
+    messages.info(request, message=SERVICE_REGISTRATION_ABORTED.format(descr.get("service", None)))
+
+    task.delete()
+    return redirect(request.META.get("HTTP_REFERER"))
 
 
 @check_session

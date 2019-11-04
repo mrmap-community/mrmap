@@ -265,7 +265,6 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
     return BackendAjaxResponse(html="", has_dataset_doc=has_dataset_doc).get_response()
 
 
-
 def get_capabilities(request: HttpRequest, id: int):
     """ Returns the current capabilities xml file
 
@@ -425,7 +424,7 @@ def new_service(request: HttpRequest, user: User):
     pending_task_db.task_id = pending_task.task_id
     pending_task_db.description = json.dumps({
         "service": cap_url,
-        "phase": "parsing",
+        "phase": "Parsing",
     })
 
     pending_task_db.save()

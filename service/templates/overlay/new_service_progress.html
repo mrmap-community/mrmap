@@ -75,12 +75,11 @@
         var interval = setInterval(function(){
             var taskId = $("#pending-service").attr("data-id");
             $.ajax({
-                url: rootUrl + "/structure/task/",
+                url: rootUrl + "/structure/task/" + taskId,
                 headers: {
                     "X-CSRFToken": getCookie("csrftoken")
                 },
                 data:{
-                    "id": taskId,
                 },
                 type: 'get',
                 dataType: 'json',
@@ -90,6 +89,14 @@
                 var progress = task["info"];
                 var description = JSON.parse(task["description"]);
 
+                if(description.exception != null){
+                    // the task failed!
+                    clearInterval(interval);
+                    $(".bg").addClass("aborted");
+                    $(".loading-spinner").hide();
+                    $("#button-text").show();
+                }
+
                 // set phase and service name
                 if(description.service.length > 0){
                     $("#pending-service").html(description.service);
@@ -97,7 +104,6 @@
                 if(description.phase.length > 0){
                     $("#phase").html(description.phase);
                 }
-
                 if(progress != null){
                     progress = progress["current"];
 

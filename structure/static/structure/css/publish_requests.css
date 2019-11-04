@@ -13,12 +13,3 @@
 .delete-container{
     max-width: 250px;
 }
-
-.img-interactive{
-    width: 30px;
-}
-
-.img-interactive:hover{
-    cursor: pointer;
-    opacity: 0.7;
-}

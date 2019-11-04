@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-26 10:15+0200\n"
+"POT-Creation-Date: 2019-10-30 14:57+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -27,97 +27,101 @@ msgid "Username or password incorrect"
 msgstr "Nutzername oder Passwort falsch"
 
 #: MapSkinner/messages.py:30
+msgid "Registration failed due to missing form data."
+msgstr "Registrierung aufgrund fehlender Daten fehlgeschlagen."
+
+#: MapSkinner/messages.py:31
 msgid "Account updated successfully!"
 msgstr "Account aktualisiert!"
 
-#: MapSkinner/messages.py:31
+#: MapSkinner/messages.py:32
 msgid "Your account is currently not activated"
 msgstr "Dieser Account ist nicht aktiviert"
 
-#: MapSkinner/messages.py:32
+#: MapSkinner/messages.py:33
 msgid "You have been logged out."
 msgstr "Sie wurden ausgeloggt."
 
-#: MapSkinner/messages.py:34
+#: MapSkinner/messages.py:35
 msgid "Your activation link was invalid. Please contact an administrator."
 msgstr ""
 "Ihr Aktivierungslink war ungültig. Kontaktieren Sie einen Administrator."
 
-#: MapSkinner/messages.py:35
+#: MapSkinner/messages.py:36
 msgid ""
 "An activation link for your account was sent. Please check your e-mails!"
 msgstr "Ein Aktivierungslink für Ihren Account wurde per E-Mail versendet."
 
-#: MapSkinner/messages.py:37
+#: MapSkinner/messages.py:38
 msgid "This e-mail is not known"
 msgstr "Diese E-Mail Adresse ist nicht bekannt"
 
-#: MapSkinner/messages.py:38
+#: MapSkinner/messages.py:39
 msgid "Successfully logged out!"
 msgstr "Erfolgreich ausgeloggt"
 
-#: MapSkinner/messages.py:39
+#: MapSkinner/messages.py:40
 msgid "The e-mail address was not valid"
 msgstr "Die E-Mail Adresse ist ungültig"
 
-#: MapSkinner/messages.py:41
+#: MapSkinner/messages.py:42
 msgid "Password successfully changed!"
 msgstr "Passwort erfolgreich geändert!"
 
-#: MapSkinner/messages.py:42
+#: MapSkinner/messages.py:43
 msgid "Passwords didn't match!"
 msgstr "Passwörter stimmen nicht überein"
 
-#: MapSkinner/messages.py:43
+#: MapSkinner/messages.py:44
 msgid "A new password has been sent. Please check your e-mails!"
 msgstr "Ein neues Passwort wurde per E-Mail an Sie gesendet."
 
-#: MapSkinner/messages.py:45
+#: MapSkinner/messages.py:46
 msgid "Session timeout. You have been logged out."
 msgstr "Sitzung abgelaufen. Sie wurden ausgeloggt."
 
-#: MapSkinner/messages.py:47
+#: MapSkinner/messages.py:48
 msgid "You do not have permissions for this!"
 msgstr "Sie haben hierzu keine Berechtigung!"
 
-#: MapSkinner/messages.py:49
+#: MapSkinner/messages.py:50
 msgid "Metadata restored to original"
 msgstr "Metadaten auf Originalzustand wiederhergestellt"
 
-#: MapSkinner/messages.py:50
+#: MapSkinner/messages.py:51
 msgid "Metadata editing successful"
 msgstr "Metadaten erfolgreich editiert"
 
-#: MapSkinner/messages.py:51
+#: MapSkinner/messages.py:52
 msgid "Metadata is original. Reset aborted."
 msgstr "Metadaten sind original. Zurücksetzen abgebrochen."
 
-#: MapSkinner/messages.py:53
+#: MapSkinner/messages.py:54
 msgid "No datasetId found in metadata!"
 msgstr "Keine datasetId in den Metadaten gefunden!"
 
-#: MapSkinner/messages.py:55
+#: MapSkinner/messages.py:56
 msgid "The request was not activated in time. Request was deleted."
 msgstr ""
 "Die Anfrage wurde nicht rechtzeitig bearbeitet. Anfrage wurde gelöscht."
 
-#: MapSkinner/messages.py:57
+#: MapSkinner/messages.py:58
 msgid "Publish request has been sent to the organization!"
 msgstr "Veröffentlichungsanfrage wurde an die Organisation geschickt!"
 
-#: MapSkinner/messages.py:58
+#: MapSkinner/messages.py:59
 msgid "Publisher request accepted for group '{}'"
 msgstr "Veröffentlichungsanfrage für Gruppe '{}' wurde akzeptiert"
 
-#: MapSkinner/messages.py:59
+#: MapSkinner/messages.py:60
 msgid "Publisher request denied for group '{}'"
 msgstr "Veröffentlichungsanfrage für Gruppe '{}' wurde abgelehnt"
 
-#: MapSkinner/messages.py:60
+#: MapSkinner/messages.py:61
 msgid "Your group already is a publisher for this organization!"
 msgstr "Ihre Gruppe kann bereits für diese Organisation veröffentlichen!"
 
-#: MapSkinner/messages.py:61
+#: MapSkinner/messages.py:62
 msgid ""
 "You cannot be a publisher to your group's own organization! You publish by "
 "default like this."
@@ -125,23 +129,55 @@ msgstr ""
 "Sie können keine Veröffentlichungsrechte für die Gruppe Ihrer Organisation "
 "beantragen. Sie veröffentlichen standardmäßig für diese Organisation."
 
-#: MapSkinner/messages.py:62
+#: MapSkinner/messages.py:63
 msgid "Your group already has sent a request. Please be patient!"
 msgstr ""
 "Ihre Gruppe hat bereits eine Anfrage gesendet. Bitte gedulden Sie sich!"
 
-#: MapSkinner/messages.py:64
+#: MapSkinner/messages.py:65
+msgid "Publishing permission of {} for {} removed."
+msgstr "Veröffentlichungsrechte von {} für {} entfernt."
+
+#: MapSkinner/messages.py:66
+msgid ""
+"Publish permission removing denied. You are not a member of the organization "
+"nor a member of the publishing group!"
+msgstr ""
+"Veröffentlichungsrechte Entferung abgelehnt. Sie sind weder Mitglied der Organisation, "
+"noch ein Mitglied der veröffentlichenden Gruppe"
+
+#: MapSkinner/messages.py:68
 msgid "A group can not be parent to itself!"
 msgstr "Eine Gruppe kann sich nicht selbst untergeordnet sein!"
 
-#: MapSkinner/messages.py:66
+#: MapSkinner/messages.py:69
+msgid "This group is owned by another user. Action denied."
+msgstr "Diese Gruppe gehört einem anderen Nutzer. Aktion abgebrochen."
+
+#: MapSkinner/messages.py:70
+msgid "The form data was not valid."
+msgstr "Eine Eingabe ist ungültig"
+
+#: MapSkinner/messages.py:72
+msgid "An organization can not be parent to itself!"
+msgstr "Eine Gruppe kann sich nicht selbst untergeordnet sein!"
+
+#: MapSkinner/messages.py:73
+msgid "This organization is owned by another user. Action denied."
+msgstr "Diese Organisation gehört einem anderen Nutzer. Aktion abgebrochen."
+
+#: MapSkinner/messages.py:75
+msgid "The service registration for '{}' was canceled"
+msgstr "Die Diensteregistrierung für '{}' wurde abgebrochen."
+
+#: MapSkinner/messages.py:76
 msgid ""
 "You tried to update a service to another service type. This is not possible!"
 msgstr ""
 "Sie versuchen einen Dienst auf einen anderen Diensttypen zu aktualisieren. "
 "Das ist nicht möglich!"
 
-#: MapSkinner/messages.py:67
+#: MapSkinner/messages.py:77
 msgid ""
 "The provided capabilities document is not different from the currently "
 "registered. Update canceled!"
@@ -149,7 +185,7 @@ msgstr ""
 "Das Capabilities Dokument unterscheidet sich nicht vom aktuell "
 "registrierten. Update abgebrochen!"
 
-#: MapSkinner/messages.py:68
+#: MapSkinner/messages.py:78
 msgid ""
 "The service could not be registered. Please check your metadata and contact "
 "an administrator."
@@ -157,22 +193,23 @@ msgstr ""
 "Der Dienst konnte nicht registriert werden. Bitte prüfen Sie die Metadaten "
 "und kontaktieren Sie einen Administrator."
 
-#: MapSkinner/messages.py:70
+#: MapSkinner/messages.py:80
 msgid ""
 "There are several service metadata documents for this service. Please "
 "contact an administrator."
 msgstr ""
-"Es existieren mehrere Service Metadaten Dokumente für diesen Dienst. Keine Eindeutigkeit feststellbar. Kontaktieren Sie einen Administrator."
+"Es existieren mehrere Service Metadaten Dokumente für diesen Dienst. Keine "
+"Eindeutigkeit feststellbar. Kontaktieren Sie einen Administrator."
 
-#: MapSkinner/messages.py:72
+#: MapSkinner/messages.py:82
 msgid "'{}' was invalid."
 msgstr "Die URI ist ungültig."
 
-#: MapSkinner/settings.py:203 templates/footer.html:11
+#: MapSkinner/settings.py:201 templates/footer.html:11
 msgid "English"
 msgstr "Englisch"
 
-#: MapSkinner/settings.py:204
+#: MapSkinner/settings.py:202
 msgid "German"
 msgstr "Deutsch"
 
@@ -281,22 +318,22 @@ msgstr "Dienst bearbeiten"
 msgid "Click to remove keyword"
 msgstr "Klicken um Schlüsselwort zu entfernen"
 
-#: editor/templates/value_selection.html:18
+#: editor/templates/value_selection.html:21
 msgid "Separate entry by \",\""
 msgstr "Einträge durch \",\" separieren"
 
-#: editor/templates/value_selection.html:21
+#: editor/templates/value_selection.html:24
 msgid "You have to choose predefined values. Type in what you are looking for."
 msgstr "Sie müssen die Vorschläge verwenden. Tippen Sie ein wonach Sie suchen."
 
-#: editor/views.py:111 editor/views.py:170
-#: service/templates/detail/service_detail.html:121
+#: editor/views.py:117 editor/views.py:177
+#: service/templates/detail/service_detail.html:126
 #: service/templates/detail/service_detail_child_wfs.html:21
 #: service/templates/detail/service_detail_child_wms.html:20
 msgid "Keywords"
 msgstr "Schlüsselwörter"
 
-#: editor/views.py:117
+#: editor/views.py:123
 msgid "Categories"
 msgstr "Kategorien"
 
@@ -329,145 +366,153 @@ msgid "Update service"
 msgstr "Dienst aktualisieren"
 
 #: service/templates/detail/service_detail.html:53
-#: service/templates/wms/containing_layers.html:34
-msgid "Get dataset metadata"
-msgstr "Öffne Datensatz Metadaten"
-
-#: service/templates/detail/service_detail.html:55
-#: service/templates/wms/containing_layers.html:36
-msgid "Dataset metadata"
-msgstr "Datensatz Metadaten"
-
-#: service/templates/detail/service_detail.html:60
 msgid "Get the capabilities document"
 msgstr "Öffne Capabilities Dokument"
 
-#: service/templates/detail/service_detail.html:61
+#: service/templates/detail/service_detail.html:54
 #: service/templates/service_differences.html:104
 #: service/templates/service_differences.html:105
 msgid "Capabilities"
 msgstr ""
 
-#: service/templates/detail/service_detail.html:64
+#: service/templates/detail/service_detail.html:57
 msgid "Get the original document"
 msgstr "Öffne Originaldokument"
 
-#: service/templates/detail/service_detail.html:65
+#: service/templates/detail/service_detail.html:58
 msgid "Original"
 msgstr "Original"
 
-#: service/templates/detail/service_detail.html:67
+#: service/templates/detail/service_detail.html:60
 msgid "Get the current, maybe edited, document"
 msgstr "Öffne das aktuelle, womöglich editierte, Dokument"
 
-#: service/templates/detail/service_detail.html:68
+#: service/templates/detail/service_detail.html:61
 msgid "Current"
 msgstr "Aktuell"
 
-#: service/templates/detail/service_detail.html:72
+#: service/templates/detail/service_detail.html:66
+msgid "Get different metadata documents"
+msgstr "Weitere Metadatendokumente"
+
+#: service/templates/detail/service_detail.html:67
+msgid "Metadata"
+msgstr "Metadaten"
+
+#: service/templates/detail/service_detail.html:70
 msgid "Get service metadata"
 msgstr "Öffne Service Metadaten"
 
-#: service/templates/detail/service_detail.html:74
-msgid "Service metadata"
-msgstr "Service Metadaten"
+#: service/templates/detail/service_detail.html:72
+#: service/templates/pending_tasks.html:8
+msgid "Service"
+msgstr "Dienst"
 
-#: service/templates/detail/service_detail.html:78
+#: service/templates/detail/service_detail.html:75
+#: service/templates/wms/containing_layers.html:34
+msgid "Get dataset metadata"
+msgstr "Öffne Datensatz Metadaten"
+
+#: service/templates/detail/service_detail.html:77
+msgid "Dataset"
+msgstr "Datensatz"
+
+#: service/templates/detail/service_detail.html:83
 msgid "Open original metadata in new tab"
 msgstr "Öffne originale Metadaten in neuem Tab"
 
-#: service/templates/detail/service_detail.html:86
+#: service/templates/detail/service_detail.html:91
 msgid "Remove service"
 msgstr "Dienst entfernen"
 
-#: service/templates/detail/service_detail.html:95
+#: service/templates/detail/service_detail.html:100
 #: service/templates/detail/service_detail_child_wfs.html:5
 #: service/templates/detail/service_detail_child_wms.html:4
 #: service/templates/wfs/containing_featuretypes_elements.html:25
 msgid "Uuid"
 msgstr ""
 
-#: service/templates/detail/service_detail.html:99
+#: service/templates/detail/service_detail.html:104
 #: structure/templates/organization_detail.html:123
 msgid "Service type"
 msgstr "Diensttyp"
 
-#: service/templates/detail/service_detail.html:103
+#: service/templates/detail/service_detail.html:108
 msgid "Service type version"
 msgstr "Diensttypversion"
 
-#: service/templates/detail/service_detail.html:107
+#: service/templates/detail/service_detail.html:112
 msgid "Last update on"
 msgstr "Aktualisiert am"
 
-#: service/templates/detail/service_detail.html:111
+#: service/templates/detail/service_detail.html:116
 #: service/templates/detail/service_detail_child_wfs.html:17
 #: service/templates/detail/service_detail_child_wms.html:16
 #: service/templates/overlay/check_metadata_form.html:48
 msgid "Abstract"
 msgstr "Beschreibung"
 
-#: service/templates/detail/service_detail.html:115
+#: service/templates/detail/service_detail.html:120
 msgid "Online resource"
 msgstr "Onlineresource"
 
-#: service/templates/detail/service_detail.html:126
+#: service/templates/detail/service_detail.html:131
 #: service/templates/detail/service_detail_child_wfs.html:26
 #: service/templates/detail/service_detail_child_wms.html:25
 msgid "No keywords provided"
 msgstr "Keine Schlüsselwörter verfügbar"
 
-#: service/templates/detail/service_detail.html:131
+#: service/templates/detail/service_detail.html:136
 msgid "Access Constraints"
 msgstr "Zugangsbeschränkungen"
 
-#: service/templates/detail/service_detail.html:135
+#: service/templates/detail/service_detail.html:140
 msgid "Responsible Person"
 msgstr "Verantwortliche Person"
 
-#: service/templates/detail/service_detail.html:139 structure/forms.py:30
+#: service/templates/detail/service_detail.html:144 structure/forms.py:30
 #: structure/templates/group_detail.html:39
 #: structure/templates/index_groups.html:28
 #: structure/templates/index_publish_requests.html:57
 msgid "Organization"
 msgstr "Organisation"
 
-#: service/templates/detail/service_detail.html:143 structure/forms.py:66
+#: service/templates/detail/service_detail.html:148 structure/forms.py:66
 #: structure/templates/organization_detail.html:78
 msgid "Phone"
 msgstr "Telefon"
 
-#: service/templates/detail/service_detail.html:147 structure/forms.py:67
+#: service/templates/detail/service_detail.html:152 structure/forms.py:67
 #: structure/templates/organization_detail.html:82
 msgid "Facsimile"
 msgstr "Fax"
 
-#: service/templates/detail/service_detail.html:151
+#: service/templates/detail/service_detail.html:156
 #: service/templates/overlay/check_metadata_form.html:77
 #: structure/templates/organization_detail.html:74 users/forms.py:15
 msgid "E-Mail"
 msgstr ""
 
-#: service/templates/detail/service_detail.html:155 structure/forms.py:63
+#: service/templates/detail/service_detail.html:160 structure/forms.py:63
 #: structure/templates/organization_detail.html:86
 msgid "Address"
 msgstr "Adresse"
 
-#: service/templates/detail/service_detail.html:159 structure/forms.py:65
+#: service/templates/detail/service_detail.html:164 structure/forms.py:65
 #: structure/templates/organization_detail.html:94
 msgid "City"
 msgstr "Stadt"
 
-#: service/templates/detail/service_detail.html:163
+#: service/templates/detail/service_detail.html:168
 msgid "Post code"
 msgstr "Postleitzahl"
 
-#: service/templates/detail/service_detail.html:167
+#: service/templates/detail/service_detail.html:172
 #: structure/templates/organization_detail.html:98
 msgid "State or province"
 msgstr "Bundesland"
 
-#: service/templates/detail/service_detail.html:171
+#: service/templates/detail/service_detail.html:176
 #: structure/templates/organization_detail.html:102
 msgid "Country"
 msgstr "Land"
@@ -668,7 +713,8 @@ msgstr "Fehler"
 
 #: service/templates/overlay/error.html:20
 msgid "Mr. Map detected a problem with the following code during registration:"
-msgstr "Mr. Map hat den folgenden Fehlercode während der Registrierung entdeckt:"
+msgstr ""
+"Mr. Map hat den folgenden Fehlercode während der Registrierung entdeckt:"
 
 #: service/templates/overlay/error.html:24
 msgid "Please inform an administrator."
@@ -680,8 +726,7 @@ msgstr "Registrierung läuft"
 
 #: service/templates/overlay/new_service_progress.html:41
 msgid "Your service is currently processed. Please be patient!"
-msgstr ""
-"Ihr Dienst wird gerade verarbeitet. Bitte gedulden Sie sich!"
+msgstr "Ihr Dienst wird gerade verarbeitet. Bitte gedulden Sie sich!"
 
 #: service/templates/overlay/new_service_progress.html:45
 msgid "in phase:"
@@ -839,16 +884,21 @@ msgid "Pending tasks"
 msgstr "Aktuelle Prozesse"
 
 #: service/templates/pending_tasks.html:7
-msgid "Service"
-msgstr "Dienst"
+msgid "Status"
+msgstr ""
 
-#: service/templates/pending_tasks.html:8
+#: service/templates/pending_tasks.html:9
 msgid "Phase"
 msgstr "Phase"
 
-#: service/templates/pending_tasks.html:9
+#: service/templates/pending_tasks.html:10
 msgid "Progress"
 msgstr "Fortschritt"
+
+#: service/templates/pending_tasks.html:18
+#: service/templates/pending_tasks.html:20
+msgid "Cancel"
+msgstr "Abbrechen"
 
 #: service/templates/service_differences.html:16
 msgid "New Service"
@@ -1038,6 +1088,10 @@ msgstr "Zeige Unterebenen"
 msgid "Edit layer"
 msgstr "Ebene bearbeiten"
 
+#: service/templates/wms/containing_layers.html:36
+msgid "Dataset metadata"
+msgstr "Datensatz Metadaten"
+
 #: service/templates/wms/wms_index.html:5 templates/base.html:60
 #: users/templates/dashboard.html:49
 msgid "WMS"
@@ -1072,7 +1126,7 @@ msgstr "Übergeordneter Dienst"
 msgid "423 - The requested resource is currently disabled."
 msgstr "423 - Die angeforderte Ressource ist aktuell deaktiviert."
 
-#: service/views.py:227
+#: service/views.py:231
 msgid "No dataset metadata found"
 msgstr "Keine Datensatz Metadaten gefunden"
 
@@ -1137,7 +1191,7 @@ msgstr ""
 msgid "I'm not a robot"
 msgstr "Ich bin kein Roboter"
 
-#: structure/management/commands/setup.py:133
+#: structure/management/commands/setup.py:136
 msgid "The default role for all groups. Has no permissions."
 msgstr "Die Standardrolle für alle Gruppen. Hat keine Berechtigungen"
 
@@ -1343,11 +1397,11 @@ msgstr "Beschreibung:"
 msgid "You are about to remove this organization."
 msgstr "Sie sind dabei dese Organisation zu entfernen."
 
-#: structure/views.py:222
+#: structure/views.py:258
 msgid "You are editing the organization"
 msgstr "Sie bearbeiten die Organisation"
 
-#: structure/views.py:289
+#: structure/views.py:330
 msgid ""
 "You are creating a new organization. Please make sure the organization does "
 "not exist yet to avoid duplicates! You can see if a similar named "
@@ -1358,11 +1412,11 @@ msgstr ""
 "Organisationnicht bereits existiert! Sie können dies prüfen, indem Sie den "
 "Namen Ihrer Organisationeintippen."
 
-#: structure/views.py:402
+#: structure/views.py:449
 msgid "Send"
 msgstr "Senden"
 
-#: structure/views.py:403
+#: structure/views.py:450
 msgid ""
 "You need to ask for permission to become a publisher. Please select your "
 "group for which you want to have publishing permissions and explain why you "
@@ -1372,11 +1426,11 @@ msgstr ""
 "Siedie Gruppe aus, für die Sie Veröffentlichungsrechte brauchen und erklären "
 "Sieweshalb sie Ihnen gewährt werden soll."
 
-#: structure/views.py:469
+#: structure/views.py:520
 msgid "You are creating a new group."
 msgstr "Sie erstellen eine neue Gruppe."
 
-#: structure/views.py:559
+#: structure/views.py:625
 msgid "You are editing the group"
 msgstr "Sie bearbeiten die Gruppe"
 
@@ -1571,3 +1625,6 @@ msgstr ""
 #: users/views.py:196
 msgid "You can update your account information using this form."
 msgstr "Sie können Ihre Accountinformationen hier ändern"
+
+#~ msgid "Service metadata"
+#~ msgstr "Service Metadaten"

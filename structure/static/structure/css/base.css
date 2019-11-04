@@ -522,6 +522,9 @@ a.listable:hover{
 .table-header{
     font-weight: bold;
 }
+.table-header.small{
+    width: 5vw;
+}
 
 .detail-table th{
     text-align: unset;
@@ -647,6 +650,9 @@ a.listable:hover{
     background-color: var(--primary-color);
     opacity: 0.5;
 }
+.bg.aborted{
+    background-color: var(--message-error);
+}
 .fg{
     background-color: var(--secondary-color);
     width: 1%;
@@ -661,6 +667,20 @@ a.listable:hover{
 .pending-task-table .task-title, .pending-task-table .task-phase{
     width: 15rem;
 }
+
 .pending-task-table .task-phase{
     text-align: center;
+}
+
+.pending-task-table .task-status{
+    text-align: center;
+}
+
+.img-interactive{
+    width: 30px;
+}
+
+.img-interactive:hover{
+    cursor: pointer;
+    opacity: 0.7;
 }

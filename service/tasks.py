@@ -163,8 +163,12 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
     except (BaseException, XMLSyntaxError, XPathEvalError) as e:
         if curr_task_id is not None:
             pending_task = PendingTask.objects.get(task_id=curr_task_id)
+            descr = json.loads(pending_task.description)
             pending_task.description = json.dumps({
-                "current": "0",
+                "service": descr.get("service", None),
+                "info": {
+                    "current": "0",
+                },
                 "exception": e.__str__(),
             })
             pending_task.save()

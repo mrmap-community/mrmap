@@ -68,9 +68,7 @@
                     <td>{{ format.mime_type }}</td>
                 </tr>
                 {% empty %}
-                <tr>
-                    <td>{% trans 'No mime types provided' %}</td>
-                </tr>
+                {% trans 'No mime types provided' %}
                 {% endfor %}
             </table>
         </td>

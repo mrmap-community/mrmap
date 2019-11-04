@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-30 14:57+0100\n"
+"POT-Creation-Date: 2019-11-04 08:58+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -143,8 +143,8 @@ msgid ""
 "Publish permission removing denied. You are not a member of the organization "
 "nor a member of the publishing group!"
 msgstr ""
-"Veröffentlichungsrechte Entferung abgelehnt. Sie sind weder Mitglied der Organisation, "
-"noch ein Mitglied der veröffentlichenden Gruppe"
+"Veröffentlichungsrechte Entferung abgelehnt. Sie sind weder Mitglied der "
+"Organisation, noch ein Mitglied der veröffentlichenden Gruppe"
 
 #: MapSkinner/messages.py:68
 msgid "A group can not be parent to itself!"
@@ -218,7 +218,7 @@ msgid "Use metadata proxy"
 msgstr "Benutze Metadatenproxy"
 
 #: editor/templates/editor_edit.html:13
-#: service/templates/detail/service_detail.html:19
+#: service/templates/detail/service_detail.html:26
 #: structure/templates/group_detail.html:13
 #: structure/templates/organization_detail.html:12
 msgid "Overview"
@@ -309,8 +309,8 @@ msgid "Custom metadata"
 msgstr "Benutzerdefinierte Metadaten"
 
 #: editor/templates/editor_service_list.html:60
-#: service/templates/detail/service_detail.html:46
-#: service/templates/detail/service_detail.html:48
+#: service/templates/detail/service_detail.html:53
+#: service/templates/detail/service_detail.html:55
 msgid "Edit service"
 msgstr "Dienst bearbeiten"
 
@@ -327,7 +327,7 @@ msgid "You have to choose predefined values. Type in what you are looking for."
 msgstr "Sie müssen die Vorschläge verwenden. Tippen Sie ein wonach Sie suchen."
 
 #: editor/views.py:117 editor/views.py:177
-#: service/templates/detail/service_detail.html:126
+#: service/templates/detail/service_detail.html:133
 #: service/templates/detail/service_detail_child_wfs.html:21
 #: service/templates/detail/service_detail_child_wms.html:20
 msgid "Keywords"
@@ -341,178 +341,178 @@ msgstr "Kategorien"
 msgid "GetRequest URI"
 msgstr ""
 
-#: service/templates/detail/service_detail.html:27
+#: service/templates/detail/service_detail.html:34
 msgid "Deactivate this service"
 msgstr "Deaktiviere Service"
 
-#: service/templates/detail/service_detail.html:29
+#: service/templates/detail/service_detail.html:36
 msgid "Deactivate service"
 msgstr "Deaktiviere Dienst"
 
-#: service/templates/detail/service_detail.html:32
+#: service/templates/detail/service_detail.html:39
 msgid "Activate this service"
 msgstr "Aktiviere Dienst"
 
-#: service/templates/detail/service_detail.html:34
+#: service/templates/detail/service_detail.html:41
 msgid "Activate service"
 msgstr "Dienst aktivieren"
 
-#: service/templates/detail/service_detail.html:41
+#: service/templates/detail/service_detail.html:48
 msgid "Update service using a new url"
 msgstr "Aktualisiere Dienst über eine neue URL"
 
-#: service/templates/detail/service_detail.html:42
+#: service/templates/detail/service_detail.html:49
 msgid "Update service"
 msgstr "Dienst aktualisieren"
 
-#: service/templates/detail/service_detail.html:53
+#: service/templates/detail/service_detail.html:60
 msgid "Get the capabilities document"
 msgstr "Öffne Capabilities Dokument"
 
-#: service/templates/detail/service_detail.html:54
+#: service/templates/detail/service_detail.html:61
 #: service/templates/service_differences.html:104
 #: service/templates/service_differences.html:105
 msgid "Capabilities"
 msgstr ""
 
-#: service/templates/detail/service_detail.html:57
+#: service/templates/detail/service_detail.html:64
 msgid "Get the original document"
 msgstr "Öffne Originaldokument"
 
-#: service/templates/detail/service_detail.html:58
+#: service/templates/detail/service_detail.html:65
 msgid "Original"
 msgstr "Original"
 
-#: service/templates/detail/service_detail.html:60
+#: service/templates/detail/service_detail.html:67
 msgid "Get the current, maybe edited, document"
 msgstr "Öffne das aktuelle, womöglich editierte, Dokument"
 
-#: service/templates/detail/service_detail.html:61
+#: service/templates/detail/service_detail.html:68
 msgid "Current"
 msgstr "Aktuell"
 
-#: service/templates/detail/service_detail.html:66
+#: service/templates/detail/service_detail.html:73
 msgid "Get different metadata documents"
 msgstr "Weitere Metadatendokumente"
 
-#: service/templates/detail/service_detail.html:67
+#: service/templates/detail/service_detail.html:74
 msgid "Metadata"
 msgstr "Metadaten"
 
-#: service/templates/detail/service_detail.html:70
+#: service/templates/detail/service_detail.html:77
 msgid "Get service metadata"
 msgstr "Öffne Service Metadaten"
 
-#: service/templates/detail/service_detail.html:72
+#: service/templates/detail/service_detail.html:79
 #: service/templates/pending_tasks.html:8
 msgid "Service"
 msgstr "Dienst"
 
-#: service/templates/detail/service_detail.html:75
+#: service/templates/detail/service_detail.html:82
 #: service/templates/wms/containing_layers.html:34
 msgid "Get dataset metadata"
 msgstr "Öffne Datensatz Metadaten"
 
-#: service/templates/detail/service_detail.html:77
+#: service/templates/detail/service_detail.html:84
 msgid "Dataset"
 msgstr "Datensatz"
 
-#: service/templates/detail/service_detail.html:83
+#: service/templates/detail/service_detail.html:90
 msgid "Open original metadata in new tab"
 msgstr "Öffne originale Metadaten in neuem Tab"
 
-#: service/templates/detail/service_detail.html:91
+#: service/templates/detail/service_detail.html:98
 msgid "Remove service"
 msgstr "Dienst entfernen"
 
-#: service/templates/detail/service_detail.html:100
+#: service/templates/detail/service_detail.html:107
 #: service/templates/detail/service_detail_child_wfs.html:5
 #: service/templates/detail/service_detail_child_wms.html:4
 #: service/templates/wfs/containing_featuretypes_elements.html:25
 msgid "Uuid"
 msgstr ""
 
-#: service/templates/detail/service_detail.html:104
+#: service/templates/detail/service_detail.html:111
 #: structure/templates/organization_detail.html:123
 msgid "Service type"
 msgstr "Diensttyp"
 
-#: service/templates/detail/service_detail.html:108
+#: service/templates/detail/service_detail.html:115
 msgid "Service type version"
 msgstr "Diensttypversion"
 
-#: service/templates/detail/service_detail.html:112
+#: service/templates/detail/service_detail.html:119
 msgid "Last update on"
 msgstr "Aktualisiert am"
 
-#: service/templates/detail/service_detail.html:116
+#: service/templates/detail/service_detail.html:123
 #: service/templates/detail/service_detail_child_wfs.html:17
 #: service/templates/detail/service_detail_child_wms.html:16
 #: service/templates/overlay/check_metadata_form.html:48
 msgid "Abstract"
 msgstr "Beschreibung"
 
-#: service/templates/detail/service_detail.html:120
+#: service/templates/detail/service_detail.html:127
 msgid "Online resource"
 msgstr "Onlineresource"
 
-#: service/templates/detail/service_detail.html:131
+#: service/templates/detail/service_detail.html:138
 #: service/templates/detail/service_detail_child_wfs.html:26
 #: service/templates/detail/service_detail_child_wms.html:25
 msgid "No keywords provided"
 msgstr "Keine Schlüsselwörter verfügbar"
 
-#: service/templates/detail/service_detail.html:136
+#: service/templates/detail/service_detail.html:143
 msgid "Access Constraints"
 msgstr "Zugangsbeschränkungen"
 
-#: service/templates/detail/service_detail.html:140
+#: service/templates/detail/service_detail.html:147
 msgid "Responsible Person"
 msgstr "Verantwortliche Person"
 
-#: service/templates/detail/service_detail.html:144 structure/forms.py:30
+#: service/templates/detail/service_detail.html:151 structure/forms.py:30
 #: structure/templates/group_detail.html:39
 #: structure/templates/index_groups.html:28
 #: structure/templates/index_publish_requests.html:57
 msgid "Organization"
 msgstr "Organisation"
 
-#: service/templates/detail/service_detail.html:148 structure/forms.py:66
+#: service/templates/detail/service_detail.html:155 structure/forms.py:66
 #: structure/templates/organization_detail.html:78
 msgid "Phone"
 msgstr "Telefon"
 
-#: service/templates/detail/service_detail.html:152 structure/forms.py:67
+#: service/templates/detail/service_detail.html:159 structure/forms.py:67
 #: structure/templates/organization_detail.html:82
 msgid "Facsimile"
 msgstr "Fax"
 
-#: service/templates/detail/service_detail.html:156
+#: service/templates/detail/service_detail.html:163
 #: service/templates/overlay/check_metadata_form.html:77
 #: structure/templates/organization_detail.html:74 users/forms.py:15
 msgid "E-Mail"
 msgstr ""
 
-#: service/templates/detail/service_detail.html:160 structure/forms.py:63
+#: service/templates/detail/service_detail.html:167 structure/forms.py:63
 #: structure/templates/organization_detail.html:86
 msgid "Address"
 msgstr "Adresse"
 
-#: service/templates/detail/service_detail.html:164 structure/forms.py:65
+#: service/templates/detail/service_detail.html:171 structure/forms.py:65
 #: structure/templates/organization_detail.html:94
 msgid "City"
 msgstr "Stadt"
 
-#: service/templates/detail/service_detail.html:168
+#: service/templates/detail/service_detail.html:175
 msgid "Post code"
 msgstr "Postleitzahl"
 
-#: service/templates/detail/service_detail.html:172
+#: service/templates/detail/service_detail.html:179
 #: structure/templates/organization_detail.html:98
 msgid "State or province"
 msgstr "Bundesland"
 
-#: service/templates/detail/service_detail.html:176
+#: service/templates/detail/service_detail.html:183
 #: structure/templates/organization_detail.html:102
 msgid "Country"
 msgstr "Land"
@@ -560,16 +560,16 @@ msgid "Additional reference systems:"
 msgstr "Weitere Referenzsysteme:"
 
 #: service/templates/detail/service_detail_child_wfs.html:58
-#: service/templates/detail/service_detail_child_wms.html:89
+#: service/templates/detail/service_detail_child_wms.html:112
 msgid "No additional reference systems provided"
 msgstr "Keine weiteren Referenzsysteme verfügbar"
 
 #: service/templates/detail/service_detail_child_wfs.html:63
-#: service/templates/detail/service_detail_child_wms.html:94
+#: service/templates/detail/service_detail_child_wms.html:117
 msgid "Mime types:"
 msgstr "Datentypen:"
 
-#: service/templates/detail/service_detail_child_wfs.html:72
+#: service/templates/detail/service_detail_child_wfs.html:71
 msgid "No mime types provided"
 msgstr "Keine Mime Typen verfügbar"
 
@@ -601,7 +601,11 @@ msgstr "Aufrufe"
 msgid "Scale range"
 msgstr "Zoomstufen"
 
-#: service/templates/detail/service_detail_child_wms.html:84
+#: service/templates/detail/service_detail_child_wms.html:102
+msgid "No spatial data provided!"
+msgstr "Keine geographischen Daten verfügbar!"
+
+#: service/templates/detail/service_detail_child_wms.html:107
 msgid "Reference systems:"
 msgstr "Referenzsysteme:"
 

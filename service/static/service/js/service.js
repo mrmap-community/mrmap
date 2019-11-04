@@ -108,7 +108,7 @@ function checkServiceRequestURI(isUpdate, id){
 /**
  * Starts an ajax request to the server and loads the table content
  */
-function getTableContent(elemId, elemType, table){
+function getTableContent(elem, elemId, elemType, table){
     $.ajax({
         url: rootUrl + "/service/detail-child/" + elemId,
         headers: {
@@ -168,7 +168,7 @@ $(document).on("click", ".layer-title", function(){
     var elemType = elem.attr("data-type");
     if(!elem.hasClass("loaded") && elemType != "featureTypeElements"){
         // do the ajax request for loading the detail view table content
-        getTableContent(elemId, elemType, table);
+        getTableContent(elem, elemId, elemType, table);
 
         // do the ajax request for loading the dataset metadata button
         toggleDatasetMetadataButton(elemId, elemType, table);

@@ -61,7 +61,7 @@
                 <span>{% trans 'Capabilities' %}</span>
             </div>
             <div class="hide collapsible-list">
-                <a target="_blank" href="{% url 'service:get-capabilities-original' root_metadata.id  %}" title="{% trans 'Get the original document' %}">
+                <a target="_blank" href="{{ root_metadata.capabilities_original_uri }}" title="{% trans 'Get the original document' %}">
                     <div class="button-container button">{% trans 'Original' %}</div>
                 </a>
                 <a target="_blank" href="{% url 'service:get-capabilities' root_metadata.id %}" title="{% trans 'Get the current, maybe edited, document' %}">

@@ -1,5 +1,6 @@
 {% load static i18n tz %}
     <h3>{% trans service_type %}</h3>
+    {% if services|length > 0 %}
     <div>
         <table class="overview-table metadata-editor-table">
             <tr>
@@ -74,3 +75,7 @@
             {% endfor %}
         </table>
     </div>
+
+    {% else %}
+        None ¯\_(ツ)_/¯
+    {% endif %}

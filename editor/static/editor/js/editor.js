@@ -27,7 +27,35 @@ $(document).on("input.metadata-url", "input", function(){
     }
 });
 
+/**
+ * Sets the initial visibility of the secured selector elements
+ */
+function initializeSecuredFormStatus(){
+    var isSecured = $("#id_is_secured").is(":checked");
+    console.log(isSecured);
+    var securedSelectors = $(".secured-selector");
+    var selectorParentRows = securedSelectors.closest("tr");
+
+    if(isSecured){
+        securedSelectors.attr("disabled", "disabled")
+        selectorParentRows.removeClass("disabled");
+    }else{
+        securedSelectors.removeAttr("disabled")
+        selectorParentRows.addClass("disabled");
+    }
+}
+
 $(document).ready(function(){
+
+    // set initial status for secured selectors
+    initializeSecuredFormStatus();
+
+    $("#id_is_secured").on("change", function(){
+        var securedSelectors = $(".secured-selector");
+        var selectorParentRows = securedSelectors.closest("tr");
+        selectorParentRows.toggleClass("disabled");
+    });
+
 
 
     $(".value-input").on("input", function(){

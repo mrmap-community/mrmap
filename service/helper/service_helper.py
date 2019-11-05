@@ -10,7 +10,9 @@ import urllib
 
 from celery import Task
 
+from MapSkinner.settings import HOST_NAME, HTTP_OR_SSL
 from service.settings import DEFAULT_SERVICE_VERSION
+from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import VersionEnum, ServiceEnum
 from service.helper.epsg_api import EpsgApi
@@ -219,6 +221,15 @@ def persist_capabilities_doc(service: Service, xml: str):
     # save original capabilities document
     cap_doc = Document()
     cap_doc.original_capability_document = xml
+
+    # change some external linkage to internal links for the current_capability_document
+    uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, service.metadata.id)
+    xml = xml_helper.parse_xml(xml)
+    xml_helper.write_attribute(xml, "//Service/OnlineResource", "{http://www.w3.org/1999/xlink}href", uri)
+    xml_helper.write_attribute(xml, "//GetCapabilities/DCPType/HTTP/Get/OnlineResource", "{http://www.w3.org/1999/xlink}href", uri)
+    xml_helper.write_attribute(xml, "//GetCapabilities/DCPType/HTTP/Post/OnlineResource", "{http://www.w3.org/1999/xlink}href", uri)
+    xml = xml_helper.xml_to_string(xml)
+
     cap_doc.current_capability_document = xml
     cap_doc.related_metadata = service.metadata
     cap_doc.save()

@@ -166,6 +166,26 @@ def find_element_where_attr(xml_obj, attr_name, attr_val):
     return xml_obj.xpath("//*[@{}='{}']/parent::*".format(attr_name, attr_val), namespaces=XML_NAMESPACES)
 
 
+def write_attribute(xml_elem, elem: str=None, attrib: str=None, txt: str=None):
+    """ Write new text to a xml attribute.
+
+    Elem can be used to refer to a subelement of the current xml_elem
+
+    Args:
+        xml_elem: The current xml element
+        elem (str): The requested element tag name
+        attrib (str): The attribute name
+        txt (str): The new text for the element
+    Returns:
+         xml_elem: The modified xml element
+    """
+    if xml_elem is not None:
+        if elem is not None:
+            xml_elem = try_get_single_element_from_xml(elem=elem, xml_elem=xml_elem)
+        xml_elem.set(attrib, txt)
+    return xml_elem
+
+
 def write_text_to_element(xml_elem, elem: str=None, txt: str=None):
     """ Write new text to a xml element.
 
@@ -258,5 +278,13 @@ def add_iso_md_element(xml_obj: _Element, new_link: str):
     else:
         xml_obj.append(iso_elem)
 
+
 def get_parent(xml_obj: _Element):
+    """ Returns the parent of the current xml object
+
+    Args:
+        xml_obj (Element): The xml element
+    Returns:
+         The xml element's parent
+    """
     return xml_obj.getparent()

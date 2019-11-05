@@ -65,6 +65,10 @@
     width: unset !important;
 }
 
+.secured-selector.disabled{
+    opacity: 0.5;
+}
+
 .metadata-editor-field input,
 .metadata-editor-field textarea,
 .metadata-editor-field select{

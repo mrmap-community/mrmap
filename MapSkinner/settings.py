@@ -115,6 +115,7 @@ INSTALLED_APPS = [
     'editor',
     'captcha',
     'rest_framework',
+    'api',
 ]
 
 MIDDLEWARE = [

@@ -79,6 +79,11 @@ class Metadata(Resource):
     has_inspire_downloads = models.BooleanField(default=False)
     bounding_geometry = models.PolygonField(null=True, blank=True)
 
+    # security
+    is_secured = models.BooleanField(default=False)
+    can_be_queried_by = models.ManyToManyField(Group, related_name="can_query", null=True, blank=True)
+    can_be_called_by = models.ManyToManyField(Group, related_name="can_call", null=True, blank=True)
+
     # capabilities
     dimension = models.CharField(max_length=100, null=True)
     authority_url = models.CharField(max_length=255, null=True)

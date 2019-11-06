@@ -32,15 +32,14 @@ $(document).on("input.metadata-url", "input", function(){
  */
 function initializeSecuredFormStatus(){
     var isSecured = $("#id_is_secured").is(":checked");
-    console.log(isSecured);
     var securedSelectors = $(".secured-selector");
     var selectorParentRows = securedSelectors.closest("tr");
 
     if(isSecured){
-        securedSelectors.attr("disabled", "disabled")
+        securedSelectors.removeAttr("disabled")
         selectorParentRows.removeClass("disabled");
     }else{
-        securedSelectors.removeAttr("disabled")
+        securedSelectors.attr("disabled", "disabled")
         selectorParentRows.addClass("disabled");
     }
 }
@@ -51,9 +50,10 @@ $(document).ready(function(){
     initializeSecuredFormStatus();
 
     $("#id_is_secured").on("change", function(){
-        var securedSelectors = $(".secured-selector");
-        var selectorParentRows = securedSelectors.closest("tr");
-        selectorParentRows.toggleClass("disabled");
+        initializeSecuredFormStatus();
+        //var securedSelectors = $(".secured-selector");
+        //var selectorParentRows = securedSelectors.closest("tr");
+        //selectorParentRows.toggleClass("disabled");
     });
 
 

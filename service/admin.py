@@ -14,6 +14,14 @@ class CategoryOriginAdmin(admin.ModelAdmin):
     pass
 
 
+class RequestOperationAdmin(admin.ModelAdmin):
+    list_display = ('operation_name',)
+
+
+class SecuredOperationAdmin(admin.ModelAdmin):
+    list_display = ('operation', 'metadata')
+
+
 class ServiceTypeAdmin(admin.ModelAdmin):
     list_display = ('name', 'version')
 
@@ -76,6 +84,8 @@ class NamespaceAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Document, DocumentAdmin)
+admin.site.register(RequestOperation, RequestOperationAdmin)
+admin.site.register(SecuredOperation, SecuredOperationAdmin)
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(CategoryOrigin, CategoryOriginAdmin)
 admin.site.register(ServiceType, ServiceTypeAdmin)

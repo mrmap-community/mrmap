@@ -10,7 +10,7 @@ from service.helper import xml_helper
 
 
 class Keyword(models.Model):
-    keyword = models.CharField(max_length=255)
+    keyword = models.CharField(max_length=255, unique=True)
 
     def __str__(self):
         return self.keyword
@@ -34,6 +34,21 @@ class Resource(models.Model):
 
     class Meta:
         abstract = True
+
+
+class RequestOperation(models.Model):
+    operation_name = models.CharField(max_length=255, null=True, blank=True)
+
+    def __str__(self):
+        return self.operation_name
+
+
+class SecuredOperation(models.Model):
+    operation = models.ForeignKey(RequestOperation, on_delete=models.CASCADE)
+    allowed_groups = models.ManyToManyField(Group, related_name="allowed_operations")
+
+    def __str__(self):
+        return self.operation + " -> " + self.allowed_groups
 
 
 class MetadataOrigin(models.Model):
@@ -81,8 +96,7 @@ class Metadata(Resource):
 
     # security
     is_secured = models.BooleanField(default=False)
-    can_be_queried_by = models.ManyToManyField(Group, related_name="can_query", null=True, blank=True)
-    can_be_called_by = models.ManyToManyField(Group, related_name="can_call", null=True, blank=True)
+    secured_operations = models.ManyToManyField(SecuredOperation, related_name="metadata")
 
     # capabilities
     dimension = models.CharField(max_length=100, null=True)
@@ -192,6 +206,7 @@ class Metadata(Resource):
         Returns:
              nothing, it changes the Metadata object itself
         """
+        from service.helper import service_helper
         # parse single layer
         identifier = self.service.layer.identifier
         layer = service.get_layer_by_identifier(identifier)
@@ -200,7 +215,8 @@ class Metadata(Resource):
         self.is_custom = False
         self.keywords.clear()
         for kw in layer.capability_keywords:
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            keyword = service_helper.keyword_get_or_create_safely(kw)
+            #keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.keywords.add(keyword)
 
         original_iso_links = [x.uri for x in layer.iso_metadata]
@@ -228,6 +244,7 @@ class Metadata(Resource):
         Returns:
              nothing, it changes the Metadata object itself
         """
+        from service.helper import service_helper
         # parse single layer
         identifier = self.identifier
         f_t = service.get_feature_type_by_identifier(identifier)
@@ -238,7 +255,8 @@ class Metadata(Resource):
         self.is_custom = False
         self.keywords.clear()
         for kw in f_t_obj.metadata.keywords_list:
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            keyword = service_helper.keyword_get_or_create_safely(kw)
+            #keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.keywords.add(keyword)
 
         for related_iso in self.related_metadata.all():
@@ -283,7 +301,8 @@ class Metadata(Resource):
         keywords = service.service_identification_keywords
         self.keywords.clear()
         for kw in keywords:
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            keyword = service_helper.keyword_get_or_create_safely(kw)
+            #keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.keywords.add(keyword)
 
         # by default no categories
@@ -329,7 +348,8 @@ class Metadata(Resource):
         keywords = service_tmp.service_identification_keywords
         self.keywords.clear()
         for kw in keywords:
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            keyword = service_helper.keyword_get_or_create_safely(kw)
+            #keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.keywords.add(keyword)
 
         # by default no categories
@@ -780,7 +800,8 @@ class FeatureType(Resource):
         self.abstract = original_ft.abstract
         self.metadata.keywords.clear()
         for kw in keywords:
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            keyword = service_helper.keyword_get_or_create_safely(kw)
+            #keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.metadata.keywords.add(keyword)
         self.is_custom = False
 

@@ -224,26 +224,10 @@ $(document).ready(function(){
 
     $("#service-display-selector").change(function(){
         var val = $(this).val();
-        $.ajax({
-            url: rootUrl + "/service/session",
-            headers: {
-                "X-CSRFToken": getCookie("csrftoken")
-            },
-            data:{
-                "session": JSON.stringify({
-                    "displayServices": val
-                })
-            },
-            contentType: 'application/json',
-            type: 'get',
-            dataType: 'json',
-        }).done(function(){
-            location.reload();
-
-        }).fail(function(jqXHR, textStatus){
-        }).always(function(data){
-            checkRedirect(data);
-        });
+        var currentUrl = new URL(location.href);
+        var newUrlParams = new URLSearchParams(currentUrl.search);
+        newUrlParams.set("q", val);
+        location.search = newUrlParams.toString();
     });
 
     $("#service-update-button").click(function(){

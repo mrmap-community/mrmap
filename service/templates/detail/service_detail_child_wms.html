@@ -9,6 +9,14 @@
         <td>{{ element.identifier }}</td>
     </tr>
     <tr>
+        <th>{% trans 'Parent service' %}</th>
+        <td>
+            <a href="{% url 'service:detail' element.parent_service.metadata.id %}" target="_blank" title="{{ element.parent_service.metadata.uuid }}">
+                {{ element.parent_service.metadata.title }}
+            </a>
+        </td>
+    </tr>
+    <tr>
         <th>{% trans 'Title' %}</th>
         <td>{{ element.metadata.title }}</td>
     </tr>

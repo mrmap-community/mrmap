@@ -27,7 +27,7 @@
             <span>{% trans 'Become a publisher' %}</span>
         </div>
     </div>
-    {% if 'can_delete_organization' in user_permissions and user in members %}
+    {% if user.id is organization.created_by.id or 'can_delete_organization' in user_permissions and user in members %}
         <div class="container-right">
             <div class="delete-container button" data-parent="{{ organization.id }}" typeof="structure/organizations">
                 <img src="{% static 'service/images/icn_minus.png' %}">

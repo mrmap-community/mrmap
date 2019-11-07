@@ -43,13 +43,14 @@ def index(request: HttpRequest, user: User, service_type=None):
          A view
     """
     template = "service_index.html"
+    GET_params = request.GET
 
     # possible results per page values
     rpp_select = [5, 10, 15, 20, 50, 100, 200, 500, 1000]
     try:
-        wms_page = int(request.GET.get("wmsp", 1))
-        wfs_page = int(request.GET.get("wfsp", 1))
-        results_per_page = int(request.GET.get("rpp", 5))
+        wms_page = int(GET_params.get("wmsp", 1))
+        wfs_page = int(GET_params.get("wfsp", 1))
+        results_per_page = int(GET_params.get("rpp", 5))
         if wms_page < 1 or wfs_page < 1 or results_per_page < 1:
             raise ValueError
         if results_per_page not in rpp_select:
@@ -59,10 +60,10 @@ def index(request: HttpRequest, user: User, service_type=None):
         return redirect("service:index")
 
     # whether whole services or single layers should be displayed
-    display_service_type = request.session.get("displayServices", None)
+    display_service_type = GET_params.get("q", None)  # s=services, l=layers
     is_root = True
     if display_service_type is not None:
-        is_root = display_service_type != "layers"
+        is_root = display_service_type != "l"
 
     # get services
     paginator_wms = None
@@ -90,7 +91,7 @@ def index(request: HttpRequest, user: User, service_type=None):
     params = {
         "metadata_list_wms": paginator_wms,
         "metadata_list_wfs": paginator_wfs,
-        "select_default": request.session.get("displayServices", None),
+        "select_default": display_service_type,
         "only_type": service_type,
         "user": user,
         "rpp_select_options": rpp_select,
@@ -643,7 +644,13 @@ def detail(request: HttpRequest, id, user:User):
     """
     template = "detail/service_detail.html"
     service_md = get_object_or_404(Metadata, id=id)
-    service = get_object_or_404(Service, id=service_md.service.id)
+
+    if service_md.service.is_root:
+        service = service_md.service
+    else:
+        service = Layer.objects.get(
+            metadata=service_md
+        )
     layers = Layer.objects.filter(parent_service=service_md.service)
     layers_md_list = layers.filter(parent_layer=None)
 

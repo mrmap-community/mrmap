@@ -99,7 +99,7 @@
             </td>
             <td class="table-cell">
                 {% if 'can_remove_publisher' in user_permissions and user in members%}
-                <button class="button delete-container" data-parent="{{ publisher.id }}" data-id="{{ organization.id }}" title="{% trans 'Remove publisher' %}">
+                <button class="button delete-container publisher" data-parent="{{ publisher.id }}" data-id="{{ organization.id }}" title="{% trans 'Remove publisher' %}">
                     <img src="{% static 'service/images/icn_minus.png' %}">
                     <span>{% trans 'Remove publisher' %}</span>
                 </button>

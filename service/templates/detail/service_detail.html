@@ -101,6 +101,7 @@
     {% endif %}
 </div>
 
+{% if root_service.is_root %}
 <h2>{{ root_metadata.title }}</h2>
 <table class="detail-table">
     <tr>
@@ -184,6 +185,11 @@
         <td>{{ root_metadata.contact.country }}</td>
     </tr>
 </table>
+{% else %}
+{% with root_service as element %}
+{% include 'detail/service_detail_child_wms.html' %}
+{% endwith %}
+{% endif %}
 
 <br>
 

@@ -106,13 +106,9 @@ function addEntity(entity){
 
 function removeEntity(id, confirmed, entity){
     $.ajax({
-        url: rootUrl + "/" + entity + "/remove",
+        url: rootUrl + "/" + entity + "/remove?id=" + id + "&confirmed=" + confirmed,
         headers: {
             "X-CSRFToken": getCookie("csrftoken")
-        },
-        data:{
-            "id": id,
-            "confirmed": confirmed
         },
         type: 'get',
         dataType: 'json'

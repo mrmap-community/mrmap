@@ -319,6 +319,7 @@ def new_org(request: HttpRequest, user: User):
                 messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
             else:
                 org.created_by = user
+                org.is_auto_generated = False  # when the user creates an organization per form, it is not auto generated!
                 org.save()
         else:
             messages.error(request, message=GROUP_FORM_INVALID)

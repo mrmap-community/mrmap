@@ -117,6 +117,11 @@ class OGCWebMapService(OGCWebService):
 
         print(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
 
+        # check possible operations on this service
+        start_time = time.time()
+        self.get_service_operations(xml_obj, self.get_parser_prefix())
+        print(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
+
         # parse possible linked dataset metadata
         start_time = time.time()
         self.get_service_dataset_metadata(xml_obj=xml_obj)

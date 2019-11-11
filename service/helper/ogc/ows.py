@@ -11,6 +11,7 @@ from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, VersionEnum, ServiceEnum
 from service.helper.iso.iso_metadata import ISOMetadata
+from service.models import RequestOperation
 from structure.models import User
 
 
@@ -107,7 +108,12 @@ class OGCWebService:
             raise ConnectionError(ows_connector.status_code)
 
         if ows_connector.encoding is not None:
-            self.service_capabilities_xml = ows_connector.content.decode(ows_connector.encoding)
+            tmp = ows_connector.content.decode(ows_connector.encoding)
+            # check if tmp really contains an xml file
+            xml = xml_helper.parse_xml(tmp)
+            if xml is None:
+                raise Exception(tmp)
+            self.service_capabilities_xml = tmp
         else:
             self.service_capabilities_xml = ows_connector.text
             
@@ -139,6 +145,29 @@ class OGCWebService:
     """
     Methods that have to be implemented in the sub classes
     """
+    @abstractmethod
+    def get_service_operations(self, xml_obj, prefix: str):
+        """ Creates table records from <Capability><Request></Request></Capability contents
+
+        Args:
+            xml_obj: The xml document object
+            prefix: The prefix for the service type ('wms'/'wfs')
+        Returns:
+
+        """
+        cap_request = xml_helper.try_get_single_element_from_xml("//{}Capability/{}Request".format(prefix, prefix), xml_obj)
+        operations = cap_request.getchildren()
+        for operation in operations:
+            op_format = xml_helper.try_get_text_from_xml_element(operation, "./Format")
+            RequestOperation.objects.get_or_create(
+                operation_name=operation.tag,
+                format=op_format,
+            )
+
+    @abstractmethod
+    def get_parser_prefix(self):
+        pass
+
     @abstractmethod
     def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):
         pass

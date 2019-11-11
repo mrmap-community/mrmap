@@ -92,7 +92,7 @@ class ServiceTestCase(TestCase):
         self.service = service.get("service", None)
 
         service_helper.persist_service_model_instance(self.service)
-        service_helper.persist_capabilities_doc(self.service, self.raw_data.service_capabilities_xml)
+        self.service.persist_capabilities_doc(self.raw_data.service_capabilities_xml)
 
 
     def _get_logged_in_client(self, user: User):

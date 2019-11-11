@@ -11,7 +11,7 @@ from django.db import transaction
 from lxml.etree import _Element
 
 from service.settings import MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, METADATA_RELATION_TYPE_VISUALIZES
-from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT,  \
+from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
 from MapSkinner.utils import execute_threads
@@ -22,7 +22,7 @@ from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
-    FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType
+    FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType, RequestOperation, Document
 from service.settings import METADATA_RELATION_TYPE_DESCRIBED_BY
 from structure.models import Organization, User
 
@@ -115,6 +115,12 @@ class OGCWebFeatureService(OGCWebService):
         # parse service metadata
         self.get_service_metadata_from_capabilities(xml_obj, async_task)
         self.get_capability_metadata(xml_obj)
+        self.get_capability_metadata(xml_obj)
+
+        # check possible operations on this service
+        start_time = time.time()
+        self.get_service_operations(xml_obj, self.get_parser_prefix())
+        print(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
 
         # check if 'real' linked service metadata exist
         service_metadata_uri = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ExtendedCapabilities/inspire_dls:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL")
@@ -656,6 +662,27 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         XML_NAMESPACES["lvermgeo"] = "http://www.lvermgeo.rlp.de/lvermgeo"
         XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs")
 
+    def get_parser_prefix(self):
+        return "wfs:"
+
+    def get_service_operations(self, xml_obj, prefix: str):
+        """ Creates table records from <Capability><Request></Request></Capability contents
+
+        Args:
+            xml_obj: The xml document object
+            prefix: The prefix for the service type ('wms'/'wfs')
+        Returns:
+
+        """
+        cap_request = xml_helper.try_get_single_element_from_xml("//{}Capability/{}Request".format(prefix, prefix), xml_obj)
+        operations = cap_request.getchildren()
+        for operation in operations:
+            op_format = xml_helper.try_get_text_from_xml_element(operation, "./Format")
+            RequestOperation.objects.get_or_create(
+                operation_name=operation.tag,
+                format=op_format,
+            )
+
     def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         """ Parse the wfs <Service> metadata into the self object
 
@@ -829,6 +856,27 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes"
         XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
 
+    def get_parser_prefix(self):
+        return "ows:"
+
+    def get_service_operations(self, xml_obj, prefix: str):
+        """ Creates table records from <Capability><Request></Request></Capability contents
+
+        Args:
+            xml_obj: The xml document object
+            prefix: The prefix for the service type ('wms'/'wfs')
+        Returns:
+
+        """
+        cap_request = xml_helper.try_get_single_element_from_xml("//{}OperationsMetadata".format(prefix), xml_obj)
+        operations = cap_request.getchildren()
+        for operation in operations:
+            name = xml_helper.try_get_attribute_from_xml_element(operation, "name")
+            op_format = xml_helper.try_get_text_from_xml_element(xml_obj, ".//{}Parameter[@name='AcceptFormats']/{}Value".format(prefix, prefix))
+            RequestOperation.objects.get_or_create(
+                operation_name=name,
+                format=op_format,
+            )
 
 class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
     """
@@ -844,6 +892,28 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
         XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
+
+    def get_parser_prefix(self):
+        return "ows:"
+
+    def get_service_operations(self, xml_obj, prefix: str):
+        """ Creates table records from <Capability><Request></Request></Capability contents
+
+        Args:
+            xml_obj: The xml document object
+            prefix: The prefix for the service type ('wms'/'wfs')
+        Returns:
+
+        """
+        cap_request = xml_helper.try_get_single_element_from_xml("//{}OperationsMetadata".format(prefix), xml_obj)
+        operations = cap_request.getchildren()
+        for operation in operations:
+            name = xml_helper.try_get_attribute_from_xml_element(operation, "name")
+            op_format = xml_helper.try_get_text_from_xml_element(xml_obj, ".//{}Parameter[@name='AcceptFormats']/{}Value".format(prefix, prefix))
+            RequestOperation.objects.get_or_create(
+                operation_name=name,
+                format=op_format,
+            )
 
     def get_version_specific_metadata(self, xml_obj):
         """ Runs metadata parsing for data which is only present in this version
@@ -906,4 +976,26 @@ class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
             service_version=VersionEnum.V_2_0_2,
             service_type=ServiceEnum.WFS,
         )
+
+    def get_parser_prefix(self):
+        return "ows:"
+
+    def get_service_operations(self, xml_obj, prefix: str):
+        """ Creates table records from <Capability><Request></Request></Capability contents
+
+        Args:
+            xml_obj: The xml document object
+            prefix: The prefix for the service type ('wms'/'wfs')
+        Returns:
+
+        """
+        cap_request = xml_helper.try_get_single_element_from_xml("//{}OperationsMetadata".format(prefix), xml_obj)
+        operations = cap_request.getchildren()
+        for operation in operations:
+            name = xml_helper.try_get_attribute_from_xml_element(operation, "name")
+            op_format = xml_helper.try_get_text_from_xml_element(xml_obj, ".//{}Parameter[@name='AcceptFormats']/{}Value".format(prefix, prefix))
+            RequestOperation.objects.get_or_create(
+                operation_name=name,
+                format=op_format,
+            )
 

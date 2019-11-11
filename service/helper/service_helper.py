@@ -62,15 +62,16 @@ def split_service_uri(uri):
     """
     ret_dict = {}
     cap_url_dict = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(uri).query))
+    tmp = {}
+
+    # remove duplicate parameters
     service_keywords = ["REQUEST", "SERVICE", "VERSION"]
-    for key, val in cap_url_dict.items():
-        key_l = key
-        key_u = key.upper()
-        del cap_url_dict[key_l]
-        if key_u not in service_keywords:
-            cap_url_dict[key] = val
-        else:
-            cap_url_dict[key_u] = val
+    for param_key, param_val in cap_url_dict.items():
+        p = param_key.upper()
+        if p not in tmp:
+            tmp[p] = param_val
+    cap_url_dict = tmp
+
     cap_url_query = urllib.parse.urlsplit(uri).query
     ret_dict["service"] = resolve_service_enum(cap_url_dict.get("SERVICE", None))
     ret_dict["request"] = cap_url_dict.get("REQUEST", None)
@@ -208,28 +209,3 @@ def capabilities_are_different(cap_url_1, cap_url_2):
 
     return xml_1_hash != xml_2_hash
 
-
-def persist_capabilities_doc(service: Service, xml: str):
-    """ Persists the capabilities document
-
-    Args:
-        service (Service): The service object which holds the related metadata
-        xml (str): The xml document as string
-    Returns:
-         nothing
-    """
-    # save original capabilities document
-    cap_doc = Document()
-    cap_doc.original_capability_document = xml
-
-    # change some external linkage to internal links for the current_capability_document
-    uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, service.metadata.id)
-    xml = xml_helper.parse_xml(xml)
-    xml_helper.write_attribute(xml, "//Service/OnlineResource", "{http://www.w3.org/1999/xlink}href", uri)
-    xml_helper.write_attribute(xml, "//GetCapabilities/DCPType/HTTP/Get/OnlineResource", "{http://www.w3.org/1999/xlink}href", uri)
-    xml_helper.write_attribute(xml, "//GetCapabilities/DCPType/HTTP/Post/OnlineResource", "{http://www.w3.org/1999/xlink}href", uri)
-    xml = xml_helper.xml_to_string(xml)
-
-    cap_doc.current_capability_document = xml
-    cap_doc.related_metadata = service.metadata
-    cap_doc.save()

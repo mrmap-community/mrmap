@@ -75,7 +75,7 @@ class EditorTestCase(TestCase):
         self.service_wms = service.get("service", None)
 
         service_helper.persist_service_model_instance(self.service_wms)
-        service_helper.persist_capabilities_doc(self.service_wms, self.raw_data_wms.service_capabilities_xml)
+        self.service_wms.persist_capabilities_doc(self.raw_data_wms.service_capabilities_xml)
 
     def _get_logged_in_client(self, user: User):
         """ Helping function to encapsulate the login process

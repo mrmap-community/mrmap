@@ -4,6 +4,8 @@ from django.contrib.gis.geos import Polygon
 from django.db import models, transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
+
+from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME
 from service.helper.enums import ServiceEnum
 from structure.models import Group, Organization
 from service.helper import xml_helper
@@ -38,6 +40,7 @@ class Resource(models.Model):
 
 class RequestOperation(models.Model):
     operation_name = models.CharField(max_length=255, null=True, blank=True)
+    format = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
         return self.operation_name
@@ -614,6 +617,53 @@ class Service(Resource):
 
         self.metadata.save(update_last_modified=False)
         self.save(update_last_modified=False)
+
+    def persist_capabilities_doc(self, xml: str):
+        """ Persists the capabilities document
+
+        Args:
+            xml (str): The xml document as string
+        Returns:
+             nothing
+        """
+        # save original capabilities document
+        cap_doc = Document()
+        cap_doc.original_capability_document = xml
+
+        # change some external linkage to internal links for the current_capability_document
+        uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, self.metadata.id)
+        xml = xml_helper.parse_xml(xml)
+
+        # wms and wfs have to be handled differently!
+        # Furthermore each standard has a different handling of attributes and elements ...
+        if self.servicetype.name == "wms":
+            xml_helper.write_attribute(xml, "//Service/OnlineResource", "{http://www.w3.org/1999/xlink}href", uri)
+            xml_helper.write_attribute(xml, "//GetCapabilities/DCPType/HTTP/Get/OnlineResource",
+                                       "{http://www.w3.org/1999/xlink}href", uri)
+            xml_helper.write_attribute(xml, "//GetCapabilities/DCPType/HTTP/Post/OnlineResource",
+                                       "{http://www.w3.org/1999/xlink}href", uri)
+        elif self.servicetype.name == "wfs":
+            if self.servicetype.version == "1.0.0":
+                prefix = "wfs:"
+                xml_helper.write_text_to_element(xml, "//{}Service/{}OnlineResource".format(prefix, prefix), uri)
+                xml_helper.write_attribute(xml, "//{}GetCapabilities/{}DCPType/{}HTTP/{}Get".format(prefix, prefix, prefix, prefix),
+                                           "onlineResource", uri)
+                xml_helper.write_attribute(xml, "//{}GetCapabilities/{}DCPType/{}HTTP/{}Post".format(prefix, prefix, prefix, prefix),
+                                           "onlineResource", uri)
+            else:
+                prefix = "ows:"
+                xml_helper.write_attribute(xml, "//{}ContactInfo/{}OnlineResource".format(prefix, prefix),
+                                           "{http://www.w3.org/1999/xlink}href", uri)
+                xml_helper.write_attribute(xml, "//{}Operation[@name='GetCapabilities']/{}DCP/{}HTTP/{}Get".format(prefix, prefix, prefix, prefix),
+                                           "{http://www.w3.org/1999/xlink}href", uri)
+                xml_helper.write_attribute(xml, "//{}Operation[@name='GetCapabilities']/{}DCP/{}HTTP/{}Post".format(prefix, prefix, prefix, prefix),
+                                           "{http://www.w3.org/1999/xlink}href", uri)
+
+        xml = xml_helper.xml_to_string(xml)
+
+        cap_doc.current_capability_document = xml
+        cap_doc.related_metadata = self.metadata
+        cap_doc.save()
 
 
 class Layer(Service):

@@ -15,7 +15,7 @@ class CategoryOriginAdmin(admin.ModelAdmin):
 
 
 class RequestOperationAdmin(admin.ModelAdmin):
-    list_display = ('operation_name',)
+    list_display = ('operation_name', 'format')
 
 
 class SecuredOperationAdmin(admin.ModelAdmin):

@@ -1,6 +1,5 @@
 import json
 
-import time
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
@@ -14,9 +13,9 @@ from django.utils.translation import gettext_lazy as _
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
-    SERVICE_REMOVED, SERVICE_ACTIVATED, SERVICE_UPDATED, SERVICE_DEACTIVATED, MULTIPLE_SERVICE_METADATA_FOUND, \
+    SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
     SECURITY_PROXY_ERROR_MULTIPLE_SECURED_OPERATIONS, SECURITY_PROXY_NOT_ALLOWED, SECURITY_PROXY_ERROR_BROKEN_URI, \
-    SERVICE_NOT_FOUND
+    SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
@@ -200,7 +199,7 @@ def get_service_metadata(request: HttpRequest, id: int):
         doc = docs.pop().service_metadata_document
     else:
         if not metadata.is_active:
-            return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
+            return HttpResponse(content=SERVICE_DISABLED, status=423)
         # There is no service metadata document in the database, we need to create it during runtime
         generator = MetadataGenerator(id, MetadataEnum.SERVICE)
         doc = generator.generate_service_metadata()
@@ -219,7 +218,7 @@ def get_dataset_metadata(request: HttpRequest, id: int):
     """
     md = Metadata.objects.get(id=id)
     if not md.is_active:
-        return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
+        return HttpResponse(content=SERVICE_DISABLED, status=423)
     if md.metadata_type != 'dataset':
         try:
             # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
@@ -279,7 +278,7 @@ def get_capabilities(request: HttpRequest, id: int):
     """
     md = Metadata.objects.get(id=id)
     if not md.is_active:
-        return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
+        return HttpResponse(content=SERVICE_DISABLED, status=423)
     cap_doc = Document.objects.get(related_metadata=md)
     doc = cap_doc.current_capability_document
     return HttpResponse(doc, content_type='application/xml')
@@ -296,7 +295,7 @@ def get_capabilities_original(request: HttpRequest, id: int):
     """
     md = Metadata.objects.get(id=id)
     if not md.is_active:
-        return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
+        return HttpResponse(content=SERVICE_DISABLED, status=423)
     cap_doc = Document.objects.get(related_metadata=md)
     doc = cap_doc.original_capability_document
     return HttpResponse(doc, content_type='application/xml')
@@ -724,8 +723,10 @@ def metadata_proxy(request: HttpRequest, id: int):
     return HttpResponse(xml_raw, content_type='application/xml')
 
 @check_session
-def metadata_proxy_get_map(request: HttpRequest, id: int, user: User):
-    """ Checks whether the requested metadata is secured and resolves the GetMap uri for an allowed user - or not.
+def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
+    """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
+
+    Decides which operation will be handled by resolving a given 'request=' query parameter.
 
     Args:
         request (HttpRequest): The incoming request
@@ -738,7 +739,32 @@ def metadata_proxy_get_map(request: HttpRequest, id: int, user: User):
         metadata = Metadata.objects.get(id=id)
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+
+    if not metadata.is_active:
+        return HttpResponse(status=423, content=SERVICE_DISABLED)
+
+    # get request type
     get_query_string = request.environ.get("QUERY_STRING", "")
+    request_type = None
+    tmp = request.GET
+    for key, val in tmp.items():
+        key = key.upper()
+        if key == "REQUEST":
+            request_type = val
+            break
+
+    if request_type is None:
+        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
+
+    operations = {
+        "GETMAP": metadata.service.get_map_uri,
+        "GETFEATUREINFO": metadata.service.get_feature_info_uri,
+    }
+
+    uri = operations.get(request_type.upper(), None)
+    if uri is None:
+        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_BROKEN_URI)
+    uri += get_query_string
 
     if metadata.is_secured:
         sec_ops = metadata.secured_operations.all()
@@ -756,16 +782,9 @@ def metadata_proxy_get_map(request: HttpRequest, id: int, user: User):
                 break
 
         if allowed:
-            get_map_uri = metadata.service.get_map_uri
-            if get_map_uri is None:
-                return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_BROKEN_URI)
-
-            get_map_uri += get_query_string
-            return redirect(get_map_uri)
+            return redirect(uri)
         else:
             return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
     else:
         # if the metadata is not secured, there is no reason this route would have been called in the first place!
-        get_map_uri = metadata.service.get_map_uri
-        get_map_uri += get_query_string
-        return redirect(get_map_uri)
+        return redirect(uri)

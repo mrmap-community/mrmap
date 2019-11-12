@@ -14,7 +14,9 @@ from django.utils.translation import gettext_lazy as _
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
-    SERVICE_REMOVED, SERVICE_ACTIVATED, SERVICE_UPDATED, SERVICE_DEACTIVATED, MULTIPLE_SERVICE_METADATA_FOUND
+    SERVICE_REMOVED, SERVICE_ACTIVATED, SERVICE_UPDATED, SERVICE_DEACTIVATED, MULTIPLE_SERVICE_METADATA_FOUND, \
+    SECURITY_PROXY_ERROR_MULTIPLE_SECURED_OPERATIONS, SECURITY_PROXY_NOT_ALLOWED, SECURITY_PROXY_ERROR_BROKEN_URI, \
+    SERVICE_NOT_FOUND
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
@@ -24,7 +26,7 @@ from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceEnum, MetadataEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.service_comparator import ServiceComparator
-from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation
+from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, SecuredOperation
 from service.settings import MD_TYPE_SERVICE
 from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group
@@ -720,3 +722,50 @@ def metadata_proxy(request: HttpRequest, id: int):
     con.load()
     xml_raw = con.content
     return HttpResponse(xml_raw, content_type='application/xml')
+
+@check_session
+def metadata_proxy_get_map(request: HttpRequest, id: int, user: User):
+    """ Checks whether the requested metadata is secured and resolves the GetMap uri for an allowed user - or not.
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The metadata id
+        user (User): The performing user
+    Returns:
+         A redirect to the GetMap uri
+    """
+    try:
+        metadata = Metadata.objects.get(id=id)
+    except ObjectDoesNotExist:
+        return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+    get_query_string = request.environ.get("QUERY_STRING", "")
+
+    if metadata.is_secured:
+        sec_ops = metadata.secured_operations.all()
+        try:
+            sec_op = sec_ops.get(operation__operation_name="GetMap")
+        except ObjectDoesNotExist:
+            # this should not be possible!!!
+            return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MULTIPLE_SECURED_OPERATIONS)
+
+        # check if the user is part of one of the allowed groups!
+        allowed = False
+        for group in user.groups.all():
+            if group in sec_op.allowed_groups.all():
+                allowed = True
+                break
+
+        if allowed:
+            get_map_uri = metadata.service.get_map_uri
+            if get_map_uri is None:
+                return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_BROKEN_URI)
+
+            get_map_uri += get_query_string
+            return redirect(get_map_uri)
+        else:
+            return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
+    else:
+        # if the metadata is not secured, there is no reason this route would have been called in the first place!
+        get_map_uri = metadata.service.get_map_uri
+        get_map_uri += get_query_string
+        return redirect(get_map_uri)

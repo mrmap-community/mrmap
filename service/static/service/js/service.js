@@ -254,7 +254,7 @@ $(document).ready(function(){
         });
     });
 
-    $(".collapsible-toggler").click(function(event){
+    $(document).on("click", ".collapsible-toggler", function(event){
         event.stopPropagation();
         var elem = $(this);
         var list = elem.siblings(".collapsible-list");
@@ -262,7 +262,7 @@ $(document).ready(function(){
         list.slideToggle();
     });
 
-    $("html").click(function(){
+    $(document).on("click", "html", function(){
         var toggler = $(".collapsible-toggler");
         toggler.each(function(i, elem){
             elem = $(elem);

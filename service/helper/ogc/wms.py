@@ -672,7 +672,7 @@ class OGCWebMapService(OGCWebService):
         for action, format_list in layer_obj.format_list.items():
             for _format in format_list:
                 service_to_format = MimeType(
-                    action=action,
+                    operation=action,
                     mime_type=_format,
                     created_by=creator
                 )
@@ -890,7 +890,7 @@ class OGCWebMapService(OGCWebService):
             # iterate over all available mime types and actions
             for _format in layer.formats_list:
                 _format = MimeType.objects.get_or_create(
-                    action=_format.action,
+                    operation=_format.operation,
                     mime_type=_format.mime_type,
                 )[0]
                 layer.formats.add(_format)

@@ -15,11 +15,11 @@ class CategoryOriginAdmin(admin.ModelAdmin):
 
 
 class RequestOperationAdmin(admin.ModelAdmin):
-    list_display = ('operation_name', 'format')
+    list_display = ('operation_name',)
 
 
 class SecuredOperationAdmin(admin.ModelAdmin):
-    list_display = ('operation', 'metadata')
+    list_display = ("id", "operation",)
 
 
 class ServiceTypeAdmin(admin.ModelAdmin):
@@ -70,14 +70,17 @@ class ReferenceSystemAdmin(admin.ModelAdmin):
 class FeatureTypeAdmin(admin.ModelAdmin):
     list_display = ('metadata', 'service')
 
+
 class FeatureTypeElementAdmin(admin.ModelAdmin):
     list_display = ('name', 'type')
+
 
 class LayerAdmin(admin.ModelAdmin):
     list_display = ('identifier', 'parent_service', 'parent_layer', 'last_modified')
 
+
 class MimeTypeAdmin(admin.ModelAdmin):
-    pass
+    list_display = ('operation', 'mime_type')
 
 class NamespaceAdmin(admin.ModelAdmin):
     list_display = ('name', 'uri', 'version')

@@ -5,10 +5,10 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 09.07.19
 
 """
-from django.forms import ModelForm, CheckboxInput, SelectMultiple
+from django.forms import ModelForm, CheckboxInput
 from django.utils.translation import gettext_lazy as _
 
-from service.models import Metadata, FeatureType
+from service.models import Metadata
 
 
 class MetadataEditorForm(ModelForm):
@@ -20,7 +20,6 @@ class MetadataEditorForm(ModelForm):
             "access_constraints",
             "terms_of_use",
             "inherit_proxy_uris",
-            "is_secured",
             # "metadata_url",
             # "keywords",
             # "categories",
@@ -31,7 +30,6 @@ class MetadataEditorForm(ModelForm):
         }
         widgets = {
             "inherit_proxy_uris": CheckboxInput(attrs={"class": "checkbox-input"}),
-            "is_secured": CheckboxInput(attrs={"class": "checkbox-input"}),
         }
 
 

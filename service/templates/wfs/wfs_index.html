@@ -65,6 +65,9 @@
             {% trans 'Active' %}
         </th>
         <th class="table-header">
+            {% trans 'Access restricted' %}
+        </th>
+        <th class="table-header">
         {% trans 'Version' %}
         </th>
             <th class="table-header">
@@ -93,6 +96,13 @@
             <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Active' %}">
             {% else %}
             <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Not active' %}">
+            {% endif %}
+        </td>
+        <td class="table-cell center" data-type="parent-service">
+            {% if wfs.is_secured %}
+            <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Access restricted' %}">
+            {% else %}
+            <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Access not restricted' %}">
             {% endif %}
         </td>
         <td class="table-cell">

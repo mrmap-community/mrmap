@@ -159,9 +159,9 @@ class OGCWebService:
         operations = cap_request.getchildren()
         for operation in operations:
             op_format = xml_helper.try_get_text_from_xml_element(operation, "./Format")
+
             RequestOperation.objects.get_or_create(
                 operation_name=operation.tag,
-                format=op_format,
             )
 
     @abstractmethod

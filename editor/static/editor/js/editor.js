@@ -44,18 +44,68 @@ function initializeSecuredFormStatus(){
     }
 }
 
+function toggleSecuredCheckbox(){
+    var elem = $("#checkbox-restrict-access");
+    var checked = elem.is(":checked");
+    var rows = $(".operation-row");
+    var inputs = rows.find("input")
+    if(checked){
+        rows.removeClass("disabled");
+        inputs.removeAttr("disabled");
+    }else{
+        rows.addClass("disabled");
+        inputs.attr("disabled", true);
+    }
+}
+
 $(document).ready(function(){
 
     // set initial status for secured selectors
     initializeSecuredFormStatus();
+    toggleSecuredCheckbox();
 
     $("#id_is_secured").on("change", function(){
         initializeSecuredFormStatus();
-        //var securedSelectors = $(".secured-selector");
-        //var selectorParentRows = securedSelectors.closest("tr");
-        //selectorParentRows.toggleClass("disabled");
     });
 
+
+    $("#checkbox-restrict-access").change(function(){
+        toggleSecuredCheckbox();
+    });
+
+    $(".submit-button.secured-operations").click(function(event){
+        // store information into hidden input field as json
+        var checkedElements = $("input[id*='checkbox-sec-']:checked");
+        var hiddenInput = $("input.hidden");
+        var txt = '[';
+        var txtArr = []
+        checkedElements.each(function(i, elem){
+            elem = $(elem);
+            var elemTxt = '{"operation": ' + elem.attr("data-operation") + ', "group": ' + elem.attr("data-group") + '}';
+            txtArr.push(elemTxt);
+        });
+        txt += txtArr.join(",");
+        txt += "]"
+        console.log(txt);
+        hiddenInput.val(txt);
+    });
+
+    $(".search-field").on("input", function(){
+        var elem = $(this);
+        var operation = elem.attr("data-type")
+        var txt = elem.val();
+        var elems = $("." + operation);
+        elems.each(function(i, elem){
+            elem = $(elem);
+            txt = txt.toUpperCase();
+            var label = elem.find("label").text().toUpperCase();
+            if(label.includes(txt)){
+                elem.show();
+            }else{
+                elem.hide();
+            }
+        });
+    });
 
 
     $(".value-input").on("input", function(){

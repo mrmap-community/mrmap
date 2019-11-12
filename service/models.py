@@ -40,19 +40,18 @@ class Resource(models.Model):
 
 class RequestOperation(models.Model):
     operation_name = models.CharField(max_length=255, null=True, blank=True)
-    format = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
         return self.operation_name
 
 
 class SecuredOperation(models.Model):
-    operation = models.ForeignKey(RequestOperation, on_delete=models.CASCADE)
+    operation = models.ForeignKey(RequestOperation, on_delete=models.CASCADE, null=True, blank=True)
     allowed_groups = models.ManyToManyField(Group, related_name="allowed_operations")
+    secured_metadata = models.ManyToManyField('Metadata', related_name="secured_operations", null=True, blank=True)
 
     def __str__(self):
-        return self.operation + " -> " + self.allowed_groups
-
+        return str(self.id)
 
 class MetadataOrigin(models.Model):
     name = models.CharField(max_length=255)
@@ -99,7 +98,6 @@ class Metadata(Resource):
 
     # security
     is_secured = models.BooleanField(default=False)
-    secured_operations = models.ManyToManyField(SecuredOperation, related_name="metadata")
 
     # capabilities
     dimension = models.CharField(max_length=100, null=True)
@@ -390,6 +388,25 @@ class Metadata(Resource):
         for md in rel_mds:
             links.append(md.metadata_to.metadata_url)
         return links
+
+    def set_secured(self, is_secured: bool):
+        """ Set is_secured to a new value.
+
+        Iterates over all children for the same purpose.
+
+        Args:
+            is_secured (bool): The new value for is_secured
+        Returns:
+
+        """
+        self.is_secured = is_secured
+        children = Metadata.objects.filter(
+            service__parent_service=self.service
+        )
+        for child in children:
+            child.is_secured = is_secured
+            child.save()
+        self.save()
 
 
 class MetadataType(models.Model):
@@ -756,7 +773,7 @@ class Dataset(Resource):
 
 
 class MimeType(Resource):
-    action = models.CharField(max_length=255, null=True)
+    operation = models.CharField(max_length=255, null=True)
     mime_type = models.CharField(max_length=500)
 
     def __str__(self):

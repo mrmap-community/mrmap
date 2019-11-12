@@ -80,3 +80,4 @@ SERVICE_GENERIC_ERROR = _("The service could not be registered. Please check you
 MULTIPLE_SERVICE_METADATA_FOUND = _("There are several service metadata documents for this service. Please contact an administrator.")
 
 EDITOR_INVALID_ISO_LINK = _("'{}' was invalid.")
+EDITOR_ACCESS_RESTRICTED = _("Access for '{}' changed successfully.")

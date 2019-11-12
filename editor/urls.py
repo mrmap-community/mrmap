@@ -13,5 +13,6 @@ app_name='editor'
 urlpatterns = [
     path('', index, name='index'),
     path('edit/<id>', edit, name='edit'),
+    path('edit/access/<id>', edit_access, name='edit_access'),
     path('restore/<id>', restore, name='restore'),
 ]

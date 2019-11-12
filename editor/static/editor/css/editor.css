@@ -89,3 +89,8 @@
     color: black;
 }
 
+
+.secured-operation-group-view{
+    max-height: 300px;
+    overflow: auto;
+}

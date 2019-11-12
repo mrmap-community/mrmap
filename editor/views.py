@@ -1,19 +1,23 @@
+import json
+
 from django.contrib import messages
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 from django.shortcuts import render, redirect
 
 # Create your views here.
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
-    METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION
+    METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED
 from MapSkinner.responses import DefaultContext
 from MapSkinner.settings import ROOT_URL
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
+from editor.settings import SECURED_OPERATIONS
 from service.helper.enums import ServiceEnum
-from service.models import Metadata, Keyword, Category, FeatureType, Layer
+from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import User, Permission
+from structure.models import User, Permission, Group
 from users.helper import user_helper
 from editor.helper import editor_helper
 
@@ -187,6 +191,74 @@ def edit_featuretype(request: HttpRequest, id: int, user: User):
                 "action_url": "{}/editor/edit/featuretype/{}".format(ROOT_URL, id),}
     context = DefaultContext(request, params).get_context()
     return render(request, template, context)
+
+@check_session
+@check_permission(Permission(can_edit_metadata_service=True))
+def edit_access(request: HttpRequest, id: int, user: User):
+    md = Metadata.objects.get(id=id)
+    template = "editor_edit_access.html"
+    post_params = request.POST
+    if request.method == "POST":
+
+        # process form input
+        sec_operations_groups = json.loads(post_params.get("secured-operation-groups"))
+        is_secured = post_params.get("is_secured", "")
+        is_secured = is_secured == "on"  # resolve True|False
+
+        # set new value and iterate over all children
+        md.set_secured(is_secured)
+
+        if not is_secured:
+            # remove all secured settings
+            sec_ops = SecuredOperation.objects.filter(
+                secured_metadata=md
+            )
+            sec_ops.delete()
+        else:
+            for item in sec_operations_groups:
+                group_id = item.get("group")
+                operation_id = item.get("operation")
+                operation = RequestOperation.objects.get(
+                    id=operation_id
+                )
+                group = Group.objects.get(
+                    id=group_id
+                )
+
+                try:
+                    sec_op = md.secured_operations.get(
+                        operation=operation
+                    )
+                except ObjectDoesNotExist:
+                    # create new SecuredOperation object
+                    sec_op = SecuredOperation()
+                    sec_op.operation = operation
+                    sec_op.save()
+                sec_op.allowed_groups.add(group)
+
+                md.secured_operations.add(sec_op)
+                md.save()
+        messages.success(request, EDITOR_ACCESS_RESTRICTED.format(md.title))
+        md.save()
+        return redirect("service:detail", md.id)
+    else:
+        # render form
+        operations = RequestOperation.objects.filter(
+            operation_name__in=SECURED_OPERATIONS
+        )
+        sec_ops = SecuredOperation.objects.filter(
+            secured_metadata=md
+        )
+        all_groups = Group.objects.all()
+        tmp = editor_helper.prepare_secured_operations_groups(operations, sec_ops, all_groups)
+
+        params = {
+            "service_metadata": md,
+            "operations": tmp,
+        }
+    context = DefaultContext(request, params).get_context()
+    return render(request, template, context)
+
 
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))

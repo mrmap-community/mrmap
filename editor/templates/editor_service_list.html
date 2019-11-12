@@ -20,10 +20,16 @@
                     {% trans 'Original metadata' %}
                 </th>
                 <th class="table-header">
+                    {% trans 'Access restricted' %}
+                </th>
+                <th class="table-header">
                     {% trans 'Last modified' %}
                 </th>
                 <th class="table-header">
                     {% trans 'Edit' %}
+                </th>
+                <th class="table-header">
+                    {% trans 'Access' %}
                 </th>
                 <th class="table-header">
                     {% trans 'Reset' %}
@@ -54,11 +60,25 @@
                         <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Custom metadata' %}">
                         {% endif %}
                     </td>
+                    <td class="table-cell center">
+                        {% if metadata.root_metadata.is_secured %}
+                        <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Original metadata' %}">
+                        {% else %}
+                        <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Custom metadata' %}">
+                        {% endif %}
+                    </td>
                     <td class="table-cell">
                         {{ metadata.root_metadata.last_modified | localtime }}
                     </td>
                     <td class="table-cell">
                         <a href="{% url 'editor:edit' metadata.root_metadata.id %}" title="{% trans 'Edit service' %}">
+                            <button class="button">
+                                <img src="{% static 'structure/images/icn_edit.png' %}">
+                            </button>
+                        </a>
+                    </td>
+                    <td class="table-cell">
+                        <a href="{% url 'editor:edit_access' metadata.root_metadata.id %}" title="{% trans 'Edit access' %}">
                             <button class="button">
                                 <img src="{% static 'structure/images/icn_edit.png' %}">
                             </button>

@@ -65,6 +65,10 @@ a{
     outline: 0;
 }
 
+ul.no-bullet{
+    list-style: none;
+}
+
 .disabled{
     -webkit-filter: grayscale(1.0);
     filter: grayscale(1.0);

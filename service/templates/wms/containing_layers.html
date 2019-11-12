@@ -23,11 +23,19 @@
                 <div class="container-row">
                 <div class="container-left">
                     {% if 'can_edit_metadata_service' in user_permissions %}
-                        <a href="{% url 'editor:edit' layer.metadata.id %}" title="{% trans 'Edit layer' %}">
-                            <div class="button-container">
+                        <div class="collapsible-container">
+                            <div class="collapsible-toggler button button-container" title="{% trans 'Edit layer' %}">
                                 <span>{% trans 'Edit layer' %}</span>
                             </div>
-                        </a>
+                            <div class="hide collapsible-list">
+                                <a target="_blank" href="{% url 'editor:edit' layer.metadata.id %}" title="{% trans 'Edit the layer metadata' %}">
+                                    <div class="button-container button">{% trans 'Metadata' %}</div>
+                                </a>
+                                <a target="_blank" href="{% url 'editor:edit_access' layer.metadata.id %}" title="{% trans 'Edit the layer access' %}">
+                                    <div class="button-container button">{% trans 'Access' %}</div>
+                                </a>
+                            </div>
+                        </div>
                     {% endif %}
                 </div>
                 <div class="container-center">

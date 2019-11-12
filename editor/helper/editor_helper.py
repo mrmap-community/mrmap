@@ -6,6 +6,7 @@ Created on: 01.08.19
 
 """
 from django.contrib import messages
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest
 from lxml.etree import _Element
@@ -341,7 +342,6 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
             child_md.inherit_proxy_uris = original_md.inherit_proxy_uris
             child_md.save()
 
-
     # save metadata
     original_md.is_custom = True
     original_md.save()
@@ -372,3 +372,58 @@ def overwrite_featuretype(original_ft: FeatureType, custom_ft: FeatureType, edit
         original_ft.keywords.add(keyword)
     original_ft.is_custom = True
     original_ft.save()
+
+
+def prepare_secured_operations_groups(operations, sec_ops, all_groups):
+    """ Merges RequestOperations and SecuredOperations into a usable form for the template rendering.
+
+    Iterates over all SecuredOperations of a metadata, simplifies the objects into dicts, adds the remaining
+    RequestOperation objects.
+
+    Args:
+        operations: The RequestOperation query set
+        sec_ops: The SecuredOperation query set
+        all_groups: All system groups
+    Returns:
+         A list, containing dicts of all operations with groups and only the most important data
+    """
+    tmp = []
+    for op in operations:
+        try:
+            secured = sec_ops.get(operation=op)
+            sec_dict = {
+                "id": secured.operation.id,
+                "name": secured.operation.operation_name,
+                "groups": [],
+            }
+            for group in secured.allowed_groups.all():
+                sec_dict["groups"].append({
+                    "id": group.id,
+                    "name": group.name,
+                    "organization": group.organization,
+                    "is_set": True
+                })
+            filtered_groups = all_groups.exclude(id__in=secured.allowed_groups.all())
+            for group in filtered_groups:
+                sec_dict["groups"].append({
+                    "id": group.id,
+                    "name": group.name,
+                    "organization": group.organization,
+                    "is_set": False
+                })
+            tmp.append(sec_dict)
+        except ObjectDoesNotExist:
+            tmp_dict = {
+                "id": op.id,
+                "name": op.operation_name,
+                "groups": [],
+            }
+            for group in all_groups:
+                tmp_dict["groups"].append({
+                    "id": group.id,
+                    "name": group.name,
+                    "organization": group.organization,
+                    "is_set": False
+                })
+            tmp.append(tmp_dict)
+    return tmp

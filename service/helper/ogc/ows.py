@@ -69,6 +69,14 @@ class OGCWebService:
         # other
         self.linked_service_metadata = None
 
+        # Capability
+        self.get_capabilities_uri = None
+        self.get_map_uri = None
+        self.get_feature_info_uri = None
+        self.describe_layer_uri = None
+        self.get_legend_graphic_uri = None
+        self.get_styles_uri = None
+
 
         # initialize service from url
         # if service_capabilities_xml is not None:

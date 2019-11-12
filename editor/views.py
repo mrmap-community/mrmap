@@ -195,6 +195,18 @@ def edit_featuretype(request: HttpRequest, id: int, user: User):
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))
 def edit_access(request: HttpRequest, id: int, user: User):
+    """ The edit view for the operations access
+
+    Provides a form to set the access permissions for a metadata-related object.
+    Processes the form input afterwards
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The metadata id
+        user (User): The performing user
+    Returns:
+         A rendered view
+    """
     md = Metadata.objects.get(id=id)
     template = "editor_edit_access.html"
     post_params = request.POST
@@ -217,9 +229,9 @@ def edit_access(request: HttpRequest, id: int, user: User):
         else:
             for item in sec_operations_groups:
                 group_id = item.get("group")
-                operation_id = item.get("operation")
+                operation = item.get("operation")
                 operation = RequestOperation.objects.get(
-                    id=operation_id
+                    operation_name=operation
                 )
                 group = Group.objects.get(
                     id=group_id

@@ -563,6 +563,9 @@ class OGCWebMapService(OGCWebService):
             parser_prefix,
         ))
 
+        # parse request uris from capabilities document
+        self.parse_request_uris(xml_obj, self)
+
 
     def __create_single_layer_model_instance(self, layer_obj, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
                          published_for: Organization, root_md: Metadata, user: User, contact, parent=None):
@@ -787,6 +790,11 @@ class OGCWebMapService(OGCWebService):
         service.published_for = orga_published_for
         service.published_by = orga_publisher
         service.created_by = group
+        service.get_capabilities_uri = self.get_capabilities_uri
+        service.get_feature_info_uri = self.get_feature_info_uri
+        service.get_styles_uri = self.get_styles_uri
+        service.get_legend_graphic_uri = self.get_legend_graphic_uri
+        service.get_map_uri = self.get_map_uri
         service.metadata = metadata
         service.is_root = True
         if self.linked_service_metadata is not None:

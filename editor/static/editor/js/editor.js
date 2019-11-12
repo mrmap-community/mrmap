@@ -106,7 +106,7 @@ $(document).ready(function(){
         var txtArr = []
         checkedElements.each(function(i, elem){
             elem = $(elem);
-            var elemTxt = '{"operation": ' + elem.attr("data-operation") + ', "group": ' + elem.attr("data-group") + '}';
+            var elemTxt = '{"operation": "' + elem.attr("data-operation") + '", "group": ' + elem.attr("data-group") + '}';
             txtArr.push(elemTxt);
         });
         txt += txtArr.join(",");

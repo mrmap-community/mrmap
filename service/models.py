@@ -1,11 +1,13 @@
 import uuid
 
 from django.contrib.gis.geos import Polygon
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
 
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME
+from editor.settings import SECURED_OPERATIONS
 from service.helper.enums import ServiceEnum
 from structure.models import Group, Organization
 from service.helper import xml_helper
@@ -389,6 +391,22 @@ class Metadata(Resource):
             links.append(md.metadata_to.metadata_url)
         return links
 
+    def _set_document_operations_secured(self, is_secured: bool):
+        """ Fetches the metadata documents and sets the secured uris for all operations
+
+        Args:
+            is_secured (bool): Whether the operations should be secured or not
+        Returns:
+            nothing
+        """
+        try:
+            cap_doc = Document.objects.get(
+                related_metadata=self
+            )
+            cap_doc.set_operations_secured(is_secured)
+        except ObjectDoesNotExist:
+            pass
+
     def set_secured(self, is_secured: bool):
         """ Set is_secured to a new value.
 
@@ -400,11 +418,13 @@ class Metadata(Resource):
 
         """
         self.is_secured = is_secured
+        self._set_document_operations_secured(is_secured)
         children = Metadata.objects.filter(
             service__parent_service=self.service
         )
         for child in children:
             child.is_secured = is_secured
+            child._set_document_operations_secured(is_secured)
             child.save()
         self.save()
 
@@ -426,7 +446,31 @@ class Document(Resource):
     def __str__(self):
         return self.related_metadata.title
 
+    def set_operations_secured(self, is_secured: bool):
+        xml_obj = xml_helper.parse_xml(self.current_capability_document)
+        if is_secured:
+            uri = "{}{}/service/metadata/proxy/operation/{}?".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)
+        else:
+            uri = ""
+        if self.related_metadata.service.servicetype.name == "wms":
+            for op in SECURED_OPERATIONS:
+                service = self.related_metadata.service
+                if not is_secured and op == "GetMap":
+                    uri = service.get_map_uri
+                elif not is_secured and op == "GetFeatureInfo":
+                    uri = service.get_feature_info_uri
+                op_objs = xml_helper.try_get_element_from_xml("//{}".format(op), xml_obj)
+                for obj in op_objs:
+                    resource_objs = xml_helper.try_get_element_from_xml(".//OnlineResource", obj)
+                    for resource_obj in resource_objs:
+                        xml_helper.write_attribute(
+                            resource_obj,
+                            attrib="{http://www.w3.org/1999/xlink}href",
+                            txt=uri
+                        )
 
+        self.current_capability_document = xml_helper.xml_to_string(xml_obj)
+        self.save()
 
     def restore(self):
         """ We overwrite the current metadata xml with the original

@@ -769,6 +769,9 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
 
     if metadata.is_secured:
         sec_ops = metadata.secured_operations.all()
+        if sec_ops.count() == 0:
+            # this means the service is secured and no one has access!
+            return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
         try:
             sec_op = sec_ops.get(operation__operation_name="GetMap")
         except ObjectDoesNotExist:

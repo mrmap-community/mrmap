@@ -148,8 +148,8 @@ class OGCWebFeatureService(OGCWebService):
         """
         self.service_identification_title = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Title")
 
-        #if async_task is not None:
-        #    task_helper.update_service_description(async_task, self.service_identification_title)
+        if async_task is not None:
+            task_helper.update_service_description(async_task, self.service_identification_title)
 
         self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Abstract")
         self.service_identification_fees = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Fees")

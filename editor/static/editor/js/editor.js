@@ -100,19 +100,28 @@ $(document).ready(function(){
 
     $(".submit-button.secured-operations").click(function(event){
         // store information into hidden input field as json
-        var checkedElements = $("input[id*='checkbox-sec-']:checked");
+        var operations = $("ul")
         var hiddenInput = $("input.hidden");
-        var txt = '[';
         var txtArr = []
-        checkedElements.each(function(i, elem){
+        operations.each(function(i, elem){
             elem = $(elem);
-            var elemTxt = '{"operation": "' + elem.attr("data-operation") + '", "group": ' + elem.attr("data-group") + '}';
-            txtArr.push(elemTxt);
+            var checkedElements = elem.find("input[id*='checkbox-sec-']:checked");
+            var dataSecId = elem.attr("data-sec-id");
+            if(dataSecId == ""){
+                dataSecId = -1;
+            }
+            tmp = {
+                "operation": elem.attr("data-operation"),
+                "group": [],
+                "securedOperation": dataSecId,
+            }
+            checkedElements.each(function(j, checkedElement){
+                checkedElement = $(checkedElement);
+                tmp["group"].push(checkedElement.attr("data-group"))
+            });
+            txtArr.push(tmp);
         });
-        txt += txtArr.join(",");
-        txt += "]"
-        console.log(txt);
-        hiddenInput.val(txt);
+        hiddenInput.val(JSON.stringify(txtArr));
     });
 
     $(".search-field").on("input", function(){

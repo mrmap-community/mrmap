@@ -55,10 +55,10 @@
                 <span>{% trans 'Edit service' %}</span>
             </div>
             <div class="hide collapsible-list">
-                <a target="_blank" href="{% url 'editor:edit' root_metadata.id %}" title="{% trans 'Edit the service metadata' %}">
+                <a href="{% url 'editor:edit' root_metadata.id %}" title="{% trans 'Edit the service metadata' %}">
                     <div class="button-container button">{% trans 'Metadata' %}</div>
                 </a>
-                <a target="_blank" href="{% url 'editor:edit_access' root_metadata.id %}" title="{% trans 'Edit the service access' %}">
+                <a href="{% url 'editor:edit_access' root_metadata.id %}" title="{% trans 'Edit the service access' %}">
                     <div class="button-container button">{% trans 'Access' %}</div>
                 </a>
             </div>

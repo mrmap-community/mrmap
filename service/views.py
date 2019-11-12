@@ -768,12 +768,12 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
     uri += get_query_string
 
     if metadata.is_secured:
-        sec_ops = metadata.secured_operations.all()
+        sec_ops = metadata.secured_operations.filter(operation__operation_name__iexact=request_type)
         if sec_ops.count() == 0:
-            # this means the service is secured and no one has access!
+            # this means the service is secured and the user has no access!
             return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
         try:
-            sec_op = sec_ops.get(operation__operation_name="GetMap")
+            sec_op = sec_ops.get(operation__operation_name__iexact=request_type)
         except ObjectDoesNotExist:
             # this should not be possible!!!
             return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MULTIPLE_SECURED_OPERATIONS)

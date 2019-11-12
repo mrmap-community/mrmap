@@ -393,6 +393,7 @@ def prepare_secured_operations_groups(operations, sec_ops, all_groups):
             secured = sec_ops.get(operation=op)
             sec_dict = {
                 "id": secured.operation.id,
+                "sec_id": secured.id,
                 "name": secured.operation.operation_name,
                 "groups": [],
             }

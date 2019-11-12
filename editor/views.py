@@ -218,7 +218,8 @@ def edit_access(request: HttpRequest, id: int, user: User):
         is_secured = is_secured == "on"  # resolve True|False
 
         # set new value and iterate over all children
-        md.set_secured(is_secured)
+        if is_secured != md.is_secured:
+            md.set_secured(is_secured)
 
         if not is_secured:
             # remove all secured settings
@@ -227,29 +228,41 @@ def edit_access(request: HttpRequest, id: int, user: User):
             )
             sec_ops.delete()
         else:
+
             for item in sec_operations_groups:
-                group_id = item.get("group")
-                operation = item.get("operation")
-                operation = RequestOperation.objects.get(
-                    operation_name=operation
-                )
-                group = Group.objects.get(
-                    id=group_id
-                )
-
-                try:
-                    sec_op = md.secured_operations.get(
-                        operation=operation
+                item_sec_op_id = item.get("securedOperation", None)
+                group_ids = item.get("group", [])
+                operation = item.get("operation", None)
+                if item_sec_op_id == -1:
+                    # create new setting
+                    operation = RequestOperation.objects.get(
+                        operation_name=operation
                     )
-                except ObjectDoesNotExist:
-                    # create new SecuredOperation object
-                    sec_op = SecuredOperation()
-                    sec_op.operation = operation
-                    sec_op.save()
-                sec_op.allowed_groups.add(group)
+                    groups = Group.objects.filter(
+                        id__in=group_ids
+                    )
+                    if groups.count() > 0:
+                        sec_op = SecuredOperation()
+                        sec_op.operation = operation
+                        sec_op.save()
+                        for g in groups:
+                            sec_op.allowed_groups.add(g)
+                        md.secured_operations.add(sec_op)
+                else:
+                    # edit existing one
+                    secured_op_input = SecuredOperation.objects.get(
+                        id=item_sec_op_id
+                    )
+                    groups = Group.objects.filter(
+                        id__in=group_ids
+                    )
+                    if groups.count() == 0:
+                        secured_op_input.delete()
+                    else:
+                        secured_op_input.allowed_groups.clear()
+                        for g in groups:
+                            secured_op_input.allowed_groups.add(g)
 
-                md.secured_operations.add(sec_op)
-                md.save()
         messages.success(request, EDITOR_ACCESS_RESTRICTED.format(md.title))
         md.save()
         return redirect("service:detail", md.id)

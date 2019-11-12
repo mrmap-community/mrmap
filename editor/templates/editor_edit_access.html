@@ -50,7 +50,7 @@
                 <ul class="no-bullet">
                 {% for group in operation.groups %}
                     <li class="{{ operation.id }}">
-                        <input id="checkbox-sec-{{ group.id }}-{{ operation.id }}" {% if group.is_set %}checked{% endif %} type="checkbox" title="{{ group.name }}" data-operation="{{ operation.id }}" data-group="{{ group.id }}">
+                        <input id="checkbox-sec-{{ group.id }}-{{ operation.id }}" class="group-permission" {% if group.is_set %}checked{% endif %} type="checkbox" title="{{ group.name }}" data-operation="{{ operation.name }}" data-group="{{ group.id }}">
                         <label for="checkbox-sec-{{ group.id }}-{{ operation.id }}">{{ group.name }} ({{ group.organization }})</label>
                     </li>
                 {% endfor %}

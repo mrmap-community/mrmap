@@ -722,6 +722,7 @@ def metadata_proxy(request: HttpRequest, id: int):
     xml_raw = con.content
     return HttpResponse(xml_raw, content_type='application/xml')
 
+
 @check_session
 def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.

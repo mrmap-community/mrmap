@@ -68,6 +68,31 @@ $(document).ready(function(){
         initializeSecuredFormStatus();
     });
 
+    /**
+    * If a group permission is changed, the GetFeatureInfo permission can not be set without the GetMap permission.
+    * Make sure that GetFeatureInfo is linked to GetMap!
+    */
+    $(".group-permission").change(function(){
+        var elem = $(this);
+        var operation = elem.attr("data-operation");
+        var group = elem.attr("data-group");
+
+        if(operation == "GetFeatureInfo"){
+            // make sure that 'GetMap' is selected as well -> useless without!
+            var getMapCheckbox = $(".group-permission[data-operation='GetMap'][data-group=" + group + "]")
+            if(!getMapCheckbox.is(":checked") && elem.is(":checked")){
+                getMapCheckbox.click();
+            }
+        }
+        if(operation == "GetMap"){
+            // make sure that 'GetMap' is selected as well -> useless without!
+            var getMapCheckbox = $(".group-permission[data-operation='GetFeatureInfo'][data-group=" + group + "]")
+            if(getMapCheckbox.is(":checked") && !elem.is(":checked")){
+                getMapCheckbox.click();
+            }
+        }
+    });
+
 
     $("#checkbox-restrict-access").change(function(){
         toggleSecuredCheckbox();

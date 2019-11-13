@@ -78,8 +78,12 @@ class Metadata(Resource):
     title = models.CharField(max_length=255)
     abstract = models.TextField(null=True, blank=True)
     online_resource = models.CharField(max_length=500, null=True, blank=True)  # where the service data can be found
+
     capabilities_original_uri = models.CharField(max_length=500, blank=True, null=True)
+    capabilities_uri = models.CharField(max_length=500, blank=True, null=True)
+
     service_metadata_original_uri = models.CharField(max_length=500, blank=True, null=True)
+    service_metadata_uri = models.CharField(max_length=500, blank=True, null=True)
 
     contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, blank=True, null=True)
     terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, null=True)
@@ -141,6 +145,11 @@ class Metadata(Resource):
         Returns:
             nothing
         """
+        # check for SecuredOperations
+        if self.is_secured:
+            sec_ops = self.secured_operations.all()
+            sec_ops.delete()
+
         # check if there are MetadataRelations on this metadata record
         # if so, we can not remove it until these relations aren't used anymore
         dependencies = MetadataRelation.objects.filter(

@@ -486,6 +486,7 @@ class OGCWebFeatureService(OGCWebService):
         md.fees = self.service_identification_fees
         md.created_by = group
         md.capabilities_original_uri = self.service_connect_url
+        md.capabilities_uri = self.service_connect_url
         md.bounding_geometry = self.service_bounding_box
 
         # Service
@@ -520,6 +521,7 @@ class OGCWebFeatureService(OGCWebService):
             f_t.service = service
             f_t.metadata.contact = contact
             f_t.metadata.capabilities_original_uri = self.service_connect_url
+            f_t.metadata.capabilities_uri = self.service_connect_url
 
             f_t.dataset_md_list = feature_type_val.get("dataset_md_list", [])
             f_t.additional_srs_list = feature_type_val.get("srs_list", [])

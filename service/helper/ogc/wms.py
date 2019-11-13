@@ -19,7 +19,7 @@ from django.db import transaction
 
 from service.settings import MD_TYPE_LAYER, MD_TYPE_SERVICE
 from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
-    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES
+    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME
 from MapSkinner import utils
 from MapSkinner.utils import execute_threads, sha256
 from service.config import ALLOWED_SRS
@@ -594,6 +594,7 @@ class OGCWebMapService(OGCWebService):
         metadata.abstract = layer_obj.abstract
         metadata.online_resource = root_md.online_resource
         metadata.capabilities_original_uri = root_md.capabilities_original_uri
+        metadata.capabilities_uri = root_md.capabilities_original_uri
         metadata.identifier = layer_obj.identifier
         metadata.contact = contact
         metadata.access_constraints = root_md.access_constraints
@@ -754,6 +755,7 @@ class OGCWebMapService(OGCWebService):
         metadata.abstract = self.service_identification_abstract
         metadata.online_resource = ",".join(self.service_provider_onlineresource_linkage)
         metadata.capabilities_original_uri = self.service_connect_url
+        metadata.capabilities_uri = self.service_connect_url
         metadata.access_constraints = self.service_identification_accessconstraints
         metadata.fees = self.service_identification_fees
         metadata.bounding_geometry = self.service_bounding_box
@@ -829,6 +831,8 @@ class OGCWebMapService(OGCWebService):
             md_relation.save()
             md.related_metadata.add(md_relation)
 
+        internal_capabilities_uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, md.id)
+        md.capabilities_uri = internal_capabilities_uri
         # save again, due to added related metadata
         md.save()
 
@@ -861,6 +865,9 @@ class OGCWebMapService(OGCWebService):
             md_type = md.metadata_type
             md_type = MetadataType.objects.get_or_create(type=md_type.type)[0]
             md.metadata_type = md_type
+            md.save()
+            internal_capabilities_uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, md.id)
+            md.capabilities_uri = internal_capabilities_uri
             md.save()
             for iso_md in layer.iso_metadata:
                 iso_md = iso_md.to_db_model()

@@ -511,6 +511,8 @@ class OGCWebFeatureService(OGCWebService):
 
         # Keywords
         for kw in self.service_identification_keywords:
+            if kw is None:
+                continue
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             md.keywords_list.append(keyword)
 
@@ -677,6 +679,8 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
 
         """
         cap_request = xml_helper.try_get_single_element_from_xml("//{}Capability/{}Request".format(prefix, prefix), xml_obj)
+        if cap_request is None:
+            return
         operations = cap_request.getchildren()
         for operation in operations:
             RequestOperation.objects.get_or_create(
@@ -723,13 +727,21 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         Returns:
              Nothing
         """
-        cap_node = xml_helper.try_get_single_element_from_xml("/wfs:WFS_Capabilities/wfs:Capability", xml_elem=xml_obj)
-        actions = ["GetCapabilities", "DescribeFeatureType", "GetFeature", "Transaction", "LockFeature",
-                   "GetFeatureWithLock"]
+        cap_node = xml_helper.try_get_single_element_from_xml("//wfs:Capability", xml_elem=xml_obj)
+        actions = [
+            "GetCapabilities",
+            "DescribeFeatureType",
+            "GetFeature",
+            "Transaction",
+            "LockFeature",
+            "GetFeatureWithLock"
+        ]
         get = {}
         post = {}
         for action in actions:
             node = xml_helper.try_get_single_element_from_xml(".//wfs:" + action, cap_node)
+            if node is None:
+                continue
             get[action] = xml_helper.try_get_attribute_from_xml_element(elem=".//wfs:Get", xml_elem=node, attribute="onlineResource")
             post[action] = xml_helper.try_get_attribute_from_xml_element(elem=".//wfs:Post", xml_elem=node, attribute="onlineResource")
         del cap_node
@@ -781,6 +793,8 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             # keywords
             kw_list = []
             for keyword in keywords:
+                if keyword is None:
+                    continue
                 kw = Keyword.objects.get_or_create(keyword=keyword)[0]
                 feature_type.metadata.keywords_list.append(kw)
 
@@ -932,6 +946,8 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
             keyword_list = []
             for keyword in keywords:
                 kw = xml_helper.try_get_text_from_xml_element(xml_elem=keyword)
+                if kw is None:
+                    continue
                 kw = Keyword.objects.get_or_create(keyword=kw)[0]
                 keyword_list.append(kw)
             self.feature_type_list[name]["keyword_list"] = keyword_list
@@ -970,6 +986,10 @@ class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
             service_version=VersionEnum.V_2_0_2,
             service_type=ServiceEnum.WFS,
         )
+        XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
+        XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
+        XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
+        XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
 
     def get_parser_prefix(self):
         return "ows:"
@@ -983,7 +1003,7 @@ class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
         Returns:
 
         """
-        operations = xml_helper.try_get_single_element_from_xml("//{}OperationsMetadata/{}Operation".format(prefix, prefix), xml_obj)
+        operations = xml_helper.try_get_element_from_xml("//{}OperationsMetadata/{}Operation".format(prefix, prefix), xml_obj)
         for operation in operations:
             name = xml_helper.try_get_attribute_from_xml_element(operation, "name")
             RequestOperation.objects.get_or_create(

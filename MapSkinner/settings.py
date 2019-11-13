@@ -74,6 +74,7 @@ XML_NAMESPACES = {
     "xsd": "http://www.w3.org/2001/XMLSchema",
     "sld": "http://www.opengis.net/sld",
 }
+GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 
 # Session refreshes on every request!
 SESSION_EXPIRATION = 1800 # seconds

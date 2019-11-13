@@ -182,7 +182,8 @@ def write_attribute(xml_elem, elem: str=None, attrib: str=None, txt: str=None):
     if xml_elem is not None:
         if elem is not None:
             xml_elem = try_get_single_element_from_xml(elem=elem, xml_elem=xml_elem)
-        xml_elem.set(attrib, txt)
+        if xml_elem is not None:
+            xml_elem.set(attrib, txt)
     return xml_elem
 
 

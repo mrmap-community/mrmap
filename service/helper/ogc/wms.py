@@ -19,7 +19,7 @@ from django.db import transaction
 
 from service.settings import MD_TYPE_LAYER, MD_TYPE_SERVICE
 from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
-    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME
+    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
 from MapSkinner.utils import execute_threads, sha256
 from service.config import ALLOWED_SRS
@@ -161,7 +161,11 @@ class OGCWebMapService(OGCWebService):
 
     ### KEYWORDS ###
     def parse_keywords(self, layer, layer_obj):
-        keywords = xml_helper.try_get_element_from_xml(elem="./{}KeywordList/{}Keyword".format(self.get_parser_prefix(), self.get_parser_prefix()), xml_elem=layer)
+        keywords = xml_helper.try_get_element_from_xml(
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("KeywordList") +
+                 "/" + GENERIC_NAMESPACE_TEMPLATE.format("Keyword"),
+            xml_elem=layer
+        )
         for keyword in keywords:
             layer_obj.capability_keywords.append(keyword.text)
 
@@ -298,7 +302,11 @@ class OGCWebMapService(OGCWebService):
         for action in actions:
             try:
                 results[action] = []
-                format_list = xml_helper.try_get_element_from_xml(elem="//{}/{}Format".format(action, self.get_parser_prefix()), xml_elem=layer)
+                format_list = xml_helper.try_get_element_from_xml(
+                    elem="//" + GENERIC_NAMESPACE_TEMPLATE.format(action) +
+                         "/" + GENERIC_NAMESPACE_TEMPLATE.format("Format"),
+                    xml_elem=layer
+                )
                 for format in format_list:
                     results[action].append(format.text)
             except AttributeError:
@@ -472,8 +480,8 @@ class OGCWebMapService(OGCWebService):
         self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Abstract".format(parser_prefix, parser_prefix))
         self.service_identification_title = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Title".format(parser_prefix, parser_prefix))
 
-        if async_task is not None:
-            task_helper.update_service_description(async_task, self.service_identification_title)
+        #if async_task is not None:
+        #    task_helper.update_service_description(async_task, self.service_identification_title)
 
         self.service_identification_fees = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Fees".format(parser_prefix, parser_prefix))
         self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}AccessConstraints".format(parser_prefix, parser_prefix))
@@ -518,8 +526,11 @@ class OGCWebMapService(OGCWebService):
             parser_prefix,
             parser_prefix
         ), xml_obj)
+
         kw = []
         for keyword in keywords:
+            if keyword is None:
+                continue
             kw.append(keyword.text)
         self.service_identification_keywords = kw
 
@@ -763,6 +774,8 @@ class OGCWebMapService(OGCWebService):
 
         # keywords
         for kw in self.service_identification_keywords:
+            if kw is None:
+                continue
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             metadata.keywords_list.append(keyword)
 
@@ -794,6 +807,7 @@ class OGCWebMapService(OGCWebService):
         service.created_by = group
         service.get_capabilities_uri = self.get_capabilities_uri
         service.get_feature_info_uri = self.get_feature_info_uri
+        service.describe_layer_uri = self.describe_layer_uri
         service.get_styles_uri = self.get_styles_uri
         service.get_legend_graphic_uri = self.get_legend_graphic_uri
         service.get_map_uri = self.get_map_uri
@@ -966,6 +980,7 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
     def __init__(self, service_connect_url=None):
         super().__init__(service_connect_url=service_connect_url)
         self.service_version = VersionEnum.V_1_1_1
+        XML_NAMESPACES["default"] = XML_NAMESPACES["wms"]
 
     def get_version_specific_metadata(self, xml_obj):
         pass

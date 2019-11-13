@@ -6,8 +6,7 @@ from django.db import models, transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
 
-from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME
-from editor.settings import SECURED_OPERATIONS
+from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from service.helper.enums import ServiceEnum, VersionEnum
 from structure.models import Group, Organization
 from service.helper import xml_helper
@@ -467,28 +466,145 @@ class Document(Resource):
     def __str__(self):
         return self.related_metadata.title
 
+    def _set_wms_operations_secured(self, xml_obj, uri: str, is_secured: bool):
+        """ Change external links to internal for wms operations
+
+        Args:
+            xml_obj: The xml document object
+            uri: The new uri to be set, if secured
+            is_secured: Whether the document shall be secured or not
+        Returns:
+             Nothing, directly works on the xml_obj
+        """
+        request_objs = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request")
+            , xml_obj
+        )
+        request_objs = request_objs.getchildren()
+        service = self.related_metadata.service
+        op_uri_dict = {
+            "GetMap": service.get_map_uri,
+            "GetFeatureInfo": service.get_feature_info_uri,
+            "DescribeLayer": service.describe_layer_uri,
+            "GetLegendGraphic": service.get_legend_graphic_uri,
+            "GetStyles": service.get_styles_uri,
+        }
+        for op in request_objs:
+            # skip GetCapabilities - it is already set to another internal link
+            if "GetCapabilities" in op.tag:
+                continue
+            if not is_secured:
+                uri = op_uri_dict.get(op.tag, "")
+            res_objs = xml_helper.try_get_element_from_xml(
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
+                , op
+            )
+            for res_obj in res_objs:
+                xml_helper.write_attribute(
+                    res_obj,
+                    attrib="{http://www.w3.org/1999/xlink}href",
+                    txt=uri
+                )
+
+    def _set_wfs_1_0_0_operations_secured(self, xml_obj, uri: str, is_secured: bool):
+        """ Change external links to internal for wfs 1.0.0 operations
+
+        Args:
+            xml_obj: The xml document object
+            uri: The new uri to be set, if secured
+            is_secured: Whether the document shall be secured or not
+        Returns:
+             Nothing, directly works on the xml_obj
+        """
+        operation_objs = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request")
+            , xml_obj
+        )
+        service = self.related_metadata.service
+        op_uri_dict = {
+            "DescribeFeatureType": service.describe_layer_uri,
+            "GetFeature": service.get_feature_info_uri,
+            "GetPropertyValue": None,
+            "ListStoredQueries": None,
+            "DescribeStoredQueries": None,
+        }
+        for op in operation_objs:
+            # skip GetCapabilities - it is already set to another internal link
+            name = op.tag
+            if name == "GetCapabilities":
+                continue
+            if not is_secured:
+                uri = op_uri_dict.get(name, "")
+            http_objs = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP"), op)
+            for http_obj in http_objs:
+                requ_objs = http_obj.getchildren()
+                for requ_obj in requ_objs:
+                    xml_helper.write_attribute(
+                        requ_obj,
+                        attrib="onlineResource",
+                        txt=uri
+                    )
+
+    def _set_wfs_operations_secured(self, xml_obj, uri: str, is_secured: bool):
+        """ Change external links to internal for wfs operations
+
+        Args:
+            xml_obj: The xml document object
+            uri: The new uri to be set, if secured
+            is_secured: Whether the document shall be secured or not
+        Returns:
+             Nothing, directly works on the xml_obj
+        """
+        operation_objs = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation"), xml_obj)
+        service = self.related_metadata.service
+        op_uri_dict = {
+            "DescribeFeatureType": service.describe_layer_uri,
+            "GetFeature": service.get_feature_info_uri,
+            "GetPropertyValue": "",
+            "ListStoredQueries": "",
+            "DescribeStoredQueries": "",
+        }
+        for op in operation_objs:
+            # skip GetCapabilities - it is already set to another internal link
+            name = xml_helper.try_get_attribute_from_xml_element(op, "name")
+            if name == "GetCapabilities":
+                continue
+            if not is_secured:
+                uri = op_uri_dict.get(name, "")
+            http_objs = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP"), op)
+            for http_obj in http_objs:
+                requ_objs = http_obj.getchildren()
+                for requ_obj in requ_objs:
+                    xml_helper.write_attribute(
+                        requ_obj,
+                        attrib="{http://www.w3.org/1999/xlink}href",
+                        txt=uri
+                    )
+
     def set_operations_secured(self, is_secured: bool):
+        """ Change external links to internal for service operations
+
+        Args:
+            is_secured (bool): Whether the service is secured or not
+        Returns:
+
+        """
         xml_obj = xml_helper.parse_xml(self.current_capability_document)
         if is_secured:
             uri = "{}{}/service/metadata/proxy/operation/{}?".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)
         else:
             uri = ""
-        if self.related_metadata.service.servicetype.name == "wms":
-            for op in SECURED_OPERATIONS:
-                service = self.related_metadata.service
-                if not is_secured and op == "GetMap":
-                    uri = service.get_map_uri
-                elif not is_secured and op == "GetFeatureInfo":
-                    uri = service.get_feature_info_uri
-                op_objs = xml_helper.try_get_element_from_xml("//{}".format(op), xml_obj)
-                for obj in op_objs:
-                    resource_objs = xml_helper.try_get_element_from_xml(".//OnlineResource", obj)
-                    for resource_obj in resource_objs:
-                        xml_helper.write_attribute(
-                            resource_obj,
-                            attrib="{http://www.w3.org/1999/xlink}href",
-                            txt=uri
-                        )
+        _type = self.related_metadata.service.servicetype.name
+        _version = self.related_metadata.get_service_version()
+        if _type == "wms":
+            self._set_wms_operations_secured(xml_obj, uri, is_secured)
+        elif _type == "wfs":
+            if _version is VersionEnum.V_1_0_0:
+                self._set_wfs_1_0_0_operations_secured(xml_obj, uri, is_secured)
+            else:
+                self._set_wfs_operations_secured(xml_obj, uri, is_secured)
 
         self.current_capability_document = xml_helper.xml_to_string(xml_obj)
         self.save()
@@ -719,11 +835,29 @@ class Service(Resource):
         # wms and wfs have to be handled differently!
         # Furthermore each standard has a different handling of attributes and elements ...
         if self.servicetype.name == "wms":
-            xml_helper.write_attribute(xml, "//Service/OnlineResource", "{http://www.w3.org/1999/xlink}href", uri)
-            xml_helper.write_attribute(xml, "//GetCapabilities/DCPType/HTTP/Get/OnlineResource",
-                                       "{http://www.w3.org/1999/xlink}href", uri)
-            xml_helper.write_attribute(xml, "//GetCapabilities/DCPType/HTTP/Post/OnlineResource",
-                                       "{http://www.w3.org/1999/xlink}href", uri)
+            xml_helper.write_attribute(
+                xml,
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                "{http://www.w3.org/1999/xlink}href", uri)
+            xml_helper.write_attribute(
+                xml,
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                "{http://www.w3.org/1999/xlink}href",
+                uri)
+            xml_helper.write_attribute(
+                xml,
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("Post") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                "{http://www.w3.org/1999/xlink}href",
+                uri)
         elif self.servicetype.name == "wfs":
             if self.servicetype.version == "1.0.0":
                 prefix = "wfs:"
@@ -740,7 +874,6 @@ class Service(Resource):
                                            "{http://www.w3.org/1999/xlink}href", uri)
                 xml_helper.write_attribute(xml, "//{}Operation[@name='GetCapabilities']/{}DCP/{}HTTP/{}Post".format(prefix, prefix, prefix, prefix),
                                            "{http://www.w3.org/1999/xlink}href", uri)
-
 
         xml = xml_helper.xml_to_string(xml)
 

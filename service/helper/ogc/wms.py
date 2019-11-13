@@ -914,8 +914,6 @@ class OGCWebMapServiceLayer(OGCLayer):
     """
 
 
-
-
 class OGCWebMapService_1_0_0(OGCWebMapService):
     """ The WMS class for standard version 1.0.0
 

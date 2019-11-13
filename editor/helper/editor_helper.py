@@ -14,6 +14,7 @@ from requests.exceptions import MissingSchema
 
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
+from service.helper.enums import VersionEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
     MetadataOrigin
@@ -115,10 +116,17 @@ def overwrite_capabilities_document(metadata: Metadata):
 
     # find matching xml element in xml doc
     _type = metadata.get_service_type()
+    _version = metadata.get_service_version()
+    element_selector = ""
     if is_root:
         if _type == "wms":
             element_selector = "//Service/Name"
         elif _type == "wfs":
+            if _version is VersionEnum.V_2_0_0 or _version is VersionEnum.V_2_0_2:
+                XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
+                XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
+                XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
+                XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
             element_selector = "//ows:ServiceIdentification/ows:Title"
             identifier = metadata.title
     else:
@@ -126,9 +134,7 @@ def overwrite_capabilities_document(metadata: Metadata):
             element_selector = "//Layer/Name"
         elif _type == "wfs":
             element_selector = "//wfs:FeatureType/wfs:Name"
-
     xml_obj = xml_helper.try_get_single_element_from_xml("{}[text()='{}']/parent::*".format(element_selector, identifier), xml_obj_root)
-
 
     # handle keywords
     _overwrite_capabilities_keywords(xml_obj, metadata, _type)
@@ -153,7 +159,6 @@ def overwrite_capabilities_document(metadata: Metadata):
         except AttributeError:
             # for not is_root this will fail in AccessConstraints querying
             pass
-
 
     # write xml back to database
     xml = xml_helper.xml_to_string(xml_obj_root)

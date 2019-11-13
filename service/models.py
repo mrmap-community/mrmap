@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME
 from editor.settings import SECURED_OPERATIONS
-from service.helper.enums import ServiceEnum
+from service.helper.enums import ServiceEnum, VersionEnum
 from structure.models import Group, Organization
 from service.helper import xml_helper
 
@@ -168,6 +168,18 @@ class Metadata(Resource):
         elif self.metadata_type.type == 'featuretype':
             service_type = 'wfs'
         return service_type
+
+    def get_service_version(self):
+        """ Returns the service version
+
+        Returns:
+             The service version
+        """
+        service_version = self.service.servicetype.version
+        for v in VersionEnum:
+            if v.value == service_version:
+                return v
+        return service_version
 
     def find_max_bounding_box(self):
         """ Returns the largest bounding box of all children
@@ -719,6 +731,7 @@ class Service(Resource):
                                            "{http://www.w3.org/1999/xlink}href", uri)
                 xml_helper.write_attribute(xml, "//{}Operation[@name='GetCapabilities']/{}DCP/{}HTTP/{}Post".format(prefix, prefix, prefix, prefix),
                                            "{http://www.w3.org/1999/xlink}href", uri)
+
 
         xml = xml_helper.xml_to_string(xml)
 

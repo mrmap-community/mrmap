@@ -736,14 +736,6 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
     Returns:
          A redirect to the GetMap uri
     """
-    try:
-        metadata = Metadata.objects.get(id=id)
-    except ObjectDoesNotExist:
-        return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
-
-    if not metadata.is_active:
-        return HttpResponse(status=423, content=SERVICE_DISABLED)
-
     # get request type
     get_query_string = request.environ.get("QUERY_STRING", "")
     request_type = None
@@ -757,17 +749,35 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
     if request_type is None:
         return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
 
+    try:
+        # redirects request to parent service, if the metadata record is not the one for the whole service
+        metadata = Metadata.objects.get(id=id)
+        if not metadata.is_root():
+            redirect_uri = "/service/metadata/proxy/operation/{}?{}".format(
+                metadata.service.parent_service.metadata.id,
+                get_query_string
+            )
+            return redirect(redirect_uri)
+    except ObjectDoesNotExist:
+        return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+
+    if not metadata.is_active:
+        return HttpResponse(status=423, content=SERVICE_DISABLED)
+
+    # identify requested operation and resolve the uri
     operations = {
         "GETMAP": metadata.service.get_map_uri,
         "GETFEATUREINFO": metadata.service.get_feature_info_uri,
     }
-
     uri = operations.get(request_type.upper(), None)
+
     if uri is None:
         return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_BROKEN_URI)
     uri += get_query_string
 
     if metadata.is_secured:
+
+        # check if the metadata allows operations for certain groups
         sec_ops = metadata.secured_operations.filter(operation__operation_name__iexact=request_type)
         if sec_ops.count() == 0:
             # this means the service is secured and the user has no access!
@@ -786,9 +796,11 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
                 break
 
         if allowed:
-            return redirect(uri)
+            xml_response = service_helper.get_operation_response(uri)
+            return HttpResponse(xml_response, content_type='application/xml')
         else:
             return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
     else:
         # if the metadata is not secured, there is no reason this route would have been called in the first place!
-        return redirect(uri)
+        xml_response = service_helper.get_operation_response(uri)
+        return HttpResponse(xml_response, content_type='application/xml')

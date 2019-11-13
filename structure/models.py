@@ -150,7 +150,6 @@ class User(Contact):
         md_list = list(md_list)
         return md_list
 
-
     def get_permissions(self, group: Group = None):
         """ Overloaded function. Returns a list containing all permission identifiers as strings in a list.
 

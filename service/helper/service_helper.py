@@ -209,3 +209,19 @@ def capabilities_are_different(cap_url_1, cap_url_2):
 
     return xml_1_hash != xml_2_hash
 
+
+def get_operation_response(uri: str):
+    """ Fetching method for security proxy.
+
+    Args:
+        uri (str): The operation uri
+    Returns:
+         The xml response
+    """
+    c = CommonConnector(url=uri)
+    c.load()
+    if c.status_code != 200:
+        raise Exception(c.status_code)
+
+    content_str = c.content.decode("UTF-8")
+    return content_str

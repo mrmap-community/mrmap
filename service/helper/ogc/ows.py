@@ -166,8 +166,6 @@ class OGCWebService:
         cap_request = xml_helper.try_get_single_element_from_xml("//{}Capability/{}Request".format(prefix, prefix), xml_obj)
         operations = cap_request.getchildren()
         for operation in operations:
-            op_format = xml_helper.try_get_text_from_xml_element(operation, "./Format")
-
             RequestOperation.objects.get_or_create(
                 operation_name=operation.tag,
             )

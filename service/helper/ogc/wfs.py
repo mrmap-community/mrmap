@@ -677,7 +677,6 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         cap_request = xml_helper.try_get_single_element_from_xml("//{}Capability/{}Request".format(prefix, prefix), xml_obj)
         operations = cap_request.getchildren()
         for operation in operations:
-            op_format = xml_helper.try_get_text_from_xml_element(operation, "./Format")
             RequestOperation.objects.get_or_create(
                 operation_name=operation.tag,
             )
@@ -870,7 +869,6 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
         operations = xml_helper.try_get_element_from_xml("//{}OperationsMetadata/{}Operation".format(prefix, prefix), xml_obj)
         for operation in operations:
             name = xml_helper.try_get_attribute_from_xml_element(operation, "name")
-            op_format = xml_helper.try_get_text_from_xml_element(xml_obj, ".//{}Parameter[@name='AcceptFormats']/{}Value".format(prefix, prefix))
             RequestOperation.objects.get_or_create(
                 operation_name=name,
             )
@@ -905,7 +903,6 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
         operations = xml_helper.try_get_element_from_xml("//{}OperationsMetadata/{}Operation".format(prefix, prefix), xml_obj)
         for operation in operations:
             name = xml_helper.try_get_attribute_from_xml_element(operation, "name")
-            op_format = xml_helper.try_get_text_from_xml_element(xml_obj, ".//{}Parameter[@name='AcceptFormats']/{}AllowedValues/{}Value".format(prefix, prefix, prefix))
             RequestOperation.objects.get_or_create(
                 operation_name=name,
             )
@@ -987,7 +984,6 @@ class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
         operations = xml_helper.try_get_single_element_from_xml("//{}OperationsMetadata/{}Operation".format(prefix, prefix), xml_obj)
         for operation in operations:
             name = xml_helper.try_get_attribute_from_xml_element(operation, "name")
-            op_format = xml_helper.try_get_text_from_xml_element(xml_obj, ".//{}Parameter[@name='AcceptFormats']/{}AllowedValues/{}Value".format(prefix, prefix, prefix))
             RequestOperation.objects.get_or_create(
                 operation_name=name,
             )

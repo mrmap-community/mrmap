@@ -1,7 +1,6 @@
 import json
 
 from django.contrib import messages
-from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 from django.shortcuts import render, redirect
 
@@ -227,6 +226,10 @@ def edit_access(request: HttpRequest, id: int, user: User):
                 secured_metadata=md
             )
             sec_ops.delete()
+
+            # remove all secured settings for sublayers
+            if md.service.servicetype.name == 'wms':
+                md.secure_sub_layers(is_secured, [], None)
         else:
 
             for item in sec_operations_groups:
@@ -248,6 +251,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
                         for g in groups:
                             sec_op.allowed_groups.add(g)
                         md.secured_operations.add(sec_op)
+                        md.secure_sub_layers(is_secured, groups, operation)
                 else:
                     # edit existing one
                     secured_op_input = SecuredOperation.objects.get(
@@ -265,7 +269,11 @@ def edit_access(request: HttpRequest, id: int, user: User):
 
         messages.success(request, EDITOR_ACCESS_RESTRICTED.format(md.title))
         md.save()
-        return redirect("service:detail", md.id)
+        if md.service.is_root:
+            redirect_id = md.id
+        else:
+            redirect_id = md.service.parent_service.metadata.id
+        return redirect("service:detail", redirect_id)
     else:
         # render form
         operations = RequestOperation.objects.filter(

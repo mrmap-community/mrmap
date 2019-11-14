@@ -15,7 +15,7 @@ from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
     SECURITY_PROXY_ERROR_MULTIPLE_SECURED_OPERATIONS, SECURITY_PROXY_NOT_ALLOWED, SECURITY_PROXY_ERROR_BROKEN_URI, \
-    SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED
+    SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
@@ -110,6 +110,7 @@ def remove(request: HttpRequest, user: User):
 
     Args:
         request(HttpRequest): The used request
+        user (User): The performing user
     Returns:
         A rendered view
     """
@@ -735,21 +736,24 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
     Returns:
          A redirect to the GetMap uri
     """
-    # get request type
+    # get request type and requested layer
     get_query_string = request.environ.get("QUERY_STRING", "")
     request_type = None
-    tmp = request.GET
-    for key, val in tmp.items():
+    requested_layer = None
+
+    GET_params = request.GET
+    for key, val in GET_params.items():
         key = key.upper()
         if key == "REQUEST":
             request_type = val
-            break
+        if key == "LAYER":
+            requested_layer = val
 
     if request_type is None:
         return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
 
     try:
-        # redirects request to parent service, if the metadata record is not the one for the whole service
+        # redirects request to parent service, if the given id is not the root of the service
         metadata = Metadata.objects.get(id=id)
         if not metadata.is_root():
             redirect_uri = "/service/metadata/proxy/operation/{}?{}".format(
@@ -757,6 +761,15 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
                 get_query_string
             )
             return redirect(redirect_uri)
+
+        # if the 'layer' parameter indicates the request for a subelement of this service, we need to fetch this metadata
+        # to continue with!
+        if requested_layer is not None:
+            try:
+                metadata = Metadata.objects.get(identifier=requested_layer)
+            except ObjectDoesNotExist:
+                return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
+
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
@@ -775,7 +788,6 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
     uri += get_query_string
 
     if metadata.is_secured:
-
         # check if the metadata allows operations for certain groups
         sec_ops = metadata.secured_operations.filter(operation__operation_name__iexact=request_type)
         if sec_ops.count() == 0:
@@ -801,5 +813,5 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
             return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
     else:
         # if the metadata is not secured, there is no reason this route would have been called in the first place!
-        xml_response = service_helper.get_operation_response(uri)
-        return HttpResponse(xml_response, content_type='application/xml')
+        # We simply redirect to the original route!
+        return redirect(uri)

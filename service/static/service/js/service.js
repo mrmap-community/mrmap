@@ -1,6 +1,4 @@
 
-
-
 function toggleServiceActiveStatus(id, active){
     $.ajax({
         url: rootUrl + "/service/activate/",

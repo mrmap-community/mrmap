@@ -11,7 +11,7 @@
     <tr>
         <th>{% trans 'Parent service' %}</th>
         <td>
-            <a href="{% url 'service:detail' element.parent_service.metadata.id %}" target="_blank" title="{{ element.parent_service.metadata.uuid }}">
+            <a href="{% url 'service:detail' element.parent_service.metadata.id %}" title="{{ element.parent_service.metadata.uuid }}">
                 {{ element.parent_service.metadata.title }}
             </a>
         </td>

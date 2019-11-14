@@ -448,6 +448,54 @@ class Metadata(Resource):
             child.save()
         self.save()
 
+    def _secure_sub_layers(self, current, is_secured: bool, groups: list, operation: RequestOperation):
+        """ Recursive implementation of securing all sub layers of a current layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            groups (list): The list of groups which are allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+        Returns:
+             nothing
+        """
+        for layer in current.child_layer.all():
+            layer.metadata.is_secured = is_secured
+            if is_secured:
+                sec_op = SecuredOperation()
+                sec_op.operation = operation
+                sec_op.save()
+                for g in groups:
+                    sec_op.allowed_groups.add(g)
+                layer.metadata.secured_operations.add(sec_op)
+            else:
+                for sec_op in layer.metadata.secured_operations.all():
+                    sec_op.delete()
+                layer.metadata.secured_operations.clear()
+            layer.metadata.save()
+            layer.save()
+            self._secure_sub_layers(layer, is_secured, groups, operation)
+
+    def secure_sub_layers(self, is_secured: bool, groups: list, operation: RequestOperation):
+        """ Secures all sub layers of this layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            groups (list): The list of groups which are allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+        Returns:
+             nothing
+        """
+        if self.service.is_root:
+            start_element = Layer.objects.get(
+                parent_service=self.service,
+                parent_layer=None,
+            )
+        else:
+            start_element = Layer.objects.get(
+                metadata=self
+            )
+        self._secure_sub_layers(start_element, is_secured, groups, operation)
+
 
 class MetadataType(models.Model):
     type = models.CharField(max_length=255, blank=True, null=True)

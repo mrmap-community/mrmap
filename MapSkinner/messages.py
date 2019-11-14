@@ -76,6 +76,7 @@ SERVICE_REGISTRATION_ABORTED = _("The service registration for '{}' was canceled
 SERVICE_UPDATE_WRONG_TYPE = _("You tried to update a service to another service type. This is not possible!")
 SERVICE_UPDATE_ABORTED_NO_DIFF = _("The provided capabilities document is not different from the currently registered. Update canceled!")
 SERVICE_GENERIC_ERROR = _("The service could not be registered. Please check your metadata and contact an administrator.")
+SERVICE_LAYER_NOT_FOUND = _("The requested layer could not be found.")
 SERVICE_NOT_FOUND = _("The requested service could not be found.")
 SERVICE_DISABLED = _("423 - The requested resource is currently disabled.")
 

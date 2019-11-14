@@ -388,15 +388,9 @@ class ServiceTestCase(TestCase):
         self.assertEqual(response.status_code, 423)  # 423 means the resource is currently locked
 
         # activate service
-        params = {
-            "id": self.service.metadata.id,
-            "active": True,
-            "user": self.user,
-        }
         # since activating runs async as well, we need to call this function directly
-        tasks.async_activate_service(params, self.user.id)
+        tasks.async_activate_service(self.service.id, self.user.id)
         self.service.refresh_from_db()
-        del params
 
         ## case 1.0: Service is activated -> Original capabilities uri is reachable
         uri = "/service/capabilities/{}/original".format(self.service.metadata.id)

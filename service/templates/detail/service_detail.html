@@ -30,6 +30,7 @@
 <div class="container-row">
     <div class="container-left">
         {% if 'can_activate_service' in user_permissions %}
+        <a href="{% url 'service:activate' root_service.id %}">
             {% if root_metadata.is_active %}
                 <div class="deactivate-container button" data-parent="{{ root_service.id }}" title="{% trans 'Deactivate this service' %}">
                     <img src="{% static 'service/images/icn_false.png' %}">
@@ -41,6 +42,7 @@
                     <span>{% trans 'Activate service' %}</span>
                 </div>
             {% endif %}
+        </a>
         {% endif %}
     </div>
     <div class="container-center">

@@ -700,8 +700,8 @@ msgstr "Gebühren:"
 
 #: service/templates/overlay/check_metadata_form.html:57
 #: service/templates/wms/wms_index.html:71
-msgid "Number of layers"
-msgstr "Layeranzahl"
+msgid "Layers"
+msgstr "Ebenen"
 
 #: service/templates/overlay/check_metadata_form.html:62
 msgid "Online resources"
@@ -1070,8 +1070,8 @@ msgid "Enter text to filter"
 msgstr "Filtern nach ..."
 
 #: service/templates/wfs/wfs_index.html:62
-msgid "Number of featuretypes"
-msgstr "Featuretypeanzahl"
+msgid "Featuretypes"
+msgstr "Featuretypen"
 
 #: service/templates/wfs/wfs_index.html:68
 #: service/templates/wms/wms_index.html:78

@@ -24,22 +24,21 @@ from users.helper import user_helper
 
 
 @shared_task(name="async_activate_service")
-def async_activate_service(param_POST: dict, user_id: int):
+def async_activate_service(service_id: int, user_id: int):
     """ Async call for activating a service, its subelements and all of their related metadata
 
     Args:
-        param_POST (dict): The post parameter of the incoming request
+        service_id (int): The service parameter
         user_id (int): The user id of the performing user
     Returns:
         nothing
     """
     user = User.objects.get(id=user_id)
-    service_id = param_POST.get("id", -1)
-    new_status = utils.resolve_boolean_attribute_val(param_POST.get("active", False))
 
     # get service and change status
     service = Service.objects.get(id=service_id)
-    service.metadata.is_active = new_status
+    new_status = not service.metadata.is_active
+    service.metadata.is_active = new_status  # invert active status
     service.metadata.save(update_last_modified=False)
     service.save(update_last_modified=False)
 

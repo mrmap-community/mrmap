@@ -147,7 +147,7 @@ def remove(request: HttpRequest, user: User):
 
 @check_session
 @check_permission(Permission(can_activate_service=True))
-def activate(request: HttpRequest, user:User):
+def activate(request: HttpRequest, id: int, user:User):
     """ (De-)Activates a service and all of its layers
 
     Args:
@@ -156,10 +156,9 @@ def activate(request: HttpRequest, user:User):
          An Ajax response
     """
     # run activation async!
-    param_POST = request.POST.dict()
-    pending_task = tasks.async_activate_service.delay(param_POST, user.id)
+    pending_task = tasks.async_activate_service.delay(id, user.id)
 
-    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
+    return redirect("service:index")
 
 
 def get_service_metadata(request: HttpRequest, id: int):

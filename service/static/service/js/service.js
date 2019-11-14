@@ -212,16 +212,6 @@ $(document).ready(function(){
         changeGetParam(type, val);
     });
 
-    $(".deactivate-container, .activate-container").click(function(){
-        var id = $(this).attr("data-parent");
-        var elem = $(this);
-        var active = false;
-        if(elem.hasClass("activate-container")){
-            var active = true;
-        }
-        toggleServiceActiveStatus(id, active)
-    });
-
     $("#service-display-selector").change(function(){
         var val = $(this).val();
         var currentUrl = new URL(location.href);

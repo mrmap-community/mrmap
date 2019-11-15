@@ -49,10 +49,49 @@ class RequestOperation(models.Model):
 class SecuredOperation(models.Model):
     operation = models.ForeignKey(RequestOperation, on_delete=models.CASCADE, null=True, blank=True)
     allowed_groups = models.ManyToManyField(Group, related_name="allowed_operations")
-    secured_metadata = models.ManyToManyField('Metadata', related_name="secured_operations", null=True, blank=True)
+    secured_metadata = models.ForeignKey('Metadata', related_name="secured_operations", on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         return str(self.id)
+
+    def delete(self, using=None, keep_parents=False):
+        """ Overwrites builtin delete() method with model specific logic.
+
+        If a SecuredOperation will be deleted, all related subelements of the secured_metadata have to be freed from
+        existing SecuredOperation records as well.
+
+        Args:
+            using:
+            keep_parents:
+        Returns:
+
+        """
+        md = self.secured_metadata
+        operation = self.operation
+        # delete current object
+        super().delete(using, keep_parents)
+
+        # continue with possibly existing children
+        if md.service.servicetype.name == "wms":
+            if md.service.is_root:
+                # find root layer
+                layer = Layer.objects.get(
+                    parent_layer=None,
+                    parent_service=md.service
+                )
+            else:
+                # find layer which is described by this metadata
+                layer = Layer.objects.get(
+                    metadata=md
+                )
+            for child_layer in layer.child_layer.all():
+                sec_ops = SecuredOperation.objects.filter(
+                    secured_metadata=child_layer.metadata,
+                    operation=operation
+                )
+                for sec_op in sec_ops:
+                    sec_op.delete()
+
 
 class MetadataOrigin(models.Model):
     name = models.CharField(max_length=255)
@@ -448,54 +487,6 @@ class Metadata(Resource):
             child.save()
         self.save()
 
-    def _secure_sub_layers(self, current, is_secured: bool, groups: list, operation: RequestOperation):
-        """ Recursive implementation of securing all sub layers of a current layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            groups (list): The list of groups which are allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-        Returns:
-             nothing
-        """
-        for layer in current.child_layer.all():
-            layer.metadata.is_secured = is_secured
-            if is_secured:
-                sec_op = SecuredOperation()
-                sec_op.operation = operation
-                sec_op.save()
-                for g in groups:
-                    sec_op.allowed_groups.add(g)
-                layer.metadata.secured_operations.add(sec_op)
-            else:
-                for sec_op in layer.metadata.secured_operations.all():
-                    sec_op.delete()
-                layer.metadata.secured_operations.clear()
-            layer.metadata.save()
-            layer.save()
-            self._secure_sub_layers(layer, is_secured, groups, operation)
-
-    def secure_sub_layers(self, is_secured: bool, groups: list, operation: RequestOperation):
-        """ Secures all sub layers of this layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            groups (list): The list of groups which are allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-        Returns:
-             nothing
-        """
-        if self.service.is_root:
-            start_element = Layer.objects.get(
-                parent_service=self.service,
-                parent_layer=None,
-            )
-        else:
-            start_element = Layer.objects.get(
-                metadata=self
-            )
-        self._secure_sub_layers(start_element, is_secured, groups, operation)
-
 
 class MetadataType(models.Model):
     type = models.CharField(max_length=255, blank=True, null=True)
@@ -766,6 +757,81 @@ class Service(Resource):
 
     def __str__(self):
         return str(self.id)
+
+    def _recursive_secure_sub_layers(self, current, is_secured: bool, groups: list, operation: RequestOperation):
+        """ Recursive implementation of securing all sub layers of a current layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            groups (list): The list of groups which are allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+        Returns:
+             nothing
+        """
+        for layer in current.child_layer.all():
+            layer.metadata.is_secured = is_secured
+            if is_secured:
+                sec_op = SecuredOperation()
+                sec_op.operation = operation
+                sec_op.save()
+                for g in groups:
+                    sec_op.allowed_groups.add(g)
+                layer.metadata.secured_operations.add(sec_op)
+            else:
+                for sec_op in layer.metadata.secured_operations.all():
+                    sec_op.delete()
+                layer.metadata.secured_operations.clear()
+            layer.metadata.save()
+            layer.save()
+            self._recursive_secure_sub_layers(layer, is_secured, groups, operation)
+
+    def _secure_sub_layers(self, is_secured: bool, groups: list, operation: RequestOperation):
+        """ Secures all sub layers of this layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            groups (list): The list of groups which are allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+        Returns:
+             nothing
+        """
+        if self.is_root:
+            start_element = Layer.objects.get(
+                parent_service=self,
+                parent_layer=None,
+            )
+        else:
+            start_element = Layer.objects.get(
+                metadata=self.metadata
+            )
+        self._recursive_secure_sub_layers(start_element, is_secured, groups, operation)
+
+    def _secure_feature_types(self, is_secured: bool, groups: list, operation: RequestOperation):
+        """ Secures all sub layers of this layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            groups (list): The list of groups which are allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+        Returns:
+             nothing
+        """
+        pass
+
+    def secure_sub_elements(self, is_secured: bool, groups: list, operation: RequestOperation):
+        """ Secures all sub elements of this layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            groups (list): The list of groups which are allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+        Returns:
+             nothing
+        """
+        if self.servicetype.name == "wms":
+            self._secure_sub_layers(is_secured, groups, operation)
+        elif self.servicetype.name == "wfs":
+            self._secure_feature_types(is_secured, groups, operation)
 
     @transaction.atomic
     def delete_child_data(self, child):

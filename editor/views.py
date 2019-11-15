@@ -227,9 +227,8 @@ def edit_access(request: HttpRequest, id: int, user: User):
             )
             sec_ops.delete()
 
-            # remove all secured settings for sublayers
-            if md.service.servicetype.name == 'wms':
-                md.secure_sub_layers(is_secured, [], None)
+            # remove all secured settings for subelements
+            md.service.secure_sub_elements(is_secured, [], None)
         else:
 
             for item in sec_operations_groups:
@@ -251,7 +250,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
                         for g in groups:
                             sec_op.allowed_groups.add(g)
                         md.secured_operations.add(sec_op)
-                        md.secure_sub_layers(is_secured, groups, operation)
+                        md.service.secure_sub_elements(is_secured, groups, operation)
                 else:
                     # edit existing one
                     secured_op_input = SecuredOperation.objects.get(
@@ -260,7 +259,9 @@ def edit_access(request: HttpRequest, id: int, user: User):
                     groups = Group.objects.filter(
                         id__in=group_ids
                     )
+
                     if groups.count() == 0:
+                        # all groups have been removed from allowed access -> we can delete this SecuredOperation record
                         secured_op_input.delete()
                     else:
                         secured_op_input.allowed_groups.clear()

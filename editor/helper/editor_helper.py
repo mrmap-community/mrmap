@@ -5,21 +5,28 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 01.08.19
 
 """
+import json
+
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest
+
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
-from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
+from MapSkinner.messages import EDITOR_INVALID_ISO_LINK, EDITOR_ACCESS_RESTRICTED
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
+
 from service.helper.enums import VersionEnum, ServiceEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
-    MetadataOrigin
+    MetadataOrigin, SecuredOperation, RequestOperation
 from service.helper import xml_helper
 from service.settings import METADATA_RELATION_TYPE_DESCRIBED_BY
+from service.tasks import async_secure_service_task
+
+from structure.models import Group
 
 
 def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _type: str):
@@ -433,3 +440,66 @@ def prepare_secured_operations_groups(operations, sec_ops, all_groups):
                 })
             tmp.append(tmp_dict)
     return tmp
+
+
+def process_secure_operations_form(post_params: dict, md: Metadata):
+    """ Processes the secure-operations input from the access-editor form of a service.
+
+    Args:
+        post_params (dict): The dict which contains the POST parameter
+        md (Metadata): The metadata object of the edited object
+    Returns:
+         nothing - directly changes the database
+    """
+    # process form input
+    sec_operations_groups = json.loads(post_params.get("secured-operation-groups"))
+    is_secured = post_params.get("is_secured", "")
+    is_secured = is_secured == "on"  # resolve True|False
+
+    # set new value and iterate over all children
+    if is_secured != md.is_secured:
+        md.set_secured(is_secured)
+
+    if not is_secured:
+        # remove all secured settings
+        sec_ops = SecuredOperation.objects.filter(
+            secured_metadata=md
+        )
+        sec_ops.delete()
+
+        # remove all secured settings for subelements
+        async_secure_service_task.delay(md.id, is_secured, [], None)
+
+    else:
+
+        for item in sec_operations_groups:
+            item_sec_op_id = item.get("securedOperation", None)
+            group_ids = item.get("group", [])
+            operation = item.get("operation", None)
+            if item_sec_op_id == -1:
+                # create new setting
+                operation = RequestOperation.objects.get(
+                    operation_name=operation
+                )
+                groups = Group.objects.filter(
+                    id__in=group_ids
+                )
+                if groups.count() > 0:
+                    async_secure_service_task.delay(md.id, is_secured, group_ids, operation.id)
+
+            else:
+                # edit existing one
+                secured_op_input = SecuredOperation.objects.get(
+                    id=item_sec_op_id
+                )
+                groups = Group.objects.filter(
+                    id__in=group_ids
+                )
+
+                if groups.count() == 0:
+                    # all groups have been removed from allowed access -> we can delete this SecuredOperation record
+                    secured_op_input.delete()
+                else:
+                    secured_op_input.allowed_groups.clear()
+                    for g in groups:
+                        secured_op_input.allowed_groups.add(g)

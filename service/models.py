@@ -776,7 +776,7 @@ class Service(Resource):
     def __str__(self):
         return str(self.id)
 
-    def _perform_single_element_securing(self, element, is_secured: bool, groups: list, operation: RequestOperation):
+    def perform_single_element_securing(self, element, is_secured: bool, groups: list, operation: RequestOperation):
         """ Secures a single element
 
         Args:
@@ -812,7 +812,7 @@ class Service(Resource):
         Returns:
              nothing
         """
-        self._perform_single_element_securing(current, is_secured, groups, operation)
+        self.perform_single_element_securing(current, is_secured, groups, operation)
 
         for layer in current.child_layer.all():
             self._recursive_secure_sub_layers(layer, is_secured, groups, operation)
@@ -853,7 +853,7 @@ class Service(Resource):
         if self.is_root:
             elements = self.featuretypes.all()
             for element in elements:
-                self._perform_single_element_securing(element, is_secured, groups, operation)
+                self.perform_single_element_securing(element, is_secured, groups, operation)
 
     def secure_sub_elements(self, is_secured: bool, groups: list, operation: RequestOperation):
         """ Secures all sub elements of this layer

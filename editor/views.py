@@ -11,12 +11,11 @@ from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, 
 from MapSkinner.responses import DefaultContext
 from MapSkinner.settings import ROOT_URL
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
-from editor.settings import SECURED_OPERATIONS
-from service.helper.enums import ServiceEnum
+from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
+from service.helper.enums import ServiceEnum, MetadataEnum
 from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation
 from django.utils.translation import gettext_lazy as _
 
-from service.tasks import async_secure_service_task
 from structure.models import User, Permission, Group
 from users.helper import user_helper
 from editor.helper import editor_helper
@@ -208,74 +207,39 @@ def edit_access(request: HttpRequest, id: int, user: User):
          A rendered view
     """
     md = Metadata.objects.get(id=id)
+    md_type = md.metadata_type.type
     template = "editor_edit_access.html"
     post_params = request.POST
+
     if request.method == "POST":
-
         # process form input
-        sec_operations_groups = json.loads(post_params.get("secured-operation-groups"))
-        is_secured = post_params.get("is_secured", "")
-        is_secured = is_secured == "on"  # resolve True|False
-
-        # set new value and iterate over all children
-        if is_secured != md.is_secured:
-            md.set_secured(is_secured)
-
-        if not is_secured:
-            # remove all secured settings
-            sec_ops = SecuredOperation.objects.filter(
-                secured_metadata=md
-            )
-            sec_ops.delete()
-
-            # remove all secured settings for subelements
-            async_secure_service_task.delay(md.id, is_secured, [], None)
-
-        else:
-
-            for item in sec_operations_groups:
-                item_sec_op_id = item.get("securedOperation", None)
-                group_ids = item.get("group", [])
-                operation = item.get("operation", None)
-                if item_sec_op_id == -1:
-                    # create new setting
-                    operation = RequestOperation.objects.get(
-                        operation_name=operation
-                    )
-                    groups = Group.objects.filter(
-                        id__in=group_ids
-                    )
-                    if groups.count() > 0:
-                        async_secure_service_task.delay(md.id, is_secured, group_ids, operation.id)
-
-                else:
-                    # edit existing one
-                    secured_op_input = SecuredOperation.objects.get(
-                        id=item_sec_op_id
-                    )
-                    groups = Group.objects.filter(
-                        id__in=group_ids
-                    )
-
-                    if groups.count() == 0:
-                        # all groups have been removed from allowed access -> we can delete this SecuredOperation record
-                        secured_op_input.delete()
-                    else:
-                        secured_op_input.allowed_groups.clear()
-                        for g in groups:
-                            secured_op_input.allowed_groups.add(g)
-
+        editor_helper.process_secure_operations_form(post_params, md)
         messages.success(request, EDITOR_ACCESS_RESTRICTED.format(md.title))
         md.save()
-        if md.service.is_root:
-            redirect_id = md.id
+        if md_type == MetadataEnum.FEATURETYPE.value:
+            redirect_id = md.featuretype.service.metadata.id
         else:
-            redirect_id = md.service.parent_service.metadata.id
+            if md.service.is_root:
+                redirect_id = md.id
+            else:
+                redirect_id = md.service.parent_service.metadata.id
         return redirect("service:detail", redirect_id)
+
     else:
         # render form
+        metadata_type = md.metadata_type.type
+        if metadata_type == MetadataEnum.FEATURETYPE.value:
+            _type = ServiceEnum.WFS.value
+        else:
+            _type = md.service.servicetype.name
+        secured_operations = []
+        if _type == ServiceEnum.WMS.value:
+            secured_operations = WMS_SECURED_OPERATIONS
+        elif _type == ServiceEnum.WFS.value:
+            secured_operations = WFS_SECURED_OPERATIONS
+
         operations = RequestOperation.objects.filter(
-            operation_name__in=SECURED_OPERATIONS
+            operation_name__in=secured_operations
         )
         sec_ops = SecuredOperation.objects.filter(
             secured_metadata=md
@@ -287,6 +251,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
             "service_metadata": md,
             "operations": tmp,
         }
+
     context = DefaultContext(request, params).get_context()
     return render(request, template, context)
 

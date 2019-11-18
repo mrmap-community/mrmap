@@ -16,6 +16,7 @@ from requests.exceptions import InvalidURL
 from MapSkinner import utils
 from MapSkinner.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
+from service.helper.enums import MetadataEnum, ServiceEnum
 from service.models import Service, Layer, RequestOperation, Metadata
 from structure.models import User, Group, Organization, PendingTask
 
@@ -44,7 +45,7 @@ def async_activate_service(service_id: int, user_id: int):
 
     # get root_layer of service and start changing of all statuses
     # also check all related metadata and activate them too
-    if service.servicetype.name == "wms":
+    if service.servicetype.name == ServiceEnum.WMS.value:
         service.activate_service(new_status)
         root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
         root_layer.activate_layer_recursive(new_status)
@@ -79,7 +80,13 @@ def async_secure_service_task(metadata_id: int, is_secured: bool, group_ids: lis
         operation = RequestOperation.objects.get(id=operation_id)
     else:
         operation = None
-    md.service.secure_sub_elements(is_secured, groups, operation)
+
+    md_type = md.metadata_type.type
+
+    if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
+        md.service.secure_sub_elements(is_secured, groups, operation)
+    elif md_type == MetadataEnum.FEATURETYPE.value:
+        md.featuretype.secure_feature_type(is_secured, groups, operation)
 
 
 @shared_task(name="async_remove_service_task")
@@ -182,9 +189,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             pending_task = PendingTask.objects.get(task_id=curr_task_id)
             pending_task.delete()
 
-    except (ConnectionError, InvalidURL) as e:
-        raise e
-    except (BaseException, XMLSyntaxError, XPathEvalError) as e:
+    except (BaseException, XMLSyntaxError, XPathEvalError, InvalidURL, ConnectionError) as e:
         if curr_task_id is not None:
             pending_task = PendingTask.objects.get(task_id=curr_task_id)
             descr = json.loads(pending_task.description)

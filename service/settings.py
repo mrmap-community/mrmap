@@ -22,3 +22,5 @@ DEFAULT_SERVICE_VERSION = VersionEnum.V_1_1_1
 # semantic relation types
 METADATA_RELATION_TYPE_VISUALIZES = "visualizes"
 METADATA_RELATION_TYPE_DESCRIBED_BY = "describedBy"
+
+REQUEST_TIMEOUT = 10  # seconds

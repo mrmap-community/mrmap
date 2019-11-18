@@ -246,13 +246,6 @@ def edit_access(request: HttpRequest, id: int, user: User):
                         id__in=group_ids
                     )
                     if groups.count() > 0:
-                        sec_op = SecuredOperation()
-                        sec_op.operation = operation
-                        sec_op.save()
-                        for g in groups:
-                            sec_op.allowed_groups.add(g)
-                        md.secured_operations.add(sec_op)
-
                         async_secure_service_task.delay(md.id, is_secured, group_ids, operation.id)
 
                 else:

@@ -1,5 +1,4 @@
 import uuid
-from threading import Thread
 
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist
@@ -8,8 +7,7 @@ from django.contrib.gis.db import models
 from django.utils import timezone
 
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
-from MapSkinner.utils import execute_threads
-from service.helper.enums import ServiceEnum, VersionEnum
+from service.helper.enums import ServiceEnum, VersionEnum, MetadataEnum
 from structure.models import Group, Organization
 from service.helper import xml_helper
 
@@ -73,8 +71,10 @@ class SecuredOperation(models.Model):
         # delete current object
         super().delete(using, keep_parents)
 
+        md_type = md.metadata_type.type
+
         # continue with possibly existing children
-        if md.service.servicetype.name == "wms":
+        if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
             if md.service.is_root:
                 # find root layer
                 layer = Layer.objects.get(
@@ -435,9 +435,9 @@ class Metadata(Resource):
 
         # identify whether this is a wfs or wms (we need to handle them in different ways)
         service_type = self.get_service_type()
-        if service_type == 'wfs':
+        if service_type == ServiceEnum.WFS.value:
             self._restore_wfs(identifier)
-        elif service_type == 'wms':
+        elif service_type == ServiceEnum.WMS.value:
             self._restore_wms(identifier)
 
     def get_related_metadata_uris(self):
@@ -480,13 +480,29 @@ class Metadata(Resource):
         """
         self.is_secured = is_secured
         self._set_document_operations_secured(is_secured)
-        children = Metadata.objects.filter(
-            service__parent_service=self.service
-        )
-        for child in children:
-            child.is_secured = is_secured
-            child._set_document_operations_secured(is_secured)
-            child.save()
+
+        md_type = self.metadata_type.type
+
+        children = []
+        if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
+            if self.service.servicetype.name == ServiceEnum.WMS.value:
+                parent_service = self.service
+                children = Metadata.objects.filter(
+                    service__parent_service=parent_service
+                )
+                for child in children:
+                    child._set_document_operations_secured(is_secured)
+
+            elif self.service.servicetype.name == ServiceEnum.WFS.value:
+                children = [ft.metadata for ft in self.service.featuretypes.all()]
+
+            for child in children:
+                child.is_secured = is_secured
+                child.save()
+
+        elif md_type == MetadataEnum.FEATURETYPE.value:
+            # a featuretype does not have children - we can skip this case!
+            pass
         self.save()
 
 
@@ -639,9 +655,9 @@ class Document(Resource):
             uri = ""
         _type = self.related_metadata.service.servicetype.name
         _version = self.related_metadata.get_service_version()
-        if _type == "wms":
+        if _type == ServiceEnum.WMS.value:
             self._set_wms_operations_secured(xml_obj, uri, is_secured)
-        elif _type == "wfs":
+        elif _type == ServiceEnum.WFS.value:
             if _version is VersionEnum.V_1_0_0:
                 self._set_wfs_1_0_0_operations_secured(xml_obj, uri, is_secured)
             else:
@@ -760,6 +776,32 @@ class Service(Resource):
     def __str__(self):
         return str(self.id)
 
+    def _perform_single_element_securing(self, element, is_secured: bool, groups: list, operation: RequestOperation):
+        """ Secures a single element
+
+        Args:
+            element: The element which shall be secured
+            is_secured (bool): Whether to secure the element or not
+            groups (list): A list of groups which are allowed to perform an operation
+            operation (RequestOperation): The operation which can be performed by the groups
+        Returns:
+
+        """
+        element.metadata.is_secured = is_secured
+        if is_secured:
+            sec_op = SecuredOperation()
+            sec_op.operation = operation
+            sec_op.save()
+            for g in groups:
+                sec_op.allowed_groups.add(g)
+            element.metadata.secured_operations.add(sec_op)
+        else:
+            for sec_op in element.metadata.secured_operations.all():
+                sec_op.delete()
+            element.metadata.secured_operations.clear()
+        element.metadata.save()
+        element.save()
+
     def _recursive_secure_sub_layers(self, current, is_secured: bool, groups: list, operation: RequestOperation):
         """ Recursive implementation of securing all sub layers of a current layer
 
@@ -770,20 +812,7 @@ class Service(Resource):
         Returns:
              nothing
         """
-        current.metadata.is_secured = is_secured
-        if is_secured:
-            sec_op = SecuredOperation()
-            sec_op.operation = operation
-            sec_op.save()
-            for g in groups:
-                sec_op.allowed_groups.add(g)
-            current.metadata.secured_operations.add(sec_op)
-        else:
-            for sec_op in current.metadata.secured_operations.all():
-                sec_op.delete()
-            current.metadata.secured_operations.clear()
-        current.metadata.save()
-        current.save()
+        self._perform_single_element_securing(current, is_secured, groups, operation)
 
         for layer in current.child_layer.all():
             self._recursive_secure_sub_layers(layer, is_secured, groups, operation)
@@ -799,11 +828,13 @@ class Service(Resource):
              nothing
         """
         if self.is_root:
+            # get the first layer in this service
             start_element = Layer.objects.get(
                 parent_service=self,
                 parent_layer=None,
             )
         else:
+            # simply get the layer which is described by the given metadata
             start_element = Layer.objects.get(
                 metadata=self.metadata
             )
@@ -819,7 +850,10 @@ class Service(Resource):
         Returns:
              nothing
         """
-        pass
+        if self.is_root:
+            elements = self.featuretypes.all()
+            for element in elements:
+                self._perform_single_element_securing(element, is_secured, groups, operation)
 
     def secure_sub_elements(self, is_secured: bool, groups: list, operation: RequestOperation):
         """ Secures all sub elements of this layer
@@ -831,9 +865,9 @@ class Service(Resource):
         Returns:
              nothing
         """
-        if self.servicetype.name == "wms":
+        if self.servicetype.name == ServiceEnum.WMS.value:
             self._secure_sub_layers(is_secured, groups, operation)
-        elif self.servicetype.name == "wfs":
+        elif self.servicetype.name == ServiceEnum.WFS.value:
             self._secure_feature_types(is_secured, groups, operation)
 
     @transaction.atomic
@@ -951,7 +985,7 @@ class Service(Resource):
 
         # wms and wfs have to be handled differently!
         # Furthermore each standard has a different handling of attributes and elements ...
-        if self.servicetype.name == "wms":
+        if self.servicetype.name == ServiceEnum.WMS.value:
             xml_helper.write_attribute(
                 xml,
                 "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
@@ -975,7 +1009,7 @@ class Service(Resource):
                 "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
                 "{http://www.w3.org/1999/xlink}href",
                 uri)
-        elif self.servicetype.name == "wfs":
+        elif self.servicetype.name == ServiceEnum.WFS.value:
             if self.servicetype.version == "1.0.0":
                 prefix = "wfs:"
                 xml_helper.write_text_to_element(xml, "//{}Service/{}OnlineResource".format(prefix, prefix), uri)
@@ -1154,6 +1188,31 @@ class FeatureType(Resource):
 
     def __str__(self):
         return self.metadata.identifier
+
+    def secure_feature_type(self, is_secured: bool, groups: list, operation: RequestOperation):
+        """ Secures the feature type or removes the secured constraints
+
+        Args:
+            is_secured (bool): Whether to secure the feature type or not
+            groups (list): The list of groups which are allowed to perform an operation
+            operation (RequestOperation): The operation which can be allowed
+        Returns:
+
+        """
+        self.metadata.is_secured = is_secured
+        if is_secured:
+            sec_op = SecuredOperation()
+            sec_op.operation = operation
+            sec_op.save()
+            for g in groups:
+                sec_op.allowed_groups.add(g)
+            self.metadata.secured_operations.add(sec_op)
+        else:
+            for sec_op in self.metadata.secured_operations.all():
+                sec_op.delete()
+            self.metadata.secured_operations.clear()
+        self.metadata.save()
+        self.save()
 
     def restore(self):
         """ Reset the metadata to it's original capabilities content

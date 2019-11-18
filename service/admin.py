@@ -45,6 +45,9 @@ class DocumentAdmin(admin.ModelAdmin):
 class MetadataOriginAdmin(admin.ModelAdmin):
     list_display = ('name',)
 
+class MetadataTypeAdmin(admin.ModelAdmin):
+    list_display = ('type',)
+
 
 class MetadataAdmin(admin.ModelAdmin):
     list_display = ('title', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact', 'uuid')
@@ -96,6 +99,7 @@ admin.site.register(Module, ModuleAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(Keyword, KeywordAdmin)
 admin.site.register(MetadataOrigin, MetadataOriginAdmin)
+admin.site.register(MetadataType, MetadataTypeAdmin)
 admin.site.register(Metadata, MetadataAdmin)
 admin.site.register(MetadataRelation, MetadataRelationAdmin)
 admin.site.register(TermsOfUse, TermsOfUseAdmin)

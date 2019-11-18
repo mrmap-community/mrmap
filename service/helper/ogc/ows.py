@@ -6,7 +6,9 @@ from abc import abstractmethod
 from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
+from requests import ReadTimeout
 
+from MapSkinner.messages import SERVICE_REGISTRATION_TIMEOUT
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, VersionEnum, ServiceEnum
@@ -77,18 +79,8 @@ class OGCWebService:
         self.get_legend_graphic_uri = None
         self.get_styles_uri = None
 
-
-        # initialize service from url
-        # if service_capabilities_xml is not None:
-        #     # load from given xml
-        #     print("try to load from given xml document")
-        # else:
-        #     # load from url
-        #     self.get_capabilities()
-
         class Meta:
             abstract = True
-
 
     def get_capabilities(self):
         """ Start a network call to retrieve the original capabilities xml document.
@@ -99,11 +91,6 @@ class OGCWebService:
         Returns:
              nothing
         """
-        # if (self.auth != None and self.auth.auth_user != None and self.auth.auth_password != None):
-        #    auth = {"auth_user":self.auth_user, "auth_password":self.auth_password, "auth_type":self.auth_type}
-        # auth = self.auth
-        # else:
-        #    auth = None
         self.service_connect_url = self.service_connect_url + \
                                    '&REQUEST=GetCapabilities' + '&VERSION=' + self.service_version.value + \
                                    '&SERVICE=' + self.service_type.value
@@ -111,10 +98,12 @@ class OGCWebService:
                                         auth=self.auth,
                                         connection_type=ConnectionEnum.REQUESTS)
         ows_connector.http_method = 'GET'
-        ows_connector.load()
-        if ows_connector.status_code != 200:
-            raise ConnectionError(ows_connector.status_code)
-
+        try:
+            ows_connector.load()
+            if ows_connector.status_code != 200:
+                raise ConnectionError(ows_connector.status_code)
+        except ReadTimeout:
+            raise ConnectionError(SERVICE_REGISTRATION_TIMEOUT.format(self.service_connect_url))
         if ows_connector.encoding is not None:
             tmp = ows_connector.content.decode(ows_connector.encoding)
             # check if tmp really contains an xml file
@@ -127,11 +116,6 @@ class OGCWebService:
             
         self.connect_duration = ows_connector.load_time
         self.descriptive_document_encoding = ows_connector.encoding
-    # def invoke_operation(self, operation_name, dcp_type, dcp_method):
-    #    pass
-    
-    # def list_operations(self, dcp_type='http'):
-    #    pass
     
     def check_ogc_exception(self):
         pass

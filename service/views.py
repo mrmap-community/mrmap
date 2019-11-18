@@ -247,9 +247,9 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
          A BackendAjaxResponse, containing a boolean, whether the requested element has a dataset metadata record or not
     """
     elementType = request.GET.get("serviceType")
-    if elementType == "wms":
+    if elementType == ServiceEnum.WMS.value:
         element = Layer.objects.get(id=id)
-    elif elementType == "wfs":
+    elif elementType == ServiceEnum.WFS.value:
         element = FeatureType.objects.get(id=id)
     md = element.metadata
     try:

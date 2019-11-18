@@ -11,7 +11,7 @@ import re
 
 from requests.exceptions import InvalidURL
 
-from service.settings import DEFAULT_CONNECTION_TYPE
+from service.settings import DEFAULT_CONNECTION_TYPE, REQUEST_TIMEOUT
 from MapSkinner.settings import HTTP_PROXY, PROXIES
 from service.helper.enums import ConnectionEnum
 
@@ -137,24 +137,24 @@ class CommonConnector():
         response.text = response.content.decode(encoding)
         return response
     
-    def __load_requests(self, params:dict = None):
+    def __load_requests(self, params: dict = None):
         response = None
         proxies = None
         if len(PROXIES) > 0:
             proxies = PROXIES
         if self.auth is not None:
             if self.auth["auth_type"] == 'none':
-                response = requests.request(self.http_method, self.url, params=params, proxies=proxies)
+                response = requests.request(self.http_method, self.url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
             elif self.auth["auth_type"] == 'http_basic':
                 from requests.auth import HTTPBasicAuth
-                response = requests.request(self.http_method, self.url, params=params, auth=HTTPBasicAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies)
+                response = requests.request(self.http_method, self.url, params=params, auth=HTTPBasicAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies, timeout=REQUEST_TIMEOUT)
             elif self.auth["auth_type"] == 'http_digest':   
                 from requests.auth import HTTPDigestAuth
-                response = requests.request(self.http_method, self.url, params=params, auth=HTTPDigestAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies)
+                response = requests.request(self.http_method, self.url, params=params, auth=HTTPDigestAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies, timeout=REQUEST_TIMEOUT)
             else:
-                response = requests.request(self.http_method, self.url, params=params, proxies=proxies)
+                response = requests.request(self.http_method, self.url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
         else:
-            response = requests.request(self.http_method, self.url, params=params, proxies=proxies)
+            response = requests.request(self.http_method, self.url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
 
         return response   
     

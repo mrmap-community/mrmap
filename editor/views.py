@@ -16,6 +16,7 @@ from service.helper.enums import ServiceEnum
 from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation
 from django.utils.translation import gettext_lazy as _
 
+from service.tasks import async_secure_service_task
 from structure.models import User, Permission, Group
 from users.helper import user_helper
 from editor.helper import editor_helper
@@ -228,7 +229,8 @@ def edit_access(request: HttpRequest, id: int, user: User):
             sec_ops.delete()
 
             # remove all secured settings for subelements
-            md.service.secure_sub_elements(is_secured, [], None)
+            async_secure_service_task.delay(md.id, is_secured, [], None)
+
         else:
 
             for item in sec_operations_groups:
@@ -250,7 +252,9 @@ def edit_access(request: HttpRequest, id: int, user: User):
                         for g in groups:
                             sec_op.allowed_groups.add(g)
                         md.secured_operations.add(sec_op)
-                        md.service.secure_sub_elements(is_secured, groups, operation)
+
+                        async_secure_service_task.delay(md.id, is_secured, group_ids, operation.id)
+
                 else:
                     # edit existing one
                     secured_op_input = SecuredOperation.objects.get(

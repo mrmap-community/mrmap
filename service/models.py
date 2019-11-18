@@ -1,4 +1,5 @@
 import uuid
+from threading import Thread
 
 from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist
@@ -7,6 +8,7 @@ from django.contrib.gis.db import models
 from django.utils import timezone
 
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
+from MapSkinner.utils import execute_threads
 from service.helper.enums import ServiceEnum, VersionEnum
 from structure.models import Group, Organization
 from service.helper import xml_helper
@@ -768,21 +770,22 @@ class Service(Resource):
         Returns:
              nothing
         """
+        current.metadata.is_secured = is_secured
+        if is_secured:
+            sec_op = SecuredOperation()
+            sec_op.operation = operation
+            sec_op.save()
+            for g in groups:
+                sec_op.allowed_groups.add(g)
+            current.metadata.secured_operations.add(sec_op)
+        else:
+            for sec_op in current.metadata.secured_operations.all():
+                sec_op.delete()
+            current.metadata.secured_operations.clear()
+        current.metadata.save()
+        current.save()
+
         for layer in current.child_layer.all():
-            layer.metadata.is_secured = is_secured
-            if is_secured:
-                sec_op = SecuredOperation()
-                sec_op.operation = operation
-                sec_op.save()
-                for g in groups:
-                    sec_op.allowed_groups.add(g)
-                layer.metadata.secured_operations.add(sec_op)
-            else:
-                for sec_op in layer.metadata.secured_operations.all():
-                    sec_op.delete()
-                layer.metadata.secured_operations.clear()
-            layer.metadata.save()
-            layer.save()
             self._recursive_secure_sub_layers(layer, is_secured, groups, operation)
 
     def _secure_sub_layers(self, is_secured: bool, groups: list, operation: RequestOperation):

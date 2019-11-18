@@ -16,7 +16,7 @@ from requests.exceptions import InvalidURL
 from MapSkinner import utils
 from MapSkinner.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
-from service.models import Service, Layer
+from service.models import Service, Layer, RequestOperation, Metadata
 from structure.models import User, Group, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
@@ -55,6 +55,31 @@ def async_activate_service(service_id: int, user_id: int):
         msg = SERVICE_DEACTIVATED
 
     user_helper.create_group_activity(service.metadata.created_by, user, msg, service.metadata.title)
+
+
+@shared_task(name="async_secure_service_task")
+def async_secure_service_task(metadata_id: int, is_secured: bool, group_ids: list, operation_id: int):
+    """ Async call for securing a service
+
+    Since this is something that can happen in the background, we should push it to the background!
+
+    Args;
+        metadata_id (int): The service that shall be secured
+        is_secured (bool): Whether to secure the service or not
+        groups (list): The groups which are allowed to perform the RequestOperation
+        operation (RequestOperation): The operation that shall be secured or not
+    Returns:
+         nothing
+    """
+    md = Metadata.objects.get(id=metadata_id)
+    groups = Group.objects.filter(
+        id__in=group_ids
+    )
+    if operation_id is not None:
+        operation = RequestOperation.objects.get(id=operation_id)
+    else:
+        operation = None
+    md.service.secure_sub_elements(is_secured, groups, operation)
 
 
 @shared_task(name="async_remove_service_task")

@@ -502,6 +502,7 @@ class OGCWebFeatureService(OGCWebService):
         service.get_capabilities_uri = self.get_capabilities_uri.get("get", None)
         service.describe_layer_uri = self.describe_feature_type_uri.get("get", None)
         service.get_feature_info_uri = self.get_feature_uri.get("get", None)
+        service.transaction_uri = self.transaction_uri.get("get", None)
         service.availability = 0.0
         service.is_available = False
         service.is_root = True

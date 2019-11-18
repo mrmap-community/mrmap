@@ -777,10 +777,16 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
         return HttpResponse(status=423, content=SERVICE_DISABLED)
 
     # identify requested operation and resolve the uri
-    operations = {
-        "GETMAP": metadata.service.get_map_uri,
-        "GETFEATUREINFO": metadata.service.get_feature_info_uri,
-    }
+    if metadata.service.servicetype.name == ServiceEnum.WFS.value:
+        operations = {
+            "GETFEATURE": metadata.service.get_feature_info_uri,  # get_feature_info_uri is used in WFS for get_feature_uri
+            "TRANSACTION": metadata.service.transaction_uri,
+        }
+    else:
+        operations = {
+            "GETMAP": metadata.service.get_map_uri,
+            "GETFEATUREINFO": metadata.service.get_feature_info_uri,
+        }
     uri = operations.get(request_type.upper(), None)
 
     if uri is None:

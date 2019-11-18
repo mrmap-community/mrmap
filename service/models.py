@@ -68,31 +68,49 @@ class SecuredOperation(models.Model):
         """
         md = self.secured_metadata
         operation = self.operation
+
         # delete current object
         super().delete(using, keep_parents)
 
         md_type = md.metadata_type.type
 
         # continue with possibly existing children
-        if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
-            if md.service.is_root:
-                # find root layer
-                layer = Layer.objects.get(
-                    parent_layer=None,
-                    parent_service=md.service
-                )
-            else:
-                # find layer which is described by this metadata
-                layer = Layer.objects.get(
-                    metadata=md
-                )
-            for child_layer in layer.child_layer.all():
-                sec_ops = SecuredOperation.objects.filter(
-                    secured_metadata=child_layer.metadata,
-                    operation=operation
-                )
-                for sec_op in sec_ops:
-                    sec_op.delete()
+        if md_type == MetadataEnum.FEATURETYPE.value:
+            sec_ops = SecuredOperation.objects.filter(
+                secured_metadata=md.featuretype,
+                operation=operation
+            )
+            sec_ops.delete()
+        elif md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
+            service_type = md.service.servicetype.name
+            if service_type == ServiceEnum.WFS.value:
+                # find all wfs featuretypes
+                featuretypes = md.service.featuretypes.all()
+                for featuretype in featuretypes:
+                    sec_ops = SecuredOperation.objects.filter(
+                        secured_metadata=featuretype.metadata,
+                        operation=operation
+                    )
+                    sec_ops.delete()
+
+            elif service_type == ServiceEnum.WMS.value:
+                if md.service.is_root:
+                    # find root layer
+                    layer = Layer.objects.get(
+                        parent_layer=None,
+                        parent_service=md.service
+                    )
+                else:
+                    # find layer which is described by this metadata
+                    layer = Layer.objects.get(
+                        metadata=md
+                    )
+                for child_layer in layer.child_layer.all():
+                    sec_ops = SecuredOperation.objects.filter(
+                        secured_metadata=child_layer.metadata,
+                        operation=operation
+                    )
+                    sec_ops.delete()
 
 
 class MetadataOrigin(models.Model):
@@ -753,12 +771,15 @@ class Service(Resource):
     is_root = models.BooleanField(default=False)
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
+
     get_capabilities_uri = models.CharField(max_length=1000, null=True, blank=True)
     get_map_uri = models.CharField(max_length=1000, null=True, blank=True)
     get_feature_info_uri = models.CharField(max_length=1000, null=True, blank=True)
     describe_layer_uri = models.CharField(max_length=1000, null=True, blank=True)
     get_legend_graphic_uri = models.CharField(max_length=1000, null=True, blank=True)
     get_styles_uri = models.CharField(max_length=1000, null=True, blank=True)
+    transaction_uri = models.CharField(max_length=1000, null=True, blank=True)
+
     formats = models.ManyToManyField('MimeType', blank=True)
 
     # used to store ows linked_service_metadata until parsing

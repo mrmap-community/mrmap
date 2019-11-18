@@ -7,12 +7,20 @@
 {% endblock %}
 
 {% block body %}
-<a href="{% url 'editor:index' %}">
-    <h3 class="back-title">
-        <img src="{% static 'service/images/icn_back.png' %}">
-        {% trans 'Overview' %}
-    </h3>
-</a>
+<div class="back-links">
+    <a href="{% url 'editor:index' %}">
+        <h3 class="back-title">
+            <img src="{% static 'service/images/icn_back.png' %}">
+            {% trans 'Overview' %}
+        </h3>
+    </a>
+    <a href="{% url 'service:detail' service_metadata.id %}">
+        <h3 class="back-title">
+            <img src="{% static 'service/images/icn_back.png' %}">
+            {% trans 'Service Detail View' %}
+        </h3>
+    </a>
+</div>
 <hr>
 <div class="container-row space-above">
     <div class="container-left">

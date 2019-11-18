@@ -173,6 +173,10 @@ ul.no-bullet{
     cursor: pointer;
 }
 
+.back-links{
+    display: flex;
+    -webkit-display: flex;
+}
 
 .modal-dialog{
     position: fixed;

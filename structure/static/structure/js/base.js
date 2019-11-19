@@ -33,6 +33,28 @@ function getSessionValue(key, remove){
     return item;
 }
 
+function findSessionValuesLike(substring){
+    var items = window.sessionStorage;
+    var retArr = [];
+    for(i = 0; i < items.length; i++){
+        if(items.key(i).includes(substring)){
+            retArr.push(getSessionValue(items.key(i)));
+        }
+    }
+    return retArr;
+}
+
+function findSessionKeysLike(substring){
+    var items = window.sessionStorage;
+    var retArr = [];
+    for(i = 0; i < items.length; i++){
+        if(items.key(i).includes(substring)){
+            retArr.push(items.key(i));
+        }
+    }
+    return retArr;
+}
+
 
 function toggleCollapsibleSymbol(elem){
     var src = elem.attr("src");

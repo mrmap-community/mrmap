@@ -88,13 +88,13 @@ article{
                     // get the lat lon
                     var latLngs = JSON.stringify(e.layer._latlngs[0]);
                     var layerId = e.layer._leaflet_id;
-                    setSessionValue(layerId ,latLngs);
+                    setSessionValue("polygon_" + layerId ,latLngs);
 
                     // create a listener which is triggered when the polygon is edited
                     e.layer.on('pm:edit', e => {
                         latLngs = JSON.stringify(e.target._latlngs[0]);
                         layerId = e.target._leaflet_id;
-                        setSessionValue(layerId ,latLngs);
+                        setSessionValue("polygon_" + layerId ,latLngs);
                     });
 
                });
@@ -110,11 +110,14 @@ article{
 <script>
 
     $(".modal-close, .close-button").click(function(){
+        values = findSessionKeysLike("polygon_");
+        for(i = 0; i < values.length; i++){
+            getSessionValue(values[i], true);
+        }
         toggleOverlay("");
     });
 
     $(".submit-button").click(function(event){
-        console.log(map);
         event.preventDefault();
     });
 

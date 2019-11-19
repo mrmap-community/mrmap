@@ -23,15 +23,15 @@
                 <div class="container-left">
                     {% if 'can_edit_metadata_service' in user_permissions %}
                         <div class="collapsible-container">
-                            <div class="collapsible-toggler button button-container" title="{% trans 'Edit featuretype' %}">
+                            <div class="collapsible-toggler button button-wrapper" title="{% trans 'Edit featuretype' %}">
                                 <span>{% trans 'Edit featuretype' %}</span>
                             </div>
                             <div class="hide collapsible-list">
                                 <a target="_blank" href="{% url 'editor:edit' featuretype.metadata.id %}" title="{% trans 'Edit featuretype metadata' %}">
-                                    <div class="button-container button">{% trans 'Metadata' %}</div>
+                                    <div class="button-wrapper button">{% trans 'Metadata' %}</div>
                                 </a>
                                 <a target="_blank" href="{% url 'editor:edit_access' featuretype.metadata.id %}" title="{% trans 'Edit featuretype access' %}">
-                                    <div class="button-container button">{% trans 'Access' %}</div>
+                                    <div class="button-wrapper button">{% trans 'Access' %}</div>
                                 </a>
                             </div>
                         </div>
@@ -40,7 +40,7 @@
                 <div class="container-right">
                     {% if 'can_edit_metadata_service' in user_permissions %}
                         <a href="{% url 'editor:restore' featuretype.metadata.id %}">
-                            <div class="button-container">
+                            <div class="button-wrapper">
                                 <span class="reset-icon large">&#8635;</span>
                                 <span>{% trans 'Restore metadata' %}</span>
                             </div>

@@ -235,12 +235,13 @@ $(document).ready(function(){
 
     $(".add-geometry").click(function(){
         var elem = $(this);
+        var serviceMetadataId = elem.attr("data-id")
         if(elem.attr("disabled") == "disabled"){
             return;
         }
 
         $.ajax({
-            url: rootUrl + "/editor/edit/access/geometry-form/",
+            url: rootUrl + "/editor/edit/access/" + serviceMetadataId + "/geometry-form/",
             headers: {
                 "X-CSRFToken": getCookie("csrftoken")
             },

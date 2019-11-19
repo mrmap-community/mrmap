@@ -17,7 +17,7 @@
 <div class="container-row">
     <div class="container-left">
         {% if 'can_edit_group' in user_permissions %}
-            <div id="edit-button" class="button button-container" data-parent="{{ group.id }}" typeof="structure/groups">
+            <div id="edit-button" class="button button-wrapper" data-parent="{{ group.id }}" typeof="structure/groups">
                 <img src="{% static 'structure/images/icn_edit.png' %}">
                 <span>{% trans 'Edit group' %}</span>
             </div>

@@ -12,11 +12,6 @@
     padding: 0 0 0 1vw;
 }
 
-.lat-lon-preview{
-    height: 300px;
-    z-index: 1;
-}
-
 .mime-type-table{
     display: block;
     max-height: 250px;

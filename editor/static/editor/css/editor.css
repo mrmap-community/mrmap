@@ -12,7 +12,7 @@
 .large{
     font-size: 1.5em;
 }
-.button-container:hover .reset-icon{
+.button-wrapper:hover .reset-icon{
     -webkit-transform: rotate(180.0deg);
     transform: rotate(180.0deg);
 }
@@ -112,6 +112,10 @@
 .add-geometry:hover{
     background-color: var(--primary-color-dark);
     cursor: pointer;
+}
+
+.map-view{
+    height: 50vh;
 }
 
 .secured-group-operation{

@@ -176,6 +176,11 @@ ul.no-bullet{
     cursor: pointer;
 }
 
+.map-view{
+    height: 300px;
+    z-index: 1;
+}
+
 .back-links{
     display: flex;
     -webkit-display: flex;
@@ -578,7 +583,7 @@ a.listable:hover{
     font-weight: bold;
 }
 
-.delete-container:hover, .deactivate-container:hover, .activate-container:hover, .button-container:hover{
+.delete-container:hover, .deactivate-container:hover, .activate-container:hover, .button-wrapper:hover{
     cursor: pointer;
     opacity: 0.75;
 }
@@ -589,7 +594,7 @@ a.listable:hover{
     filter: invert(1.0);
 }
 
-.button-container{
+.button-wrapper{
     display: flex;
     align-items: center;
     justify-content: center;
@@ -600,7 +605,7 @@ a.listable:hover{
     margin: 0 5px 0 5px;
 }
 
-.button-container img{
+.button-wrapper img{
     padding: 0 10px 0 0;
 }
 

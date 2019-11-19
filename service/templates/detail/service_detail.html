@@ -47,50 +47,50 @@
     </div>
     <div class="container-center">
         {% if 'can_update_service' in user_permissions %}
-            <div id="service-update-button" class="button button-container" typeof="service" datasrc="{{ root_service.id }}" title="{% trans 'Update service using a new url' %}">
+            <div id="service-update-button" class="button button-wrapper" typeof="service" datasrc="{{ root_service.id }}" title="{% trans 'Update service using a new url' %}">
                 <span>{% trans 'Update service' %}</span>
             </div>
         {% endif %}
         {% if 'can_edit_metadata_service' in user_permissions %}
         <div class="collapsible-container">
-            <div class="collapsible-toggler button button-container" title="{% trans 'Edit service' %}">
+            <div class="collapsible-toggler button button-wrapper" title="{% trans 'Edit service' %}">
                 <span>{% trans 'Edit service' %}</span>
             </div>
             <div class="hide collapsible-list">
                 <a href="{% url 'editor:edit' root_metadata.id %}" title="{% trans 'Edit the service metadata' %}">
-                    <div class="button-container button">{% trans 'Metadata' %}</div>
+                    <div class="button-wrapper button">{% trans 'Metadata' %}</div>
                 </a>
                 <a href="{% url 'editor:edit_access' root_metadata.id %}" title="{% trans 'Edit the service access' %}">
-                    <div class="button-container button">{% trans 'Access' %}</div>
+                    <div class="button-wrapper button">{% trans 'Access' %}</div>
                 </a>
             </div>
         </div>
         {% endif %}
         <div class="collapsible-container">
-            <div class="collapsible-toggler button button-container" title="{% trans 'Get the capabilities document' %}">
+            <div class="collapsible-toggler button button-wrapper" title="{% trans 'Get the capabilities document' %}">
                 <span>{% trans 'Capabilities' %}</span>
             </div>
             <div class="hide collapsible-list">
                 <a target="_blank" href="{{ root_metadata.capabilities_original_uri }}" title="{% trans 'Get the original document' %}">
-                    <div class="button-container button">{% trans 'Original' %}</div>
+                    <div class="button-wrapper button">{% trans 'Original' %}</div>
                 </a>
                 <a target="_blank" href="{% url 'service:get-capabilities' root_metadata.id %}" title="{% trans 'Get the current, maybe edited, document' %}">
-                    <div class="button-container button">{% trans 'Current' %}</div>
+                    <div class="button-wrapper button">{% trans 'Current' %}</div>
                 </a>
             </div>
         </div>
         <div class="collapsible-container">
-            <div class="collapsible-toggler button button-container" title="{% trans 'Get different metadata documents' %}">
+            <div class="collapsible-toggler button button-wrapper" title="{% trans 'Get different metadata documents' %}">
                 <span>{% trans 'Metadata' %}</span>
             </div>
             <div class="hide collapsible-list">
                 <a data-id="{{ root_service.id }}" href="{% url 'service:get-service-metadata' root_metadata.id %}" title="{% trans 'Get service metadata' %}" target="_blank">
-                    <div class="button-container button">
+                    <div class="button-wrapper button">
                         <span>{% trans 'Service' %}</span>
                     </div>
                 </a>
                 <a data-id="{{ root_service.id }}" href="{% url 'service:get-dataset-metadata' root_metadata.id %}" title="{% trans 'Get dataset metadata' %}" target="_blank">
-                    <div class="button-container button">
+                    <div class="button-wrapper button">
                         <span>{% trans 'Dataset' %}</span>
                     </div>
                 </a>

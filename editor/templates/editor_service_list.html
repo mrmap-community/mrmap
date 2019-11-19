@@ -86,7 +86,7 @@
                     </td>
                     <td class="table-cell">
                         <a href="{% url 'editor:restore' metadata.root_metadata.id %}" title="{% trans 'Reset metadata' %}">
-                            <button class="button button-container {% if not metadata.root_metadata.is_custom and metadata.custom_subelement_metadata|length == 0 %}disabled{% endif %}">
+                            <button class="button button-wrapper {% if not metadata.root_metadata.is_custom and metadata.custom_subelement_metadata|length == 0 %}disabled{% endif %}">
                                 <span class="reset-icon">&#8635;</span>
                             </button>
                         </a>

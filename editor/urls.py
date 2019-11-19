@@ -14,6 +14,6 @@ urlpatterns = [
     path('', index, name='index'),
     path('edit/<id>', edit, name='edit'),
     path('edit/access/<id>', edit_access, name='edit_access'),
-    path('edit/access/geometry-form/', access_geometry_form, name='edit_access'),
+    path('edit/access/<id>/geometry-form/', access_geometry_form, name='access_geometry_form'),
     path('restore/<id>', restore, name='restore'),
 ]

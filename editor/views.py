@@ -258,8 +258,11 @@ def edit_access(request: HttpRequest, id: int, user: User):
     return render(request, template, context)
 
 @check_session
-def access_geometry_form(request: HttpRequest, user: User):
+def access_geometry_form(request: HttpRequest, id: int, user: User):
     template = "access_geometry_form.html"
+
+    md = Metadata.objects.get(id=id)
+    service_bounding_geometry = md.find_max_bounding_box()
 
     if request.method == "POST":
         pass
@@ -267,7 +270,8 @@ def access_geometry_form(request: HttpRequest, user: User):
         pass
     params = {
         "article": _("Add a geometry, which defines the area where this group can access the operation on this service."),
-        "action_url": "{}{}/editor/edit/access/geometry-form/".format(HTTP_OR_SSL, HOST_NAME),
+        "action_url": "{}{}/editor/edit/access/{}/geometry-form/".format(HTTP_OR_SSL, HOST_NAME, md.id),
+        "bbox": service_bounding_geometry,
     }
     context = DefaultContext(request, params).get_context()
     html = render_to_string(template_name=template, request=request, context=context)

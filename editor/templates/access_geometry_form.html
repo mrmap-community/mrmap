@@ -1,5 +1,8 @@
 {% load i18n static %}
 
+<link rel="stylesheet" href="{% static 'editor/css/leaflet-geoman.css' %}" />
+<script src="{% static 'editor/js/leaflet-geoman.min.js' %}"></script>
+
 <style>
 
 .field-label, .field{
@@ -50,6 +53,53 @@ article{
             {{ article }}
         </article>
         <hr>
+        <div id="map" class="map-view">
+        </div>
+        <script>
+               var map = L.map('map', {
+                   center: [{{ bbox.centroid.y }}, {{ bbox.centroid.x }}],
+                   zoom: {{ bbox.area }},
+                   layers: [
+                       //new L.geoJSON({{ bbox.geojson|safe }}),
+                       new L.TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                       })
+                   ],
+               }).fitBounds(
+                   [
+                       [{{ bbox.boundary.extent.1 }}, {{ bbox.boundary.extent.0 }}],
+                       [{{ bbox.boundary.extent.3 }}, {{ bbox.boundary.extent.2 }}],
+                   ]
+                   );
+
+                // set which controls should be available in the toolbar
+                map.pm.addControls({
+                  position: 'topright',
+                  drawCircle: false,
+                  drawCircleMarker: false,
+                  drawPolyline: false,
+                  drawRectangle: false,
+                  drawMarker: false,
+                  removalMode: false,
+                });
+
+               // create a listener which is triggered when a polygon is finished
+               map.on('pm:create', function(e){
+                    // get the lat lon
+                    var latLngs = JSON.stringify(e.layer._latlngs[0]);
+                    var layerId = e.layer._leaflet_id;
+                    setSessionValue(layerId ,latLngs);
+
+                    // create a listener which is triggered when the polygon is edited
+                    e.layer.on('pm:edit', e => {
+                        latLngs = JSON.stringify(e.target._latlngs[0]);
+                        layerId = e.target._leaflet_id;
+                        setSessionValue(layerId ,latLngs);
+                    });
+
+               });
+
+           </script>
         <form action="{{ action_url }}" method="post" >
 
             <input class="submit-button button" id="submit-text" type="submit" value="{% trans 'Save' %}"/>
@@ -61,6 +111,11 @@ article{
 
     $(".modal-close, .close-button").click(function(){
         toggleOverlay("");
+    });
+
+    $(".submit-button").click(function(event){
+        console.log(map);
+        event.preventDefault();
     });
 
 </script>

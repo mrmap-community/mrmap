@@ -27,7 +27,7 @@
     </div>
     <div class="container-right">
         <a href="{% url 'editor:restore' service_metadata.id %}" title="{% trans 'Reset metadata' %}">
-            <div class="button-container {% if not service_metadata.is_custom %}disabled{% endif %}">
+            <div class="button-wrapper {% if not service_metadata.is_custom %}disabled{% endif %}">
                 <span class="reset-icon large">&#8635;</span>
                 <span>{% trans 'Reset metadata' %}</span>
             </div>

@@ -15,6 +15,24 @@ function getCookie(cname) {
     return "";
 }
 
+/**
+ * Setter for the session storage
+ */
+function setSessionValue(key, value){
+    window.sessionStorage.setItem(key, value);
+}
+/**
+ * Getter for the session storage
+ *      using the parameter 'remove', the key-value pair will be deleted afterwards
+ */
+function getSessionValue(key, remove){
+    var item = window.sessionStorage.getItem(key);
+    if(remove){
+        window.sessionStorage.removeItem(key);
+    }
+    return item;
+}
+
 
 function toggleCollapsibleSymbol(elem){
     var src = elem.attr("src");

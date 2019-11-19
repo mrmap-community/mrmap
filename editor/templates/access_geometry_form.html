@@ -72,6 +72,23 @@ article{
                    ]
                    );
 
+                // add pre-existing polygons
+                {% for poly  in polygons %}
+                    var tmpPoints = [
+                    {% for vert in poly %}
+                        [{{ vert.lat }}, {{ vert.lng }}],
+                    {% endfor %}
+                    ]
+                    tmpLayer = L.polygon(tmpPoints, {color: 'red'}).addTo(map);
+
+                    // create listener for each layer, that writes the edited polygon back into the session storage
+                    tmpLayer.on("pm:edit", function(e){
+                        latLngs = JSON.stringify(e.target._latlngs[0]);
+                        layerId = e.target._leaflet_id;
+                        setSessionValue("polygon_" + layerId ,latLngs);
+                    });
+                {% endfor %}
+
                 // set which controls should be available in the toolbar
                 map.pm.addControls({
                   position: 'topright',
@@ -83,7 +100,7 @@ article{
                   removalMode: false,
                 });
 
-               // create a listener which is triggered when a polygon is finished
+               // create a listener which is triggered when a new polygon is finished
                map.on('pm:create', function(e){
                     // get the lat lon
                     var latLngs = JSON.stringify(e.layer._latlngs[0]);
@@ -110,6 +127,7 @@ article{
 <script>
 
     $(".modal-close, .close-button").click(function(){
+        // remove session stored polygon data
         values = findSessionKeysLike("polygon_");
         for(i = 0; i < values.length; i++){
             getSessionValue(values[i], true);
@@ -118,7 +136,29 @@ article{
     });
 
     $(".submit-button").click(function(event){
-        event.preventDefault();
+        // get session stored polygon data
+        values = findSessionKeysLike("polygon_");
+        var polygons = [];
+        for(i = 0; i < values.length; i++){
+            polygons.push(JSON.parse(getSessionValue(values[i], true)));
+        }
+
+        // find element where the polygons will be stored
+        var operationGroupPolygonElement = $("input[data-operation={{ operation }}][data-group={{ group_id }}]")
+
+
+        // show 'listable' element, which indicates that polygons have been set
+        if(polygons.length > 0){
+            operationGroupPolygonElement.siblings(".listable").show();
+            if(!operationGroupPolygonElement.is(":checked")){
+                operationGroupPolygonElement.click();
+            }
+            // set data to element
+            operationGroupPolygonElement.attr("data-polygons", JSON.stringify(polygons));
+        }else{
+            operationGroupPolygonElement.siblings(".listable").hide();
+        }
+        toggleOverlay("");
     });
 
 </script>

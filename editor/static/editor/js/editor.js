@@ -236,6 +236,12 @@ $(document).ready(function(){
     $(".add-geometry").click(function(){
         var elem = $(this);
         var serviceMetadataId = elem.attr("data-id")
+        var operation = elem.siblings("input").attr("data-operation");
+        var groupId = elem.siblings("input").attr("data-group");
+
+        var existingPolygons = elem.siblings("input").attr("data-polygons");
+
+
         if(elem.attr("disabled") == "disabled"){
             return;
         }
@@ -246,6 +252,9 @@ $(document).ready(function(){
                 "X-CSRFToken": getCookie("csrftoken")
             },
             data: {
+                "operation": operation,
+                "groupId": groupId,
+                "polygons": existingPolygons,
             },
             type: 'get',
             dataType: 'json'

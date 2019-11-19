@@ -71,6 +71,7 @@
                         <input id="checkbox-sec-{{ group.id }}-{{ operation.id }}" class="group-permission" {% if group.is_set %}checked{% endif %} type="checkbox" title="{{ group.name }}" data-operation="{{ operation.name }}" data-group="{{ group.id }}">
                         <label for="checkbox-sec-{{ group.id }}-{{ operation.id }}">{{ group.name }} ({{ group.organization }})</label>
                         <span class="add-geometry" data-id="{{ service_metadata.id }}" title="{% trans 'Add restricting geometry' %}">&#xFF0B;</span>
+                        <span class="hide listable">{% trans 'Bounding geometry added' %}</span>
                     </li>
                 {% endfor %}
                 </ul>

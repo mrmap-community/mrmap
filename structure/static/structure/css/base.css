@@ -508,10 +508,12 @@ tr:nth-child(odd){
     border-radius: 10px;
     background-color: var(--secondary-color);
     color: white;
+    /*
     -webkit-display: flex;
     display: flex;
     align-items: center;
     white-space: nowrap;
+    */
 }
 a.listable:hover{
     background-color: var(--secondary-color-light);

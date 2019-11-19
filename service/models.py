@@ -49,6 +49,7 @@ class RequestOperation(models.Model):
 class SecuredOperation(models.Model):
     operation = models.ForeignKey(RequestOperation, on_delete=models.CASCADE, null=True, blank=True)
     allowed_groups = models.ManyToManyField(Group, related_name="allowed_operations")
+    bounding_geometry = models.PolygonField(blank=True, null=True)
     secured_metadata = models.ForeignKey('Metadata', related_name="secured_operations", on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):

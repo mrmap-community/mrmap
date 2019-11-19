@@ -1,0 +1,68 @@
+{% load i18n static %}
+
+<style>
+
+.field-label, .field{
+    font-size: 1.2em;
+}
+
+.field input, .field textarea, .field select{
+    color: gray;
+    background-color: white;
+    border: 1px solid gray;
+    border-radius: 0.25rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.field input:focus{
+    -webkit-box-shadow: 0 0 10px var(--primary-color);
+    -moz-box-shadow: 0 0 10px var(--primary-color);
+    box-shadow: 0 0 10px var(--primary-color);
+}
+
+.form-submit-area{
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 0;
+}
+.modal-content{
+    max-height: 75vh;
+    overflow-y: auto;
+}
+
+.field{
+    position: relative;
+}
+
+article{
+    padding: 10px 0 10px 0;
+}
+
+</style>
+
+{% block body %}
+<div class="modal-dialog">
+    <div class="modal-close" title="{% trans 'Close' %}">
+        x
+    </div>
+    <div class="modal-content">
+        <article>
+            {{ article }}
+        </article>
+        <hr>
+        <form action="{{ action_url }}" method="post" >
+
+            <input class="submit-button button" id="submit-text" type="submit" value="{% trans 'Save' %}"/>
+        </form>
+    </div>
+</div>
+
+<script>
+
+    $(".modal-close, .close-button").click(function(){
+        toggleOverlay("");
+    });
+
+</script>
+
+{% endblock %}

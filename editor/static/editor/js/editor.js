@@ -34,12 +34,15 @@ function initializeSecuredFormStatus(){
     var isSecured = $("#id_is_secured").is(":checked");
     var securedSelectors = $(".secured-selector");
     var selectorParentRows = securedSelectors.closest("tr");
+    var addGeometryButtons = selectorParentRows.find(".add-geometry");
 
     if(isSecured){
         securedSelectors.removeAttr("disabled")
+        addGeometryButtons.removeAttr("disabled")
         selectorParentRows.removeClass("disabled");
     }else{
         securedSelectors.attr("disabled", "disabled")
+        addGeometryButtons.attr("disabled", "disabled")
         selectorParentRows.addClass("disabled");
     }
 }
@@ -49,12 +52,15 @@ function toggleSecuredCheckbox(){
     var checked = elem.is(":checked");
     var rows = $(".operation-row");
     var inputs = rows.find("input")
+    var addGeometryButtons = rows.find(".add-geometry")
     if(checked){
         rows.removeClass("disabled");
         inputs.removeAttr("disabled");
+        addGeometryButtons.removeAttr("disabled");
     }else{
         rows.addClass("disabled");
         inputs.attr("disabled", true);
+        addGeometryButtons.attr("disabled", true);
     }
 }
 
@@ -225,5 +231,30 @@ $(document).ready(function(){
             )
         });
         return true;
+    });
+
+    $(".add-geometry").click(function(){
+        var elem = $(this);
+        if(elem.attr("disabled") == "disabled"){
+            return;
+        }
+
+        $.ajax({
+            url: rootUrl + "/editor/edit/access/geometry-form/",
+            headers: {
+                "X-CSRFToken": getCookie("csrftoken")
+            },
+            data: {
+            },
+            type: 'get',
+            dataType: 'json'
+        }).done(function(data){
+            var html = data["html"];
+            toggleOverlay(html);
+
+        }).always(function(data){
+            checkRedirect(data);
+        });
+
     });
 });

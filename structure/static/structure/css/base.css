@@ -74,6 +74,7 @@ ul.no-bullet{
     filter: grayscale(1.0);
     opacity: 0.5;
 }
+
 .disabled:hover{
     opacity: 0.5;
 }
@@ -112,10 +113,12 @@ ul.no-bullet{
 }
 
 .container-row{
+    -webkit-display: flex;
     display: flex;
     justify-content: space-between;
     flex-direction: row;
     align-items: center;
+    -webkit-align-items: center;
 }
 
 .messages{

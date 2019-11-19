@@ -2,8 +2,8 @@
 {% load i18n static %}
 
 {% block head %}
-    <link rel="stylesheet" type="text/css" href="{% static '/editor/css/editor.css' %}" media="all" />
-    <script type="text/javascript" src="{% static '/editor/js/editor.js' %}"></script>
+<script type="text/javascript" src="{% static '/editor/js/editor.js' %}"></script>
+<link rel="stylesheet" type="text/css" href="{% static '/editor/css/editor.css' %}" media="all" />
 {% endblock %}
 
 {% block body %}
@@ -57,9 +57,10 @@
                 <input class="search-field" type="text" data-type="{{ operation.id }}" placeholder="{% trans 'Enter text to filter' %}">
                 <ul class="no-bullet" data-sec-id="{{ operation.sec_id }}" data-operation="{{ operation.name }}">
                 {% for group in operation.groups %}
-                    <li class="{{ operation.id }}">
+                    <li class="{{ operation.id }} secured-group-operation">
                         <input id="checkbox-sec-{{ group.id }}-{{ operation.id }}" class="group-permission" {% if group.is_set %}checked{% endif %} type="checkbox" title="{{ group.name }}" data-operation="{{ operation.name }}" data-group="{{ group.id }}">
                         <label for="checkbox-sec-{{ group.id }}-{{ operation.id }}">{{ group.name }} ({{ group.organization }})</label>
+                        <span class="add-geometry" title="{% trans 'Add restricting geometry' %}">&#xFF0B;</span>
                     </li>
                 {% endfor %}
                 </ul>

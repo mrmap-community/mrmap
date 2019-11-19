@@ -5,11 +5,13 @@ from django.http import HttpRequest
 from django.shortcuts import render, redirect
 
 # Create your views here.
+from django.template.loader import render_to_string
+
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED
-from MapSkinner.responses import DefaultContext
-from MapSkinner.settings import ROOT_URL
+from MapSkinner.responses import DefaultContext, BackendAjaxResponse
+from MapSkinner.settings import ROOT_URL, HTTP_OR_SSL, HOST_NAME
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper.enums import ServiceEnum, MetadataEnum
@@ -254,6 +256,22 @@ def edit_access(request: HttpRequest, id: int, user: User):
 
     context = DefaultContext(request, params).get_context()
     return render(request, template, context)
+
+@check_session
+def access_geometry_form(request: HttpRequest, user: User):
+    template = "access_geometry_form.html"
+
+    if request.method == "POST":
+        pass
+    else:
+        pass
+    params = {
+        "article": _("Add a geometry, which defines the area where this group can access the operation on this service."),
+        "action_url": "{}{}/editor/edit/access/geometry-form/".format(HTTP_OR_SSL, HOST_NAME),
+    }
+    context = DefaultContext(request, params).get_context()
+    html = render_to_string(template_name=template, request=request, context=context)
+    return BackendAjaxResponse(html=html).get_response()
 
 
 @check_session

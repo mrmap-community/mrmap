@@ -81,6 +81,11 @@ article{
                     ]
                     tmpLayer = L.polygon(tmpPoints, {color: 'red'}).addTo(map);
 
+                    // write layer directly back to session
+                    latLngs = JSON.stringify(tmpLayer._latlngs[0]);
+                    layerId = tmpLayer._leaflet_id;
+                    setSessionValue("polygon_" + layerId ,latLngs);
+
                     // create listener for each layer, that writes the edited polygon back into the session storage
                     tmpLayer.on("pm:edit", function(e){
                         latLngs = JSON.stringify(e.target._latlngs[0]);
@@ -97,7 +102,8 @@ article{
                   drawPolyline: false,
                   drawRectangle: false,
                   drawMarker: false,
-                  removalMode: false,
+                  removalMode: true,
+                  cutPolygon: false,
                 });
 
                // create a listener which is triggered when a new polygon is finished

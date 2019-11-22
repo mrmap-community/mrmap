@@ -72,28 +72,6 @@ article{
                    ]
                    );
 
-                // add pre-existing polygons
-                {% for poly  in polygons %}
-                    var tmpPoints = [
-                    {% for vert in poly %}
-                        [{{ vert.lat }}, {{ vert.lng }}],
-                    {% endfor %}
-                    ]
-                    tmpLayer = L.polygon(tmpPoints, {color: 'red'}).addTo(map);
-
-                    // write layer directly back to session
-                    latLngs = JSON.stringify(tmpLayer._latlngs[0]);
-                    layerId = tmpLayer._leaflet_id;
-                    setSessionValue("polygon_" + layerId ,latLngs);
-
-                    // create listener for each layer, that writes the edited polygon back into the session storage
-                    tmpLayer.on("pm:edit", function(e){
-                        latLngs = JSON.stringify(e.target._latlngs[0]);
-                        layerId = e.target._leaflet_id;
-                        setSessionValue("polygon_" + layerId ,latLngs);
-                    });
-                {% endfor %}
-
                 // set which controls should be available in the toolbar
                 map.pm.addControls({
                   position: 'topright',
@@ -106,20 +84,61 @@ article{
                   cutPolygon: false,
                 });
 
+                // add pre-existing polygons
+                {% for poly  in polygons %}
+                    tmpLayer = L.geoJSON({{ poly|safe }}, {style: {fillColor: 'red', color: 'red'}}).addTo(map);
+
+                    // write layer directly back to session
+                    layerId = tmpLayer._leaflet_id;
+                    var layerGeoJson = JSON.stringify(tmpLayer.toGeoJSON());
+
+                    setSessionValue("polygon_" + layerId ,layerGeoJson);
+
+                    // create listener for each layer, that writes the edited polygon back into the session storage
+                    tmpLayer.on("pm:edit", function(e){
+                        layerId = e.target._leaflet_id;
+                        layerGeoJson = JSON.stringify(e.sourceTarget.toGeoJSON());
+
+                        setSessionValue("polygon_" + layerId ,layerGeoJson);
+                    });
+                {% endfor %}
+
                // create a listener which is triggered when a new polygon is finished
                map.on('pm:create', function(e){
                     // get the lat lon
-                    var latLngs = JSON.stringify(e.layer._latlngs[0]);
                     var layerId = e.layer._leaflet_id;
-                    setSessionValue("polygon_" + layerId ,latLngs);
+                    var layerGeoJson = JSON.stringify(e.layer.toGeoJSON());
+
+                    setSessionValue("polygon_" + layerId ,layerGeoJson);
 
                     // create a listener which is triggered when the polygon is edited
                     e.layer.on('pm:edit', e => {
-                        latLngs = JSON.stringify(e.target._latlngs[0]);
-                        layerId = e.target._leaflet_id;
-                        setSessionValue("polygon_" + layerId ,latLngs);
+                        layerId = e.sourceTarget._leaflet_id;
+                        layerGeoJson = JSON.stringify(e.sourceTarget.toGeoJSON());
+                        setSessionValue("polygon_" + layerId ,layerGeoJson);
                     });
 
+               });
+
+               // create listener that removes the polygon from the session if the layer is removed
+               map.on('pm:remove', function(e){
+                    // there are Features and FeatureGroups
+                    // Features are layers, that have just been created by the user
+                    // FeatureGroups have been created by the user in the past and have been added to the map automatically
+                    // To remove both clear, we need to handle them differently
+                    var layer = null;
+                    if(e.layer._eventParents != null){
+                        // FeatureGroup
+                        for(var item in e.layer._eventParents){
+                            layer = item;
+                        }
+                        layer = e.layer._eventParents[layer];
+                    }else{
+                        // Feature
+                        layer = e.layer;
+                    }
+                    layerId = layer._leaflet_id;
+                    getSessionValue("polygon_" + layerId ,true);
                });
 
            </script>
@@ -134,16 +153,17 @@ article{
 
     $(".modal-close, .close-button").click(function(){
         // remove session stored polygon data
-        values = findSessionKeysLike("polygon_");
-        for(i = 0; i < values.length; i++){
-            getSessionValue(values[i], true);
-        }
+        removeSessionKeysLike("polygon_");
+
         toggleOverlay("");
     });
 
     $(".submit-button").click(function(event){
+
         // get session stored polygon data
         values = findSessionKeysLike("polygon_");
+
+        // write current polygons to session
         var polygons = [];
         for(i = 0; i < values.length; i++){
             polygons.push(JSON.parse(getSessionValue(values[i], true)));
@@ -151,7 +171,6 @@ article{
 
         // find element where the polygons will be stored
         var operationGroupPolygonElement = $("input[data-operation={{ operation }}][data-group={{ group_id }}]")
-
 
         // show 'listable' element, which indicates that polygons have been set
         if(polygons.length > 0){
@@ -162,6 +181,7 @@ article{
             // set data to element
             operationGroupPolygonElement.attr("data-polygons", JSON.stringify(polygons));
         }else{
+            operationGroupPolygonElement.removeAttr("data-polygons");
             operationGroupPolygonElement.siblings(".listable").hide();
         }
         toggleOverlay("");

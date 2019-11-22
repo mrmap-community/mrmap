@@ -55,6 +55,15 @@ function findSessionKeysLike(substring){
     return retArr;
 }
 
+function removeSessionKeysLike(substring){
+    var items = window.sessionStorage;
+    for(i = 0; i < items.length; i++){
+        if(items.key(i).includes(substring)){
+            getSessionValue(items.key(i), true);
+        }
+    }
+}
+
 
 function toggleCollapsibleSymbol(elem){
     var src = elem.attr("src");

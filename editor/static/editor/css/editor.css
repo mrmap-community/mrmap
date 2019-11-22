@@ -124,3 +124,7 @@
     align-items: center;
     -webkit-align-items: center;
 }
+
+.shapefile-upload{
+    margin: 0 0 1em 0;
+}

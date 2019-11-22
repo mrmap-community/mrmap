@@ -142,6 +142,10 @@ article{
                });
 
            </script>
+        <div>
+            <article>{% trans 'Import a GML3 or GeoJSON file' %}</article>
+            <input class="shapefile-upload" type="file" title="{% trans 'Load shapefile' %}"/>
+        </div>
         <form action="{{ action_url }}" method="post" >
 
             <input class="submit-button button" id="submit-text" type="submit" value="{% trans 'Save' %}"/>
@@ -150,6 +154,50 @@ article{
 </div>
 
 <script>
+
+    $(".shapefile-upload").change(function(){
+        var elem = $(this)[0];
+        var file = elem.files[0];
+        var appType = file.type;
+        var fileReader = new FileReader();
+        fileReader.readAsText(file);
+
+        // wait until fileReader finished reading
+        fileReader.onload = function(e){
+            content = e.target.result;
+
+            if(appType == "application/geo+json"){
+                var geoJsonContent = JSON.parse(content);
+
+                // create GeoJsonLayer
+                tmpLayer = L.geoJSON(geoJsonContent, {style: {fillColor: 'red', color: 'red'}});
+
+                for(key in tmpLayer._layers){
+                    var layer = tmpLayer._layers[key];
+                    layer.addTo(map);
+
+                    // write layer directly back to session
+                    layerId = layer._leaflet_id;
+                    var layerGeoJson = JSON.stringify(layer.toGeoJSON());
+                    setSessionValue("polygon_" + layerId ,layerGeoJson);
+
+                    // create listener for each layer, that writes the edited polygon back into the session storage
+                    layer.on("pm:edit", function(e){
+                        layerId = e.target._leaflet_id;
+                        layerGeoJson = JSON.stringify(e.sourceTarget.toGeoJSON());
+                        setSessionValue("polygon_" + layerId ,layerGeoJson);
+                    });
+
+                }
+
+            }else if (appType == "application/gml"){
+
+            }else{
+                alert("Unsupported geometry file type detected : '" + appType + "'");
+            }
+        }
+
+    });
 
     $(".modal-close, .close-button").click(function(){
         // remove session stored polygon data

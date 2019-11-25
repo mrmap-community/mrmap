@@ -59,7 +59,7 @@ def async_activate_service(service_id: int, user_id: int):
 
 
 @shared_task(name="async_secure_service_task")
-def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int, operation_id: int, group_polygons: dict, secured_operation: SecuredOperation):
+def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int, operation_id: int, group_polygons: dict, secured_operation_id: int):
     """ Async call for securing a service
 
     Since this is something that can happen in the background, we should push it to the background!
@@ -73,6 +73,12 @@ def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int,
          nothing
     """
     md = Metadata.objects.get(id=metadata_id)
+    if secured_operation_id is not None:
+        secured_operation = SecuredOperation.objects.get(
+            id=secured_operation_id
+        )
+    else:
+        secured_operation = None
     if group_id is None:
         group = None
     else:

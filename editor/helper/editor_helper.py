@@ -500,12 +500,11 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
                     )
                     if item_sec_op_id == -1:
                         # create new setting
-                        #async_secure_service_task.delay(md.id, is_secured, group_id, operation.id, group_polygons, None)
-                        async_secure_service_task(md.id, is_secured, group_id, operation.id, group_polygons, None)
+                        async_secure_service_task.delay(md.id, is_secured, group_id, operation.id, group_polygons, None)
 
                     else:
                         # edit existing one
                         secured_op_input = SecuredOperation.objects.get(
                             id=item_sec_op_id
                         )
-                        async_secure_service_task(md.id, is_secured, group_id, operation.id, group_polygons, secured_op_input)
+                        async_secure_service_task.delay(md.id, is_secured, group_id, operation.id, group_polygons, item_sec_op_id)

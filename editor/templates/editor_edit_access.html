@@ -61,17 +61,26 @@
         {% for operation in operations %}
         <tr class="operation-row">
             <td class="field-label metadata-editor-label">
-                {{ operation.name }}:
+                {{ operation.operation.operation_name }}:
             </td>
             <td class="secured-operation-group-view">
-                <input class="search-field" type="text" data-type="{{ operation.id }}" placeholder="{% trans 'Enter text to filter' %}">
-                <ul class="no-bullet" data-sec-id="{{ operation.sec_id }}" data-operation="{{ operation.name }}">
+                <input class="search-field" type="text" data-type="{{ operation.operation.id }}" placeholder="{% trans 'Enter text to filter' %}">
+                <ul class="no-bullet" data-operation="{{ operation.operation.operation_name }}">
                 {% for group in operation.groups %}
-                    <li class="{{ operation.id }} secured-group-operation">
-                        <input id="checkbox-sec-{{ group.id }}-{{ operation.id }}" class="group-permission" {% if group.is_set %}checked{% endif %} type="checkbox" title="{{ group.name }}" data-operation="{{ operation.name }}" data-group="{{ group.id }}">
-                        <label for="checkbox-sec-{{ group.id }}-{{ operation.id }}">{{ group.name }} ({{ group.organization }})</label>
+                    <li class="{{ operation.operation.id }} secured-group-operation">
+                        <input id="checkbox-sec-{{ group.group.id }}-{{ operation.operation.id }}"
+                               class="group-permission"
+                               {% if group.allowed %}checked{% endif %}
+                               type="checkbox"
+                               title="{{ group.group.name }}"
+                               data-operation="{{ operation.operation.operation_name }}"
+                               data-group="{{ group.group.id }}"
+                               data-remove="false"
+                               data-polygons='{{ group.geo_json_geometry|safe }}'
+                               data-sec-id="{{ group.sec_id }}">
+                        <label for="checkbox-sec-{{ group.group.id }}-{{ operation.operation.id }}">{{ group.group.name }} ({{ group.group.organization.organization_name }})</label>
                         <span class="add-geometry" data-id="{{ service_metadata.id }}" title="{% trans 'Add restricting geometry' %}">&#xFF0B;</span>
-                        <span class="hide listable">{% trans 'Bounding geometry added' %}</span>
+                        <span class="{% if group.geo_json_geometry is None %}hide{% endif %} listable">{% trans 'Bounding geometry added' %}</span>
                     </li>
                 {% endfor %}
                 </ul>

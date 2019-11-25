@@ -1,6 +1,7 @@
+import json
 import uuid
 
-from django.contrib.gis.geos import Polygon
+from django.contrib.gis.geos import Polygon, GEOSGeometry, MultiPolygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
 from django.contrib.gis.db import models
@@ -48,8 +49,8 @@ class RequestOperation(models.Model):
 
 class SecuredOperation(models.Model):
     operation = models.ForeignKey(RequestOperation, on_delete=models.CASCADE, null=True, blank=True)
-    allowed_groups = models.ManyToManyField(Group, related_name="allowed_operations")
-    bounding_geometry = models.PolygonField(blank=True, null=True)
+    allowed_group = models.ForeignKey(Group, related_name="allowed_operations", on_delete=models.CASCADE, null=True, blank=True)
+    bounding_geometry = models.GeometryCollectionField(blank=True, null=True)
     secured_metadata = models.ForeignKey('Metadata', related_name="secured_operations", on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
@@ -69,9 +70,7 @@ class SecuredOperation(models.Model):
         """
         md = self.secured_metadata
         operation = self.operation
-
-        # delete current object
-        super().delete(using, keep_parents)
+        group = self.allowed_group
 
         md_type = md.metadata_type.type
 
@@ -79,9 +78,11 @@ class SecuredOperation(models.Model):
         if md_type == MetadataEnum.FEATURETYPE.value:
             sec_ops = SecuredOperation.objects.filter(
                 secured_metadata=md.featuretype,
-                operation=operation
+                operation=operation,
+                allowed_group=group
             )
             sec_ops.delete()
+
         elif md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
             service_type = md.service.servicetype.name
             if service_type == ServiceEnum.WFS.value:
@@ -90,7 +91,8 @@ class SecuredOperation(models.Model):
                 for featuretype in featuretypes:
                     sec_ops = SecuredOperation.objects.filter(
                         secured_metadata=featuretype.metadata,
-                        operation=operation
+                        operation=operation,
+                        allowed_group=group,
                     )
                     sec_ops.delete()
 
@@ -106,12 +108,27 @@ class SecuredOperation(models.Model):
                     layer = Layer.objects.get(
                         metadata=md
                     )
+
+                # remove root layer secured operation
+                sec_op = SecuredOperation.objects.filter(
+                    secured_metadata=layer.metadata,
+                    operation=operation,
+                    allowed_group=group
+                )
+                sec_op.delete()
+
+                # remove secured operations of root layer children
                 for child_layer in layer.child_layer.all():
                     sec_ops = SecuredOperation.objects.filter(
                         secured_metadata=child_layer.metadata,
-                        operation=operation
+                        operation=operation,
+                        allowed_group=group,
                     )
                     sec_ops.delete()
+                    child_layer.delete_children_secured_operations(child_layer, operation, group)
+
+        # delete current object
+        super().delete(using, keep_parents)
 
 
 class MetadataOrigin(models.Model):
@@ -798,24 +815,40 @@ class Service(Resource):
     def __str__(self):
         return str(self.id)
 
-    def perform_single_element_securing(self, element, is_secured: bool, groups: list, operation: RequestOperation):
+    def perform_single_element_securing(self, element, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation):
         """ Secures a single element
 
         Args:
             element: The element which shall be secured
             is_secured (bool): Whether to secure the element or not
-            groups (list): A list of groups which are allowed to perform an operation
+            group (Group): The group which is allowed to perform an operation
             operation (RequestOperation): The operation which can be performed by the groups
+            group_polygons (dict): The polygons which restrict the access for the group
         Returns:
 
         """
         element.metadata.is_secured = is_secured
         if is_secured:
-            sec_op = SecuredOperation()
-            sec_op.operation = operation
+
+            if sec_op is None:
+                sec_op = SecuredOperation()
+                sec_op.operation = operation
+                sec_op.allowed_group = group
+            else:
+                sec_op = SecuredOperation.objects.get(
+                    secured_metadata=element.metadata,
+                    operation=operation,
+                    allowed_group=group
+                )
+
+            poly_list = []
+            for group_polygon in group_polygons:
+                poly_str = group_polygon.get("geometry", group_polygon).get("coordinates", [None])[0]
+                tmp_poly = Polygon(poly_str)
+                poly_list.append(tmp_poly)
+
+            sec_op.bounding_geometry = GeometryCollection(poly_list)
             sec_op.save()
-            for g in groups:
-                sec_op.allowed_groups.add(g)
             element.metadata.secured_operations.add(sec_op)
         else:
             for sec_op in element.metadata.secured_operations.all():
@@ -824,28 +857,30 @@ class Service(Resource):
         element.metadata.save()
         element.save()
 
-    def _recursive_secure_sub_layers(self, current, is_secured: bool, groups: list, operation: RequestOperation):
+    def _recursive_secure_sub_layers(self, current, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Recursive implementation of securing all sub layers of a current layer
 
         Args:
             is_secured (bool): Whether the sublayers shall be secured or not
-            groups (list): The list of groups which are allowed to run the operation
+            group (Group): The group which is allowed to run the operation
             operation (RequestOperation): The operation that is allowed to be run
+            group_polygons (dict): The polygons which restrict the access for the group
         Returns:
              nothing
         """
-        self.perform_single_element_securing(current, is_secured, groups, operation)
+        self.perform_single_element_securing(current, is_secured, group, operation, group_polygons, secured_operation)
 
         for layer in current.child_layer.all():
-            self._recursive_secure_sub_layers(layer, is_secured, groups, operation)
+            self._recursive_secure_sub_layers(layer, is_secured, group, operation, group_polygons, secured_operation)
 
-    def _secure_sub_layers(self, is_secured: bool, groups: list, operation: RequestOperation):
+    def _secure_sub_layers(self, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub layers of this layer
 
         Args:
             is_secured (bool): Whether the sublayers shall be secured or not
-            groups (list): The list of groups which are allowed to run the operation
+            group (Group): The group which is allowed to run the operation
             operation (RequestOperation): The operation that is allowed to be run
+            group_polygons (dict): The polygons which restrict the access for the group
         Returns:
              nothing
         """
@@ -860,37 +895,39 @@ class Service(Resource):
             start_element = Layer.objects.get(
                 metadata=self.metadata
             )
-        self._recursive_secure_sub_layers(start_element, is_secured, groups, operation)
+        self._recursive_secure_sub_layers(start_element, is_secured, group, operation, group_polygons, secured_operation)
 
-    def _secure_feature_types(self, is_secured: bool, groups: list, operation: RequestOperation):
+    def _secure_feature_types(self, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub layers of this layer
 
         Args:
             is_secured (bool): Whether the sublayers shall be secured or not
-            groups (list): The list of groups which are allowed to run the operation
+            group (Group): The group which is allowed to run the operation
             operation (RequestOperation): The operation that is allowed to be run
+            group_polygons (dict): The polygons which restrict the access for the group
         Returns:
              nothing
         """
         if self.is_root:
             elements = self.featuretypes.all()
             for element in elements:
-                self.perform_single_element_securing(element, is_secured, groups, operation)
+                self.perform_single_element_securing(element, is_secured, group, operation, group_polygons, secured_operation)
 
-    def secure_sub_elements(self, is_secured: bool, groups: list, operation: RequestOperation):
+    def secure_sub_elements(self, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub elements of this layer
 
         Args:
             is_secured (bool): Whether the sublayers shall be secured or not
-            groups (list): The list of groups which are allowed to run the operation
+            group (Group): The group which is allowed to run the operation
             operation (RequestOperation): The operation that is allowed to be run
+            group_polygons (dict): The polygons which restrict the access for the group
         Returns:
              nothing
         """
         if self.servicetype.name == ServiceEnum.WMS.value:
-            self._secure_sub_layers(is_secured, groups, operation)
+            self._secure_sub_layers(is_secured, group, operation, group_polygons, secured_operation)
         elif self.servicetype.name == ServiceEnum.WFS.value:
-            self._secure_feature_types(is_secured, groups, operation)
+            self._secure_feature_types(is_secured, group, operation, group_polygons, secured_operation)
 
     @transaction.atomic
     def delete_child_data(self, child):
@@ -1090,6 +1127,27 @@ class Layer(Service):
     def __str__(self):
         return str(self.identifier)
 
+    def delete_children_secured_operations(self, layer, operation, group):
+        """ Walk recursive through all layers of wms and remove their secured operations
+
+        The 'layer' will not be affected!
+
+        Args:
+            layer: The layer, which children shall be changed.
+            operation: The RequestOperation of the SecuredOperation
+            group: The group
+        Returns:
+
+        """
+        for child_layer in layer.child_layer.all():
+            sec_ops = SecuredOperation.objects.filter(
+                secured_metadata=child_layer.metadata,
+                operation=operation,
+                allowed_group=group,
+            )
+            sec_ops.delete()
+            self.delete_children_secured_operations(child_layer, operation, group)
+
     def activate_layer_recursive(self, new_status):
         """ Walk recursive through all layers of a wms and set the activity status new
 
@@ -1211,7 +1269,7 @@ class FeatureType(Resource):
     def __str__(self):
         return self.metadata.identifier
 
-    def secure_feature_type(self, is_secured: bool, groups: list, operation: RequestOperation):
+    def secure_feature_type(self, is_secured: bool, groups: list, operation: RequestOperation, secured_operation: SecuredOperation):
         """ Secures the feature type or removes the secured constraints
 
         Args:

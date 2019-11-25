@@ -82,20 +82,32 @@ $(document).ready(function(){
         var elem = $(this);
         var operation = elem.attr("data-operation");
         var group = elem.attr("data-group");
+        var isElementChecked = elem.is(":checked");
 
         if(operation == "GetFeatureInfo"){
             // make sure that 'GetMap' is selected as well -> useless without!
             var getMapCheckbox = $(".group-permission[data-operation='GetMap'][data-group=" + group + "]")
-            if(!getMapCheckbox.is(":checked") && elem.is(":checked")){
+            if(!getMapCheckbox.is(":checked") && isElementChecked){
                 getMapCheckbox.click();
             }
         }
         if(operation == "GetMap"){
             // make sure that 'GetMap' is selected as well -> useless without!
             var getMapCheckbox = $(".group-permission[data-operation='GetFeatureInfo'][data-group=" + group + "]")
-            if(getMapCheckbox.is(":checked") && !elem.is(":checked")){
+            if(getMapCheckbox.is(":checked") && !isElementChecked){
                 getMapCheckbox.click();
             }
+        }
+
+        var securedId = parseInt(elem.attr("data-sec-id"));
+        if(securedId != -1 && !isElementChecked){
+            // this means the user wants to remove this secured operation setting!
+            elem.attr("data-remove", true);
+            console.log(securedId);
+
+        }else if(securedId != -1 && isElementChecked){
+            // this means the user has previously deselected this checkbox but changed it back to keep the secured operation setting!
+            elem.attr("data-remove", false);
         }
     });
 
@@ -105,25 +117,34 @@ $(document).ready(function(){
     });
 
     $(".submit-button.secured-operations").click(function(event){
-        // store information into hidden input field as json
+        // store information as json into hidden input field
         var operations = $("ul")
         var hiddenInput = $("input.hidden");
         var txtArr = []
         operations.each(function(i, elem){
             elem = $(elem);
-            var checkedElements = elem.find("input[id*='checkbox-sec-']:checked");
-            var dataSecId = elem.attr("data-sec-id");
-            if(dataSecId == ""){
-                dataSecId = -1;
-            }
+            var checkedElements = elem.find("input[id*='checkbox-sec-']:checked,input[id*='checkbox-sec-'][data-remove='true']");
             tmp = {
                 "operation": elem.attr("data-operation"),
-                "group": [],
-                "securedOperation": dataSecId,
+                "groups": [],
             }
             checkedElements.each(function(j, checkedElement){
                 checkedElement = $(checkedElement);
-                tmp["group"].push(checkedElement.attr("data-group"))
+                var dataSecId = checkedElement.attr("data-sec-id");
+                var remove = checkedElement.attr("data-remove");
+                if(dataSecId == ""){
+                    dataSecId = -1;
+                }
+
+                // add groups and polygons
+                tmpItem = {
+                    "groupId": checkedElement.attr("data-group"),
+                    "polygons": checkedElement.attr("data-polygons"),
+                    "securedOperation": dataSecId,
+                    "remove": checkedElement.attr("data-remove"),
+                }
+                tmp["groups"].push(tmpItem)
+
             });
             txtArr.push(tmp);
         });

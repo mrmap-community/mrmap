@@ -17,7 +17,7 @@ from MapSkinner import utils
 from MapSkinner.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
 from service.helper.enums import MetadataEnum, ServiceEnum
-from service.models import Service, Layer, RequestOperation, Metadata
+from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation
 from structure.models import User, Group, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
@@ -59,7 +59,7 @@ def async_activate_service(service_id: int, user_id: int):
 
 
 @shared_task(name="async_secure_service_task")
-def async_secure_service_task(metadata_id: int, is_secured: bool, group_ids: list, operation_id: int):
+def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int, operation_id: int, group_polygons: dict, secured_operation: SecuredOperation):
     """ Async call for securing a service
 
     Since this is something that can happen in the background, we should push it to the background!
@@ -73,9 +73,12 @@ def async_secure_service_task(metadata_id: int, is_secured: bool, group_ids: lis
          nothing
     """
     md = Metadata.objects.get(id=metadata_id)
-    groups = Group.objects.filter(
-        id__in=group_ids
-    )
+    if group_id is None:
+        group = None
+    else:
+        group = Group.objects.get(
+            id=group_id
+        )
     if operation_id is not None:
         operation = RequestOperation.objects.get(id=operation_id)
     else:
@@ -85,14 +88,14 @@ def async_secure_service_task(metadata_id: int, is_secured: bool, group_ids: lis
 
     # if whole service (wms AND wfs) shall be secured, create SecuredOperations for service object
     if md_type == MetadataEnum.SERVICE.value:
-        md.service.perform_single_element_securing(md.service, is_secured, groups, operation)
+        md.service.perform_single_element_securing(md.service, is_secured, group, operation, group_polygons, secured_operation)
 
     # secure subelements afterwards
     if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
-        md.service.secure_sub_elements(is_secured, groups, operation)
+        md.service.secure_sub_elements(is_secured, group, operation, group_polygons, secured_operation)
 
     elif md_type == MetadataEnum.FEATURETYPE.value:
-        md.featuretype.secure_feature_type(is_secured, groups, operation)
+        md.featuretype.secure_feature_type(is_secured, group, operation, group_polygons, secured_operation)
 
 
 @shared_task(name="async_remove_service_task")

@@ -7,6 +7,7 @@ from django.shortcuts import render, redirect
 # Create your views here.
 from django.template.loader import render_to_string
 
+from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED
@@ -247,7 +248,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
             secured_metadata=md
         )
         all_groups = Group.objects.all()
-        tmp = editor_helper.prepare_secured_operations_groups(operations, sec_ops, all_groups)
+        tmp = editor_helper.prepare_secured_operations_groups(operations, sec_ops, all_groups, md)
 
         params = {
             "service_metadata": md,
@@ -264,9 +265,12 @@ def access_geometry_form(request: HttpRequest, id: int, user: User):
     GET_params = request.GET
     operation = GET_params.get("operation", None)
     group_id = GET_params.get("groupId", None)
-    polygons = GET_params.get("polygons", None)
+    polygons = utils.resolve_none_string(GET_params.get("polygons", 'None'))
+
     if polygons is not None:
         polygons = json.loads(polygons)
+        if not isinstance(polygons, list):
+            polygons = [polygons]
 
     md = Metadata.objects.get(id=id)
     service_bounding_geometry = md.find_max_bounding_box()

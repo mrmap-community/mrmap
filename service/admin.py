@@ -19,7 +19,7 @@ class RequestOperationAdmin(admin.ModelAdmin):
 
 
 class SecuredOperationAdmin(admin.ModelAdmin):
-    list_display = ("id", "operation",)
+    list_display = ("id", 'secured_metadata', 'allowed_group', "operation")
 
 
 class ServiceTypeAdmin(admin.ModelAdmin):

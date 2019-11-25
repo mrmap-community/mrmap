@@ -8,15 +8,15 @@ Created on: 01.08.19
 import json
 
 from django.contrib import messages
-from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest
 
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
-from MapSkinner.messages import EDITOR_INVALID_ISO_LINK, EDITOR_ACCESS_RESTRICTED
+from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
+from MapSkinner import utils
 
 from service.helper.enums import VersionEnum, ServiceEnum
 from service.helper.iso.iso_metadata import ISOMetadata
@@ -25,8 +25,6 @@ from service.models import Metadata, Keyword, Category, FeatureType, Document, M
 from service.helper import xml_helper
 from service.settings import METADATA_RELATION_TYPE_DESCRIBED_BY
 from service.tasks import async_secure_service_task
-
-from structure.models import Group
 
 
 def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _type: str):
@@ -386,7 +384,7 @@ def overwrite_featuretype(original_ft: FeatureType, custom_ft: FeatureType, edit
     original_ft.save()
 
 
-def prepare_secured_operations_groups(operations, sec_ops, all_groups):
+def prepare_secured_operations_groups(operations, sec_ops, all_groups, metadata):
     """ Merges RequestOperations and SecuredOperations into a usable form for the template rendering.
 
     Iterates over all SecuredOperations of a metadata, simplifies the objects into dicts, adds the remaining
@@ -396,49 +394,53 @@ def prepare_secured_operations_groups(operations, sec_ops, all_groups):
         operations: The RequestOperation query set
         sec_ops: The SecuredOperation query set
         all_groups: All system groups
+        metadata: The secured metadata
     Returns:
          A list, containing dicts of all operations with groups and only the most important data
     """
     tmp = []
     for op in operations:
-        try:
-            secured = sec_ops.get(operation=op)
-            sec_dict = {
-                "id": secured.operation.id,
-                "sec_id": secured.id,
-                "name": secured.operation.operation_name,
-                "groups": [],
-            }
-            for group in secured.allowed_groups.all():
-                sec_dict["groups"].append({
-                    "id": group.id,
-                    "name": group.name,
-                    "organization": group.organization,
-                    "is_set": True
-                })
-            filtered_groups = all_groups.exclude(id__in=secured.allowed_groups.all())
-            for group in filtered_groups:
-                sec_dict["groups"].append({
-                    "id": group.id,
-                    "name": group.name,
-                    "organization": group.organization,
-                    "is_set": False
-                })
-            tmp.append(sec_dict)
-        except ObjectDoesNotExist:
-            tmp_dict = {
-                "id": op.id,
-                "name": op.operation_name,
-                "groups": [],
-            }
+        op_dict = {
+            "operation": op,
+            "groups": []
+        }
+        secured_operations = SecuredOperation.objects.filter(
+            operation=op,
+            secured_metadata=metadata,
+        )
+        if secured_operations.count() > 0:
+            allowed_groups = [x.allowed_group for x in secured_operations]
+
             for group in all_groups:
-                tmp_dict["groups"].append({
-                    "id": group.id,
-                    "name": group.name,
-                    "organization": group.organization,
-                    "is_set": False
+                allowed = False
+                sec_id = -1
+                geometry = None
+                if group in allowed_groups:
+                    allowed = True
+                    sec_op = secured_operations.get(allowed_group=group)
+                    geometry_collection = sec_op.bounding_geometry
+                    polygon_list = [json.loads(x.geojson) for x in geometry_collection]
+                    geometry = json.dumps(polygon_list)
+                    sec_id = sec_op.id
+
+                op_dict["groups"].append({
+                    "group": group,
+                    "allowed": allowed,
+                    "sec_id": sec_id,
+                    "geo_json_geometry": geometry,
                 })
-            tmp.append(tmp_dict)
+
+            tmp.append(op_dict)
+
+        else:
+            for group in all_groups:
+                op_dict["groups"].append({
+                    "group": group,
+                    "allowed": False,
+                    "sec_id": -1,
+                    "geo_json_geometry": None,
+                })
+            tmp.append(op_dict)
     return tmp
 
 
@@ -452,7 +454,7 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
          nothing - directly changes the database
     """
     # process form input
-    sec_operations_groups = json.loads(post_params.get("secured-operation-groups"))
+    sec_operations_groups = json.loads(post_params.get("secured-operation-groups"), "{}")
     is_secured = post_params.get("is_secured", "")
     is_secured = is_secured == "on"  # resolve True|False
 
@@ -468,38 +470,42 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
         sec_ops.delete()
 
         # remove all secured settings for subelements
-        async_secure_service_task.delay(md.id, is_secured, [], None)
+        async_secure_service_task.delay(md.id, is_secured, None, None, None, None)
 
     else:
 
         for item in sec_operations_groups:
-            item_sec_op_id = item.get("securedOperation", None)
-            group_ids = item.get("group", [])
-            operation = item.get("operation", None)
-            if item_sec_op_id == -1:
-                # create new setting
-                operation = RequestOperation.objects.get(
-                    operation_name=operation
-                )
-                groups = Group.objects.filter(
-                    id__in=group_ids
-                )
-                if groups.count() > 0:
-                    async_secure_service_task.delay(md.id, is_secured, group_ids, operation.id)
+            group_items = item.get("groups", {})
+            for group_item in group_items:
+                item_sec_op_id = int(group_item.get("securedOperation", "-1"))
+                group_id = int(group_item.get("groupId", "-1"))
+                remove = group_item.get("remove", "false")
+                remove = utils.resolve_boolean_attribute_val(remove)
+                group_polygons = group_item.get("polygons", "{}")
+                group_polygons = utils.resolve_none_string(group_polygons)
+                if group_polygons is not None:
+                    group_polygons = json.loads(group_polygons)
 
-            else:
-                # edit existing one
-                secured_op_input = SecuredOperation.objects.get(
-                    id=item_sec_op_id
-                )
-                groups = Group.objects.filter(
-                    id__in=group_ids
-                )
+                operation = item.get("operation", None)
 
-                if groups.count() == 0:
-                    # all groups have been removed from allowed access -> we can delete this SecuredOperation record
-                    secured_op_input.delete()
+                if remove:
+                    # remove this secured operation
+                    sec_op = SecuredOperation.objects.get(
+                        id=item_sec_op_id
+                    )
+                    sec_op.delete()
                 else:
-                    secured_op_input.allowed_groups.clear()
-                    for g in groups:
-                        secured_op_input.allowed_groups.add(g)
+                    operation = RequestOperation.objects.get(
+                        operation_name=operation
+                    )
+                    if item_sec_op_id == -1:
+                        # create new setting
+                        #async_secure_service_task.delay(md.id, is_secured, group_id, operation.id, group_polygons, None)
+                        async_secure_service_task(md.id, is_secured, group_id, operation.id, group_polygons, None)
+
+                    else:
+                        # edit existing one
+                        secured_op_input = SecuredOperation.objects.get(
+                            id=item_sec_op_id
+                        )
+                        async_secure_service_task(md.id, is_secured, group_id, operation.id, group_polygons, secured_op_input)

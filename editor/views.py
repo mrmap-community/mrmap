@@ -275,10 +275,6 @@ def access_geometry_form(request: HttpRequest, id: int, user: User):
     md = Metadata.objects.get(id=id)
     service_bounding_geometry = md.find_max_bounding_box()
 
-    if request.method == "POST":
-        pass
-    else:
-        pass
     params = {
         "article": _("Add a geometry, which defines the area where this group can access the operation on this service."),
         "action_url": "{}{}/editor/edit/access/{}/geometry-form/".format(HTTP_OR_SSL, HOST_NAME, md.id),

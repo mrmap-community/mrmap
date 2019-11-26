@@ -1,6 +1,7 @@
 import json
 
 from django.contrib import messages
+from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -15,7 +16,8 @@ from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
     SECURITY_PROXY_ERROR_MULTIPLE_SECURED_OPERATIONS, SECURITY_PROXY_NOT_ALLOWED, SECURITY_PROXY_ERROR_BROKEN_URI, \
-    SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND
+    SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
+    SECURITY_PROXY_ERROR_PARAMETER
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
@@ -738,8 +740,10 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
     """
     # get request type and requested layer
     get_query_string = request.environ.get("QUERY_STRING", "")
-    request_type = None
-    requested_layer = None
+    request_type = None  # refers to param 'REQUEST'
+    requested_layer = None  # refers to param 'LAYERS'
+    x_y_i_j_param = None  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)
+    bbox_param = None  # refers to param 'BBOX'
 
     GET_params = request.GET
     for key, val in GET_params.items():
@@ -748,6 +752,15 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
             request_type = val
         if key == "LAYER":
             requested_layer = val
+        if key == "BBOX":
+            bbox_param = val
+            # create Polygon object from raw parameter
+            bbox_param = bbox_param.split(",")
+            if len(bbox_param) != 4:
+                return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("BBOX"))
+            bbox_param = Polygon.from_bbox(bbox_param)
+        if key == "X/Y" or key == "X,Y" or key == "X, Y" or key == "I, J" or key == "I,J":
+            x_y_i_j_param = val
 
     if request_type is None:
         return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
@@ -795,28 +808,31 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
 
     if metadata.is_secured:
         # check if the metadata allows operations for certain groups
-        sec_ops = metadata.secured_operations.filter(operation__operation_name__iexact=request_type)
+        sec_ops = metadata.secured_operations.filter(
+            operation__operation_name__iexact=request_type,
+            allowed_group__in=user.groups.all(),
+        )
         if sec_ops.count() == 0:
-            # this means the service is secured and the user has no access!
+            # this means the service is secured but the user has no access!
             return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
-        try:
-            sec_op = sec_ops.get(operation__operation_name__iexact=request_type)
-        except ObjectDoesNotExist:
-            # this should not be possible!!!
-            return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MULTIPLE_SECURED_OPERATIONS)
-
-        # check if the user is part of one of the allowed groups!
-        allowed = False
-        for group in user.groups.all():
-            if group in sec_op.allowed_groups.all():
-                allowed = True
-                break
-
-        if allowed:
-            xml_response = service_helper.get_operation_response(uri)
-            return HttpResponse(xml_response, content_type='application/xml')
         else:
-            return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
+            # User is at least in one group that has access to this operation on this metadata.
+            # Now check the spatial restriction!
+            spatially_allowed = False
+            for sec_op in sec_ops:
+                if spatially_allowed:
+                    break
+                restricting_geom_collection = sec_op.bounding_geometry
+                for geom in restricting_geom_collection:
+                    if geom.covers(bbox_param):
+                        spatially_allowed = True
+                        break
+
+            if spatially_allowed:
+                xml_response = service_helper.get_operation_response(uri)
+                return HttpResponse(xml_response, content_type='application/xml')
+            else:
+                return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
     else:
         # if the metadata is not secured, there is no reason this route would have been called in the first place!
         # We simply redirect to the original route!

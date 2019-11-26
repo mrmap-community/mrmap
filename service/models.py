@@ -275,7 +275,7 @@ class Metadata(Resource):
 
         """
         children = self.service.child_service.all()
-        max_box = None
+        max_box = self.bounding_geometry
         for child in children:
             bbox = child.layer.bbox_lat_lon
             if max_box is None:
@@ -285,8 +285,11 @@ class Metadata(Resource):
                 ma = max_box.area
                 if ba > ma:
                     max_box = bbox
-        self.bounding_geometry = max_box
-        self.save()
+
+        if max_box.area == 0:
+            # if this element and it's children does not provide a bounding geometry, we simply take the one from the
+            # whole service to avoid the map flipping somewhere else on the planet
+            return self.service.parent_service.metadata.find_max_bounding_box()
         return max_box
 
     def is_root(self):

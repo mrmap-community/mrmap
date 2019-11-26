@@ -1,7 +1,7 @@
 import json
 
 from django.contrib import messages
-from django.contrib.gis.geos import Polygon
+from django.contrib.gis.geos import Polygon, Point
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -742,7 +742,10 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
     get_query_string = request.environ.get("QUERY_STRING", "")
     request_type = None  # refers to param 'REQUEST'
     requested_layer = None  # refers to param 'LAYERS'
-    x_y_i_j_param = None  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)
+    x_y_param = {
+        "x": None,
+        "y": None
+    }  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)
     bbox_param = None  # refers to param 'BBOX'
 
     GET_params = request.GET
@@ -754,13 +757,29 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
             requested_layer = val
         if key == "BBOX":
             bbox_param = val
-            # create Polygon object from raw parameter
-            bbox_param = bbox_param.split(",")
-            if len(bbox_param) != 4:
-                return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("BBOX"))
-            bbox_param = Polygon.from_bbox(bbox_param)
-        if key == "X/Y" or key == "X,Y" or key == "X, Y" or key == "I, J" or key == "I,J":
-            x_y_i_j_param = val
+        if key == "X" or key == "I":
+            x_y_param["x"] = val
+        if key == "Y" or key == "J":
+            x_y_param["y"] = val
+
+    # create Polygon object from raw BBOX parameter
+    bbox_param = bbox_param.split(",")
+    if len(bbox_param) != 4:
+        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("BBOX"))
+    bbox_param = Polygon.from_bbox(bbox_param)
+
+    # create Point object from raw X/Y parameters
+    if x_y_param["x"] is None and x_y_param["y"] is not None:
+        # make sure both values are set or none
+        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("X"))
+    elif x_y_param["x"] is not None and x_y_param["y"] is None:
+        # make sure both values are set or none
+        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("Y"))
+    elif x_y_param["x"] is not None and x_y_param["y"] is not None:
+        # we can create a Point object from this!
+        x_y_param = Point(x_y_param["x"], x_y_param["y"])
+    else:
+        x_y_param = None
 
     if request_type is None:
         return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
@@ -818,17 +837,21 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
         else:
             # User is at least in one group that has access to this operation on this metadata.
             # Now check the spatial restriction!
-            spatially_allowed = False
+            bbox_spatially_allowed = False
+            x_y_spatially_allowed = False
             for sec_op in sec_ops:
-                if spatially_allowed:
+                if bbox_spatially_allowed and x_y_spatially_allowed:
                     break
                 restricting_geom_collection = sec_op.bounding_geometry
                 for geom in restricting_geom_collection:
-                    if geom.covers(bbox_param):
-                        spatially_allowed = True
-                        break
+                    if bbox_param is not None:
+                        if geom.covers(bbox_param):
+                            bbox_spatially_allowed = True
+                    if x_y_param is not None:
+                        if geom.covers(x_y_param):
+                            x_y_spatially_allowed = True
 
-            if spatially_allowed:
+            if bbox_spatially_allowed and x_y_spatially_allowed:
                 xml_response = service_helper.get_operation_response(uri)
                 return HttpResponse(xml_response, content_type='application/xml')
             else:

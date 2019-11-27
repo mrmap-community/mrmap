@@ -9,16 +9,17 @@ Created on: 16.04.19
 import urllib
 
 from celery import Task
+from django.contrib.gis.geos import GEOSGeometry, Polygon, Point
+from django.http import HttpResponse
 
-from MapSkinner.settings import HOST_NAME, HTTP_OR_SSL
+from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER
 from service.settings import DEFAULT_SERVICE_VERSION
-from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import VersionEnum, ServiceEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
-from service.models import Service, Document, MetadataRelation
+from service.models import Service
 from MapSkinner.utils import sha256
 
 
@@ -222,6 +223,67 @@ def get_operation_response(uri: str):
     c.load()
     if c.status_code != 200:
         raise Exception(c.status_code)
+    return c.content
 
-    content_str = c.content.decode("UTF-8")
-    return content_str
+
+def process_bbox_param(bbox_param: str, srs_param: str, service_type: str):
+    """ Creates a polygon from the given string bounding box
+
+    Args:
+        bbox_param (str): Bounding box as string, separated with ','
+        srs_param (str): The spatial reference system, like 'EPSG:4326'
+    Returns:
+        A dict, which contains the bounding box geometry 'geom' for spatial access checks and 'bbox_param' as string,
+        where the axis might be switched, according to the service type
+    """
+    ret_dict = {
+        "geom": None,
+        "bbox_param": None
+    }
+    if bbox_param is None:
+        return ret_dict
+    #epsg_api = EpsgApi()
+
+    # create Polygon object from raw BBOX parameter
+    tmp_bbox = bbox_param.split(",")
+
+    if len(tmp_bbox) != 4:
+        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("BBOX"))
+    bbox_param_geom = GEOSGeometry(Polygon.from_bbox(tmp_bbox), srid=srs_param)
+
+    # check whether the axis of the bbox extent vertices have to be switched
+    #switch_axis = epsg_api.switch_axis_order(service_type, srs_param)
+
+    #if switch_axis:
+    #    for i in range(0, len(tmp_bbox)-1, 2):
+    #        tmp = tmp_bbox[i]
+    #        tmp_bbox[i] = tmp_bbox[i+1]
+    #        tmp_bbox[i+1] = tmp
+
+    ret_dict["geom"] = bbox_param_geom
+    ret_dict["bbox_param"] = ",".join(tmp_bbox)
+
+    return ret_dict
+
+
+def process_x_y_param(x_y_param: dict):
+    """ Creates a point from the given x_y_param dict
+
+    Args:
+        x_y_param (dict): Bounding box as string, separated with ','
+    Returns:
+
+    """
+    # create Point object from raw X/Y parameters
+    if x_y_param["x"] is None and x_y_param["y"] is not None:
+        # make sure both values are set or none
+        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("X"))
+    elif x_y_param["x"] is not None and x_y_param["y"] is None:
+        # make sure both values are set or none
+        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("Y"))
+    elif x_y_param["x"] is not None and x_y_param["y"] is not None:
+        # we can create a Point object from this!
+        x_y_param = Point(x_y_param["x"], x_y_param["y"])
+    else:
+        x_y_param = None
+    return x_y_param

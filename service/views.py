@@ -1,7 +1,7 @@
 import json
 
 from django.contrib import messages
-from django.contrib.gis.geos import Polygon, Point
+from django.contrib.gis.geos import Polygon, Point, GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -27,7 +27,7 @@ from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceEnum, MetadataEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.service_comparator import ServiceComparator
-from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, SecuredOperation
+from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, SecuredOperation, MimeType
 from service.settings import MD_TYPE_SERVICE
 from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group
@@ -747,6 +747,8 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
         "y": None
     }  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)
     bbox_param = None  # refers to param 'BBOX'
+    srs_param = None  # refers to param 'SRS' (WMS 1.0.0 - 1.1.1) and 'CRS' (WMS 1.3.0)
+    version_param = None  # refers to param 'VERSION'
 
     GET_params = request.GET
     for key, val in GET_params.items():
@@ -761,25 +763,10 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
             x_y_param["x"] = val
         if key == "Y" or key == "J":
             x_y_param["y"] = val
-
-    # create Polygon object from raw BBOX parameter
-    bbox_param = bbox_param.split(",")
-    if len(bbox_param) != 4:
-        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("BBOX"))
-    bbox_param = Polygon.from_bbox(bbox_param)
-
-    # create Point object from raw X/Y parameters
-    if x_y_param["x"] is None and x_y_param["y"] is not None:
-        # make sure both values are set or none
-        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("X"))
-    elif x_y_param["x"] is not None and x_y_param["y"] is None:
-        # make sure both values are set or none
-        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("Y"))
-    elif x_y_param["x"] is not None and x_y_param["y"] is not None:
-        # we can create a Point object from this!
-        x_y_param = Point(x_y_param["x"], x_y_param["y"])
-    else:
-        x_y_param = None
+        if key == "VERSION":
+            version_param = val
+        if key == "SRS" or key == "CRS":
+            srs_param = val
 
     if request_type is None:
         return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
@@ -794,6 +781,9 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
             )
             return redirect(redirect_uri)
 
+        if not metadata.is_active:
+            return HttpResponse(status=423, content=SERVICE_DISABLED)
+
         # if the 'layer' parameter indicates the request for a subelement of this service, we need to fetch this metadata
         # to continue with!
         if requested_layer is not None:
@@ -802,11 +792,19 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
             except ObjectDoesNotExist:
                 return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
 
+        tmp_st = metadata.service.servicetype
+        service_type = "{}_{}".format(tmp_st.name, version_param)
+
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
-    if not metadata.is_active:
-        return HttpResponse(status=423, content=SERVICE_DISABLED)
+    bbox_param = service_helper.process_bbox_param(bbox_param, srs_param, service_type)
+    bbox_geom = bbox_param["geom"]
+    bbox_param = bbox_param["bbox_param"]
+
+    get_query_string = utils.set_uri_GET_param(get_query_string, "bbox", bbox_param)
+
+    x_y_param = service_helper.process_x_y_param(x_y_param)
 
     # identify requested operation and resolve the uri
     if metadata.service.servicetype.name == ServiceEnum.WFS.value:
@@ -837,23 +835,26 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
         else:
             # User is at least in one group that has access to this operation on this metadata.
             # Now check the spatial restriction!
-            bbox_spatially_allowed = False
-            x_y_spatially_allowed = False
+            constraints = {}
+            if bbox_param is not None:
+                constraints["bbox"] = False
+            if x_y_param is not None:
+                constraints["x_y"] = False
+
             for sec_op in sec_ops:
-                if bbox_spatially_allowed and x_y_spatially_allowed:
-                    break
                 restricting_geom_collection = sec_op.bounding_geometry
                 for geom in restricting_geom_collection:
-                    if bbox_param is not None:
-                        if geom.covers(bbox_param):
-                            bbox_spatially_allowed = True
+                    if bbox_geom is not None:
+                        if geom.covers(bbox_geom):
+                            constraints["bbox"] = True
                     if x_y_param is not None:
                         if geom.covers(x_y_param):
-                            x_y_spatially_allowed = True
+                            constraints["x_y"] = True
 
-            if bbox_spatially_allowed and x_y_spatially_allowed:
-                xml_response = service_helper.get_operation_response(uri)
-                return HttpResponse(xml_response, content_type='application/xml')
+            allowed = False not in constraints.values()
+            if allowed:
+                response = service_helper.get_operation_response(uri)
+                return HttpResponse(response, content_type="")
             else:
                 return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
     else:

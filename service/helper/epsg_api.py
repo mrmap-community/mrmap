@@ -88,3 +88,27 @@ class EpsgApi:
         }
         return order
 
+    def switch_axis_order(self, service_type: str, srs_identifier: str):
+        """ Checks whether the axis have to be switched, regarding the given service type (like 'wms_1.3.0')
+        and spatial reference system identifier
+
+        Args:
+            service_type (str): The service type given as [type]_[version]
+            srs_identifier (str): The spatial reference system, e.g. 'EPSG:4326'
+        Returns:
+             ret_val (bool): Whether the axis have to be switched or not
+        """
+        service_types_to_be_checked = [
+            "wms_1.3.0",
+            "wfs_1.1.0",
+            "wfs_2.0.0",
+            "wfs_2.0.2",
+            "gml_3.2.0"
+        ]
+
+        if service_type not in service_types_to_be_checked:
+            return False
+
+        order = self.get_axis_order(srs_identifier)
+        ret_val = not (order["first_axis"] == "north" and order["second_axis"] == "east")
+        return ret_val

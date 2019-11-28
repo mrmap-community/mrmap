@@ -38,9 +38,10 @@ def async_activate_service(service_id: int, user_id: int):
 
     # get service and change status
     service = Service.objects.get(id=service_id)
-    new_status = not service.metadata.is_active
-    service.metadata.is_active = new_status  # invert active status
+    new_status = not service.metadata.is_active  # invert active status
+    service.metadata.is_active = new_status
     service.metadata.save(update_last_modified=False)
+    service.is_active = new_status
     service.save(update_last_modified=False)
 
     # get root_layer of service and start changing of all statuses

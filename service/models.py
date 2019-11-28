@@ -172,7 +172,6 @@ class Metadata(Resource):
     spatial_res_type = models.CharField(max_length=100, null=True)
     spatial_res_value = models.CharField(max_length=100, null=True)
     is_broken = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=False)
     is_custom = models.BooleanField(default=False)
     is_inspire_conform = models.BooleanField(default=False)
     has_inspire_downloads = models.BooleanField(default=False)
@@ -1162,6 +1161,7 @@ class Layer(Service):
         """
         self.metadata.is_active = new_status
         self.metadata.save()
+        self.is_active = new_status
         self.save()
 
         # check for all related metadata, we need to toggle their active status as well

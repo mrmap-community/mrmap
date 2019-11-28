@@ -485,6 +485,8 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
                 group_polygons = utils.resolve_none_string(group_polygons)
                 if group_polygons is not None:
                     group_polygons = json.loads(group_polygons)
+                else:
+                    group_polygons = []
 
                 operation = item.get("operation", None)
 

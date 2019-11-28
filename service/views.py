@@ -799,10 +799,6 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
     bbox_param = service_helper.process_bbox_param(bbox_param, srs_param, service_type)
-    bbox_geom = bbox_param["geom"]
-    bbox_param = bbox_param["bbox_param"]
-
-    get_query_string = utils.set_uri_GET_param(get_query_string, "bbox", bbox_param)
 
     x_y_param = service_helper.process_x_y_param(x_y_param)
 
@@ -824,39 +820,14 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
     uri += get_query_string
 
     if metadata.is_secured:
-        # check if the metadata allows operations for certain groups
-        sec_ops = metadata.secured_operations.filter(
-            operation__operation_name__iexact=request_type,
-            allowed_group__in=user.groups.all(),
+        return service_helper.get_secured_operation_result(
+            metadata,
+            request_type,
+            user,
+            x_y_param,
+            bbox_param,
+            uri
         )
-        if sec_ops.count() == 0:
-            # this means the service is secured but the user has no access!
-            return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
-        else:
-            # User is at least in one group that has access to this operation on this metadata.
-            # Now check the spatial restriction!
-            constraints = {}
-            if bbox_param is not None:
-                constraints["bbox"] = False
-            if x_y_param is not None:
-                constraints["x_y"] = False
-
-            for sec_op in sec_ops:
-                restricting_geom_collection = sec_op.bounding_geometry
-                for geom in restricting_geom_collection:
-                    if bbox_geom is not None:
-                        if geom.covers(bbox_geom):
-                            constraints["bbox"] = True
-                    if x_y_param is not None:
-                        if geom.covers(x_y_param):
-                            constraints["x_y"] = True
-
-            allowed = False not in constraints.values()
-            if allowed:
-                response = service_helper.get_operation_response(uri)
-                return HttpResponse(response, content_type="")
-            else:
-                return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
     else:
         # if the metadata is not secured, there is no reason this route would have been called in the first place!
         # We simply redirect to the original route!

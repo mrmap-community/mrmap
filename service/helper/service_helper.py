@@ -10,17 +10,18 @@ import urllib
 
 from celery import Task
 from django.contrib.gis.geos import GEOSGeometry, Polygon, Point
-from django.http import HttpResponse
+from django.http import HttpResponse, QueryDict
 
-from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER
+from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER, SECURITY_PROXY_NOT_ALLOWED
 from service.settings import DEFAULT_SERVICE_VERSION
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import VersionEnum, ServiceEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
-from service.models import Service
+from service.models import Service, Metadata
 from MapSkinner.utils import sha256
+from structure.models import User
 
 
 def resolve_version_enum(version:str):
@@ -287,3 +288,72 @@ def process_x_y_param(x_y_param: dict):
     else:
         x_y_param = None
     return x_y_param
+
+
+def check_get_feature_info_operation_access(x_y_param: Point, sec_ops: QueryDict):
+    """ Checks whether the user given x/y Point parameter object is inside the geometry, which defines the allowed
+    access for the GetFeatureInfo operation
+
+    Args:
+        x_y_param (Point): A Point object
+        sec_ops (QueryDict): A QueryDict containing SecuredOperation objects
+    Returns:
+         Whether the Point is inside the geometry or not
+    """
+
+    # User is at least in one group that has access to this operation on this metadata.
+    # Now check the spatial restriction!
+    constraints = {}
+    if x_y_param is not None:
+        constraints["x_y"] = False
+
+    for sec_op in sec_ops:
+        restricting_geom_collection = sec_op.bounding_geometry
+        for geom in restricting_geom_collection:
+            if x_y_param is not None:
+                if geom.covers(x_y_param):
+                    constraints["x_y"] = True
+
+    return False not in constraints.values()
+
+
+def get_secured_operation_result(metadata: Metadata, request_type: str, user: User, x_y_param: Point, bbox_param: dict, uri: str):
+    """ Performs a security access check and returns the desired result or an http error response
+
+    Performs different checks on the secured access of the resource, which are linked using SecuredOperation objects.
+
+    Args;
+        metadata (Metadata): The metadata which describes the resource
+        request_type (str): The operation (GetMap, GetFeatureInfo, GetFeature, Transaction)
+        user (User): The performing user
+        x_y_param (Point): The x/y Point object, which describes a POI for GetFeatureInfo or GetFeature
+        bbox_param (dict): Holds the bbox geom in 'geom' and the original parameter in 'bbox_param'
+        uri:
+    Returns:
+         HttpResponse
+    """
+    # check if the metadata allows operations for certain groups
+    sec_ops = metadata.secured_operations.filter(
+        operation__operation_name__iexact=request_type,
+        allowed_group__in=user.groups.all(),
+    )
+
+    if sec_ops.count() == 0:
+        # this means the service is secured but the user has no access!
+        return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
+    else:
+        bbox_geom = bbox_param.get("geom")
+        bbox_param = bbox_param.get("bbox_param")
+        allowed = False
+        if request_type.upper() == "GETFEATUREINFO":
+            allowed = check_get_feature_info_operation_access(x_y_param, sec_ops)
+            response = get_operation_response(uri)
+        elif request_type.upper() == "GETMAP":
+            allowed = True  # allow the access but use masking of the retrieved image to hide unaccessible parts of the image
+            response = get_operation_response(uri)
+            # ToDo: Perform the GetMap operation and mask the returned image using the restricting geometry!!!
+
+        if allowed:
+            return HttpResponse(response, content_type="")
+        else:
+            return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)

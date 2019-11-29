@@ -41,6 +41,16 @@ article{
     padding: 10px 0 10px 0;
 }
 
+.map-functions{
+    margin: 1rem 0 1rem 0;
+}
+
+.button-container{
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+}
+
 </style>
 
 {% block body %}
@@ -49,6 +59,7 @@ article{
         x
     </div>
     <div class="modal-content">
+        <div class="map-functions">
         <article>
             {{ article }}
         </article>
@@ -144,9 +155,17 @@ article{
                });
 
            </script>
-        <div>
-            <article>{% trans 'Import a GML3 or GeoJSON file' %}</article>
-            <input class="shapefile-upload" type="file" title="{% trans 'Load shapefile' %}"/>
+        <div class="button-container">
+            <div>
+                <article>{% trans 'Import a GML3 or GeoJSON file' %}</article>
+                <input class="geometry-upload" type="file" title="{% trans 'Load geometry' %}"/>
+            </div>
+            <div>
+                <article>{% trans 'Export drawn geometry as GeoJSON' %}</article>
+                <button class="button geometry-download" title="{% trans 'Export geometry' %}">{% trans 'Export' %}</button>
+            </div>
+
+            </div>
         </div>
         <form action="{{ action_url }}" method="post" >
 
@@ -157,7 +176,36 @@ article{
 
 <script>
 
-    $(".shapefile-upload").change(function(){
+    $(".geometry-download").click(function(){
+        var elem = $(this)[0];
+        var data = {
+            "type": "FeatureCollection",
+            "features": []
+        };
+        vals = findSessionValuesLike("polygon_");
+        for(val in vals){
+            data["features"].push(JSON.parse(vals[val]));
+        }
+        data = JSON.stringify(data, null, 2);
+        var file = new Blob([data], {type: "geojson"});
+
+        if (window.navigator.msSaveOrOpenBlob) // IE10+
+            window.navigator.msSaveOrOpenBlob(file, filename);
+        else { // Others
+            var a = document.createElement("a"),
+                    url = URL.createObjectURL(file);
+            a.href = url;
+            a.download = "geometry.geojson";
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 0);
+        }
+    });
+
+    $(".geometry-upload").change(function(){
         var elem = $(this)[0];
         var file = elem.files[0];
         var appType = file.type;

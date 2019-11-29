@@ -7,13 +7,16 @@ Created on: 16.04.19
 """
 
 import urllib
+import io
 
+from PIL import Image, ImageOps
 from celery import Task
 from django.contrib.gis.geos import GEOSGeometry, Polygon, Point
 from django.http import HttpResponse, QueryDict
 
 from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER, SECURITY_PROXY_NOT_ALLOWED
-from service.settings import DEFAULT_SERVICE_VERSION
+from service.settings import DEFAULT_SERVICE_VERSION, MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_LOCAL_PATH, \
+    MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_SECURITY_MASK_KEY_COLUMN
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import VersionEnum, ServiceEnum
 from service.helper.epsg_api import EpsgApi
@@ -222,7 +225,7 @@ def get_operation_response(uri: str):
     """
     c = CommonConnector(url=uri)
     c.load()
-    if c.status_code != 200:
+    if c.status_code is not None and c.status_code != 200:
         raise Exception(c.status_code)
     return c.content
 
@@ -267,7 +270,7 @@ def process_bbox_param(bbox_param: str, srs_param: str, service_type: str):
     return ret_dict
 
 
-def process_x_y_param(x_y_param: dict):
+def process_x_y_param(x_y_param: list, srs: str):
     """ Creates a point from the given x_y_param dict
 
     Args:
@@ -276,15 +279,15 @@ def process_x_y_param(x_y_param: dict):
 
     """
     # create Point object from raw X/Y parameters
-    if x_y_param["x"] is None and x_y_param["y"] is not None:
+    if x_y_param[0] is None and x_y_param[1] is not None:
         # make sure both values are set or none
         return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("X"))
-    elif x_y_param["x"] is not None and x_y_param["y"] is None:
+    elif x_y_param[0] is not None and x_y_param[1] is None:
         # make sure both values are set or none
         return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("Y"))
-    elif x_y_param["x"] is not None and x_y_param["y"] is not None:
+    elif x_y_param[0] is not None and x_y_param[1] is not None:
         # we can create a Point object from this!
-        x_y_param = Point(x_y_param["x"], x_y_param["y"])
+        x_y_param = Point(x_y_param[0], x_y_param[1])
     else:
         x_y_param = None
     return x_y_param
@@ -317,24 +320,77 @@ def check_get_feature_info_operation_access(x_y_param: Point, sec_ops: QueryDict
     return False not in constraints.values()
 
 
-def get_secured_operation_result(metadata: Metadata, request_type: str, user: User, x_y_param: Point, bbox_param: dict, uri: str):
+def get_secured_service_mask(metadata: Metadata, sec_ops: QueryDict, GET_params: dict):
+    response = ""
+    for op in sec_ops:
+        request_dict = {
+            "map": MAPSERVER_SECURITY_MASK_FILE_PATH,
+            "version": "1.1.1",
+            "request": "GetMap",
+            "service": "WMS",
+            "format": "image/png",
+            "layers": "mask",
+            "srs": GET_params["srs"],
+            "bbox": GET_params["bbox"].get("bbox_param"),
+            "width": GET_params["width"],
+            "height": GET_params["height"],
+            "keys": op.id,
+            "table": MAPSERVER_SECURITY_MASK_TABLE,
+            "key_column": MAPSERVER_SECURITY_MASK_KEY_COLUMN,
+            "geom_column": MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
+        }
+        uri = "{}?{}".format(
+            MAPSERVER_LOCAL_PATH,
+            urllib.parse.urlencode(request_dict)
+        )
+        response = get_operation_response(uri)
+    return response
+
+
+def create_masked_image(img: bytes, mask: bytes, as_bytes: bool = False):
+    """ Creates a masked image from two image byte object
+
+    Args:
+        img (byte): The bytes of the image
+        mask (byte): The bytes of the mask
+    Returns:
+         img (Image): The masked image
+    """
+    img = io.BytesIO(img)
+    mask = io.BytesIO(mask)
+
+    img = Image.open(img)
+    mask = Image.open(mask)
+
+    mask = mask.convert("L").resize(img.size)
+    mask = ImageOps.invert(mask)
+
+    img.putalpha(mask)
+
+    if as_bytes:
+        outBytesStream = io.BytesIO()
+        img.save(outBytesStream, img.format)
+        img = outBytesStream.getvalue()
+
+    return img
+
+
+def get_secured_operation_result(metadata: Metadata, GET_params: dict, user: User, uri: str):
     """ Performs a security access check and returns the desired result or an http error response
 
     Performs different checks on the secured access of the resource, which are linked using SecuredOperation objects.
 
     Args;
         metadata (Metadata): The metadata which describes the resource
-        request_type (str): The operation (GetMap, GetFeatureInfo, GetFeature, Transaction)
+        GET_params (dict): Contains all relevant parameters from the request
         user (User): The performing user
-        x_y_param (Point): The x/y Point object, which describes a POI for GetFeatureInfo or GetFeature
-        bbox_param (dict): Holds the bbox geom in 'geom' and the original parameter in 'bbox_param'
         uri:
     Returns:
          HttpResponse
     """
     # check if the metadata allows operations for certain groups
     sec_ops = metadata.secured_operations.filter(
-        operation__operation_name__iexact=request_type,
+        operation__operation_name__iexact=GET_params["request"],
         allowed_group__in=user.groups.all(),
     )
 
@@ -342,16 +398,15 @@ def get_secured_operation_result(metadata: Metadata, request_type: str, user: Us
         # this means the service is secured but the user has no access!
         return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
     else:
-        bbox_geom = bbox_param.get("geom")
-        bbox_param = bbox_param.get("bbox_param")
         allowed = False
-        if request_type.upper() == "GETFEATUREINFO":
-            allowed = check_get_feature_info_operation_access(x_y_param, sec_ops)
+        if GET_params["request"].upper() == "GETFEATUREINFO":
+            allowed = check_get_feature_info_operation_access(GET_params["x_y"], sec_ops)
             response = get_operation_response(uri)
-        elif request_type.upper() == "GETMAP":
+        elif GET_params["request"].upper() == "GETMAP":
             allowed = True  # allow the access but use masking of the retrieved image to hide unaccessible parts of the image
-            response = get_operation_response(uri)
-            # ToDo: Perform the GetMap operation and mask the returned image using the restricting geometry!!!
+            img = get_operation_response(uri)
+            mask = get_secured_service_mask(metadata, sec_ops, GET_params)
+            response = create_masked_image(img, mask, as_bytes=True)
 
         if allowed:
             return HttpResponse(response, content_type="")

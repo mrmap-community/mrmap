@@ -46,7 +46,7 @@ The system provides the following functionalities:
 
 ```shell
 apt update  
-apt install postgis postgresql postgresql-server-dev-all libgdal-dev virtualenv python3-pip curl libgnutls28-dev  
+apt install postgis postgresql postgresql-server-dev-all libgdal-dev virtualenv python3-pip curl libgnutls28-dev cgi-mapserver
 
 su - postgres -c "psql -q -c 'CREATE DATABASE mapskinner'"  
 

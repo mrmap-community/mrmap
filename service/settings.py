@@ -8,6 +8,8 @@ Created on: 23.09.19
 
 
 # Metadata types
+import os
+
 from service.helper.enums import ConnectionEnum, VersionEnum
 
 MD_TYPE_FEATURETYPE = "featuretype"
@@ -24,3 +26,10 @@ METADATA_RELATION_TYPE_VISUALIZES = "visualizes"
 METADATA_RELATION_TYPE_DESCRIBED_BY = "describedBy"
 
 REQUEST_TIMEOUT = 10  # seconds
+
+# security proxy settings
+MAPSERVER_LOCAL_PATH = "http://127.0.0.1/cgi-bin/mapserv"
+MAPSERVER_SECURITY_MASK_FILE_PATH = os.path.join(os.path.dirname(__file__), "mapserver/security_mask.map")
+MAPSERVER_SECURITY_MASK_TABLE = "service_securedoperation"
+MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN= "bounding_geometry"
+MAPSERVER_SECURITY_MASK_KEY_COLUMN= "id"

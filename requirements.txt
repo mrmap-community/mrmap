@@ -21,3 +21,4 @@ celery==4.3.0
 djangorestframework
 markdown
 django-filter
+Pillow

@@ -740,35 +740,38 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
     """
     # get request type and requested layer
     get_query_string = request.environ.get("QUERY_STRING", "")
-    request_type = None  # refers to param 'REQUEST'
-    requested_layer = None  # refers to param 'LAYERS'
-    x_y_param = {
-        "x": None,
-        "y": None
-    }  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)
-    bbox_param = None  # refers to param 'BBOX'
-    srs_param = None  # refers to param 'SRS' (WMS 1.0.0 - 1.1.1) and 'CRS' (WMS 1.3.0)
-    version_param = None  # refers to param 'VERSION'
 
-    GET_params = request.GET
-    for key, val in GET_params.items():
+    GET_params = {
+        "request": None,  # refers to param 'REQUEST'
+        "layer": None,  # refers to param 'LAYERS'
+        "x_y": [None, None],  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)
+        "bbox": None,  # refers to param 'BBOX'
+        "srs": None,  # refers to param 'SRS' (WMS 1.0.0 - 1.1.1) and 'CRS' (WMS 1.3.0)
+        "version": None,  # refers to param 'VERSION'
+    }
+
+    for key, val in request.GET.items():
         key = key.upper()
         if key == "REQUEST":
-            request_type = val
+            GET_params["request"] = val
         if key == "LAYER":
-            requested_layer = val
+            GET_params["layer"] = val
         if key == "BBOX":
-            bbox_param = val
+            GET_params["bbox"] = val
         if key == "X" or key == "I":
-            x_y_param["x"] = val
+            GET_params["x_y"][0] = val
         if key == "Y" or key == "J":
-            x_y_param["y"] = val
+            GET_params["x_y"][1] = val
         if key == "VERSION":
-            version_param = val
+            GET_params["version"] = val
         if key == "SRS" or key == "CRS":
-            srs_param = val
+            GET_params["srs"] = val
+        if key == "WIDTH":
+            GET_params["width"] = val
+        if key == "HEIGHT":
+            GET_params["height"] = val
 
-    if request_type is None:
+    if GET_params["request"] is None:
         return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
 
     try:
@@ -786,21 +789,21 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
 
         # if the 'layer' parameter indicates the request for a subelement of this service, we need to fetch this metadata
         # to continue with!
-        if requested_layer is not None:
+        if GET_params["layer"] is not None:
             try:
-                metadata = Metadata.objects.get(identifier=requested_layer)
+                metadata = Metadata.objects.get(identifier=GET_params["layer"])
             except ObjectDoesNotExist:
                 return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
 
         tmp_st = metadata.service.servicetype
-        service_type = "{}_{}".format(tmp_st.name, version_param)
+        service_type = "{}_{}".format(tmp_st.name, GET_params["version"])
 
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
-    bbox_param = service_helper.process_bbox_param(bbox_param, srs_param, service_type)
+    GET_params["bbox"] = service_helper.process_bbox_param(GET_params["bbox"], GET_params["srs"], service_type)
 
-    x_y_param = service_helper.process_x_y_param(x_y_param)
+    GET_params["x_y"] = service_helper.process_x_y_param(GET_params["x_y"], GET_params["srs"])
 
     # identify requested operation and resolve the uri
     if metadata.service.servicetype.name == ServiceEnum.WFS.value:
@@ -813,7 +816,7 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
             "GETMAP": metadata.service.get_map_uri,
             "GETFEATUREINFO": metadata.service.get_feature_info_uri,
         }
-    uri = operations.get(request_type.upper(), None)
+    uri = operations.get(GET_params["request"].upper(), None)
 
     if uri is None:
         return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_BROKEN_URI)
@@ -822,10 +825,8 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
     if metadata.is_secured:
         return service_helper.get_secured_operation_result(
             metadata,
-            request_type,
+            GET_params,
             user,
-            x_y_param,
-            bbox_param,
             uri
         )
     else:

@@ -2,6 +2,7 @@ import time
 
 # Problem of unresolved python c extensions: https://stackoverflow.com/questions/41598399/pydev-tags-import-as-unresolved-import-all-compiled-extensions
 import pycurl
+import urllib
 from urllib.parse import urlencode
 
 import requests
@@ -41,6 +42,11 @@ class CommonConnector():
         self.encoding = None
         self.text = None
         self.status_code = None
+        self.is_local_request = False
+
+        url_obj = urllib.parse.urlparse(self.url)
+        if "127.0.0.1" in url_obj.hostname or "localhost" in url_obj.hostname:
+            self.is_local_request = True
         
     def load(self, params: dict = None):
         self.init_time = time.time()
@@ -50,10 +56,10 @@ class CommonConnector():
             response = self.__load_curl(params)
         elif self.connection_type is ConnectionEnum.REQUESTS:
             response = self.__load_requests(params)
+            self.status_code = response.status_code
         else:
             response = self.__load_urllib()
         # parse response
-        self.status_code = response.status_code
         self.content = response.content
         self.encoding = response.encoding
         self.text = response.text
@@ -140,7 +146,7 @@ class CommonConnector():
     def __load_requests(self, params: dict = None):
         response = None
         proxies = None
-        if len(PROXIES) > 0:
+        if len(PROXIES) > 0 and not self.is_local_request:
             proxies = PROXIES
         if self.auth is not None:
             if self.auth["auth_type"] == 'none':

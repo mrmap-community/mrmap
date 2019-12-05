@@ -62,7 +62,7 @@ def index(request: HttpRequest, user:User):
         "wfs": wfs_list,
         "wms": wms_list,
     }
-    context = DefaultContext(request, params)
+    context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
 
 
@@ -143,7 +143,7 @@ def edit(request: HttpRequest, id: int, user: User):
             "form": editor_form,
             "action_url": "{}/editor/edit/{}".format(ROOT_URL, id),
         }
-    context = DefaultContext(request, params)
+    context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
 
 # ToDo:Remove this function by time, if we can be sure it is safe without!
@@ -191,7 +191,7 @@ def edit_featuretype(request: HttpRequest, id: int, user: User):
                 "addable_values_list": addable_values_list,
                 "form": feature_type_editor_form,
                 "action_url": "{}/editor/edit/featuretype/{}".format(ROOT_URL, id),}
-    context = DefaultContext(request, params).get_context()
+    context = DefaultContext(request, params, user).get_context()
     return render(request, template, context)
 
 @check_session
@@ -261,7 +261,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
             "spatial_restrictable_operations": spatial_restrictable_operations,
         }
 
-    context = DefaultContext(request, params).get_context()
+    context = DefaultContext(request, params, user).get_context()
     return render(request, template, context)
 
 @check_session
@@ -289,7 +289,7 @@ def access_geometry_form(request: HttpRequest, id: int, user: User):
         "operation": operation,
         "polygons": polygons,
     }
-    context = DefaultContext(request, params).get_context()
+    context = DefaultContext(request, params, user).get_context()
     html = render_to_string(template_name=template, request=request, context=context)
     return BackendAjaxResponse(html=html).get_response()
 

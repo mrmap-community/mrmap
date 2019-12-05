@@ -1,7 +1,7 @@
 @import "colour_schema.css";
 
 html{
-    font-family: 'Helvetica';
+    font-family: arial,helvetica,candara;
     height: 100%;
 }
 h1,h2,h3,h4{

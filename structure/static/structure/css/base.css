@@ -335,6 +335,11 @@ ul.no-bullet{
     font-weight: bold;
 }
 
+.account-icn{
+    font-size: 2rem;
+    margin: 0 1rem 0 0;
+}
+
 .primary-color{
     color: var(--secondary-color);
 }

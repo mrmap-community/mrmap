@@ -75,7 +75,7 @@
         </div>
         <div class="navigation-bar-right">
             <a id="account-button" class="navigation-button" href="{% url 'account' %}" title="{% trans 'Account' %}">
-                <img src="{% static '/structure/images/icn_user.png' %}">
+                <span class="account-icn fas fa-user-circle"></span>
                 <span class="account-name">{{ user.username }}</span>
             </a>
             <a id="logout-button" class="navigation-button" href="{% url 'logout' %}" title="{% trans 'Logout' %}">

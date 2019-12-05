@@ -80,9 +80,12 @@
                                data-sec-id="{{ group.sec_id }}">
                         <label for="checkbox-sec-{{ group.group.id }}-{{ operation.operation.id }}">{{ group.group.name }} ({{ group.group.organization.organization_name }})</label>
                         {% if operation.operation.operation_name == "GetMap" %}
-                        <span class="add-geometry" data-id="{{ service_metadata.id }}" title="{% trans 'Add restricting geometry' %}">&#xFF0B;</span>
+                        <span class="add-geometry fas fa-pen" data-id="{{ service_metadata.id }}" title="{% trans 'Add restricting geometry' %}">
+                        </span>
                         {% endif %}
-                        <span class="{% if group.geo_json_geometry is None %}hide{% endif %} listable">{% trans 'Bounding geometry added' %}</span>
+                        <span class="{% if group.geo_json_geometry is None %}hide{% endif %} listable geometry-indicator" title="{% trans 'Has restricting geometry' %}">
+                            <span class="fas fa-draw-polygon"></span>
+                        </span>
                     </li>
                 {% endfor %}
                 </ul>

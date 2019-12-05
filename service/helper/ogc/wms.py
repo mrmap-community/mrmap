@@ -32,7 +32,7 @@ from service.helper.ogc.layer import OGCLayer
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
     MetadataRelation, MetadataOrigin, MetadataType
-from service.settings import METADATA_RELATION_TYPE_VISUALIZES, METADATA_RELATION_TYPE_DESCRIBED_BY
+from service.settings import MD_RELATION_TYPE_VISUALIZES, MD_RELATION_TYPE_DESCRIBED_BY
 from structure.models import Organization, Group
 from structure.models import User
 
@@ -841,7 +841,7 @@ class OGCWebMapService(OGCWebService):
             md_relation.origin = MetadataOrigin.objects.get_or_create(
                 name='capabilities'
             )[0]
-            md_relation.relation_type = METADATA_RELATION_TYPE_VISUALIZES
+            md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
             md_relation.save()
             md.related_metadata.add(md_relation)
 
@@ -891,7 +891,7 @@ class OGCWebMapService(OGCWebService):
                 metadata_relation.origin = MetadataOrigin.objects.get_or_create(
                     name=iso_md.origin
                 )[0]
-                metadata_relation.relation_type = METADATA_RELATION_TYPE_DESCRIBED_BY
+                metadata_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
                 metadata_relation.save()
                 md.related_metadata.add(metadata_relation)
 

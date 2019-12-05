@@ -23,7 +23,7 @@ from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
     MetadataOrigin, SecuredOperation, RequestOperation
 from service.helper import xml_helper
-from service.settings import METADATA_RELATION_TYPE_DESCRIBED_BY
+from service.settings import MD_RELATION_TYPE_DESCRIBED_BY
 from service.tasks import async_secure_service_task
 
 
@@ -237,7 +237,7 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
         md_relation.origin = MetadataOrigin.objects.get_or_create(
                 name=iso_md.origin
             )[0]
-        md_relation.relation_type = METADATA_RELATION_TYPE_DESCRIBED_BY
+        md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
         md_relation.save()
         metadata.related_metadata.add(md_relation)
 

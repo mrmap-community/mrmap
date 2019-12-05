@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from service.helper.enums import ServiceEnum, VersionEnum, MetadataEnum
+from service.settings import DEFAULT_SERVICE_BOUNDING_BOX
 from structure.models import Group, Organization
 from service.helper import xml_helper
 
@@ -285,6 +286,8 @@ class Metadata(Resource):
                 if ba > ma:
                     max_box = bbox
 
+        if max_box is None:
+            max_box = DEFAULT_SERVICE_BOUNDING_BOX
         if max_box.area == 0:
             # if this element and it's children does not provide a bounding geometry, we simply take the one from the
             # whole service to avoid the map flipping somewhere else on the planet

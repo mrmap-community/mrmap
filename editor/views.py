@@ -250,9 +250,15 @@ def edit_access(request: HttpRequest, id: int, user: User):
         all_groups = Group.objects.all()
         tmp = editor_helper.prepare_secured_operations_groups(operations, sec_ops, all_groups, md)
 
+        spatial_restrictable_operations = [
+            "GetMap",  # WMS
+            "GetFeature"  # WFS
+        ]
+
         params = {
             "service_metadata": md,
             "operations": tmp,
+            "spatial_restrictable_operations": spatial_restrictable_operations,
         }
 
     context = DefaultContext(request, params).get_context()

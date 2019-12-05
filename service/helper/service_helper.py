@@ -287,10 +287,39 @@ def process_x_y_param(x_y_param: list, srs: str):
         return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("Y"))
     elif x_y_param[0] is not None and x_y_param[1] is not None:
         # we can create a Point object from this!
-        x_y_param = Point(x_y_param[0], x_y_param[1])
+        x_y_param = Point(int(x_y_param[0]), int(x_y_param[1]))
     else:
         x_y_param = None
     return x_y_param
+
+
+def convert_image_to_spatial_coordinates(point: Point, width: int, height: int, bbox_coords: list):
+    """ Converts the x|y coordinates of an image point to spatial EPSG:4326 coordinates, derived from a bounding box
+
+    Args:
+        point (Point): The Point object, which holds the image x|y position
+        width (int); The width of the image
+        height (int); The height of the image
+        bbox_coords (list); The bounding box vertices as tuples in a list
+    Returns:
+         point (Point): The Point object, holding converted spatial coordinates
+    """
+    # the coordinate systems origin is 0|0 in the upper left corner of the image
+    # get the vertices of the bbox which represent these image points: 0|0, max|0, 0|max
+    bbox_upper_left = bbox_coords[1]
+    bbox_upper_right = bbox_coords[2]
+    bbox_lower_left = bbox_coords[0]
+
+    # calculate the movement vector (only the non-zero part)
+    # divide the movement vector using the width/height to get a vector step size
+    step_left_right = (bbox_upper_right[0] - bbox_upper_left[0])/width
+    step_up_down = (bbox_lower_left[1] - bbox_upper_left[1])/height
+
+    # x represents the upper left "corner", increased by the product of the image X coordinate and the step size for this direction
+    # equivalent for y
+    point.x = bbox_upper_left[0] + point.x * step_left_right
+    point.y = bbox_upper_left[1] + point.y * step_up_down
+    return point
 
 
 def check_get_feature_info_operation_access(x_y_param: Point, sec_ops: QueryDict):
@@ -312,6 +341,10 @@ def check_get_feature_info_operation_access(x_y_param: Point, sec_ops: QueryDict
 
     for sec_op in sec_ops:
         restricting_geom_collection = sec_op.bounding_geometry
+        if restricting_geom_collection.empty:
+            # there is no specific area, so this group is allowed to request everywhere
+            constraints["x_y"] = True
+            break
         for geom in restricting_geom_collection:
             if x_y_param is not None:
                 if geom.covers(x_y_param):
@@ -402,6 +435,12 @@ def get_secured_operation_result(metadata: Metadata, GET_params: dict, user: Use
     else:
         allowed = False
         if GET_params["request"].upper() == "GETFEATUREINFO":
+            GET_params["x_y"] = convert_image_to_spatial_coordinates(
+                GET_params["x_y"],
+                int(GET_params["width"]),
+                int(GET_params["height"]),
+                GET_params["bbox"]["geom"].coords[0]
+            )
             allowed = check_get_feature_info_operation_access(GET_params["x_y"], sec_ops)
             response = get_operation_response(uri)
         elif GET_params["request"].upper() == "GETMAP":

@@ -53,10 +53,19 @@ article{
 .geometry-button-container{
     padding: 1rem;
     width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .geometry-button-container:hover{
     color: white;
     background-color: var(--primary-color);
+    cursor: pointer;
+}
+
+.geometry-button-img{
+    font-size: 2rem;
+    padding: 0 1rem;
 }
 
 </style>
@@ -164,13 +173,14 @@ article{
 
            </script>
         <div class="button-container">
-            <div class="geometry-button-container">
+            <div class="geometry-button-container" onclick="$('.geometry-upload').click();">
+                <span class="geometry-button-img fa fa-upload"></span>
                 <article>{% trans 'Import a GML3 or GeoJSON file' %}</article>
-                <input class="geometry-upload" type="file" title="{% trans 'Load geometry' %}"/>
             </div>
-            <div class="geometry-button-container">
+            <input class="hide geometry-upload" type="file" title="{% trans 'Load geometry' %}"/>
+            <div class="geometry-button-container geometry-download">
+                <span class="geometry-button-img fa fa-download"></span>
                 <article>{% trans 'Export drawn geometry as GeoJSON' %}</article>
-                <button class="button geometry-download" title="{% trans 'Export geometry' %}">{% trans 'Export' %}</button>
             </div>
 
             </div>
@@ -306,7 +316,6 @@ article{
     });
 
     $(".submit-button").click(function(event){
-
         // get session stored polygon data
         values = findSessionKeysLike("polygon_");
 
@@ -317,7 +326,8 @@ article{
         }
 
         // find element where the polygons will be stored
-        var operationGroupPolygonElement = $("input[data-operation={{ operation }}][data-group={{ group_id }}]")
+        //var operationGroupPolygonElement = $("input[data-operation={{ operation }}][data-group={{ group_id }}]")
+        var operationGroupPolygonElement = $("input[data-group={{ group_id }}]")
 
         // show 'listable' element, which indicates that polygons have been set
         if(polygons.length > 0){

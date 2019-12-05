@@ -79,7 +79,9 @@
                                data-polygons='{{ group.geo_json_geometry|safe }}'
                                data-sec-id="{{ group.sec_id }}">
                         <label for="checkbox-sec-{{ group.group.id }}-{{ operation.operation.id }}">{{ group.group.name }} ({{ group.group.organization.organization_name }})</label>
+                        {% if operation.operation.operation_name == "GetMap" %}
                         <span class="add-geometry" data-id="{{ service_metadata.id }}" title="{% trans 'Add restricting geometry' %}">&#xFF0B;</span>
+                        {% endif %}
                         <span class="{% if group.geo_json_geometry is None %}hide{% endif %} listable">{% trans 'Bounding geometry added' %}</span>
                     </li>
                 {% endfor %}

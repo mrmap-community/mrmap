@@ -42,13 +42,21 @@ article{
 }
 
 .map-functions{
-    margin: 1rem 0 1rem 0;
 }
 
 .button-container{
     display: flex;
     align-items: center;
     justify-content: space-around;
+}
+
+.geometry-button-container{
+    padding: 1rem;
+    width: 100%;
+}
+.geometry-button-container:hover{
+    color: white;
+    background-color: var(--primary-color);
 }
 
 </style>
@@ -156,11 +164,11 @@ article{
 
            </script>
         <div class="button-container">
-            <div>
+            <div class="geometry-button-container">
                 <article>{% trans 'Import a GML3 or GeoJSON file' %}</article>
                 <input class="geometry-upload" type="file" title="{% trans 'Load geometry' %}"/>
             </div>
-            <div>
+            <div class="geometry-button-container">
                 <article>{% trans 'Export drawn geometry as GeoJSON' %}</article>
                 <button class="button geometry-download" title="{% trans 'Export geometry' %}">{% trans 'Export' %}</button>
             </div>

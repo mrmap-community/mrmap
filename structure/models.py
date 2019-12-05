@@ -32,7 +32,7 @@ class Permission(models.Model):
     can_add_user_to_group = models.BooleanField(default=False)
     can_remove_user_from_group = models.BooleanField(default=False)
 
-    can_change_group_role = models.BooleanField(default=False)
+    can_edit_group_role = models.BooleanField(default=False)
 
     can_activate_service = models.BooleanField(default=False)
     can_update_service = models.BooleanField(default=False)

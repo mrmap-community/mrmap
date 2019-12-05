@@ -356,12 +356,14 @@ def create_masked_image(img: bytes, mask: bytes, as_bytes: bool = False):
     Returns:
          img (Image): The masked image
     """
-    img = io.BytesIO(img)
-    mask = io.BytesIO(mask)
-
-    img = Image.open(img)
-    mask = Image.open(mask)
-
+    try:
+        img = Image.open(io.BytesIO(img))
+    except OSError:
+        raise Exception("Could not create image! Content was:\n {}".format(img))
+    try:
+        mask = Image.open(io.BytesIO(mask))
+    except OSError:
+        raise Exception("Could not create image! Content was:\n {}".format(mask))
     mask = mask.convert("L").resize(img.size)
     mask = ImageOps.invert(mask)
 

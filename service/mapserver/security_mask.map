@@ -33,7 +33,7 @@ MAP
         CONNECTIONTYPE POSTGIS
         CONNECTION "host=localhost dbname=mapskinner user=postgres port=5432"
 
-        DATA "%geom_column% FROM (SELECT * FROM %table% WHERE %key_column% in (%keys%)) as foo USING unique %key_column% using SRID=4326"
+        DATA "geom FROM (SELECT %key_column%, ST_UnaryUnion(%geom_column%) geom FROM %table% WHERE %key_column% in (%keys%) GROUP BY %key_column%) foo USING unique %key_column% USING SRID=4326"
 
         CLASS
             STYLE

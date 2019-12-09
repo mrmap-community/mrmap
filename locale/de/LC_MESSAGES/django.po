@@ -214,8 +214,8 @@ msgid "German"
 msgstr "Deutsch"
 
 #: editor/forms.py:32
-msgid "Use metadata proxy"
-msgstr "Benutze Metadatenproxy"
+msgid "Use proxy"
+msgstr "Verwende Proxy"
 
 #: editor/forms.py:33
 #, fuzzy

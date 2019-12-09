@@ -28,7 +28,8 @@ from service.helper.enums import ServiceEnum, MetadataEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.ogc.operation_request_handler import OperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
-from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, SecuredOperation, MimeType
+from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, SecuredOperation, \
+    MimeType, Style
 from service.settings import MD_TYPE_SERVICE
 from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group
@@ -753,7 +754,7 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
         if not metadata.is_root():
             # we do not allow the direct call of operations on child elements, such as layers!
             # if the request tries that, we directly redirect it to the parent service!
-            redirect_uri = "/service/metadata/proxy/operation/{}?{}".format(
+            redirect_uri = "/service/proxy/metadata/{}/operation?{}".format(
                 metadata.service.parent_service.metadata.id,
                 get_query_string
             )
@@ -790,7 +791,7 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
     # if the given operation parameter could not be found in the dict, we assume an input error!
     if operation_handler.uri is None:
         return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_BROKEN_URI)
-    
+
     operation_handler.uri += get_query_string
 
     if metadata.is_secured:
@@ -803,3 +804,21 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
         # if the metadata is not secured, there is no reason this route would have been called in the first place!
         # We simply redirect to the original route!
         return redirect(operation_handler.uri)
+
+@check_session
+def metadata_proxy_legend(request: HttpRequest, id: int, style_id: id, user: User):
+    """ Calls the legend uri and returns the response to the user
+
+    Args:
+        request (HttpRequest): The incoming HttpRequest
+        id (int): The metadata id
+        style_id (int): The stlye id
+        user (User): The performing user
+    Returns:
+        HttpResponse
+    """
+    uri = Style.objects.get(id=style_id).legend_uri
+    con = CommonConnector(uri)
+    con.load()
+    response = con.content
+    return HttpResponse(response, content_type="")

@@ -179,7 +179,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             # update db pending task information
             pending_task.description = json.dumps({
                 "service": service.metadata.title,
-                "phase": "persisting",
+                "phase": "Persisting",
             })
             pending_task.save()
 

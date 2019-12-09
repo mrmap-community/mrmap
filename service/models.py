@@ -169,7 +169,7 @@ class Metadata(Resource):
 
     last_remote_change = models.DateTimeField(null=True, blank=True)  # the date time, when the metadata was changed where it comes from
     status = models.IntegerField(null=True)
-    inherit_proxy_uris = models.BooleanField(default=False)
+    use_proxy_uri = models.BooleanField(default=False)
     spatial_res_type = models.CharField(max_length=100, null=True)
     spatial_res_value = models.CharField(max_length=100, null=True)
     is_broken = models.BooleanField(default=False)
@@ -413,7 +413,7 @@ class Metadata(Resource):
         # by default no categories
         self.categories.clear()
         self.is_custom = False
-        self.inherit_proxy_uris = False
+        self.use_proxy_uri = False
 
         cap_doc = Document.objects.get(related_metadata=self)
         cap_doc.restore()
@@ -460,7 +460,7 @@ class Metadata(Resource):
         # by default no categories
         self.categories.clear()
         self.is_custom = False
-        self.inherit_proxy_uris = False
+        self.use_proxy_uri = False
 
         cap_doc = Document.objects.get(related_metadata=service.metadata)
         cap_doc.restore()
@@ -691,7 +691,7 @@ class Document(Resource):
         """
         xml_obj = xml_helper.parse_xml(self.current_capability_document)
         if is_secured:
-            uri = "{}{}/service/metadata/proxy/operation/{}?".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)
+            uri = "{}{}/service/proxy/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)
         else:
             uri = ""
         _type = self.related_metadata.service.servicetype.name
@@ -1128,6 +1128,7 @@ class Layer(Service):
         # non persisting attributes
         self.children_list = []
         self.dimension = None
+        self.tmp_style = None  # holds the style before persisting
 
     def __str__(self):
         return str(self.identifier)
@@ -1231,13 +1232,13 @@ class Dimension(models.Model):
 
 
 class Style(models.Model):
-    layer = models.ForeignKey(Layer, on_delete=models.CASCADE)
-    name = models.CharField(max_length=255)
-    title = models.CharField(max_length=255)
-    uri = models.CharField(max_length=500)
-    height = models.IntegerField()
-    width = models.IntegerField()
-    mime_type = models.CharField(max_length=500)
+    layer = models.ForeignKey(Layer, on_delete=models.CASCADE, related_name="style")
+    name = models.CharField(max_length=255, null=True, blank=True)
+    title = models.CharField(max_length=255, null=True, blank=True)
+    legend_uri = models.CharField(max_length=500, null=True, blank=True)
+    height = models.IntegerField(null=True, blank=True)
+    width = models.IntegerField(null=True, blank=True)
+    mime_type = models.CharField(max_length=500, null=True, blank=True)
 
     def __str__(self):
         return self.layer.name + ": " + self.name

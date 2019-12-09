@@ -31,7 +31,7 @@ from service.helper.ogc.layer import OGCLayer
 
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
-    MetadataRelation, MetadataOrigin, MetadataType
+    MetadataRelation, MetadataOrigin, MetadataType, Style
 from service.settings import MD_RELATION_TYPE_VISUALIZES, MD_RELATION_TYPE_DESCRIBED_BY
 from structure.models import Organization, Group
 from structure.models import User
@@ -333,26 +333,22 @@ class OGCWebMapService(OGCWebService):
     ### STYLES ###
     def parse_style(self, layer, layer_obj):
         parser_prefix = self.get_parser_prefix()
-        style = xml_helper.try_get_element_from_xml("./{}Style".format(parser_prefix), layer)
-        elements = {
-            "name": "./Name".format(parser_prefix),
-            "title": "./Title".format(parser_prefix),
-            "width": "./LegendURL".format(parser_prefix),
-            "height": "./LegendURL".format(parser_prefix),
-            "uri": "./{}LegendURL/{}OnlineResource".format(parser_prefix, parser_prefix)
-        }
-        for key, val in elements.items():
-            tmp = xml_helper.try_get_element_from_xml(elem=val, xml_elem=style)
-            try:
-                elements[key] = tmp[0]
-            except (IndexError, TypeError) as error:
-                elements[key] = None
-        elements["name"] = elements["name"].text if elements["name"] is not None else None
-        elements["title"] = elements["title"].text if elements["title"] is not None else None
-        elements["width"] = elements["width"].get("width") if elements["width"] is not None else None
-        elements["height"] = elements["height"].get("height") if elements["height"] is not None else None
-        elements["uri"] = elements["uri"].get("xlink:href") if elements["uri"] is not None else None
-        layer_obj.style = elements
+        style_xml = xml_helper.try_get_single_element_from_xml("./{}Style".format(parser_prefix), layer)
+
+        if style_xml is None:
+            # no <Style> element found
+            return
+
+        style_obj = Style()
+
+        style_obj.name = xml_helper.try_get_text_from_xml_element(style_xml, "./Name")
+        style_obj.title = xml_helper.try_get_text_from_xml_element(style_xml, "./Title")
+        style_obj.legend_uri = xml_helper.try_get_attribute_from_xml_element(style_xml, "{http://www.w3.org/1999/xlink}href", "./LegendURL/OnlineResource")
+        style_obj.width = int(xml_helper.try_get_attribute_from_xml_element(style_xml, "width", "./LegendURL"))
+        style_obj.height = int(xml_helper.try_get_attribute_from_xml_element(style_xml, "height", "./LegendURL"))
+        style_obj.mime_type = MimeType.objects.filter(mime_type=xml_helper.try_get_text_from_xml_element(style_xml, "./LegendURL/Format")).first()
+
+        layer_obj.style = style_obj
 
     def _start_single_layer_parsing(self, layer_xml):
         """ Runs the complete parsing process for a single layer
@@ -425,7 +421,8 @@ class OGCWebMapService(OGCWebService):
             layers: An array of layers (In fact the children of the parent layer)
             parent: The parent layer. If no parent exist it means we are in the root layer
             position: The position inside the layer tree, which is more like an order number
-        :return:
+        Returns:
+            nothing
         """
 
         # decide whether to user multithreading or iterative approach
@@ -480,8 +477,8 @@ class OGCWebMapService(OGCWebService):
         self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Abstract".format(parser_prefix, parser_prefix))
         self.service_identification_title = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Title".format(parser_prefix, parser_prefix))
 
-        #if async_task is not None:
-        #    task_helper.update_service_description(async_task, self.service_identification_title)
+        if async_task is not None:
+            task_helper.update_service_description(async_task, self.service_identification_title)
 
         self.service_identification_fees = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Fees".format(parser_prefix, parser_prefix))
         self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}AccessConstraints".format(parser_prefix, parser_prefix))
@@ -635,14 +632,19 @@ class OGCWebMapService(OGCWebService):
         layer.servicetype = service_type
         layer.position = layer_obj.position
         layer.parent_layer = parent
+
         if layer.parent_layer is not None:
             layer.parent_layer.children_list.append(layer)
+
         layer.is_queryable = layer_obj.is_queryable
         layer.is_cascaded = layer_obj.is_cascaded
         layer.registered_by = creator
         layer.is_opaque = layer_obj.is_opaque
         layer.scale_min = layer_obj.capability_scale_hint.get("min")
         layer.scale_max = layer_obj.capability_scale_hint.get("max")
+
+        if layer_obj.style is not None:
+            layer.tmp_style = layer_obj.style
 
         # create bounding box polygon
         bounding_points = (
@@ -665,6 +667,7 @@ class OGCWebMapService(OGCWebService):
         layer.describe_layer_uri = layer_obj.describe_layer_uri
         layer.get_capabilities_uri = layer_obj.get_capabilities_uri
         layer.iso_metadata = layer_obj.iso_metadata
+
         if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
             # ToDo: Rework dimension persisting! Currently simply ignore it...
             pass
@@ -915,6 +918,10 @@ class OGCWebMapService(OGCWebService):
             layer.parent_layer = parent_layer
             layer.parent_service = parent_service
             layer.save()
+
+            if layer.tmp_style is not None:
+                layer.tmp_style.layer = layer
+                layer.tmp_style.save()
 
             # iterate over all available mime types and actions
             for _format in layer.formats_list:

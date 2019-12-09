@@ -96,7 +96,7 @@ def edit(request: HttpRequest, id: int, user: User):
             if not metadata.is_root():
                 # this is for the case that we are working on a non root element which is not allowed to change the
                 # inheritance setting for the whole service -> we act like it didn't change
-                custom_md.inherit_proxy_uris = metadata.inherit_proxy_uris
+                custom_md.use_proxy_uri = metadata.use_proxy_uri
             editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
             editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
@@ -136,7 +136,7 @@ def edit(request: HttpRequest, id: int, user: User):
         editor_form = MetadataEditorForm(instance=metadata)
         editor_form.fields["terms_of_use"].required = False
         if not metadata.is_root():
-            del editor_form.fields["inherit_proxy_uris"]
+            del editor_form.fields["use_proxy_uri"]
         params = {
             "service_metadata": metadata,
             "addable_values_list": addable_values_list,

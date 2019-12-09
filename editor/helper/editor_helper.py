@@ -6,6 +6,7 @@ Created on: 01.08.19
 
 """
 import json
+import urllib
 
 from django.contrib import messages
 from django.db import transaction
@@ -21,7 +22,7 @@ from MapSkinner import utils
 from service.helper.enums import VersionEnum, ServiceEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
-    MetadataOrigin, SecuredOperation, RequestOperation
+    MetadataOrigin, SecuredOperation, RequestOperation, Layer, Style
 from service.helper import xml_helper
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY
 from service.tasks import async_secure_service_task
@@ -269,7 +270,7 @@ def resolve_iso_metadata_links(request: HttpRequest, metadata: Metadata, editor_
 
 @transaction.atomic
 def set_dataset_metadata_proxy(metadata: Metadata, use_proxy: bool):
-    """ Set or unsets the metadata proxy for the dataset metadata uris
+    """ Set or unsets the proxy for the dataset metadata uris
 
     Args:
         metadata (Metadata): The service metadata object
@@ -289,7 +290,7 @@ def set_dataset_metadata_proxy(metadata: Metadata, use_proxy: bool):
         if use_proxy:
             # find metadata record which matches the metadata uri
             dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
-            uri = "{}{}/service/metadata/proxy/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
+            uri = "{}{}/service/proxy/metadata/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
         else:
             # this means we have our own proxy uri in here and want to restore the original one
             # metadata uri contains the proxy uri
@@ -303,6 +304,40 @@ def set_dataset_metadata_proxy(metadata: Metadata, use_proxy: bool):
     cap_doc.current_capability_document = xml_obj_str
     cap_doc.save()
 
+@transaction.atomic
+def set_legend_url_proxy(metadata: Metadata, use_proxy: bool):
+    """ Set or unsets the proxy for the style legend uris
+
+    Args:
+        metadata (Metadata): The service metadata object
+        use_proxy (bool): Whether the proxy shall be activated or deactivated
+    Returns:
+         nothing
+    """
+    cap_doc = Document.objects.get(related_metadata=metadata)
+    cap_doc_curr = cap_doc.current_capability_document
+    xml_doc = xml_helper.parse_xml(cap_doc_curr)
+
+    # get <LegendURL> elements
+    xml_legend_elements = xml_helper.try_get_element_from_xml("//LegendURL/OnlineResource", xml_doc)
+    attr = "{http://www.w3.org/1999/xlink}href"
+    for xml_elem in xml_legend_elements:
+        legend_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem, attribute=attr)
+
+        # extract layer identifier from legend_uri (stores as parameter 'layer')
+        if use_proxy:
+            layer_identifier = dict(urllib.parse.parse_qsl(legend_uri)).get("layer", None)
+            style_id = Style.objects.get(layer__parent_service__metadata=metadata, layer__identifier=layer_identifier).id
+            uri = "{}{}/service/proxy/metadata/{}/legend/{}".format(HTTP_OR_SSL, HOST_NAME, metadata.id, style_id)
+        else:
+            # restore the original legend uri by using the layer identifier
+            style_id = legend_uri.split("/")[-1]
+            uri = Style.objects.get(id=style_id).legend_uri
+
+        xml_helper.set_attribute(xml_elem, attr, uri)
+    xml_doc_str = xml_helper.xml_to_string(xml_doc)
+    cap_doc.current_capability_document = xml_doc_str
+    cap_doc.save()
 
 @transaction.atomic
 def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
@@ -337,19 +372,22 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
         category = Category.objects.get(id=id)
         original_md.categories.add(category)
 
-    # change capabilities document so that all <MetadataURL> elements are called through mr map
-    if original_md.inherit_proxy_uris != custom_md.inherit_proxy_uris:
+    # change capabilities document so that all sensitive elements (links) are proxied
+    if original_md.use_proxy_uri != custom_md.use_proxy_uri:
         if not original_md.is_root():
             root_md = original_md.service.parent_service.metadata
         else:
             root_md = original_md
-        set_dataset_metadata_proxy(root_md, custom_md.inherit_proxy_uris)
 
-        original_md.inherit_proxy_uris = custom_md.inherit_proxy_uris
-        # if md uris shall be tunneld using the proxy, we need to make sure that all metadata elements of the service are aware of this!
-        child_mds = Metadata.objects.filter(service__parent_service=original_md.service.parent_service)
+        set_dataset_metadata_proxy(root_md, custom_md.use_proxy_uri)
+        set_legend_url_proxy(root_md, custom_md.use_proxy_uri)
+
+        original_md.use_proxy_uri = custom_md.use_proxy_uri
+
+        # if md uris shall be tunneled using the proxy, we need to make sure that all metadata elements of the service are aware of this!
+        child_mds = Metadata.objects.filter(service__parent_service=original_md.service)
         for child_md in child_mds:
-            child_md.inherit_proxy_uris = original_md.inherit_proxy_uris
+            child_md.use_proxy_uri = original_md.use_proxy_uri
             child_md.save()
 
     # save metadata

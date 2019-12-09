@@ -37,7 +37,7 @@ class OGCLayer:
         self.get_legend_graphic_uri = None
         self.get_styles_uri = None
         self.dimension = []
-        self.style = {}
+        self.style = None
         self.child_layer = []
 
         self.iso_metadata = []

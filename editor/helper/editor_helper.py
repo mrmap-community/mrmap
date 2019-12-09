@@ -269,77 +269,6 @@ def resolve_iso_metadata_links(request: HttpRequest, metadata: Metadata, editor_
 
 
 @transaction.atomic
-def set_dataset_metadata_proxy(metadata: Metadata, use_proxy: bool):
-    """ Set or unsets the proxy for the dataset metadata uris
-
-    Args:
-        metadata (Metadata): The service metadata object
-        use_proxy (bool): Whether the proxy shall be activated or deactivated
-    Returns:
-         nothing
-    """
-    cap_doc = Document.objects.get(related_metadata=metadata)
-    cap_doc_curr = cap_doc.current_capability_document
-    xml_obj = xml_helper.parse_xml(cap_doc_curr)
-    # get <MetadataURL> xml elements
-    xml_metadata_elements = xml_helper.try_get_element_from_xml("//MetadataURL/OnlineResource", xml_obj)
-    for xml_metadata in xml_metadata_elements:
-        attr = "{http://www.w3.org/1999/xlink}href"
-        # get metadata url
-        metadata_uri = xml_helper.try_get_attribute_from_xml_element(xml_metadata, attribute=attr)
-        if use_proxy:
-            # find metadata record which matches the metadata uri
-            dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
-            uri = "{}{}/service/proxy/metadata/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
-        else:
-            # this means we have our own proxy uri in here and want to restore the original one
-            # metadata uri contains the proxy uri
-            # so we need to extract the id from the uri!
-            md_uri_list = metadata_uri.split("/")
-            md_id = md_uri_list[len(md_uri_list) - 1]
-            dataset_md_record = Metadata.objects.get(id=md_id)
-            uri = dataset_md_record.metadata_url
-        xml_helper.set_attribute(xml_metadata, attr, uri)
-    xml_obj_str = xml_helper.xml_to_string(xml_obj)
-    cap_doc.current_capability_document = xml_obj_str
-    cap_doc.save()
-
-@transaction.atomic
-def set_legend_url_proxy(metadata: Metadata, use_proxy: bool):
-    """ Set or unsets the proxy for the style legend uris
-
-    Args:
-        metadata (Metadata): The service metadata object
-        use_proxy (bool): Whether the proxy shall be activated or deactivated
-    Returns:
-         nothing
-    """
-    cap_doc = Document.objects.get(related_metadata=metadata)
-    cap_doc_curr = cap_doc.current_capability_document
-    xml_doc = xml_helper.parse_xml(cap_doc_curr)
-
-    # get <LegendURL> elements
-    xml_legend_elements = xml_helper.try_get_element_from_xml("//LegendURL/OnlineResource", xml_doc)
-    attr = "{http://www.w3.org/1999/xlink}href"
-    for xml_elem in xml_legend_elements:
-        legend_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem, attribute=attr)
-
-        # extract layer identifier from legend_uri (stores as parameter 'layer')
-        if use_proxy:
-            layer_identifier = dict(urllib.parse.parse_qsl(legend_uri)).get("layer", None)
-            style_id = Style.objects.get(layer__parent_service__metadata=metadata, layer__identifier=layer_identifier).id
-            uri = "{}{}/service/proxy/metadata/{}/legend/{}".format(HTTP_OR_SSL, HOST_NAME, metadata.id, style_id)
-        else:
-            # restore the original legend uri by using the layer identifier
-            style_id = legend_uri.split("/")[-1]
-            uri = Style.objects.get(id=style_id).legend_uri
-
-        xml_helper.set_attribute(xml_elem, attr, uri)
-    xml_doc_str = xml_helper.xml_to_string(xml_doc)
-    cap_doc.current_capability_document = xml_doc_str
-    cap_doc.save()
-
-@transaction.atomic
 def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     """ Overwrites the original data with the custom date
 
@@ -379,8 +308,11 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
         else:
             root_md = original_md
 
-        set_dataset_metadata_proxy(root_md, custom_md.use_proxy_uri)
-        set_legend_url_proxy(root_md, custom_md.use_proxy_uri)
+        # change capabilities document
+        root_md_doc = Document.objects.get(related_metadata=root_md)
+        root_md_doc.set_dataset_metadata_secured(custom_md.use_proxy_uri)
+        root_md_doc.set_legend_url_secured(custom_md.use_proxy_uri)
+        root_md_doc.set_operations_secured(custom_md.use_proxy_uri)
 
         original_md.use_proxy_uri = custom_md.use_proxy_uri
 

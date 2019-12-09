@@ -1,4 +1,5 @@
 import json
+import urllib
 import uuid
 
 from django.contrib.gis.geos import Polygon, GEOSGeometry, MultiPolygon, GeometryCollection
@@ -705,6 +706,75 @@ class Document(Resource):
                 self._set_wfs_operations_secured(xml_obj, uri, is_secured)
 
         self.current_capability_document = xml_helper.xml_to_string(xml_obj)
+        self.save()
+
+    def set_dataset_metadata_secured(self, is_secured: bool):
+        """ Set or unsets the proxy for the dataset metadata uris
+
+        Args:
+            is_secured (bool): Whether the proxy shall be activated or deactivated
+        Returns:
+             nothing
+        """
+        cap_doc_curr = self.current_capability_document
+        xml_obj = xml_helper.parse_xml(cap_doc_curr)
+
+        # get <MetadataURL> xml elements
+        xml_metadata_elements = xml_helper.try_get_element_from_xml("//MetadataURL/OnlineResource", xml_obj)
+        for xml_metadata in xml_metadata_elements:
+            attr = "{http://www.w3.org/1999/xlink}href"
+
+            # get metadata url
+            metadata_uri = xml_helper.try_get_attribute_from_xml_element(xml_metadata, attribute=attr)
+
+            if is_secured:
+                # find metadata record which matches the metadata uri
+                dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
+                uri = "{}{}/service/proxy/metadata/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
+            else:
+                # this means we have our own proxy uri in here and want to restore the original one
+                # metadata uri contains the proxy uri
+                # so we need to extract the id from the uri!
+                md_uri_list = metadata_uri.split("/")
+                md_id = md_uri_list[len(md_uri_list) - 1]
+                dataset_md_record = Metadata.objects.get(id=md_id)
+                uri = dataset_md_record.metadata_url
+            xml_helper.set_attribute(xml_metadata, attr, uri)
+        xml_obj_str = xml_helper.xml_to_string(xml_obj)
+        self.current_capability_document = xml_obj_str
+        self.save()
+
+    def set_legend_url_secured(self, is_secured: bool):
+        """ Set or unsets the proxy for the style legend uris
+
+        Args:
+            is_secured (bool): Whether the proxy shall be activated or deactivated
+        Returns:
+             nothing
+        """
+        cap_doc_curr = self.current_capability_document
+        xml_doc = xml_helper.parse_xml(cap_doc_curr)
+
+        # get <LegendURL> elements
+        xml_legend_elements = xml_helper.try_get_element_from_xml("//LegendURL/OnlineResource", xml_doc)
+        attr = "{http://www.w3.org/1999/xlink}href"
+        for xml_elem in xml_legend_elements:
+            legend_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem, attribute=attr)
+
+            # extract layer identifier from legend_uri (stores as parameter 'layer')
+            if is_secured:
+                layer_identifier = dict(urllib.parse.parse_qsl(legend_uri)).get("layer", None)
+                style_id = Style.objects.get(layer__parent_service__metadata=self.related_metadata,
+                                             layer__identifier=layer_identifier).id
+                uri = "{}{}/service/proxy/metadata/{}/legend/{}".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id, style_id)
+            else:
+                # restore the original legend uri by using the layer identifier
+                style_id = legend_uri.split("/")[-1]
+                uri = Style.objects.get(id=style_id).legend_uri
+
+            xml_helper.set_attribute(xml_elem, attr, uri)
+        xml_doc_str = xml_helper.xml_to_string(xml_doc)
+        self.current_capability_document = xml_doc_str
         self.save()
 
     def restore(self):

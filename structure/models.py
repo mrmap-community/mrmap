@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from MapSkinner.utils import sha256
 from service.helper.enums import ServiceEnum
-from structure.config import USER_ACTIVATION_TIME_WINDOW
+from structure.settings import USER_ACTIVATION_TIME_WINDOW
 
 
 class PendingTask(models.Model):

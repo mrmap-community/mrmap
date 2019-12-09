@@ -50,6 +50,8 @@ NO_PERMISSION = _("You do not have permissions for this!")
 METADATA_RESTORING_SUCCESS = _("Metadata restored to original")
 METADATA_EDITING_SUCCESS = _("Metadata editing successful")
 METADATA_IS_ORIGINAL = _("Metadata is original. Reset aborted.")
+METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED = _("You have to turn off the secured access before you can turn off the proxy.")
+
 
 MISSING_DATASET_ID_IN_METADATA = _("No datasetId found in metadata!")
 

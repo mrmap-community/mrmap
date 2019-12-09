@@ -801,9 +801,7 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
             user
         )
     else:
-        # if the metadata is not secured, there is no reason this route would have been called in the first place!
-        # We simply redirect to the original route!
-        return redirect(operation_handler.uri)
+        return HttpResponse(service_helper.get_operation_response(operation_handler.uri), content_type="")
 
 @check_session
 def metadata_proxy_legend(request: HttpRequest, id: int, style_id: id, user: User):

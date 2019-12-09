@@ -494,7 +494,7 @@ class Metadata(Resource):
             links.append(md.metadata_to.metadata_url)
         return links
 
-    def _set_document_operations_secured(self, is_secured: bool):
+    def _set_document_secured(self, is_secured: bool):
         """ Fetches the metadata documents and sets the secured uris for all operations
 
         Args:
@@ -507,6 +507,8 @@ class Metadata(Resource):
                 related_metadata=self
             )
             cap_doc.set_operations_secured(is_secured)
+            cap_doc.set_dataset_metadata_secured(is_secured)
+            cap_doc.set_legend_url_secured(is_secured)
         except ObjectDoesNotExist:
             pass
 
@@ -514,6 +516,7 @@ class Metadata(Resource):
         """ Set is_secured to a new value.
 
         Iterates over all children for the same purpose.
+        Activates use_proxy directly!
 
         Args:
             is_secured (bool): The new value for is_secured
@@ -521,7 +524,13 @@ class Metadata(Resource):
 
         """
         self.is_secured = is_secured
-        self._set_document_operations_secured(is_secured)
+        if not is_secured and self.use_proxy_uri:
+            # secured access shall be disabled, but use_proxy is still enabled
+            # we keep the use_proxy_uri on True!
+            self.use_proxy_uri = True
+        else:
+            self.use_proxy_uri = is_secured
+        self._set_document_secured(self.use_proxy_uri)
 
         md_type = self.metadata_type.type
 
@@ -533,13 +542,14 @@ class Metadata(Resource):
                     service__parent_service=parent_service
                 )
                 for child in children:
-                    child._set_document_operations_secured(is_secured)
+                    child._set_document_secured(self.use_proxy_uri)
 
             elif self.service.servicetype.name == ServiceEnum.WFS.value:
                 children = [ft.metadata for ft in self.service.featuretypes.all()]
 
             for child in children:
                 child.is_secured = is_secured
+                child.use_proxy_uri = self.use_proxy_uri
                 child.save()
 
         elif md_type == MetadataEnum.FEATURETYPE.value:

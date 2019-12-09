@@ -10,7 +10,8 @@ from django.template.loader import render_to_string
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
-    METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED
+    METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
+    METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import ROOT_URL, HTTP_OR_SSL, HOST_NAME
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
@@ -89,23 +90,34 @@ def edit(request: HttpRequest, id: int, user: User):
 
     editor_form = MetadataEditorForm(request.POST or None)
     editor_form.fields["terms_of_use"].required = False
+
     if request.method == 'POST':
+
         if editor_form.is_valid():
 
             custom_md = editor_form.save(commit=False)
+
             if not metadata.is_root():
                 # this is for the case that we are working on a non root element which is not allowed to change the
                 # inheritance setting for the whole service -> we act like it didn't change
                 custom_md.use_proxy_uri = metadata.use_proxy_uri
+
+            if metadata.is_secured and not custom_md.use_proxy_uri:
+                # the resource is secured but the proxy shall be turned off - this can not be done!
+                messages.error(request, METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED)
+                return redirect("editor:edit", id)
+
             editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
             editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
             _type = metadata.get_service_type()
+
             if _type == 'wms':
                 if metadata.is_root():
                     parent_service = metadata.service
                 else:
                     parent_service = metadata.service.parent_service
+
             elif _type == 'wfs':
                 if metadata.is_root():
                     parent_service = metadata.service
@@ -114,6 +126,7 @@ def edit(request: HttpRequest, id: int, user: User):
 
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, "{}: {}".format(parent_service.metadata.title, metadata.title))
             return redirect("editor:index")
+
         else:
             messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
             return redirect("editor:edit", id)

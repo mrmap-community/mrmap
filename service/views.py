@@ -26,6 +26,7 @@ from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceEnum, MetadataEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
+from service.helper.ogc.operation_request_handler import OperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, SecuredOperation, MimeType
 from service.settings import MD_TYPE_SERVICE
@@ -741,42 +742,13 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
     # get request type and requested layer
     get_query_string = request.environ.get("QUERY_STRING", "")
 
-    GET_params = {
-        "request": None,  # refers to param 'REQUEST'
-        "layer": None,  # refers to param 'LAYERS'
-        "x_y": [None, None],  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)
-        "bbox": None,  # refers to param 'BBOX'
-        "srs": None,  # refers to param 'SRS' (WMS 1.0.0 - 1.1.1) and 'CRS' (WMS 1.3.0)
-        "version": None,  # refers to param 'VERSION'
-    }
-
-    for key, val in request.GET.items():
-        key = key.upper()
-        if key == "REQUEST":
-            GET_params["request"] = val
-        if key == "LAYER":
-            GET_params["layer"] = val
-        if key == "BBOX":
-            GET_params["bbox"] = val
-        if key == "X" or key == "I":
-            GET_params["x_y"][0] = val
-        if key == "Y" or key == "J":
-            GET_params["x_y"][1] = val
-        if key == "VERSION":
-            GET_params["version"] = val
-        if key == "SRS" or key == "CRS":
-            GET_params["srs"] = val
-        if key == "WIDTH":
-            GET_params["width"] = val
-        if key == "HEIGHT":
-            GET_params["height"] = val
-
-    if GET_params["request"] is None:
-        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
-
     try:
         # redirects request to parent service, if the given id is not the root of the service
         metadata = Metadata.objects.get(id=id)
+        operation_handler = OperationRequestHandler(get_query_string, request, metadata)
+
+        if operation_handler.request_param is None:
+            return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
         if not metadata.is_root():
             redirect_uri = "/service/metadata/proxy/operation/{}?{}".format(
                 metadata.service.parent_service.metadata.id,
@@ -789,21 +761,17 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
 
         # if the 'layer' parameter indicates the request for a subelement of this service, we need to fetch this metadata
         # to continue with!
-        if GET_params["layer"] is not None:
+        if operation_handler.layer_param is not None:
             try:
-                metadata = Metadata.objects.get(identifier=GET_params["layer"])
+                metadata = Metadata.objects.get(identifier=operation_handler.layer_param)
             except ObjectDoesNotExist:
                 return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
 
         tmp_st = metadata.service.servicetype
-        service_type = "{}_{}".format(tmp_st.name, GET_params["version"])
+        service_type = "{}_{}".format(tmp_st.name, operation_handler.version_param)
 
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
-
-    GET_params["bbox"] = service_helper.process_bbox_param(GET_params["bbox"], GET_params["srs"], service_type)
-
-    GET_params["x_y"] = service_helper.process_x_y_param(GET_params["x_y"], GET_params["srs"])
 
     # identify requested operation and resolve the uri
     if metadata.service.servicetype.name == ServiceEnum.WFS.value:
@@ -816,20 +784,20 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
             "GETMAP": metadata.service.get_map_uri,
             "GETFEATUREINFO": metadata.service.get_feature_info_uri,
         }
-    uri = operations.get(GET_params["request"].upper(), None)
 
-    if uri is None:
+    operation_handler.uri = operations.get(operation_handler.request_param.upper(), None)
+
+    if operation_handler.uri is None:
         return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_BROKEN_URI)
-    uri += get_query_string
+    operation_handler.uri += get_query_string
 
     if metadata.is_secured:
         return service_helper.get_secured_operation_result(
             metadata,
-            GET_params,
-            user,
-            uri
+            operation_handler,
+            user
         )
     else:
         # if the metadata is not secured, there is no reason this route would have been called in the first place!
         # We simply redirect to the original route!
-        return redirect(uri)
+        return redirect(operation_handler.uri)

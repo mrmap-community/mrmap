@@ -120,7 +120,17 @@ def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str = Non
     except (IndexError, AttributeError) as e:
         return None
 
+
 def set_attribute(xml_elem, attribute: str, value: str):
+    """ Set an attribute for a xml element
+
+    Args:
+        xml_elem (Element): The xml element object
+        attribute (str):  The attribute name
+        value (str): The new attribute value
+    Returns:
+        nothing
+    """
     xml_elem.set(attribute, value)
 
 
@@ -218,17 +228,18 @@ def remove_element(xml_child):
     parent.remove(xml_child)
 
 
-def create_subelement(xml_elem: _Element, tag_name, after: str = None):
+def create_subelement(xml_elem: _Element, tag_name, after: str = None, attrib: dict = None):
     """ Creates a new xml element as a child of xml_elem with the name tag_name
 
     Args:
         xml_elem: The xml element
         tag_name: The tag name for the new element
         after (str): The tag name of the element after which the new one should be inserted
+        attrib: The attribute dict for the new element
     Returns:
          A new subelement of xml_elem
     """
-    ret_element = etree.Element(tag_name)
+    ret_element = etree.Element(tag_name, attrib=attrib)
     if after is not None:
         after_element = try_get_single_element_from_xml("./{}".format(after), xml_elem)
         after_element_index = xml_elem.index(after_element) + 1

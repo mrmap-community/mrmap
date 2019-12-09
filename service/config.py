@@ -9,6 +9,9 @@ This file contains app specific configurations like constants and so on.
 """
 from MapSkinner.settings import BASE_DIR
 
+DEFAULT_SRS = 4326
+DEFAULT_SRS_STRING = "EPSG:{}".format(DEFAULT_SRS)
+
 ALLOWED_SRS = [
     4326,
     4258,

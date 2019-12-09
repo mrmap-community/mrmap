@@ -576,7 +576,7 @@ class OGCWebFeatureService(OGCWebService):
             f_t.service = service
             md = f_t.metadata
             md.save()
-            f_t.metadata_id = md.id
+            f_t.metadata = md
             f_t.save()
 
             # persist featuretype keywords through metadata

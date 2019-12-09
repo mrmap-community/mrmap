@@ -15,6 +15,8 @@ from django.contrib.gis.geos import GEOSGeometry, Polygon, Point
 from django.http import HttpResponse, QueryDict
 
 from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER, SECURITY_PROXY_NOT_ALLOWED
+from service.helper import xml_helper
+from service.helper.ogc.operation_request_handler import OperationRequestHandler
 from service.settings import DEFAULT_SERVICE_VERSION, MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_LOCAL_PATH, \
     MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_SECURITY_MASK_KEY_COLUMN
 from service.helper.common_connector import CommonConnector
@@ -230,69 +232,6 @@ def get_operation_response(uri: str):
     return c.content
 
 
-def process_bbox_param(bbox_param: str, srs_param: str, service_type: str):
-    """ Creates a polygon from the given string bounding box
-
-    Args:
-        bbox_param (str): Bounding box as string, separated with ','
-        srs_param (str): The spatial reference system, like 'EPSG:4326'
-    Returns:
-        A dict, which contains the bounding box geometry 'geom' for spatial access checks and 'bbox_param' as string,
-        where the axis might be switched, according to the service type
-    """
-    ret_dict = {
-        "geom": None,
-        "bbox_param": None
-    }
-    if bbox_param is None:
-        return ret_dict
-    #epsg_api = EpsgApi()
-
-    # create Polygon object from raw BBOX parameter
-    tmp_bbox = bbox_param.split(",")
-
-    if len(tmp_bbox) != 4:
-        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("BBOX"))
-    bbox_param_geom = GEOSGeometry(Polygon.from_bbox(tmp_bbox), srid=srs_param)
-
-    # check whether the axis of the bbox extent vertices have to be switched
-    #switch_axis = epsg_api.switch_axis_order(service_type, srs_param)
-
-    #if switch_axis:
-    #    for i in range(0, len(tmp_bbox)-1, 2):
-    #        tmp = tmp_bbox[i]
-    #        tmp_bbox[i] = tmp_bbox[i+1]
-    #        tmp_bbox[i+1] = tmp
-
-    ret_dict["geom"] = bbox_param_geom
-    ret_dict["bbox_param"] = ",".join(tmp_bbox)
-
-    return ret_dict
-
-
-def process_x_y_param(x_y_param: list, srs: str):
-    """ Creates a point from the given x_y_param dict
-
-    Args:
-        x_y_param (dict): Bounding box as string, separated with ','
-    Returns:
-
-    """
-    # create Point object from raw X/Y parameters
-    if x_y_param[0] is None and x_y_param[1] is not None:
-        # make sure both values are set or none
-        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("X"))
-    elif x_y_param[0] is not None and x_y_param[1] is None:
-        # make sure both values are set or none
-        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("Y"))
-    elif x_y_param[0] is not None and x_y_param[1] is not None:
-        # we can create a Point object from this!
-        x_y_param = Point(int(x_y_param[0]), int(x_y_param[1]))
-    else:
-        x_y_param = None
-    return x_y_param
-
-
 def convert_image_to_spatial_coordinates(point: Point, width: int, height: int, bbox_coords: list):
     """ Converts the x|y coordinates of an image point to spatial EPSG:4326 coordinates, derived from a bounding box
 
@@ -340,20 +279,30 @@ def check_get_feature_info_operation_access(x_y_param: Point, sec_ops: QueryDict
         constraints["x_y"] = False
 
     for sec_op in sec_ops:
-        restricting_geom_collection = sec_op.bounding_geometry
-        if restricting_geom_collection.empty:
+        if sec_op.bounding_geometry.empty:
             # there is no specific area, so this group is allowed to request everywhere
             constraints["x_y"] = True
             break
-        for geom in restricting_geom_collection:
-            if x_y_param is not None:
-                if geom.covers(x_y_param):
-                    constraints["x_y"] = True
+        total_bounding_geometry = sec_op.bounding_geometry.unary_union
+        if x_y_param is not None:
+            if total_bounding_geometry.covers(x_y_param):
+                constraints["x_y"] = True
 
     return False not in constraints.values()
 
 
-def get_secured_service_mask(metadata: Metadata, sec_ops: QueryDict, GET_params: dict):
+def get_secured_service_mask(metadata: Metadata, sec_ops: QueryDict, operation_handler: OperationRequestHandler):
+    """ Creates call to local mapserver and returns the response
+
+    Gets a mask image, which can be used to remove restricted areas from another image
+
+    Args:
+        metadata (Metadata): The metadata object
+        sec_ops (QueryDict): SecuredOperation objects in a query dict
+        operation_handler (OperationRequestHandler): Holds important information for this operation
+    Returns:
+         bytes
+    """
     response = ""
     for op in sec_ops:
         request_dict = {
@@ -363,10 +312,10 @@ def get_secured_service_mask(metadata: Metadata, sec_ops: QueryDict, GET_params:
             "service": "WMS",
             "format": "image/png",
             "layers": "mask",
-            "srs": GET_params["srs"],
-            "bbox": GET_params["bbox"].get("bbox_param"),
-            "width": GET_params["width"],
-            "height": GET_params["height"],
+            "srs": operation_handler.srs_param,
+            "bbox": operation_handler.bbox_param.get("bbox_param"),
+            "width": operation_handler.width_param,
+            "height": operation_handler.height_param,
             "keys": op.id,
             "table": MAPSERVER_SECURITY_MASK_TABLE,
             "key_column": MAPSERVER_SECURITY_MASK_KEY_COLUMN,
@@ -410,7 +359,58 @@ def create_masked_image(img: bytes, mask: bytes, as_bytes: bool = False):
     return img
 
 
-def get_secured_operation_result(metadata: Metadata, GET_params: dict, user: User, uri: str):
+def check_get_feature_operation_access(operation_handler: OperationRequestHandler, sec_ops: QueryDict):
+    """ Checks whether the GetFeature request can be allowed or not.
+
+    Checks the SecuredOperations against bounding geometry from the request
+
+    Args:
+        operation_handler (OperationRequestHandler): The OperationRequestHandler object
+        sec_ops (QueryDict): The SecuredOperations in a QueryDict object
+    Returns:
+         True|False
+    """
+    ret_val = False
+
+    # GetFeature operation is a WFS operation, which means the given bbox parameter must not be in EPSG:4326!
+    bbox = operation_handler.bbox_param
+
+    if bbox is None:
+        bbox = operation_handler.get_bbox_from_filter_param()
+        if bbox is None:
+            # the request is broken!
+            raise Exception()
+
+    else:
+        bbox = bbox.get("geom")
+    for sec_op in sec_ops:
+
+        if sec_op.bounding_geometry.empty:
+            # there is no specific area, so this group is allowed to request everywhere
+            ret_val = True
+            break
+        # union all geometries in the geometrycollection (bounding_geometry) into one geometry
+        total_bounding_geometry = sec_op.bounding_geometry.unary_union
+
+        if total_bounding_geometry.srid != bbox.srid:
+            # this may happen if another srs was provided per request parameter.
+            # we need to transform one of the geometries into the srs of the other
+            total_bounding_geometry.transform(bbox.srid)
+
+        if total_bounding_geometry.covers(bbox):
+            # we are fine, the bounding geometry covers the requested area totally!
+            ret_val = True
+            break
+
+        elif total_bounding_geometry.intersects(bbox):
+            # we are only partially inside the bounding geometry -> we need to create the intersection between bbox and bounding geometry
+            operation_handler.set_intersected_allowed_geometry(bbox.intersection(total_bounding_geometry))
+            ret_val = True
+
+    return ret_val
+
+
+def get_secured_operation_result(metadata: Metadata, operation_handler: OperationRequestHandler, user: User):
     """ Performs a security access check and returns the desired result or an http error response
 
     Performs different checks on the secured access of the resource, which are linked using SecuredOperation objects.
@@ -425,7 +425,7 @@ def get_secured_operation_result(metadata: Metadata, GET_params: dict, user: Use
     """
     # check if the metadata allows operations for certain groups
     sec_ops = metadata.secured_operations.filter(
-        operation__operation_name__iexact=GET_params["request"],
+        operation__operation_name__iexact=operation_handler.request_param,
         allowed_group__in=user.groups.all(),
     )
 
@@ -434,20 +434,29 @@ def get_secured_operation_result(metadata: Metadata, GET_params: dict, user: Use
         return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
     else:
         allowed = False
-        if GET_params["request"].upper() == "GETFEATUREINFO":
-            GET_params["x_y"] = convert_image_to_spatial_coordinates(
-                GET_params["x_y"],
-                int(GET_params["width"]),
-                int(GET_params["height"]),
-                GET_params["bbox"]["geom"].coords[0]
+        response = None
+
+        if operation_handler.request_param.upper() == "GETFEATUREINFO":
+            operation_handler.x_y_param = convert_image_to_spatial_coordinates(
+                operation_handler.x_y_param,
+                int(operation_handler.width_param),
+                int(operation_handler.height_param),
+                operation_handler.bbox_param.get("geom").coords[0]
             )
-            allowed = check_get_feature_info_operation_access(GET_params["x_y"], sec_ops)
-            response = get_operation_response(uri)
-        elif GET_params["request"].upper() == "GETMAP":
+            allowed = check_get_feature_info_operation_access(operation_handler.x_y_param, sec_ops)
+            if allowed:
+                response = get_operation_response(operation_handler.uri)
+
+        elif operation_handler.request_param.upper() == "GETMAP":
             allowed = True  # allow the access but use masking of the retrieved image to hide unaccessible parts of the image
-            img = get_operation_response(uri)
-            mask = get_secured_service_mask(metadata, sec_ops, GET_params)
+            img = get_operation_response(operation_handler.uri)
+            mask = get_secured_service_mask(metadata, sec_ops, operation_handler)
             response = create_masked_image(img, mask, as_bytes=True)
+
+        elif operation_handler.request_param.upper() == "GETFEATURE":
+            allowed = check_get_feature_operation_access(operation_handler, sec_ops)
+            if allowed:
+                response = get_operation_response(operation_handler.uri)
 
         if allowed:
             return HttpResponse(response, content_type="")

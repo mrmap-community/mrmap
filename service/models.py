@@ -78,7 +78,7 @@ class SecuredOperation(models.Model):
         # continue with possibly existing children
         if md_type == MetadataEnum.FEATURETYPE.value:
             sec_ops = SecuredOperation.objects.filter(
-                secured_metadata=md.featuretype,
+                secured_metadata=md,
                 operation=operation,
                 allowed_group=group
             )

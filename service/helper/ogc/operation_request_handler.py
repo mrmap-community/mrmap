@@ -1,0 +1,246 @@
+"""
+Author: Michel Peltriaux
+Organization: Spatial data infrastructure Rhineland-Palatinate, Germany
+Contact: michel.peltriaux@vermkv.rlp.de
+Created on: 05.12.19
+
+"""
+import urllib
+
+from django.core.exceptions import ObjectDoesNotExist
+from lxml import etree
+
+from django.contrib.gis.geos import Polygon, GEOSGeometry, Point
+from django.http import HttpRequest, HttpResponse
+
+from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER
+from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
+from service.config import DEFAULT_SRS, DEFAULT_SRS_STRING
+from service.helper import xml_helper
+from service.helper.enums import ServiceEnum
+from service.models import Metadata, FeatureType, FeatureTypeElement
+from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS
+
+
+class OperationRequestHandler:
+    """ Provides methods for handling an operation request for OGC services
+
+    """
+
+    def __init__(self, uri: str, request: HttpRequest, metadata: Metadata):
+        self.uri = uri
+
+        self.request_param = None  # refers to param 'REQUEST'
+        self.layer_param = None  # refers to param 'LAYERS'
+        self.x_y_param = [None, None]  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)
+        self.bbox_param = None  # refers to param 'BBOX'
+        self.srs_param = None  # refers to param 'SRS' (WMS 1.0.0 - 1.1.1) and 'CRS' (WMS 1.3.0)
+        self.srs_code = None  # only the srsid as int
+        self.version_param = None  # refers to param 'VERSION'
+        self.filter_param = None  # refers to param 'FILTER' (WFS)
+        self.width_param = None  # refers to param 'WIDTH' (WMS)
+        self.height_param = None  # refers to param 'HEIGHT' (WMS)
+        self.type_name_param = None  # refers to param 'TYPENAME' (WFS)
+        self.geom_property_name = None  # will be set, if type_name_param is not None
+
+        self.intersected_allowed_geometry = None
+
+        for key, val in request.GET.items():
+            key = key.upper()
+            if key == "REQUEST":
+                self.request_param = val
+            if key == "LAYER":
+                self.layer_param = val
+            if key == "BBOX":
+                self.bbox_param = val
+            if key == "X" or key == "I":
+                self.x_y_param[0] = val
+            if key == "Y" or key == "J":
+                self.x_y_param[1] = val
+            if key == "VERSION":
+                self.version_param = val
+            if key == "SRS" or key == "CRS":
+                self.srs_param = val
+                self.srs_code = int(self.srs_param.split(":")[-1])  # get the last element of the ':' splitted string
+            if key == "WIDTH":
+                self.width_param = val
+            if key == "HEIGHT":
+                self.height_param = val
+            if key == "FILTER":
+                self.filter_param = val
+            if key == "TYPENAME":
+                self.type_name_param = val
+
+        if self.request_param == "GetFeature" and self.type_name_param is not None:
+            # for WFS we need to check a few things in here!
+            # first get the featuretype object, that is requested
+            featuretype = FeatureType.objects.get(
+                metadata__identifier=self.type_name_param,
+                service__metadata=metadata
+            )
+
+            if self.srs_param is None:
+                # if the srs_param could not be identified by a GET parameter, we need to check if the default srs of the
+                # featuretype object is set. Otherwise we take our DEFAULT_STRING constant (EPSG:4326)
+                if featuretype.default_srs is None:
+                    self.srs_param = DEFAULT_SRS_STRING
+                    self.srs_code = DEFAULT_SRS
+                else:
+                    self.srs_param = "EPSG:{}".format(featuretype.default_srs.code)
+                    self.srs_code = int(featuretype.default_srs.code)
+
+                try:
+                    tmp = []
+                    # Since the OGC standard does not specify a single identifier for the geometry part in a featuretype,
+                    # we need to check if our featuretype holds ANYTHING that matches the possible geometry identifiers...
+                    for allowed_geom_id in ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS:
+                        elements = featuretype.elements.filter(
+                            type__contains=allowed_geom_id
+                        )
+                        tmp += list(elements)
+                    if len(tmp) > 0:
+                        self.geom_property_name = tmp[0].name
+                except ObjectDoesNotExist:
+                    pass
+
+        self.process_bbox_param()
+        self.process_x_y_param()
+
+    def get_geom_filter_param(self):
+        """ Creates a xml string for the filter parameter of a WFS operation
+
+        Returns:
+             _filter (str): The xml parameter as string
+        """
+        _filter = ""
+
+        if self.version_param == "1.1.0":
+            nsmap = {"gml": XML_NAMESPACES["gml"]}
+            gml = "{" + nsmap.get("gml") + "}"
+            root = etree.Element("Filter", nsmap=nsmap)
+            within_elem = xml_helper.create_subelement(root, "Within")
+            property_elem = xml_helper.create_subelement(within_elem, "PropertyName")
+            property_elem.text = self.geom_property_name
+            polygon_elem = xml_helper.create_subelement(within_elem, "{}Polygon".format(gml), attrib={"srsName": self.srs_param})
+            outer_bound_elem = xml_helper.create_subelement(polygon_elem, "{}outerBoundaryIs".format(gml))
+            linear_ring_elem = xml_helper.create_subelement(outer_bound_elem, "{}LinearRing".format(gml))
+            pos_list_elem = xml_helper.create_subelement(linear_ring_elem, "{}posList".format(gml))
+            tmp = []
+            for vertex in self.intersected_allowed_geometry.convex_hull.coords[0]:
+                tmp.append(str(vertex[0]))
+                tmp.append(str(vertex[1]))
+            pos_list_elem.text = " ".join(tmp)
+            _filter = xml_helper.xml_to_string(root)
+
+        elif self.version_param == "2.0.0":
+            pass
+        elif self.version_param == "2.0.2":
+            pass
+
+        return _filter
+
+    def set_intersected_allowed_geometry(self, allowed_geom: GEOSGeometry):
+        """ Setter for the intersected_allowed_geometry
+
+        Removes data for the bbox_param and changes the geometry filter
+
+        Args:
+            allowed_geom (GEOSGeometry): The intersected, allowed geometry
+        Returns:
+        """
+        self.intersected_allowed_geometry = allowed_geom
+        uri_parsed = urllib.parse.urlparse(self.uri)
+        query = dict(urllib.parse.parse_qsl(uri_parsed.query))
+
+        # remove bbox parameter (also from uri)
+        self.bbox_param = None
+        del query["bbox"]
+
+        # change filter param, so the allowed_geom is the bounding geometry
+        _filter = self.get_geom_filter_param()
+        query["filter"] = _filter
+
+        query = urllib.parse.urlencode(query, safe=", :")
+        uri_parsed = uri_parsed._replace(query=query)
+        self.uri = urllib.parse.urlunparse(uri_parsed)
+
+    def get_bbox_from_filter_param(self):
+        """ Returns the gml:lowerCorner/gml:upperCorner data as Geometry bounding box
+
+        Returns:
+        """
+        bbox = None
+        if self.filter_param is None:
+            return bbox
+        filter_xml = xml_helper.parse_xml(self.filter_param)
+
+        # bbox could be inside gml:Envelope/gml:lowerCorner and gml:Envelope/gml:upperCorner
+        lower_corner = xml_helper.try_get_text_from_xml_element(filter_xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("lowerCorner"))
+        upper_corner = xml_helper.try_get_text_from_xml_element(filter_xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("upperCorner"))
+
+        if lower_corner is not None and upper_corner is not None:
+            lower_corner = lower_corner.split(" ")
+            upper_corner = upper_corner.split(" ")
+            corners = lower_corner + upper_corner
+            bbox = GEOSGeometry(Polygon.from_bbox(corners), srid=self.srs_param or DEFAULT_SRS)
+
+        return bbox
+
+    def process_bbox_param(self):
+        """ Creates a polygon from the given string bounding box
+
+        Args:
+
+        Returns:
+            Nothing, performs method directly on object
+        """
+        ret_dict = {
+            "geom": None,
+            "bbox_param": None
+        }
+        if self.bbox_param is None:
+            return ret_dict
+        # epsg_api = EpsgApi()
+
+        # create Polygon object from raw BBOX parameter
+        tmp_bbox = self.bbox_param.split(",")
+
+        if len(tmp_bbox) != 4:
+            return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("BBOX"))
+        bbox_param_geom = GEOSGeometry(Polygon.from_bbox(tmp_bbox), srid=self.srs_code)
+
+        # check whether the axis of the bbox extent vertices have to be switched
+        # switch_axis = epsg_api.switch_axis_order(service_type, srs_param)
+
+        # if switch_axis:
+        #    for i in range(0, len(tmp_bbox)-1, 2):
+        #        tmp = tmp_bbox[i]
+        #        tmp_bbox[i] = tmp_bbox[i+1]
+        #        tmp_bbox[i+1] = tmp
+
+        ret_dict["geom"] = bbox_param_geom
+        ret_dict["bbox_param"] = ",".join(tmp_bbox)
+
+        self.bbox_param = ret_dict
+
+    def process_x_y_param(self):
+        """ Creates a point from the given x_y_param dict
+
+        Args:
+
+        Returns:
+            Nothing, performs method directly on object
+
+        """
+        # create Point object from raw X/Y parameters
+        if self.x_y_param[0] is None and self.x_y_param[1] is not None:
+            # make sure both values are set or none
+            return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("X"))
+        elif self.x_y_param[0] is not None and self.x_y_param[1] is None:
+            # make sure both values are set or none
+            return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("Y"))
+        elif self.x_y_param[0] is not None and self.x_y_param[1] is not None:
+            # we can create a Point object from this!
+            self.x_y_param = Point(int(self.x_y_param[0]), int(self.x_y_param[1]))
+        else:
+            self.x_y_param = None

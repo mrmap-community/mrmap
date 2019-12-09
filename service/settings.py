@@ -35,6 +35,16 @@ MAPSERVER_SECURITY_MASK_TABLE = "service_securedoperation"
 MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN= "bounding_geometry"
 MAPSERVER_SECURITY_MASK_KEY_COLUMN= "id"
 
-
 # Default service bounding box
 DEFAULT_SERVICE_BOUNDING_BOX = GEOSGeometry(Polygon.from_bbox([5.866699, 48.908059, 8.76709, 50.882243]), srid="EPSG:4326")
+
+# Defines the possible FeatureTypeElement type names, which hold the geometry of a feature type
+ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS = [
+    'GeometryPropertyType',
+    'PointPropertyType',
+    'LineStringPropertyType',
+    'PolygonPropertyType',
+    'MultiPointPropertyType',
+    'MultiLineStringPropertyType',
+    'MultiPolygonPropertyType'
+]

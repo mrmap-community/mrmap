@@ -73,11 +73,12 @@ XML_NAMESPACES = {
     "ms": "http://mapserver.gis.umn.edu/mapserver",
     "xsd": "http://www.w3.org/2001/XMLSchema",
     "sld": "http://www.opengis.net/sld",
+    "fes": "http://www.opengis.net/fes/2.0",
 }
 GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 
 # Session refreshes on every request!
-SESSION_EXPIRATION = 1800 # seconds
+SESSION_EXPIRATION = 30*60  # minutes*seconds
 SESSION_SAVE_EVERY_REQUEST = True
 
 # Home/Dashboard settings

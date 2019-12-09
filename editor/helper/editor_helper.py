@@ -421,6 +421,8 @@ def prepare_secured_operations_groups(operations, sec_ops, all_groups, metadata)
                     geometry_collection = sec_op.bounding_geometry
                     polygon_list = [json.loads(x.geojson) for x in geometry_collection]
                     geometry = json.dumps(polygon_list)
+                    if len(polygon_list) == 0:
+                        geometry = None
                     sec_id = sec_op.id
 
                 op_dict["groups"].append({

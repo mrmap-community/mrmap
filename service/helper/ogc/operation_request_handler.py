@@ -113,29 +113,34 @@ class OperationRequestHandler:
              _filter (str): The xml parameter as string
         """
         _filter = ""
+        _filter_prefix = ""
+        nsmap = {"gml": XML_NAMESPACES["gml"]}
+        gml = "{" + nsmap.get("gml") + "}"
 
         if self.version_param == "1.1.0":
-            nsmap = {"gml": XML_NAMESPACES["gml"]}
-            gml = "{" + nsmap.get("gml") + "}"
-            root = etree.Element("Filter", nsmap=nsmap)
-            within_elem = xml_helper.create_subelement(root, "Within")
-            property_elem = xml_helper.create_subelement(within_elem, "PropertyName")
-            property_elem.text = self.geom_property_name
-            polygon_elem = xml_helper.create_subelement(within_elem, "{}Polygon".format(gml), attrib={"srsName": self.srs_param})
-            outer_bound_elem = xml_helper.create_subelement(polygon_elem, "{}outerBoundaryIs".format(gml))
-            linear_ring_elem = xml_helper.create_subelement(outer_bound_elem, "{}LinearRing".format(gml))
-            pos_list_elem = xml_helper.create_subelement(linear_ring_elem, "{}posList".format(gml))
-            tmp = []
-            for vertex in self.intersected_allowed_geometry.convex_hull.coords[0]:
-                tmp.append(str(vertex[0]))
-                tmp.append(str(vertex[1]))
-            pos_list_elem.text = " ".join(tmp)
-            _filter = xml_helper.xml_to_string(root)
+            # default implementation
+            pass
+        elif self.version_param == "2.0.0" or self.version_param == "2.0.2":
+            nsmap["fes"] = XML_NAMESPACES["fes"]
+            _filter_prefix = "{" + nsmap.get("fes") + "}"
 
-        elif self.version_param == "2.0.0":
-            pass
-        elif self.version_param == "2.0.2":
-            pass
+        # create xml filter string
+        root = etree.Element("{}Filter".format(_filter_prefix), nsmap=nsmap)
+        within_elem = xml_helper.create_subelement(root, "{}Within".format(_filter_prefix))
+        property_elem = xml_helper.create_subelement(within_elem, "{}PropertyName".format(_filter_prefix))
+        property_elem.text = self.geom_property_name
+        polygon_elem = xml_helper.create_subelement(within_elem, "{}Polygon".format(gml),
+                                                    attrib={"srsName": self.srs_param})
+        outer_bound_elem = xml_helper.create_subelement(polygon_elem, "{}outerBoundaryIs".format(gml))
+        linear_ring_elem = xml_helper.create_subelement(outer_bound_elem, "{}LinearRing".format(gml))
+        pos_list_elem = xml_helper.create_subelement(linear_ring_elem, "{}posList".format(gml))
+        tmp = []
+        for vertex in self.intersected_allowed_geometry.convex_hull.coords[0]:
+            tmp.append(str(vertex[0]))
+            tmp.append(str(vertex[1]))
+        pos_list_elem.text = " ".join(tmp)
+
+        _filter = xml_helper.xml_to_string(root)
 
         return _filter
 

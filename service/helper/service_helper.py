@@ -232,35 +232,6 @@ def get_operation_response(uri: str):
     return c.content
 
 
-def convert_image_to_spatial_coordinates(point: Point, width: int, height: int, bbox_coords: list):
-    """ Converts the x|y coordinates of an image point to spatial EPSG:4326 coordinates, derived from a bounding box
-
-    Args:
-        point (Point): The Point object, which holds the image x|y position
-        width (int); The width of the image
-        height (int); The height of the image
-        bbox_coords (list); The bounding box vertices as tuples in a list
-    Returns:
-         point (Point): The Point object, holding converted spatial coordinates
-    """
-    # the coordinate systems origin is 0|0 in the upper left corner of the image
-    # get the vertices of the bbox which represent these image points: 0|0, max|0, 0|max
-    bbox_upper_left = bbox_coords[1]
-    bbox_upper_right = bbox_coords[2]
-    bbox_lower_left = bbox_coords[0]
-
-    # calculate the movement vector (only the non-zero part)
-    # divide the movement vector using the width/height to get a vector step size
-    step_left_right = (bbox_upper_right[0] - bbox_upper_left[0])/width
-    step_up_down = (bbox_lower_left[1] - bbox_upper_left[1])/height
-
-    # x represents the upper left "corner", increased by the product of the image X coordinate and the step size for this direction
-    # equivalent for y
-    point.x = bbox_upper_left[0] + point.x * step_left_right
-    point.y = bbox_upper_left[1] + point.y * step_up_down
-    return point
-
-
 def check_get_feature_info_operation_access(x_y_param: Point, sec_ops: QueryDict):
     """ Checks whether the user given x/y Point parameter object is inside the geometry, which defines the allowed
     access for the GetFeatureInfo operation
@@ -383,12 +354,14 @@ def check_get_feature_operation_access(operation_handler: OperationRequestHandle
 
     else:
         bbox = bbox.get("geom")
+
     for sec_op in sec_ops:
 
         if sec_op.bounding_geometry.empty:
-            # there is no specific area, so this group is allowed to request everywhere
+            # there is no allowed area defined, so this group is allowed to request everywhere
             ret_val = True
             break
+
         # union all geometries in the geometrycollection (bounding_geometry) into one geometry
         total_bounding_geometry = sec_op.bounding_geometry.unary_union
 
@@ -398,12 +371,14 @@ def check_get_feature_operation_access(operation_handler: OperationRequestHandle
             total_bounding_geometry.transform(bbox.srid)
 
         if total_bounding_geometry.covers(bbox):
-            # we are fine, the bounding geometry covers the requested area totally!
+            # we are fine, the bounding geometry covers the requested area completely!
             ret_val = True
             break
 
         elif total_bounding_geometry.intersects(bbox):
-            # we are only partially inside the bounding geometry -> we need to create the intersection between bbox and bounding geometry
+            # we are only partially inside the bounding geometry
+            # -> we need to create the intersection between bbox and bounding geometry
+            # This is only the case for WFS requests!
             operation_handler.set_intersected_allowed_geometry(bbox.intersection(total_bounding_geometry))
             ret_val = True
 
@@ -423,36 +398,34 @@ def get_secured_operation_result(metadata: Metadata, operation_handler: Operatio
     Returns:
          HttpResponse
     """
-    # check if the metadata allows operations for certain groups
+    # check if the metadata allows operation performing for certain groups
     sec_ops = metadata.secured_operations.filter(
         operation__operation_name__iexact=operation_handler.request_param,
         allowed_group__in=user.groups.all(),
     )
 
     if sec_ops.count() == 0:
-        # this means the service is secured but the user has no access!
+        # this means the service is secured but the no groups have access!
         return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
     else:
         allowed = False
         response = None
 
+        # WMS - Features
         if operation_handler.request_param.upper() == "GETFEATUREINFO":
-            operation_handler.x_y_param = convert_image_to_spatial_coordinates(
-                operation_handler.x_y_param,
-                int(operation_handler.width_param),
-                int(operation_handler.height_param),
-                operation_handler.bbox_param.get("geom").coords[0]
-            )
             allowed = check_get_feature_info_operation_access(operation_handler.x_y_param, sec_ops)
             if allowed:
                 response = get_operation_response(operation_handler.uri)
 
+        # WMS - 'Map image'
         elif operation_handler.request_param.upper() == "GETMAP":
-            allowed = True  # allow the access but use masking of the retrieved image to hide unaccessible parts of the image
+            # allow the access anyway, since we mask the output
+            allowed = True
             img = get_operation_response(operation_handler.uri)
             mask = get_secured_service_mask(metadata, sec_ops, operation_handler)
             response = create_masked_image(img, mask, as_bytes=True)
 
+        # WFS
         elif operation_handler.request_param.upper() == "GETFEATURE":
             allowed = check_get_feature_operation_access(operation_handler, sec_ops)
             if allowed:

@@ -749,7 +749,10 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
 
         if operation_handler.request_param is None:
             return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
+
         if not metadata.is_root():
+            # we do not allow the direct call of operations on child elements, such as layers!
+            # if the request tries that, we directly redirect it to the parent service!
             redirect_uri = "/service/metadata/proxy/operation/{}?{}".format(
                 metadata.service.parent_service.metadata.id,
                 get_query_string
@@ -759,16 +762,13 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
         if not metadata.is_active:
             return HttpResponse(status=423, content=SERVICE_DISABLED)
 
-        # if the 'layer' parameter indicates the request for a subelement of this service, we need to fetch this metadata
-        # to continue with!
+        # if the 'layer' parameter indicates the request for a subelement of this service, we need to fetch this
+        # metadata instead of the parent service one (which we have at this point) to continue with!
         if operation_handler.layer_param is not None:
             try:
                 metadata = Metadata.objects.get(identifier=operation_handler.layer_param)
             except ObjectDoesNotExist:
                 return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
-
-        tmp_st = metadata.service.servicetype
-        service_type = "{}_{}".format(tmp_st.name, operation_handler.version_param)
 
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
@@ -776,7 +776,7 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
     # identify requested operation and resolve the uri
     if metadata.service.servicetype.name == ServiceEnum.WFS.value:
         operations = {
-            "GETFEATURE": metadata.service.get_feature_info_uri,  # get_feature_info_uri is used in WFS for get_feature_uri
+            "GETFEATURE": metadata.service.get_feature_info_uri,  # get_feature_info_uri is reused in WFS for get_feature_uri
             "TRANSACTION": metadata.service.transaction_uri,
         }
     else:
@@ -787,8 +787,10 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
 
     operation_handler.uri = operations.get(operation_handler.request_param.upper(), None)
 
+    # if the given operation parameter could not be found in the dict, we assume an input error!
     if operation_handler.uri is None:
         return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_BROKEN_URI)
+    
     operation_handler.uri += get_query_string
 
     if metadata.is_secured:

@@ -117,8 +117,8 @@ class OperationRequestHandler:
         nsmap = {"gml": XML_NAMESPACES["gml"]}
         gml = "{" + nsmap.get("gml") + "}"
 
-        if self.version_param == "1.1.0":
-            # default implementation
+        if self.version_param == "1.0.0" or self.version_param == "1.1.0":
+            # default implementation, nothing to do here
             pass
         elif self.version_param == "2.0.0" or self.version_param == "2.0.2":
             nsmap["fes"] = XML_NAMESPACES["fes"]
@@ -249,3 +249,41 @@ class OperationRequestHandler:
             self.x_y_param = Point(int(self.x_y_param[0]), int(self.x_y_param[1]))
         else:
             self.x_y_param = None
+
+        if self.x_y_param is not None:
+            self.x_y_param = self._convert_image_point_to_spatial_coordinates(
+                self.x_y_param,
+                int(self.width_param),
+                int(self.height_param),
+                self.bbox_param.get("geom")[0],
+            )
+
+    def _convert_image_point_to_spatial_coordinates(self, point: Point, width: int, height: int, bbox_coords: list):
+        """ Converts the x|y coordinates of an image point to spatial EPSG:4326 coordinates, derived from a bounding box
+
+        Args:
+            point (Point): The Point object, which holds the image x|y position
+            width (int); The width of the image
+            height (int); The height of the image
+            bbox_coords (list); The bounding box vertices as tuples in a list
+        Returns:
+             point (Point): The Point object, holding converted spatial coordinates
+        """
+
+        # the coordinate systems origin is 0|0 in the upper left corner of the image
+        # get the vertices of the bbox which represent these image points: 0|0, max|0, 0|max
+        bbox_upper_left = bbox_coords[1]
+        bbox_upper_right = bbox_coords[2]
+        bbox_lower_left = bbox_coords[0]
+
+        # calculate the movement vector (only the non-zero part)
+        # divide the movement vector using the width/height to get a vector step size
+        step_left_right = (bbox_upper_right[0] - bbox_upper_left[0]) / width
+        step_up_down = (bbox_lower_left[1] - bbox_upper_left[1]) / height
+
+        # x represents the upper left "corner", increased by the product of the image X coordinate and the step size for this direction
+        # equivalent for y
+        point.x = bbox_upper_left[0] + point.x * step_left_right
+        point.y = bbox_upper_left[1] + point.y * step_up_down
+        point.srid = self.srs_code
+        return point

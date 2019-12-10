@@ -324,9 +324,16 @@ def create_masked_image(img: bytes, mask: bytes, as_bytes: bool = False):
 
     if as_bytes:
         outBytesStream = io.BytesIO()
-        img.save(outBytesStream, img.format)
-        img = outBytesStream.getvalue()
-
+        try:
+            img.save(outBytesStream, img.format)
+            img = outBytesStream.getvalue()
+        except IOError:
+            # happens if a non-alpha channel format is requested, such as jpeg
+            # replace alpha channel with white background
+            bg = Image.new("RGB", img.size, (255, 255, 255))
+            bg.paste(img, mask=img.split()[3])
+            bg.save(outBytesStream, img.format)
+            img = outBytesStream.getvalue()
     return img
 
 

@@ -9,7 +9,7 @@ import json
 
 from django.core.exceptions import ObjectDoesNotExist
 
-from service.config import INSPIRE_LEGISLATION_FILE
+from service.settings import INSPIRE_LEGISLATION_FILE
 from service.helper.enums import MetadataEnum
 from service.models import Metadata
 from service.helper import xml_helper

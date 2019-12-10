@@ -321,8 +321,7 @@ class Metadata(Resource):
         self.is_custom = False
         self.keywords.clear()
         for kw in layer.capability_keywords:
-            keyword = service_helper.keyword_get_or_create_safely(kw)
-            #keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.keywords.add(keyword)
 
         original_iso_links = [x.uri for x in layer.iso_metadata]
@@ -361,8 +360,7 @@ class Metadata(Resource):
         self.is_custom = False
         self.keywords.clear()
         for kw in f_t_obj.metadata.keywords_list:
-            keyword = service_helper.keyword_get_or_create_safely(kw)
-            #keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.keywords.add(keyword)
 
         for related_iso in self.related_metadata.all():
@@ -407,8 +405,7 @@ class Metadata(Resource):
         keywords = service.service_identification_keywords
         self.keywords.clear()
         for kw in keywords:
-            keyword = service_helper.keyword_get_or_create_safely(kw)
-            #keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.keywords.add(keyword)
 
         # by default no categories
@@ -454,8 +451,7 @@ class Metadata(Resource):
         keywords = service_tmp.service_identification_keywords
         self.keywords.clear()
         for kw in keywords:
-            keyword = service_helper.keyword_get_or_create_safely(kw)
-            #keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.keywords.add(keyword)
 
         # by default no categories
@@ -1409,8 +1405,7 @@ class FeatureType(Resource):
         self.abstract = original_ft.abstract
         self.metadata.keywords.clear()
         for kw in keywords:
-            keyword = service_helper.keyword_get_or_create_safely(kw)
-            #keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             self.metadata.keywords.add(keyword)
         self.is_custom = False
 

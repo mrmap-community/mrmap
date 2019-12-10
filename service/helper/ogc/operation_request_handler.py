@@ -15,10 +15,9 @@ from django.http import HttpRequest, HttpResponse
 
 from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
-from service.config import DEFAULT_SRS, DEFAULT_SRS_STRING
 from service.helper import xml_helper
 from service.models import Metadata, FeatureType
-from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS
+from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING
 
 
 class OperationRequestHandler:

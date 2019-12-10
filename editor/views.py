@@ -125,7 +125,7 @@ def edit(request: HttpRequest, id: int, user: User):
                     parent_service = metadata.featuretype.service
 
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, "{}: {}".format(parent_service.metadata.title, metadata.title))
-            return redirect("editor:index")
+            return redirect("service:detail", id)
 
         else:
             messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)

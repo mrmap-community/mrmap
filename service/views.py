@@ -720,15 +720,15 @@ def metadata_proxy(request: HttpRequest, id: int):
     Returns:
          HttpResponse
     """
-    dataset_metadata = Metadata.objects.get(id=id)
-    con = CommonConnector(url=dataset_metadata.metadata_url)
+    md = Metadata.objects.get(id=id)
+    con = CommonConnector(url=md.metadata_url)
     con.load()
     xml_raw = con.content
     return HttpResponse(xml_raw, content_type='application/xml')
 
 
 @check_session
-def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
+def get_metadata_operation(request: HttpRequest, id: int, user: User):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
 
     Decides which operation will be handled by resolving a given 'request=' query parameter.
@@ -754,7 +754,7 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
         if not metadata.is_root():
             # we do not allow the direct call of operations on child elements, such as layers!
             # if the request tries that, we directly redirect it to the parent service!
-            redirect_uri = "/service/proxy/metadata/{}/operation?{}".format(
+            redirect_uri = "/service/metadata/{}/operation?{}".format(
                 metadata.service.parent_service.metadata.id,
                 get_query_string
             )
@@ -804,8 +804,8 @@ def metadata_proxy_operation(request: HttpRequest, id: int, user: User):
         return HttpResponse(service_helper.get_operation_response(operation_handler.uri), content_type="")
 
 @check_session
-def metadata_proxy_legend(request: HttpRequest, id: int, style_id: id, user: User):
-    """ Calls the legend uri and returns the response to the user
+def get_metadata_legend(request: HttpRequest, id: int, style_id: id, user: User):
+    """ Calls the legend uri of a special style inside the metadata and returns the response to the user
 
     Args:
         request (HttpRequest): The incoming HttpRequest

@@ -702,7 +702,7 @@ class Document(Resource):
         """
         xml_obj = xml_helper.parse_xml(self.current_capability_document)
         if is_secured:
-            uri = "{}{}/service/proxy/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)
+            uri = "{}{}/service/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)
         else:
             uri = ""
         _type = self.related_metadata.service.servicetype.name
@@ -740,7 +740,7 @@ class Document(Resource):
             if is_secured:
                 # find metadata record which matches the metadata uri
                 dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
-                uri = "{}{}/service/proxy/metadata/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
+                uri = "{}{}/service/metadata/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
             else:
                 # this means we have our own proxy uri in here and want to restore the original one
                 # metadata uri contains the proxy uri
@@ -776,7 +776,7 @@ class Document(Resource):
                 layer_identifier = dict(urllib.parse.parse_qsl(legend_uri)).get("layer", None)
                 style_id = Style.objects.get(layer__parent_service__metadata=self.related_metadata,
                                              layer__identifier=layer_identifier).id
-                uri = "{}{}/service/proxy/metadata/{}/legend/{}".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id, style_id)
+                uri = "{}{}/service/metadata/{}/legend/{}".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id, style_id)
             else:
                 # restore the original legend uri by using the layer identifier
                 style_id = legend_uri.split("/")[-1]

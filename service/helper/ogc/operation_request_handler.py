@@ -10,7 +10,7 @@ import urllib
 from django.core.exceptions import ObjectDoesNotExist
 from lxml import etree
 
-from django.contrib.gis.geos import Polygon, GEOSGeometry, Point
+from django.contrib.gis.geos import Polygon, GEOSGeometry, Point, GeometryCollection
 from django.http import HttpRequest, HttpResponse
 
 from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER
@@ -157,7 +157,11 @@ class OperationRequestHandler:
 
         # remove bbox parameter (also from uri)
         self.bbox_param = None
-        del query["bbox"]
+        try:
+            del query["bbox"]
+        except KeyError:
+            # it was not there in the first place
+            pass
 
         # change filter param, so the allowed_geom is the bounding geometry
         _filter = self.get_geom_filter_param()
@@ -167,27 +171,46 @@ class OperationRequestHandler:
         uri_parsed = uri_parsed._replace(query=query)
         self.uri = urllib.parse.urlunparse(uri_parsed)
 
-    def get_bbox_from_filter_param(self):
+    def get_bounding_geometry_from_filter_param(self):
         """ Returns the gml:lowerCorner/gml:upperCorner data as Geometry bounding box
 
         Returns:
         """
-        bbox = None
+        bounding_geom = None
         if self.filter_param is None:
-            return bbox
+            return bounding_geom
         filter_xml = xml_helper.parse_xml(self.filter_param)
 
-        # bbox could be inside gml:Envelope/gml:lowerCorner and gml:Envelope/gml:upperCorner
+        # a simple bbox could be inside gml:Envelope/gml:lowerCorner and gml:Envelope/gml:upperCorner
         lower_corner = xml_helper.try_get_text_from_xml_element(filter_xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("lowerCorner"))
         upper_corner = xml_helper.try_get_text_from_xml_element(filter_xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("upperCorner"))
 
+        gml_polygons = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Polygon"), filter_xml)
+
         if lower_corner is not None and upper_corner is not None:
+            # there is a simple bbox
             lower_corner = lower_corner.split(" ")
             upper_corner = upper_corner.split(" ")
             corners = lower_corner + upper_corner
-            bbox = GEOSGeometry(Polygon.from_bbox(corners), srid=self.srs_param or DEFAULT_SRS)
+            bounding_geom = GEOSGeometry(Polygon.from_bbox(corners), srid=self.srs_code or DEFAULT_SRS)
+        elif len(gml_polygons) > 0:
+            # there are n polygons
+            geom_collection = GeometryCollection(srid=self.srs_code or DEFAULT_SRS)
+            for polygon in gml_polygons:
+                vertices = xml_helper.try_get_text_from_xml_element(polygon, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("posList")).split(" ")
+                vertices_pairs = []
+                for i in range(0, len(vertices), 2):
+                    vertices_pairs.append((float(vertices[i]), float(vertices[i+1])))
+                polygon_obj = GEOSGeometry(
+                    Polygon(
+                        vertices_pairs
+                    ),
+                    srid=self.srs_code or DEFAULT_SRS
+                )
+                geom_collection.append(polygon_obj)
+            bounding_geom = geom_collection.unary_union
 
-        return bbox
+        return bounding_geom
 
     def process_bbox_param(self):
         """ Creates a polygon from the given string bounding box

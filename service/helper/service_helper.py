@@ -357,16 +357,18 @@ def check_get_feature_operation_access(operation_handler: OperationRequestHandle
     ret_val = False
 
     # GetFeature operation is a WFS operation, which means the given bbox parameter must not be in EPSG:4326!
-    bbox = operation_handler.bbox_param
+    bounding_geom = operation_handler.bbox_param
 
-    if bbox is None:
-        bbox = operation_handler.get_bbox_from_filter_param()
-        if bbox is None:
+    if bounding_geom is None:
+        # check if the filter parameter holds a bbox OR a bounding polygon
+        bounding_geom = operation_handler.get_bounding_geometry_from_filter_param()
+        if bounding_geom is None:
+
             # the request is broken!
             raise Exception()
 
     else:
-        bbox = bbox.get("geom")
+        bounding_geom = bounding_geom.get("geom")
 
     for sec_op in sec_ops:
 
@@ -376,23 +378,23 @@ def check_get_feature_operation_access(operation_handler: OperationRequestHandle
             break
 
         # union all geometries in the geometrycollection (bounding_geometry) into one geometry
-        total_bounding_geometry = sec_op.bounding_geometry.unary_union
+        access_restricting_geom = sec_op.bounding_geometry.unary_union
 
-        if total_bounding_geometry.srid != bbox.srid:
+        if access_restricting_geom.srid != bounding_geom.srid:
             # this may happen if another srs was provided per request parameter.
             # we need to transform one of the geometries into the srs of the other
-            total_bounding_geometry.transform(bbox.srid)
+            access_restricting_geom.transform(bounding_geom.srid)
 
-        if total_bounding_geometry.covers(bbox):
+        if access_restricting_geom.covers(bounding_geom):
             # we are fine, the bounding geometry covers the requested area completely!
             ret_val = True
             break
 
-        elif total_bounding_geometry.intersects(bbox):
+        elif access_restricting_geom.intersects(bounding_geom):
             # we are only partially inside the bounding geometry
             # -> we need to create the intersection between bbox and bounding geometry
             # This is only the case for WFS requests!
-            operation_handler.set_intersected_allowed_geometry(bbox.intersection(total_bounding_geometry))
+            operation_handler.set_intersected_allowed_geometry(bounding_geom.intersection(access_restricting_geom))
             ret_val = True
 
     return ret_val

@@ -1,7 +1,6 @@
 import json
 
 from django.contrib import messages
-from django.contrib.gis.geos import Polygon, Point, GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
@@ -15,9 +14,8 @@ from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
-    SECURITY_PROXY_ERROR_MULTIPLE_SECURED_OPERATIONS, SECURITY_PROXY_NOT_ALLOWED, SECURITY_PROXY_ERROR_BROKEN_URI, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
-    SECURITY_PROXY_ERROR_PARAMETER
+    SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
@@ -790,7 +788,7 @@ def get_metadata_operation(request: HttpRequest, id: int, user: User):
 
     # if the given operation parameter could not be found in the dict, we assume an input error!
     if operation_handler.uri is None:
-        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_BROKEN_URI)
+        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED)
 
     operation_handler.uri += get_query_string
 

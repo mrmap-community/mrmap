@@ -276,6 +276,8 @@ def get_secured_service_mask(metadata: Metadata, sec_ops: QueryDict, operation_h
     """
     response = ""
     for op in sec_ops:
+        if op.bounding_geometry.empty:
+            return None
         request_dict = {
             "map": MAPSERVER_SECURITY_MASK_FILE_PATH,
             "version": "1.1.1",
@@ -314,7 +316,11 @@ def create_masked_image(img: bytes, mask: bytes, as_bytes: bool = False):
     except OSError:
         raise Exception("Could not create image! Content was:\n {}".format(img))
     try:
-        mask = Image.open(io.BytesIO(mask))
+        if mask is None:
+            # no bounding geometry for masking exist, just create a mask that does nothing
+            mask = Image.new("RGB", img.size, (0, 0, 0))
+        else:
+            mask = Image.open(io.BytesIO(mask))
     except OSError:
         raise Exception("Could not create image! Content was:\n {}".format(mask))
     mask = mask.convert("L").resize(img.size)

@@ -96,6 +96,7 @@ class Command(BaseCommand):
                 for key, val in perm.__dict__.items():
                     if 'can_' in key:
                         setattr(perm, key, True)
+
                 perm.save()
                 role.permission = perm
             role.save()

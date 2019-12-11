@@ -84,9 +84,17 @@ span.sidebar-entry:hover{
     color: white;
     font-weight: bold;
     min-width: 10em;
+	-webkit-transition: all 0.2s ease-out;
+	-moz-transition:    all 0.2s ease-out;
+	-ms-transition:     all 0.2s ease-out;
+	transition:         all 0.2s ease-out;
 }
 .tile:hover{
     background-color: var(--secondary-color-light);
+    transform: translate(0, -10px);
+    -webkit-box-shadow: 0 0 10px var(--secondary-color);
+    -moz-box-shadow:    0 0 10px var(--secondary-color);
+    box-shadow:         0 0 10px var(--secondary-color);
 }
 
 .tile-bg-img{

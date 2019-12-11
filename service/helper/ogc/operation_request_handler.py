@@ -104,7 +104,7 @@ class OperationRequestHandler:
         self.process_bbox_param()
         self.process_x_y_param()
 
-    def get_geom_filter_param(self):
+    def get_geom_filter_param(self, as_snippet: bool = False):
         """ Creates a xml string for the filter parameter of a WFS operation
 
         Returns:
@@ -118,6 +118,7 @@ class OperationRequestHandler:
         if self.version_param == "1.0.0" or self.version_param == "1.1.0":
             # default implementation, nothing to do here
             pass
+
         elif self.version_param == "2.0.0" or self.version_param == "2.0.2":
             nsmap["fes"] = XML_NAMESPACES["fes"]
             _filter_prefix = "{" + nsmap.get("fes") + "}"
@@ -133,10 +134,15 @@ class OperationRequestHandler:
         linear_ring_elem = xml_helper.create_subelement(outer_bound_elem, "{}LinearRing".format(gml))
         pos_list_elem = xml_helper.create_subelement(linear_ring_elem, "{}posList".format(gml))
         tmp = []
+
         for vertex in self.intersected_allowed_geometry.convex_hull.coords[0]:
             tmp.append(str(vertex[0]))
             tmp.append(str(vertex[1]))
         pos_list_elem.text = " ".join(tmp)
+
+        if as_snippet:
+            # we do not need the root <Filter> element, so just take the <Within> element and below!
+            root = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Within"), root)
 
         _filter = xml_helper.xml_to_string(root)
 
@@ -164,7 +170,8 @@ class OperationRequestHandler:
             pass
 
         # change filter param, so the allowed_geom is the bounding geometry
-        _filter = self.get_geom_filter_param()
+        # create complete new filter object
+        _filter = self.get_geom_filter_param(as_snippet=False)
         query["filter"] = _filter
 
         query = urllib.parse.urlencode(query, safe=", :")

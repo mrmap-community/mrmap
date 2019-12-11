@@ -19,10 +19,9 @@ from django.db import transaction
 
 from service.settings import MD_TYPE_LAYER, MD_TYPE_SERVICE
 from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
-    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES
+    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
 from MapSkinner.utils import execute_threads, sha256
-from service.config import ALLOWED_SRS
 from service.helper.enums import VersionEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_metadata import ISOMetadata
@@ -31,8 +30,8 @@ from service.helper.ogc.layer import OGCLayer
 
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
-    MetadataRelation, MetadataOrigin, MetadataType
-from service.settings import METADATA_RELATION_TYPE_VISUALIZES, METADATA_RELATION_TYPE_DESCRIBED_BY
+    MetadataRelation, MetadataOrigin, MetadataType, Style
+from service.settings import MD_RELATION_TYPE_VISUALIZES, MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
 from structure.models import Organization, Group
 from structure.models import User
 
@@ -117,6 +116,11 @@ class OGCWebMapService(OGCWebService):
 
         print(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
 
+        # check possible operations on this service
+        start_time = time.time()
+        self.get_service_operations(xml_obj, self.get_parser_prefix())
+        print(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
+
         # parse possible linked dataset metadata
         start_time = time.time()
         self.get_service_dataset_metadata(xml_obj=xml_obj)
@@ -156,7 +160,11 @@ class OGCWebMapService(OGCWebService):
 
     ### KEYWORDS ###
     def parse_keywords(self, layer, layer_obj):
-        keywords = xml_helper.try_get_element_from_xml(elem="./{}KeywordList/{}Keyword".format(self.get_parser_prefix(), self.get_parser_prefix()), xml_elem=layer)
+        keywords = xml_helper.try_get_element_from_xml(
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("KeywordList") +
+                 "/" + GENERIC_NAMESPACE_TEMPLATE.format("Keyword"),
+            xml_elem=layer
+        )
         for keyword in keywords:
             layer_obj.capability_keywords.append(keyword.text)
 
@@ -293,7 +301,11 @@ class OGCWebMapService(OGCWebService):
         for action in actions:
             try:
                 results[action] = []
-                format_list = xml_helper.try_get_element_from_xml(elem="//{}/{}Format".format(action, self.get_parser_prefix()), xml_elem=layer)
+                format_list = xml_helper.try_get_element_from_xml(
+                    elem="//" + GENERIC_NAMESPACE_TEMPLATE.format(action) +
+                         "/" + GENERIC_NAMESPACE_TEMPLATE.format("Format"),
+                    xml_elem=layer
+                )
                 for format in format_list:
                     results[action].append(format.text)
             except AttributeError:
@@ -320,26 +332,22 @@ class OGCWebMapService(OGCWebService):
     ### STYLES ###
     def parse_style(self, layer, layer_obj):
         parser_prefix = self.get_parser_prefix()
-        style = xml_helper.try_get_element_from_xml("./{}Style".format(parser_prefix), layer)
-        elements = {
-            "name": "./Name".format(parser_prefix),
-            "title": "./Title".format(parser_prefix),
-            "width": "./LegendURL".format(parser_prefix),
-            "height": "./LegendURL".format(parser_prefix),
-            "uri": "./{}LegendURL/{}OnlineResource".format(parser_prefix, parser_prefix)
-        }
-        for key, val in elements.items():
-            tmp = xml_helper.try_get_element_from_xml(elem=val, xml_elem=style)
-            try:
-                elements[key] = tmp[0]
-            except (IndexError, TypeError) as error:
-                elements[key] = None
-        elements["name"] = elements["name"].text if elements["name"] is not None else None
-        elements["title"] = elements["title"].text if elements["title"] is not None else None
-        elements["width"] = elements["width"].get("width") if elements["width"] is not None else None
-        elements["height"] = elements["height"].get("height") if elements["height"] is not None else None
-        elements["uri"] = elements["uri"].get("xlink:href") if elements["uri"] is not None else None
-        layer_obj.style = elements
+        style_xml = xml_helper.try_get_single_element_from_xml("./{}Style".format(parser_prefix), layer)
+
+        if style_xml is None:
+            # no <Style> element found
+            return
+
+        style_obj = Style()
+
+        style_obj.name = xml_helper.try_get_text_from_xml_element(style_xml, "./Name")
+        style_obj.title = xml_helper.try_get_text_from_xml_element(style_xml, "./Title")
+        style_obj.legend_uri = xml_helper.try_get_attribute_from_xml_element(style_xml, "{http://www.w3.org/1999/xlink}href", "./LegendURL/OnlineResource")
+        style_obj.width = int(xml_helper.try_get_attribute_from_xml_element(style_xml, "width", "./LegendURL"))
+        style_obj.height = int(xml_helper.try_get_attribute_from_xml_element(style_xml, "height", "./LegendURL"))
+        style_obj.mime_type = MimeType.objects.filter(mime_type=xml_helper.try_get_text_from_xml_element(style_xml, "./LegendURL/Format")).first()
+
+        layer_obj.style = style_obj
 
     def _start_single_layer_parsing(self, layer_xml):
         """ Runs the complete parsing process for a single layer
@@ -412,7 +420,8 @@ class OGCWebMapService(OGCWebService):
             layers: An array of layers (In fact the children of the parent layer)
             parent: The parent layer. If no parent exist it means we are in the root layer
             position: The position inside the layer tree, which is more like an order number
-        :return:
+        Returns:
+            nothing
         """
 
         # decide whether to user multithreading or iterative approach
@@ -513,8 +522,11 @@ class OGCWebMapService(OGCWebService):
             parser_prefix,
             parser_prefix
         ), xml_obj)
+
         kw = []
         for keyword in keywords:
+            if keyword is None:
+                continue
             kw.append(keyword.text)
         self.service_identification_keywords = kw
 
@@ -558,6 +570,9 @@ class OGCWebMapService(OGCWebService):
             parser_prefix,
         ))
 
+        # parse request uris from capabilities document
+        self.parse_request_uris(xml_obj, self)
+
 
     def __create_single_layer_model_instance(self, layer_obj, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
                          published_for: Organization, root_md: Metadata, user: User, contact, parent=None):
@@ -586,6 +601,7 @@ class OGCWebMapService(OGCWebService):
         metadata.abstract = layer_obj.abstract
         metadata.online_resource = root_md.online_resource
         metadata.capabilities_original_uri = root_md.capabilities_original_uri
+        metadata.capabilities_uri = root_md.capabilities_original_uri
         metadata.identifier = layer_obj.identifier
         metadata.contact = contact
         metadata.access_constraints = root_md.access_constraints
@@ -615,14 +631,19 @@ class OGCWebMapService(OGCWebService):
         layer.servicetype = service_type
         layer.position = layer_obj.position
         layer.parent_layer = parent
+
         if layer.parent_layer is not None:
             layer.parent_layer.children_list.append(layer)
+
         layer.is_queryable = layer_obj.is_queryable
         layer.is_cascaded = layer_obj.is_cascaded
         layer.registered_by = creator
         layer.is_opaque = layer_obj.is_opaque
         layer.scale_min = layer_obj.capability_scale_hint.get("min")
         layer.scale_max = layer_obj.capability_scale_hint.get("max")
+
+        if layer_obj.style is not None:
+            layer.tmp_style = layer_obj.style
 
         # create bounding box polygon
         bounding_points = (
@@ -645,6 +666,7 @@ class OGCWebMapService(OGCWebService):
         layer.describe_layer_uri = layer_obj.describe_layer_uri
         layer.get_capabilities_uri = layer_obj.get_capabilities_uri
         layer.iso_metadata = layer_obj.iso_metadata
+
         if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
             # ToDo: Rework dimension persisting! Currently simply ignore it...
             pass
@@ -666,13 +688,8 @@ class OGCWebMapService(OGCWebService):
         # iterate over all available mime types and actions
         for action, format_list in layer_obj.format_list.items():
             for _format in format_list:
-                #service_to_format = MimeType.objects.get_or_create(
-                #    action=action,
-                #    mime_type=_format,
-                #    created_by=creator
-                #)[0]
                 service_to_format = MimeType(
-                    action=action,
+                    operation=action,
                     mime_type=_format,
                     created_by=creator
                 )
@@ -751,6 +768,7 @@ class OGCWebMapService(OGCWebService):
         metadata.abstract = self.service_identification_abstract
         metadata.online_resource = ",".join(self.service_provider_onlineresource_linkage)
         metadata.capabilities_original_uri = self.service_connect_url
+        metadata.capabilities_uri = self.service_connect_url
         metadata.access_constraints = self.service_identification_accessconstraints
         metadata.fees = self.service_identification_fees
         metadata.bounding_geometry = self.service_bounding_box
@@ -758,6 +776,8 @@ class OGCWebMapService(OGCWebService):
 
         # keywords
         for kw in self.service_identification_keywords:
+            if kw is None:
+                continue
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             metadata.keywords_list.append(keyword)
 
@@ -787,6 +807,12 @@ class OGCWebMapService(OGCWebService):
         service.published_for = orga_published_for
         service.published_by = orga_publisher
         service.created_by = group
+        service.get_capabilities_uri = self.get_capabilities_uri
+        service.get_feature_info_uri = self.get_feature_info_uri
+        service.describe_layer_uri = self.describe_layer_uri
+        service.get_styles_uri = self.get_styles_uri
+        service.get_legend_graphic_uri = self.get_legend_graphic_uri
+        service.get_map_uri = self.get_map_uri
         service.metadata = metadata
         service.is_root = True
         if self.linked_service_metadata is not None:
@@ -817,10 +843,12 @@ class OGCWebMapService(OGCWebService):
             md_relation.origin = MetadataOrigin.objects.get_or_create(
                 name='capabilities'
             )[0]
-            md_relation.relation_type = METADATA_RELATION_TYPE_VISUALIZES
+            md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
             md_relation.save()
             md.related_metadata.add(md_relation)
 
+        internal_capabilities_uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, md.id)
+        md.capabilities_uri = internal_capabilities_uri
         # save again, due to added related metadata
         md.save()
 
@@ -854,6 +882,9 @@ class OGCWebMapService(OGCWebService):
             md_type = MetadataType.objects.get_or_create(type=md_type.type)[0]
             md.metadata_type = md_type
             md.save()
+            internal_capabilities_uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, md.id)
+            md.capabilities_uri = internal_capabilities_uri
+            md.save()
             for iso_md in layer.iso_metadata:
                 iso_md = iso_md.to_db_model()
                 metadata_relation = MetadataRelation()
@@ -862,7 +893,7 @@ class OGCWebMapService(OGCWebService):
                 metadata_relation.origin = MetadataOrigin.objects.get_or_create(
                     name=iso_md.origin
                 )[0]
-                metadata_relation.relation_type = METADATA_RELATION_TYPE_DESCRIBED_BY
+                metadata_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
                 metadata_relation.save()
                 md.related_metadata.add(metadata_relation)
 
@@ -887,10 +918,14 @@ class OGCWebMapService(OGCWebService):
             layer.parent_service = parent_service
             layer.save()
 
+            if layer.tmp_style is not None:
+                layer.tmp_style.layer = layer
+                layer.tmp_style.save()
+
             # iterate over all available mime types and actions
             for _format in layer.formats_list:
                 _format = MimeType.objects.get_or_create(
-                    action=_format.action,
+                    operation=_format.operation,
                     mime_type=_format.mime_type,
                 )[0]
                 layer.formats.add(_format)
@@ -904,8 +939,6 @@ class OGCWebMapServiceLayer(OGCLayer):
     """ The OGCWebMapServiceLayer class
 
     """
-
-
 
 
 class OGCWebMapService_1_0_0(OGCWebMapService):
@@ -953,6 +986,7 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
     def __init__(self, service_connect_url=None):
         super().__init__(service_connect_url=service_connect_url)
         self.service_version = VersionEnum.V_1_1_1
+        XML_NAMESPACES["default"] = XML_NAMESPACES["wms"]
 
     def get_version_specific_metadata(self, xml_obj):
         pass

@@ -53,7 +53,7 @@ $(document).ready(function(){
         toggleRequest(false, requestId, organizationId);
     });
 
-    $(".delete-container").click(function(){
+    $(".delete-container.publisher").click(function(){
         var elem = $(this);
         var publisherGroupId = elem.attr("data-id");
         var publishesForOrganizationId = elem.attr("data-parent");

@@ -1,16 +1,22 @@
+import json
+import urllib
 import uuid
 
-from django.contrib.gis.geos import Polygon
+from django.contrib.gis.geos import Polygon, GEOSGeometry, MultiPolygon, GeometryCollection
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
-from service.helper.enums import ServiceEnum
+
+from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
+from service.helper.enums import ServiceEnum, VersionEnum, MetadataEnum
+from service.settings import DEFAULT_SERVICE_BOUNDING_BOX
 from structure.models import Group, Organization
 from service.helper import xml_helper
 
 
 class Keyword(models.Model):
-    keyword = models.CharField(max_length=255)
+    keyword = models.CharField(max_length=255, unique=True)
 
     def __str__(self):
         return self.keyword
@@ -36,6 +42,97 @@ class Resource(models.Model):
         abstract = True
 
 
+class RequestOperation(models.Model):
+    operation_name = models.CharField(max_length=255, null=True, blank=True)
+
+    def __str__(self):
+        return self.operation_name
+
+
+class SecuredOperation(models.Model):
+    operation = models.ForeignKey(RequestOperation, on_delete=models.CASCADE, null=True, blank=True)
+    allowed_group = models.ForeignKey(Group, related_name="allowed_operations", on_delete=models.CASCADE, null=True, blank=True)
+    bounding_geometry = models.GeometryCollectionField(blank=True, null=True)
+    secured_metadata = models.ForeignKey('Metadata', related_name="secured_operations", on_delete=models.CASCADE, null=True, blank=True)
+
+    def __str__(self):
+        return str(self.id)
+
+    def delete(self, using=None, keep_parents=False):
+        """ Overwrites builtin delete() method with model specific logic.
+
+        If a SecuredOperation will be deleted, all related subelements of the secured_metadata have to be freed from
+        existing SecuredOperation records as well.
+
+        Args:
+            using:
+            keep_parents:
+        Returns:
+
+        """
+        md = self.secured_metadata
+        operation = self.operation
+        group = self.allowed_group
+
+        md_type = md.metadata_type.type
+
+        # continue with possibly existing children
+        if md_type == MetadataEnum.FEATURETYPE.value:
+            sec_ops = SecuredOperation.objects.filter(
+                secured_metadata=md,
+                operation=operation,
+                allowed_group=group
+            )
+            sec_ops.delete()
+
+        elif md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
+            service_type = md.service.servicetype.name
+            if service_type == ServiceEnum.WFS.value:
+                # find all wfs featuretypes
+                featuretypes = md.service.featuretypes.all()
+                for featuretype in featuretypes:
+                    sec_ops = SecuredOperation.objects.filter(
+                        secured_metadata=featuretype.metadata,
+                        operation=operation,
+                        allowed_group=group,
+                    )
+                    sec_ops.delete()
+
+            elif service_type == ServiceEnum.WMS.value:
+                if md.service.is_root:
+                    # find root layer
+                    layer = Layer.objects.get(
+                        parent_layer=None,
+                        parent_service=md.service
+                    )
+                else:
+                    # find layer which is described by this metadata
+                    layer = Layer.objects.get(
+                        metadata=md
+                    )
+
+                # remove root layer secured operation
+                sec_op = SecuredOperation.objects.filter(
+                    secured_metadata=layer.metadata,
+                    operation=operation,
+                    allowed_group=group
+                )
+                sec_op.delete()
+
+                # remove secured operations of root layer children
+                for child_layer in layer.child_layer.all():
+                    sec_ops = SecuredOperation.objects.filter(
+                        secured_metadata=child_layer.metadata,
+                        operation=operation,
+                        allowed_group=group,
+                    )
+                    sec_ops.delete()
+                    child_layer.delete_children_secured_operations(child_layer, operation, group)
+
+        # delete current object
+        super().delete(using, keep_parents)
+
+
 class MetadataOrigin(models.Model):
     name = models.CharField(max_length=255)
 
@@ -59,8 +156,12 @@ class Metadata(Resource):
     title = models.CharField(max_length=255)
     abstract = models.TextField(null=True, blank=True)
     online_resource = models.CharField(max_length=500, null=True, blank=True)  # where the service data can be found
+
     capabilities_original_uri = models.CharField(max_length=500, blank=True, null=True)
+    capabilities_uri = models.CharField(max_length=500, blank=True, null=True)
+
     service_metadata_original_uri = models.CharField(max_length=500, blank=True, null=True)
+    service_metadata_uri = models.CharField(max_length=500, blank=True, null=True)
 
     contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, blank=True, null=True)
     terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, null=True)
@@ -69,15 +170,17 @@ class Metadata(Resource):
 
     last_remote_change = models.DateTimeField(null=True, blank=True)  # the date time, when the metadata was changed where it comes from
     status = models.IntegerField(null=True)
-    inherit_proxy_uris = models.BooleanField(default=False)
+    use_proxy_uri = models.BooleanField(default=False)
     spatial_res_type = models.CharField(max_length=100, null=True)
     spatial_res_value = models.CharField(max_length=100, null=True)
     is_broken = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=False)
     is_custom = models.BooleanField(default=False)
     is_inspire_conform = models.BooleanField(default=False)
     has_inspire_downloads = models.BooleanField(default=False)
     bounding_geometry = models.PolygonField(null=True, blank=True)
+
+    # security
+    is_secured = models.BooleanField(default=False)
 
     # capabilities
     dimension = models.CharField(max_length=100, null=True)
@@ -119,6 +222,11 @@ class Metadata(Resource):
         Returns:
             nothing
         """
+        # check for SecuredOperations
+        if self.is_secured:
+            sec_ops = self.secured_operations.all()
+            sec_ops.delete()
+
         # check if there are MetadataRelations on this metadata record
         # if so, we can not remove it until these relations aren't used anymore
         dependencies = MetadataRelation.objects.filter(
@@ -147,6 +255,18 @@ class Metadata(Resource):
             service_type = 'wfs'
         return service_type
 
+    def get_service_version(self):
+        """ Returns the service version
+
+        Returns:
+             The service version
+        """
+        service_version = self.service.servicetype.version
+        for v in VersionEnum:
+            if v.value == service_version:
+                return v
+        return service_version
+
     def find_max_bounding_box(self):
         """ Returns the largest bounding box of all children
 
@@ -156,7 +276,7 @@ class Metadata(Resource):
 
         """
         children = self.service.child_service.all()
-        max_box = None
+        max_box = self.bounding_geometry
         for child in children:
             bbox = child.layer.bbox_lat_lon
             if max_box is None:
@@ -166,8 +286,13 @@ class Metadata(Resource):
                 ma = max_box.area
                 if ba > ma:
                     max_box = bbox
-        self.bounding_geometry = max_box
-        self.save()
+
+        if max_box is None:
+            max_box = DEFAULT_SERVICE_BOUNDING_BOX
+        if max_box.area == 0:
+            # if this element and it's children does not provide a bounding geometry, we simply take the one from the
+            # whole service to avoid the map flipping somewhere else on the planet
+            return self.service.parent_service.metadata.find_max_bounding_box()
         return max_box
 
     def is_root(self):
@@ -187,6 +312,7 @@ class Metadata(Resource):
         Returns:
              nothing, it changes the Metadata object itself
         """
+        from service.helper import service_helper
         # parse single layer
         identifier = self.service.layer.identifier
         layer = service.get_layer_by_identifier(identifier)
@@ -223,6 +349,7 @@ class Metadata(Resource):
         Returns:
              nothing, it changes the Metadata object itself
         """
+        from service.helper import service_helper
         # parse single layer
         identifier = self.identifier
         f_t = service.get_feature_type_by_identifier(identifier)
@@ -284,7 +411,7 @@ class Metadata(Resource):
         # by default no categories
         self.categories.clear()
         self.is_custom = False
-        self.inherit_proxy_uris = False
+        self.use_proxy_uri = False
 
         cap_doc = Document.objects.get(related_metadata=self)
         cap_doc.restore()
@@ -330,7 +457,7 @@ class Metadata(Resource):
         # by default no categories
         self.categories.clear()
         self.is_custom = False
-        self.inherit_proxy_uris = False
+        self.use_proxy_uri = False
 
         cap_doc = Document.objects.get(related_metadata=service.metadata)
         cap_doc.restore()
@@ -346,9 +473,9 @@ class Metadata(Resource):
 
         # identify whether this is a wfs or wms (we need to handle them in different ways)
         service_type = self.get_service_type()
-        if service_type == 'wfs':
+        if service_type == ServiceEnum.WFS.value:
             self._restore_wfs(identifier)
-        elif service_type == 'wms':
+        elif service_type == ServiceEnum.WMS.value:
             self._restore_wms(identifier)
 
     def get_related_metadata_uris(self):
@@ -362,6 +489,69 @@ class Metadata(Resource):
         for md in rel_mds:
             links.append(md.metadata_to.metadata_url)
         return links
+
+    def _set_document_secured(self, is_secured: bool):
+        """ Fetches the metadata documents and sets the secured uris for all operations
+
+        Args:
+            is_secured (bool): Whether the operations should be secured or not
+        Returns:
+            nothing
+        """
+        try:
+            cap_doc = Document.objects.get(
+                related_metadata=self
+            )
+            cap_doc.set_operations_secured(is_secured)
+            cap_doc.set_dataset_metadata_secured(is_secured)
+            cap_doc.set_legend_url_secured(is_secured)
+        except ObjectDoesNotExist:
+            pass
+
+    def set_secured(self, is_secured: bool):
+        """ Set is_secured to a new value.
+
+        Iterates over all children for the same purpose.
+        Activates use_proxy directly!
+
+        Args:
+            is_secured (bool): The new value for is_secured
+        Returns:
+
+        """
+        self.is_secured = is_secured
+        if not is_secured and self.use_proxy_uri:
+            # secured access shall be disabled, but use_proxy is still enabled
+            # we keep the use_proxy_uri on True!
+            self.use_proxy_uri = True
+        else:
+            self.use_proxy_uri = is_secured
+        self._set_document_secured(self.use_proxy_uri)
+
+        md_type = self.metadata_type.type
+
+        children = []
+        if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
+            if self.service.servicetype.name == ServiceEnum.WMS.value:
+                parent_service = self.service
+                children = Metadata.objects.filter(
+                    service__parent_service=parent_service
+                )
+                for child in children:
+                    child._set_document_secured(self.use_proxy_uri)
+
+            elif self.service.servicetype.name == ServiceEnum.WFS.value:
+                children = [ft.metadata for ft in self.service.featuretypes.all()]
+
+            for child in children:
+                child.is_secured = is_secured
+                child.use_proxy_uri = self.use_proxy_uri
+                child.save()
+
+        elif md_type == MetadataEnum.FEATURETYPE.value:
+            # a featuretype does not have children - we can skip this case!
+            pass
+        self.save()
 
 
 class MetadataType(models.Model):
@@ -381,7 +571,217 @@ class Document(Resource):
     def __str__(self):
         return self.related_metadata.title
 
+    def _set_wms_operations_secured(self, xml_obj, uri: str, is_secured: bool):
+        """ Change external links to internal for wms operations
 
+        Args:
+            xml_obj: The xml document object
+            uri: The new uri to be set, if secured
+            is_secured: Whether the document shall be secured or not
+        Returns:
+             Nothing, directly works on the xml_obj
+        """
+        request_objs = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request")
+            , xml_obj
+        )
+        request_objs = request_objs.getchildren()
+        service = self.related_metadata.service
+        op_uri_dict = {
+            "GetMap": service.get_map_uri,
+            "GetFeatureInfo": service.get_feature_info_uri,
+            "DescribeLayer": service.describe_layer_uri,
+            "GetLegendGraphic": service.get_legend_graphic_uri,
+            "GetStyles": service.get_styles_uri,
+        }
+        for op in request_objs:
+            # skip GetCapabilities - it is already set to another internal link
+            if "GetCapabilities" in op.tag:
+                continue
+            if not is_secured:
+                uri = op_uri_dict.get(op.tag, "")
+            res_objs = xml_helper.try_get_element_from_xml(
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
+                , op
+            )
+            for res_obj in res_objs:
+                xml_helper.write_attribute(
+                    res_obj,
+                    attrib="{http://www.w3.org/1999/xlink}href",
+                    txt=uri
+                )
+
+    def _set_wfs_1_0_0_operations_secured(self, xml_obj, uri: str, is_secured: bool):
+        """ Change external links to internal for wfs 1.0.0 operations
+
+        Args:
+            xml_obj: The xml document object
+            uri: The new uri to be set, if secured
+            is_secured: Whether the document shall be secured or not
+        Returns:
+             Nothing, directly works on the xml_obj
+        """
+        operation_objs = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request")
+            , xml_obj
+        )
+        service = self.related_metadata.service
+        op_uri_dict = {
+            "DescribeFeatureType": service.describe_layer_uri,
+            "GetFeature": service.get_feature_info_uri,
+            "GetPropertyValue": None,
+            "ListStoredQueries": None,
+            "DescribeStoredQueries": None,
+        }
+        for op in operation_objs:
+            # skip GetCapabilities - it is already set to another internal link
+            name = op.tag
+            if name == "GetCapabilities":
+                continue
+            if not is_secured:
+                uri = op_uri_dict.get(name, "")
+            http_objs = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP"), op)
+            for http_obj in http_objs:
+                requ_objs = http_obj.getchildren()
+                for requ_obj in requ_objs:
+                    xml_helper.write_attribute(
+                        requ_obj,
+                        attrib="onlineResource",
+                        txt=uri
+                    )
+
+    def _set_wfs_operations_secured(self, xml_obj, uri: str, is_secured: bool):
+        """ Change external links to internal for wfs operations
+
+        Args:
+            xml_obj: The xml document object
+            uri: The new uri to be set, if secured
+            is_secured: Whether the document shall be secured or not
+        Returns:
+             Nothing, directly works on the xml_obj
+        """
+        operation_objs = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation"), xml_obj)
+        service = self.related_metadata.service
+        op_uri_dict = {
+            "DescribeFeatureType": service.describe_layer_uri,
+            "GetFeature": service.get_feature_info_uri,
+            "GetPropertyValue": "",
+            "ListStoredQueries": "",
+            "DescribeStoredQueries": "",
+        }
+        for op in operation_objs:
+            # skip GetCapabilities - it is already set to another internal link
+            name = xml_helper.try_get_attribute_from_xml_element(op, "name")
+            if name == "GetCapabilities":
+                continue
+            if not is_secured:
+                uri = op_uri_dict.get(name, "")
+            http_objs = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP"), op)
+            for http_obj in http_objs:
+                requ_objs = http_obj.getchildren()
+                for requ_obj in requ_objs:
+                    xml_helper.write_attribute(
+                        requ_obj,
+                        attrib="{http://www.w3.org/1999/xlink}href",
+                        txt=uri
+                    )
+
+    def set_operations_secured(self, is_secured: bool):
+        """ Change external links to internal for service operations
+
+        Args:
+            is_secured (bool): Whether the service is secured or not
+        Returns:
+
+        """
+        xml_obj = xml_helper.parse_xml(self.current_capability_document)
+        if is_secured:
+            uri = "{}{}/service/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)
+        else:
+            uri = ""
+        _type = self.related_metadata.service.servicetype.name
+        _version = self.related_metadata.get_service_version()
+        if _type == ServiceEnum.WMS.value:
+            self._set_wms_operations_secured(xml_obj, uri, is_secured)
+        elif _type == ServiceEnum.WFS.value:
+            if _version is VersionEnum.V_1_0_0:
+                self._set_wfs_1_0_0_operations_secured(xml_obj, uri, is_secured)
+            else:
+                self._set_wfs_operations_secured(xml_obj, uri, is_secured)
+
+        self.current_capability_document = xml_helper.xml_to_string(xml_obj)
+        self.save()
+
+    def set_dataset_metadata_secured(self, is_secured: bool):
+        """ Set or unsets the proxy for the dataset metadata uris
+
+        Args:
+            is_secured (bool): Whether the proxy shall be activated or deactivated
+        Returns:
+             nothing
+        """
+        cap_doc_curr = self.current_capability_document
+        xml_obj = xml_helper.parse_xml(cap_doc_curr)
+
+        # get <MetadataURL> xml elements
+        xml_metadata_elements = xml_helper.try_get_element_from_xml("//MetadataURL/OnlineResource", xml_obj)
+        for xml_metadata in xml_metadata_elements:
+            attr = "{http://www.w3.org/1999/xlink}href"
+
+            # get metadata url
+            metadata_uri = xml_helper.try_get_attribute_from_xml_element(xml_metadata, attribute=attr)
+
+            if is_secured:
+                # find metadata record which matches the metadata uri
+                dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
+                uri = "{}{}/service/metadata/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
+            else:
+                # this means we have our own proxy uri in here and want to restore the original one
+                # metadata uri contains the proxy uri
+                # so we need to extract the id from the uri!
+                md_uri_list = metadata_uri.split("/")
+                md_id = md_uri_list[len(md_uri_list) - 1]
+                dataset_md_record = Metadata.objects.get(id=md_id)
+                uri = dataset_md_record.metadata_url
+            xml_helper.set_attribute(xml_metadata, attr, uri)
+        xml_obj_str = xml_helper.xml_to_string(xml_obj)
+        self.current_capability_document = xml_obj_str
+        self.save()
+
+    def set_legend_url_secured(self, is_secured: bool):
+        """ Set or unsets the proxy for the style legend uris
+
+        Args:
+            is_secured (bool): Whether the proxy shall be activated or deactivated
+        Returns:
+             nothing
+        """
+        cap_doc_curr = self.current_capability_document
+        xml_doc = xml_helper.parse_xml(cap_doc_curr)
+
+        # get <LegendURL> elements
+        xml_legend_elements = xml_helper.try_get_element_from_xml("//LegendURL/OnlineResource", xml_doc)
+        attr = "{http://www.w3.org/1999/xlink}href"
+        for xml_elem in xml_legend_elements:
+            legend_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem, attribute=attr)
+
+            # extract layer identifier from legend_uri (stores as parameter 'layer')
+            if is_secured:
+                layer_identifier = dict(urllib.parse.parse_qsl(legend_uri)).get("layer", None)
+                style_id = Style.objects.get(layer__parent_service__metadata=self.related_metadata,
+                                             layer__identifier=layer_identifier).id
+                uri = "{}{}/service/metadata/{}/legend/{}".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id, style_id)
+            else:
+                # restore the original legend uri by using the layer identifier
+                style_id = legend_uri.split("/")[-1]
+                uri = Style.objects.get(id=style_id).legend_uri
+
+            xml_helper.set_attribute(xml_elem, attr, uri)
+        xml_doc_str = xml_helper.xml_to_string(xml_doc)
+        self.current_capability_document = xml_doc_str
+        self.save()
 
     def restore(self):
         """ We overwrite the current metadata xml with the original
@@ -470,12 +870,15 @@ class Service(Resource):
     is_root = models.BooleanField(default=False)
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
+
     get_capabilities_uri = models.CharField(max_length=1000, null=True, blank=True)
     get_map_uri = models.CharField(max_length=1000, null=True, blank=True)
     get_feature_info_uri = models.CharField(max_length=1000, null=True, blank=True)
     describe_layer_uri = models.CharField(max_length=1000, null=True, blank=True)
     get_legend_graphic_uri = models.CharField(max_length=1000, null=True, blank=True)
     get_styles_uri = models.CharField(max_length=1000, null=True, blank=True)
+    transaction_uri = models.CharField(max_length=1000, null=True, blank=True)
+
     formats = models.ManyToManyField('MimeType', blank=True)
 
     # used to store ows linked_service_metadata until parsing
@@ -492,6 +895,120 @@ class Service(Resource):
 
     def __str__(self):
         return str(self.id)
+
+    def perform_single_element_securing(self, element, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation):
+        """ Secures a single element
+
+        Args:
+            element: The element which shall be secured
+            is_secured (bool): Whether to secure the element or not
+            group (Group): The group which is allowed to perform an operation
+            operation (RequestOperation): The operation which can be performed by the groups
+            group_polygons (dict): The polygons which restrict the access for the group
+        Returns:
+
+        """
+        element.metadata.is_secured = is_secured
+        if is_secured:
+
+            if sec_op is None:
+                sec_op = SecuredOperation()
+                sec_op.operation = operation
+                sec_op.allowed_group = group
+            else:
+                sec_op = SecuredOperation.objects.get(
+                    secured_metadata=element.metadata,
+                    operation=operation,
+                    allowed_group=group
+                )
+
+            poly_list = []
+            for group_polygon in group_polygons:
+                poly_str = group_polygon.get("geometry", group_polygon).get("coordinates", [None])[0]
+                tmp_poly = Polygon(poly_str)
+                poly_list.append(tmp_poly)
+
+            sec_op.bounding_geometry = GeometryCollection(poly_list)
+            sec_op.save()
+            element.metadata.secured_operations.add(sec_op)
+        else:
+            for sec_op in element.metadata.secured_operations.all():
+                sec_op.delete()
+            element.metadata.secured_operations.clear()
+        element.metadata.save()
+        element.save()
+
+    def _recursive_secure_sub_layers(self, current, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+        """ Recursive implementation of securing all sub layers of a current layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            group (Group): The group which is allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+            group_polygons (dict): The polygons which restrict the access for the group
+        Returns:
+             nothing
+        """
+        self.perform_single_element_securing(current, is_secured, group, operation, group_polygons, secured_operation)
+
+        for layer in current.child_layer.all():
+            self._recursive_secure_sub_layers(layer, is_secured, group, operation, group_polygons, secured_operation)
+
+    def _secure_sub_layers(self, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+        """ Secures all sub layers of this layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            group (Group): The group which is allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+            group_polygons (dict): The polygons which restrict the access for the group
+        Returns:
+             nothing
+        """
+        if self.is_root:
+            # get the first layer in this service
+            start_element = Layer.objects.get(
+                parent_service=self,
+                parent_layer=None,
+            )
+        else:
+            # simply get the layer which is described by the given metadata
+            start_element = Layer.objects.get(
+                metadata=self.metadata
+            )
+        self._recursive_secure_sub_layers(start_element, is_secured, group, operation, group_polygons, secured_operation)
+
+    def _secure_feature_types(self, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+        """ Secures all sub layers of this layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            group (Group): The group which is allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+            group_polygons (dict): The polygons which restrict the access for the group
+        Returns:
+             nothing
+        """
+        if self.is_root:
+            elements = self.featuretypes.all()
+            for element in elements:
+                self.perform_single_element_securing(element, is_secured, group, operation, group_polygons, secured_operation)
+
+    def secure_sub_elements(self, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+        """ Secures all sub elements of this layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            group (Group): The group which is allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+            group_polygons (dict): The polygons which restrict the access for the group
+        Returns:
+             nothing
+        """
+        if self.servicetype.name == ServiceEnum.WMS.value:
+            self._secure_sub_layers(is_secured, group, operation, group_polygons, secured_operation)
+        elif self.servicetype.name == ServiceEnum.WFS.value:
+            self._secure_feature_types(is_secured, group, operation, group_polygons, secured_operation)
 
     @transaction.atomic
     def delete_child_data(self, child):
@@ -590,6 +1107,71 @@ class Service(Resource):
         self.metadata.save(update_last_modified=False)
         self.save(update_last_modified=False)
 
+    def persist_capabilities_doc(self, xml: str):
+        """ Persists the capabilities document
+
+        Args:
+            xml (str): The xml document as string
+        Returns:
+             nothing
+        """
+        # save original capabilities document
+        cap_doc = Document()
+        cap_doc.original_capability_document = xml
+
+        # change some external linkage to internal links for the current_capability_document
+        uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, self.metadata.id)
+        xml = xml_helper.parse_xml(xml)
+
+        # wms and wfs have to be handled differently!
+        # Furthermore each standard has a different handling of attributes and elements ...
+        if self.servicetype.name == ServiceEnum.WMS.value:
+            xml_helper.write_attribute(
+                xml,
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                "{http://www.w3.org/1999/xlink}href", uri)
+            xml_helper.write_attribute(
+                xml,
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                "{http://www.w3.org/1999/xlink}href",
+                uri)
+            xml_helper.write_attribute(
+                xml,
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("Post") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                "{http://www.w3.org/1999/xlink}href",
+                uri)
+        elif self.servicetype.name == ServiceEnum.WFS.value:
+            if self.servicetype.version == "1.0.0":
+                prefix = "wfs:"
+                xml_helper.write_text_to_element(xml, "//{}Service/{}OnlineResource".format(prefix, prefix), uri)
+                xml_helper.write_attribute(xml, "//{}GetCapabilities/{}DCPType/{}HTTP/{}Get".format(prefix, prefix, prefix, prefix),
+                                           "onlineResource", uri)
+                xml_helper.write_attribute(xml, "//{}GetCapabilities/{}DCPType/{}HTTP/{}Post".format(prefix, prefix, prefix, prefix),
+                                           "onlineResource", uri)
+            else:
+                prefix = "ows:"
+                xml_helper.write_attribute(xml, "//{}ContactInfo/{}OnlineResource".format(prefix, prefix),
+                                           "{http://www.w3.org/1999/xlink}href", uri)
+                xml_helper.write_attribute(xml, "//{}Operation[@name='GetCapabilities']/{}DCP/{}HTTP/{}Get".format(prefix, prefix, prefix, prefix),
+                                           "{http://www.w3.org/1999/xlink}href", uri)
+                xml_helper.write_attribute(xml, "//{}Operation[@name='GetCapabilities']/{}DCP/{}HTTP/{}Post".format(prefix, prefix, prefix, prefix),
+                                           "{http://www.w3.org/1999/xlink}href", uri)
+
+        xml = xml_helper.xml_to_string(xml)
+
+        cap_doc.current_capability_document = xml
+        cap_doc.related_metadata = self.metadata
+        cap_doc.save()
+
 
 class Layer(Service):
     class Meta:
@@ -622,9 +1204,31 @@ class Layer(Service):
         # non persisting attributes
         self.children_list = []
         self.dimension = None
+        self.tmp_style = None  # holds the style before persisting
 
     def __str__(self):
         return str(self.identifier)
+
+    def delete_children_secured_operations(self, layer, operation, group):
+        """ Walk recursive through all layers of wms and remove their secured operations
+
+        The 'layer' will not be affected!
+
+        Args:
+            layer: The layer, which children shall be changed.
+            operation: The RequestOperation of the SecuredOperation
+            group: The group
+        Returns:
+
+        """
+        for child_layer in layer.child_layer.all():
+            sec_ops = SecuredOperation.objects.filter(
+                secured_metadata=child_layer.metadata,
+                operation=operation,
+                allowed_group=group,
+            )
+            sec_ops.delete()
+            self.delete_children_secured_operations(child_layer, operation, group)
 
     def activate_layer_recursive(self, new_status):
         """ Walk recursive through all layers of a wms and set the activity status new
@@ -637,6 +1241,7 @@ class Layer(Service):
         """
         self.metadata.is_active = new_status
         self.metadata.save()
+        self.is_active = new_status
         self.save()
 
         # check for all related metadata, we need to toggle their active status as well
@@ -681,7 +1286,7 @@ class Dataset(Resource):
 
 
 class MimeType(Resource):
-    action = models.CharField(max_length=255, null=True)
+    operation = models.CharField(max_length=255, null=True)
     mime_type = models.CharField(max_length=500)
 
     def __str__(self):
@@ -703,13 +1308,13 @@ class Dimension(models.Model):
 
 
 class Style(models.Model):
-    layer = models.ForeignKey(Layer, on_delete=models.CASCADE)
-    name = models.CharField(max_length=255)
-    title = models.CharField(max_length=255)
-    uri = models.CharField(max_length=500)
-    height = models.IntegerField()
-    width = models.IntegerField()
-    mime_type = models.CharField(max_length=500)
+    layer = models.ForeignKey(Layer, on_delete=models.CASCADE, related_name="style")
+    name = models.CharField(max_length=255, null=True, blank=True)
+    title = models.CharField(max_length=255, null=True, blank=True)
+    legend_uri = models.CharField(max_length=500, null=True, blank=True)
+    height = models.IntegerField(null=True, blank=True)
+    width = models.IntegerField(null=True, blank=True)
+    mime_type = models.CharField(max_length=500, null=True, blank=True)
 
     def __str__(self):
         return self.layer.name + ": " + self.name
@@ -746,6 +1351,31 @@ class FeatureType(Resource):
 
     def __str__(self):
         return self.metadata.identifier
+
+    def secure_feature_type(self, is_secured: bool, groups: list, operation: RequestOperation, secured_operation: SecuredOperation):
+        """ Secures the feature type or removes the secured constraints
+
+        Args:
+            is_secured (bool): Whether to secure the feature type or not
+            groups (list): The list of groups which are allowed to perform an operation
+            operation (RequestOperation): The operation which can be allowed
+        Returns:
+
+        """
+        self.metadata.is_secured = is_secured
+        if is_secured:
+            sec_op = SecuredOperation()
+            sec_op.operation = operation
+            sec_op.save()
+            for g in groups:
+                sec_op.allowed_groups.add(g)
+            self.metadata.secured_operations.add(sec_op)
+        else:
+            for sec_op in self.metadata.secured_operations.all():
+                sec_op.delete()
+            self.metadata.secured_operations.clear()
+        self.metadata.save()
+        self.save()
 
     def restore(self):
         """ Reset the metadata to it's original capabilities content

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-04 09:00+0100\n"
+"POT-Creation-Date: 2019-11-06 08:01+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -205,17 +205,27 @@ msgstr ""
 msgid "'{}' was invalid."
 msgstr "Die URI ist ungültig."
 
-#: MapSkinner/settings.py:201 templates/footer.html:11
+#: MapSkinner/settings.py:202 templates/footer.html:11
 msgid "English"
 msgstr "Englisch"
 
-#: MapSkinner/settings.py:202
+#: MapSkinner/settings.py:203
 msgid "German"
 msgstr "Deutsch"
 
-#: editor/forms.py:29
-msgid "Use metadata proxy"
-msgstr "Benutze Metadatenproxy"
+#: editor/forms.py:32
+msgid "Use proxy"
+msgstr "Verwende Proxy"
+
+#: editor/forms.py:33
+#, fuzzy
+#| msgid "Registered by group"
+msgid "Can be queried by group"
+msgstr "Registriert durch Gruppe"
+
+#: editor/forms.py:34
+msgid "Can be called by group"
+msgstr ""
 
 #: editor/templates/editor_edit.html:13
 #: service/templates/detail/service_detail.html:26
@@ -225,7 +235,7 @@ msgid "Overview"
 msgstr "Übersicht"
 
 #: editor/templates/editor_edit.html:21 editor/templates/editor_edit.html:24
-#: editor/templates/editor_service_list.html:67
+#: editor/templates/editor_service_list.html:68
 msgid "Reset metadata"
 msgstr "Metadaten wiederherstellen"
 
@@ -242,7 +252,7 @@ msgstr "ISO Metadaten URI"
 msgid "Save"
 msgstr "Speichern"
 
-#: editor/templates/editor_service_list.html:7
+#: editor/templates/editor_service_list.html:8
 #: service/templates/detail/service_detail_child_wfs.html:9
 #: service/templates/detail/service_detail_child_wms.html:12
 #: service/templates/overlay/check_metadata_form.html:40
@@ -251,8 +261,8 @@ msgstr "Speichern"
 msgid "Title"
 msgstr "Titel"
 
-#: editor/templates/editor_service_list.html:10
-#: editor/templates/editor_service_list.html:38
+#: editor/templates/editor_service_list.html:11
+#: editor/templates/editor_service_list.html:39
 #: service/templates/wfs/wfs_index.html:65
 #: service/templates/wfs/wfs_index.html:93
 #: service/templates/wms/wms_index.html:75
@@ -260,37 +270,37 @@ msgstr "Titel"
 msgid "Active"
 msgstr "Aktiv"
 
-#: editor/templates/editor_service_list.html:13
+#: editor/templates/editor_service_list.html:14
 #: service/templates/overlay/check_metadata_form.html:69
 #: service/templates/wfs/wfs_index.html:71
 #: service/templates/wms/wms_index.html:81
 msgid "Data provider"
 msgstr "Datenanbieter"
 
-#: editor/templates/editor_service_list.html:16
+#: editor/templates/editor_service_list.html:17
 #: service/templates/wfs/wfs_index.html:74
 #: service/templates/wms/wms_index.html:84
 msgid "Registered by group"
 msgstr "Registriert durch Gruppe"
 
-#: editor/templates/editor_service_list.html:19
-#: editor/templates/editor_service_list.html:51
+#: editor/templates/editor_service_list.html:20
+#: editor/templates/editor_service_list.html:52
 msgid "Original metadata"
 msgstr "Originale Metadaten"
 
-#: editor/templates/editor_service_list.html:22
+#: editor/templates/editor_service_list.html:23
 msgid "Last modified"
 msgstr "Zuletzt geändert"
 
-#: editor/templates/editor_service_list.html:25
+#: editor/templates/editor_service_list.html:26
 msgid "Edit"
 msgstr "Bearbeiten"
 
-#: editor/templates/editor_service_list.html:28
+#: editor/templates/editor_service_list.html:29
 msgid "Reset"
 msgstr "Zurücksetzen"
 
-#: editor/templates/editor_service_list.html:34
+#: editor/templates/editor_service_list.html:35
 #: service/templates/wfs/wfs_index.html:86
 #: service/templates/wms/wms_index.html:96
 #: service/templates/wms/wms_index.html:100
@@ -298,17 +308,17 @@ msgstr "Zurücksetzen"
 msgid "Open details"
 msgstr "Öffne Details"
 
-#: editor/templates/editor_service_list.html:40
+#: editor/templates/editor_service_list.html:41
 #: service/templates/wfs/wfs_index.html:95
 #: service/templates/wms/wms_index.html:111
 msgid "Not active"
 msgstr "Nicht aktiv"
 
-#: editor/templates/editor_service_list.html:53
+#: editor/templates/editor_service_list.html:54
 msgid "Custom metadata"
 msgstr "Benutzerdefinierte Metadaten"
 
-#: editor/templates/editor_service_list.html:60
+#: editor/templates/editor_service_list.html:61
 #: service/templates/detail/service_detail.html:53
 #: service/templates/detail/service_detail.html:55
 msgid "Edit service"
@@ -690,8 +700,8 @@ msgstr "Gebühren:"
 
 #: service/templates/overlay/check_metadata_form.html:57
 #: service/templates/wms/wms_index.html:71
-msgid "Number of layers"
-msgstr "Layeranzahl"
+msgid "Layers"
+msgstr "Ebenen"
 
 #: service/templates/overlay/check_metadata_form.html:62
 msgid "Online resources"
@@ -1060,8 +1070,8 @@ msgid "Enter text to filter"
 msgstr "Filtern nach ..."
 
 #: service/templates/wfs/wfs_index.html:62
-msgid "Number of featuretypes"
-msgstr "Featuretypeanzahl"
+msgid "Featuretypes"
+msgstr "Featuretypen"
 
 #: service/templates/wfs/wfs_index.html:68
 #: service/templates/wms/wms_index.html:78
@@ -1195,7 +1205,7 @@ msgstr ""
 msgid "I'm not a robot"
 msgstr "Ich bin kein Roboter"
 
-#: structure/management/commands/setup.py:136
+#: structure/management/commands/setup.py:117
 msgid "The default role for all groups. Has no permissions."
 msgstr "Die Standardrolle für alle Gruppen. Hat keine Berechtigungen"
 
@@ -1437,6 +1447,38 @@ msgstr "Sie erstellen eine neue Gruppe."
 #: structure/views.py:625
 msgid "You are editing the group"
 msgstr "Sie bearbeiten die Gruppe"
+
+#: templates/404.html:28
+msgid "Mr. Map can`t find the page you are looking for"
+msgstr "Mr. Map kann die angeforderte Seite nicht finden"
+
+#: templates/404.html:30
+msgid "Oh no!"
+msgstr "Oh nein!"
+
+#: templates/404.html:31
+msgid "The page you are looking for does not exit."
+msgstr "Die angeforderte Seite scheint nicht zu existieren"
+
+#: templates/404.html:32
+msgid "Mr. Map can`t find it!"
+msgstr "Mr. Map kann sie nicht finden!"
+
+#: templates/500.html:28
+msgid "Mr. Map seems to be ill!"
+msgstr "Mr. Map scheint krank zu sein!"
+
+#: templates/500.html:30
+msgid "Oh dear!"
+msgstr "Oh je!"
+
+#: templates/500.html:31
+msgid "Mr. Map seems to be ill and can`t work at the moment."
+msgstr "Mr. Map scheint krank zu sein, weshalb er gerade nicht arbeiten kann."
+
+#: templates/500.html:33
+msgid "We are doing our best to get him healthy again!"
+msgstr "We arbeiten daran ihn wieder fit zu machen!"
 
 #: templates/base.html:27 templates/base.html:32
 msgid "Dashboard"

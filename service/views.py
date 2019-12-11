@@ -1,6 +1,5 @@
 import json
 
-import time
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
@@ -14,7 +13,9 @@ from django.utils.translation import gettext_lazy as _
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
-    SERVICE_REMOVED, SERVICE_ACTIVATED, SERVICE_UPDATED, SERVICE_DEACTIVATED, MULTIPLE_SERVICE_METADATA_FOUND
+    SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
+    SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
+    SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
@@ -23,8 +24,10 @@ from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceEnum, MetadataEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
+from service.helper.ogc.operation_request_handler import OperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
-from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation
+from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, SecuredOperation, \
+    MimeType, Style
 from service.settings import MD_TYPE_SERVICE
 from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group
@@ -43,13 +46,14 @@ def index(request: HttpRequest, user: User, service_type=None):
          A view
     """
     template = "service_index.html"
+    GET_params = request.GET
 
     # possible results per page values
     rpp_select = [5, 10, 15, 20, 50, 100, 200, 500, 1000]
     try:
-        wms_page = int(request.GET.get("wmsp", 1))
-        wfs_page = int(request.GET.get("wfsp", 1))
-        results_per_page = int(request.GET.get("rpp", 5))
+        wms_page = int(GET_params.get("wmsp", 1))
+        wfs_page = int(GET_params.get("wfsp", 1))
+        results_per_page = int(GET_params.get("rpp", 5))
         if wms_page < 1 or wfs_page < 1 or results_per_page < 1:
             raise ValueError
         if results_per_page not in rpp_select:
@@ -59,10 +63,10 @@ def index(request: HttpRequest, user: User, service_type=None):
         return redirect("service:index")
 
     # whether whole services or single layers should be displayed
-    display_service_type = request.session.get("displayServices", None)
+    display_service_type = GET_params.get("q", None)  # s=services, l=layers
     is_root = True
     if display_service_type is not None:
-        is_root = display_service_type != "layers"
+        is_root = display_service_type != "l"
 
     # get services
     paginator_wms = None
@@ -90,7 +94,7 @@ def index(request: HttpRequest, user: User, service_type=None):
     params = {
         "metadata_list_wms": paginator_wms,
         "metadata_list_wfs": paginator_wfs,
-        "select_default": request.session.get("displayServices", None),
+        "select_default": display_service_type,
         "only_type": service_type,
         "user": user,
         "rpp_select_options": rpp_select,
@@ -108,6 +112,7 @@ def remove(request: HttpRequest, user: User):
 
     Args:
         request(HttpRequest): The used request
+        user (User): The performing user
     Returns:
         A rendered view
     """
@@ -145,7 +150,7 @@ def remove(request: HttpRequest, user: User):
 
 @check_session
 @check_permission(Permission(can_activate_service=True))
-def activate(request: HttpRequest, user:User):
+def activate(request: HttpRequest, id: int, user:User):
     """ (De-)Activates a service and all of its layers
 
     Args:
@@ -154,10 +159,9 @@ def activate(request: HttpRequest, user:User):
          An Ajax response
     """
     # run activation async!
-    param_POST = request.POST.dict()
-    pending_task = tasks.async_activate_service.delay(param_POST, user.id)
+    pending_task = tasks.async_activate_service.delay(id, user.id)
 
-    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
+    return redirect("service:index")
 
 
 def get_service_metadata(request: HttpRequest, id: int):
@@ -197,7 +201,7 @@ def get_service_metadata(request: HttpRequest, id: int):
         doc = docs.pop().service_metadata_document
     else:
         if not metadata.is_active:
-            return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
+            return HttpResponse(content=SERVICE_DISABLED, status=423)
         # There is no service metadata document in the database, we need to create it during runtime
         generator = MetadataGenerator(id, MetadataEnum.SERVICE)
         doc = generator.generate_service_metadata()
@@ -216,7 +220,7 @@ def get_dataset_metadata(request: HttpRequest, id: int):
     """
     md = Metadata.objects.get(id=id)
     if not md.is_active:
-        return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
+        return HttpResponse(content=SERVICE_DISABLED, status=423)
     if md.metadata_type != 'dataset':
         try:
             # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
@@ -245,9 +249,9 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
          A BackendAjaxResponse, containing a boolean, whether the requested element has a dataset metadata record or not
     """
     elementType = request.GET.get("serviceType")
-    if elementType == "wms":
+    if elementType == ServiceEnum.WMS.value:
         element = Layer.objects.get(id=id)
-    elif elementType == "wfs":
+    elif elementType == ServiceEnum.WFS.value:
         element = FeatureType.objects.get(id=id)
     md = element.metadata
     try:
@@ -276,7 +280,7 @@ def get_capabilities(request: HttpRequest, id: int):
     """
     md = Metadata.objects.get(id=id)
     if not md.is_active:
-        return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
+        return HttpResponse(content=SERVICE_DISABLED, status=423)
     cap_doc = Document.objects.get(related_metadata=md)
     doc = cap_doc.current_capability_document
     return HttpResponse(doc, content_type='application/xml')
@@ -293,7 +297,7 @@ def get_capabilities_original(request: HttpRequest, id: int):
     """
     md = Metadata.objects.get(id=id)
     if not md.is_active:
-        return HttpResponse(content=_("423 - The requested resource is currently disabled."), status=423)
+        return HttpResponse(content=SERVICE_DISABLED, status=423)
     cap_doc = Document.objects.get(related_metadata=md)
     doc = cap_doc.original_capability_document
     return HttpResponse(doc, content_type='application/xml')
@@ -643,7 +647,13 @@ def detail(request: HttpRequest, id, user:User):
     """
     template = "detail/service_detail.html"
     service_md = get_object_or_404(Metadata, id=id)
-    service = get_object_or_404(Service, id=service_md.service.id)
+
+    if service_md.service.is_root:
+        service = service_md.service
+    else:
+        service = Layer.objects.get(
+            metadata=service_md
+        )
     layers = Layer.objects.filter(parent_service=service_md.service)
     layers_md_list = layers.filter(parent_layer=None)
 
@@ -708,8 +718,103 @@ def metadata_proxy(request: HttpRequest, id: int):
     Returns:
          HttpResponse
     """
-    dataset_metadata = Metadata.objects.get(id=id)
-    con = CommonConnector(url=dataset_metadata.metadata_url)
+    md = Metadata.objects.get(id=id)
+    con = CommonConnector(url=md.metadata_url)
     con.load()
     xml_raw = con.content
     return HttpResponse(xml_raw, content_type='application/xml')
+
+
+@check_session
+def get_metadata_operation(request: HttpRequest, id: int, user: User):
+    """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
+
+    Decides which operation will be handled by resolving a given 'request=' query parameter.
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The metadata id
+        user (User): The performing user
+    Returns:
+         A redirect to the GetMap uri
+    """
+    # get request type and requested layer
+    get_query_string = request.environ.get("QUERY_STRING", "")
+
+    try:
+        # redirects request to parent service, if the given id is not the root of the service
+        metadata = Metadata.objects.get(id=id)
+        operation_handler = OperationRequestHandler(get_query_string, request, metadata)
+
+        if operation_handler.request_param is None:
+            return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
+
+        if not metadata.is_root():
+            # we do not allow the direct call of operations on child elements, such as layers!
+            # if the request tries that, we directly redirect it to the parent service!
+            redirect_uri = "/service/metadata/{}/operation?{}".format(
+                metadata.service.parent_service.metadata.id,
+                get_query_string
+            )
+            return redirect(redirect_uri)
+
+        if not metadata.is_active:
+            return HttpResponse(status=423, content=SERVICE_DISABLED)
+
+        # if the 'layer' parameter indicates the request for a subelement of this service, we need to fetch this
+        # metadata instead of the parent service one (which we have at this point) to continue with!
+        if operation_handler.layer_param is not None:
+            try:
+                metadata = Metadata.objects.get(identifier=operation_handler.layer_param)
+            except ObjectDoesNotExist:
+                return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
+
+    except ObjectDoesNotExist:
+        return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+
+    # identify requested operation and resolve the uri
+    if metadata.service.servicetype.name == ServiceEnum.WFS.value:
+        operations = {
+            "GETFEATURE": metadata.service.get_feature_info_uri,  # get_feature_info_uri is reused in WFS for get_feature_uri
+            "TRANSACTION": metadata.service.transaction_uri,
+        }
+    else:
+        operations = {
+            "GETMAP": metadata.service.get_map_uri,
+            "GETFEATUREINFO": metadata.service.get_feature_info_uri,
+        }
+
+    operation_handler.uri = operations.get(operation_handler.request_param.upper(), None)
+
+    # if the given operation parameter could not be found in the dict, we assume an input error!
+    if operation_handler.uri is None:
+        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED)
+
+    operation_handler.uri += get_query_string
+
+    if metadata.is_secured:
+        return service_helper.get_secured_operation_result(
+            metadata,
+            operation_handler,
+            user
+        )
+    else:
+        return HttpResponse(service_helper.get_operation_response(operation_handler.uri), content_type="")
+
+@check_session
+def get_metadata_legend(request: HttpRequest, id: int, style_id: id, user: User):
+    """ Calls the legend uri of a special style inside the metadata and returns the response to the user
+
+    Args:
+        request (HttpRequest): The incoming HttpRequest
+        id (int): The metadata id
+        style_id (int): The stlye id
+        user (User): The performing user
+    Returns:
+        HttpResponse
+    """
+    uri = Style.objects.get(id=style_id).legend_uri
+    con = CommonConnector(uri)
+    con.load()
+    response = con.content
+    return HttpResponse(response, content_type="")

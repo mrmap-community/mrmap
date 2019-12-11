@@ -5,19 +5,27 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 01.08.19
 
 """
+import json
+import urllib
+
 from django.contrib import messages
 from django.db import transaction
 from django.http import HttpRequest
+
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
+from MapSkinner import utils
+
+from service.helper.enums import VersionEnum, ServiceEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
-    MetadataOrigin
+    MetadataOrigin, SecuredOperation, RequestOperation, Layer, Style
 from service.helper import xml_helper
-from service.settings import METADATA_RELATION_TYPE_DESCRIBED_BY
+from service.settings import MD_RELATION_TYPE_DESCRIBED_BY
+from service.tasks import async_secure_service_task
 
 
 def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _type: str):
@@ -114,20 +122,25 @@ def overwrite_capabilities_document(metadata: Metadata):
 
     # find matching xml element in xml doc
     _type = metadata.get_service_type()
+    _version = metadata.get_service_version()
+    element_selector = ""
     if is_root:
-        if _type == "wms":
+        if _type == ServiceEnum.WMS.value:
             element_selector = "//Service/Name"
-        elif _type == "wfs":
+        elif _type == ServiceEnum.WFS.value:
+            if _version is VersionEnum.V_2_0_0 or _version is VersionEnum.V_2_0_2:
+                XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
+                XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
+                XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
+                XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
             element_selector = "//ows:ServiceIdentification/ows:Title"
             identifier = metadata.title
     else:
-        if _type == "wms":
+        if _type == ServiceEnum.WMS.value:
             element_selector = "//Layer/Name"
-        elif _type == "wfs":
+        elif _type == ServiceEnum.WFS.value:
             element_selector = "//wfs:FeatureType/wfs:Name"
-
     xml_obj = xml_helper.try_get_single_element_from_xml("{}[text()='{}']/parent::*".format(element_selector, identifier), xml_obj_root)
-
 
     # handle keywords
     _overwrite_capabilities_keywords(xml_obj, metadata, _type)
@@ -152,7 +165,6 @@ def overwrite_capabilities_document(metadata: Metadata):
         except AttributeError:
             # for not is_root this will fail in AccessConstraints querying
             pass
-
 
     # write xml back to database
     xml = xml_helper.xml_to_string(xml_obj_root)
@@ -226,7 +238,7 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
         md_relation.origin = MetadataOrigin.objects.get_or_create(
                 name=iso_md.origin
             )[0]
-        md_relation.relation_type = METADATA_RELATION_TYPE_DESCRIBED_BY
+        md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
         md_relation.save()
         metadata.related_metadata.add(md_relation)
 
@@ -254,43 +266,6 @@ def resolve_iso_metadata_links(request: HttpRequest, metadata: Metadata, editor_
         messages.add_message(request, messages.ERROR, EDITOR_INVALID_ISO_LINK.format(e.link))
     except Exception as e:
         messages.add_message(request, messages.ERROR, e)
-
-
-@transaction.atomic
-def set_dataset_metadata_proxy(metadata: Metadata, use_proxy: bool):
-    """ Set or unsets the metadata proxy for the dataset metadata uris
-
-    Args:
-        metadata (Metadata): The service metadata object
-        use_proxy (bool): Whether the proxy shall be activated or deactivated
-    Returns:
-         nothing
-    """
-    cap_doc = Document.objects.get(related_metadata=metadata)
-    cap_doc_curr = cap_doc.current_capability_document
-    xml_obj = xml_helper.parse_xml(cap_doc_curr)
-    # get <MetadataURL> xml elements
-    xml_metadata_elements = xml_helper.try_get_element_from_xml("//MetadataURL/OnlineResource", xml_obj)
-    for xml_metadata in xml_metadata_elements:
-        attr = "{http://www.w3.org/1999/xlink}href"
-        # get metadata url
-        metadata_uri = xml_helper.try_get_attribute_from_xml_element(xml_metadata, attribute=attr)
-        if use_proxy:
-            # find metadata record which matches the metadata uri
-            dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
-            uri = "{}{}/service/metadata/proxy/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
-        else:
-            # this means we have our own proxy uri in here and want to restore the original one
-            # metadata uri contains the proxy uri
-            # so we need to extract the id from the uri!
-            md_uri_list = metadata_uri.split("/")
-            md_id = md_uri_list[len(md_uri_list) - 1]
-            dataset_md_record = Metadata.objects.get(id=md_id)
-            uri = dataset_md_record.metadata_url
-        xml_helper.set_attribute(xml_metadata, attr, uri)
-    xml_obj_str = xml_helper.xml_to_string(xml_obj)
-    cap_doc.current_capability_document = xml_obj_str
-    cap_doc.save()
 
 
 @transaction.atomic
@@ -326,21 +301,26 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
         category = Category.objects.get(id=id)
         original_md.categories.add(category)
 
-    # change capabilities document so that all <MetadataURL> elements are called through mr map
-    if original_md.inherit_proxy_uris != custom_md.inherit_proxy_uris:
+    # change capabilities document so that all sensitive elements (links) are proxied
+    if original_md.use_proxy_uri != custom_md.use_proxy_uri:
         if not original_md.is_root():
             root_md = original_md.service.parent_service.metadata
         else:
             root_md = original_md
-        set_dataset_metadata_proxy(root_md, custom_md.inherit_proxy_uris)
 
-        original_md.inherit_proxy_uris = custom_md.inherit_proxy_uris
-        # if md uris shall be tunneld using the proxy, we need to make sure that all metadata elements of the service are aware of this!
-        child_mds = Metadata.objects.filter(service__parent_service=original_md.service.parent_service)
+        # change capabilities document
+        root_md_doc = Document.objects.get(related_metadata=root_md)
+        root_md_doc.set_dataset_metadata_secured(custom_md.use_proxy_uri)
+        root_md_doc.set_legend_url_secured(custom_md.use_proxy_uri)
+        root_md_doc.set_operations_secured(custom_md.use_proxy_uri)
+
+        original_md.use_proxy_uri = custom_md.use_proxy_uri
+
+        # if md uris shall be tunneled using the proxy, we need to make sure that all metadata elements of the service are aware of this!
+        child_mds = Metadata.objects.filter(service__parent_service=original_md.service)
         for child_md in child_mds:
-            child_md.inherit_proxy_uris = original_md.inherit_proxy_uris
+            child_md.use_proxy_uri = original_md.use_proxy_uri
             child_md.save()
-
 
     # save metadata
     original_md.is_custom = True
@@ -372,3 +352,133 @@ def overwrite_featuretype(original_ft: FeatureType, custom_ft: FeatureType, edit
         original_ft.keywords.add(keyword)
     original_ft.is_custom = True
     original_ft.save()
+
+
+def prepare_secured_operations_groups(operations, sec_ops, all_groups, metadata):
+    """ Merges RequestOperations and SecuredOperations into a usable form for the template rendering.
+
+    Iterates over all SecuredOperations of a metadata, simplifies the objects into dicts, adds the remaining
+    RequestOperation objects.
+
+    Args:
+        operations: The RequestOperation query set
+        sec_ops: The SecuredOperation query set
+        all_groups: All system groups
+        metadata: The secured metadata
+    Returns:
+         A list, containing dicts of all operations with groups and only the most important data
+    """
+    tmp = []
+    for op in operations:
+        op_dict = {
+            "operation": op,
+            "groups": []
+        }
+        secured_operations = SecuredOperation.objects.filter(
+            operation=op,
+            secured_metadata=metadata,
+        )
+        if secured_operations.count() > 0:
+            allowed_groups = [x.allowed_group for x in secured_operations]
+
+            for group in all_groups:
+                allowed = False
+                sec_id = -1
+                geometry = None
+                if group in allowed_groups:
+                    allowed = True
+                    sec_op = secured_operations.get(allowed_group=group)
+                    geometry_collection = sec_op.bounding_geometry
+                    polygon_list = [json.loads(x.geojson) for x in geometry_collection]
+                    geometry = json.dumps(polygon_list)
+                    if len(polygon_list) == 0:
+                        geometry = None
+                    sec_id = sec_op.id
+
+                op_dict["groups"].append({
+                    "group": group,
+                    "allowed": allowed,
+                    "sec_id": sec_id,
+                    "geo_json_geometry": geometry,
+                })
+
+            tmp.append(op_dict)
+
+        else:
+            for group in all_groups:
+                op_dict["groups"].append({
+                    "group": group,
+                    "allowed": False,
+                    "sec_id": -1,
+                    "geo_json_geometry": None,
+                })
+            tmp.append(op_dict)
+    return tmp
+
+
+def process_secure_operations_form(post_params: dict, md: Metadata):
+    """ Processes the secure-operations input from the access-editor form of a service.
+
+    Args:
+        post_params (dict): The dict which contains the POST parameter
+        md (Metadata): The metadata object of the edited object
+    Returns:
+         nothing - directly changes the database
+    """
+    # process form input
+    sec_operations_groups = json.loads(post_params.get("secured-operation-groups"), "{}")
+    is_secured = post_params.get("is_secured", "")
+    is_secured = is_secured == "on"  # resolve True|False
+
+    # set new value and iterate over all children
+    if is_secured != md.is_secured:
+        md.set_secured(is_secured)
+
+    if not is_secured:
+        # remove all secured settings
+        sec_ops = SecuredOperation.objects.filter(
+            secured_metadata=md
+        )
+        sec_ops.delete()
+
+        # remove all secured settings for subelements
+        async_secure_service_task.delay(md.id, is_secured, None, None, None, None)
+
+    else:
+
+        for item in sec_operations_groups:
+            group_items = item.get("groups", {})
+            for group_item in group_items:
+                item_sec_op_id = int(group_item.get("securedOperation", "-1"))
+                group_id = int(group_item.get("groupId", "-1"))
+                remove = group_item.get("remove", "false")
+                remove = utils.resolve_boolean_attribute_val(remove)
+                group_polygons = group_item.get("polygons", "{}")
+                group_polygons = utils.resolve_none_string(group_polygons)
+                if group_polygons is not None:
+                    group_polygons = json.loads(group_polygons)
+                else:
+                    group_polygons = []
+
+                operation = item.get("operation", None)
+
+                if remove:
+                    # remove this secured operation
+                    sec_op = SecuredOperation.objects.get(
+                        id=item_sec_op_id
+                    )
+                    sec_op.delete()
+                else:
+                    operation = RequestOperation.objects.get(
+                        operation_name=operation
+                    )
+                    if item_sec_op_id == -1:
+                        # create new setting
+                        async_secure_service_task.delay(md.id, is_secured, group_id, operation.id, group_polygons, None)
+
+                    else:
+                        # edit existing one
+                        secured_op_input = SecuredOperation.objects.get(
+                            id=item_sec_op_id
+                        )
+                        async_secure_service_task.delay(md.id, is_secured, group_id, operation.id, group_polygons, item_sec_op_id)

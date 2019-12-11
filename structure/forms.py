@@ -49,7 +49,7 @@ class OrganizationForm(ModelForm):
     class Meta:
         model = Organization
         fields = '__all__'
-        exclude = ["created_by", "address_type"]
+        exclude = ["created_by", "address_type", "is_auto_generated"]
 
 
 class RegistrationForm(forms.Form):

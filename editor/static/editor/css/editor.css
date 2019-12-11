@@ -12,7 +12,7 @@
 .large{
     font-size: 1.5em;
 }
-.button-container:hover .reset-icon{
+.button-wrapper:hover .reset-icon{
     -webkit-transform: rotate(180.0deg);
     transform: rotate(180.0deg);
 }
@@ -65,6 +65,10 @@
     width: unset !important;
 }
 
+.secured-selector.disabled{
+    opacity: 0.5;
+}
+
 .metadata-editor-field input,
 .metadata-editor-field textarea,
 .metadata-editor-field select{
@@ -85,3 +89,44 @@
     color: black;
 }
 
+
+.secured-operation-group-view{
+    max-height: 300px;
+    overflow: auto;
+}
+
+.add-geometry{
+    -webkit-display: flex;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    margin: 0 0 0 1rem;
+    color: white;
+    padding: 0.75rem;
+}
+.add-geometry:hover{
+    background-color: var(--primary-color-dark);
+    cursor: pointer;
+}
+
+.geometry-indicator{
+    font-size: 1.25rem;
+    margin: 0 1rem;
+}
+
+.map-view{
+    height: 50vh;
+}
+
+.secured-group-operation{
+    display: flex;
+    -webkit-display: flex;
+    align-items: center;
+    -webkit-align-items: center;
+}
+
+.geometry-upload{
+    margin: 0 0 1em 0;
+}

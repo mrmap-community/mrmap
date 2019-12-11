@@ -1,6 +1,4 @@
 
-
-
 function toggleServiceActiveStatus(id, active){
     $.ajax({
         url: rootUrl + "/service/activate/",
@@ -212,38 +210,12 @@ $(document).ready(function(){
         changeGetParam(type, val);
     });
 
-    $(".deactivate-container, .activate-container").click(function(){
-        var id = $(this).attr("data-parent");
-        var elem = $(this);
-        var active = false;
-        if(elem.hasClass("activate-container")){
-            var active = true;
-        }
-        toggleServiceActiveStatus(id, active)
-    });
-
     $("#service-display-selector").change(function(){
         var val = $(this).val();
-        $.ajax({
-            url: rootUrl + "/service/session",
-            headers: {
-                "X-CSRFToken": getCookie("csrftoken")
-            },
-            data:{
-                "session": JSON.stringify({
-                    "displayServices": val
-                })
-            },
-            contentType: 'application/json',
-            type: 'get',
-            dataType: 'json',
-        }).done(function(){
-            location.reload();
-
-        }).fail(function(jqXHR, textStatus){
-        }).always(function(data){
-            checkRedirect(data);
-        });
+        var currentUrl = new URL(location.href);
+        var newUrlParams = new URLSearchParams(currentUrl.search);
+        newUrlParams.set("q", val);
+        location.search = newUrlParams.toString();
     });
 
     $("#service-update-button").click(function(){
@@ -270,7 +242,7 @@ $(document).ready(function(){
         });
     });
 
-    $(".collapsible-toggler").click(function(event){
+    $(document).on("click", ".collapsible-toggler", function(event){
         event.stopPropagation();
         var elem = $(this);
         var list = elem.siblings(".collapsible-list");
@@ -278,7 +250,7 @@ $(document).ready(function(){
         list.slideToggle();
     });
 
-    $("html").click(function(){
+    $(document).on("click", "html", function(){
         var toggler = $(".collapsible-toggler");
         toggler.each(function(i, elem){
             elem = $(elem);

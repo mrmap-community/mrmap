@@ -42,7 +42,7 @@
                 <td>{{ sub_elements|length }}</td>
             </tr>
         </table>
-        <button class="discard-button button">
+        <button class="discard-button remove-button button">
             <span class="loading-spinner hide">
                 <i class="fas fa-circle-notch fa-spin"></i>
             </span>
@@ -56,7 +56,7 @@
 <script>
     {% include 'overlay/modal-dialog-scripts.html' %}
 
-    $(".button").click(function(){
+    $(".remove-button").click(function(){
         var spinner = $(this).children(".loading-spinner");
         if(spinner.is(":visible")){
             alert("{% trans 'Mr. Map is doing his best. Please wait...' %}");

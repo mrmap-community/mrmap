@@ -10,20 +10,19 @@ from django.contrib.gis.geos import Polygon
 from django.db import transaction
 from lxml.etree import _Element
 
-from service.settings import MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, METADATA_RELATION_TYPE_VISUALIZES
-from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT,  \
+from service.settings import MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, MD_RELATION_TYPE_VISUALIZES
+from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
 from MapSkinner.utils import execute_threads
-from service.config import ALLOWED_SRS
 from service.helper.enums import VersionEnum, ServiceEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
-    FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType
-from service.settings import METADATA_RELATION_TYPE_DESCRIBED_BY
+    FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType, RequestOperation, Document
+from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
 from structure.models import Organization, User
 
 
@@ -115,6 +114,12 @@ class OGCWebFeatureService(OGCWebService):
         # parse service metadata
         self.get_service_metadata_from_capabilities(xml_obj, async_task)
         self.get_capability_metadata(xml_obj)
+        self.get_capability_metadata(xml_obj)
+
+        # check possible operations on this service
+        start_time = time.time()
+        self.get_service_operations(xml_obj, self.get_parser_prefix())
+        print(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
 
         # check if 'real' linked service metadata exist
         service_metadata_uri = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ExtendedCapabilities/inspire_dls:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL")
@@ -142,8 +147,8 @@ class OGCWebFeatureService(OGCWebService):
         """
         self.service_identification_title = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Title")
 
-        #if async_task is not None:
-        #    task_helper.update_service_description(async_task, self.service_identification_title)
+        if async_task is not None:
+            task_helper.update_service_description(async_task, self.service_identification_title)
 
         self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Abstract")
         self.service_identification_fees = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Fees")
@@ -480,6 +485,7 @@ class OGCWebFeatureService(OGCWebService):
         md.fees = self.service_identification_fees
         md.created_by = group
         md.capabilities_original_uri = self.service_connect_url
+        md.capabilities_uri = self.service_connect_url
         md.bounding_geometry = self.service_bounding_box
 
         # Service
@@ -495,6 +501,7 @@ class OGCWebFeatureService(OGCWebService):
         service.get_capabilities_uri = self.get_capabilities_uri.get("get", None)
         service.describe_layer_uri = self.describe_feature_type_uri.get("get", None)
         service.get_feature_info_uri = self.get_feature_uri.get("get", None)
+        service.transaction_uri = self.transaction_uri.get("get", None)
         service.availability = 0.0
         service.is_available = False
         service.is_root = True
@@ -504,6 +511,8 @@ class OGCWebFeatureService(OGCWebService):
 
         # Keywords
         for kw in self.service_identification_keywords:
+            if kw is None:
+                continue
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
             md.keywords_list.append(keyword)
 
@@ -514,6 +523,7 @@ class OGCWebFeatureService(OGCWebService):
             f_t.service = service
             f_t.metadata.contact = contact
             f_t.metadata.capabilities_original_uri = self.service_connect_url
+            f_t.metadata.capabilities_uri = self.service_connect_url
 
             f_t.dataset_md_list = feature_type_val.get("dataset_md_list", [])
             f_t.additional_srs_list = feature_type_val.get("srs_list", [])
@@ -545,7 +555,7 @@ class OGCWebFeatureService(OGCWebService):
             md_relation.origin = MetadataOrigin.objects.get_or_create(
                 name='capabilities'
             )[0]
-            md_relation.relation_type = METADATA_RELATION_TYPE_VISUALIZES
+            md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
             md_relation.save()
             md.related_metadata.add(md_relation)
 
@@ -565,7 +575,7 @@ class OGCWebFeatureService(OGCWebService):
             f_t.service = service
             md = f_t.metadata
             md.save()
-            f_t.metadata_id = md.id
+            f_t.metadata = md
             f_t.save()
 
             # persist featuretype keywords through metadata
@@ -580,7 +590,7 @@ class OGCWebFeatureService(OGCWebService):
                 md_relation.metadata_to = dataset_md
                 origin = MetadataOrigin.objects.get_or_create(name="capabilities")[0]
                 md_relation.origin = origin
-                md_relation.relation_type = METADATA_RELATION_TYPE_DESCRIBED_BY
+                md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
                 md_relation.save()
                 f_t.metadata.related_metadata.add(md_relation)
 
@@ -656,6 +666,27 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         XML_NAMESPACES["lvermgeo"] = "http://www.lvermgeo.rlp.de/lvermgeo"
         XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs")
 
+    def get_parser_prefix(self):
+        return "wfs:"
+
+    def get_service_operations(self, xml_obj, prefix: str):
+        """ Creates table records from <Capability><Request></Request></Capability contents
+
+        Args:
+            xml_obj: The xml document object
+            prefix: The prefix for the service type ('wms'/'wfs')
+        Returns:
+
+        """
+        cap_request = xml_helper.try_get_single_element_from_xml("//{}Capability/{}Request".format(prefix, prefix), xml_obj)
+        if cap_request is None:
+            return
+        operations = cap_request.getchildren()
+        for operation in operations:
+            RequestOperation.objects.get_or_create(
+                operation_name=operation.tag,
+            )
+
     def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         """ Parse the wfs <Service> metadata into the self object
 
@@ -696,13 +727,21 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         Returns:
              Nothing
         """
-        cap_node = xml_helper.try_get_single_element_from_xml("/wfs:WFS_Capabilities/wfs:Capability", xml_elem=xml_obj)
-        actions = ["GetCapabilities", "DescribeFeatureType", "GetFeature", "Transaction", "LockFeature",
-                   "GetFeatureWithLock"]
+        cap_node = xml_helper.try_get_single_element_from_xml("//wfs:Capability", xml_elem=xml_obj)
+        actions = [
+            "GetCapabilities",
+            "DescribeFeatureType",
+            "GetFeature",
+            "Transaction",
+            "LockFeature",
+            "GetFeatureWithLock"
+        ]
         get = {}
         post = {}
         for action in actions:
             node = xml_helper.try_get_single_element_from_xml(".//wfs:" + action, cap_node)
+            if node is None:
+                continue
             get[action] = xml_helper.try_get_attribute_from_xml_element(elem=".//wfs:Get", xml_elem=node, attribute="onlineResource")
             post[action] = xml_helper.try_get_attribute_from_xml_element(elem=".//wfs:Post", xml_elem=node, attribute="onlineResource")
         del cap_node
@@ -754,6 +793,8 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             # keywords
             kw_list = []
             for keyword in keywords:
+                if keyword is None:
+                    continue
                 kw = Keyword.objects.get_or_create(keyword=keyword)[0]
                 feature_type.metadata.keywords_list.append(kw)
 
@@ -829,6 +870,24 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes"
         XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
 
+    def get_parser_prefix(self):
+        return "ows:"
+
+    def get_service_operations(self, xml_obj, prefix: str):
+        """ Creates table records from <Capability><Request></Request></Capability contents
+
+        Args:
+            xml_obj: The xml document object
+            prefix: The prefix for the service type ('wms'/'wfs')
+        Returns:
+
+        """
+        operations = xml_helper.try_get_element_from_xml("//{}OperationsMetadata/{}Operation".format(prefix, prefix), xml_obj)
+        for operation in operations:
+            name = xml_helper.try_get_attribute_from_xml_element(operation, "name")
+            RequestOperation.objects.get_or_create(
+                operation_name=name,
+            )
 
 class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
     """
@@ -844,6 +903,25 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
         XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
+
+    def get_parser_prefix(self):
+        return "ows:"
+
+    def get_service_operations(self, xml_obj, prefix: str):
+        """ Creates table records from <Capability><Request></Request></Capability contents
+
+        Args:
+            xml_obj: The xml document object
+            prefix: The prefix for the service type ('wms'/'wfs')
+        Returns:
+
+        """
+        operations = xml_helper.try_get_element_from_xml("//{}OperationsMetadata/{}Operation".format(prefix, prefix), xml_obj)
+        for operation in operations:
+            name = xml_helper.try_get_attribute_from_xml_element(operation, "name")
+            RequestOperation.objects.get_or_create(
+                operation_name=name,
+            )
 
     def get_version_specific_metadata(self, xml_obj):
         """ Runs metadata parsing for data which is only present in this version
@@ -868,6 +946,8 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
             keyword_list = []
             for keyword in keywords:
                 kw = xml_helper.try_get_text_from_xml_element(xml_elem=keyword)
+                if kw is None:
+                    continue
                 kw = Keyword.objects.get_or_create(keyword=kw)[0]
                 keyword_list.append(kw)
             self.feature_type_list[name]["keyword_list"] = keyword_list
@@ -906,4 +986,27 @@ class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
             service_version=VersionEnum.V_2_0_2,
             service_type=ServiceEnum.WFS,
         )
+        XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
+        XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
+        XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
+        XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
+
+    def get_parser_prefix(self):
+        return "ows:"
+
+    def get_service_operations(self, xml_obj, prefix: str):
+        """ Creates table records from <Capability><Request></Request></Capability contents
+
+        Args:
+            xml_obj: The xml document object
+            prefix: The prefix for the service type ('wms'/'wfs')
+        Returns:
+
+        """
+        operations = xml_helper.try_get_element_from_xml("//{}OperationsMetadata/{}Operation".format(prefix, prefix), xml_obj)
+        for operation in operations:
+            name = xml_helper.try_get_attribute_from_xml_element(operation, "name")
+            RequestOperation.objects.get_or_create(
+                operation_name=name,
+            )
 

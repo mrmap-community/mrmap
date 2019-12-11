@@ -38,9 +38,42 @@
         </td>
     </tr>
     <tr>
+        <th>{% trans 'Access secured' %}</th>
+        <td>
+            {% if element.metadata.is_secured %}
+            <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
+            {% else %}
+            <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
         <th>{% trans 'Bounding box' %}</th>
         <td>
-            {{ element.bbox_lat_lon.geojson|safe }}
+            {% if element.bbox_lat_lon.area > 0.0 %}
+            <div id="{{ element.id }}_map" class="map-view">
+
+            </div>
+            <script>
+                L.map('{{ element.id }}_map', {
+                    center: [{{ element.bbox_lat_lon.centroid.y }}, {{ element.bbox_lat_lon.centroid.x }}],
+                    zoom: {{ element.bbox_lat_lon.area }},
+                    layers: [
+                        new L.geoJSON({{ element.bbox_lat_lon.geojson|safe }}),
+                        new L.TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        })
+                    ],
+                }).fitBounds(
+                    [
+                        [{{ element.bbox_lat_lon.boundary.extent.1 }}, {{ element.bbox_lat_lon.boundary.extent.0 }}],
+                        [{{ element.bbox_lat_lon.boundary.extent.3 }}, {{ element.bbox_lat_lon.boundary.extent.2 }}],
+                    ]
+                    );
+            </script>
+            {% else %}
+                {% trans 'No spatial data provided!' %}
+            {% endif %}
         </td>
     </tr>
     <tr>

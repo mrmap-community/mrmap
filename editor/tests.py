@@ -75,7 +75,7 @@ class EditorTestCase(TestCase):
         self.service_wms = service.get("service", None)
 
         service_helper.persist_service_model_instance(self.service_wms)
-        service_helper.persist_capabilities_doc(self.service_wms, self.raw_data_wms.service_capabilities_xml)
+        self.service_wms.persist_capabilities_doc(self.raw_data_wms.service_capabilities_xml)
 
     def _get_logged_in_client(self, user: User):
         """ Helping function to encapsulate the login process
@@ -139,7 +139,7 @@ class EditorTestCase(TestCase):
             "title": test_title,
             "abstract": test_abstract,
             "access_constraints": test_access_constraints,
-            "inherit_proxy_uris": test_inherit_proxy,
+            "use_proxy_uri": test_inherit_proxy,
             "keywords": test_keywords,
             "categories": test_categories,
         }
@@ -152,7 +152,7 @@ class EditorTestCase(TestCase):
         self.assertNotEqual(self.service_wms.metadata.abstract, test_abstract, msg="Metadata abstract could be edited by not logged in user!")
         self.assertNotEqual(self.service_wms.metadata.access_constraints, test_access_constraints, msg="Metadata access constraints could be edited by not logged in user!")
         self.assertEqual(self.service_wms.metadata.keywords.count(), old_kw_count, msg="Metadata keywords could be edited by not logged in user!")
-        self.assertFalse(self.service_wms.metadata.inherit_proxy_uris)
+        self.assertFalse(self.service_wms.metadata.use_proxy_uri)
 
         ## case 1.1: User logged in, has no permission -> tries to edit -> fails
         client = self._get_logged_in_client(self.user)
@@ -167,7 +167,7 @@ class EditorTestCase(TestCase):
         self.assertNotEqual(self.service_wms.metadata.abstract, test_abstract, msg="Metadata abstract could be edited by user without permission!")
         self.assertNotEqual(self.service_wms.metadata.access_constraints, test_access_constraints, msg="Metadata access constraints could be edited by user without permission!")
         self.assertEqual(self.service_wms.metadata.keywords.count(), old_kw_count, msg="Metadata keywords could be edited by user without permission!")
-        self.assertFalse(self.service_wms.metadata.inherit_proxy_uris)
+        self.assertFalse(self.service_wms.metadata.use_proxy_uri)
 
         # restore user permissions
         self.perm.can_edit_metadata_service = True
@@ -180,7 +180,7 @@ class EditorTestCase(TestCase):
         self.assertEqual(self.service_wms.metadata.abstract, test_abstract, msg="Metadata abstract could not be edited by logged in user!")
         self.assertEqual(self.service_wms.metadata.access_constraints, test_access_constraints, msg="Metadata access constraints not could be edited by logged in user!")
         self.assertEqual(self.service_wms.metadata.keywords.count(), len(test_keywords.split(",")), msg="Metadata keywords not could be edited by logged in user!")
-        self.assertTrue(self.service_wms.metadata.inherit_proxy_uris)
+        self.assertTrue(self.service_wms.metadata.use_proxy_uri)
 
     def test_restore(self):
         """ Tests the restore functionality

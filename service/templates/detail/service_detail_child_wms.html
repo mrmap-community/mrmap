@@ -9,6 +9,14 @@
         <td>{{ element.identifier }}</td>
     </tr>
     <tr>
+        <th>{% trans 'Parent service' %}</th>
+        <td>
+            <a href="{% url 'service:detail' element.parent_service.metadata.id %}" title="{{ element.parent_service.metadata.uuid }}">
+                {{ element.parent_service.metadata.title }}
+            </a>
+        </td>
+    </tr>
+    <tr>
         <th>{% trans 'Title' %}</th>
         <td>{{ element.metadata.title }}</td>
     </tr>
@@ -67,6 +75,16 @@
         </td>
     </tr>
     <tr>
+        <th>{% trans 'Access secured' %}</th>
+        <td>
+            {% if element.metadata.is_secured %}
+            <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Yes' %}">
+            {% else %}
+            <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'No' %}">
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
         <th>{% trans 'Hits' %}</th>
         <td>{{ element.hits }}</td>
     </tr>
@@ -78,7 +96,7 @@
         <th>{% trans 'Bounding box' %}</th>
         <td>
             {% if element.bbox_lat_lon.area > 0.0 %}
-            <div id="{{ element.id }}_map" class="lat-lon-preview">
+            <div id="{{ element.id }}_map" class="map-view">
 
             </div>
             <script>
@@ -119,7 +137,7 @@
             <table class="mime-type-table">
                 {% for format in element.formats.all %}
                 <tr>
-                    <th>{{ format.action }}</th>
+                    <th>{{ format.operation }}</th>
                     <td>{{ format.mime_type }}</td>
                 </tr>
                 {% endfor %}

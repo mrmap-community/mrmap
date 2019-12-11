@@ -16,18 +16,18 @@
 <div class="container-row">
     <div class="container-left">
         {% if 'can_edit_organization' in user_permissions and user in members %}
-            <div id="edit-button" class="button button-container" data-parent="{{ organization.id }}" typeof="structure/organizations">
+            <div id="edit-button" class="button button-wrapper" data-parent="{{ organization.id }}" typeof="structure/organizations">
                 <img src="{% static 'structure/images/icn_edit.png' %}">
                 <span>{% trans 'Edit organization' %}</span>
             </div>
         {% endif %}
     </div>
     <div class="container-center">
-        <div id="request-publish-button" class="button button-container" typeof="structure" datasrc="{{ organization.id }}" title="{% trans 'Request the permission to publish for this organization' %}">
+        <div id="request-publish-button" class="button button-wrapper" typeof="structure" datasrc="{{ organization.id }}" title="{% trans 'Request the permission to publish for this organization' %}">
             <span>{% trans 'Become a publisher' %}</span>
         </div>
     </div>
-    {% if 'can_delete_organization' in user_permissions and user in members %}
+    {% if user.id is organization.created_by.id or 'can_delete_organization' in user_permissions and user in members %}
         <div class="container-right">
             <div class="delete-container button" data-parent="{{ organization.id }}" typeof="structure/organizations">
                 <img src="{% static 'service/images/icn_minus.png' %}">

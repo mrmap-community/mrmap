@@ -5,7 +5,7 @@ from celery.result import AsyncResult
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
-from django.shortcuts import render, get_object_or_404, redirect
+from django.shortcuts import render, get_object_or_404, redirect, render_to_response
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -21,7 +21,7 @@ from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.models import Service
-from structure.config import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
+from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganization
 from structure.models import Group, Role, Permission, Organization, PendingRequest, PendingTask
 from structure.models import User
@@ -319,6 +319,7 @@ def new_org(request: HttpRequest, user: User):
                 messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
             else:
                 org.created_by = user
+                org.is_auto_generated = False  # when the user creates an organization per form, it is not auto generated!
                 org.save()
         else:
             messages.error(request, message=GROUP_FORM_INVALID)
@@ -627,3 +628,41 @@ def edit_group(request: HttpRequest, user: User, id: int):
         }
         html = render_to_string(template_name=template, request=request, context=params)
         return BackendAjaxResponse(html=html).get_response()
+
+
+def handler404(request: HttpRequest, exception, template_name="404.html"):
+    """ Handles a general 404 (Page not found) error and renders a custom response page
+
+    Args:
+        request: The incoming request
+        exception: An exception, if one occured
+        template_name: The template name
+    Returns:
+         A rendered 404 response
+    """
+    params = {
+
+    }
+    context = DefaultContext(request, params)
+    response = render_to_response("404.html", context=context.get_context())
+    response.status_code = 404
+    return response
+
+
+def handler500(request: HttpRequest, exception, template_name="500.html"):
+    """ Handles a general 500 (Internal Server Error) error and renders a custom response page
+
+    Args:
+        request: The incoming request
+        exception: An exception, if one occured
+        template_name: The template name
+    Returns:
+         A rendered 500 response
+    """
+    params = {
+
+    }
+    context = DefaultContext(request, params)
+    response = render_to_response("500.html", context=context.get_context())
+    response.status_code = 500
+    return response

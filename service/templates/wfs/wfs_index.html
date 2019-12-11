@@ -59,10 +59,13 @@
             {% trans 'Title' %}
         </th>
         <th class="table-header">
-            {% trans 'Number of featuretypes' %}
+            {% trans 'Featuretypes' %}
         </th>
         <th class="table-header">
             {% trans 'Active' %}
+        </th>
+        <th class="table-header">
+            {% trans 'Access secured' %}
         </th>
         <th class="table-header">
         {% trans 'Version' %}
@@ -93,6 +96,13 @@
             <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Active' %}">
             {% else %}
             <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Not active' %}">
+            {% endif %}
+        </td>
+        <td class="table-cell center" data-type="parent-service">
+            {% if wfs.is_secured %}
+            <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Access secured' %}">
+            {% else %}
+            <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Access not restricted' %}">
             {% endif %}
         </td>
         <td class="table-cell">

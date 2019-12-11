@@ -27,7 +27,146 @@ $(document).on("input.metadata-url", "input", function(){
     }
 });
 
+/**
+ * Sets the initial visibility of the secured selector elements
+ */
+function initializeSecuredFormStatus(){
+    var isSecured = $("#id_is_secured").is(":checked");
+    var securedSelectors = $(".secured-selector");
+    var selectorParentRows = securedSelectors.closest("tr");
+    var addGeometryButtons = selectorParentRows.find(".add-geometry");
+
+    if(isSecured){
+        securedSelectors.removeAttr("disabled")
+        addGeometryButtons.removeAttr("disabled")
+        selectorParentRows.removeClass("disabled");
+    }else{
+        securedSelectors.attr("disabled", "disabled")
+        addGeometryButtons.attr("disabled", "disabled")
+        selectorParentRows.addClass("disabled");
+    }
+}
+
+function toggleSecuredCheckbox(){
+    var elem = $("#checkbox-restrict-access");
+    var checked = elem.is(":checked");
+    var rows = $(".operation-row");
+    var inputs = rows.find("input")
+    var addGeometryButtons = rows.find(".add-geometry")
+    if(checked){
+        rows.removeClass("disabled");
+        inputs.removeAttr("disabled");
+        addGeometryButtons.removeAttr("disabled");
+    }else{
+        rows.addClass("disabled");
+        inputs.attr("disabled", true);
+        addGeometryButtons.attr("disabled", true);
+    }
+}
+
 $(document).ready(function(){
+
+    // set initial status for secured selectors
+    initializeSecuredFormStatus();
+    toggleSecuredCheckbox();
+
+    $("#id_is_secured").on("change", function(){
+        initializeSecuredFormStatus();
+    });
+
+    /**
+    * If a group permission is changed, the GetFeatureInfo permission can not be set without the GetMap permission.
+    * Make sure that GetFeatureInfo is linked to GetMap!
+    */
+    $(".group-permission").change(function(){
+        var elem = $(this);
+        var operation = elem.attr("data-operation");
+        var group = elem.attr("data-group");
+        var isElementChecked = elem.is(":checked");
+
+        if(operation == "GetFeatureInfo"){
+            // make sure that 'GetMap' is selected as well -> useless without!
+            var getMapCheckbox = $(".group-permission[data-operation='GetMap'][data-group=" + group + "]")
+            if(!getMapCheckbox.is(":checked") && isElementChecked){
+                getMapCheckbox.click();
+            }
+        }
+        if(operation == "GetMap"){
+            // make sure that 'GetMap' is selected as well -> useless without!
+            var getMapCheckbox = $(".group-permission[data-operation='GetFeatureInfo'][data-group=" + group + "]")
+            if(getMapCheckbox.is(":checked") && !isElementChecked){
+                getMapCheckbox.click();
+            }
+        }
+
+        var securedId = parseInt(elem.attr("data-sec-id"));
+        if(securedId != -1 && !isElementChecked){
+            // this means the user wants to remove this secured operation setting!
+            elem.attr("data-remove", true);
+            console.log(securedId);
+
+        }else if(securedId != -1 && isElementChecked){
+            // this means the user has previously deselected this checkbox but changed it back to keep the secured operation setting!
+            elem.attr("data-remove", false);
+        }
+    });
+
+
+    $("#checkbox-restrict-access").change(function(){
+        toggleSecuredCheckbox();
+    });
+
+    $(".submit-button.secured-operations").click(function(event){
+        // store information as json into hidden input field
+        var operations = $("ul")
+        var hiddenInput = $("input.hidden");
+        var txtArr = []
+        operations.each(function(i, elem){
+            elem = $(elem);
+            var checkedElements = elem.find("input[id*='checkbox-sec-']:checked,input[id*='checkbox-sec-'][data-remove='true']");
+            tmp = {
+                "operation": elem.attr("data-operation"),
+                "groups": [],
+            }
+            checkedElements.each(function(j, checkedElement){
+                checkedElement = $(checkedElement);
+                var dataSecId = checkedElement.attr("data-sec-id");
+                var remove = checkedElement.attr("data-remove");
+                if(dataSecId == ""){
+                    dataSecId = -1;
+                }
+
+                // add groups and polygons
+                tmpItem = {
+                    "groupId": checkedElement.attr("data-group"),
+                    "polygons": checkedElement.attr("data-polygons"),
+                    "securedOperation": dataSecId,
+                    "remove": checkedElement.attr("data-remove"),
+                }
+                tmp["groups"].push(tmpItem)
+
+            });
+            txtArr.push(tmp);
+        });
+        hiddenInput.val(JSON.stringify(txtArr));
+    });
+
+    $(".search-field").on("input", function(){
+        var elem = $(this);
+        var operation = elem.attr("data-type")
+        var txt = elem.val();
+        var elems = $("." + operation);
+        elems.each(function(i, elem){
+            elem = $(elem);
+            txt = txt.toUpperCase();
+            var label = elem.find("label").text().toUpperCase();
+            if(label.includes(txt)){
+                elem.show();
+            }else{
+                elem.hide();
+            }
+        });
+    });
 
 
     $(".value-input").on("input", function(){
@@ -113,5 +252,40 @@ $(document).ready(function(){
             )
         });
         return true;
+    });
+
+    $(".add-geometry").click(function(){
+        var elem = $(this);
+        var serviceMetadataId = elem.attr("data-id")
+        var operation = elem.siblings("input").attr("data-operation");
+        var groupId = elem.siblings("input").attr("data-group");
+
+        var existingPolygons = elem.siblings("input").attr("data-polygons");
+
+
+        if(elem.attr("disabled") == "disabled"){
+            return;
+        }
+
+        $.ajax({
+            url: rootUrl + "/editor/edit/access/" + serviceMetadataId + "/geometry-form/",
+            headers: {
+                "X-CSRFToken": getCookie("csrftoken")
+            },
+            data: {
+                "operation": operation,
+                "groupId": groupId,
+                "polygons": existingPolygons,
+            },
+            type: 'get',
+            dataType: 'json'
+        }).done(function(data){
+            var html = data["html"];
+            toggleOverlay(html);
+
+        }).always(function(data){
+            checkRedirect(data);
+        });
+
     });
 });

@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from MapSkinner.utils import sha256
 from service.helper.enums import ServiceEnum
-from structure.config import USER_ACTIVATION_TIME_WINDOW
+from structure.settings import USER_ACTIVATION_TIME_WINDOW
 
 
 class PendingTask(models.Model):
@@ -32,7 +32,7 @@ class Permission(models.Model):
     can_add_user_to_group = models.BooleanField(default=False)
     can_remove_user_from_group = models.BooleanField(default=False)
 
-    can_change_group_role = models.BooleanField(default=False)
+    can_edit_group_role = models.BooleanField(default=False)
 
     can_activate_service = models.BooleanField(default=False)
     can_update_service = models.BooleanField(default=False)
@@ -149,7 +149,6 @@ class User(Contact):
         # convert to list
         md_list = list(md_list)
         return md_list
-
 
     def get_permissions(self, group: Group = None):
         """ Overloaded function. Returns a list containing all permission identifiers as strings in a list.

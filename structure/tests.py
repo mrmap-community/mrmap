@@ -7,7 +7,7 @@ from django.test import TestCase, Client
 from django.utils import timezone
 
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME
-from structure.config import PENDING_REQUEST_TYPE_PUBLISHING
+from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
 from structure.models import Group, User, Role, Permission, Organization, PendingRequest
 
 

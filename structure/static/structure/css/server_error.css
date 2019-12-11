@@ -1,0 +1,29 @@
+.server-error-content{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.server-error-title{
+    font-size: 10em;
+}
+
+.server-error-article{
+    width: 75%;
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    flex-direction: row;
+}
+
+.server-error-img{
+    filter: drop-shadow(-25px -5px 20px gray);
+    width: 15rem;
+}
+
+.article-txt{
+    padding: 2rem;
+    background: white;
+    font-size: 1.25rem;
+}

@@ -14,6 +14,14 @@ class CategoryOriginAdmin(admin.ModelAdmin):
     pass
 
 
+class RequestOperationAdmin(admin.ModelAdmin):
+    list_display = ('operation_name',)
+
+
+class SecuredOperationAdmin(admin.ModelAdmin):
+    list_display = ("id", 'secured_metadata', 'allowed_group', "operation")
+
+
 class ServiceTypeAdmin(admin.ModelAdmin):
     list_display = ('name', 'version')
 
@@ -36,6 +44,9 @@ class DocumentAdmin(admin.ModelAdmin):
 
 class MetadataOriginAdmin(admin.ModelAdmin):
     list_display = ('name',)
+
+class MetadataTypeAdmin(admin.ModelAdmin):
+    list_display = ('type',)
 
 
 class MetadataAdmin(admin.ModelAdmin):
@@ -62,20 +73,25 @@ class ReferenceSystemAdmin(admin.ModelAdmin):
 class FeatureTypeAdmin(admin.ModelAdmin):
     list_display = ('metadata', 'service')
 
+
 class FeatureTypeElementAdmin(admin.ModelAdmin):
     list_display = ('name', 'type')
+
 
 class LayerAdmin(admin.ModelAdmin):
     list_display = ('identifier', 'parent_service', 'parent_layer', 'last_modified')
 
+
 class MimeTypeAdmin(admin.ModelAdmin):
-    pass
+    list_display = ('operation', 'mime_type')
 
 class NamespaceAdmin(admin.ModelAdmin):
     list_display = ('name', 'uri', 'version')
 
 
 admin.site.register(Document, DocumentAdmin)
+admin.site.register(RequestOperation, RequestOperationAdmin)
+admin.site.register(SecuredOperation, SecuredOperationAdmin)
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(CategoryOrigin, CategoryOriginAdmin)
 admin.site.register(ServiceType, ServiceTypeAdmin)
@@ -83,6 +99,7 @@ admin.site.register(Module, ModuleAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(Keyword, KeywordAdmin)
 admin.site.register(MetadataOrigin, MetadataOriginAdmin)
+admin.site.register(MetadataType, MetadataTypeAdmin)
 admin.site.register(Metadata, MetadataAdmin)
 admin.site.register(MetadataRelation, MetadataRelationAdmin)
 admin.site.register(TermsOfUse, TermsOfUseAdmin)

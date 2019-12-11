@@ -9,7 +9,7 @@ import json
 
 from django.core.exceptions import ObjectDoesNotExist
 
-from service.config import INSPIRE_LEGISLATION_FILE
+from service.settings import INSPIRE_LEGISLATION_FILE
 from service.helper.enums import MetadataEnum
 from service.models import Metadata
 from service.helper import xml_helper
@@ -419,7 +419,7 @@ class MetadataGenerator:
         tmp_elem = Element(
             self.gmd + "URL"
         )
-        if self.metadata.inherit_proxy_uris:
+        if self.metadata.use_proxy_uri:
             tmp_elem.text = HTTP_OR_SSL + HOST_NAME + "/service/capabilities/" + str(self.metadata.id)
         else:
             tmp_elem.text = self.metadata.capabilities_original_uri

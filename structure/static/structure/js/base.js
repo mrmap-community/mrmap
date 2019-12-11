@@ -15,6 +15,55 @@ function getCookie(cname) {
     return "";
 }
 
+/**
+ * Setter for the session storage
+ */
+function setSessionValue(key, value){
+    window.sessionStorage.setItem(key, value);
+}
+/**
+ * Getter for the session storage
+ *      using the parameter 'remove', the key-value pair will be deleted afterwards
+ */
+function getSessionValue(key, remove){
+    var item = window.sessionStorage.getItem(key);
+    if(remove){
+        window.sessionStorage.removeItem(key);
+    }
+    return item;
+}
+
+function findSessionValuesLike(substring){
+    var items = window.sessionStorage;
+    var retArr = [];
+    for(i = 0; i < items.length; i++){
+        if(items.key(i).includes(substring)){
+            retArr.push(getSessionValue(items.key(i)));
+        }
+    }
+    return retArr;
+}
+
+function findSessionKeysLike(substring){
+    var items = window.sessionStorage;
+    var retArr = [];
+    for(i = 0; i < items.length; i++){
+        if(items.key(i).includes(substring)){
+            retArr.push(items.key(i));
+        }
+    }
+    return retArr;
+}
+
+function removeSessionKeysLike(substring){
+    var items = window.sessionStorage;
+    for(i = 0; i < items.length; i++){
+        if(items.key(i).includes(substring)){
+            getSessionValue(items.key(i), true);
+        }
+    }
+}
+
 
 function toggleCollapsibleSymbol(elem){
     var src = elem.attr("src");
@@ -106,13 +155,9 @@ function addEntity(entity){
 
 function removeEntity(id, confirmed, entity){
     $.ajax({
-        url: rootUrl + "/" + entity + "/remove",
+        url: rootUrl + "/" + entity + "/remove?id=" + id + "&confirmed=" + confirmed,
         headers: {
             "X-CSRFToken": getCookie("csrftoken")
-        },
-        data:{
-            "id": id,
-            "confirmed": confirmed
         },
         type: 'get',
         dataType: 'json'

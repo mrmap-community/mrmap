@@ -18,9 +18,8 @@ from django.utils.timezone import utc
 from lxml.etree import _Element
 
 from MapSkinner.settings import XML_NAMESPACES
-from service.settings import MD_TYPE_DATASET, MD_TYPE_SERVICE
+from service.settings import MD_TYPE_DATASET, MD_TYPE_SERVICE, INSPIRE_LEGISLATION_FILE
 from MapSkinner import utils
-from service.config import INSPIRE_LEGISLATION_FILE
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum

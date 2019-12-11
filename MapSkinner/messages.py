@@ -50,6 +50,8 @@ NO_PERMISSION = _("You do not have permissions for this!")
 METADATA_RESTORING_SUCCESS = _("Metadata restored to original")
 METADATA_EDITING_SUCCESS = _("Metadata editing successful")
 METADATA_IS_ORIGINAL = _("Metadata is original. Reset aborted.")
+METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED = _("You have to turn off the secured access before you can turn off the proxy.")
+
 
 MISSING_DATASET_ID_IN_METADATA = _("No datasetId found in metadata!")
 
@@ -73,10 +75,22 @@ ORGANIZATION_CAN_NOT_BE_OWN_PARENT = _("An organization can not be parent to its
 ORGANIZATION_IS_OTHERS_PROPERTY = _("This organization is owned by another user. Action denied.")
 
 SERVICE_REGISTRATION_ABORTED = _("The service registration for '{}' was canceled")
+SERVICE_REGISTRATION_TIMEOUT = _("Timeout while loading '{}'!")
 SERVICE_UPDATE_WRONG_TYPE = _("You tried to update a service to another service type. This is not possible!")
 SERVICE_UPDATE_ABORTED_NO_DIFF = _("The provided capabilities document is not different from the currently registered. Update canceled!")
 SERVICE_GENERIC_ERROR = _("The service could not be registered. Please check your metadata and contact an administrator.")
+SERVICE_LAYER_NOT_FOUND = _("The requested layer could not be found.")
+SERVICE_NOT_FOUND = _("The requested service could not be found.")
+SERVICE_DISABLED = _("423 - The requested resource is currently disabled.")
+
+SECURITY_PROXY_ERROR_MULTIPLE_SECURED_OPERATIONS = _("There are multiple secured operations for one metadata. Please contact an administator.")
+SECURITY_PROXY_NOT_ALLOWED = _("You have no permission to access this resource.")
+SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED = _("The requested operation is not supported by this resource.")
+SECURITY_PROXY_ERROR_BROKEN_URI = _("The requested uri seems to be broken. Please inform an administrator.")
+SECURITY_PROXY_ERROR_PARAMETER = _("The following parameter seems to be invalid. Please check '{}'.")
+SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE = _("No 'request' parameter provided.")
 
 MULTIPLE_SERVICE_METADATA_FOUND = _("There are several service metadata documents for this service. Please contact an administrator.")
 
 EDITOR_INVALID_ISO_LINK = _("'{}' was invalid.")
+EDITOR_ACCESS_RESTRICTED = _("Access for '{}' changed successfully.")

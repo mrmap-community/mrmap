@@ -42,3 +42,5 @@ class MetadataEnum(Enum):
 
     DATASET = "dataset"
     SERVICE = "service"
+    LAYER = "layer"
+    FEATURETYPE = "featuretype"

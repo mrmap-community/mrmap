@@ -6,6 +6,7 @@ Created on: 17.04.19
 
 """
 import hashlib
+import urllib
 
 
 def execute_threads(thread_list):
@@ -62,3 +63,36 @@ def resolve_boolean_attribute_val(val):
             if val_tmp == "TRUE":
                 return True
     return val
+
+
+def set_uri_GET_param(uri: str, param: str, val):
+    """ Changes a parameter in an uri to a given value.
+
+    If the parameter does not exist, it will be added
+
+    Args:
+        uri (str): The uri
+        param (str): The parameter that shall be changed
+        val: The new value
+    Returns:
+        uri (str): The changed uri
+    """
+    val = str(val)
+    tmp = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(uri).query))
+    if len(tmp) == 0:
+        # the given 'uri' parameter is not a full uri, but rather the query part
+        tmp = dict(urllib.parse.parse_qsl(uri))
+        if len(tmp) == 0:
+            raise ValueError("Uri parameter could not be resolved")
+    uri = tmp
+    changed = False
+    for key, key_val in uri.items():
+        if key.upper() == param.upper():
+            uri[key] = val
+            changed = True
+            break
+    if not changed:
+        # the parameter didn't exist yet
+        uri[param] = val
+    uri = urllib.parse.urlencode(uri, safe=", :")
+    return uri

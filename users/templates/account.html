@@ -8,11 +8,11 @@
 {% block body %}
 <div class="container-row space-above">
     <div class="container-left">
-        <div id="edit-button" class="button button-container" data-parent="{{ user.id }}" typeof="users">
+        <div id="edit-button" class="button button-wrapper" data-parent="{{ user.id }}" typeof="users">
             <img src="{% static 'structure/images/icn_edit.png' %}">
             <span>{% trans 'Edit account' %}</span>
         </div>
-        <div id="change-pw-button" class="button button-container" data-parent="{{ user.id }}" typeof="users/password">
+        <div id="change-pw-button" class="button button-wrapper" data-parent="{{ user.id }}" typeof="users/password">
             <img src="{% static 'structure/images/icn_edit.png' %}">
             <span>{% trans 'Change password' %}</span>
         </div>

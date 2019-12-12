@@ -75,7 +75,11 @@ def login(request: HttpRequest):
             _next = ROOT_URL + home_uri
         else:
             _next = ROOT_URL + _next
-            del request.session["next"]
+            try:
+                del request.session["next"]
+            except KeyError:
+                # this should not be possible - however ...
+                pass
         return redirect(_next)
     login_form = LoginForm()
     params = {

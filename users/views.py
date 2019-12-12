@@ -259,7 +259,18 @@ def logout(request: HttpRequest, user: User):
     """
     user.logged_in = False
     user.save()
-    del request.session["user_id"]
+
+    # remove session related data
+    del_keys = [
+        "user_id",
+        "next",
+    ]
+    for key in del_keys:
+        try:
+            del request.session[key]
+        except KeyError:
+            pass
+
     messages.add_message(request, messages.SUCCESS, LOGOUT_SUCCESS)
     return redirect('login')
 

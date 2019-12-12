@@ -26,18 +26,28 @@ def check_session(function):
     def wrap(request, *args, **kwargs):
         if user_helper.is_session_expired(request):
             _next = request.path
+
+            # make sure the logout path will not be stored as a _next value
+            logout_path = redirect("logout")._headers.get("location", [None, "/logout"])[1]
+            if logout_path == request.path:
+                _next = None
+
             request.session["next"] = _next
             messages.add_message(request, messages.INFO, SESSION_TIMEOUT)
+
             if request.environ.get("HTTP_X_REQUESTED_WITH", None) is not None:
                 # this is an ajax call -> redirect user to login page if the session isn't valid anymore
                 return BackendAjaxResponse(html="", redirect=ROOT_URL).get_response()
             else:
                 return redirect("login")
+
         user = user_helper.get_user(user_id=request.session.get("user_id"))
+
         if user is None:
             if request.session.get("user_id", None) is not None:
                 del request.session["user_id"]
             messages.add_message(request, messages.ERROR, LOGOUT_FORCED)
+
             return redirect("login")
         return function(request=request, user=user, *args, **kwargs)
 

@@ -67,7 +67,20 @@ def login(request: HttpRequest):
         user.save()
         request.session["user_id"] = user.id
         request.session.set_expiry(SESSION_EXPIRATION)
-        return redirect('home')
+
+        _next = request.session.get("next", None)
+
+        if _next is None:
+            home_uri = redirect("home")._headers.get("location", [None, "/home"])[1]
+            _next = ROOT_URL + home_uri
+        else:
+            _next = ROOT_URL + _next
+            try:
+                del request.session["next"]
+            except KeyError:
+                # this should not be possible - however ...
+                pass
+        return redirect(_next)
     login_form = LoginForm()
     params = {
         "login_form": login_form,

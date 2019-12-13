@@ -114,7 +114,7 @@ class OGCWebService:
         else:
             self.service_capabilities_xml = ows_connector.text
             
-        self.connect_duration = ows_connector.load_time
+        self.connect_duration = ows_connector.run_time
         self.descriptive_document_encoding = ows_connector.encoding
     
     def check_ogc_exception(self):

@@ -9,13 +9,14 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.csrf import csrf_exempt
 
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
-    SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED
+    SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED, SECURITY_PROXY_NOT_ALLOWED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
@@ -725,11 +726,13 @@ def metadata_proxy(request: HttpRequest, id: int):
     return HttpResponse(xml_raw, content_type='application/xml')
 
 
-@check_session
-def get_metadata_operation(request: HttpRequest, id: int, user: User):
+@csrf_exempt
+def get_metadata_operation(request: HttpRequest, id: int):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
 
     Decides which operation will be handled by resolving a given 'request=' query parameter.
+    This function has to be public available (no check_session decorator)
+    The decorator allows POST requests without CSRF tokens (which can not be known)
 
     Args:
         request (HttpRequest): The incoming request
@@ -793,17 +796,22 @@ def get_metadata_operation(request: HttpRequest, id: int, user: User):
     operation_handler.uri += get_query_string
 
     if metadata.is_secured:
-        return service_helper.get_secured_operation_result(
-            metadata,
-            operation_handler,
-            user
-        )
-    else:
-        return HttpResponse(service_helper.get_operation_response(operation_handler.uri), content_type="")
+        response = operation_handler.get_secured_operation_response(request, metadata)
 
-@check_session
-def get_metadata_legend(request: HttpRequest, id: int, style_id: id, user: User):
+        if response is None:
+            # metadata is secured but user is not allowed
+            return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
+
+        return HttpResponse(response, content_type="")
+
+    else:
+        return HttpResponse(operation_handler.get_operation_response(), content_type="")
+
+
+def get_metadata_legend(request: HttpRequest, id: int, style_id: id):
     """ Calls the legend uri of a special style inside the metadata and returns the response to the user
+
+    This function has to be public available (no check_session decorator)
 
     Args:
         request (HttpRequest): The incoming HttpRequest

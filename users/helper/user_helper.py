@@ -5,20 +5,20 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 07.05.19
 
 """
-from django.contrib.auth.hashers import check_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 
 from MapSkinner.settings import SESSION_EXPIRATION
-from service.models import Metadata
-from structure.models import Permission, Group, User, GroupActivity
+from structure.models import Group, User, GroupActivity
 
 
-def get_user(username: str=None, user_id: int=None):
+def get_user(request: HttpRequest=None, username: str=None, user_id: int=None):
     """ Returns the user object matching to the given string
 
     Args:
-        username: The username of the user
+        request (HttpRequest): An incoming request
+        user_id (int): The user id
+        username (str): The username of the user
     Returns:
         Returns the user object if found, None otherwise
     """
@@ -27,6 +27,8 @@ def get_user(username: str=None, user_id: int=None):
             user = User.objects.get(username=username)
         elif user_id is not None:
             user = User.objects.get(id=user_id)
+        elif request is not None:
+            user = User.objects.get(id=request.session.get("user_id"))
         else:
             return None
         return user
@@ -44,10 +46,11 @@ def is_session_expired(request: HttpRequest):
     """
     age = request.session.get_expiry_age()
     if age > 0 and age <= SESSION_EXPIRATION:
-        # expired
+        # in valid range
         return False
     else:
         return True
+
 
 def create_group_activity(group: Group, user: User, msg, metadata_title: str):
     """ Creates a group activity record for logging group actions.

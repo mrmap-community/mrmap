@@ -1,4 +1,11 @@
-import time    
+"""
+Author: Armin Retterath
+Organization: Spatial data infrastructure Rhineland-Palatinate, Germany
+Contact: armin.retterath@vermkv.rlp.de
+
+"""
+
+import time
 
 # Problem of unresolved python c extensions: https://stackoverflow.com/questions/41598399/pydev-tags-import-as-unresolved-import-all-compiled-extensions
 import pycurl
@@ -9,8 +16,6 @@ import requests
 import types
 
 import re
-
-from requests.exceptions import InvalidURL
 
 from service.settings import DEFAULT_CONNECTION_TYPE, REQUEST_TIMEOUT
 from MapSkinner.settings import HTTP_PROXY, PROXIES
@@ -28,7 +33,7 @@ class CommonConnector():
         self.auth = auth
         self.connection_type = connection_type if connection_type is not None else DEFAULT_CONNECTION_TYPE
         self.init_time = time.time()
-        self.load_time = None
+        self.run_time = None
         self.timeout = 5
         self.http_method = 'GET'
         self.http_version = '1.0'
@@ -50,8 +55,6 @@ class CommonConnector():
         
     def load(self, params: dict = None):
         self.init_time = time.time()
-        # print(self.http_method)
-        c = ConnectionEnum.CURL
         if self.connection_type is ConnectionEnum.CURL:
             response = self.__load_curl(params)
         elif self.connection_type is ConnectionEnum.REQUESTS:
@@ -63,7 +66,7 @@ class CommonConnector():
         self.content = response.content
         self.encoding = response.encoding
         self.text = response.text
-        self.load_time = time.time() - self.init_time
+        self.run_time = time.time() - self.init_time
 
     def __load_curl(self, params: dict = None):
         response = types.SimpleNamespace()
@@ -166,3 +169,32 @@ class CommonConnector():
     
     def __load_urllib(self):
         pass
+
+    def post(self, data: dict = None):
+        """ Wraps the post functionality of different request implementations (CURL, Requests).
+
+        The response is written to self.content.
+
+        Args:
+            data (dict): The post data body
+        Returns:
+             nothing
+        """
+        self.init_time = time.time()
+
+        if self.connection_type is ConnectionEnum.CURL:
+            # perform curl post
+            pass
+        elif self.connection_type is ConnectionEnum.REQUESTS:
+            # perform requests post
+            response = requests.post(
+                self.url,
+                data,
+                timeout=REQUEST_TIMEOUT,
+                proxies=PROXIES
+            )
+            self.content = response.content
+        else:
+            # something
+            pass
+        self.run_time = time.time() - self.init_time

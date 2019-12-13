@@ -188,6 +188,11 @@ class OperationRequestHandler:
         except KeyError:
             # it was not there in the first place
             pass
+        try:
+            del self.new_params_dict["BBOX"]
+        except KeyError:
+            # it was not there in the first place
+            pass
 
         # change filter param, so the allowed_geom is the bounding geometry
         # create complete new filter object

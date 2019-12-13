@@ -800,7 +800,7 @@ def get_metadata_operation(request: HttpRequest, id: int):
 
         if response is None:
             # metadata is secured but user is not allowed
-            return HttpResponse(status=500, content=SECURITY_PROXY_NOT_ALLOWED)
+            return HttpResponse(status=401, content=SECURITY_PROXY_NOT_ALLOWED)
 
         return HttpResponse(response, content_type="")
 

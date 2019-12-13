@@ -443,7 +443,11 @@ class OperationRequestHandler:
                 MAPSERVER_LOCAL_PATH,
                 urllib.parse.urlencode(request_dict)
             )
-            response = self.get_operation_response(uri)
+
+            c = CommonConnector(url=uri)
+            c.load()
+            response = c.content
+
         return response
 
     def _create_masked_image(self, img: bytes, mask: bytes, as_bytes: bool = False):

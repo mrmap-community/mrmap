@@ -26,14 +26,16 @@ def check_session(function):
     def wrap(request, *args, **kwargs):
         if user_helper.is_session_expired(request):
 
-            # save last path so the user can be redirected after a successful login
-            request.session["next"] = request.path
             messages.add_message(request, messages.INFO, SESSION_TIMEOUT)
 
             if request.environ.get("HTTP_X_REQUESTED_WITH", None) is not None:
                 # this is an ajax call -> redirect user to login page if the session isn't valid anymore
+                last_page = request.META.get("HTTP_REFERER", "").replace(request._current_scheme_host, "")
+                request.session["next"] = last_page
                 return BackendAjaxResponse(html="", redirect=ROOT_URL).get_response()
             else:
+                # save last path so the user can be redirected after a successful login
+                request.session["next"] = request.path
                 return redirect("login")
 
         user = user_helper.get_user(user_id=request.session.get("user_id"))

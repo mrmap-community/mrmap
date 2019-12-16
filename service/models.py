@@ -192,6 +192,7 @@ class Metadata(Resource):
     categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
     metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
+    hits = models.IntegerField(default=0)
 
     ## for ISO metadata
     dataset_id = models.CharField(max_length=255, null=True, blank=True)
@@ -208,6 +209,29 @@ class Metadata(Resource):
 
     def __str__(self):
         return self.title
+
+    @transaction.atomic
+    def increase_hits(self):
+        # increase itself
+        self.hits += 1
+
+        # Only if whole service was called, increase the children hits as well
+        if self.metadata_type.type == MetadataEnum.SERVICE.value:
+
+            # wms children
+            if self.service.servicetype.name == 'wms':
+                children = self.service.child_service.all()
+                for child in children:
+                    child.metadata.hits += 1
+                    child.metadata.save()
+
+            elif self.service.servicetype.name == 'wfs':
+                featuretypes = self.service.featuretypes.all()
+                for f_t in featuretypes:
+                    f_t.metadata.hits += 1
+                    f_t.metadata.save()
+
+        self.save()
 
     def delete(self, using=None, keep_parents=False):
         """ Overwriting of the regular delete function
@@ -1177,7 +1201,6 @@ class Layer(Service):
     class Meta:
         ordering = ["position"]
     identifier = models.CharField(max_length=500, null=True)
-    hits = models.IntegerField(default=0)
     preview_image = models.CharField(max_length=100, blank=True, null=True)
     preview_extent = models.CharField(max_length=100, blank=True, null=True)
     preview_legend = models.CharField(max_length=100)

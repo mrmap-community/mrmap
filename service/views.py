@@ -280,6 +280,7 @@ def get_capabilities(request: HttpRequest, id: int):
          A HttpResponse containing the xml file
     """
     md = Metadata.objects.get(id=id)
+    md.increase_hits()
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
     cap_doc = Document.objects.get(related_metadata=md)
@@ -297,6 +298,7 @@ def get_capabilities_original(request: HttpRequest, id: int):
          A HttpResponse containing the xml file
     """
     md = Metadata.objects.get(id=id)
+    md.increase_hits()
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
     cap_doc = Document.objects.get(related_metadata=md)
@@ -732,7 +734,7 @@ def get_metadata_operation(request: HttpRequest, id: int):
 
     Decides which operation will be handled by resolving a given 'request=' query parameter.
     This function has to be public available (no check_session decorator)
-    The decorator allows POST requests without CSRF tokens (which can not be known)
+    The decorator allows POST requests without CSRF tokens (for non logged in users)
 
     Args:
         request (HttpRequest): The incoming request
@@ -809,7 +811,7 @@ def get_metadata_operation(request: HttpRequest, id: int):
 
 
 def get_metadata_legend(request: HttpRequest, id: int, style_id: id):
-    """ Calls the legend uri of a special style inside the metadata and returns the response to the user
+    """ Calls the legend uri of a special style inside the metadata (<LegendURL> element) and returns the response to the user
 
     This function has to be public available (no check_session decorator)
 

@@ -30,7 +30,7 @@ from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, SecuredOperation, \
     MimeType, Style
 from service.settings import MD_TYPE_SERVICE
-from service.tasks import async_remove_service_task
+from service.tasks import async_remove_service_task, async_increase_hits
 from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
 
@@ -280,11 +280,15 @@ def get_capabilities(request: HttpRequest, id: int):
          A HttpResponse containing the xml file
     """
     md = Metadata.objects.get(id=id)
-    md.increase_hits()
+
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
+
+    # move increasing hits to background process to speed up response time!
+    async_increase_hits.delay(id)
     cap_doc = Document.objects.get(related_metadata=md)
     doc = cap_doc.current_capability_document
+
     return HttpResponse(doc, content_type='application/xml')
 
 
@@ -298,11 +302,15 @@ def get_capabilities_original(request: HttpRequest, id: int):
          A HttpResponse containing the xml file
     """
     md = Metadata.objects.get(id=id)
-    md.increase_hits()
+
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
+
+    # move increasing hits to background process to speed up response time!
+    async_increase_hits.delay(id)
     cap_doc = Document.objects.get(related_metadata=md)
     doc = cap_doc.original_capability_document
+
     return HttpResponse(doc, content_type='application/xml')
 
 

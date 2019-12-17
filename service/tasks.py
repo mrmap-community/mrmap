@@ -24,6 +24,19 @@ from service.helper import service_helper, task_helper
 from users.helper import user_helper
 
 
+@shared_task(name="async_increase_hits")
+def async_increase_hits(metadata_id: int):
+    """ Async call for increasing the hit counter of a metadata record
+
+    Args:
+        metadata_id (int): The metadata record id
+    Returns:
+         nothing
+    """
+    md = Metadata.objects.get(id=metadata_id)
+    md.increase_hits()
+
+
 @shared_task(name="async_activate_service")
 def async_activate_service(service_id: int, user_id: int):
     """ Async call for activating a service, its subelements and all of their related metadata

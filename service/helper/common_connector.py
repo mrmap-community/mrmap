@@ -4,7 +4,6 @@ Organization: Spatial data infrastructure Rhineland-Palatinate, Germany
 Contact: armin.retterath@vermkv.rlp.de
 
 """
-
 import time
 
 # Problem of unresolved python c extensions: https://stackoverflow.com/questions/41598399/pydev-tags-import-as-unresolved-import-all-compiled-extensions
@@ -170,13 +169,13 @@ class CommonConnector():
     def __load_urllib(self):
         pass
 
-    def post(self, data: dict = None):
+    def post(self, data):
         """ Wraps the post functionality of different request implementations (CURL, Requests).
 
         The response is written to self.content.
 
         Args:
-            data (dict): The post data body
+            data (dict|byte): The post data body
         Returns:
              nothing
         """

@@ -19,7 +19,7 @@ from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ServiceOperationEnum
+from service.helper.enums import ServiceOperationEnum, ServiceEnum, VersionEnum
 from service.models import Metadata, FeatureType
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
@@ -27,7 +27,7 @@ from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS,
 from users.helper import user_helper
 
 
-class OperationRequestHandler:
+class OGCOperationRequestHandler:
     """ Provides methods for handling an operation request for OGC services
 
     """
@@ -53,7 +53,7 @@ class OperationRequestHandler:
         self.height_param = None  # refers to param 'HEIGHT' (WMS)
         self.type_name_param = None  # refers to param 'TYPENAME' (WFS)
         self.geom_property_name = None  # will be set, if type_name_param is not None
-        self.transaction_raw_body = None  # refers to the body content of a Transaction operation
+        self.POST_raw_body = None  # refers to the body content of a Transaction operation
         self.transaction_geometries = None  # contains all geometries that shall be INSERTed or UPDATEd by a  Transaction operation
 
         self.intersected_allowed_geometry = None
@@ -142,6 +142,9 @@ class OperationRequestHandler:
         For development the following (only available) example of a WMS GetMap request as xml document was used:
         https://docs.geoserver.org/stable/en/user/services/wms/reference.html
 
+        Furthermore for the WFS operation implementation the following Oracle documentation was used:
+        https://docs.oracle.com/database/121/SPATL/wfs-operations-requests-and-responses-xml-examples.htm#SPATL926
+
         Args:
             body (bytes): The POST body as bytes
         Returns:
@@ -149,6 +152,7 @@ class OperationRequestHandler:
         """
         body = body.decode("UTF-8")
         xml = xml_helper.parse_xml(body)
+        self.POST_raw_body = body
 
         root = xml_helper.try_get_single_element_from_xml(elem="/*", xml_elem=xml)
         self.request_param = QName(root).localname
@@ -158,7 +162,7 @@ class OperationRequestHandler:
 
         bbox_elem = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("BoundingBox"), xml_elem=xml)
 
-        self.srs_code = int(xml_helper.try_get_attribute_from_xml_element(bbox_elem, "srsName").split("#")[-1])
+        self.srs_param = xml_helper.try_get_attribute_from_xml_element(bbox_elem, "srsName")
 
         bbox_extent = []
         bbox_coords = xml_helper.try_get_element_from_xml(elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("coord"), xml_elem=bbox_elem)
@@ -177,7 +181,14 @@ class OperationRequestHandler:
         self.height_param = int(xml_helper.try_get_text_from_xml_element(size_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("Height")))
         self.width_param = int(xml_helper.try_get_text_from_xml_element(size_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("Width")))
 
+        # type_name differs in WFS versions
+        if self.version_param == VersionEnum.V_2_0_2.value or self.version_param == VersionEnum.V_2_0_0.value:
+            type_name = "typeNames"
+        else:
+            type_name = "typeName"
 
+        self.type_name_param = xml_helper.try_get_attribute_from_xml_element(xml, type_name, "//" + GENERIC_NAMESPACE_TEMPLATE.format("Query"))
+        self.filter_param = xml_helper.xml_to_string(xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Filter"), xml_elem=xml))
 
     def _get_geom_filter_param(self, as_snippet: bool = False):
         """ Creates a xml string for the filter parameter of a WFS operation
@@ -376,10 +387,10 @@ class OperationRequestHandler:
              nothing
         """
         # skip this if we have no transaction body
-        if self.transaction_raw_body is None:
+        if self.POST_raw_body is None:
             return
 
-        xml_body = xml_helper.parse_xml(self.transaction_raw_body)
+        xml_body = xml_helper.parse_xml(self.POST_raw_body)
 
         actions = ["INSERT", "UPDATE"]
         geom_collection = GeometryCollection()
@@ -442,7 +453,7 @@ class OperationRequestHandler:
         point.srid = self.srs_code
         return point
 
-    def get_post_data(self):
+    def get_post_data_dict(self):
         """ Getter for the data which is used in a POST request
 
         Returns:
@@ -450,6 +461,17 @@ class OperationRequestHandler:
         """
         post_data = self.new_params_dict
         return post_data
+
+    def get_post_data_body(self):
+        """ Getter for the data which is used in a POST request
+
+        Returns:
+             post_data (bytes)
+        """
+        ret_val = self.POST_raw_body
+        if not isinstance(ret_val, bytes):
+            ret_val = ret_val.encode("utf-8")
+        return ret_val
 
     def get_operation_response(self, uri: str = None, post_data: dict = None):
         """ Fetching method for security proxy.
@@ -463,7 +485,7 @@ class OperationRequestHandler:
             uri = self.uri
 
         if post_data is None:
-            post_data = self.get_post_data()
+            post_data = self.get_post_data_dict()  # get default POST as dict content
 
         c = CommonConnector(url=uri)
 
@@ -647,6 +669,7 @@ class OperationRequestHandler:
 
 
 
+
         return ret_val
 
     def get_secured_operation_response(self, request: HttpRequest, metadata: Metadata):
@@ -701,6 +724,6 @@ class OperationRequestHandler:
             elif self.request_param.upper() == ServiceOperationEnum.TRANSACTION.value.upper():
                 allowed = self._check_transaction_operation_access(sec_ops)
                 if allowed:
-                    response = self.get_operation_response()
+                    response = self.get_operation_response(self.POST_raw_body)
 
             return response

@@ -24,9 +24,9 @@ from service import tasks
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ServiceEnum, MetadataEnum
+from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
-from service.helper.ogc.operation_request_handler import OperationRequestHandler
+from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, SecuredOperation, \
     MimeType, Style
@@ -758,12 +758,15 @@ def get_metadata_operation(request: HttpRequest, id: int):
     try:
         # redirects request to parent service, if the given id is not the root of the service
         metadata = Metadata.objects.get(id=id)
-        operation_handler = OperationRequestHandler(uri=get_query_string, request=request, metadata=metadata)
+        operation_handler = OGCOperationRequestHandler(uri=get_query_string, request=request, metadata=metadata)
 
-        if operation_handler.request_param is None:
+        if not metadata.is_active:
+            return HttpResponse(status=423, content=SERVICE_DISABLED)
+
+        elif operation_handler.request_param is None:
             return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
 
-        if not metadata.is_root():
+        elif not metadata.is_root():
             # we do not allow the direct call of operations on child elements, such as layers!
             # if the request tries that, we directly redirect it to the parent service!
             redirect_uri = "/service/metadata/{}/operation?{}".format(
@@ -772,8 +775,9 @@ def get_metadata_operation(request: HttpRequest, id: int):
             )
             return redirect(redirect_uri)
 
-        if not metadata.is_active:
-            return HttpResponse(status=423, content=SERVICE_DISABLED)
+        elif operation_handler.request_param.upper() == ServiceOperationEnum.GET_CAPABILITIES.value.upper():
+            cap_doc = Document.objects.get(related_metadata=metadata)
+            return HttpResponse(cap_doc.current_capability_document, content_type="application/xml")
 
         # if the 'layer' parameter indicates the request for a subelement of this service, we need to fetch this
         # metadata instead of the parent service one (which we have at this point) to continue with!

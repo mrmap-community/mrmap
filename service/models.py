@@ -719,25 +719,49 @@ class Document(Resource):
         operation_objs = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation"), xml_obj)
         service = self.related_metadata.service
         op_uri_dict = {
-            "DescribeFeatureType": service.describe_layer_uri,
-            "GetFeature": service.get_feature_info_uri,
-            "GetPropertyValue": "",
-            "ListStoredQueries": "",
-            "DescribeStoredQueries": "",
+            "DescribeFeatureType": {
+                "Get": service.describe_layer_uri_GET,
+                "Post": service.describe_layer_uri_POST,
+            },
+            "GetFeature": {
+                "Get": service.get_feature_info_uri_GET,
+                "Post": service.get_feature_info_uri_POST,
+            },
+            "GetPropertyValue": {
+                "Get": service.get_property_value_uri_GET,
+                "Post": service.get_property_value_uri_POST,
+            },
+            "ListStoredQueries": {
+                "Get": service.list_stored_queries_uri_GET,
+                "Post": service.list_stored_queries_uri_POST,
+            },
+            "DescribeStoredQueries": {
+                "Get": service.describe_stored_queries_uri_GET,
+                "Post": service.describe_stored_queries_uri_POST,
+            },
+            "GetGmlObject": {
+                "Get": service.get_gml_objct_uri_GET,
+                "Post": service.get_gml_objct_uri_POST,
+            },
         }
         for op in operation_objs:
             # skip GetCapabilities - it is already set to another internal link
             name = xml_helper.try_get_attribute_from_xml_element(op, "name")
-            if name == "GetCapabilities":
+            if name == ServiceOperationEnum.GET_CAPABILITIES.value or name is None:
                 continue
-            if not is_secured:
-                uri = op_uri_dict.get(name, "")
-            http_objs = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP"), op)
-            for http_obj in http_objs:
-                requ_objs = http_obj.getchildren()
-                for requ_obj in requ_objs:
+
+            http_operations = ["Get", "Post"]
+
+            for http_operation in http_operations:
+
+                if not is_secured:
+                    uri = op_uri_dict.get(name, {}).get(http_operation, None)
+
+                http_objs = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") + "/" + GENERIC_NAMESPACE_TEMPLATE.format(http_operation), op)
+
+                for http_obj in http_objs:
                     xml_helper.write_attribute(
-                        requ_obj,
+                        http_obj,
                         attrib="{http://www.w3.org/1999/xlink}href",
                         txt=uri
                     )
@@ -926,18 +950,37 @@ class Service(Resource):
     is_available = models.BooleanField(default=False)
 
     get_capabilities_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_capabilities_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
     get_map_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_map_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
     get_feature_info_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_feature_info_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
     describe_layer_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     describe_layer_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
     get_legend_graphic_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_legend_graphic_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
     get_styles_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_styles_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
     transaction_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     transaction_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_property_value_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_property_value_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    list_stored_queries_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    list_stored_queries_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    describe_stored_queries_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    describe_stored_queries_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_gml_objct_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_gml_objct_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
     formats = models.ManyToManyField('MimeType', blank=True)
 

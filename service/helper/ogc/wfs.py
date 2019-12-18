@@ -12,7 +12,7 @@ from lxml.etree import _Element
 
 from service.settings import MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, MD_RELATION_TYPE_VISUALIZES
 from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
-    MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING
+    MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
 from MapSkinner.utils import execute_threads
 from service.helper.enums import VersionEnum, ServiceEnum
@@ -82,13 +82,23 @@ class OGCWebFeatureService(OGCWebService):
             "get": None,
             "post": None,
         }
+
         # wms 1.1.0
         self.get_gml_object_uri = {
             "get": None,
             "post": None,
         }
+
         # wms 2.0.0
-        self.list_stored_queries = {
+        self.list_stored_queries_uri = {
+            "get": None,
+            "post": None,
+        }
+        self.get_property_value_uri = {
+            "get": None,
+            "post": None,
+        }
+        self.describe_stored_queries_uri = {
             "get": None,
             "post": None,
         }
@@ -113,7 +123,6 @@ class OGCWebFeatureService(OGCWebService):
 
         # parse service metadata
         self.get_service_metadata_from_capabilities(xml_obj, async_task)
-        self.get_capability_metadata(xml_obj)
         self.get_capability_metadata(xml_obj)
 
         # check possible operations on this service
@@ -193,15 +202,19 @@ class OGCWebFeatureService(OGCWebService):
         Returns:
              Nothing
         """
-        operation_metadata = xml_helper.try_get_element_from_xml("//ows:OperationsMetadata", xml_obj)
+        operation_metadata = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("OperationsMetadata"), xml_obj)
         if len(operation_metadata) > 0:
             operation_metadata = operation_metadata[0]
         else:
             return
-        actions = ["GetCapabilities", "DescribeFeatureType", "GetFeature", "Transaction", "LockFeature",
-                   "GetFeatureWithLock", "GetGMLObject", "ListStoredQueries"]
+        actions = ["GetCapabilities", "DescribeFeatureType", "GetFeature",
+                   "Transaction", "LockFeature", "GetFeatureWithLock",
+                   "GetGmlObject", "ListStoredQueries", "DescribeStoredQueries",
+                   "GetPropertyValue"
+                   ]
         get = {}
         post = {}
+
         for action in actions:
             xpath_str = './ows:Operation[@name="' + action + '"]'
             operation = xml_helper.try_get_single_element_from_xml(xml_elem=operation_metadata, elem=xpath_str)
@@ -219,6 +232,7 @@ class OGCWebFeatureService(OGCWebService):
             )
             get[action] = _get
             post[action] = _post
+
         self.get_capabilities_uri["get"] = get.get("GetCapabilities", None)
         self.get_capabilities_uri["post"] = post.get("GetCapabilities", None)
 
@@ -237,11 +251,17 @@ class OGCWebFeatureService(OGCWebService):
         self.get_feature_with_lock_uri["get"] = get.get("GetFeatureWithLock", None)
         self.get_feature_with_lock_uri["post"] = post.get("GetFeatureWithLock", None)
 
-        self.get_gml_object_uri["get"] = get.get("GetGMLObject", None)
-        self.get_gml_object_uri["post"] = post.get("GetGMLObject", None)
+        self.get_gml_object_uri["get"] = get.get("GetGmlObject", None)
+        self.get_gml_object_uri["post"] = post.get("GetGmlObject", None)
 
-        self.get_gml_object_uri["get"] = get.get("ListStoredQueries", None)
-        self.get_gml_object_uri["post"] = post.get("ListStoredQueries", None)
+        self.list_stored_queries_uri["get"] = get.get("ListStoredQueries", None)
+        self.list_stored_queries_uri["post"] = post.get("ListStoredQueries", None)
+
+        self.get_property_value_uri["get"] = get.get("GetPropertyValue", None)
+        self.get_property_value_uri["post"] = post.get("GetPropertyValue", None)
+
+        self.describe_stored_queries_uri["get"] = get.get("DescribeStoredQueries", None)
+        self.describe_stored_queries_uri["post"] = post.get("DescribeStoredQueries", None)
 
     def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version: str, async_task: Task = None, step_size: float = None):
         """ Get featuretype metadata of a single featuretype
@@ -498,14 +518,31 @@ class OGCWebFeatureService(OGCWebService):
         service.created_by = group
         service.published_for = orga_published_for
         service.published_by = orga_publisher
+
         service.get_capabilities_uri_GET = self.get_capabilities_uri.get("get", None)
         service.get_capabilities_uri_POST = self.get_capabilities_uri.get("post", None)
+
         service.describe_layer_uri_GET = self.describe_feature_type_uri.get("get", None)
         service.describe_layer_uri_POST = self.describe_feature_type_uri.get("post", None)
+
         service.get_feature_info_uri_GET = self.get_feature_uri.get("get", None)
         service.get_feature_info_uri_POST = self.get_feature_uri.get("post", None)
+
         service.transaction_uri_GET = self.transaction_uri.get("get", None)
         service.transaction_uri_POST = self.transaction_uri.get("post", None)
+
+        service.get_property_value_uri_GET = self.get_property_value_uri.get("get", None)
+        service.get_property_value_uri_POST = self.get_property_value_uri.get("post", None)
+
+        service.list_stored_queries_uri_GET = self.list_stored_queries_uri.get("get", None)
+        service.list_stored_queries_uri_GET = self.list_stored_queries_uri.get("post", None)
+
+        service.describe_stored_queries_uri_GET = self.describe_stored_queries_uri.get("get", None)
+        service.describe_stored_queries_uri_POST = self.describe_stored_queries_uri.get("post", None)
+
+        service.get_gml_objct_uri_GET = self.get_gml_object_uri.get("get", None)
+        service.get_gml_objct_uri_POST = self.get_gml_object_uri.get("post", None)
+
         service.availability = 0.0
         service.is_available = False
         service.is_root = True

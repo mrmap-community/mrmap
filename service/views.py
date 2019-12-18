@@ -1,4 +1,5 @@
 import json
+import urllib
 
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
@@ -811,24 +812,33 @@ def get_metadata_operation(request: HttpRequest, id: int):
 
     secured_uri = secured_operation_uris.get(operation_handler.request_param.upper(), {}).get(request.method.lower(), None)
 
-    # If the uri is not None -> we need to check the permissions on this one, otherwise -> let it pass!
     if secured_uri is not None:
-        operation_handler.uri = secured_uri + get_query_string
+        # use the secured uri
+        uri = secured_uri
+    else:
+        # use the original uri
+        uri = metadata.online_resource
 
-        if metadata.is_secured:
-            response = operation_handler.get_secured_operation_response(request, metadata)
+    # add the request query parameter to the ones, which already exist in the persisted uri
+    uri = list(urllib.parse.urlparse(uri))
+    get_query_params = dict(urllib.parse.parse_qsl(get_query_string))
+    uri_params = dict(urllib.parse.parse_qsl(uri[4]))
+    uri_params.update(get_query_params)
+    get_query_string = urllib.parse.urlencode(uri_params)
+    uri[4] = get_query_string
+    uri = urllib.parse.urlunparse(uri)
 
-            if response is None:
-                # metadata is secured but user is not allowed
-                return HttpResponse(status=401, content=SECURITY_PROXY_NOT_ALLOWED)
+    operation_handler.uri = uri
 
-            return HttpResponse(response, content_type="")
+    if metadata.is_secured:
+        response = operation_handler.get_secured_operation_response(request, metadata)
 
-    # Since we do not know what operation exactly the user performs here (we only know it is not one of our secured ones),
-    # we have to get a simple base uri!
-    regular_uri = list(secured_operation_uris.values())[0].get("get", None)
-    regular_uri += get_query_string
-    return HttpResponse(operation_handler.get_operation_response(regular_uri), content_type="")
+        if response is None:
+            # metadata is secured but user is not allowed
+            return HttpResponse(status=401, content=SECURITY_PROXY_NOT_ALLOWED)
+        return HttpResponse(response, content_type="")
+
+    return HttpResponse(operation_handler.get_operation_response(), content_type="")
 
 
 def get_metadata_legend(request: HttpRequest, id: int, style_id: id):

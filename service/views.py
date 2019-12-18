@@ -757,7 +757,7 @@ def get_metadata_operation(request: HttpRequest, id: int):
     try:
         # redirects request to parent service, if the given id is not the root of the service
         metadata = Metadata.objects.get(id=id)
-        operation_handler = OperationRequestHandler(get_query_string, request, metadata)
+        operation_handler = OperationRequestHandler(uri=get_query_string, request=request, metadata=metadata)
 
         if operation_handler.request_param is None:
             return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
@@ -787,35 +787,48 @@ def get_metadata_operation(request: HttpRequest, id: int):
 
     # identify requested operation and resolve the uri
     if metadata.service.servicetype.name == ServiceEnum.WFS.value:
-        operations = {
-            "GETFEATURE": metadata.service.get_feature_info_uri,  # get_feature_info_uri is reused in WFS for get_feature_uri
-            "TRANSACTION": metadata.service.transaction_uri,
+        secured_operation_uris = {
+            "GETFEATURE": {
+                "get": metadata.service.get_feature_info_uri_GET,
+                "post": metadata.service.get_feature_info_uri_POST,
+            },  # get_feature_info_uri_GET is reused in WFS for get_feature_uri
+            "TRANSACTION": {
+                "get": metadata.service.transaction_uri_GET,
+                "post": metadata.service.transaction_uri_POST,
+            },
         }
     else:
-        operations = {
-            "GETMAP": metadata.service.get_map_uri,
-            "GETFEATUREINFO": metadata.service.get_feature_info_uri,
+        secured_operation_uris = {
+            "GETMAP": {
+                "get": metadata.service.get_map_uri_GET,
+                "post": metadata.service.get_map_uri_POST,
+            },
+            "GETFEATUREINFO": {
+                "get": metadata.service.get_feature_info_uri_GET,
+                "post": metadata.service.get_feature_info_uri_POST,
+            },
         }
 
-    operation_handler.uri = operations.get(operation_handler.request_param.upper(), None)
+    secured_uri = secured_operation_uris.get(operation_handler.request_param.upper(), {}).get(request.method.lower(), None)
 
-    # if the given operation parameter could not be found in the dict, we assume an input error!
-    if operation_handler.uri is None:
-        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED)
+    # If the uri is not None -> we need to check the permissions on this one, otherwise -> let it pass!
+    if secured_uri is not None:
+        operation_handler.uri = secured_uri + get_query_string
 
-    operation_handler.uri += get_query_string
+        if metadata.is_secured:
+            response = operation_handler.get_secured_operation_response(request, metadata)
 
-    if metadata.is_secured:
-        response = operation_handler.get_secured_operation_response(request, metadata)
+            if response is None:
+                # metadata is secured but user is not allowed
+                return HttpResponse(status=401, content=SECURITY_PROXY_NOT_ALLOWED)
 
-        if response is None:
-            # metadata is secured but user is not allowed
-            return HttpResponse(status=401, content=SECURITY_PROXY_NOT_ALLOWED)
+            return HttpResponse(response, content_type="")
 
-        return HttpResponse(response, content_type="")
-
-    else:
-        return HttpResponse(operation_handler.get_operation_response(), content_type="")
+    # Since we do not know what operation exactly the user performs here (we only know it is not one of our secured ones),
+    # we have to get a simple base uri!
+    regular_uri = list(secured_operation_uris.values())[0].get("get", None)
+    regular_uri += get_query_string
+    return HttpResponse(operation_handler.get_operation_response(regular_uri), content_type="")
 
 
 def get_metadata_legend(request: HttpRequest, id: int, style_id: id):

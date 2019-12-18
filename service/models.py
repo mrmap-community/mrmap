@@ -9,7 +9,7 @@ from django.contrib.gis.db import models
 from django.utils import timezone
 
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
-from service.helper.enums import ServiceEnum, VersionEnum, MetadataEnum
+from service.helper.enums import ServiceEnum, VersionEnum, MetadataEnum, ServiceOperationEnum
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX
 from structure.models import Group, Organization
 from service.helper import xml_helper
@@ -618,28 +618,53 @@ class Document(Resource):
         request_objs = request_objs.getchildren()
         service = self.related_metadata.service
         op_uri_dict = {
-            "GetMap": service.get_map_uri,
-            "GetFeatureInfo": service.get_feature_info_uri,
-            "DescribeLayer": service.describe_layer_uri,
-            "GetLegendGraphic": service.get_legend_graphic_uri,
-            "GetStyles": service.get_styles_uri,
+            "GetMap": {
+                "Get": service.get_map_uri_GET,
+                "Post": service.get_map_uri_POST,
+            },
+            "GetFeatureInfo": {
+                "Get": service.get_feature_info_uri_GET,
+                "Post": service.get_feature_info_uri_POST,
+            },
+            "DescribeLayer": {
+                "Get": service.describe_layer_uri_GET,
+                "Post": service.describe_layer_uri_POST,
+            },
+            "GetLegendGraphic": {
+                "Get": service.get_legend_graphic_uri_GET,
+                "Post": service.get_legend_graphic_uri_POST,
+            },
+            "GetStyles": {
+                "Get": service.get_styles_uri_GET,
+                "Post": service.get_styles_uri_POST,
+            },
         }
+
         for op in request_objs:
+
             # skip GetCapabilities - it is already set to another internal link
-            if "GetCapabilities" in op.tag:
+            if ServiceOperationEnum.GET_CAPABILITIES.value in op.tag:
                 continue
-            if not is_secured:
-                uri = op_uri_dict.get(op.tag, "")
-            res_objs = xml_helper.try_get_element_from_xml(
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
-                , op
-            )
-            for res_obj in res_objs:
-                xml_helper.write_attribute(
-                    res_obj,
-                    attrib="{http://www.w3.org/1999/xlink}href",
-                    txt=uri
+
+            uri_dict = op_uri_dict.get(op.tag, "")
+            http_operations = ["Get", "Post"]
+
+            for http_operation in http_operations:
+                res_objs = xml_helper.try_get_element_from_xml(
+                    ".//{}/".format(http_operation) + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
+                    , op
                 )
+
+                if not is_secured:
+                    # overwrite uri
+                    uri = uri_dict.get(http_operation, "")
+
+                for res_obj in res_objs:
+                    xml_helper.write_attribute(
+                        res_obj,
+                        attrib="{http://www.w3.org/1999/xlink}href",
+                        txt=uri
+                    )
 
     def _set_wfs_1_0_0_operations_secured(self, xml_obj, uri: str, is_secured: bool):
         """ Change external links to internal for wfs 1.0.0 operations
@@ -900,13 +925,19 @@ class Service(Resource):
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
 
-    get_capabilities_uri = models.CharField(max_length=1000, null=True, blank=True)
-    get_map_uri = models.CharField(max_length=1000, null=True, blank=True)
-    get_feature_info_uri = models.CharField(max_length=1000, null=True, blank=True)
-    describe_layer_uri = models.CharField(max_length=1000, null=True, blank=True)
-    get_legend_graphic_uri = models.CharField(max_length=1000, null=True, blank=True)
-    get_styles_uri = models.CharField(max_length=1000, null=True, blank=True)
-    transaction_uri = models.CharField(max_length=1000, null=True, blank=True)
+    get_capabilities_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_map_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_map_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+    get_feature_info_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_feature_info_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+    describe_layer_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    describe_layer_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+    get_legend_graphic_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_legend_graphic_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+    get_styles_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_styles_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+    transaction_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    transaction_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
     formats = models.ManyToManyField('MimeType', blank=True)
 

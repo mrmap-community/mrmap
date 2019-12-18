@@ -273,12 +273,18 @@ class OGCWebMapService(OGCWebService):
     ### REQUEST URIS ###
     def parse_request_uris(self, layer, layer_obj):
         attributes = {
-            "cap": "//GetCapabilities/DCPType/HTTP/Get/OnlineResource",
-            "map": "//GetMap/DCPType/HTTP/Get/OnlineResource",
-            "feat": "//GetFeatureInfo/DCPType/HTTP/Get/OnlineResource",
-            "desc": "//DescribeLayer/DCPType/HTTP/Get/OnlineResource",
-            "leg": "//GetLegendGraphic/DCPType/HTTP/Get/OnlineResource",
-            "style": "//GetStyles/DCPType/HTTP/Get/OnlineResource",
+            "cap_GET": "//GetCapabilities/DCPType/HTTP/Get/OnlineResource",
+            "cap_POST": "//GetCapabilities/DCPType/HTTP/Post/OnlineResource",
+            "map_GET": "//GetMap/DCPType/HTTP/Get/OnlineResource",
+            "map_POST": "//GetMap/DCPType/HTTP/Post/OnlineResource",
+            "feat_GET": "//GetFeatureInfo/DCPType/HTTP/Get/OnlineResource",
+            "feat_POST": "//GetFeatureInfo/DCPType/HTTP/Post/OnlineResource",
+            "desc_GET": "//DescribeLayer/DCPType/HTTP/Get/OnlineResource",
+            "desc_POST": "//DescribeLayer/DCPType/HTTP/Post/OnlineResource",
+            "leg_GET": "//GetLegendGraphic/DCPType/HTTP/Get/OnlineResource",
+            "leg_POST": "//GetLegendGraphic/DCPType/HTTP/Post/OnlineResource",
+            "style_GET": "//GetStyles/DCPType/HTTP/Get/OnlineResource",
+            "style_POST": "//GetStyles/DCPType/HTTP/Post/OnlineResource",
         }
         for key, val in attributes.items():
             try:
@@ -287,12 +293,18 @@ class OGCWebMapService(OGCWebService):
             except (AttributeError, IndexError) as error:
                 attributes[key] = None
 
-        layer_obj.get_capabilities_uri = attributes.get("cap")
-        layer_obj.get_map_uri = attributes.get("map")
-        layer_obj.get_feature_info_uri = attributes.get("feat")
-        layer_obj.describe_layer_uri = attributes.get("desc")
-        layer_obj.get_legend_graphic_uri = attributes.get("leg")
-        layer_obj.get_styles_uri = attributes.get("style")
+        layer_obj.get_capabilities_uri_GET = attributes.get("cap_GET")
+        layer_obj.get_capabilities_uri_POST = attributes.get("cap_POST")
+        layer_obj.get_map_uri_GET = attributes.get("map_GET")
+        layer_obj.get_map_uri_POST = attributes.get("map_POST")
+        layer_obj.get_feature_info_uri_GET = attributes.get("feat_GET")
+        layer_obj.get_feature_info_uri_POST = attributes.get("feat_POST")
+        layer_obj.describe_layer_uri_GET = attributes.get("desc_GET")
+        layer_obj.describe_layer_uri_POST = attributes.get("desc_POST")
+        layer_obj.get_legend_graphic_uri_GET = attributes.get("leg_GET")
+        layer_obj.get_legend_graphic_uri_POST = attributes.get("leg_POST")
+        layer_obj.get_styles_uri_GET = attributes.get("style_GET")
+        layer_obj.get_styles_uri_POST = attributes.get("style_POST")
 
     ### FORMATS ###
     def parse_formats(self, layer, layer_obj):
@@ -659,12 +671,20 @@ class OGCWebMapService(OGCWebService):
         layer.published_for = published_for
         layer.published_by = publisher
         layer.parent_service = wms
-        layer.get_styles_uri = layer_obj.get_styles_uri
-        layer.get_legend_graphic_uri = layer_obj.get_legend_graphic_uri
-        layer.get_feature_info_uri = layer_obj.get_feature_info_uri
-        layer.get_map_uri = layer_obj.get_map_uri
-        layer.describe_layer_uri = layer_obj.describe_layer_uri
-        layer.get_capabilities_uri = layer_obj.get_capabilities_uri
+
+        layer.get_styles_uri_GET = layer_obj.get_styles_uri_GET
+        layer.get_styles_uri_POST = layer_obj.get_styles_uri_POST
+        layer.get_legend_graphic_uri_GET = layer_obj.get_legend_graphic_uri_GET
+        layer.get_legend_graphic_uri_POST = layer_obj.get_legend_graphic_uri_POST
+        layer.get_feature_info_uri_GET = layer_obj.get_feature_info_uri_GET
+        layer.get_feature_info_uri_POST = layer_obj.get_feature_info_uri_POST
+        layer.get_map_uri_GET = layer_obj.get_map_uri_GET
+        layer.get_map_uri_POST = layer_obj.get_map_uri_POST
+        layer.describe_layer_uri_GET = layer_obj.describe_layer_uri_GET
+        layer.describe_layer_uri_POST = layer_obj.describe_layer_uri_POST
+        layer.get_capabilities_uri_GET = layer_obj.get_capabilities_uri_GET
+        layer.get_capabilities_uri_POST = layer_obj.get_capabilities_uri_POST
+
         layer.iso_metadata = layer_obj.iso_metadata
 
         if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
@@ -807,12 +827,18 @@ class OGCWebMapService(OGCWebService):
         service.published_for = orga_published_for
         service.published_by = orga_publisher
         service.created_by = group
-        service.get_capabilities_uri = self.get_capabilities_uri
-        service.get_feature_info_uri = self.get_feature_info_uri
-        service.describe_layer_uri = self.describe_layer_uri
-        service.get_styles_uri = self.get_styles_uri
-        service.get_legend_graphic_uri = self.get_legend_graphic_uri
-        service.get_map_uri = self.get_map_uri
+        service.get_capabilities_uri_GET = self.get_capabilities_uri_GET
+        service.get_capabilities_uri_POST = self.get_capabilities_uri_POST
+        service.get_feature_info_uri_GET = self.get_feature_info_uri_GET
+        service.get_feature_info_uri_POST = self.get_feature_info_uri_POST
+        service.describe_layer_uri_GET = self.describe_layer_uri_GET
+        service.describe_layer_uri_POST = self.describe_layer_uri_POST
+        service.get_styles_uri_GET = self.get_styles_uri_GET
+        service.get_styles_uri_POST = self.get_styles_uri_POST
+        service.get_legend_graphic_uri_GET = self.get_legend_graphic_uri_GET
+        service.get_legend_graphic_uri_POST = self.get_legend_graphic_uri_POST
+        service.get_map_uri_GET = self.get_map_uri_GET
+        service.get_map_uri_POST = self.get_map_uri_POST
         service.metadata = metadata
         service.is_root = True
         if self.linked_service_metadata is not None:

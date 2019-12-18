@@ -35,6 +35,28 @@ class ServiceEnum(Enum):
     DATASET = "dataset"
 
 
+class ServiceOperationEnum(Enum):
+    """ Defines all known operation names
+
+    """
+    # ALL
+    GET_CAPABILITIES = "GetCapabilities"
+
+    # WMS
+    GET_MAP = "GetMap"
+    GET_FEATURE_INFO = "GetFeatureInfo"
+    DESCRIBE_LAYER = "DescribeLayer"
+    GET_LEGEND_GRAPHIC = "GetLegendGraphic"
+    GET_STYLES = "GetStyles"
+    PUT_STYLES = "PutStyles"
+
+    # WFS
+    GET_FEATURE = "GetFeature"
+    TRANSACTION = "Transaction"
+    LOCK_FEATURE = "LockFeature"
+    DESCRIBE_FEATURE_TYPE = "DescribeFeatureType"
+
+
 class MetadataEnum(Enum):
     """ Defines all metadata types
 

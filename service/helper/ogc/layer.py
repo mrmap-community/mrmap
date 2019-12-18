@@ -30,12 +30,18 @@ class OGCLayer:
         self.capability_bbox_srs = {}
 
         self.format_list = []
-        self.get_capabilities_uri = None
-        self.get_map_uri = None
-        self.get_feature_info_uri = None
-        self.describe_layer_uri = None
-        self.get_legend_graphic_uri = None
-        self.get_styles_uri = None
+        self.get_capabilities_uri_GET = None
+        self.get_capabilities_uri_POST = None
+        self.get_map_uri_GET = None
+        self.get_map_uri_POST = None
+        self.get_feature_info_uri_GET = None
+        self.get_feature_info_uri_POST = None
+        self.describe_layer_uri_GET = None
+        self.describe_layer_uri_POST = None
+        self.get_legend_graphic_uri_GET = None
+        self.get_legend_graphic_uri_POST = None
+        self.get_styles_uri_GET = None
+        self.get_styles_uri_POST = None
         self.dimension = []
         self.style = None
         self.child_layer = []

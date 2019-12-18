@@ -13,6 +13,7 @@ from lxml import etree
 
 from django.contrib.gis.geos import Polygon, GEOSGeometry, Point, GeometryCollection
 from django.http import HttpRequest, HttpResponse, QueryDict
+from lxml.etree import QName
 
 from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
@@ -45,6 +46,7 @@ class OperationRequestHandler:
         self.bbox_param = None  # refers to param 'BBOX'
         self.srs_param = None  # refers to param 'SRS' (WMS 1.0.0 - 1.1.1) and 'CRS' (WMS 1.3.0)
         self.srs_code = None  # only the srsid as int
+        self.format_param = None  # refers to param 'FORMAT'
         self.version_param = None  # refers to param 'VERSION'
         self.filter_param = None  # refers to param 'FILTER' (WFS)
         self.width_param = None  # refers to param 'WIDTH' (WMS)
@@ -60,6 +62,11 @@ class OperationRequestHandler:
             self.original_params_dict = request.GET.dict()
         else:
             self.original_params_dict = request.POST.dict()
+
+        if len(self.original_params_dict) == 0:
+            # Possible, if no GET query parameter or no x-www-form-urlencoded POST values have been given
+            # In this case, all the information can be found inside a xml document in the POST body, that has to be parsed now.
+            self._parse_POST_xml_body(request.body)
 
         # fill new_params_dict with upper case keys from original_params_dict
         for key, val in self.original_params_dict.items():
@@ -79,6 +86,8 @@ class OperationRequestHandler:
                 self.x_y_param[1] = val
             elif key == "VERSION":
                 self.version_param = val
+            elif key == "FORMAT":
+                self.format_param = val
             elif key == "SRS" or key == "CRS":
                 self.srs_param = val
                 self.srs_code = int(self.srs_param.split(":")[-1])  # get the last element of the ':' splitted string
@@ -123,9 +132,52 @@ class OperationRequestHandler:
                 except ObjectDoesNotExist:
                     pass
 
-        self.process_bbox_param()
-        self.process_x_y_param()
-        self.process_transaction_geometries()
+        self._process_bbox_param()
+        self._process_x_y_param()
+        self._process_transaction_geometries()
+
+    def _parse_POST_xml_body(self, body: bytes):
+        """ Reads all relevant request data from the POST body xml document
+
+        For development the following (only available) example of a WMS GetMap request as xml document was used:
+        https://docs.geoserver.org/stable/en/user/services/wms/reference.html
+
+        Args:
+            body (bytes): The POST body as bytes
+        Returns:
+
+        """
+        body = body.decode("UTF-8")
+        xml = xml_helper.parse_xml(body)
+
+        root = xml_helper.try_get_single_element_from_xml(elem="/*", xml_elem=xml)
+        self.request_param = QName(root).localname
+        self.version_param = xml_helper.try_get_attribute_from_xml_element(root, "version")
+
+        self.layer_param = xml_helper.try_get_text_from_xml_element(xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("NamedLayer") + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Name"))
+
+        bbox_elem = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("BoundingBox"), xml_elem=xml)
+
+        self.srs_code = int(xml_helper.try_get_attribute_from_xml_element(bbox_elem, "srsName").split("#")[-1])
+
+        bbox_extent = []
+        bbox_coords = xml_helper.try_get_element_from_xml(elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("coord"), xml_elem=bbox_elem)
+
+        tmp = ["X", "Y"]
+        for coord in bbox_coords:
+            for t in tmp:
+                bbox_extent.append(xml_helper.try_get_text_from_xml_element(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format(t), xml_elem=coord))
+
+        self.bbox_param = ",".join(bbox_extent)
+
+        output_elem = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Output"), xml_elem=xml)
+        self.format_param = xml_helper.try_get_text_from_xml_element(output_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("Format"))
+
+        size_elem = xml_helper.try_get_single_element_from_xml(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Size"), xml_elem=output_elem)
+        self.height_param = int(xml_helper.try_get_text_from_xml_element(size_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("Height")))
+        self.width_param = int(xml_helper.try_get_text_from_xml_element(size_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("Width")))
+
+
 
     def _get_geom_filter_param(self, as_snippet: bool = False):
         """ Creates a xml string for the filter parameter of a WFS operation
@@ -249,7 +301,7 @@ class OperationRequestHandler:
 
         return bounding_geom
 
-    def process_bbox_param(self):
+    def _process_bbox_param(self):
         """ Creates a polygon from the given string bounding box
 
         Args:
@@ -287,7 +339,7 @@ class OperationRequestHandler:
         self.new_params_dict["BBOX"] = ret_dict["bbox_param"]
         self.bbox_param = ret_dict
 
-    def process_x_y_param(self):
+    def _process_x_y_param(self):
         """ Creates a point from the given x_y_param dict
 
         Args:
@@ -317,7 +369,7 @@ class OperationRequestHandler:
                 self.bbox_param.get("geom")[0],
             )
 
-    def process_transaction_geometries(self):
+    def _process_transaction_geometries(self):
         """ Creates geometries from <gml:polygon> elements inside the transaction xml body
 
         Returns:

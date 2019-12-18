@@ -16,13 +16,13 @@ from django.http import HttpRequest, HttpResponse, QueryDict
 
 from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
-from service.helper import xml_helper, service_helper
+from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
+from service.helper.enums import ServiceOperationEnum
 from service.models import Metadata, FeatureType
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH
-from structure.models import User
 from users.helper import user_helper
 
 
@@ -31,7 +31,7 @@ class OperationRequestHandler:
 
     """
 
-    def __init__(self, uri: str, request: HttpRequest, metadata: Metadata):
+    def __init__(self, request: HttpRequest, metadata: Metadata, uri: str = None):
         self.uri = uri
 
         # check what type of request we are facing
@@ -51,6 +51,8 @@ class OperationRequestHandler:
         self.height_param = None  # refers to param 'HEIGHT' (WMS)
         self.type_name_param = None  # refers to param 'TYPENAME' (WFS)
         self.geom_property_name = None  # will be set, if type_name_param is not None
+        self.transaction_raw_body = None  # refers to the body content of a Transaction operation
+        self.transaction_geometries = None  # contains all geometries that shall be INSERTed or UPDATEd by a  Transaction operation
 
         self.intersected_allowed_geometry = None
 
@@ -67,29 +69,29 @@ class OperationRequestHandler:
         for key, val in self.new_params_dict.items():
             if key == "REQUEST":
                 self.request_param = val
-            if key == "LAYER":
+            elif key == "LAYER":
                 self.layer_param = val
-            if key == "BBOX":
+            elif key == "BBOX":
                 self.bbox_param = val
-            if key == "X" or key == "I":
+            elif key == "X" or key == "I":
                 self.x_y_param[0] = val
-            if key == "Y" or key == "J":
+            elif key == "Y" or key == "J":
                 self.x_y_param[1] = val
-            if key == "VERSION":
+            elif key == "VERSION":
                 self.version_param = val
-            if key == "SRS" or key == "CRS":
+            elif key == "SRS" or key == "CRS":
                 self.srs_param = val
                 self.srs_code = int(self.srs_param.split(":")[-1])  # get the last element of the ':' splitted string
-            if key == "WIDTH":
+            elif key == "WIDTH":
                 self.width_param = val
-            if key == "HEIGHT":
+            elif key == "HEIGHT":
                 self.height_param = val
-            if key == "FILTER":
+            elif key == "FILTER":
                 self.filter_param = val
-            if key == "TYPENAME":
+            elif key == "TYPENAME":
                 self.type_name_param = val
 
-        if self.request_param == "GetFeature" and self.type_name_param is not None:
+        if self.request_param.upper() == ServiceOperationEnum.GET_FEATURE.value.upper() and self.type_name_param is not None:
             # for WFS we need to check a few things in here!
             # first get the featuretype object, that is requested
             featuretype = FeatureType.objects.get(
@@ -123,6 +125,7 @@ class OperationRequestHandler:
 
         self.process_bbox_param()
         self.process_x_y_param()
+        self.process_transaction_geometries()
 
     def _get_geom_filter_param(self, as_snippet: bool = False):
         """ Creates a xml string for the filter parameter of a WFS operation
@@ -313,6 +316,49 @@ class OperationRequestHandler:
                 int(self.height_param),
                 self.bbox_param.get("geom")[0],
             )
+
+    def process_transaction_geometries(self):
+        """ Creates geometries from <gml:polygon> elements inside the transaction xml body
+
+        Returns:
+             nothing
+        """
+        # skip this if we have no transaction body
+        if self.transaction_raw_body is None:
+            return
+
+        xml_body = xml_helper.parse_xml(self.transaction_raw_body)
+
+        actions = ["INSERT", "UPDATE"]
+        geom_collection = GeometryCollection()
+
+        # Find INSERT and UPDATE geometries
+        for action in actions:
+            xml_elements = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format(action), xml_body)
+
+            for xml_element in xml_elements:
+                polygon_elements = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Polygon"), xml_element)
+
+                for poly in polygon_elements:
+                    pos_list = xml_helper.try_get_text_from_xml_element(poly, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("posList"))
+
+                    if pos_list is None or len(pos_list) == 0:
+                        continue
+
+                    pos_list = pos_list.split(" ")
+                    vertices_pairs = []
+
+                    for i in range(0, len(pos_list), 2):
+                        vertices_pairs.append((float(pos_list[i]), float(pos_list[i + 1])))
+
+                    polygon_obj = GEOSGeometry(
+                        Polygon(
+                            vertices_pairs
+                        ),
+                        srid=self.srs_code or DEFAULT_SRS
+                    )
+                    geom_collection.append(polygon_obj)
+        self.transaction_geometries = geom_collection
 
     def _convert_image_point_to_spatial_coordinates(self, point: Point, width: int, height: int, bbox_coords: list):
         """ Converts the x|y coordinates of an image point to spatial EPSG:4326 coordinates, derived from a bounding box
@@ -544,6 +590,13 @@ class OperationRequestHandler:
 
         return ret_val
 
+    def _check_transaction_operation_access(self, sec_ops: QueryDict):
+        ret_val = False
+
+
+
+        return ret_val
+
     def get_secured_operation_response(self, request: HttpRequest, metadata: Metadata):
         """ Calls the operation of a service if it is secured.
 
@@ -574,21 +627,27 @@ class OperationRequestHandler:
         else:
 
             # WMS - Features
-            if self.request_param.upper() == "GETFEATUREINFO":
+            if self.request_param.upper() == ServiceOperationEnum.GET_FEATURE_INFO.value.upper():
                 allowed = self._check_get_feature_info_operation_access(sec_ops)
                 if allowed:
                     response = self.get_operation_response()
 
             # WMS - 'Map image'
-            elif self.request_param.upper() == "GETMAP":
+            elif self.request_param.upper() == ServiceOperationEnum.GET_MAP.value.upper():
                 # no need to check if the access is allowed, since we mask the output anyway
                 img = self.get_operation_response()
                 mask = self._get_secured_service_mask(metadata, sec_ops)
                 response = self._create_masked_image(img, mask, as_bytes=True)
 
             # WFS
-            elif self.request_param.upper() == "GETFEATURE":
+            elif self.request_param.upper() == ServiceOperationEnum.GET_FEATURE.value.upper():
                 allowed = self._check_get_feature_operation_access(sec_ops)
+                if allowed:
+                    response = self.get_operation_response()
+
+            # WFS
+            elif self.request_param.upper() == ServiceOperationEnum.TRANSACTION.value.upper():
+                allowed = self._check_transaction_operation_access(sec_ops)
                 if allowed:
                     response = self.get_operation_response()
 

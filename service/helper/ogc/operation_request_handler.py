@@ -421,6 +421,7 @@ class OGCOperationRequestHandler:
                         srid=self.srs_code or DEFAULT_SRS
                     )
                     geom_collection.append(polygon_obj)
+        geom_collection = geom_collection.unary_union
         self.transaction_geometries = geom_collection
 
     def _convert_image_point_to_spatial_coordinates(self, point: Point, width: int, height: int, bbox_coords: list):
@@ -665,10 +666,29 @@ class OGCOperationRequestHandler:
         return ret_val
 
     def _check_transaction_operation_access(self, sec_ops: QueryDict):
-        ret_val = False
+        """ Checks whether the Transaction request can be allowed or not.
 
+        Checks the SecuredOperations against geometries from the request
 
+        Args:
+            sec_ops (QueryDict): The SecuredOperations in a QueryDict object
+        Returns:
+             True|False
+        """
+        ret_val = True
 
+        for sec_op in sec_ops:
+
+            if sec_op.bounding_geometry.empty:
+                # there is no allowed area defined, so this group is allowed to request everywhere
+                return ret_val
+
+            bounding_geom = sec_op.bounding_geometry.unary_union
+
+            if not bounding_geom.covers(self.transaction_geometries):
+                # If the geometries, that can be found in the transaction operation are not fully covered by the allowed
+                # geometry, we do not allowe the access!
+                return False
 
         return ret_val
 

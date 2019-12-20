@@ -7,7 +7,7 @@ Created on: 05.12.19
 """
 import urllib, io
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageFont, ImageDraw
 from django.core.exceptions import ObjectDoesNotExist
 from lxml import etree
 
@@ -58,6 +58,8 @@ class OGCOperationRequestHandler:
         self.transaction_geometries = None  # contains all geometries that shall be INSERTed or UPDATEd by a  Transaction operation
 
         self.intersected_allowed_geometry = None
+        self.user = user_helper.get_user(request)
+        self.access_denied_img = None  # if subelements are not accessible for the user, this PIL.Image object represents an overlay with information about the resources, which can not be accessed
 
         if self.request_is_GET:
             self.original_params_dict = request.GET.dict()
@@ -139,6 +141,48 @@ class OGCOperationRequestHandler:
         self._process_x_y_param()
         self._process_transaction_geometries()
         self._fill_new_params_dict()
+        self._filter_not_allowed_subelements(metadata)
+
+    def _filter_not_allowed_subelements(self, md: Metadata):
+        """ Remove identifier names from parameter if the user has no access to them!
+
+        Args:
+            md (Metadata): The requested service metadata
+        Returns:
+            nothing
+        """
+        if self.layers_param is not None and self.type_name_param is None:
+            # in case of WMS
+            layer_identifiers = self.layers_param.split(",")
+            allowed_layers = Metadata.objects.filter(
+                service__parent_service__metadata=md,
+                identifier__in=layer_identifiers,
+                secured_operations__allowed_group__in=self.user.groups.all(),
+                secured_operations__operation__operation_name__iexact=self.request_param,
+            )
+            allowed_layers_identifier_list = [l.identifier for l in allowed_layers]
+            allowed_layers_identifier = ",".join(allowed_layers_identifier_list)
+            restricted_layers = [l_i for l_i in layer_identifiers if l_i not in allowed_layers_identifier_list ]
+            self.new_params_dict["LAYERS"] = allowed_layers_identifier
+
+            # create text for image
+            text_img = Image.new("RGBA", (int(self.width_param), int(self.height_param)), (255, 255, 255, 0))
+            draw = ImageDraw.Draw(text_img)
+            font_size = int(int(self.height_param) / 40)
+            min_font_size = 16
+            if font_size < min_font_size:
+                font_size = min_font_size
+            font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", font_size)
+            y = 0
+            for restricted_layer in restricted_layers:
+                draw.text((0, y), "Access denied for '{}'".format(restricted_layer), (0, 0, 0), font=font)
+                y += font_size
+            self.access_denied_img = text_img
+
+        elif self.layers_param is None and self.type_name_param is not None:
+            # in case of WFS
+            # ToDo: DO!!
+            pass
 
     def _fill_new_params_dict(self):
         """ Fills all processed parameters into an internal dict
@@ -911,22 +955,20 @@ class OGCOperationRequestHandler:
         Returns:
 
         """
-        # get use from request
-        user = user_helper.get_user(request=request)
         response = None
 
         # if user could not be found in request -> not logged in -> no permission!
-        if user is None:
+        if self.user is None:
             return response
 
         # check if the metadata allows operation performing for certain groups
         sec_ops = metadata.secured_operations.filter(
             operation__operation_name__iexact=self.request_param,
-            allowed_group__in=user.groups.all(),
+            allowed_group__in=self.user.groups.all(),
         )
 
         if sec_ops.count() == 0:
-            # this means the service is secured but the no groups have access!
+            # this means the service is secured but the group have access!
             return response
 
         else:

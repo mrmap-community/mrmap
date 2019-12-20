@@ -783,18 +783,15 @@ def get_metadata_operation(request: HttpRequest, id: int):
         md_secured = metadata.is_secured
         if operation_handler.layers_param is not None:
             layers = operation_handler.layers_param.split(",")
-            layers_md = []
-            for layer in layers:
-                try:
-                    metadata = Metadata.objects.get(
-                        identifier=layer,
-                        service__parent_service__metadata=metadata
-                    )
-                    layers_md.append(metadata)
-                except ObjectDoesNotExist:
-                    return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
-
+            layers_md = Metadata.objects.filter(
+                identifier__in=layers,
+                service__parent_service__metadata=metadata
+            )
             md_secured = True in [l_md.is_secured for l_md in layers_md]
+
+            if layers_md.count() != len(layers):
+                # at least one requested layer could not be found in the database
+                return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
 
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)

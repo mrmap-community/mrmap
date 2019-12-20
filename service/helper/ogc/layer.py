@@ -1,5 +1,3 @@
-#from PyQt5.Qt import left
-
 
 class OGCLayer:
     def __init__(self, identifier=None, position=0, parent=None, title=None, queryable=False, opaque=False,

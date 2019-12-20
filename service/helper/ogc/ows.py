@@ -239,18 +239,3 @@ class OGCWebService:
     @abstractmethod
     def persist_service_model(self, service):
         pass
-
-
-class OWSRequestHandler:
-    def built_request(self):
-        pass
-
-    def do_request(self):
-        pass
-
-    def parse_result(self):
-        pass
-
-    # def get_section(self):
-    #    pass
-

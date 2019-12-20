@@ -11,11 +11,11 @@ from PIL import Image, ImageOps
 from django.core.exceptions import ObjectDoesNotExist
 from lxml import etree
 
-from django.contrib.gis.geos import Polygon, GEOSGeometry, Point, GeometryCollection
+from django.contrib.gis.geos import Polygon, GEOSGeometry, Point, GeometryCollection, MultiLineString
 from django.http import HttpRequest, HttpResponse, QueryDict
 from lxml.etree import QName
 
-from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER
+from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER, TD_POINT_HAS_NOT_ENOUGH_VALUES
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
@@ -380,8 +380,106 @@ class OGCOperationRequestHandler:
                 self.bbox_param.get("geom")[0],
             )
 
+    def _create_polygons_from_xml_elements(self, polygon_elements: list):
+        """ Creates a list of Polygon objects from xml elements, which contain <gml:Polygon> elements
+
+        Args:
+            polygon_elements (list): List of <gml:Polygon> xml elements
+        Returns:
+             ret_list (list): List of Polygon objects
+        """
+        ret_list = []
+
+        for poly in polygon_elements:
+            pos_list = xml_helper.try_get_text_from_xml_element(poly,
+                                                                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("posList"))
+
+            if pos_list is None or len(pos_list) == 0:
+                continue
+
+            pos_list = pos_list.split(" ")
+            vertices_pairs = []
+
+            for i in range(0, len(pos_list), 2):
+                vertices_pairs.append((float(pos_list[i]), float(pos_list[i + 1])))
+
+            polygon_obj = GEOSGeometry(
+                Polygon(
+                    vertices_pairs
+                ),
+                srid=self.srs_code or DEFAULT_SRS
+            )
+            ret_list.append(polygon_obj)
+
+        return ret_list
+
+    def _create_multi_line_strings_from_xml_elements(self, multi_line_string_elements: list):
+        """ Creates a list of MultiLineString objects from xml elements, which contain <gml:MultiLineString> elements
+
+        Args:
+            multi_line_string_elements (list): List of <gml:MultiLineString> xml elements
+        Returns:
+             ret_list (list): List of MultiLineString objects
+        """
+        ret_list = []
+
+        for elem in multi_line_string_elements:
+            coord_list = xml_helper.try_get_element_from_xml(elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("coordinates"))
+
+            for coord in coord_list:
+                separator = xml_helper.try_get_attribute_from_xml_element(coord, "cs")
+                decimal_symbol = xml_helper.try_get_attribute_from_xml_element(coord, "decimal")
+
+                coords = xml_helper.try_get_text_from_xml_element(coord)
+                coords = coords.split(separator)
+
+                # make sure the decimal representation uses '.'
+                if decimal_symbol != ".":
+                    coords = [c.replace(decimal_symbol, ".") for c in coords]
+
+                vertices_pairs = []
+
+                for i in range(0, len(coords), 2):
+                    vertices_pairs.append((float(coords[i]), float(coords[i + 1])))
+
+                obj = GEOSGeometry(
+                    MultiLineString(
+                        vertices_pairs
+                    ),
+                    srid=self.srs_code or DEFAULT_SRS
+                )
+                ret_list.append(obj)
+
+        return ret_list
+
+    def _create_points_from_xml_elements(self, point_elements: list):
+        """ Creates a list of Point objects from xml elements, which contain <gml:Point> elements
+
+        Args:
+            point_elements (list): List of <gml:Point> xml elements
+        Returns:
+             ret_list (list): List of Point objects
+        """
+        ret_list = []
+
+        for elem in point_elements:
+            pos = xml_helper.try_get_element_from_xml(elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("pos"))
+            pos = pos.split(" ")
+
+            if len(pos) != 2:
+                raise ValueError(TD_POINT_HAS_NOT_ENOUGH_VALUES)
+
+            obj = GEOSGeometry(
+                Point(pos[0], pos[1]),
+                srid=self.srs_code or DEFAULT_SRS
+            )
+
+            ret_list.append(obj)
+
+        return ret_list
+
     def _process_transaction_geometries(self):
-        """ Creates geometries from <gml:polygon> elements inside the transaction xml body
+        """ Creates geometries from <gml:Polygon>|<gml:MultiLineString>|<gml:Point> elements inside the transaction xml body
 
         Returns:
              nothing
@@ -400,27 +498,29 @@ class OGCOperationRequestHandler:
             xml_elements = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format(action), xml_body)
 
             for xml_element in xml_elements:
-                polygon_elements = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Polygon"), xml_element)
+                # vertices can be found in <gml:posList> elements, as well as in <gml:coordinates>
+                polygon_elements = xml_helper.try_get_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Polygon"), xml_element
+                )
+                multi_line_string_elements = xml_helper.try_get_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MultiLineString"), xml_element
+                )
+                point_elements = xml_helper.try_get_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Point"), xml_element
+                )
 
-                for poly in polygon_elements:
-                    pos_list = xml_helper.try_get_text_from_xml_element(poly, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("posList"))
+                # process found Polygons
+                polygons = self._create_polygons_from_xml_elements(polygon_elements)
+                geom_collection.extend(polygons)
 
-                    if pos_list is None or len(pos_list) == 0:
-                        continue
+                # process found MultiLineStrings
+                multi_line_strings = self._create_multi_line_strings_from_xml_elements(multi_line_string_elements)
+                geom_collection.extend(multi_line_strings)
 
-                    pos_list = pos_list.split(" ")
-                    vertices_pairs = []
+                # process found Points
+                points = self._create_points_from_xml_elements(point_elements)
+                geom_collection.extend(points)
 
-                    for i in range(0, len(pos_list), 2):
-                        vertices_pairs.append((float(pos_list[i]), float(pos_list[i + 1])))
-
-                    polygon_obj = GEOSGeometry(
-                        Polygon(
-                            vertices_pairs
-                        ),
-                        srid=self.srs_code or DEFAULT_SRS
-                    )
-                    geom_collection.append(polygon_obj)
         geom_collection = geom_collection.unary_union
         self.transaction_geometries = geom_collection
 

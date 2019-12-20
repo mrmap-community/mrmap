@@ -53,7 +53,7 @@ def index(request: HttpRequest, user:User):
     wfs_services = user.get_services(ServiceEnum.WFS)
     wfs_list = []
     for wfs in wfs_services:
-        custom_children = FeatureType.objects.filter(service__metadata=wfs, metadata__is_custom=True)
+        custom_children = FeatureType.objects.filter(parent_service__metadata=wfs, metadata__is_custom=True)
         tmp = {
             "root_metadata": wfs,
             "custom_subelement_metadata": custom_children,
@@ -122,7 +122,7 @@ def edit(request: HttpRequest, id: int, user: User):
                 if metadata.is_root():
                     parent_service = metadata.service
                 else:
-                    parent_service = metadata.featuretype.service
+                    parent_service = metadata.featuretype.parent_service
 
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, "{}: {}".format(parent_service.metadata.title, metadata.title))
             return redirect("service:detail", id)
@@ -233,7 +233,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
         messages.success(request, EDITOR_ACCESS_RESTRICTED.format(md.title))
         md.save()
         if md_type == MetadataEnum.FEATURETYPE.value:
-            redirect_id = md.featuretype.service.metadata.id
+            redirect_id = md.featuretype.parent_service.metadata.id
         else:
             if md.service.is_root:
                 redirect_id = md.id
@@ -329,7 +329,7 @@ def restore(request: HttpRequest, id: int, user: User):
     if service_type == 'wms':
         children_md = Metadata.objects.filter(service__parent_service__metadata=metadata, is_custom=True)
     elif service_type == 'wfs':
-        children_md = Metadata.objects.filter(featuretype__service__metadata=metadata, is_custom=True)
+        children_md = Metadata.objects.filter(featuretype__parent_service__metadata=metadata, is_custom=True)
 
     if not metadata.is_custom and len(children_md) == 0:
         messages.add_message(request, messages.INFO, METADATA_IS_ORIGINAL)
@@ -347,7 +347,7 @@ def restore(request: HttpRequest, id: int, user: User):
         if service_type == 'wms':
             parent_metadata = metadata.service.parent_service.metadata
         elif service_type == 'wfs':
-            parent_metadata = metadata.featuretype.service.metadata
+            parent_metadata = metadata.featuretype.parent_service.metadata
         else:
             # This case is not important now
             pass

@@ -782,57 +782,19 @@ def get_metadata_operation(request: HttpRequest, id: int):
         # if the 'layer' parameter indicates the request for a subelement of this service, we need to fetch this
         # metadata instead of the parent service one (which we have at this point) to continue with!
         if operation_handler.layer_param is not None:
-            try:
-                metadata = Metadata.objects.get(identifier=operation_handler.layer_param)
-            except ObjectDoesNotExist:
-                return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
+            layers = operation_handler.layer_param.split(",")
+            layers_md = []
+            for layer in layers:
+                try:
+                    metadata = Metadata.objects.get(
+                        identifier=layer,
+                        service__parent_service__metadata=metadata
+                    )
+                except ObjectDoesNotExist:
+                    return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
 
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
-
-    # identify requested operation and resolve the uri
-    if metadata.service.servicetype.name == ServiceEnum.WFS.value:
-        secured_operation_uris = {
-            "GETFEATURE": {
-                "get": metadata.service.get_feature_info_uri_GET,
-                "post": metadata.service.get_feature_info_uri_POST,
-            },  # get_feature_info_uri_GET is reused in WFS for get_feature_uri
-            "TRANSACTION": {
-                "get": metadata.service.transaction_uri_GET,
-                "post": metadata.service.transaction_uri_POST,
-            },
-        }
-    else:
-        secured_operation_uris = {
-            "GETMAP": {
-                "get": metadata.service.get_map_uri_GET,
-                "post": metadata.service.get_map_uri_POST,
-            },
-            "GETFEATUREINFO": {
-                "get": metadata.service.get_feature_info_uri_GET,
-                "post": metadata.service.get_feature_info_uri_POST,
-            },
-        }
-
-    secured_uri = secured_operation_uris.get(operation_handler.request_param.upper(), {}).get(request.method.lower(), None)
-
-    if secured_uri is not None:
-        # use the secured uri
-        uri = secured_uri
-    else:
-        # use the original uri
-        uri = metadata.online_resource
-
-    # add the request query parameter to the ones, which already exist in the persisted uri
-    uri = list(urllib.parse.urlparse(uri))
-    get_query_params = dict(urllib.parse.parse_qsl(get_query_string))
-    uri_params = dict(urllib.parse.parse_qsl(uri[4]))
-    uri_params.update(get_query_params)
-    get_query_string = urllib.parse.urlencode(uri_params)
-    uri[4] = get_query_string
-    uri = urllib.parse.urlunparse(uri)
-
-    operation_handler.uri = uri
 
     if metadata.is_secured:
         response = operation_handler.get_secured_operation_response(request, metadata)

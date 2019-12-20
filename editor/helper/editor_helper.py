@@ -113,7 +113,7 @@ def overwrite_capabilities_document(metadata: Metadata):
     elif metadata.metadata_type.type == 'layer':
         rel_md = metadata.service.parent_service.metadata
     elif metadata.metadata_type.type == 'featuretype':
-        rel_md = metadata.featuretype.service.metadata
+        rel_md = metadata.featuretype.parent_service.metadata
     cap_doc = Document.objects.get(related_metadata=rel_md)
 
     # overwrite all editable data
@@ -190,7 +190,7 @@ def _remove_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links:
         if service_type == 'wms':
             rel_md = metadata.service.parent_service.metadata
         elif service_type == 'wfs':
-            rel_md = metadata.featuretype.service.metadata
+            rel_md = metadata.featuretype.parent_service.metadata
     cap_doc = Document.objects.get(related_metadata=rel_md)
     cap_doc_txt = cap_doc.current_capability_document
     xml_cap_obj = xml_helper.parse_xml(cap_doc_txt).getroot()

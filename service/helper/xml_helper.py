@@ -41,8 +41,19 @@ def parse_xml(xml: str, encoding=None):
 
 
 def xml_to_string(xml_obj):
+    """ Creates a string representation of a xml element
+
+    Args:
+        xml_obj: The xml element
+    Returns:
+         _str (str): The string or None if something failed
+    """
     enc = "UTF-8"
-    return etree.tostring(xml_obj, encoding=enc, method="xml").decode()
+    try:
+        _str = etree.tostring(xml_obj, encoding=enc, method="xml").decode()
+    except TypeError:
+        _str = None
+    return _str
 
 
 def get_feature_type_elements_xml(title, service_type_version, service_type, uri):

@@ -546,7 +546,9 @@ class OGCWebFeatureService(OGCWebService):
         service.availability = 0.0
         service.is_available = False
         service.is_root = True
-        service.metadata = md
+
+        md.service = service
+
         if self.linked_service_metadata is not None:
             service.linked_service_metadata = self.linked_service_metadata.to_db_model(MD_TYPE_SERVICE)
 
@@ -561,7 +563,7 @@ class OGCWebFeatureService(OGCWebService):
         for feature_type_key, feature_type_val in self.feature_type_list.items():
             f_t = feature_type_val.get("feature_type")
             f_t.metadata.created_by = group
-            f_t.service = service
+            f_t.parent_service = service
             f_t.metadata.contact = contact
             f_t.metadata.capabilities_original_uri = self.service_connect_url
             f_t.metadata.capabilities_uri = self.service_connect_url
@@ -613,7 +615,7 @@ class OGCWebFeatureService(OGCWebService):
 
         # feature types
         for f_t in service.feature_type_list:
-            f_t.service = service
+            f_t.parent_service = service
             md = f_t.metadata
             md.save()
             f_t.metadata = md

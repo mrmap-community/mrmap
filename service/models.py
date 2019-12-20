@@ -402,7 +402,7 @@ class Metadata(Resource):
         if self.is_root():
             rel_md = self
         else:
-            rel_md = self.featuretype.service.metadata
+            rel_md = self.featuretype.parent_service.metadata
         cap_doc = Document.objects.get(related_metadata=rel_md)
         cap_doc.restore_subelement(identifier)
         return
@@ -1424,7 +1424,7 @@ class Style(models.Model):
 
 class FeatureType(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="featuretype")
-    service = models.ForeignKey(Service, null=True,  blank=True, on_delete=models.CASCADE, related_name="featuretypes")
+    parent_service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="featuretypes")
     is_searchable = models.BooleanField(default=False)
     default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True, related_name="default_srs")
     inspire_download = models.BooleanField(default=False)
@@ -1487,13 +1487,13 @@ class FeatureType(Resource):
         """
         from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
         from service.helper import service_helper
-        if self.service is None:
+        if self.parent_service is None:
             return
-        service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
+        service_version = service_helper.resolve_version_enum(self.parent_service.servicetype.version)
         service = None
-        if self.service.servicetype.name == ServiceEnum.WFS.value:
+        if self.parent_service.servicetype.name == ServiceEnum.WFS.value:
             service = OGCWebFeatureServiceFactory()
-            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.service.metadata.capabilities_original_uri)
+            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.parent_service.metadata.capabilities_original_uri)
         if service is None:
             return
         service.get_capabilities()

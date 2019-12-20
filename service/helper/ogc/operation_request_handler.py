@@ -33,10 +33,12 @@ class OGCOperationRequestHandler:
     """
 
     def __init__(self, request: HttpRequest, metadata: Metadata, uri: str = None):
-        self.uri = uri
+        self.full_operation_uri = uri
+        self.original_operation_base_uri = None
 
         # check what type of request we are facing
         self.request_is_GET = request.method == "GET"
+        self.only_POST_body_request = False
         self.original_params_dict = {}  # contains the original, unedited parameters
         self.new_params_dict = {}  # contains the parameters, which could be still original or might have changed during method processing
 
@@ -76,7 +78,7 @@ class OGCOperationRequestHandler:
         for key, val in self.new_params_dict.items():
             if key == "REQUEST":
                 self.request_param = val
-            elif key == "LAYER":
+            elif key == "LAYERS":
                 self.layer_param = val
             elif key == "BBOX":
                 self.bbox_param = val
@@ -105,7 +107,7 @@ class OGCOperationRequestHandler:
             # first get the featuretype object, that is requested
             featuretype = FeatureType.objects.get(
                 metadata__identifier=self.type_name_param,
-                service__metadata=metadata
+                parent_service__metadata=metadata
             )
 
             if self.srs_param is None:
@@ -132,9 +134,68 @@ class OGCOperationRequestHandler:
                 except ObjectDoesNotExist:
                     pass
 
+        self._resolve_original_operation_uri(request, metadata)
         self._process_bbox_param()
         self._process_x_y_param()
         self._process_transaction_geometries()
+
+    def _resolve_original_operation_uri(self, request: HttpRequest, metadata: Metadata):
+        """ Creates the intended operation uri, which is masked by the security proxy.
+
+        This is important, so we can perform this request internally.
+        Result is written into self.full_operation_uri.
+
+        Args:
+            request (HttpRequest): The incoming user request
+            metadata (Metadata): The metadata, which holds the operation specification
+        Returns:
+             nothing
+        """
+
+        # identify requested operation and resolve the uri
+        if metadata.service.servicetype.name == ServiceEnum.WFS.value:
+            secured_operation_uris = {
+                "GETFEATURE": {
+                    "get": metadata.service.get_feature_info_uri_GET,
+                    "post": metadata.service.get_feature_info_uri_POST,
+                },  # get_feature_info_uri_GET is reused in WFS for get_feature_uri
+                "TRANSACTION": {
+                    "get": metadata.service.transaction_uri_GET,
+                    "post": metadata.service.transaction_uri_POST,
+                },
+            }
+        else:
+            secured_operation_uris = {
+                "GETMAP": {
+                    "get": metadata.service.get_map_uri_GET,
+                    "post": metadata.service.get_map_uri_POST,
+                },
+                "GETFEATUREINFO": {
+                    "get": metadata.service.get_feature_info_uri_GET,
+                    "post": metadata.service.get_feature_info_uri_POST,
+                },
+            }
+
+        secured_uri = secured_operation_uris.get(
+            self.request_param.upper(), {}).get(
+            request.method.lower(), None
+        )
+
+        if secured_uri is not None:
+            # use the secured uri
+            uri = secured_uri
+        else:
+            # use the original uri
+            uri = metadata.online_resource
+
+        # add the request query parameter to the ones, which already exist in the persisted uri
+        uri = list(urllib.parse.urlparse(uri))
+        get_query_params = request.GET.dict()
+        uri_params = dict(urllib.parse.parse_qsl(uri[4]))
+        uri_params.update(get_query_params)
+        get_query_string = urllib.parse.urlencode(uri_params)
+        uri[4] = get_query_string
+        self.full_operation_uri = urllib.parse.urlunparse(uri)
 
     def _parse_POST_xml_body(self, body: bytes):
         """ Reads all relevant request data from the POST body xml document
@@ -153,6 +214,7 @@ class OGCOperationRequestHandler:
         body = body.decode("UTF-8")
         xml = xml_helper.parse_xml(body)
         self.POST_raw_body = body
+        self.only_POST_body_request = True
 
         root = xml_helper.try_get_single_element_from_xml(elem="/*", xml_elem=xml)
         self.request_param = QName(root).localname
@@ -244,7 +306,7 @@ class OGCOperationRequestHandler:
         Returns:
         """
         self.intersected_allowed_geometry = allowed_geom
-        uri_parsed = urllib.parse.urlparse(self.uri)
+        uri_parsed = urllib.parse.urlparse(self.full_operation_uri)
         query = dict(urllib.parse.parse_qsl(uri_parsed.query))
 
         # remove bbox parameter (also from uri)
@@ -269,7 +331,7 @@ class OGCOperationRequestHandler:
 
         query = urllib.parse.urlencode(query, safe=", :")
         uri_parsed = uri_parsed._replace(query=query)
-        self.uri = urllib.parse.urlunparse(uri_parsed)
+        self.full_operation_uri = urllib.parse.urlunparse(uri_parsed)
 
     def get_bounding_geometry_from_filter_param(self):
         """ Returns the gml:lowerCorner/gml:upperCorner data as Geometry bounding box
@@ -575,17 +637,23 @@ class OGCOperationRequestHandler:
         return ret_val
 
     def get_operation_response(self, uri: str = None, post_data: dict = None):
-        """ Fetching method for security proxy.
+        """ Performs the request.
+
+        This may be called after the security checks have passed or otherwise if no security checks had to be done.
 
         Args:
             uri (str): The operation uri
         Returns:
              The xml response
         """
+        # check if another than the internal uri should be used
         if uri is None:
-            uri = self.uri
+            uri = self.full_operation_uri
 
-        if post_data is None:
+        if self.only_POST_body_request:
+            post_data = self.POST_raw_body  # reuse the incoming POST body for this request
+
+        elif post_data is None:
             post_data = self.get_post_data_dict()  # get default POST as dict content
 
         c = CommonConnector(url=uri)

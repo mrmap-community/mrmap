@@ -71,7 +71,7 @@ class ReferenceSystemAdmin(admin.ModelAdmin):
     pass
 
 class FeatureTypeAdmin(admin.ModelAdmin):
-    list_display = ('metadata', 'service')
+    list_display = ('metadata', 'parent_service')
 
 
 class FeatureTypeElementAdmin(admin.ModelAdmin):

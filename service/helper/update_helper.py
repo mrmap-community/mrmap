@@ -171,7 +171,7 @@ def update_feature_type(old: FeatureType, new: FeatureType, keep_custom_metadata
     created_on = old.created
     title = old.title
     abstract = old.abstract
-    service = old.service
+    service = old.parent_service
     custom_md = old.is_custom
 
     # overwrite old information with new one
@@ -180,7 +180,7 @@ def update_feature_type(old: FeatureType, new: FeatureType, keep_custom_metadata
     old.uuid = uuid
     old.created = created_on
     old.created_by = created_by
-    old.service = service
+    old.parent_service = service
     if keep_custom_metadata:
         # save custom title and abstract
         old.title = title
@@ -299,7 +299,7 @@ def update_wfs(old: Service, new: Service, diff: dict, links: dict, keep_custom_
         if existing_f_t.count() == 0:
             # does not exist -> must be new
             # add the new feature type
-            feature_type.service = old
+            feature_type.parent_service = old
             feature_type.save()
             transform_lists_to_m2m_collections(feature_type)
             old.featuretypes.add(feature_type)

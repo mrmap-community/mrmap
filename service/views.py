@@ -779,10 +779,10 @@ def get_metadata_operation(request: HttpRequest, id: int):
             cap_doc = Document.objects.get(related_metadata=metadata)
             return HttpResponse(cap_doc.current_capability_document, content_type="application/xml")
 
-        # if the 'layer' parameter indicates the request for a subelement of this service, we need to fetch this
-        # metadata instead of the parent service one (which we have at this point) to continue with!
-        if operation_handler.layer_param is not None:
-            layers = operation_handler.layer_param.split(",")
+        # We need to check if one of the requested layers is secured. If so, we need to check the
+        md_secured = metadata.is_secured
+        if operation_handler.layers_param is not None:
+            layers = operation_handler.layers_param.split(",")
             layers_md = []
             for layer in layers:
                 try:
@@ -790,13 +790,16 @@ def get_metadata_operation(request: HttpRequest, id: int):
                         identifier=layer,
                         service__parent_service__metadata=metadata
                     )
+                    layers_md.append(metadata)
                 except ObjectDoesNotExist:
                     return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
+
+            md_secured = True in [l_md.is_secured for l_md in layers_md]
 
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
-    if metadata.is_secured:
+    if md_secured:
         response = operation_handler.get_secured_operation_response(request, metadata)
 
         if response is None:

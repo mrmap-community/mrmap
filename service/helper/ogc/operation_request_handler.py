@@ -23,7 +23,7 @@ from service.helper.enums import ServiceOperationEnum, ServiceEnum, VersionEnum
 from service.models import Metadata, FeatureType
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
-    MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH
+    MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY
 from users.helper import user_helper
 
 
@@ -38,12 +38,11 @@ class OGCOperationRequestHandler:
 
         # check what type of request we are facing
         self.request_is_GET = request.method == "GET"
-        self.only_POST_body_request = False
         self.original_params_dict = {}  # contains the original, unedited parameters
         self.new_params_dict = {}  # contains the parameters, which could be still original or might have changed during method processing
 
         self.request_param = None  # refers to param 'REQUEST'
-        self.layer_param = None  # refers to param 'LAYERS'
+        self.layers_param = None  # refers to param 'LAYERS'
         self.x_y_param = [None, None]  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)
         self.bbox_param = None  # refers to param 'BBOX'
         self.srs_param = None  # refers to param 'SRS' (WMS 1.0.0 - 1.1.1) and 'CRS' (WMS 1.3.0)
@@ -79,7 +78,7 @@ class OGCOperationRequestHandler:
             if key == "REQUEST":
                 self.request_param = val
             elif key == "LAYERS":
-                self.layer_param = val
+                self.layers_param = val
             elif key == "BBOX":
                 self.bbox_param = val
             elif key == "X" or key == "I":
@@ -93,6 +92,7 @@ class OGCOperationRequestHandler:
             elif key == "SRS" or key == "CRS":
                 self.srs_param = val
                 self.srs_code = int(self.srs_param.split(":")[-1])  # get the last element of the ':' splitted string
+                self.srs_param = DEFAULT_SRS_FAMILY + ":" + str(self.srs_code)
             elif key == "WIDTH":
                 self.width_param = val
             elif key == "HEIGHT":
@@ -138,9 +138,46 @@ class OGCOperationRequestHandler:
         self._process_bbox_param()
         self._process_x_y_param()
         self._process_transaction_geometries()
+        self._fill_new_params_dict()
+
+    def _fill_new_params_dict(self):
+        """ Fills all processed parameters into an internal dict
+
+        Returns:
+
+        """
+        # fill new_params_dict
+        self.new_params_dict["REQUEST"] = self.request_param
+        self.new_params_dict["VERSION"] = self.version_param
+        self.new_params_dict["FORMAT"] = self.format_param
+        self.new_params_dict["WIDTH"] = self.width_param
+        self.new_params_dict["HEIGHT"] = self.height_param
+
+        if self.filter_param is not None:
+            self.new_params_dict["FILTER"] = self.filter_param
+
+        if self.layers_param is not None:
+            self.new_params_dict["LAYERS"] = self.layers_param
+
+        if self.type_name_param is not None:
+            self.new_params_dict["TYPENAME"] = self.type_name_param
+
+        if self.version_param != VersionEnum.V_1_3_0.value:
+            self.new_params_dict["SRS"] = "{}:{}".format(DEFAULT_SRS_FAMILY, self.srs_code)
+            x_id = "X"
+            y_id = "Y"
+        else:
+            self.new_params_dict["CRS"] = "{}:{}".format(DEFAULT_SRS_FAMILY, self.srs_code)
+            x_id = "I"
+            y_id = "J"
+
+        if self.x_y_param is not None:
+            self.new_params_dict[x_id] = self.x_y_param[0]
+        if self.x_y_param is not None:
+            self.new_params_dict[y_id] = self.x_y_param[1]
 
     def _resolve_original_operation_uri(self, request: HttpRequest, metadata: Metadata):
-        """ Creates the intended operation uri, which is masked by the security proxy.
+        """ Creates the intended operation uri, which is masked by the proxy.
 
         This is important, so we can perform this request internally.
         Result is written into self.full_operation_uri.
@@ -214,17 +251,24 @@ class OGCOperationRequestHandler:
         body = body.decode("UTF-8")
         xml = xml_helper.parse_xml(body)
         self.POST_raw_body = body
-        self.only_POST_body_request = True
 
         root = xml_helper.try_get_single_element_from_xml(elem="/*", xml_elem=xml)
         self.request_param = QName(root).localname
         self.version_param = xml_helper.try_get_attribute_from_xml_element(root, "version")
 
-        self.layer_param = xml_helper.try_get_text_from_xml_element(xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("NamedLayer") + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Name"))
+        self.layers_param = xml_helper.try_get_text_from_xml_element(xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("NamedLayer") + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Name"))
 
         bbox_elem = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("BoundingBox"), xml_elem=xml)
 
+        # Old client implementations might not send the expected 'EPSG:xyz' style. Instead they send a link, which ends on e.g. '...#4326'
         self.srs_param = xml_helper.try_get_attribute_from_xml_element(bbox_elem, "srsName")
+        possible_separators = [":", "#"]
+        for sep in possible_separators:
+            try:
+                self.srs_code = int(self.srs_param.split(sep)[-1])
+                break
+            except ValueError:
+                continue
 
         bbox_extent = []
         bbox_coords = xml_helper.try_get_element_from_xml(elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("coord"), xml_elem=bbox_elem)
@@ -435,7 +479,7 @@ class OGCOperationRequestHandler:
             self.x_y_param = None
 
         if self.x_y_param is not None:
-            self.x_y_param = self._convert_image_point_to_spatial_coordinates(
+            self.x_y_coord = self._convert_image_point_to_spatial_coordinates(
                 self.x_y_param,
                 int(self.width_param),
                 int(self.height_param),
@@ -643,6 +687,7 @@ class OGCOperationRequestHandler:
 
         Args:
             uri (str): The operation uri
+            post_data (dict): A key-value dict of the POST data
         Returns:
              The xml response
         """
@@ -650,10 +695,7 @@ class OGCOperationRequestHandler:
         if uri is None:
             uri = self.full_operation_uri
 
-        if self.only_POST_body_request:
-            post_data = self.POST_raw_body  # reuse the incoming POST body for this request
-
-        elif post_data is None:
+        if post_data is None:
             post_data = self.get_post_data_dict()  # get default POST as dict content
 
         c = CommonConnector(url=uri)
@@ -682,7 +724,7 @@ class OGCOperationRequestHandler:
         # User is at least in one group that has access to this operation on this metadata.
         # Now check the spatial restriction!
         constraints = {}
-        if self.x_y_param is not None:
+        if self.x_y_coord is not None:
             constraints["x_y"] = False
 
         for sec_op in sec_ops:
@@ -691,8 +733,8 @@ class OGCOperationRequestHandler:
                 constraints["x_y"] = True
                 break
             total_bounding_geometry = sec_op.bounding_geometry.unary_union
-            if self.x_y_param is not None:
-                if total_bounding_geometry.covers(self.x_y_param):
+            if self.x_y_coord is not None:
+                if total_bounding_geometry.covers(self.x_y_coord):
                     constraints["x_y"] = True
 
         return False not in constraints.values()

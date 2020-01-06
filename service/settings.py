@@ -112,3 +112,7 @@ ALLOWED_SRS_EXTENTS = {
 }
 
 INSPIRE_LEGISLATION_FILE = BASE_DIR + "/inspire_legislation.json"
+
+# IMAGE RENDERING
+MIN_FONT_SIZE = 16  # The minimum font size for
+FONT_IMG_RATIO = 40  # Font has 1/FONT_IMG_RATIO ratio

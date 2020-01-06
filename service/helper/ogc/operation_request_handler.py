@@ -15,6 +15,7 @@ from django.contrib.gis.geos import Polygon, GEOSGeometry, Point, GeometryCollec
 from django.http import HttpRequest, HttpResponse, QueryDict
 from lxml.etree import QName
 
+from MapSkinner import utils
 from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER, TD_POINT_HAS_NOT_ENOUGH_VALUES
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
 from service.helper import xml_helper
@@ -23,7 +24,7 @@ from service.helper.enums import ServiceOperationEnum, ServiceEnum, VersionEnum
 from service.models import Metadata, FeatureType
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
-    MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY
+    MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO
 from users.helper import user_helper
 
 
@@ -141,7 +142,9 @@ class OGCOperationRequestHandler:
         self._process_x_y_param()
         self._process_transaction_geometries()
         self._fill_new_params_dict()
-        self._filter_not_allowed_subelements(metadata)
+
+        if metadata.is_secured:
+            self._filter_not_allowed_subelements(metadata)
 
     def _filter_not_allowed_subelements(self, md: Metadata):
         """ Remove identifier names from parameter if the user has no access to them!
@@ -151,30 +154,39 @@ class OGCOperationRequestHandler:
         Returns:
             nothing
         """
+
         if self.layers_param is not None and self.type_name_param is None:
             # in case of WMS
             layer_identifiers = self.layers_param.split(",")
+
+            if self.user is not None:
+                user_groups = self.user.groups.all()
+            else:
+                user_groups = []
             allowed_layers = Metadata.objects.filter(
                 service__parent_service__metadata=md,
                 identifier__in=layer_identifiers,
-                secured_operations__allowed_group__in=self.user.groups.all(),
+                secured_operations__allowed_group__in=user_groups,
                 secured_operations__operation__operation_name__iexact=self.request_param,
             )
             allowed_layers_identifier_list = [l.identifier for l in allowed_layers]
             allowed_layers_identifier = ",".join(allowed_layers_identifier_list)
-            restricted_layers = [l_i for l_i in layer_identifiers if l_i not in allowed_layers_identifier_list ]
+            restricted_layers = [l_i for l_i in layer_identifiers if l_i not in allowed_layers_identifier_list]
             self.new_params_dict["LAYERS"] = allowed_layers_identifier
 
-            # create text for image
+            # create text for image of restricted layers
             text_img = Image.new("RGBA", (int(self.width_param), int(self.height_param)), (255, 255, 255, 0))
             draw = ImageDraw.Draw(text_img)
-            font_size = int(int(self.height_param) / 40)
-            min_font_size = 16
-            if font_size < min_font_size:
-                font_size = min_font_size
+            font_size = int(int(self.height_param) / FONT_IMG_RATIO)
+
+            if font_size < MIN_FONT_SIZE:
+                font_size = MIN_FONT_SIZE
+
             font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", font_size)
             y = 0
+
             for restricted_layer in restricted_layers:
+                # render text listed one under another
                 draw.text((0, y), "Access denied for '{}'".format(restricted_layer), (0, 0, 0), font=font)
                 y += font_size
             self.access_denied_img = text_img
@@ -713,6 +725,18 @@ class OGCOperationRequestHandler:
         post_data = self.new_params_dict
         return post_data
 
+    def get_final_operation_uri(self):
+        """ Returns the processed operation uri.
+
+        Inserts parameter changes before returning.
+
+        Returns:
+             uri (str): The operation uri
+        """
+        if self.request_is_GET:
+            self.full_operation_uri = utils.set_uri_GET_param(self.full_operation_uri, "LAYERS", self.new_params_dict.get("LAYERS", None))
+        return self.full_operation_uri
+
     def get_post_data_body(self):
         """ Getter for the data which is used in a POST request
 
@@ -735,19 +759,16 @@ class OGCOperationRequestHandler:
         Returns:
              The xml response
         """
-        # check if another than the internal uri should be used
         if uri is None:
-            uri = self.full_operation_uri
-
-        if post_data is None:
-            post_data = self.get_post_data_dict()  # get default POST as dict content
-
+            uri = self.get_final_operation_uri()
         c = CommonConnector(url=uri)
 
         if self.request_is_GET:
             c.load()
 
         else:
+            if post_data is None:
+                post_data = self.get_post_data_dict()  # get default POST as dict content
             c.post(post_data)
 
         if c.status_code is not None and c.status_code != 200:
@@ -850,6 +871,12 @@ class OGCOperationRequestHandler:
         mask = ImageOps.invert(mask)
 
         img.putalpha(mask)
+
+        # add access_denied_img image
+        if self.access_denied_img is not None:
+            old_format = img.format
+            img = Image.alpha_composite(img, self.access_denied_img)
+            img.format = old_format
 
         if as_bytes:
             outBytesStream = io.BytesIO()

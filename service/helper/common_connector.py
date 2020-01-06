@@ -28,7 +28,7 @@ except ImportError:
 
 class CommonConnector():
     def __init__(self, url=None, auth=None, connection_type=None):
-        self.url = url
+        self._url = None
         self.auth = auth
         self.connection_type = connection_type if connection_type is not None else DEFAULT_CONNECTION_TYPE
         self.init_time = time.time()
@@ -48,10 +48,22 @@ class CommonConnector():
         self.status_code = None
         self.is_local_request = False
 
-        url_obj = urllib.parse.urlparse(self.url)
+        if url is not None:
+            self.set_url(url)
+
+    def set_url(self, url: str):
+        """ Setter for url parameter
+
+        Args:
+            url (str):
+        Returns:
+             nothing
+        """
+        url_obj = urllib.parse.urlparse(url)
         if "127.0.0.1" in url_obj.hostname or "localhost" in url_obj.hostname:
             self.is_local_request = True
-        
+        self._url = url
+
     def load(self, params: dict = None):
         self.init_time = time.time()
         if self.connection_type is ConnectionEnum.CURL:
@@ -113,7 +125,7 @@ class CommonConnector():
 
         buffer = BytesIO()
         c = pycurl.Curl()
-        c.setopt(c.URL, self.url + url_args)
+        c.setopt(c.URL, self._url + url_args)
         c.setopt(c.WRITEFUNCTION, buffer.write)
         # Set our header function.
         c.setopt(c.HEADERFUNCTION, header_function)
@@ -152,17 +164,17 @@ class CommonConnector():
             proxies = PROXIES
         if self.auth is not None:
             if self.auth["auth_type"] == 'none':
-                response = requests.request(self.http_method, self.url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
+                response = requests.request(self.http_method, self._url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
             elif self.auth["auth_type"] == 'http_basic':
                 from requests.auth import HTTPBasicAuth
-                response = requests.request(self.http_method, self.url, params=params, auth=HTTPBasicAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies, timeout=REQUEST_TIMEOUT)
+                response = requests.request(self.http_method, self._url, params=params, auth=HTTPBasicAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies, timeout=REQUEST_TIMEOUT)
             elif self.auth["auth_type"] == 'http_digest':   
                 from requests.auth import HTTPDigestAuth
-                response = requests.request(self.http_method, self.url, params=params, auth=HTTPDigestAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies, timeout=REQUEST_TIMEOUT)
+                response = requests.request(self.http_method, self._url, params=params, auth=HTTPDigestAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies, timeout=REQUEST_TIMEOUT)
             else:
-                response = requests.request(self.http_method, self.url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
+                response = requests.request(self.http_method, self._url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
         else:
-            response = requests.request(self.http_method, self.url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
+            response = requests.request(self.http_method, self._url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
 
         return response   
     
@@ -187,7 +199,7 @@ class CommonConnector():
         elif self.connection_type is ConnectionEnum.REQUESTS:
             # perform requests post
             response = requests.post(
-                self.url,
+                self._url,
                 data,
                 timeout=REQUEST_TIMEOUT,
                 proxies=PROXIES

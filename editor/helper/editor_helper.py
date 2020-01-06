@@ -15,7 +15,8 @@ from django.http import HttpRequest
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
-from MapSkinner.messages import EDITOR_INVALID_ISO_LINK, SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS
+from MapSkinner.messages import EDITOR_INVALID_ISO_LINK, SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, \
+    SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
 from MapSkinner import utils
 
@@ -417,9 +418,20 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
     use_proxy = post_params.get("use_proxy", "")
     use_proxy = use_proxy == "on"  # resolve True|False
 
+    log_proxy = post_params.get("log_proxy", "")
+    log_proxy = log_proxy == "on"  # resolve True|False
+
     # use_proxy=False and is_secured=True and metadata.is_secured=True is not allowed!
     if not use_proxy and is_secured and md.is_secured:
         raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS)
+
+    # use_proxy=False and log_proxy=True is not allowed!
+    # use_proxy=False and metadata.log_proxy_access is not allowed either!
+    if not use_proxy and log_proxy or not use_proxy and md.log_proxy_access:
+        raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING)
+
+    if log_proxy != md.log_proxy_access:
+        md.log_proxy_access = log_proxy
 
     # set new metadata proxy value and iterate over all children
     if use_proxy != md.use_proxy_uri:

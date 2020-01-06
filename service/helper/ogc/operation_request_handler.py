@@ -191,10 +191,6 @@ class OGCOperationRequestHandler:
                 y += font_size
             self.access_denied_img = text_img
 
-        elif self.layers_param is None and self.type_name_param is not None:
-            # in case of WFS
-            # ToDo: DO!!
-            pass
 
     def _fill_new_params_dict(self):
         """ Fills all processed parameters into an internal dict

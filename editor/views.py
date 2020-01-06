@@ -229,7 +229,11 @@ def edit_access(request: HttpRequest, id: int, user: User):
 
     if request.method == "POST":
         # process form input
-        editor_helper.process_secure_operations_form(post_params, md)
+        try:
+            editor_helper.process_secure_operations_form(post_params, md)
+        except Exception as e:
+            messages.error(request, message=e)
+            return redirect("editor:edit_access", md.id)
         messages.success(request, EDITOR_ACCESS_RESTRICTED.format(md.title))
         md.save()
         if md_type == MetadataEnum.FEATURETYPE.value:

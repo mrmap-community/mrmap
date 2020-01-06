@@ -171,6 +171,7 @@ class Metadata(Resource):
     last_remote_change = models.DateTimeField(null=True, blank=True)  # the date time, when the metadata was changed where it comes from
     status = models.IntegerField(null=True)
     use_proxy_uri = models.BooleanField(default=False)
+    log_proxy_access = models.BooleanField(default=False)
     spatial_res_type = models.CharField(max_length=100, null=True)
     spatial_res_value = models.CharField(max_length=100, null=True)
     is_broken = models.BooleanField(default=False)
@@ -537,6 +538,34 @@ class Metadata(Resource):
         except ObjectDoesNotExist:
             pass
 
+    def set_proxy(self, use_proxy: bool):
+        """ Set the metadata proxy to a new value.
+
+        Iterates over subelements.
+
+        Args:
+            use_proxy (bool): Whether to use a proxy or not
+        Returns:
+        """
+        if not self.is_root():
+            root_md = self.service.parent_service.metadata
+        else:
+            root_md = self
+
+        # change capabilities document
+        root_md_doc = Document.objects.get(related_metadata=root_md)
+        root_md_doc.set_dataset_metadata_secured(use_proxy)
+        root_md_doc.set_legend_url_secured(use_proxy)
+        root_md_doc.set_operations_secured(use_proxy)
+
+        self.use_proxy_uri = use_proxy
+
+        # if md uris shall be tunneled using the proxy, we need to make sure that all metadata elements of the service are aware of this!
+        child_mds = Metadata.objects.filter(service__parent_service=self.service)
+        for child_md in child_mds:
+            child_md.use_proxy_uri = self.use_proxy_uri
+            child_md.save()
+
     def set_secured(self, is_secured: bool):
         """ Set is_secured to a new value.
 
@@ -896,7 +925,6 @@ class Document(Resource):
 
         self.current_capability_document = xml_helper.xml_to_string(cap_doc_curr_obj)
         self.save()
-
 
 class TermsOfUse(Resource):
     name = models.CharField(max_length=100)

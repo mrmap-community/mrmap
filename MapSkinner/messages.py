@@ -85,6 +85,7 @@ SERVICE_DISABLED = _("423 - The requested resource is currently disabled.")
 
 SECURITY_PROXY_ERROR_MULTIPLE_SECURED_OPERATIONS = _("There are multiple secured operations for one metadata. Please contact an administator.")
 SECURITY_PROXY_NOT_ALLOWED = _("You have no permission to access this resource.")
+SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS = _("Proxy must be enabled if service shall stay secured!")
 SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED = _("The requested operation is not supported by this resource.")
 SECURITY_PROXY_ERROR_BROKEN_URI = _("The requested uri seems to be broken. Please inform an administrator.")
 SECURITY_PROXY_ERROR_PARAMETER = _("The following parameter seems to be invalid. Please check '{}'.")

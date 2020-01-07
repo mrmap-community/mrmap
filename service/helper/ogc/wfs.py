@@ -21,7 +21,8 @@ from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
-    FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType, RequestOperation, Document
+    FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType, RequestOperation, Document, \
+    ExternalAuthentication
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
 from structure.models import Organization, User
 
@@ -175,7 +176,8 @@ class OGCWebFeatureService(OGCWebService):
         self.service_identification_keywords = kw
 
         self.service_provider_providername = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ProviderName")
-        self.service_provider_url = xml_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj, attribute="{http://www.w3.org/1999/xlink}href", elem="//ows:ProviderSite")
+        provider_site_elem = xml_helper.try_get_single_element_from_xml("//ows:ProviderSite", xml_obj)
+        self.service_provider_url = xml_helper.get_href_attribute(xml_elem=provider_site_elem)
         self.service_provider_responsibleparty_individualname = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:IndividualName")
         self.service_provider_responsibleparty_positionname = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:PositionName")
         self.service_provider_telephone_voice = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:Voice")
@@ -186,7 +188,8 @@ class OGCWebFeatureService(OGCWebService):
         self.service_provider_address_postalcode = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:PostalCode")
         self.service_provider_address_country = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:Country")
         self.service_provider_address_electronicmailaddress = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ElectronicMailAddress")
-        self.service_provider_onlineresource_linkage = xml_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj, elem="//ows:OnlineResource", attribute="{http://www.w3.org/1999/xlink}href")
+        online_resource_elem = xml_helper.try_get_single_element_from_xml(xml_elem=xml_obj, elem="//ows:OnlineResource")
+        self.service_provider_onlineresource_linkage = xml_helper.get_href_attribute(online_resource_elem)
         if self.service_provider_onlineresource_linkage is None or self.service_provider_onlineresource_linkage == "":
             # There are metadatas where no online resource link is given. We need to generate it manually therefore...
             self.service_provider_onlineresource_linkage = service_helper.split_service_uri(self.service_connect_url).get("base_uri") + "?"
@@ -218,18 +221,16 @@ class OGCWebFeatureService(OGCWebService):
         for action in actions:
             xpath_str = './ows:Operation[@name="' + action + '"]'
             operation = xml_helper.try_get_single_element_from_xml(xml_elem=operation_metadata, elem=xpath_str)
+
             if operation is None:
                 continue
-            _get = xml_helper.try_get_attribute_from_xml_element(
-                xml_elem=operation,
-                attribute="{http://www.w3.org/1999/xlink}href",
-                elem=".//ows:Get"
-            )
-            _post = xml_helper.try_get_attribute_from_xml_element(
-                xml_elem=operation,
-                attribute="{http://www.w3.org/1999/xlink}href",
-                elem=".//ows:Post"
-            )
+
+            get_elem = xml_helper.try_get_single_element_from_xml(elem=".//ows:Get", xml_elem=operation)
+            _get = xml_helper.get_href_attribute(xml_elem=get_elem)
+
+            post_elem = xml_helper.try_get_single_element_from_xml(elem=".//ows:Post", xml_elem=operation)
+            _post = xml_helper.get_href_attribute(xml_elem=post_elem)
+
             get[action] = _get
             post[action] = _post
 
@@ -580,7 +581,7 @@ class OGCWebFeatureService(OGCWebService):
         return service
 
     @transaction.atomic
-    def persist_service_model(self, service):
+    def persist_service_model(self, service, external_auth: ExternalAuthentication):
         """ Persist the service model object
 
         Returns:
@@ -588,6 +589,9 @@ class OGCWebFeatureService(OGCWebService):
         """
         # save metadata
         md = service.metadata
+        if external_auth is not None:
+            external_auth.save()
+            md.external_authentication = external_auth
         md.save()
 
         # save linked service metadata

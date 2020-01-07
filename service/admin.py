@@ -91,6 +91,9 @@ class NamespaceAdmin(admin.ModelAdmin):
 class ProxyLogAdmin(admin.ModelAdmin):
     list_display = ('metadata', 'user', 'timestamp')
 
+class ExternalAuthenticationAdmin(admin.ModelAdmin):
+    list_display = ('username', 'auth_type')
+
 
 admin.site.register(Document, DocumentAdmin)
 admin.site.register(RequestOperation, RequestOperationAdmin)
@@ -114,3 +117,4 @@ admin.site.register(FeatureType, FeatureTypeAdmin)
 admin.site.register(FeatureTypeElement, FeatureTypeElementAdmin)
 admin.site.register(Namespace, NamespaceAdmin)
 admin.site.register(ProxyLog, ProxyLogAdmin)
+admin.site.register(ExternalAuthentication, ExternalAuthenticationAdmin)

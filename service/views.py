@@ -29,7 +29,7 @@ from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, SecuredOperation, \
-    MimeType, Style
+    MimeType, Style, ExternalAuthentication
 from service.settings import MD_TYPE_SERVICE
 from service.tasks import async_remove_service_task, async_increase_hits
 from structure.models import User, Permission, PendingTask, Group
@@ -414,8 +414,20 @@ def new_service(request: HttpRequest, user: User):
 
     cap_url = POST_params.get("uri", "")
     cap_url = cap_url.replace("&amp;", "&")
+
     register_group = POST_params.get("registerGroup")
     register_for_organization = POST_params.get("registerForOrg")
+
+    external_username = POST_params.get("username")
+    external_password = POST_params.get("password")
+    external_auth_type = POST_params.get("authType")
+    external_auth = None
+    if len(external_username) > 0 and len(external_password) > 0:
+        external_auth = {
+            "username": external_username,
+            "password": external_password,
+            "auth_type": external_auth_type
+        }
 
     url_dict = service_helper.split_service_uri(cap_url)
     url_dict["service"] = url_dict["service"].value
@@ -423,8 +435,8 @@ def new_service(request: HttpRequest, user: User):
 
     # run creation async!
     try:
-        pending_task = tasks.async_new_service.delay(url_dict, user.id, register_group, register_for_organization)
-        #pending_task = tasks.async_new_service(url_dict, user.id, register_group, register_for_organization)
+        pending_task = tasks.async_new_service.delay(url_dict, user.id, register_group, register_for_organization, external_auth)
+        #pending_task = tasks.async_new_service(url_dict, user.id, register_group, register_for_organization, external_auth)
     except Exception as e:
         template = "overlay/error.html"
         params = {

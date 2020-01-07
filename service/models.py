@@ -160,6 +160,12 @@ class MetadataRelation(models.Model):
         return "{} {} {}".format(self.metadata_from.title, self.relation_type, self.metadata_to.title)
 
 
+class ExternalAuthentication(models.Model):
+    username = models.CharField(max_length=255)
+    password = models.CharField(max_length=500)
+    auth_type = models.CharField(max_length=100)
+
+
 class Metadata(Resource):
     identifier = models.CharField(max_length=255, null=True)
     title = models.CharField(max_length=255)
@@ -191,6 +197,7 @@ class Metadata(Resource):
 
     # security
     is_secured = models.BooleanField(default=False)
+    external_authentication = models.OneToOneField(ExternalAuthentication, on_delete=models.DO_NOTHING, null=True, blank=True)
 
     # capabilities
     dimension = models.CharField(max_length=100, null=True)
@@ -847,7 +854,7 @@ class Document(Resource):
             attr = "{http://www.w3.org/1999/xlink}href"
 
             # get metadata url
-            metadata_uri = xml_helper.try_get_attribute_from_xml_element(xml_metadata, attribute=attr)
+            metadata_uri = xml_helper.get_href_attribute(xml_metadata)
 
             if is_secured:
                 # find metadata record which matches the metadata uri
@@ -881,7 +888,7 @@ class Document(Resource):
         xml_legend_elements = xml_helper.try_get_element_from_xml("//LegendURL/OnlineResource", xml_doc)
         attr = "{http://www.w3.org/1999/xlink}href"
         for xml_elem in xml_legend_elements:
-            legend_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem, attribute=attr)
+            legend_uri = xml_helper.get_href_attribute(xml_elem)
 
             # extract layer identifier from legend_uri (stores as parameter 'layer')
             if is_secured:

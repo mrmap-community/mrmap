@@ -26,10 +26,10 @@ except ImportError:
     import StringIO as BytesIO
 
 
-class CommonConnector():
-    def __init__(self, url=None, auth=None, connection_type=None):
+class CommonConnector:
+    def __init__(self, url=None, external_auth=None, connection_type=None):
         self._url = None
-        self.auth = auth
+        self.external_auth = external_auth
         self.connection_type = connection_type if connection_type is not None else DEFAULT_CONNECTION_TYPE
         self.init_time = time.time()
         self.run_time = None
@@ -162,15 +162,15 @@ class CommonConnector():
         proxies = None
         if len(PROXIES) > 0 and not self.is_local_request:
             proxies = PROXIES
-        if self.auth is not None:
-            if self.auth["auth_type"] == 'none':
+        if self.external_auth is not None:
+            if self.external_auth.auth_type is None:
                 response = requests.request(self.http_method, self._url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
-            elif self.auth["auth_type"] == 'http_basic':
+            elif self.external_auth.auth_type == 'http_basic':
                 from requests.auth import HTTPBasicAuth
-                response = requests.request(self.http_method, self._url, params=params, auth=HTTPBasicAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies, timeout=REQUEST_TIMEOUT)
-            elif self.auth["auth_type"] == 'http_digest':   
+                response = requests.request(self.http_method, self._url, params=params, auth=HTTPBasicAuth(self.external_auth.username, self.external_auth.password), proxies=proxies, timeout=REQUEST_TIMEOUT)
+            elif self.external_auth.auth_type == 'http_digest':
                 from requests.auth import HTTPDigestAuth
-                response = requests.request(self.http_method, self._url, params=params, auth=HTTPDigestAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies, timeout=REQUEST_TIMEOUT)
+                response = requests.request(self.http_method, self._url, params=params, auth=HTTPDigestAuth(self.external_auth.username, self.external_auth.password), proxies=proxies, timeout=REQUEST_TIMEOUT)
             else:
                 response = requests.request(self.http_method, self._url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
         else:

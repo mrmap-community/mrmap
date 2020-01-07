@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
 from MapSkinner import utils
-from MapSkinner.decorator import check_session, check_permission
+from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
@@ -165,7 +165,7 @@ def activate(request: HttpRequest, id: int, user:User):
 
     return redirect("service:index")
 
-
+@log_proxy
 def get_service_metadata(request: HttpRequest, id: int):
     """ Returns the service metadata xml file for a given metadata id
 
@@ -270,7 +270,7 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
 
     return BackendAjaxResponse(html="", has_dataset_doc=has_dataset_doc).get_response()
 
-
+@log_proxy
 def get_capabilities(request: HttpRequest, id: int):
     """ Returns the current capabilities xml file
 
@@ -292,7 +292,7 @@ def get_capabilities(request: HttpRequest, id: int):
 
     return HttpResponse(doc, content_type='application/xml')
 
-
+@log_proxy
 def get_capabilities_original(request: HttpRequest, id: int):
     """ Returns the current capabilities xml file
 
@@ -738,6 +738,7 @@ def metadata_proxy(request: HttpRequest, id: int):
 
 
 @csrf_exempt
+@log_proxy
 def get_metadata_operation(request: HttpRequest, id: int):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
 

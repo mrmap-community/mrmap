@@ -15,13 +15,6 @@ from structure.models import Group, Organization
 from service.helper import xml_helper
 
 
-class Keyword(models.Model):
-    keyword = models.CharField(max_length=255, unique=True)
-
-    def __str__(self):
-        return self.keyword
-
-
 class Resource(models.Model):
     uuid = models.CharField(max_length=255, default=uuid.uuid4())
     created = models.DateTimeField(auto_now_add=True)
@@ -40,6 +33,22 @@ class Resource(models.Model):
 
     class Meta:
         abstract = True
+
+
+class Keyword(models.Model):
+    keyword = models.CharField(max_length=255, unique=True)
+
+    def __str__(self):
+        return self.keyword
+
+
+class ProxyLog(models.Model):
+    from structure.models import User
+    metadata = models.ForeignKey('Metadata', on_delete=models.DO_NOTHING)
+    user = models.ForeignKey(User, on_delete=models.DO_NOTHING, null=True, blank=True)
+    uri = models.CharField(max_length=1000, null=True, blank=True)
+    post_body = models.TextField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
 
 
 class RequestOperation(models.Model):

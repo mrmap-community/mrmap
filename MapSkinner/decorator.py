@@ -5,12 +5,15 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 08.05.19
 
 """
+import json
+
 from django.contrib import messages
 from django.shortcuts import redirect
 
 from MapSkinner.messages import SESSION_TIMEOUT, NO_PERMISSION, LOGOUT_FORCED
 from MapSkinner.responses import BackendAjaxResponse
 from MapSkinner.settings import ROOT_URL
+from service.models import Metadata, ProxyLog
 from structure.models import Permission
 from users.helper import user_helper
 
@@ -76,3 +79,42 @@ def check_permission(permission_needed: Permission):
         wrap.__name__ = function.__name__
         return wrap
     return method_wrap
+
+
+def log_proxy(function):
+    """ Checks whether the metadata has a logging proxy configuration and adds another log record
+
+    Args:
+        md (Metadata): The requested metadata
+    Returns:
+        The function
+    """
+    def wrap(request, *args, **kwargs):
+        user = user_helper.get_user(request=request)
+        md = Metadata.objects.get(id=kwargs["id"])
+
+        user_id = None
+        if user is not None:
+            user_id = user
+
+        uri = request.path
+        post_body = {}
+        if request.method.lower() == "post":
+            post_body = request.POST.dict()
+        elif request.method.lower() == "get":
+            uri += "?" + request.environ.get("QUERY_STRING")
+        post_body = json.dumps(post_body)
+
+        if md.use_proxy_uri and md.log_proxy_access:
+            proxy_log = ProxyLog(
+                metadata=md,
+                uri=uri,
+                post_body=post_body,
+                user=user_id
+            )
+            proxy_log.save()
+        return function(request=request, *args, **kwargs)
+
+    wrap.__doc__ = function.__doc__
+    wrap.__name__ = function.__name__
+    return wrap

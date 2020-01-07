@@ -60,6 +60,18 @@
                         </select>
                     </td>
                 </tr>
+                <tr>
+                    <td class="field-label">{% trans 'Service needs authentication:' %}</td>
+                    <td class="field"><input id="checkbox-service-auth" type="checkbox" title="{% trans 'Activate if service needs authentication' %}"></td>
+                </tr>
+                <tr class="service-auth disabled">
+                    <td class="field-label">{% trans 'Username:' %}</td>
+                    <td class="field"><input type="text" disabled="disabled"></td>
+                </tr>
+                <tr class="service-auth disabled">
+                    <td class="field-label">{% trans 'Password:' %}</td>
+                    <td class="field"><input type="password" disabled="disabled"></td>
+                </tr>
             </table>
 
 
@@ -132,6 +144,19 @@
         var registerForOrg = $("#publishable-organizations-select").val();
 
         startServiceRegistration('{{ full_uri }}', registerGroup, registerForOrg, buttonText);
+    });
+
+    $("#checkbox-service-auth").change(function(){
+        var elem = $(this);
+        var checked = elem.is(":checked");
+        var serviceAuthForm = $(".service-auth");
+
+        serviceAuthForm.toggleClass("disabled");
+        if(!checked){
+            serviceAuthForm.find("input").attr("disabled", "disabled");
+        }else{
+            serviceAuthForm.find("input").removeAttr("disabled");
+        }
     });
 
     $("#user-groups-select").change(function(){

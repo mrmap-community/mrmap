@@ -859,10 +859,10 @@ class OGCWebMapService(OGCWebService):
         """
         # save metadata
         md = service.metadata
-        if external_auth is not None:
-            external_auth.save()
-            md.external_authentication = external_auth
         md.save()
+        if external_auth is not None:
+            external_auth.metadata = md
+            external_auth.save()
 
         # save linked service metadata
         if service.linked_service_metadata is not None:

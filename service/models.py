@@ -164,6 +164,7 @@ class ExternalAuthentication(models.Model):
     username = models.CharField(max_length=255)
     password = models.CharField(max_length=500)
     auth_type = models.CharField(max_length=100)
+    metadata = models.OneToOneField('Metadata', on_delete=models.CASCADE, null=True, blank=True)
 
 
 class Metadata(Resource):
@@ -197,7 +198,6 @@ class Metadata(Resource):
 
     # security
     is_secured = models.BooleanField(default=False)
-    external_authentication = models.OneToOneField(ExternalAuthentication, on_delete=models.DO_NOTHING, null=True, blank=True)
 
     # capabilities
     dimension = models.CharField(max_length=100, null=True)

@@ -89,10 +89,10 @@ class NamespaceAdmin(admin.ModelAdmin):
     list_display = ('name', 'uri', 'version')
 
 class ProxyLogAdmin(admin.ModelAdmin):
-    list_display = ('metadata', 'user', 'timestamp')
+    list_display = ('id', 'metadata', 'user', 'timestamp')
 
 class ExternalAuthenticationAdmin(admin.ModelAdmin):
-    list_display = ('username', 'auth_type')
+    list_display = ('id', 'username', 'metadata', 'auth_type')
 
 
 admin.site.register(Document, DocumentAdmin)

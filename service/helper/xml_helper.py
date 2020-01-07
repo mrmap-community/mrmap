@@ -87,14 +87,15 @@ def get_href_attribute(xml_elem):
          None | the attribute
     """
     xlink = None
-    possible_tags = [
-        "{http://www.w3.org/1999/xlink}href",
-        "{https://www.w3.org/1999/xlink}href",
-    ]
-    for tag in possible_tags:
-        xlink = xml_elem.get(tag)
-        if xlink is not None:
-            break
+    if xml_elem is not None:
+        possible_tags = [
+            "{http://www.w3.org/1999/xlink}href",
+            "{https://www.w3.org/1999/xlink}href",
+        ]
+        for tag in possible_tags:
+            xlink = xml_elem.get(tag)
+            if xlink is not None:
+                break
     return xlink
 
 

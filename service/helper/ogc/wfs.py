@@ -10,7 +10,9 @@ from django.contrib.gis.geos import Polygon
 from django.db import transaction
 from lxml.etree import _Element
 
-from service.settings import MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, MD_RELATION_TYPE_VISUALIZES
+from service.helper.crypto_handler import CryptoHandler
+from service.settings import MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, MD_RELATION_TYPE_VISUALIZES, \
+    EXTERNAL_AUTHENTICATION_FILEPATH
 from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
@@ -592,6 +594,10 @@ class OGCWebFeatureService(OGCWebService):
         md.save()
         if external_auth is not None:
             external_auth.metadata = md
+            crypt_handler = CryptoHandler()
+            key = crypt_handler.generate_key()
+            crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
+            external_auth.encrypt(key)
             external_auth.save()
 
         # save linked service metadata

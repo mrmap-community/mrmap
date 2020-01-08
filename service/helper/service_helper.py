@@ -17,7 +17,7 @@ from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Service, ExternalAuthentication
-from MapSkinner.utils import sha256
+from service.helper.crypto_handler import CryptoHandler
 
 
 def resolve_version_enum(version:str):
@@ -119,7 +119,8 @@ def generate_name(srs_list: list=[]):
         id = epsg_api.get_real_identifier(srs)
         tmp.append(str(id))
     tmp = "".join(tmp)
-    return sha256(tmp)
+    sec_handler = CryptoHandler()
+    return sec_handler.sha256(tmp)
 
 
 def get_service_model_instance(service_type, version, base_uri, user, register_group, register_for_organization=None, async_task: Task = None, external_auth: ExternalAuthentication = None):
@@ -201,8 +202,10 @@ def capabilities_are_different(cap_url_1, cap_url_2):
     connector.load()
     xml_2 = connector.text
 
+    sec_handler = CryptoHandler()
+
     # hash both and compare hashes
-    xml_1_hash = sha256(xml_1)
-    xml_2_hash = sha256(xml_2)
+    xml_1_hash = sec_handler.sha256(xml_1)
+    xml_2_hash = sec_handler.sha256(xml_2)
 
     return xml_1_hash != xml_2_hash

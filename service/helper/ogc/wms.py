@@ -13,15 +13,17 @@ import time
 from copy import copy
 from threading import Thread
 
+import os
 from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from service.settings import MD_TYPE_LAYER, MD_TYPE_SERVICE
+from service.settings import MD_TYPE_LAYER, MD_TYPE_SERVICE, EXTERNAL_AUTHENTICATION_FILEPATH
 from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
-    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
+    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, BASE_DIR
 from MapSkinner import utils
-from MapSkinner.utils import execute_threads, sha256
+from MapSkinner.utils import execute_threads
+from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import VersionEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_metadata import ISOMetadata
@@ -155,7 +157,8 @@ class OGCWebMapService(OGCWebService):
         layer_obj.identifier = xml_helper.try_get_text_from_xml_element(elem="./{}Name".format(self.get_parser_prefix()), xml_elem=layer)
         if layer_obj.identifier is None:
             u = str(uuid.uuid4())
-            layer_obj.identifier = sha256(u)
+            sec_handler = CryptoHandler()
+            layer_obj.identifier = sec_handler.sha256(u)
 
     ### KEYWORDS ###
     def parse_keywords(self, layer, layer_obj):
@@ -862,6 +865,10 @@ class OGCWebMapService(OGCWebService):
         md.save()
         if external_auth is not None:
             external_auth.metadata = md
+            crypt_handler = CryptoHandler()
+            key = crypt_handler.generate_key()
+            crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
+            external_auth.encrypt(key)
             external_auth.save()
 
         # save linked service metadata

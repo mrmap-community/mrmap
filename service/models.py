@@ -2,6 +2,7 @@ import json
 import urllib
 import uuid
 
+import os
 from django.contrib.gis.geos import Polygon, GEOSGeometry, MultiPolygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
@@ -10,7 +11,8 @@ from django.utils import timezone
 
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from service.helper.enums import ServiceEnum, VersionEnum, MetadataEnum, ServiceOperationEnum
-from service.settings import DEFAULT_SERVICE_BOUNDING_BOX
+from service.helper.crypto_handler import CryptoHandler
+from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH
 from structure.models import Group, Organization
 from service.helper import xml_helper
 
@@ -164,7 +166,60 @@ class ExternalAuthentication(models.Model):
     username = models.CharField(max_length=255)
     password = models.CharField(max_length=500)
     auth_type = models.CharField(max_length=100)
-    metadata = models.OneToOneField('Metadata', on_delete=models.CASCADE, null=True, blank=True)
+    metadata = models.OneToOneField('Metadata', on_delete=models.DO_NOTHING, null=True, blank=True, related_name="external_authentication")
+
+    def delete(self, using=None, keep_parents=False):
+        """ Overwrites default delete function
+
+        Removes local stored file if it exists!
+
+        Args;
+            using:
+            keep_parents:
+        Returns:
+        """
+        # remove local stored key
+        filepath = "{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, self.metadata.id)
+        try:
+            os.remove(filepath)
+        except FileNotFoundError:
+            pass
+        super().delete(using, keep_parents)
+
+    def encrypt(self, key: str):
+        """ Encrypts the login credentials using a given key
+
+        Args:
+            key (str):
+        Returns:
+
+        """
+        crypto_handler = CryptoHandler(msg=self.username, key=key)
+        crypto_handler.encrypt()
+        self.username = crypto_handler.crypt_message
+
+        crypto_handler.message = self.password
+        crypto_handler.encrypt()
+        self.password = crypto_handler.crypt_message
+
+    def decrypt(self, key: str):
+        """ Decrypts the login credentials using a given key
+
+        Args:
+            key (str):
+        Returns:
+
+        """
+        crypto_handler = CryptoHandler()
+        crypto_handler.key = key
+
+        crypto_handler.crypt_message = self.password
+        crypto_handler.decrypt()
+        self.password = crypto_handler.message
+
+        crypto_handler.crypt_message = self.username
+        crypto_handler.decrypt()
+        self.username = crypto_handler.message
 
 
 class Metadata(Resource):
@@ -272,6 +327,12 @@ class Metadata(Resource):
         if self.is_secured:
             sec_ops = self.secured_operations.all()
             sec_ops.delete()
+
+        # remove externalAuthentication object if it exists
+        try:
+            self.external_authentication.delete()
+        except ObjectDoesNotExist:
+            pass
 
         # check if there are MetadataRelations on this metadata record
         # if so, we can not remove it until these relations aren't used anymore

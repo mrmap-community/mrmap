@@ -23,3 +23,4 @@ djangorestframework
 markdown
 django-filter
 Pillow
+cryptography

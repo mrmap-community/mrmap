@@ -36,6 +36,7 @@ MAPSERVER_SECURITY_MASK_TABLE = "service_securedoperation"
 MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN= "bounding_geometry"
 MAPSERVER_SECURITY_MASK_KEY_COLUMN= "id"
 
+EXTERNAL_AUTHENTICATION_FILEPATH = "{}/../ext_auth_keys".format(BASE_DIR)
 
 # Defines the possible FeatureTypeElement type names, which hold the geometry of a feature type
 ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS = [

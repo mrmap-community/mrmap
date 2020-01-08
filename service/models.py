@@ -282,6 +282,18 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    def has_external_authentication(self):
+        """ Checks whether the metadata has a related ExternalAuthentication set
+
+        Returns:
+             True | False
+        """
+        try:
+            tmp = self.external_authentication
+            return True
+        except ObjectDoesNotExist:
+            return False
+
     @transaction.atomic
     def increase_hits(self):
         """ Increases the hit counter of the metadata

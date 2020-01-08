@@ -75,7 +75,10 @@
             {% trans 'Active' %}
         </th>
         <th class="table-header">
-            {% trans 'Access secured' %}
+            {% trans 'Secured access' %}
+        </th>
+        <th class="table-header">
+            {% trans 'Secured externally' %}
         </th>
         <th class="table-header">
             {% trans 'Version' %}
@@ -116,6 +119,13 @@
         </td>
         <td class="table-cell center">
             {% if md.is_secured %}
+            <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Access secured' %}">
+            {% else %}
+            <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Access not restricted' %}">
+            {% endif %}
+        </td>
+        <td class="table-cell center">
+            {% if md.has_external_authentication %}
             <img src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Access secured' %}">
             {% else %}
             <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Access not restricted' %}">

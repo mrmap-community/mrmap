@@ -415,15 +415,18 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
     is_secured = post_params.get("is_secured", "")
     is_secured = is_secured == "on"  # resolve True|False
 
-    use_proxy = post_params.get("use_proxy", "")
-    use_proxy = use_proxy == "on"  # resolve True|False
+    use_proxy = post_params.get("use_proxy", None)
+    # use_proxy could be None in case of subelements, which are not able to toggle the proxy option
+    if use_proxy is not None:
+        use_proxy = use_proxy == "on"  # resolve True|False
 
     log_proxy = post_params.get("log_proxy", "")
     log_proxy = log_proxy == "on"  # resolve True|False
 
     # use_proxy=False and is_secured=True and metadata.is_secured=True is not allowed!
-    if not use_proxy and is_secured and md.is_secured:
-        raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS)
+    if use_proxy is not None:
+        if not use_proxy and is_secured and md.is_secured:
+            raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS)
 
     # use_proxy=False and log_proxy=True is not allowed!
     # use_proxy=False and metadata.log_proxy_access is not allowed either!
@@ -434,7 +437,7 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
         md.log_proxy_access = log_proxy
 
     # set new metadata proxy value and iterate over all children
-    if use_proxy != md.use_proxy_uri:
+    if use_proxy is not None and use_proxy != md.use_proxy_uri:
         md.set_proxy(use_proxy)
 
     # set new secured value and iterate over all children

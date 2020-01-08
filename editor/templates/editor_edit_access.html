@@ -89,9 +89,9 @@
                                data-polygons='{{ group.geo_json_geometry|safe }}'
                                data-sec-id="{{ group.sec_id }}">
                         <label for="checkbox-sec-{{ group.group.id }}-{{ operation.operation.id }}">{{ group.group.name }} ({{ group.group.organization.organization_name }})</label>
-                        {% if operation.operation.operation_name in spatial_restrictable_operations %}
-                        <span class="add-geometry fas fa-pen" data-id="{{ service_metadata.id }}" title="{% trans 'Add restricting geometry' %}">
-                        </span>
+                        {% if operation.operation.operation_name in spatial_restrictable_operations and service_metadata.is_root %}
+                            <span class="add-geometry fas fa-pen" data-id="{{ service_metadata.id }}" title="{% trans 'Add restricting geometry' %}">
+                            </span>
                         {% endif %}
                         <span class="{% if group.geo_json_geometry is None %}hide{% endif %} listable geometry-indicator" title="{% trans 'Has restricting geometry' %}">
                             <span class="fas fa-draw-polygon"></span>

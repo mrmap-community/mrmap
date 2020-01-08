@@ -11,7 +11,7 @@ from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
-    METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED
+    METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED, SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import ROOT_URL, HTTP_OR_SSL, HOST_NAME
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
@@ -296,6 +296,9 @@ def access_geometry_form(request: HttpRequest, id: int, user: User):
             polygons = [polygons]
 
     md = Metadata.objects.get(id=id)
+    if not md.is_root():
+        messages.info(request, message=SECURITY_PROXY_WARNING_ONLY_FOR_ROOT)
+        return BackendAjaxResponse(html="", redirect="/editor/edit/access/{}".format(md.id)).get_response()
     service_bounding_geometry = md.find_max_bounding_box()
 
     params = {

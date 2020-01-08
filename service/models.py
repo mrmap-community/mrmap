@@ -46,7 +46,7 @@ class Keyword(models.Model):
 
 class ProxyLog(models.Model):
     from structure.models import User
-    metadata = models.ForeignKey('Metadata', on_delete=models.DO_NOTHING)
+    metadata = models.ForeignKey('Metadata', on_delete=models.DO_NOTHING, null=True, blank=True)
     user = models.ForeignKey(User, on_delete=models.DO_NOTHING, null=True, blank=True)
     uri = models.CharField(max_length=1000, null=True, blank=True)
     post_body = models.TextField(null=True, blank=True)
@@ -1536,7 +1536,7 @@ class Style(models.Model):
     mime_type = models.CharField(max_length=500, null=True, blank=True)
 
     def __str__(self):
-        return self.layer.name + ": " + self.name
+        return self.layer.identifier + ": " + self.name
 
 
 class FeatureType(Resource):

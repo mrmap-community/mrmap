@@ -10,6 +10,8 @@ import hashlib
 import os
 from cryptography.fernet import Fernet
 
+from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
+
 
 class CryptoHandler:
 
@@ -40,10 +42,11 @@ class CryptoHandler:
         Returns:
              nothing
         """
-        self.crypt_message = self.crypt_message.encode("ascii")
+        self.crypt_message = self.crypt_message
         cipher_suite = Fernet(self.key)
         self.message = cipher_suite.decrypt(self.crypt_message)
-        self.message.encode("utf-8")
+        if isinstance(self.message, bytes):
+            self.message.decode("ascii")
 
     def generate_key(self):
         """ Generates a random string of a certain length
@@ -76,13 +79,15 @@ class CryptoHandler:
             # try again
             self.write_key_to_file(filepath, key)
 
-    def get_key_from_file(self, filepath: str):
+    def get_key_from_file(self, metadata_id: int):
         """ Reads a stored key from a file
 
         Args:
-            filepath (str): The filepath including the file name
+            metadata_id (int): The metadata id, which identifies the correct key
         Returns:
         """
+        filepath = "{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, str(metadata_id))
+
         file = open(filepath, "rb")
         key = file.read()
         return key

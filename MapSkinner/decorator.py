@@ -8,9 +8,11 @@ Created on: 08.05.19
 import json
 
 from django.contrib import messages
+from django.core.exceptions import ObjectDoesNotExist
+from django.http import HttpResponse
 from django.shortcuts import redirect
 
-from MapSkinner.messages import SESSION_TIMEOUT, NO_PERMISSION, LOGOUT_FORCED
+from MapSkinner.messages import SESSION_TIMEOUT, NO_PERMISSION, LOGOUT_FORCED, SERVICE_NOT_FOUND
 from MapSkinner.responses import BackendAjaxResponse
 from MapSkinner.settings import ROOT_URL
 from service.models import Metadata, ProxyLog
@@ -91,8 +93,10 @@ def log_proxy(function):
     """
     def wrap(request, *args, **kwargs):
         user = user_helper.get_user(request=request)
-        md = Metadata.objects.get(id=kwargs["id"])
-
+        try:
+            md = Metadata.objects.get(id=kwargs["id"])
+        except ObjectDoesNotExist:
+            return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
         user_id = None
         if user is not None:
             user_id = user

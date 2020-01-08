@@ -808,6 +808,8 @@ def get_metadata_operation(request: HttpRequest, id: int):
 
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+    except Exception as e:
+        return HttpResponse(status=500, content=e)
 
     if md_secured:
         response = operation_handler.get_secured_operation_response(request, metadata)
@@ -815,8 +817,8 @@ def get_metadata_operation(request: HttpRequest, id: int):
         if response is None:
             # metadata is secured but user is not allowed
             return HttpResponse(status=401, content=SECURITY_PROXY_NOT_ALLOWED)
-        return HttpResponse(response, content_type="")
 
+        return HttpResponse(response, content_type="")
     return HttpResponse(operation_handler.get_operation_response(), content_type="")
 
 

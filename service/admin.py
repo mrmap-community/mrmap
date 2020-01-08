@@ -92,7 +92,7 @@ class ProxyLogAdmin(admin.ModelAdmin):
     list_display = ('id', 'metadata', 'user', 'timestamp')
 
 class ExternalAuthenticationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'username', 'metadata', 'auth_type')
+    list_display = ('metadata', 'auth_type')
 
 
 admin.site.register(Document, DocumentAdmin)

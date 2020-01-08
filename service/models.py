@@ -196,30 +196,30 @@ class ExternalAuthentication(models.Model):
         """
         crypto_handler = CryptoHandler(msg=self.username, key=key)
         crypto_handler.encrypt()
-        self.username = crypto_handler.crypt_message
+        self.username = crypto_handler.crypt_message.decode("ascii")
 
         crypto_handler.message = self.password
         crypto_handler.encrypt()
-        self.password = crypto_handler.crypt_message
+        self.password = crypto_handler.crypt_message.decode("ascii")
 
-    def decrypt(self, key: str):
+    def decrypt(self, key):
         """ Decrypts the login credentials using a given key
 
         Args:
-            key (str):
+            key:
         Returns:
 
         """
         crypto_handler = CryptoHandler()
         crypto_handler.key = key
 
-        crypto_handler.crypt_message = self.password
+        crypto_handler.crypt_message = self.password.encode("ascii")
         crypto_handler.decrypt()
-        self.password = crypto_handler.message
+        self.password = crypto_handler.message.decode("ascii")
 
-        crypto_handler.crypt_message = self.username
+        crypto_handler.crypt_message = self.username.encode("ascii")
         crypto_handler.decrypt()
-        self.username = crypto_handler.message
+        self.username = crypto_handler.message.decode("ascii")
 
 
 class Metadata(Resource):

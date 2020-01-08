@@ -8,6 +8,7 @@ Created on: 05.12.19
 import urllib, io
 
 from PIL import Image, ImageOps, ImageFont, ImageDraw
+from cryptography.fernet import InvalidToken
 from django.core.exceptions import ObjectDoesNotExist
 from lxml import etree
 
@@ -16,10 +17,12 @@ from django.http import HttpRequest, HttpResponse, QueryDict
 from lxml.etree import QName
 
 from MapSkinner import utils
-from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER, TD_POINT_HAS_NOT_ENOUGH_VALUES
+from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
+    SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY, SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
+from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import ServiceOperationEnum, ServiceEnum, VersionEnum
 from service.models import Metadata, FeatureType
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
@@ -36,6 +39,20 @@ class OGCOperationRequestHandler:
     def __init__(self, request: HttpRequest, metadata: Metadata, uri: str = None):
         self.full_operation_uri = uri
         self.original_operation_base_uri = None
+
+        self.external_auth = None
+        try:
+            self.external_auth = metadata.external_authentication
+            crypto_handler = CryptoHandler()
+            key = crypto_handler.get_key_from_file(metadata.id)
+            self.external_auth.decrypt(key)
+        except ObjectDoesNotExist:
+            # this is normal for services which do not need an external authentication
+            pass
+        except FileNotFoundError:
+            raise Exception(SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY)
+        except InvalidToken:
+            raise Exception(SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY)
 
         # check what type of request we are facing
         self.request_is_GET = request.method == "GET"
@@ -190,7 +207,6 @@ class OGCOperationRequestHandler:
                 draw.text((0, y), "Access denied for '{}'".format(restricted_layer), (0, 0, 0), font=font)
                 y += font_size
             self.access_denied_img = text_img
-
 
     def _fill_new_params_dict(self):
         """ Fills all processed parameters into an internal dict
@@ -757,7 +773,7 @@ class OGCOperationRequestHandler:
         """
         if uri is None:
             uri = self.get_final_operation_uri()
-        c = CommonConnector(url=uri)
+        c = CommonConnector(url=uri, external_auth=self.external_auth)
 
         if self.request_is_GET:
             c.load()

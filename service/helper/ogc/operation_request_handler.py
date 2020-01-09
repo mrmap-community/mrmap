@@ -28,7 +28,7 @@ from service.models import Metadata, FeatureType, Layer, SecuredOperation
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
-    RENDER_TEXT_ON_IMG
+    RENDER_TEXT_ON_IMG, MAX_FONT_SIZE
 from users.helper import user_helper
 
 
@@ -197,12 +197,21 @@ class OGCOperationRequestHandler:
 
             # create text for image of restricted layers
             if RENDER_TEXT_ON_IMG:
-                text_img = Image.new("RGBA", (int(self.width_param), int(self.height_param)), (255, 255, 255, 0))
+                height = int(self.height_param)
+                text_img = Image.new("RGBA", (int(self.width_param), int(height)), (255, 255, 255, 0))
                 draw = ImageDraw.Draw(text_img)
-                font_size = int(int(self.height_param) / FONT_IMG_RATIO)
+                font_size = int(height * FONT_IMG_RATIO)
+
+                num_res_layers = len(restricted_layers)
+                if font_size * num_res_layers > height:
+                    # if area of text would be larger than requested height, we simply create a new font_size, that fits!
+                    # increase the num_res_layers by 1 to create some space at the bottom for a better feeling
+                    font_size = int(height / (num_res_layers + 1))
 
                 if font_size < MIN_FONT_SIZE:
                     font_size = MIN_FONT_SIZE
+                elif font_size > MAX_FONT_SIZE:
+                    font_size = MAX_FONT_SIZE
 
                 font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", font_size)
                 y = 0

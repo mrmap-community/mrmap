@@ -115,6 +115,7 @@ ALLOWED_SRS_EXTENTS = {
 INSPIRE_LEGISLATION_FILE = BASE_DIR + "/inspire_legislation.json"
 
 # IMAGE RENDERING
-MIN_FONT_SIZE = 16  # The minimum font size for
-FONT_IMG_RATIO = 40  # Font has 1/FONT_IMG_RATIO ratio
-RENDER_TEXT_ON_IMG = False  # Whether to render 'Access denied for xy' on GetMap responses or not
+MIN_FONT_SIZE = 14  # The minimum font size for text on images
+MAX_FONT_SIZE = 20  # The maximum font size for text on images
+FONT_IMG_RATIO = 1/20  # Font to image ratio
+RENDER_TEXT_ON_IMG = True  # Whether to render 'Access denied for xy' on GetMap responses or not

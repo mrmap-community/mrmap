@@ -1,9 +1,9 @@
-import json
 import urllib
 import uuid
 
 import os
-from django.contrib.gis.geos import Polygon, GEOSGeometry, MultiPolygon, GeometryCollection
+
+from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
 from django.contrib.gis.db import models
@@ -1481,6 +1481,37 @@ class Layer(Service):
 
         for layer in self.child_layer.all():
             layer.activate_layer_recursive(new_status)
+
+    def _get_bottom_layers_recursive(self, parent, leaf_list: list):
+        """ Runs a recursive search for all leaf layers.
+
+        If a leaf layer is found, it will be added to layer_list
+
+        Args:
+            parent: The parent layer object
+            leaf_list (list): The leafs
+        Returns:
+             nothing, directly changes leaf_list
+        """
+        layer_obj_children = parent.child_layer.all()
+        for child in layer_obj_children:
+            self._get_bottom_layers_recursive(child, leaf_list)
+        if layer_obj_children.count() == 0:
+            leaf_list.append(parent.identifier)
+
+    def get_leaf_layers(self):
+        """ Returns a list of all leaf layers.
+
+        Leaf layers are the layers, which have no further children.
+
+        Returns:
+             leaf_layers (list): The leaf layers of a layer
+        """
+        leaf_layers = []
+        layer_obj_children = self.child_layer.all()
+        for child in layer_obj_children:
+            self._get_bottom_layers_recursive(child, leaf_layers)
+        return leaf_layers
 
 
 class Module(Service):

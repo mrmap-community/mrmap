@@ -24,10 +24,11 @@ from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import ServiceOperationEnum, ServiceEnum, VersionEnum
-from service.models import Metadata, FeatureType
+from service.models import Metadata, FeatureType, Layer, SecuredOperation
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
-    MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO
+    MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
+    RENDER_TEXT_ON_IMG
 from users.helper import user_helper
 
 
@@ -160,6 +161,8 @@ class OGCOperationRequestHandler:
         self._process_transaction_geometries()
         self._fill_new_params_dict()
 
+        # Only work on the requested param objects, if the metadata is secured.
+        # Otherwise we can pass this, since it's too expensive for a basic, non secured request
         if metadata.is_secured:
             self._filter_not_allowed_subelements(metadata)
 
@@ -171,6 +174,7 @@ class OGCOperationRequestHandler:
         Returns:
             nothing
         """
+        self._resolve_layer_param_to_leaf_layers(md)
 
         if self.layers_param is not None and self.type_name_param is None:
             # in case of WMS
@@ -192,21 +196,22 @@ class OGCOperationRequestHandler:
             self.new_params_dict["LAYERS"] = allowed_layers_identifier
 
             # create text for image of restricted layers
-            text_img = Image.new("RGBA", (int(self.width_param), int(self.height_param)), (255, 255, 255, 0))
-            draw = ImageDraw.Draw(text_img)
-            font_size = int(int(self.height_param) / FONT_IMG_RATIO)
+            if RENDER_TEXT_ON_IMG:
+                text_img = Image.new("RGBA", (int(self.width_param), int(self.height_param)), (255, 255, 255, 0))
+                draw = ImageDraw.Draw(text_img)
+                font_size = int(int(self.height_param) / FONT_IMG_RATIO)
 
-            if font_size < MIN_FONT_SIZE:
-                font_size = MIN_FONT_SIZE
+                if font_size < MIN_FONT_SIZE:
+                    font_size = MIN_FONT_SIZE
 
-            font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", font_size)
-            y = 0
+                font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", font_size)
+                y = 0
 
-            for restricted_layer in restricted_layers:
-                # render text listed one under another
-                draw.text((0, y), "Access denied for '{}'".format(restricted_layer), (0, 0, 0), font=font)
-                y += font_size
-            self.access_denied_img = text_img
+                for restricted_layer in restricted_layers:
+                    # render text listed one under another
+                    draw.text((0, y), "Access denied for '{}'".format(restricted_layer), (0, 0, 0), font=font)
+                    y += font_size
+                self.access_denied_img = text_img
 
     def _fill_new_params_dict(self):
         """ Fills all processed parameters into an internal dict
@@ -985,6 +990,27 @@ class OGCOperationRequestHandler:
 
         return ret_val
 
+    def _resolve_layer_param_to_leaf_layers(self, metadata: Metadata):
+        """ Replaces the original requested layer param with all (leaf) child layers identifier as param.
+
+        This way we can make sure no layer is returned, that would not be allowed on a direct call.
+
+        Args:
+            metadata (Metadata): The metadata of the requested service
+        Returns:
+             nothing
+        """
+        leaf_layers = []
+        for layer_param in self.layers_param.split(","):
+            layer_obj = Layer.objects.get(
+                parent_service__metadata=metadata,
+                identifier=layer_param
+            )
+            leaf_layers += layer_obj.get_leaf_layers()
+
+        self.layers_param = ",".join(leaf_layers)
+        self.new_params_dict["LAYERS"] = self.layers_param
+
     def get_secured_operation_response(self, request: HttpRequest, metadata: Metadata):
         """ Calls the operation of a service if it is secured.
 
@@ -1021,6 +1047,9 @@ class OGCOperationRequestHandler:
             # WMS - 'Map image'
             elif self.request_param.upper() == ServiceOperationEnum.GET_MAP.value.upper():
                 # no need to check if the access is allowed, since we mask the output anyway
+                # but we need to make sure, that no top level layer is called, which contains a secured child!
+                # therefore we need to check if there is at least one secured child, somewhere, and then replace the top
+                # level layer with all direct, allowed children!
                 img = self.get_operation_response()
                 mask = self._get_secured_service_mask(metadata, sec_ops)
                 response = self._create_masked_image(img, mask, as_bytes=True)

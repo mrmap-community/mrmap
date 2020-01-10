@@ -11,7 +11,7 @@ Created on: 07.06.19
 USER_ACTIVATION_TIME_WINDOW = 24
 
 # In hours: how long an activation request for publishing is valid
-# 168 = 7 days
-PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW = 168
+# days * hours/day
+PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW = 7 * 24
 
 PENDING_REQUEST_TYPE_PUBLISHING = "publishing"

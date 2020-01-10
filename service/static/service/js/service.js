@@ -126,6 +126,7 @@ function getTableContent(elem, elemId, elemType, table){
         contentDiv.html(html);
         elem.addClass("loaded");
     }).always(function(data){
+        checkRedirect(data);
     });
 }
 

@@ -13,18 +13,17 @@ import time
 from copy import copy
 from threading import Thread
 
-import os
 from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from service.settings import MD_TYPE_LAYER, MD_TYPE_SERVICE, EXTERNAL_AUTHENTICATION_FILEPATH
+from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
 from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
-    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, BASE_DIR
+    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
 from MapSkinner.utils import execute_threads
 from service.helper.crypto_handler import CryptoHandler
-from service.helper.enums import VersionEnum
+from service.helper.enums import VersionEnum, MetadataEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.ows import OGCWebService

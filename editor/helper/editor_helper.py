@@ -15,7 +15,8 @@ from django.http import HttpRequest
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
-from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
+from MapSkinner.messages import EDITOR_INVALID_ISO_LINK, SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, \
+    SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
 from MapSkinner import utils
 
@@ -113,7 +114,7 @@ def overwrite_capabilities_document(metadata: Metadata):
     elif metadata.metadata_type.type == 'layer':
         rel_md = metadata.service.parent_service.metadata
     elif metadata.metadata_type.type == 'featuretype':
-        rel_md = metadata.featuretype.service.metadata
+        rel_md = metadata.featuretype.parent_service.metadata
     cap_doc = Document.objects.get(related_metadata=rel_md)
 
     # overwrite all editable data
@@ -190,7 +191,7 @@ def _remove_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links:
         if service_type == 'wms':
             rel_md = metadata.service.parent_service.metadata
         elif service_type == 'wfs':
-            rel_md = metadata.featuretype.service.metadata
+            rel_md = metadata.featuretype.parent_service.metadata
     cap_doc = Document.objects.get(related_metadata=rel_md)
     cap_doc_txt = cap_doc.current_capability_document
     xml_cap_obj = xml_helper.parse_xml(cap_doc_txt).getroot()
@@ -303,24 +304,7 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
 
     # change capabilities document so that all sensitive elements (links) are proxied
     if original_md.use_proxy_uri != custom_md.use_proxy_uri:
-        if not original_md.is_root():
-            root_md = original_md.service.parent_service.metadata
-        else:
-            root_md = original_md
-
-        # change capabilities document
-        root_md_doc = Document.objects.get(related_metadata=root_md)
-        root_md_doc.set_dataset_metadata_secured(custom_md.use_proxy_uri)
-        root_md_doc.set_legend_url_secured(custom_md.use_proxy_uri)
-        root_md_doc.set_operations_secured(custom_md.use_proxy_uri)
-
-        original_md.use_proxy_uri = custom_md.use_proxy_uri
-
-        # if md uris shall be tunneled using the proxy, we need to make sure that all metadata elements of the service are aware of this!
-        child_mds = Metadata.objects.filter(service__parent_service=original_md.service)
-        for child_md in child_mds:
-            child_md.use_proxy_uri = original_md.use_proxy_uri
-            child_md.save()
+        original_md.set_proxy(custom_md.use_proxy_uri)
 
     # save metadata
     original_md.is_custom = True
@@ -427,10 +411,36 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
     """
     # process form input
     sec_operations_groups = json.loads(post_params.get("secured-operation-groups"), "{}")
+
     is_secured = post_params.get("is_secured", "")
     is_secured = is_secured == "on"  # resolve True|False
 
-    # set new value and iterate over all children
+    use_proxy = post_params.get("use_proxy", None)
+    # use_proxy could be None in case of subelements, which are not able to toggle the proxy option
+    if use_proxy is not None:
+        use_proxy = use_proxy == "on"  # resolve True|False
+
+    log_proxy = post_params.get("log_proxy", "")
+    log_proxy = log_proxy == "on"  # resolve True|False
+
+    # use_proxy=False and is_secured=True and metadata.is_secured=True is not allowed!
+    if use_proxy is not None:
+        if not use_proxy and is_secured and md.is_secured:
+            raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS)
+
+    # use_proxy=False and log_proxy=True is not allowed!
+    # use_proxy=False and metadata.log_proxy_access is not allowed either!
+    if not use_proxy and log_proxy or not use_proxy and md.log_proxy_access:
+        raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING)
+
+    if log_proxy != md.log_proxy_access:
+        md.log_proxy_access = log_proxy
+
+    # set new metadata proxy value and iterate over all children
+    if use_proxy is not None and use_proxy != md.use_proxy_uri:
+        md.set_proxy(use_proxy)
+
+    # set new secured value and iterate over all children
     if is_secured != md.is_secured:
         md.set_secured(is_secured)
 

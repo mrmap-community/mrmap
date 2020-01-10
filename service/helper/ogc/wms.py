@@ -13,15 +13,18 @@ import time
 from copy import copy
 from threading import Thread
 
+import os
 from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
+from service.settings import MD_TYPE_LAYER, MD_TYPE_SERVICE, EXTERNAL_AUTHENTICATION_FILEPATH
 from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
-    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
+    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, BASE_DIR
 from MapSkinner import utils
-from MapSkinner.utils import execute_threads, sha256
-from service.helper.enums import VersionEnum, MetadataEnum
+from MapSkinner.utils import execute_threads
+from service.helper.crypto_handler import CryptoHandler
+from service.helper.enums import VersionEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
@@ -29,7 +32,7 @@ from service.helper.ogc.layer import OGCLayer
 
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
-    MetadataRelation, MetadataOrigin, MetadataType, Style
+    MetadataRelation, MetadataOrigin, MetadataType, Style, ExternalAuthentication
 from service.settings import MD_RELATION_TYPE_VISUALIZES, MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
 from structure.models import Organization, Group
 from structure.models import User
@@ -39,7 +42,7 @@ class OGCWebMapServiceFactory:
     """ Creates the correct OGCWebMapService objects
 
     """
-    def get_ogc_wms(self, version: VersionEnum, service_connect_url=None):
+    def get_ogc_wms(self, version: VersionEnum, service_connect_url=None, external_auth: ExternalAuthentication = None):
         """ Returns the correct implementation of an OGCWebMapService according to the given version
 
         Args:
@@ -49,13 +52,13 @@ class OGCWebMapServiceFactory:
             An OGCWebMapService
         """
         if version is VersionEnum.V_1_0_0:
-            return OGCWebMapService_1_0_0(service_connect_url=service_connect_url)
+            return OGCWebMapService_1_0_0(service_connect_url=service_connect_url, external_auth=external_auth)
         if version is VersionEnum.V_1_1_0:
-            return OGCWebMapService_1_1_0(service_connect_url=service_connect_url)
+            return OGCWebMapService_1_1_0(service_connect_url=service_connect_url, external_auth=external_auth)
         if version is VersionEnum.V_1_1_1:
-            return OGCWebMapService_1_1_1(service_connect_url=service_connect_url)
+            return OGCWebMapService_1_1_1(service_connect_url=service_connect_url, external_auth=external_auth)
         if version is VersionEnum.V_1_3_0:
-            return OGCWebMapService_1_3_0(service_connect_url=service_connect_url)
+            return OGCWebMapService_1_3_0(service_connect_url=service_connect_url, external_auth=external_auth)
 
 
 class OGCWebMapService(OGCWebService):
@@ -141,8 +144,7 @@ class OGCWebMapService(OGCWebService):
                                                                                 self.get_parser_prefix(), self.get_parser_prefix()
                                                                             ))
             for iso_xml in iso_metadata_xml_elements:
-                iso_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem=iso_xml,
-                                                                        attribute="{http://www.w3.org/1999/xlink}href")
+                iso_uri = xml_helper.get_href_attribute(xml_elem=iso_xml)
                 try:
                     iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
                 except Exception as e:
@@ -155,7 +157,8 @@ class OGCWebMapService(OGCWebService):
         layer_obj.identifier = xml_helper.try_get_text_from_xml_element(elem="./{}Name".format(self.get_parser_prefix()), xml_elem=layer)
         if layer_obj.identifier is None:
             u = str(uuid.uuid4())
-            layer_obj.identifier = sha256(u)
+            sec_handler = CryptoHandler()
+            layer_obj.identifier = sec_handler.sha256(u)
 
     ### KEYWORDS ###
     def parse_keywords(self, layer, layer_obj):
@@ -272,26 +275,39 @@ class OGCWebMapService(OGCWebService):
     ### REQUEST URIS ###
     def parse_request_uris(self, layer, layer_obj):
         attributes = {
-            "cap": "//GetCapabilities/DCPType/HTTP/Get/OnlineResource",
-            "map": "//GetMap/DCPType/HTTP/Get/OnlineResource",
-            "feat": "//GetFeatureInfo/DCPType/HTTP/Get/OnlineResource",
-            "desc": "//DescribeLayer/DCPType/HTTP/Get/OnlineResource",
-            "leg": "//GetLegendGraphic/DCPType/HTTP/Get/OnlineResource",
-            "style": "//GetStyles/DCPType/HTTP/Get/OnlineResource",
+            "cap_GET": "//GetCapabilities/DCPType/HTTP/Get/OnlineResource",
+            "cap_POST": "//GetCapabilities/DCPType/HTTP/Post/OnlineResource",
+            "map_GET": "//GetMap/DCPType/HTTP/Get/OnlineResource",
+            "map_POST": "//GetMap/DCPType/HTTP/Post/OnlineResource",
+            "feat_GET": "//GetFeatureInfo/DCPType/HTTP/Get/OnlineResource",
+            "feat_POST": "//GetFeatureInfo/DCPType/HTTP/Post/OnlineResource",
+            "desc_GET": "//DescribeLayer/DCPType/HTTP/Get/OnlineResource",
+            "desc_POST": "//DescribeLayer/DCPType/HTTP/Post/OnlineResource",
+            "leg_GET": "//GetLegendGraphic/DCPType/HTTP/Get/OnlineResource",
+            "leg_POST": "//GetLegendGraphic/DCPType/HTTP/Post/OnlineResource",
+            "style_GET": "//GetStyles/DCPType/HTTP/Get/OnlineResource",
+            "style_POST": "//GetStyles/DCPType/HTTP/Post/OnlineResource",
         }
         for key, val in attributes.items():
             try:
-                tmp = layer.xpath(val)[0].get("{http://www.w3.org/1999/xlink}href")
-                attributes[key] = tmp
+                tmp = layer.xpath(val)[0]
+                link = xml_helper.get_href_attribute(tmp)
+                attributes[key] = link
             except (AttributeError, IndexError) as error:
                 attributes[key] = None
 
-        layer_obj.get_capabilities_uri = attributes.get("cap")
-        layer_obj.get_map_uri = attributes.get("map")
-        layer_obj.get_feature_info_uri = attributes.get("feat")
-        layer_obj.describe_layer_uri = attributes.get("desc")
-        layer_obj.get_legend_graphic_uri = attributes.get("leg")
-        layer_obj.get_styles_uri = attributes.get("style")
+        layer_obj.get_capabilities_uri_GET = attributes.get("cap_GET")
+        layer_obj.get_capabilities_uri_POST = attributes.get("cap_POST")
+        layer_obj.get_map_uri_GET = attributes.get("map_GET")
+        layer_obj.get_map_uri_POST = attributes.get("map_POST")
+        layer_obj.get_feature_info_uri_GET = attributes.get("feat_GET")
+        layer_obj.get_feature_info_uri_POST = attributes.get("feat_POST")
+        layer_obj.describe_layer_uri_GET = attributes.get("desc_GET")
+        layer_obj.describe_layer_uri_POST = attributes.get("desc_POST")
+        layer_obj.get_legend_graphic_uri_GET = attributes.get("leg_GET")
+        layer_obj.get_legend_graphic_uri_POST = attributes.get("leg_POST")
+        layer_obj.get_styles_uri_GET = attributes.get("style_GET")
+        layer_obj.get_styles_uri_POST = attributes.get("style_POST")
 
     ### FORMATS ###
     def parse_formats(self, layer, layer_obj):
@@ -341,7 +357,8 @@ class OGCWebMapService(OGCWebService):
 
         style_obj.name = xml_helper.try_get_text_from_xml_element(style_xml, "./Name")
         style_obj.title = xml_helper.try_get_text_from_xml_element(style_xml, "./Title")
-        style_obj.legend_uri = xml_helper.try_get_attribute_from_xml_element(style_xml, "{http://www.w3.org/1999/xlink}href", "./LegendURL/OnlineResource")
+        legend_elem = xml_helper.try_get_single_element_from_xml(elem="./LegendURL/OnlineResource", xml_elem=style_xml)
+        style_obj.legend_uri = xml_helper.get_href_attribute(legend_elem)
         style_obj.width = int(xml_helper.try_get_attribute_from_xml_element(style_xml, "width", "./LegendURL"))
         style_obj.height = int(xml_helper.try_get_attribute_from_xml_element(style_xml, "height", "./LegendURL"))
         style_obj.mime_type = MimeType.objects.filter(mime_type=xml_helper.try_get_text_from_xml_element(style_xml, "./LegendURL/Format")).first()
@@ -486,7 +503,8 @@ class OGCWebMapService(OGCWebService):
             parser_prefix,
             parser_prefix
         ))
-        self.service_provider_url = xml_helper.try_get_attribute_from_xml_element(elem="//{}AuthorityURL".format(parser_prefix), xml_elem=xml_obj, attribute="{http://www.w3.org/1999/xlink}href")
+        authority_elem = xml_helper.try_get_single_element_from_xml(elem="//{}AuthorityURL".format(parser_prefix), xml_elem=xml_obj)
+        self.service_provider_url = xml_helper.get_href_attribute(authority_elem)
         self.service_provider_contact_contactinstructions = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//{}Service/{}ContactInformation".format(parser_prefix, parser_prefix))
         self.service_provider_responsibleparty_individualname = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactPersonPrimary/{}ContactPerson".format(
             parser_prefix,
@@ -529,14 +547,12 @@ class OGCWebMapService(OGCWebService):
             kw.append(keyword.text)
         self.service_identification_keywords = kw
 
-        elements = xml_helper.try_get_element_from_xml("//{}Service/{}OnlineResource".format(
-            parser_prefix,
-            parser_prefix
-        ), xml_obj)
-        ors = []
-        for element in elements:
-            ors.append(element.get("{http://www.w3.org/1999/xlink}href"))
-        self.service_provider_onlineresource_linkage = ors
+        online_res_elem = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+            xml_obj)
+        link = xml_helper.get_href_attribute(online_res_elem)
+        self.service_provider_onlineresource_linkage = link
 
         self.service_provider_address_country = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactAddress/{}Country".format(
             parser_prefix,
@@ -658,12 +674,20 @@ class OGCWebMapService(OGCWebService):
         layer.published_for = published_for
         layer.published_by = publisher
         layer.parent_service = wms
-        layer.get_styles_uri = layer_obj.get_styles_uri
-        layer.get_legend_graphic_uri = layer_obj.get_legend_graphic_uri
-        layer.get_feature_info_uri = layer_obj.get_feature_info_uri
-        layer.get_map_uri = layer_obj.get_map_uri
-        layer.describe_layer_uri = layer_obj.describe_layer_uri
-        layer.get_capabilities_uri = layer_obj.get_capabilities_uri
+
+        layer.get_styles_uri_GET = layer_obj.get_styles_uri_GET
+        layer.get_styles_uri_POST = layer_obj.get_styles_uri_POST
+        layer.get_legend_graphic_uri_GET = layer_obj.get_legend_graphic_uri_GET
+        layer.get_legend_graphic_uri_POST = layer_obj.get_legend_graphic_uri_POST
+        layer.get_feature_info_uri_GET = layer_obj.get_feature_info_uri_GET
+        layer.get_feature_info_uri_POST = layer_obj.get_feature_info_uri_POST
+        layer.get_map_uri_GET = layer_obj.get_map_uri_GET
+        layer.get_map_uri_POST = layer_obj.get_map_uri_POST
+        layer.describe_layer_uri_GET = layer_obj.describe_layer_uri_GET
+        layer.describe_layer_uri_POST = layer_obj.describe_layer_uri_POST
+        layer.get_capabilities_uri_GET = layer_obj.get_capabilities_uri_GET
+        layer.get_capabilities_uri_POST = layer_obj.get_capabilities_uri_POST
+
         layer.iso_metadata = layer_obj.iso_metadata
 
         if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
@@ -765,7 +789,7 @@ class OGCWebMapService(OGCWebService):
         metadata.uuid = self.service_file_iso_identifier
         metadata.title = self.service_identification_title
         metadata.abstract = self.service_identification_abstract
-        metadata.online_resource = ",".join(self.service_provider_onlineresource_linkage)
+        metadata.online_resource = self.service_provider_onlineresource_linkage
         metadata.capabilities_original_uri = self.service_connect_url
         metadata.capabilities_uri = self.service_connect_url
         metadata.access_constraints = self.service_identification_accessconstraints
@@ -806,12 +830,18 @@ class OGCWebMapService(OGCWebService):
         service.published_for = orga_published_for
         service.published_by = orga_publisher
         service.created_by = group
-        service.get_capabilities_uri = self.get_capabilities_uri
-        service.get_feature_info_uri = self.get_feature_info_uri
-        service.describe_layer_uri = self.describe_layer_uri
-        service.get_styles_uri = self.get_styles_uri
-        service.get_legend_graphic_uri = self.get_legend_graphic_uri
-        service.get_map_uri = self.get_map_uri
+        service.get_capabilities_uri_GET = self.get_capabilities_uri_GET
+        service.get_capabilities_uri_POST = self.get_capabilities_uri_POST
+        service.get_feature_info_uri_GET = self.get_feature_info_uri_GET
+        service.get_feature_info_uri_POST = self.get_feature_info_uri_POST
+        service.describe_layer_uri_GET = self.describe_layer_uri_GET
+        service.describe_layer_uri_POST = self.describe_layer_uri_POST
+        service.get_styles_uri_GET = self.get_styles_uri_GET
+        service.get_styles_uri_POST = self.get_styles_uri_POST
+        service.get_legend_graphic_uri_GET = self.get_legend_graphic_uri_GET
+        service.get_legend_graphic_uri_POST = self.get_legend_graphic_uri_POST
+        service.get_map_uri_GET = self.get_map_uri_GET
+        service.get_map_uri_POST = self.get_map_uri_POST
         service.metadata = metadata
         service.is_root = True
         if self.linked_service_metadata is not None:
@@ -824,7 +854,7 @@ class OGCWebMapService(OGCWebService):
         return service
 
     @transaction.atomic
-    def persist_service_model(self, service):
+    def persist_service_model(self, service, external_auth: ExternalAuthentication):
         """ Persist the service model object
 
         Returns:
@@ -833,6 +863,13 @@ class OGCWebMapService(OGCWebService):
         # save metadata
         md = service.metadata
         md.save()
+        if external_auth is not None:
+            external_auth.metadata = md
+            crypt_handler = CryptoHandler()
+            key = crypt_handler.generate_key()
+            crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
+            external_auth.encrypt(key)
+            external_auth.save()
 
         # save linked service metadata
         if service.linked_service_metadata is not None:
@@ -944,8 +981,8 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
     """ The WMS class for standard version 1.0.0
 
     """
-    def __init__(self, service_connect_url):
-        super().__init__(service_connect_url=service_connect_url)
+    def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
+        super().__init__(service_connect_url=service_connect_url, external_auth=external_auth)
         self.service_version = VersionEnum.V_1_0_0
 
     def __parse_formats(self, layer, layer_obj):
@@ -970,8 +1007,8 @@ class OGCWebMapService_1_1_0(OGCWebMapService):
     """ The WMS class for standard version 1.1.0
 
     """
-    def __init__(self, service_connect_url):
-        super().__init__(service_connect_url=service_connect_url)
+    def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
+        super().__init__(service_connect_url=service_connect_url, external_auth=external_auth)
         self.service_version = VersionEnum.V_1_1_0
 
     def get_version_specific_metadata(self, xml_obj):
@@ -982,8 +1019,8 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
     """ The WMS class for standard version 1.1.1
 
     """
-    def __init__(self, service_connect_url=None):
-        super().__init__(service_connect_url=service_connect_url)
+    def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
+        super().__init__(service_connect_url=service_connect_url, external_auth=external_auth)
         self.service_version = VersionEnum.V_1_1_1
         XML_NAMESPACES["default"] = XML_NAMESPACES["wms"]
 
@@ -997,8 +1034,8 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
 
     """
 
-    def __init__(self, service_connect_url):
-        super().__init__(service_connect_url=service_connect_url)
+    def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
+        super().__init__(service_connect_url=service_connect_url, external_auth=external_auth)
         self.service_version = VersionEnum.V_1_3_0
         self.layer_limit = None
         self.max_width = None

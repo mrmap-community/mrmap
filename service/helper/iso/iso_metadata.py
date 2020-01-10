@@ -119,7 +119,7 @@ class ISOMetadata:
              nothing
         """
         ows_connector = CommonConnector(url=self.uri,
-                                        auth=None,
+                                        external_auth=None,
                                         connection_type=ConnectionEnum.REQUESTS)
         ows_connector.http_method = 'GET'
         ows_connector.load()

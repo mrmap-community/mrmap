@@ -5,7 +5,6 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 17.04.19
 
 """
-import hashlib
 import urllib
 
 
@@ -20,12 +19,6 @@ def execute_threads(thread_list):
         thread.start()
     for thread in thread_list:
         thread.join()
-
-
-def sha256(_input: str):
-    m = hashlib.sha256()
-    m.update(_input.encode("UTF-8"))
-    return m.hexdigest()
 
 
 def resolve_none_string(val: str):
@@ -78,21 +71,29 @@ def set_uri_GET_param(uri: str, param: str, val):
         uri (str): The changed uri
     """
     val = str(val)
-    tmp = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(uri).query))
-    if len(tmp) == 0:
+    base_uri = urllib.parse.urlsplit(uri)
+    query_dict = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(uri).query))
+
+    if len(query_dict) == 0:
         # the given 'uri' parameter is not a full uri, but rather the query part
-        tmp = dict(urllib.parse.parse_qsl(uri))
-        if len(tmp) == 0:
+        query_dict = dict(urllib.parse.parse_qsl(uri))
+        if len(query_dict) == 0:
             raise ValueError("Uri parameter could not be resolved")
-    uri = tmp
+
     changed = False
-    for key, key_val in uri.items():
+
+    for key, key_val in query_dict.items():
         if key.upper() == param.upper():
-            uri[key] = val
+            query_dict[key] = val
             changed = True
             break
+
     if not changed:
         # the parameter didn't exist yet
-        uri[param] = val
-    uri = urllib.parse.urlencode(uri, safe=", :")
+        query_dict[param] = val
+
+    query = urllib.parse.urlencode(query_dict, safe=", :")
+    base_uri = base_uri._replace(query=query)
+    uri = urllib.parse.urlunsplit(base_uri)
+
     return uri

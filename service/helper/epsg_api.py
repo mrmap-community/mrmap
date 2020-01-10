@@ -69,9 +69,11 @@ class EpsgApi:
         response = xml_helper.parse_xml(str(response.content.decode()))
         type = xml_helper.try_get_text_from_xml_element(xml_elem=response, elem="//epsg:type")
         if type == "projected":
-            second_level_srs_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem=response, elem="//gml:cartesianCS", attribute="{http://www.w3.org/1999/xlink}href")
+            cartes_elem = xml_helper.try_get_single_element_from_xml("//gml:cartesianCS", response)
+            second_level_srs_uri = xml_helper.get_href_attribute(xml_elem=cartes_elem)
         elif type == "geographic 2D":
-            second_level_srs_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem=response, elem="//gml:ellipsoidalCS", attribute="{http://www.w3.org/1999/xlink}href")
+            geogr_elem = xml_helper.try_get_single_element_from_xml("//gml:ellipsoidalCS", response)
+            second_level_srs_uri = xml_helper.get_href_attribute(xml_elem=geogr_elem)
         else:
             second_level_srs_uri = ""
 

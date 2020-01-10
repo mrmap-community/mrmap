@@ -85,12 +85,19 @@ SERVICE_DISABLED = _("423 - The requested resource is currently disabled.")
 
 SECURITY_PROXY_ERROR_MULTIPLE_SECURED_OPERATIONS = _("There are multiple secured operations for one metadata. Please contact an administator.")
 SECURITY_PROXY_NOT_ALLOWED = _("You have no permission to access this resource.")
+SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING = _("Proxy must be activated to be logged!")
+SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS = _("Proxy must be enabled if service shall stay secured!")
 SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED = _("The requested operation is not supported by this resource.")
 SECURITY_PROXY_ERROR_BROKEN_URI = _("The requested uri seems to be broken. Please inform an administrator.")
 SECURITY_PROXY_ERROR_PARAMETER = _("The following parameter seems to be invalid. Please check '{}'.")
+SECURITY_PROXY_WARNING_ONLY_FOR_ROOT = _("This setting is only available for the top level element.")
 SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE = _("No 'request' parameter provided.")
+SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY = _("Login credentials for external authentication could not be decrypted. The key is missing. Please inform an administrator.")
+SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY = _("Login credentials for external authentication could not be decrypted. The key is wrong. Please inform an administrator.")
 
 MULTIPLE_SERVICE_METADATA_FOUND = _("There are several service metadata documents for this service. Please contact an administrator.")
 
 EDITOR_INVALID_ISO_LINK = _("'{}' was invalid.")
 EDITOR_ACCESS_RESTRICTED = _("Access for '{}' changed successfully.")
+
+TD_POINT_HAS_NOT_ENOUGH_VALUES = _("2D-Points must hold two values for x and y.")  # TD_ = 2D_

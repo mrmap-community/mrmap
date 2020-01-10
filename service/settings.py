@@ -13,12 +13,6 @@ from django.contrib.gis.geos import Polygon, GEOSGeometry
 from MapSkinner.settings import BASE_DIR
 from service.helper.enums import ConnectionEnum, VersionEnum
 
-# Metadata types
-MD_TYPE_FEATURETYPE = "featuretype"
-MD_TYPE_DATASET = "dataset"
-MD_TYPE_SERVICE = "service"
-MD_TYPE_LAYER = "layer"
-
 # Some special things
 DEFAULT_CONNECTION_TYPE = ConnectionEnum.REQUESTS
 DEFAULT_SERVICE_VERSION = VersionEnum.V_1_1_1
@@ -36,6 +30,7 @@ MAPSERVER_SECURITY_MASK_TABLE = "service_securedoperation"
 MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN= "bounding_geometry"
 MAPSERVER_SECURITY_MASK_KEY_COLUMN= "id"
 
+EXTERNAL_AUTHENTICATION_FILEPATH = "{}/../ext_auth_keys".format(BASE_DIR)
 
 # Defines the possible FeatureTypeElement type names, which hold the geometry of a feature type
 ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS = [
@@ -112,3 +107,9 @@ ALLOWED_SRS_EXTENTS = {
 }
 
 INSPIRE_LEGISLATION_FILE = BASE_DIR + "/inspire_legislation.json"
+
+# IMAGE RENDERING
+MIN_FONT_SIZE = 14  # The minimum font size for text on images
+MAX_FONT_SIZE = 20  # The maximum font size for text on images
+FONT_IMG_RATIO = 1/20  # Font to image ratio
+RENDER_TEXT_ON_IMG = False  # Whether to render 'Access denied for xy' on GetMap responses or not

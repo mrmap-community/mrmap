@@ -10,12 +10,12 @@ from django.contrib.gis.geos import Polygon
 from django.db import transaction
 from lxml.etree import _Element
 
-from service.settings import MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, MD_RELATION_TYPE_VISUALIZES
+from service.settings import MD_RELATION_TYPE_VISUALIZES
 from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
 from MapSkinner.utils import execute_threads
-from service.helper.enums import VersionEnum, ServiceEnum
+from service.helper.enums import VersionEnum, ServiceEnum, MetadataEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
@@ -259,7 +259,7 @@ class OGCWebFeatureService(OGCWebService):
 
         f_t = FeatureType()
         md = Metadata()
-        md_type = MetadataType.objects.get_or_create(type=MD_TYPE_FEATURETYPE)[0]
+        md_type = MetadataType.objects.get_or_create(type=MetadataEnum.FEATURETYPE.value)[0]
         md.metadata_type = md_type
         md.uuid = uuid.uuid4()
         f_t.metadata = md
@@ -457,7 +457,7 @@ class OGCWebFeatureService(OGCWebService):
 
         # Metadata
         md = Metadata()
-        md_type = MetadataType.objects.get_or_create(type=MD_TYPE_SERVICE)[0]
+        md_type = MetadataType.objects.get_or_create(type=MetadataEnum.SERVICE.value)[0]
         md.metadata_type = md_type
         md.title = self.service_identification_title
         if self.service_file_identifier is None:
@@ -507,7 +507,7 @@ class OGCWebFeatureService(OGCWebService):
         service.is_root = True
         service.metadata = md
         if self.linked_service_metadata is not None:
-            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MD_TYPE_SERVICE)
+            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value)
 
         # Keywords
         for kw in self.service_identification_keywords:

@@ -26,9 +26,7 @@ from service.helper.enums import ServiceEnum, MetadataEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.ogc.operation_request_handler import OperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
-from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, SecuredOperation, \
-    MimeType, Style
-from service.settings import MD_TYPE_SERVICE
+from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style
 from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
@@ -181,7 +179,7 @@ def get_service_metadata(request: HttpRequest, id: int):
     md_relations = MetadataRelation.objects.filter(
         metadata_from=metadata,
         metadata__is_active=True,
-        metadata_to__metadata_type__type=MD_TYPE_SERVICE
+        metadata_to__metadata_type__type=MetadataEnum.SERVICE.value
     )
     for rel in md_relations:
         md_to = rel.metadata_to

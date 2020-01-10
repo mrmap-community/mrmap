@@ -17,12 +17,11 @@ from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from service.settings import MD_TYPE_LAYER, MD_TYPE_SERVICE
 from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
     PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
 from MapSkinner.utils import execute_threads, sha256
-from service.helper.enums import VersionEnum
+from service.helper.enums import VersionEnum, MetadataEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
@@ -594,7 +593,7 @@ class OGCWebMapService(OGCWebService):
             nothing
         """
         metadata = Metadata()
-        md_type = MetadataType(type=MD_TYPE_LAYER)
+        md_type = MetadataType(type=MetadataEnum.LAYER.value)
         metadata.metadata_type = md_type
         metadata.title = layer_obj.title
         metadata.uuid = uuid.uuid4()
@@ -758,7 +757,7 @@ class OGCWebMapService(OGCWebService):
 
         # metadata
         metadata = Metadata()
-        md_type = MetadataType.objects.get_or_create(type=MD_TYPE_SERVICE)[0]
+        md_type = MetadataType.objects.get_or_create(type=MetadataEnum.SERVICE.value)[0]
         metadata.metadata_type = md_type
         if self.service_file_iso_identifier is None:
             # there was no file identifier found -> we create a new
@@ -816,7 +815,7 @@ class OGCWebMapService(OGCWebService):
         service.metadata = metadata
         service.is_root = True
         if self.linked_service_metadata is not None:
-            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MD_TYPE_SERVICE)
+            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value)
 
         root_layer = self.layers[0]
 

@@ -1,5 +1,4 @@
 import json
-import urllib
 
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
@@ -17,7 +16,7 @@ from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
-    SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED, SECURITY_PROXY_NOT_ALLOWED
+    SECURITY_PROXY_NOT_ALLOWED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
@@ -28,10 +27,7 @@ from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
-from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, SecuredOperation, \
-    MimeType, Style, ExternalAuthentication
-from service.settings import MD_TYPE_SERVICE
-from service.tasks import async_remove_service_task, async_increase_hits
+from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style
 from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group

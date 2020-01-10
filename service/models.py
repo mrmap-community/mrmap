@@ -659,7 +659,7 @@ class Metadata(Resource):
         """ Set is_secured to a new value.
 
         Iterates over all children for the same purpose.
-        Activates use_proxy directly!
+        Activates use_proxy automatically!
 
         Args:
             is_secured (bool): The new value for is_secured

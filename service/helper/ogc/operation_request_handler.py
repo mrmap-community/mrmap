@@ -38,6 +38,13 @@ class OGCOperationRequestHandler:
     """
 
     def __init__(self, request: HttpRequest, metadata: Metadata, uri: str = None):
+        """ Constructor for OGCOperationRequestHandler
+
+        Args:
+            request (HttpRequest): An incoming request
+            metadata (Metadata): The metadata object related to the operation call
+            uri (str): The uri of the requested operation (optional)
+        """
         self.full_operation_uri = uri
         self.original_operation_base_uri = None
 

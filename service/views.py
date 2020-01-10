@@ -1,4 +1,5 @@
 import json
+import urllib
 
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
@@ -9,27 +10,28 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.csrf import csrf_exempt
 
 from MapSkinner import utils
-from MapSkinner.decorator import check_session, check_permission
+from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
-    SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED
+    SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED, SECURITY_PROXY_NOT_ALLOWED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ServiceEnum, MetadataEnum
+from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
-from service.helper.ogc.operation_request_handler import OperationRequestHandler
+from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, SecuredOperation, \
-    MimeType, Style
+    MimeType, Style, ExternalAuthentication
 from service.settings import MD_TYPE_SERVICE
-from service.tasks import async_remove_service_task
+from service.tasks import async_remove_service_task, async_increase_hits
 from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
 
@@ -163,7 +165,7 @@ def activate(request: HttpRequest, id: int, user:User):
 
     return redirect("service:index")
 
-
+@log_proxy
 def get_service_metadata(request: HttpRequest, id: int):
     """ Returns the service metadata xml file for a given metadata id
 
@@ -268,7 +270,7 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
 
     return BackendAjaxResponse(html="", has_dataset_doc=has_dataset_doc).get_response()
 
-
+@log_proxy
 def get_capabilities(request: HttpRequest, id: int):
     """ Returns the current capabilities xml file
 
@@ -279,13 +281,18 @@ def get_capabilities(request: HttpRequest, id: int):
          A HttpResponse containing the xml file
     """
     md = Metadata.objects.get(id=id)
+
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
+
+    # move increasing hits to background process to speed up response time!
+    async_increase_hits.delay(id)
     cap_doc = Document.objects.get(related_metadata=md)
     doc = cap_doc.current_capability_document
+
     return HttpResponse(doc, content_type='application/xml')
 
-
+@log_proxy
 def get_capabilities_original(request: HttpRequest, id: int):
     """ Returns the current capabilities xml file
 
@@ -296,10 +303,15 @@ def get_capabilities_original(request: HttpRequest, id: int):
          A HttpResponse containing the xml file
     """
     md = Metadata.objects.get(id=id)
+
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
+
+    # move increasing hits to background process to speed up response time!
+    async_increase_hits.delay(id)
     cap_doc = Document.objects.get(related_metadata=md)
     doc = cap_doc.original_capability_document
+
     return HttpResponse(doc, content_type='application/xml')
 
 
@@ -402,8 +414,20 @@ def new_service(request: HttpRequest, user: User):
 
     cap_url = POST_params.get("uri", "")
     cap_url = cap_url.replace("&amp;", "&")
+
     register_group = POST_params.get("registerGroup")
     register_for_organization = POST_params.get("registerForOrg")
+
+    external_username = POST_params.get("username")
+    external_password = POST_params.get("password")
+    external_auth_type = POST_params.get("authType")
+    external_auth = None
+    if len(external_username) > 0 and len(external_password) > 0:
+        external_auth = {
+            "username": external_username,
+            "password": external_password,
+            "auth_type": external_auth_type
+        }
 
     url_dict = service_helper.split_service_uri(cap_url)
     url_dict["service"] = url_dict["service"].value
@@ -411,8 +435,8 @@ def new_service(request: HttpRequest, user: User):
 
     # run creation async!
     try:
-        pending_task = tasks.async_new_service.delay(url_dict, user.id, register_group, register_for_organization)
-        #pending_task = tasks.async_new_service(url_dict, user.id, register_group, register_for_organization)
+        pending_task = tasks.async_new_service.delay(url_dict, user.id, register_group, register_for_organization, external_auth)
+        #pending_task = tasks.async_new_service(url_dict, user.id, register_group, register_for_organization, external_auth)
     except Exception as e:
         template = "overlay/error.html"
         params = {
@@ -725,11 +749,14 @@ def metadata_proxy(request: HttpRequest, id: int):
     return HttpResponse(xml_raw, content_type='application/xml')
 
 
-@check_session
-def get_metadata_operation(request: HttpRequest, id: int, user: User):
+@csrf_exempt
+@log_proxy
+def get_metadata_operation(request: HttpRequest, id: int):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
 
     Decides which operation will be handled by resolving a given 'request=' query parameter.
+    This function has to be public available (no check_session decorator)
+    The decorator allows POST requests without CSRF tokens (for non logged in users)
 
     Args:
         request (HttpRequest): The incoming request
@@ -744,12 +771,15 @@ def get_metadata_operation(request: HttpRequest, id: int, user: User):
     try:
         # redirects request to parent service, if the given id is not the root of the service
         metadata = Metadata.objects.get(id=id)
-        operation_handler = OperationRequestHandler(get_query_string, request, metadata)
+        operation_handler = OGCOperationRequestHandler(uri=get_query_string, request=request, metadata=metadata)
 
-        if operation_handler.request_param is None:
+        if not metadata.is_active:
+            return HttpResponse(status=423, content=SERVICE_DISABLED)
+
+        elif operation_handler.request_param is None:
             return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
 
-        if not metadata.is_root():
+        elif not metadata.is_root():
             # we do not allow the direct call of operations on child elements, such as layers!
             # if the request tries that, we directly redirect it to the parent service!
             redirect_uri = "/service/metadata/{}/operation?{}".format(
@@ -758,52 +788,44 @@ def get_metadata_operation(request: HttpRequest, id: int, user: User):
             )
             return redirect(redirect_uri)
 
-        if not metadata.is_active:
-            return HttpResponse(status=423, content=SERVICE_DISABLED)
+        elif operation_handler.request_param.upper() == ServiceOperationEnum.GET_CAPABILITIES.value.upper():
+            cap_doc = Document.objects.get(related_metadata=metadata)
+            return HttpResponse(cap_doc.current_capability_document, content_type="application/xml")
 
-        # if the 'layer' parameter indicates the request for a subelement of this service, we need to fetch this
-        # metadata instead of the parent service one (which we have at this point) to continue with!
-        if operation_handler.layer_param is not None:
-            try:
-                metadata = Metadata.objects.get(identifier=operation_handler.layer_param)
-            except ObjectDoesNotExist:
+        # We need to check if one of the requested layers is secured. If so, we need to check the
+        md_secured = metadata.is_secured
+        if operation_handler.layers_param is not None:
+            layers = operation_handler.layers_param.split(",")
+            layers_md = Metadata.objects.filter(
+                identifier__in=layers,
+                service__parent_service__metadata=metadata
+            )
+            md_secured = True in [l_md.is_secured for l_md in layers_md]
+
+            if layers_md.count() != len(layers):
+                # at least one requested layer could not be found in the database
                 return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
 
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+    except Exception as e:
+        return HttpResponse(status=500, content=e)
 
-    # identify requested operation and resolve the uri
-    if metadata.service.servicetype.name == ServiceEnum.WFS.value:
-        operations = {
-            "GETFEATURE": metadata.service.get_feature_info_uri,  # get_feature_info_uri is reused in WFS for get_feature_uri
-            "TRANSACTION": metadata.service.transaction_uri,
-        }
-    else:
-        operations = {
-            "GETMAP": metadata.service.get_map_uri,
-            "GETFEATUREINFO": metadata.service.get_feature_info_uri,
-        }
+    if md_secured:
+        response = operation_handler.get_secured_operation_response(request, metadata)
 
-    operation_handler.uri = operations.get(operation_handler.request_param.upper(), None)
+        if response is None:
+            # metadata is secured but user is not allowed
+            return HttpResponse(status=401, content=SECURITY_PROXY_NOT_ALLOWED)
 
-    # if the given operation parameter could not be found in the dict, we assume an input error!
-    if operation_handler.uri is None:
-        return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED)
+        return HttpResponse(response, content_type="")
+    return HttpResponse(operation_handler.get_operation_response(), content_type="")
 
-    operation_handler.uri += get_query_string
 
-    if metadata.is_secured:
-        return service_helper.get_secured_operation_result(
-            metadata,
-            operation_handler,
-            user
-        )
-    else:
-        return HttpResponse(service_helper.get_operation_response(operation_handler.uri), content_type="")
+def get_metadata_legend(request: HttpRequest, id: int, style_id: id):
+    """ Calls the legend uri of a special style inside the metadata (<LegendURL> element) and returns the response to the user
 
-@check_session
-def get_metadata_legend(request: HttpRequest, id: int, style_id: id, user: User):
-    """ Calls the legend uri of a special style inside the metadata and returns the response to the user
+    This function has to be public available (no check_session decorator)
 
     Args:
         request (HttpRequest): The incoming HttpRequest

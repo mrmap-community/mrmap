@@ -41,8 +41,19 @@ def parse_xml(xml: str, encoding=None):
 
 
 def xml_to_string(xml_obj):
+    """ Creates a string representation of a xml element
+
+    Args:
+        xml_obj: The xml element
+    Returns:
+         _str (str): The string or None if something failed
+    """
     enc = "UTF-8"
-    return etree.tostring(xml_obj, encoding=enc, method="xml").decode()
+    try:
+        _str = etree.tostring(xml_obj, encoding=enc, method="xml").decode()
+    except TypeError:
+        _str = None
+    return _str
 
 
 def get_feature_type_elements_xml(title, service_type_version, service_type, uri):
@@ -62,6 +73,30 @@ def get_feature_type_elements_xml(title, service_type_version, service_type, uri
     except ProxyError:
         return None
     return response
+
+
+def get_href_attribute(xml_elem):
+    """ Helping function which returns None or the href attribute.
+
+    Since some xml documents use https for the w3.org reference,
+    it is nicer to encapsulate the logic inside this separate function.
+
+    Args:
+        xml_elem: The xml element
+    Returns:
+         None | the attribute
+    """
+    xlink = None
+    if xml_elem is not None:
+        possible_tags = [
+            "{http://www.w3.org/1999/xlink}href",
+            "{https://www.w3.org/1999/xlink}href",
+        ]
+        for tag in possible_tags:
+            xlink = xml_elem.get(tag)
+            if xlink is not None:
+                break
+    return xlink
 
 
 def try_get_single_element_from_xml(elem: str, xml_elem):

@@ -116,6 +116,25 @@ $(document).ready(function(){
         toggleSecuredCheckbox();
     });
 
+    $("#checkbox-use-proxy").change(function(){
+        var elem = $(this);
+        // deactivate log proxy if use proxy is deactivated
+        var logProxyElem = $("#checkbox-log-proxy")
+        if(!elem.is(":checked") && logProxyElem.is(":checked")){
+            logProxyElem.click();
+        }
+    });
+
+    $("#checkbox-log-proxy").change(function(){
+        var elem = $(this);
+        // activate use proxy if log proxy is activated
+        var useProxyElem = $("#checkbox-use-proxy")
+        if(elem.is(":checked") && !useProxyElem.is(":checked")){
+            useProxyElem.click();
+        }
+    });
+
+
     $(".submit-button.secured-operations").click(function(event){
         // store information as json into hidden input field
         var operations = $("ul")

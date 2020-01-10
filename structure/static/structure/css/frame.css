@@ -37,6 +37,7 @@ article{
     align-items: center;
     justify-content: center;
     align-text: justify;
+    margin: 0 auto 0 auto;
 }
 .activation-article{
     padding: 0;

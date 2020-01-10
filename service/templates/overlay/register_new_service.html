@@ -60,6 +60,27 @@
                         </select>
                     </td>
                 </tr>
+                <tr>
+                    <td class="field-label">{% trans 'Service needs authentication:' %}</td>
+                    <td class="field"><input id="checkbox-service-auth" type="checkbox" title="{% trans 'Activate if service needs authentication' %}"></td>
+                </tr>
+                <tr class="service-auth disabled">
+                    <td class="field-label">{% trans 'Username:' %}</td>
+                    <td class="field"><input id="username" type="text" disabled="disabled"></td>
+                </tr>
+                <tr class="service-auth disabled">
+                    <td class="field-label">{% trans 'Password:' %}</td>
+                    <td class="field"><input id="password" type="password" disabled="disabled"></td>
+                </tr>
+                <tr class="service-auth disabled">
+                    <td class="field-label">{% trans 'Authentication type:' %}</td>
+                    <td class="field">
+                        <select id="auth-type" disabled="disabled">
+                            <option value="http_digest">{% trans 'HTTP Digest' %}</option>
+                            <option value="http_basic">{% trans 'HTTP Basic' %}</option>
+                        </select>
+                    </td>
+                </tr>
             </table>
 
 
@@ -131,7 +152,31 @@
         var registerGroup = $("#user-groups-select").val();
         var registerForOrg = $("#publishable-organizations-select").val();
 
-        startServiceRegistration('{{ full_uri }}', registerGroup, registerForOrg, buttonText);
+        var username = null;
+        var password = null;
+        var authType = null;
+        if($("#checkbox-service-auth").is(":checked")){
+            username = $("#username").val();
+            password = $("#password").val();
+            authType = $("#auth-type").val();
+        }
+
+        startServiceRegistration('{{ full_uri }}', registerGroup, registerForOrg, buttonText, username, password, authType);
+    });
+
+    $("#checkbox-service-auth").change(function(){
+        var elem = $(this);
+        var checked = elem.is(":checked");
+        var serviceAuthForm = $(".service-auth");
+
+        serviceAuthForm.toggleClass("disabled");
+        if(!checked){
+            serviceAuthForm.find("input").attr("disabled", "disabled");
+            serviceAuthForm.find("select").attr("disabled", "disabled");
+        }else{
+            serviceAuthForm.find("input").removeAttr("disabled");
+            serviceAuthForm.find("select").removeAttr("disabled");
+        }
     });
 
     $("#user-groups-select").change(function(){

@@ -17,11 +17,24 @@ from MapSkinner import utils
 from MapSkinner.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
 from service.helper.enums import MetadataEnum, ServiceEnum
-from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation
+from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication
 from structure.models import User, Group, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
 from users.helper import user_helper
+
+
+@shared_task(name="async_increase_hits")
+def async_increase_hits(metadata_id: int):
+    """ Async call for increasing the hit counter of a metadata record
+
+    Args:
+        metadata_id (int): The metadata record id
+    Returns:
+         nothing
+    """
+    md = Metadata.objects.get(id=metadata_id)
+    md.increase_hits()
 
 
 @shared_task(name="async_activate_service")
@@ -121,7 +134,7 @@ def async_remove_service_task(service_id: int):
 
 
 @shared_task(name="async_new_service_task")
-def async_new_service(url_dict: dict, user_id: int, register_group_id: int, register_for_organization_id: int):
+def async_new_service(url_dict: dict, user_id: int, register_group_id: int, register_for_organization_id: int, external_auth: dict):
     """ Async call of new service creation
 
     Since redis is used as broker, the objects can not be passed directly into the function. They have to be resolved using
@@ -135,6 +148,14 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
     Returns:
         nothing
     """
+    # create ExternalAuthentication object
+    if external_auth is not None:
+        external_auth = ExternalAuthentication(
+            username=external_auth["username"],
+            password=external_auth["password"],
+            auth_type=external_auth["auth_type"],
+        )
+
     # get current task id
     curr_task_id = async_new_service.request.id
 
@@ -163,6 +184,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             register_group,
             register_for_organization,
             async_task=async_new_service,
+            external_auth=external_auth
         )
 
         ## update progress
@@ -186,7 +208,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         xml = raw_service.service_capabilities_xml
 
         # persist everything
-        service_helper.persist_service_model_instance(service)
+        service_helper.persist_service_model_instance(service, external_auth)
 
         # update progress
         if curr_task_id is not None:

@@ -13,7 +13,7 @@ from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, VersionEnum, ServiceEnum
 from service.helper.iso.iso_metadata import ISOMetadata
-from service.models import RequestOperation
+from service.models import RequestOperation, ExternalAuthentication
 from structure.models import User
 
 
@@ -21,12 +21,12 @@ class OGCWebService:
     """ The base class for all derived web services
 
     """
-    def __init__(self, service_connect_url=None, service_type=ServiceEnum.WMS, service_version=VersionEnum.V_1_1_1, auth=None, service_capabilities_xml=None):
+    def __init__(self, service_connect_url=None, service_type=ServiceEnum.WMS, service_version=VersionEnum.V_1_1_1, service_capabilities_xml=None, external_auth: ExternalAuthentication=None):
         self.service_connect_url = service_connect_url
         self.service_type = service_type  # wms, wfs, wcs, ...
         self.service_version = service_version  # 1.0.0, 1.1.0, ...
         self.service_capabilities_xml = service_capabilities_xml
-        self.auth = auth
+        self.external_authentification = external_auth
         self.descriptive_document_encoding = None
         self.connect_duration = None
         self.service_object = None
@@ -72,12 +72,18 @@ class OGCWebService:
         self.linked_service_metadata = None
 
         # Capability
-        self.get_capabilities_uri = None
-        self.get_map_uri = None
-        self.get_feature_info_uri = None
-        self.describe_layer_uri = None
-        self.get_legend_graphic_uri = None
-        self.get_styles_uri = None
+        self.get_capabilities_uri_GET = None
+        self.get_capabilities_uri_POST = None
+        self.get_map_uri_GET = None
+        self.get_map_uri_POST = None
+        self.get_feature_info_uri_GET = None
+        self.get_feature_info_uri_POST = None
+        self.describe_layer_uri_GET = None
+        self.describe_layer_uri_POST = None
+        self.get_legend_graphic_uri_GET = None
+        self.get_legend_graphic_uri_POST = None
+        self.get_styles_uri_GET = None
+        self.get_styles_uri_POST = None
 
         class Meta:
             abstract = True
@@ -95,7 +101,7 @@ class OGCWebService:
                                    '&REQUEST=GetCapabilities' + '&VERSION=' + self.service_version.value + \
                                    '&SERVICE=' + self.service_type.value
         ows_connector = CommonConnector(url=self.service_connect_url,
-                                        auth=self.auth,
+                                        external_auth=self.external_authentification,
                                         connection_type=ConnectionEnum.REQUESTS)
         ows_connector.http_method = 'GET'
         try:
@@ -114,7 +120,7 @@ class OGCWebService:
         else:
             self.service_capabilities_xml = ows_connector.text
             
-        self.connect_duration = ows_connector.load_time
+        self.connect_duration = ows_connector.run_time
         self.descriptive_document_encoding = ows_connector.encoding
     
     def check_ogc_exception(self):
@@ -231,20 +237,5 @@ class OGCWebService:
 
     @transaction.atomic
     @abstractmethod
-    def persist_service_model(self, service):
+    def persist_service_model(self, service, external_auth):
         pass
-
-
-class OWSRequestHandler:
-    def built_request(self):
-        pass
-
-    def do_request(self):
-        pass
-
-    def parse_result(self):
-        pass
-
-    # def get_section(self):
-    #    pass
-

@@ -25,7 +25,7 @@ from MapSkinner.messages import FORM_INPUT_INVALID, ACCOUNT_UPDATE_SUCCESS, USER
     LOGOUT_SUCCESS, PASSWORD_SENT, EMAIL_INVALID, ACTIVATION_LINK_SENT
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import SESSION_EXPIRATION, ROOT_URL, LAST_ACTIVITY_DATE_RANGE
-from MapSkinner.utils import sha256
+from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
 from structure.forms import LoginForm, RegistrationForm
 from structure.models import User, UserActivation, PendingRequest, GroupActivity
@@ -296,7 +296,8 @@ def password_reset(request: HttpRequest):
                 messages.add_message(request, messages.ERROR, UNKNOWN_EMAIL)
                 return redirect('password-reset')
             # ToDo: Do sending via email!
-            gen_pw = sha256(user.salt + str(timezone.now()))[:7].upper()
+            sec_handler = CryptoHandler()
+            gen_pw = sec_handler.sha256(user.salt + str(timezone.now()))[:7].upper()
             print(gen_pw)
             user.password = make_password(gen_pw, user.salt)
             user.save()

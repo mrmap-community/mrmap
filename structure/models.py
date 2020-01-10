@@ -4,7 +4,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils import timezone
 
-from MapSkinner.utils import sha256
+from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import ServiceEnum
 from structure.settings import USER_ACTIVATION_TIME_WINDOW
 
@@ -213,7 +213,8 @@ class User(Contact):
         user_activation = UserActivation()
         user_activation.user = self
         user_activation.activation_until = timezone.now() + datetime.timedelta(hours=USER_ACTIVATION_TIME_WINDOW)
-        user_activation.activation_hash = sha256(self.username + self.salt + str(user_activation.activation_until))
+        sec_handler = CryptoHandler()
+        user_activation.activation_hash = sec_handler.sha256(self.username + self.salt + str(user_activation.activation_until))
         user_activation.save()
 
 

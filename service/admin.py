@@ -71,7 +71,7 @@ class ReferenceSystemAdmin(admin.ModelAdmin):
     pass
 
 class FeatureTypeAdmin(admin.ModelAdmin):
-    list_display = ('metadata', 'service')
+    list_display = ('metadata', 'parent_service')
 
 
 class FeatureTypeElementAdmin(admin.ModelAdmin):
@@ -87,6 +87,12 @@ class MimeTypeAdmin(admin.ModelAdmin):
 
 class NamespaceAdmin(admin.ModelAdmin):
     list_display = ('name', 'uri', 'version')
+
+class ProxyLogAdmin(admin.ModelAdmin):
+    list_display = ('id', 'metadata', 'user', 'timestamp')
+
+class ExternalAuthenticationAdmin(admin.ModelAdmin):
+    list_display = ('metadata', 'auth_type')
 
 
 admin.site.register(Document, DocumentAdmin)
@@ -110,3 +116,5 @@ admin.site.register(Layer, LayerAdmin)
 admin.site.register(FeatureType, FeatureTypeAdmin)
 admin.site.register(FeatureTypeElement, FeatureTypeElementAdmin)
 admin.site.register(Namespace, NamespaceAdmin)
+admin.site.register(ProxyLog, ProxyLogAdmin)
+admin.site.register(ExternalAuthentication, ExternalAuthenticationAdmin)

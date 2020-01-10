@@ -10,9 +10,11 @@ from django.contrib.gis.geos import Polygon
 from django.db import transaction
 from lxml.etree import _Element
 
-from service.settings import MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, MD_RELATION_TYPE_VISUALIZES
+from service.helper.crypto_handler import CryptoHandler
+from service.settings import MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, MD_RELATION_TYPE_VISUALIZES, \
+    EXTERNAL_AUTHENTICATION_FILEPATH
 from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
-    MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING
+    MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
 from MapSkinner.utils import execute_threads
 from service.helper.enums import VersionEnum, ServiceEnum
@@ -21,7 +23,8 @@ from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
-    FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType, RequestOperation, Document
+    FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType, RequestOperation, Document, \
+    ExternalAuthentication
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
 from structure.models import Organization, User
 
@@ -82,13 +85,23 @@ class OGCWebFeatureService(OGCWebService):
             "get": None,
             "post": None,
         }
+
         # wms 1.1.0
         self.get_gml_object_uri = {
             "get": None,
             "post": None,
         }
+
         # wms 2.0.0
-        self.list_stored_queries = {
+        self.list_stored_queries_uri = {
+            "get": None,
+            "post": None,
+        }
+        self.get_property_value_uri = {
+            "get": None,
+            "post": None,
+        }
+        self.describe_stored_queries_uri = {
             "get": None,
             "post": None,
         }
@@ -113,7 +126,6 @@ class OGCWebFeatureService(OGCWebService):
 
         # parse service metadata
         self.get_service_metadata_from_capabilities(xml_obj, async_task)
-        self.get_capability_metadata(xml_obj)
         self.get_capability_metadata(xml_obj)
 
         # check possible operations on this service
@@ -166,7 +178,8 @@ class OGCWebFeatureService(OGCWebService):
         self.service_identification_keywords = kw
 
         self.service_provider_providername = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ProviderName")
-        self.service_provider_url = xml_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj, attribute="{http://www.w3.org/1999/xlink}href", elem="//ows:ProviderSite")
+        provider_site_elem = xml_helper.try_get_single_element_from_xml("//ows:ProviderSite", xml_obj)
+        self.service_provider_url = xml_helper.get_href_attribute(xml_elem=provider_site_elem)
         self.service_provider_responsibleparty_individualname = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:IndividualName")
         self.service_provider_responsibleparty_positionname = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:PositionName")
         self.service_provider_telephone_voice = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:Voice")
@@ -177,7 +190,8 @@ class OGCWebFeatureService(OGCWebService):
         self.service_provider_address_postalcode = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:PostalCode")
         self.service_provider_address_country = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:Country")
         self.service_provider_address_electronicmailaddress = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ElectronicMailAddress")
-        self.service_provider_onlineresource_linkage = xml_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj, elem="//ows:OnlineResource", attribute="{http://www.w3.org/1999/xlink}href")
+        online_resource_elem = xml_helper.try_get_single_element_from_xml(xml_elem=xml_obj, elem="//ows:OnlineResource")
+        self.service_provider_onlineresource_linkage = xml_helper.get_href_attribute(online_resource_elem)
         if self.service_provider_onlineresource_linkage is None or self.service_provider_onlineresource_linkage == "":
             # There are metadatas where no online resource link is given. We need to generate it manually therefore...
             self.service_provider_onlineresource_linkage = service_helper.split_service_uri(self.service_connect_url).get("base_uri") + "?"
@@ -193,32 +207,35 @@ class OGCWebFeatureService(OGCWebService):
         Returns:
              Nothing
         """
-        operation_metadata = xml_helper.try_get_element_from_xml("//ows:OperationsMetadata", xml_obj)
+        operation_metadata = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("OperationsMetadata"), xml_obj)
         if len(operation_metadata) > 0:
             operation_metadata = operation_metadata[0]
         else:
             return
-        actions = ["GetCapabilities", "DescribeFeatureType", "GetFeature", "Transaction", "LockFeature",
-                   "GetFeatureWithLock", "GetGMLObject", "ListStoredQueries"]
+        actions = ["GetCapabilities", "DescribeFeatureType", "GetFeature",
+                   "Transaction", "LockFeature", "GetFeatureWithLock",
+                   "GetGmlObject", "ListStoredQueries", "DescribeStoredQueries",
+                   "GetPropertyValue"
+                   ]
         get = {}
         post = {}
+
         for action in actions:
             xpath_str = './ows:Operation[@name="' + action + '"]'
             operation = xml_helper.try_get_single_element_from_xml(xml_elem=operation_metadata, elem=xpath_str)
+
             if operation is None:
                 continue
-            _get = xml_helper.try_get_attribute_from_xml_element(
-                xml_elem=operation,
-                attribute="{http://www.w3.org/1999/xlink}href",
-                elem=".//ows:Get"
-            )
-            _post = xml_helper.try_get_attribute_from_xml_element(
-                xml_elem=operation,
-                attribute="{http://www.w3.org/1999/xlink}href",
-                elem=".//ows:Post"
-            )
+
+            get_elem = xml_helper.try_get_single_element_from_xml(elem=".//ows:Get", xml_elem=operation)
+            _get = xml_helper.get_href_attribute(xml_elem=get_elem)
+
+            post_elem = xml_helper.try_get_single_element_from_xml(elem=".//ows:Post", xml_elem=operation)
+            _post = xml_helper.get_href_attribute(xml_elem=post_elem)
+
             get[action] = _get
             post[action] = _post
+
         self.get_capabilities_uri["get"] = get.get("GetCapabilities", None)
         self.get_capabilities_uri["post"] = post.get("GetCapabilities", None)
 
@@ -237,11 +254,17 @@ class OGCWebFeatureService(OGCWebService):
         self.get_feature_with_lock_uri["get"] = get.get("GetFeatureWithLock", None)
         self.get_feature_with_lock_uri["post"] = post.get("GetFeatureWithLock", None)
 
-        self.get_gml_object_uri["get"] = get.get("GetGMLObject", None)
-        self.get_gml_object_uri["post"] = post.get("GetGMLObject", None)
+        self.get_gml_object_uri["get"] = get.get("GetGmlObject", None)
+        self.get_gml_object_uri["post"] = post.get("GetGmlObject", None)
 
-        self.get_gml_object_uri["get"] = get.get("ListStoredQueries", None)
-        self.get_gml_object_uri["post"] = post.get("ListStoredQueries", None)
+        self.list_stored_queries_uri["get"] = get.get("ListStoredQueries", None)
+        self.list_stored_queries_uri["post"] = post.get("ListStoredQueries", None)
+
+        self.get_property_value_uri["get"] = get.get("GetPropertyValue", None)
+        self.get_property_value_uri["post"] = post.get("GetPropertyValue", None)
+
+        self.describe_stored_queries_uri["get"] = get.get("DescribeStoredQueries", None)
+        self.describe_stored_queries_uri["post"] = post.get("DescribeStoredQueries", None)
 
     def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version: str, async_task: Task = None, step_size: float = None):
         """ Get featuretype metadata of a single featuretype
@@ -498,14 +521,37 @@ class OGCWebFeatureService(OGCWebService):
         service.created_by = group
         service.published_for = orga_published_for
         service.published_by = orga_publisher
-        service.get_capabilities_uri = self.get_capabilities_uri.get("get", None)
-        service.describe_layer_uri = self.describe_feature_type_uri.get("get", None)
-        service.get_feature_info_uri = self.get_feature_uri.get("get", None)
-        service.transaction_uri = self.transaction_uri.get("get", None)
+
+        service.get_capabilities_uri_GET = self.get_capabilities_uri.get("get", None)
+        service.get_capabilities_uri_POST = self.get_capabilities_uri.get("post", None)
+
+        service.describe_layer_uri_GET = self.describe_feature_type_uri.get("get", None)
+        service.describe_layer_uri_POST = self.describe_feature_type_uri.get("post", None)
+
+        service.get_feature_info_uri_GET = self.get_feature_uri.get("get", None)
+        service.get_feature_info_uri_POST = self.get_feature_uri.get("post", None)
+
+        service.transaction_uri_GET = self.transaction_uri.get("get", None)
+        service.transaction_uri_POST = self.transaction_uri.get("post", None)
+
+        service.get_property_value_uri_GET = self.get_property_value_uri.get("get", None)
+        service.get_property_value_uri_POST = self.get_property_value_uri.get("post", None)
+
+        service.list_stored_queries_uri_GET = self.list_stored_queries_uri.get("get", None)
+        service.list_stored_queries_uri_GET = self.list_stored_queries_uri.get("post", None)
+
+        service.describe_stored_queries_uri_GET = self.describe_stored_queries_uri.get("get", None)
+        service.describe_stored_queries_uri_POST = self.describe_stored_queries_uri.get("post", None)
+
+        service.get_gml_objct_uri_GET = self.get_gml_object_uri.get("get", None)
+        service.get_gml_objct_uri_POST = self.get_gml_object_uri.get("post", None)
+
         service.availability = 0.0
         service.is_available = False
         service.is_root = True
-        service.metadata = md
+
+        md.service = service
+
         if self.linked_service_metadata is not None:
             service.linked_service_metadata = self.linked_service_metadata.to_db_model(MD_TYPE_SERVICE)
 
@@ -520,7 +566,7 @@ class OGCWebFeatureService(OGCWebService):
         for feature_type_key, feature_type_val in self.feature_type_list.items():
             f_t = feature_type_val.get("feature_type")
             f_t.metadata.created_by = group
-            f_t.service = service
+            f_t.parent_service = service
             f_t.metadata.contact = contact
             f_t.metadata.capabilities_original_uri = self.service_connect_url
             f_t.metadata.capabilities_uri = self.service_connect_url
@@ -537,7 +583,7 @@ class OGCWebFeatureService(OGCWebService):
         return service
 
     @transaction.atomic
-    def persist_service_model(self, service):
+    def persist_service_model(self, service, external_auth: ExternalAuthentication):
         """ Persist the service model object
 
         Returns:
@@ -546,6 +592,13 @@ class OGCWebFeatureService(OGCWebService):
         # save metadata
         md = service.metadata
         md.save()
+        if external_auth is not None:
+            external_auth.metadata = md
+            crypt_handler = CryptoHandler()
+            key = crypt_handler.generate_key()
+            crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
+            external_auth.encrypt(key)
+            external_auth.save()
 
         # save linked service metadata
         if service.linked_service_metadata is not None:
@@ -572,7 +625,7 @@ class OGCWebFeatureService(OGCWebService):
 
         # feature types
         for f_t in service.feature_type_list:
-            f_t.service = service
+            f_t.parent_service = service
             md = f_t.metadata
             md.save()
             f_t.metadata = md

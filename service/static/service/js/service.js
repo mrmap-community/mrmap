@@ -20,7 +20,7 @@ function toggleServiceActiveStatus(id, active){
     });
 }
 
-function startServiceRegistration(uri, registerGroup, registerForOrg, button){
+function startServiceRegistration(uri, registerGroup, registerForOrg, button, username, pw, authType){
     var oldHtml = button.html();
     button.html("Please wait...");
     $.ajax({
@@ -31,7 +31,10 @@ function startServiceRegistration(uri, registerGroup, registerForOrg, button){
         data: {
             "uri": uri,
             "registerGroup": registerGroup,
-            "registerForOrg": registerForOrg
+            "registerForOrg": registerForOrg,
+            "username": username,
+            "password": pw,
+            "authType": authType,
         },
         type: 'post',
         dataType: 'json'

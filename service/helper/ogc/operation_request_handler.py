@@ -5,76 +5,137 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 05.12.19
 
 """
-import urllib
+import urllib, io
 
+from PIL import Image, ImageOps, ImageFont, ImageDraw
+from cryptography.fernet import InvalidToken
 from django.core.exceptions import ObjectDoesNotExist
 from lxml import etree
 
-from django.contrib.gis.geos import Polygon, GEOSGeometry, Point, GeometryCollection
-from django.http import HttpRequest, HttpResponse
+from django.contrib.gis.geos import Polygon, GEOSGeometry, Point, GeometryCollection, MultiLineString
+from django.http import HttpRequest, HttpResponse, QueryDict
+from lxml.etree import QName
 
-from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER
+from MapSkinner import utils
+from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
+    SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY, SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
 from service.helper import xml_helper
-from service.models import Metadata, FeatureType
-from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING
+from service.helper.common_connector import CommonConnector
+from service.helper.crypto_handler import CryptoHandler
+from service.helper.enums import ServiceOperationEnum, ServiceEnum, VersionEnum
+from service.models import Metadata, FeatureType, Layer, SecuredOperation
+from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
+    MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
+    MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
+    RENDER_TEXT_ON_IMG, MAX_FONT_SIZE
+from users.helper import user_helper
 
 
-class OperationRequestHandler:
+class OGCOperationRequestHandler:
     """ Provides methods for handling an operation request for OGC services
 
     """
 
-    def __init__(self, uri: str, request: HttpRequest, metadata: Metadata):
-        self.uri = uri
+    def __init__(self, request: HttpRequest, metadata: Metadata, uri: str = None):
+        """ Constructor for OGCOperationRequestHandler
+
+        Args:
+            request (HttpRequest): An incoming request
+            metadata (Metadata): The metadata object related to the operation call
+            uri (str): The uri of the requested operation (optional)
+        """
+        self.full_operation_uri = uri
+        self.original_operation_base_uri = None
+
+        self.external_auth = None
+        try:
+            self.external_auth = metadata.external_authentication
+            crypto_handler = CryptoHandler()
+            key = crypto_handler.get_key_from_file(metadata.id)
+            self.external_auth.decrypt(key)
+        except ObjectDoesNotExist:
+            # this is normal for services which do not need an external authentication
+            pass
+        except FileNotFoundError:
+            raise Exception(SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY)
+        except InvalidToken:
+            raise Exception(SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY)
+
+        # check what type of request we are facing
+        self.request_is_GET = request.method == "GET"
+        self.original_params_dict = {}  # contains the original, unedited parameters
+        self.new_params_dict = {}  # contains the parameters, which could be still original or might have changed during method processing
 
         self.request_param = None  # refers to param 'REQUEST'
-        self.layer_param = None  # refers to param 'LAYERS'
+        self.layers_param = None  # refers to param 'LAYERS'
         self.x_y_param = [None, None]  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)
         self.bbox_param = None  # refers to param 'BBOX'
         self.srs_param = None  # refers to param 'SRS' (WMS 1.0.0 - 1.1.1) and 'CRS' (WMS 1.3.0)
         self.srs_code = None  # only the srsid as int
+        self.format_param = None  # refers to param 'FORMAT'
         self.version_param = None  # refers to param 'VERSION'
         self.filter_param = None  # refers to param 'FILTER' (WFS)
         self.width_param = None  # refers to param 'WIDTH' (WMS)
         self.height_param = None  # refers to param 'HEIGHT' (WMS)
         self.type_name_param = None  # refers to param 'TYPENAME' (WFS)
         self.geom_property_name = None  # will be set, if type_name_param is not None
+        self.POST_raw_body = None  # refers to the body content of a Transaction operation
+        self.transaction_geometries = None  # contains all geometries that shall be INSERTed or UPDATEd by a  Transaction operation
 
         self.intersected_allowed_geometry = None
+        self.user = user_helper.get_user(request)
+        self.access_denied_img = None  # if subelements are not accessible for the user, this PIL.Image object represents an overlay with information about the resources, which can not be accessed
 
-        for key, val in request.GET.items():
-            key = key.upper()
+        if self.request_is_GET:
+            self.original_params_dict = request.GET.dict()
+        else:
+            self.original_params_dict = request.POST.dict()
+
+        if len(self.original_params_dict) == 0:
+            # Possible, if no GET query parameter or no x-www-form-urlencoded POST values have been given
+            # In this case, all the information can be found inside a xml document in the POST body, that has to be parsed now.
+            self._parse_POST_xml_body(request.body)
+
+        # fill new_params_dict with upper case keys from original_params_dict
+        for key, val in self.original_params_dict.items():
+            self.new_params_dict[key.upper()] = val
+
+        # extract parameter attributes from params dict
+        for key, val in self.new_params_dict.items():
             if key == "REQUEST":
                 self.request_param = val
-            if key == "LAYER":
-                self.layer_param = val
-            if key == "BBOX":
+            elif key == "LAYERS":
+                self.layers_param = val
+            elif key == "BBOX":
                 self.bbox_param = val
-            if key == "X" or key == "I":
+            elif key == "X" or key == "I":
                 self.x_y_param[0] = val
-            if key == "Y" or key == "J":
+            elif key == "Y" or key == "J":
                 self.x_y_param[1] = val
-            if key == "VERSION":
+            elif key == "VERSION":
                 self.version_param = val
-            if key == "SRS" or key == "CRS":
+            elif key == "FORMAT":
+                self.format_param = val
+            elif key == "SRS" or key == "CRS":
                 self.srs_param = val
                 self.srs_code = int(self.srs_param.split(":")[-1])  # get the last element of the ':' splitted string
-            if key == "WIDTH":
+                self.srs_param = DEFAULT_SRS_FAMILY + ":" + str(self.srs_code)
+            elif key == "WIDTH":
                 self.width_param = val
-            if key == "HEIGHT":
+            elif key == "HEIGHT":
                 self.height_param = val
-            if key == "FILTER":
+            elif key == "FILTER":
                 self.filter_param = val
-            if key == "TYPENAME":
+            elif key == "TYPENAME":
                 self.type_name_param = val
 
-        if self.request_param == "GetFeature" and self.type_name_param is not None:
+        if self.request_param.upper() == ServiceOperationEnum.GET_FEATURE.value.upper() and self.type_name_param is not None:
             # for WFS we need to check a few things in here!
             # first get the featuretype object, that is requested
             featuretype = FeatureType.objects.get(
                 metadata__identifier=self.type_name_param,
-                service__metadata=metadata
+                parent_service__metadata=metadata
             )
 
             if self.srs_param is None:
@@ -101,10 +162,230 @@ class OperationRequestHandler:
                 except ObjectDoesNotExist:
                     pass
 
-        self.process_bbox_param()
-        self.process_x_y_param()
+        self._resolve_original_operation_uri(request, metadata)
+        self._process_bbox_param()
+        self._process_x_y_param()
+        self._process_transaction_geometries()
+        self._fill_new_params_dict()
 
-    def get_geom_filter_param(self, as_snippet: bool = False):
+        # Only work on the requested param objects, if the metadata is secured.
+        # Otherwise we can pass this, since it's too expensive for a basic, non secured request
+        if metadata.is_secured:
+            self._filter_not_allowed_subelements(metadata)
+
+    def _filter_not_allowed_subelements(self, md: Metadata):
+        """ Remove identifier names from parameter if the user has no access to them!
+
+        Args:
+            md (Metadata): The requested service metadata
+        Returns:
+            nothing
+        """
+        self._resolve_layer_param_to_leaf_layers(md)
+
+        if self.layers_param is not None and self.type_name_param is None:
+            # in case of WMS
+            layer_identifiers = self.layers_param.split(",")
+
+            if self.user is not None:
+                user_groups = self.user.groups.all()
+            else:
+                user_groups = []
+            allowed_layers = Metadata.objects.filter(
+                service__parent_service__metadata=md,
+                identifier__in=layer_identifiers,
+                secured_operations__allowed_group__in=user_groups,
+                secured_operations__operation__operation_name__iexact=self.request_param,
+            )
+            allowed_layers_identifier_list = [l.identifier for l in allowed_layers]
+            allowed_layers_identifier = ",".join(allowed_layers_identifier_list)
+            restricted_layers = [l_i for l_i in layer_identifiers if l_i not in allowed_layers_identifier_list]
+            self.new_params_dict["LAYERS"] = allowed_layers_identifier
+
+            # create text for image of restricted layers
+            if RENDER_TEXT_ON_IMG:
+                height = int(self.height_param)
+                text_img = Image.new("RGBA", (int(self.width_param), int(height)), (255, 255, 255, 0))
+                draw = ImageDraw.Draw(text_img)
+                font_size = int(height * FONT_IMG_RATIO)
+
+                num_res_layers = len(restricted_layers)
+                if font_size * num_res_layers > height:
+                    # if area of text would be larger than requested height, we simply create a new font_size, that fits!
+                    # increase the num_res_layers by 1 to create some space at the bottom for a better feeling
+                    font_size = int(height / (num_res_layers + 1))
+
+                if font_size < MIN_FONT_SIZE:
+                    font_size = MIN_FONT_SIZE
+                elif font_size > MAX_FONT_SIZE:
+                    font_size = MAX_FONT_SIZE
+
+                font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", font_size)
+                y = 0
+
+                for restricted_layer in restricted_layers:
+                    # render text listed one under another
+                    draw.text((0, y), "Access denied for '{}'".format(restricted_layer), (0, 0, 0), font=font)
+                    y += font_size
+                self.access_denied_img = text_img
+
+    def _fill_new_params_dict(self):
+        """ Fills all processed parameters into an internal dict
+
+        Returns:
+
+        """
+        # fill new_params_dict
+        self.new_params_dict["REQUEST"] = self.request_param
+        self.new_params_dict["VERSION"] = self.version_param
+        self.new_params_dict["FORMAT"] = self.format_param
+        self.new_params_dict["WIDTH"] = self.width_param
+        self.new_params_dict["HEIGHT"] = self.height_param
+
+        if self.filter_param is not None:
+            self.new_params_dict["FILTER"] = self.filter_param
+
+        if self.layers_param is not None:
+            self.new_params_dict["LAYERS"] = self.layers_param
+
+        if self.type_name_param is not None:
+            self.new_params_dict["TYPENAME"] = self.type_name_param
+
+        if self.version_param != VersionEnum.V_1_3_0.value:
+            self.new_params_dict["SRS"] = "{}:{}".format(DEFAULT_SRS_FAMILY, self.srs_code)
+            x_id = "X"
+            y_id = "Y"
+        else:
+            self.new_params_dict["CRS"] = "{}:{}".format(DEFAULT_SRS_FAMILY, self.srs_code)
+            x_id = "I"
+            y_id = "J"
+
+        if self.x_y_param is not None:
+            self.new_params_dict[x_id] = self.x_y_param[0]
+        if self.x_y_param is not None:
+            self.new_params_dict[y_id] = self.x_y_param[1]
+
+    def _resolve_original_operation_uri(self, request: HttpRequest, metadata: Metadata):
+        """ Creates the intended operation uri, which is masked by the proxy.
+
+        This is important, so we can perform this request internally.
+        Result is written into self.full_operation_uri.
+
+        Args:
+            request (HttpRequest): The incoming user request
+            metadata (Metadata): The metadata, which holds the operation specification
+        Returns:
+             nothing
+        """
+
+        # identify requested operation and resolve the uri
+        if metadata.service.servicetype.name == ServiceEnum.WFS.value:
+            secured_operation_uris = {
+                "GETFEATURE": {
+                    "get": metadata.service.get_feature_info_uri_GET,
+                    "post": metadata.service.get_feature_info_uri_POST,
+                },  # get_feature_info_uri_GET is reused in WFS for get_feature_uri
+                "TRANSACTION": {
+                    "get": metadata.service.transaction_uri_GET,
+                    "post": metadata.service.transaction_uri_POST,
+                },
+            }
+        else:
+            secured_operation_uris = {
+                "GETMAP": {
+                    "get": metadata.service.get_map_uri_GET,
+                    "post": metadata.service.get_map_uri_POST,
+                },
+                "GETFEATUREINFO": {
+                    "get": metadata.service.get_feature_info_uri_GET,
+                    "post": metadata.service.get_feature_info_uri_POST,
+                },
+            }
+
+        secured_uri = secured_operation_uris.get(
+            self.request_param.upper(), {}).get(
+            request.method.lower(), None
+        )
+
+        if secured_uri is not None:
+            # use the secured uri
+            uri = secured_uri
+        else:
+            # use the original uri
+            uri = metadata.online_resource
+
+        # add the request query parameter to the ones, which already exist in the persisted uri
+        uri = list(urllib.parse.urlparse(uri))
+        get_query_params = request.GET.dict()
+        uri_params = dict(urllib.parse.parse_qsl(uri[4]))
+        uri_params.update(get_query_params)
+        get_query_string = urllib.parse.urlencode(uri_params)
+        uri[4] = get_query_string
+        self.full_operation_uri = urllib.parse.urlunparse(uri)
+
+    def _parse_POST_xml_body(self, body: bytes):
+        """ Reads all relevant request data from the POST body xml document
+
+        For development the following (only available) example of a WMS GetMap request as xml document was used:
+        https://docs.geoserver.org/stable/en/user/services/wms/reference.html
+
+        Furthermore for the WFS operation implementation the following Oracle documentation was used:
+        https://docs.oracle.com/database/121/SPATL/wfs-operations-requests-and-responses-xml-examples.htm#SPATL926
+
+        Args:
+            body (bytes): The POST body as bytes
+        Returns:
+
+        """
+        body = body.decode("UTF-8")
+        xml = xml_helper.parse_xml(body)
+        self.POST_raw_body = body
+
+        root = xml_helper.try_get_single_element_from_xml(elem="/*", xml_elem=xml)
+        self.request_param = QName(root).localname
+        self.version_param = xml_helper.try_get_attribute_from_xml_element(root, "version")
+
+        self.layers_param = xml_helper.try_get_text_from_xml_element(xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("NamedLayer") + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Name"))
+
+        bbox_elem = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("BoundingBox"), xml_elem=xml)
+
+        # Old client implementations might not send the expected 'EPSG:xyz' style. Instead they send a link, which ends on e.g. '...#4326'
+        self.srs_param = xml_helper.try_get_attribute_from_xml_element(bbox_elem, "srsName")
+        possible_separators = [":", "#"]
+        for sep in possible_separators:
+            try:
+                self.srs_code = int(self.srs_param.split(sep)[-1])
+                break
+            except ValueError:
+                continue
+
+        bbox_extent = []
+        bbox_coords = xml_helper.try_get_element_from_xml(elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("coord"), xml_elem=bbox_elem)
+
+        tmp = ["X", "Y"]
+        for coord in bbox_coords:
+            for t in tmp:
+                bbox_extent.append(xml_helper.try_get_text_from_xml_element(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format(t), xml_elem=coord))
+
+        self.bbox_param = ",".join(bbox_extent)
+
+        output_elem = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Output"), xml_elem=xml)
+        self.format_param = xml_helper.try_get_text_from_xml_element(output_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("Format"))
+
+        size_elem = xml_helper.try_get_single_element_from_xml(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Size"), xml_elem=output_elem)
+        self.height_param = int(xml_helper.try_get_text_from_xml_element(size_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("Height")))
+        self.width_param = int(xml_helper.try_get_text_from_xml_element(size_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("Width")))
+
+        # type_name differs in WFS versions
+        if self.version_param == VersionEnum.V_2_0_2.value or self.version_param == VersionEnum.V_2_0_0.value:
+            type_name = "typeNames"
+        else:
+            type_name = "typeName"
+
+        self.type_name_param = xml_helper.try_get_attribute_from_xml_element(xml, type_name, "//" + GENERIC_NAMESPACE_TEMPLATE.format("Query"))
+        self.filter_param = xml_helper.xml_to_string(xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Filter"), xml_elem=xml))
+
+    def _get_geom_filter_param(self, as_snippet: bool = False):
         """ Creates a xml string for the filter parameter of a WFS operation
 
         Returns:
@@ -158,7 +439,7 @@ class OperationRequestHandler:
         Returns:
         """
         self.intersected_allowed_geometry = allowed_geom
-        uri_parsed = urllib.parse.urlparse(self.uri)
+        uri_parsed = urllib.parse.urlparse(self.full_operation_uri)
         query = dict(urllib.parse.parse_qsl(uri_parsed.query))
 
         # remove bbox parameter (also from uri)
@@ -168,15 +449,22 @@ class OperationRequestHandler:
         except KeyError:
             # it was not there in the first place
             pass
+        try:
+            del self.new_params_dict["BBOX"]
+        except KeyError:
+            # it was not there in the first place
+            pass
 
         # change filter param, so the allowed_geom is the bounding geometry
         # create complete new filter object
-        _filter = self.get_geom_filter_param(as_snippet=False)
+        _filter = self._get_geom_filter_param(as_snippet=False)
         query["filter"] = _filter
+        self.filter_param = _filter
+        self.new_params_dict["FILTER"] = _filter
 
         query = urllib.parse.urlencode(query, safe=", :")
         uri_parsed = uri_parsed._replace(query=query)
-        self.uri = urllib.parse.urlunparse(uri_parsed)
+        self.full_operation_uri = urllib.parse.urlunparse(uri_parsed)
 
     def get_bounding_geometry_from_filter_param(self):
         """ Returns the gml:lowerCorner/gml:upperCorner data as Geometry bounding box
@@ -219,7 +507,7 @@ class OperationRequestHandler:
 
         return bounding_geom
 
-    def process_bbox_param(self):
+    def _process_bbox_param(self):
         """ Creates a polygon from the given string bounding box
 
         Args:
@@ -254,9 +542,10 @@ class OperationRequestHandler:
         ret_dict["geom"] = bbox_param_geom
         ret_dict["bbox_param"] = ",".join(tmp_bbox)
 
+        self.new_params_dict["BBOX"] = ret_dict["bbox_param"]
         self.bbox_param = ret_dict
 
-    def process_x_y_param(self):
+    def _process_x_y_param(self):
         """ Creates a point from the given x_y_param dict
 
         Args:
@@ -279,12 +568,156 @@ class OperationRequestHandler:
             self.x_y_param = None
 
         if self.x_y_param is not None:
-            self.x_y_param = self._convert_image_point_to_spatial_coordinates(
+            self.x_y_coord = self._convert_image_point_to_spatial_coordinates(
                 self.x_y_param,
                 int(self.width_param),
                 int(self.height_param),
                 self.bbox_param.get("geom")[0],
             )
+
+    def _create_polygons_from_xml_elements(self, polygon_elements: list):
+        """ Creates a list of Polygon objects from xml elements, which contain <gml:Polygon> elements
+
+        Args:
+            polygon_elements (list): List of <gml:Polygon> xml elements
+        Returns:
+             ret_list (list): List of Polygon objects
+        """
+        ret_list = []
+
+        for poly in polygon_elements:
+            pos_list = xml_helper.try_get_text_from_xml_element(poly,
+                                                                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("posList"))
+
+            if pos_list is None or len(pos_list) == 0:
+                continue
+
+            pos_list = pos_list.split(" ")
+            vertices_pairs = []
+
+            for i in range(0, len(pos_list), 2):
+                vertices_pairs.append((float(pos_list[i]), float(pos_list[i + 1])))
+
+            polygon_obj = GEOSGeometry(
+                Polygon(
+                    vertices_pairs
+                ),
+                srid=self.srs_code or DEFAULT_SRS
+            )
+            ret_list.append(polygon_obj)
+
+        return ret_list
+
+    def _create_multi_line_strings_from_xml_elements(self, multi_line_string_elements: list):
+        """ Creates a list of MultiLineString objects from xml elements, which contain <gml:MultiLineString> elements
+
+        Args:
+            multi_line_string_elements (list): List of <gml:MultiLineString> xml elements
+        Returns:
+             ret_list (list): List of MultiLineString objects
+        """
+        ret_list = []
+
+        for elem in multi_line_string_elements:
+            coord_list = xml_helper.try_get_element_from_xml(elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("coordinates"))
+
+            for coord in coord_list:
+                separator = xml_helper.try_get_attribute_from_xml_element(coord, "cs")
+                decimal_symbol = xml_helper.try_get_attribute_from_xml_element(coord, "decimal")
+
+                coords = xml_helper.try_get_text_from_xml_element(coord)
+                coords = coords.split(separator)
+
+                # make sure the decimal representation uses '.'
+                if decimal_symbol != ".":
+                    coords = [c.replace(decimal_symbol, ".") for c in coords]
+
+                vertices_pairs = []
+
+                for i in range(0, len(coords), 2):
+                    vertices_pairs.append((float(coords[i]), float(coords[i + 1])))
+
+                obj = GEOSGeometry(
+                    MultiLineString(
+                        vertices_pairs
+                    ),
+                    srid=self.srs_code or DEFAULT_SRS
+                )
+                ret_list.append(obj)
+
+        return ret_list
+
+    def _create_points_from_xml_elements(self, point_elements: list):
+        """ Creates a list of Point objects from xml elements, which contain <gml:Point> elements
+
+        Args:
+            point_elements (list): List of <gml:Point> xml elements
+        Returns:
+             ret_list (list): List of Point objects
+        """
+        ret_list = []
+
+        for elem in point_elements:
+            pos = xml_helper.try_get_element_from_xml(elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("pos"))
+            pos = pos.split(" ")
+
+            if len(pos) != 2:
+                raise ValueError(TD_POINT_HAS_NOT_ENOUGH_VALUES)
+
+            obj = GEOSGeometry(
+                Point(pos[0], pos[1]),
+                srid=self.srs_code or DEFAULT_SRS
+            )
+
+            ret_list.append(obj)
+
+        return ret_list
+
+    def _process_transaction_geometries(self):
+        """ Creates geometries from <gml:Polygon>|<gml:MultiLineString>|<gml:Point> elements inside the transaction xml body
+
+        Returns:
+             nothing
+        """
+        # skip this if we have no transaction body
+        if self.POST_raw_body is None:
+            return
+
+        xml_body = xml_helper.parse_xml(self.POST_raw_body)
+
+        actions = ["INSERT", "UPDATE"]
+        geom_collection = GeometryCollection()
+
+        # Find INSERT and UPDATE geometries
+        for action in actions:
+            xml_elements = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format(action), xml_body)
+
+            for xml_element in xml_elements:
+                # vertices can be found in <gml:posList> elements, as well as in <gml:coordinates>
+                polygon_elements = xml_helper.try_get_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Polygon"), xml_element
+                )
+                multi_line_string_elements = xml_helper.try_get_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MultiLineString"), xml_element
+                )
+                point_elements = xml_helper.try_get_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Point"), xml_element
+                )
+
+                # process found Polygons
+                polygons = self._create_polygons_from_xml_elements(polygon_elements)
+                geom_collection.extend(polygons)
+
+                # process found MultiLineStrings
+                multi_line_strings = self._create_multi_line_strings_from_xml_elements(multi_line_string_elements)
+                geom_collection.extend(multi_line_strings)
+
+                # process found Points
+                points = self._create_points_from_xml_elements(point_elements)
+                geom_collection.extend(points)
+
+        geom_collection = geom_collection.unary_union
+        self.transaction_geometries = geom_collection
 
     def _convert_image_point_to_spatial_coordinates(self, point: Point, width: int, height: int, bbox_coords: list):
         """ Converts the x|y coordinates of an image point to spatial EPSG:4326 coordinates, derived from a bounding box
@@ -315,3 +748,338 @@ class OperationRequestHandler:
         point.y = bbox_upper_left[1] + point.y * step_up_down
         point.srid = self.srs_code
         return point
+
+    def get_post_data_dict(self):
+        """ Getter for the data which is used in a POST request
+
+        Returns:
+             post_data (dict)
+        """
+        post_data = self.new_params_dict
+        return post_data
+
+    def get_final_operation_uri(self):
+        """ Returns the processed operation uri.
+
+        Inserts parameter changes before returning.
+
+        Returns:
+             uri (str): The operation uri
+        """
+        if self.request_is_GET:
+            self.full_operation_uri = utils.set_uri_GET_param(self.full_operation_uri, "LAYERS", self.new_params_dict.get("LAYERS", None))
+        return self.full_operation_uri
+
+    def get_post_data_body(self):
+        """ Getter for the data which is used in a POST request
+
+        Returns:
+             post_data (bytes)
+        """
+        ret_val = self.POST_raw_body
+        if not isinstance(ret_val, bytes):
+            ret_val = ret_val.encode("utf-8")
+        return ret_val
+
+    def get_operation_response(self, uri: str = None, post_data: dict = None):
+        """ Performs the request.
+
+        This may be called after the security checks have passed or otherwise if no security checks had to be done.
+
+        Args:
+            uri (str): The operation uri
+            post_data (dict): A key-value dict of the POST data
+        Returns:
+             The xml response
+        """
+        if uri is None:
+            uri = self.get_final_operation_uri()
+        c = CommonConnector(url=uri, external_auth=self.external_auth)
+
+        if self.request_is_GET:
+            c.load()
+
+        else:
+            if post_data is None:
+                post_data = self.get_post_data_dict()  # get default POST as dict content
+            c.post(post_data)
+
+        if c.status_code is not None and c.status_code != 200:
+            raise Exception(c.status_code)
+
+        return c.content
+
+    def _check_get_feature_info_operation_access(self, sec_ops: QueryDict):
+        """ Checks whether the user given x/y Point parameter object is inside the geometry, which defines the allowed
+        access for the GetFeatureInfo operation
+
+        Args:
+            sec_ops (QueryDict): A QueryDict containing SecuredOperation objects
+        Returns:
+             Whether the Point is inside the geometry or not
+        """
+
+        # User is at least in one group that has access to this operation on this metadata.
+        # Now check the spatial restriction!
+        constraints = {}
+        if self.x_y_coord is not None:
+            constraints["x_y"] = False
+
+        for sec_op in sec_ops:
+            if sec_op.bounding_geometry.empty:
+                # there is no specific area, so this group is allowed to request everywhere
+                constraints["x_y"] = True
+                break
+            total_bounding_geometry = sec_op.bounding_geometry.unary_union
+            if self.x_y_coord is not None:
+                if total_bounding_geometry.covers(self.x_y_coord):
+                    constraints["x_y"] = True
+
+        return False not in constraints.values()
+
+    def _get_secured_service_mask(self, metadata: Metadata, sec_ops: QueryDict):
+        """ Creates call to local mapserver and returns the response
+
+        Gets a mask image, which can be used to remove restricted areas from another image
+
+        Args:
+            metadata (Metadata): The metadata object
+            sec_ops (QueryDict): SecuredOperation objects in a query dict
+        Returns:
+             bytes
+        """
+        response = ""
+        for op in sec_ops:
+            if op.bounding_geometry.empty:
+                return None
+            request_dict = {
+                "map": MAPSERVER_SECURITY_MASK_FILE_PATH,
+                "version": "1.1.1",
+                "request": "GetMap",
+                "service": "WMS",
+                "format": "image/png",
+                "layers": "mask",
+                "srs": self.srs_param,
+                "bbox": self.bbox_param.get("bbox_param"),
+                "width": self.width_param,
+                "height": self.height_param,
+                "keys": op.id,
+                "table": MAPSERVER_SECURITY_MASK_TABLE,
+                "key_column": MAPSERVER_SECURITY_MASK_KEY_COLUMN,
+                "geom_column": MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
+            }
+            uri = "{}?{}".format(
+                MAPSERVER_LOCAL_PATH,
+                urllib.parse.urlencode(request_dict)
+            )
+
+            c = CommonConnector(url=uri)
+            c.load()
+            response = c.content
+
+        return response
+
+    def _create_masked_image(self, img: bytes, mask: bytes, as_bytes: bool = False):
+        """ Creates a masked image from two image byte object
+
+        Args:
+            img (byte): The bytes of the image
+            mask (byte): The bytes of the mask
+        Returns:
+             img (Image): The masked image
+        """
+        try:
+            img = Image.open(io.BytesIO(img))
+        except OSError:
+            raise Exception("Could not create image! Content was:\n {}".format(img))
+        try:
+            if mask is None:
+                # no bounding geometry for masking exist, just create a mask that does nothing
+                mask = Image.new("RGB", img.size, (0, 0, 0))
+            else:
+                mask = Image.open(io.BytesIO(mask))
+        except OSError:
+            raise Exception("Could not create image! Content was:\n {}".format(mask))
+        mask = mask.convert("L").resize(img.size)
+        mask = ImageOps.invert(mask)
+
+        img.putalpha(mask)
+
+        # add access_denied_img image
+        if self.access_denied_img is not None:
+            old_format = img.format
+            img = Image.alpha_composite(img, self.access_denied_img)
+            img.format = old_format
+
+        if as_bytes:
+            outBytesStream = io.BytesIO()
+            try:
+                img.save(outBytesStream, img.format, optimize=True, quality=80)
+                img = outBytesStream.getvalue()
+            except IOError:
+                # happens if a non-alpha channel format is requested, such as jpeg
+                # replace alpha channel with white background
+                bg = Image.new("RGB", img.size, (255, 255, 255))
+                bg.paste(img, mask=img.split()[3])
+                bg.save(outBytesStream, img.format, optimize=True, quality=80)
+                img = outBytesStream.getvalue()
+        return img
+
+    def _check_get_feature_operation_access(self, sec_ops: QueryDict):
+        """ Checks whether the GetFeature request can be allowed or not.
+
+        Checks the SecuredOperations against bounding geometry from the request
+
+        Args:
+            sec_ops (QueryDict): The SecuredOperations in a QueryDict object
+        Returns:
+             True|False
+        """
+        ret_val = False
+
+        # GetFeature operation is a WFS operation, which means the given bbox parameter must not be in EPSG:4326!
+        bounding_geom = self.bbox_param
+
+        if bounding_geom is None:
+            # check if the filter parameter holds a bbox OR a bounding polygon
+            bounding_geom = self.get_bounding_geometry_from_filter_param()
+            if bounding_geom is None:
+                # the request is broken!
+                raise Exception()
+
+        else:
+            bounding_geom = bounding_geom.get("geom")
+
+        for sec_op in sec_ops:
+
+            if sec_op.bounding_geometry.empty:
+                # there is no allowed area defined, so this group is allowed to request everywhere
+                ret_val = True
+                break
+
+            # union all geometries in the geometrycollection (bounding_geometry) into one geometry
+            access_restricting_geom = sec_op.bounding_geometry.unary_union
+
+            if access_restricting_geom.srid != bounding_geom.srid:
+                # this may happen if another srs was provided per request parameter.
+                # we need to transform one of the geometries into the srs of the other
+                access_restricting_geom.transform(bounding_geom.srid)
+
+            if access_restricting_geom.covers(bounding_geom):
+                # we are fine, the bounding geometry covers the requested area completely!
+                ret_val = True
+                break
+
+            elif access_restricting_geom.intersects(bounding_geom):
+                # we are only partially inside the bounding geometry
+                # -> we need to create the intersection between bbox and bounding geometry
+                # This is only the case for WFS requests!
+                self.set_intersected_allowed_geometry(bounding_geom.intersection(access_restricting_geom))
+                ret_val = True
+
+        return ret_val
+
+    def _check_transaction_operation_access(self, sec_ops: QueryDict):
+        """ Checks whether the Transaction request can be allowed or not.
+
+        Checks the SecuredOperations against geometries from the request
+
+        Args:
+            sec_ops (QueryDict): The SecuredOperations in a QueryDict object
+        Returns:
+             True|False
+        """
+        ret_val = True
+
+        for sec_op in sec_ops:
+
+            if sec_op.bounding_geometry.empty:
+                # there is no allowed area defined, so this group is allowed to request everywhere
+                return ret_val
+
+            bounding_geom = sec_op.bounding_geometry.unary_union
+
+            if not bounding_geom.covers(self.transaction_geometries):
+                # If the geometries, that can be found in the transaction operation are not fully covered by the allowed
+                # geometry, we do not allowe the access!
+                return False
+
+        return ret_val
+
+    def _resolve_layer_param_to_leaf_layers(self, metadata: Metadata):
+        """ Replaces the original requested layer param with all (leaf) child layers identifier as param.
+
+        This way we can make sure no layer is returned, that would not be allowed on a direct call.
+
+        Args:
+            metadata (Metadata): The metadata of the requested service
+        Returns:
+             nothing
+        """
+        leaf_layers = []
+        for layer_param in self.layers_param.split(","):
+            layer_obj = Layer.objects.get(
+                parent_service__metadata=metadata,
+                identifier=layer_param
+            )
+            leaf_layers += layer_obj.get_leaf_layers()
+
+        self.layers_param = ",".join(leaf_layers)
+        self.new_params_dict["LAYERS"] = self.layers_param
+
+    def get_secured_operation_response(self, request: HttpRequest, metadata: Metadata):
+        """ Calls the operation of a service if it is secured.
+
+        Args:
+            request (HttpRequest):
+            metadata (Metadata):
+        Returns:
+
+        """
+        response = None
+
+        # if user could not be found in request -> not logged in -> no permission!
+        if self.user is None:
+            return response
+
+        # check if the metadata allows operation performing for certain groups
+        sec_ops = metadata.secured_operations.filter(
+            operation__operation_name__iexact=self.request_param,
+            allowed_group__in=self.user.groups.all(),
+        )
+
+        if sec_ops.count() == 0:
+            # this means the service is secured but the group have access!
+            return response
+
+        else:
+
+            # WMS - Features
+            if self.request_param.upper() == ServiceOperationEnum.GET_FEATURE_INFO.value.upper():
+                allowed = self._check_get_feature_info_operation_access(sec_ops)
+                if allowed:
+                    response = self.get_operation_response()
+
+            # WMS - 'Map image'
+            elif self.request_param.upper() == ServiceOperationEnum.GET_MAP.value.upper():
+                # no need to check if the access is allowed, since we mask the output anyway
+                # but we need to make sure, that no top level layer is called, which contains a secured child!
+                # therefore we need to check if there is at least one secured child, somewhere, and then replace the top
+                # level layer with all direct, allowed children!
+                img = self.get_operation_response()
+                mask = self._get_secured_service_mask(metadata, sec_ops)
+                response = self._create_masked_image(img, mask, as_bytes=True)
+
+            # WFS
+            elif self.request_param.upper() == ServiceOperationEnum.GET_FEATURE.value.upper():
+                allowed = self._check_get_feature_operation_access(sec_ops)
+                if allowed:
+                    response = self.get_operation_response()
+
+            # WFS
+            elif self.request_param.upper() == ServiceOperationEnum.TRANSACTION.value.upper():
+                allowed = self._check_transaction_operation_access(sec_ops)
+                if allowed:
+                    response = self.get_operation_response(self.POST_raw_body)
+
+            return response

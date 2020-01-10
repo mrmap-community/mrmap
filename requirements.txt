@@ -1,6 +1,6 @@
 certifi==2019.3.9
 chardet==3.0.4
-Django==2.2.1
+Django==2.1.8
 django-extensions==2.1.6
 django-simple-captcha
 idna==2.8
@@ -17,8 +17,10 @@ argon2-cffi
 Werkzeug
 pysxm
 celery==4.3.0
+redis
 
 djangorestframework
 markdown
 django-filter
 Pillow
+cryptography

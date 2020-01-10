@@ -1,25 +1,20 @@
-import json
 import urllib
 import uuid
 
-from django.contrib.gis.geos import Polygon, GEOSGeometry, MultiPolygon, GeometryCollection
+import os
+
+from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
 
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
-from service.helper.enums import ServiceEnum, VersionEnum, MetadataEnum
-from service.settings import DEFAULT_SERVICE_BOUNDING_BOX
+from service.helper.enums import ServiceEnum, VersionEnum, MetadataEnum, ServiceOperationEnum
+from service.helper.crypto_handler import CryptoHandler
+from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH
 from structure.models import Group, Organization
 from service.helper import xml_helper
-
-
-class Keyword(models.Model):
-    keyword = models.CharField(max_length=255, unique=True)
-
-    def __str__(self):
-        return self.keyword
 
 
 class Resource(models.Model):
@@ -40,6 +35,22 @@ class Resource(models.Model):
 
     class Meta:
         abstract = True
+
+
+class Keyword(models.Model):
+    keyword = models.CharField(max_length=255, unique=True)
+
+    def __str__(self):
+        return self.keyword
+
+
+class ProxyLog(models.Model):
+    from structure.models import User
+    metadata = models.ForeignKey('Metadata', on_delete=models.DO_NOTHING, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.DO_NOTHING, null=True, blank=True)
+    uri = models.CharField(max_length=1000, null=True, blank=True)
+    post_body = models.TextField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
 
 
 class RequestOperation(models.Model):
@@ -151,6 +162,66 @@ class MetadataRelation(models.Model):
         return "{} {} {}".format(self.metadata_from.title, self.relation_type, self.metadata_to.title)
 
 
+class ExternalAuthentication(models.Model):
+    username = models.CharField(max_length=255)
+    password = models.CharField(max_length=500)
+    auth_type = models.CharField(max_length=100)
+    metadata = models.OneToOneField('Metadata', on_delete=models.DO_NOTHING, null=True, blank=True, related_name="external_authentication")
+
+    def delete(self, using=None, keep_parents=False):
+        """ Overwrites default delete function
+
+        Removes local stored file if it exists!
+
+        Args;
+            using:
+            keep_parents:
+        Returns:
+        """
+        # remove local stored key
+        filepath = "{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, self.metadata.id)
+        try:
+            os.remove(filepath)
+        except FileNotFoundError:
+            pass
+        super().delete(using, keep_parents)
+
+    def encrypt(self, key: str):
+        """ Encrypts the login credentials using a given key
+
+        Args:
+            key (str):
+        Returns:
+
+        """
+        crypto_handler = CryptoHandler(msg=self.username, key=key)
+        crypto_handler.encrypt()
+        self.username = crypto_handler.crypt_message.decode("ascii")
+
+        crypto_handler.message = self.password
+        crypto_handler.encrypt()
+        self.password = crypto_handler.crypt_message.decode("ascii")
+
+    def decrypt(self, key):
+        """ Decrypts the login credentials using a given key
+
+        Args:
+            key:
+        Returns:
+
+        """
+        crypto_handler = CryptoHandler()
+        crypto_handler.key = key
+
+        crypto_handler.crypt_message = self.password.encode("ascii")
+        crypto_handler.decrypt()
+        self.password = crypto_handler.message.decode("ascii")
+
+        crypto_handler.crypt_message = self.username.encode("ascii")
+        crypto_handler.decrypt()
+        self.username = crypto_handler.message.decode("ascii")
+
+
 class Metadata(Resource):
     identifier = models.CharField(max_length=255, null=True)
     title = models.CharField(max_length=255)
@@ -171,6 +242,7 @@ class Metadata(Resource):
     last_remote_change = models.DateTimeField(null=True, blank=True)  # the date time, when the metadata was changed where it comes from
     status = models.IntegerField(null=True)
     use_proxy_uri = models.BooleanField(default=False)
+    log_proxy_access = models.BooleanField(default=False)
     spatial_res_type = models.CharField(max_length=100, null=True)
     spatial_res_value = models.CharField(max_length=100, null=True)
     is_broken = models.BooleanField(default=False)
@@ -192,6 +264,7 @@ class Metadata(Resource):
     categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
     metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
+    hits = models.IntegerField(default=0)
 
     ## for ISO metadata
     dataset_id = models.CharField(max_length=255, null=True, blank=True)
@@ -208,6 +281,46 @@ class Metadata(Resource):
 
     def __str__(self):
         return self.title
+
+    def has_external_authentication(self):
+        """ Checks whether the metadata has a related ExternalAuthentication set
+
+        Returns:
+             True | False
+        """
+        try:
+            tmp = self.external_authentication
+            return True
+        except ObjectDoesNotExist:
+            return False
+
+    @transaction.atomic
+    def increase_hits(self):
+        """ Increases the hit counter of the metadata
+
+        Returns:
+             Nothing
+        """
+        # increase itself
+        self.hits += 1
+
+        # Only if whole service was called, increase the children hits as well
+        if self.metadata_type.type == MetadataEnum.SERVICE.value:
+
+            # wms children
+            if self.service.servicetype.name == 'wms':
+                children = self.service.child_service.all()
+                for child in children:
+                    child.metadata.hits += 1
+                    child.metadata.save()
+
+            elif self.service.servicetype.name == 'wfs':
+                featuretypes = self.service.featuretypes.all()
+                for f_t in featuretypes:
+                    f_t.metadata.hits += 1
+                    f_t.metadata.save()
+
+        self.save()
 
     def delete(self, using=None, keep_parents=False):
         """ Overwriting of the regular delete function
@@ -226,6 +339,12 @@ class Metadata(Resource):
         if self.is_secured:
             sec_ops = self.secured_operations.all()
             sec_ops.delete()
+
+        # remove externalAuthentication object if it exists
+        try:
+            self.external_authentication.delete()
+        except ObjectDoesNotExist:
+            pass
 
         # check if there are MetadataRelations on this metadata record
         # if so, we can not remove it until these relations aren't used anymore
@@ -373,7 +492,7 @@ class Metadata(Resource):
         if self.is_root():
             rel_md = self
         else:
-            rel_md = self.featuretype.service.metadata
+            rel_md = self.featuretype.parent_service.metadata
         cap_doc = Document.objects.get(related_metadata=rel_md)
         cap_doc.restore_subelement(identifier)
         return
@@ -508,11 +627,39 @@ class Metadata(Resource):
         except ObjectDoesNotExist:
             pass
 
+    def set_proxy(self, use_proxy: bool):
+        """ Set the metadata proxy to a new value.
+
+        Iterates over subelements.
+
+        Args:
+            use_proxy (bool): Whether to use a proxy or not
+        Returns:
+        """
+        if not self.is_root():
+            root_md = self.service.parent_service.metadata
+        else:
+            root_md = self
+
+        # change capabilities document
+        root_md_doc = Document.objects.get(related_metadata=root_md)
+        root_md_doc.set_dataset_metadata_secured(use_proxy)
+        root_md_doc.set_legend_url_secured(use_proxy)
+        root_md_doc.set_operations_secured(use_proxy)
+
+        self.use_proxy_uri = use_proxy
+
+        # if md uris shall be tunneled using the proxy, we need to make sure that all metadata elements of the service are aware of this!
+        child_mds = Metadata.objects.filter(service__parent_service=self.service)
+        for child_md in child_mds:
+            child_md.use_proxy_uri = self.use_proxy_uri
+            child_md.save()
+
     def set_secured(self, is_secured: bool):
         """ Set is_secured to a new value.
 
         Iterates over all children for the same purpose.
-        Activates use_proxy directly!
+        Activates use_proxy automatically!
 
         Args:
             is_secured (bool): The new value for is_secured
@@ -589,28 +736,53 @@ class Document(Resource):
         request_objs = request_objs.getchildren()
         service = self.related_metadata.service
         op_uri_dict = {
-            "GetMap": service.get_map_uri,
-            "GetFeatureInfo": service.get_feature_info_uri,
-            "DescribeLayer": service.describe_layer_uri,
-            "GetLegendGraphic": service.get_legend_graphic_uri,
-            "GetStyles": service.get_styles_uri,
+            "GetMap": {
+                "Get": service.get_map_uri_GET,
+                "Post": service.get_map_uri_POST,
+            },
+            "GetFeatureInfo": {
+                "Get": service.get_feature_info_uri_GET,
+                "Post": service.get_feature_info_uri_POST,
+            },
+            "DescribeLayer": {
+                "Get": service.describe_layer_uri_GET,
+                "Post": service.describe_layer_uri_POST,
+            },
+            "GetLegendGraphic": {
+                "Get": service.get_legend_graphic_uri_GET,
+                "Post": service.get_legend_graphic_uri_POST,
+            },
+            "GetStyles": {
+                "Get": service.get_styles_uri_GET,
+                "Post": service.get_styles_uri_POST,
+            },
         }
+
         for op in request_objs:
+
             # skip GetCapabilities - it is already set to another internal link
-            if "GetCapabilities" in op.tag:
+            if ServiceOperationEnum.GET_CAPABILITIES.value in op.tag:
                 continue
-            if not is_secured:
-                uri = op_uri_dict.get(op.tag, "")
-            res_objs = xml_helper.try_get_element_from_xml(
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
-                , op
-            )
-            for res_obj in res_objs:
-                xml_helper.write_attribute(
-                    res_obj,
-                    attrib="{http://www.w3.org/1999/xlink}href",
-                    txt=uri
+
+            uri_dict = op_uri_dict.get(op.tag, "")
+            http_operations = ["Get", "Post"]
+
+            for http_operation in http_operations:
+                res_objs = xml_helper.try_get_element_from_xml(
+                    ".//{}/".format(http_operation) + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
+                    , op
                 )
+
+                if not is_secured:
+                    # overwrite uri
+                    uri = uri_dict.get(http_operation, "")
+
+                for res_obj in res_objs:
+                    xml_helper.write_attribute(
+                        res_obj,
+                        attrib="{http://www.w3.org/1999/xlink}href",
+                        txt=uri
+                    )
 
     def _set_wfs_1_0_0_operations_secured(self, xml_obj, uri: str, is_secured: bool):
         """ Change external links to internal for wfs 1.0.0 operations
@@ -665,25 +837,49 @@ class Document(Resource):
         operation_objs = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation"), xml_obj)
         service = self.related_metadata.service
         op_uri_dict = {
-            "DescribeFeatureType": service.describe_layer_uri,
-            "GetFeature": service.get_feature_info_uri,
-            "GetPropertyValue": "",
-            "ListStoredQueries": "",
-            "DescribeStoredQueries": "",
+            "DescribeFeatureType": {
+                "Get": service.describe_layer_uri_GET,
+                "Post": service.describe_layer_uri_POST,
+            },
+            "GetFeature": {
+                "Get": service.get_feature_info_uri_GET,
+                "Post": service.get_feature_info_uri_POST,
+            },
+            "GetPropertyValue": {
+                "Get": service.get_property_value_uri_GET,
+                "Post": service.get_property_value_uri_POST,
+            },
+            "ListStoredQueries": {
+                "Get": service.list_stored_queries_uri_GET,
+                "Post": service.list_stored_queries_uri_POST,
+            },
+            "DescribeStoredQueries": {
+                "Get": service.describe_stored_queries_uri_GET,
+                "Post": service.describe_stored_queries_uri_POST,
+            },
+            "GetGmlObject": {
+                "Get": service.get_gml_objct_uri_GET,
+                "Post": service.get_gml_objct_uri_POST,
+            },
         }
         for op in operation_objs:
             # skip GetCapabilities - it is already set to another internal link
             name = xml_helper.try_get_attribute_from_xml_element(op, "name")
-            if name == "GetCapabilities":
+            if name == ServiceOperationEnum.GET_CAPABILITIES.value or name is None:
                 continue
-            if not is_secured:
-                uri = op_uri_dict.get(name, "")
-            http_objs = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP"), op)
-            for http_obj in http_objs:
-                requ_objs = http_obj.getchildren()
-                for requ_obj in requ_objs:
+
+            http_operations = ["Get", "Post"]
+
+            for http_operation in http_operations:
+
+                if not is_secured:
+                    uri = op_uri_dict.get(name, {}).get(http_operation, None)
+
+                http_objs = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") + "/" + GENERIC_NAMESPACE_TEMPLATE.format(http_operation), op)
+
+                for http_obj in http_objs:
                     xml_helper.write_attribute(
-                        requ_obj,
+                        http_obj,
                         attrib="{http://www.w3.org/1999/xlink}href",
                         txt=uri
                     )
@@ -731,7 +927,7 @@ class Document(Resource):
             attr = "{http://www.w3.org/1999/xlink}href"
 
             # get metadata url
-            metadata_uri = xml_helper.try_get_attribute_from_xml_element(xml_metadata, attribute=attr)
+            metadata_uri = xml_helper.get_href_attribute(xml_metadata)
 
             if is_secured:
                 # find metadata record which matches the metadata uri
@@ -765,7 +961,7 @@ class Document(Resource):
         xml_legend_elements = xml_helper.try_get_element_from_xml("//LegendURL/OnlineResource", xml_doc)
         attr = "{http://www.w3.org/1999/xlink}href"
         for xml_elem in xml_legend_elements:
-            legend_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem, attribute=attr)
+            legend_uri = xml_helper.get_href_attribute(xml_elem)
 
             # extract layer identifier from legend_uri (stores as parameter 'layer')
             if is_secured:
@@ -819,7 +1015,6 @@ class Document(Resource):
         self.current_capability_document = xml_helper.xml_to_string(cap_doc_curr_obj)
         self.save()
 
-
 class TermsOfUse(Resource):
     name = models.CharField(max_length=100)
     symbol_url = models.CharField(max_length=100)
@@ -871,13 +1066,38 @@ class Service(Resource):
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
 
-    get_capabilities_uri = models.CharField(max_length=1000, null=True, blank=True)
-    get_map_uri = models.CharField(max_length=1000, null=True, blank=True)
-    get_feature_info_uri = models.CharField(max_length=1000, null=True, blank=True)
-    describe_layer_uri = models.CharField(max_length=1000, null=True, blank=True)
-    get_legend_graphic_uri = models.CharField(max_length=1000, null=True, blank=True)
-    get_styles_uri = models.CharField(max_length=1000, null=True, blank=True)
-    transaction_uri = models.CharField(max_length=1000, null=True, blank=True)
+    get_capabilities_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_capabilities_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_map_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_map_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_feature_info_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_feature_info_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    describe_layer_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    describe_layer_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_legend_graphic_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_legend_graphic_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_styles_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_styles_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    transaction_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    transaction_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_property_value_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_property_value_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    list_stored_queries_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    list_stored_queries_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    describe_stored_queries_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    describe_stored_queries_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_gml_objct_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_gml_objct_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
     formats = models.ManyToManyField('MimeType', blank=True)
 
@@ -1177,7 +1397,6 @@ class Layer(Service):
     class Meta:
         ordering = ["position"]
     identifier = models.CharField(max_length=500, null=True)
-    hits = models.IntegerField(default=0)
     preview_image = models.CharField(max_length=100, blank=True, null=True)
     preview_extent = models.CharField(max_length=100, blank=True, null=True)
     preview_legend = models.CharField(max_length=100)
@@ -1263,6 +1482,37 @@ class Layer(Service):
         for layer in self.child_layer.all():
             layer.activate_layer_recursive(new_status)
 
+    def _get_bottom_layers_recursive(self, parent, leaf_list: list):
+        """ Runs a recursive search for all leaf layers.
+
+        If a leaf layer is found, it will be added to layer_list
+
+        Args:
+            parent: The parent layer object
+            leaf_list (list): The leafs
+        Returns:
+             nothing, directly changes leaf_list
+        """
+        layer_obj_children = parent.child_layer.all()
+        for child in layer_obj_children:
+            self._get_bottom_layers_recursive(child, leaf_list)
+        if layer_obj_children.count() == 0:
+            leaf_list.append(parent.identifier)
+
+    def get_leaf_layers(self):
+        """ Returns a list of all leaf layers.
+
+        Leaf layers are the layers, which have no further children.
+
+        Returns:
+             leaf_layers (list): The leaf layers of a layer
+        """
+        leaf_layers = []
+        layer_obj_children = self.child_layer.all()
+        for child in layer_obj_children:
+            self._get_bottom_layers_recursive(child, leaf_layers)
+        return leaf_layers
+
 
 class Module(Service):
     type = models.CharField(max_length=100)
@@ -1317,12 +1567,12 @@ class Style(models.Model):
     mime_type = models.CharField(max_length=500, null=True, blank=True)
 
     def __str__(self):
-        return self.layer.name + ": " + self.name
+        return self.layer.identifier + ": " + self.name
 
 
 class FeatureType(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="featuretype")
-    service = models.ForeignKey(Service, null=True,  blank=True, on_delete=models.CASCADE, related_name="featuretypes")
+    parent_service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="featuretypes")
     is_searchable = models.BooleanField(default=False)
     default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True, related_name="default_srs")
     inspire_download = models.BooleanField(default=False)
@@ -1385,13 +1635,13 @@ class FeatureType(Resource):
         """
         from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
         from service.helper import service_helper
-        if self.service is None:
+        if self.parent_service is None:
             return
-        service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
+        service_version = service_helper.resolve_version_enum(self.parent_service.servicetype.version)
         service = None
-        if self.service.servicetype.name == ServiceEnum.WFS.value:
+        if self.parent_service.servicetype.name == ServiceEnum.WFS.value:
             service = OGCWebFeatureServiceFactory()
-            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.service.metadata.capabilities_original_uri)
+            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.parent_service.metadata.capabilities_original_uri)
         if service is None:
             return
         service.get_capabilities()

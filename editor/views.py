@@ -11,7 +11,7 @@ from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
-    METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED
+    METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED, SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import ROOT_URL, HTTP_OR_SSL, HOST_NAME
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
@@ -53,7 +53,7 @@ def index(request: HttpRequest, user:User):
     wfs_services = user.get_services(ServiceEnum.WFS)
     wfs_list = []
     for wfs in wfs_services:
-        custom_children = FeatureType.objects.filter(service__metadata=wfs, metadata__is_custom=True)
+        custom_children = FeatureType.objects.filter(parent_service__metadata=wfs, metadata__is_custom=True)
         tmp = {
             "root_metadata": wfs,
             "custom_subelement_metadata": custom_children,
@@ -122,7 +122,7 @@ def edit(request: HttpRequest, id: int, user: User):
                 if metadata.is_root():
                     parent_service = metadata.service
                 else:
-                    parent_service = metadata.featuretype.service
+                    parent_service = metadata.featuretype.parent_service
 
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, "{}: {}".format(parent_service.metadata.title, metadata.title))
             return redirect("service:detail", id)
@@ -229,11 +229,15 @@ def edit_access(request: HttpRequest, id: int, user: User):
 
     if request.method == "POST":
         # process form input
-        editor_helper.process_secure_operations_form(post_params, md)
+        try:
+            editor_helper.process_secure_operations_form(post_params, md)
+        except Exception as e:
+            messages.error(request, message=e)
+            return redirect("editor:edit_access", md.id)
         messages.success(request, EDITOR_ACCESS_RESTRICTED.format(md.title))
         md.save()
         if md_type == MetadataEnum.FEATURETYPE.value:
-            redirect_id = md.featuretype.service.metadata.id
+            redirect_id = md.featuretype.parent_service.metadata.id
         else:
             if md.service.is_root:
                 redirect_id = md.id
@@ -292,6 +296,9 @@ def access_geometry_form(request: HttpRequest, id: int, user: User):
             polygons = [polygons]
 
     md = Metadata.objects.get(id=id)
+    if not md.is_root():
+        messages.info(request, message=SECURITY_PROXY_WARNING_ONLY_FOR_ROOT)
+        return BackendAjaxResponse(html="", redirect="/editor/edit/access/{}".format(md.id)).get_response()
     service_bounding_geometry = md.find_max_bounding_box()
 
     params = {
@@ -329,7 +336,7 @@ def restore(request: HttpRequest, id: int, user: User):
     if service_type == 'wms':
         children_md = Metadata.objects.filter(service__parent_service__metadata=metadata, is_custom=True)
     elif service_type == 'wfs':
-        children_md = Metadata.objects.filter(featuretype__service__metadata=metadata, is_custom=True)
+        children_md = Metadata.objects.filter(featuretype__parent_service__metadata=metadata, is_custom=True)
 
     if not metadata.is_custom and len(children_md) == 0:
         messages.add_message(request, messages.INFO, METADATA_IS_ORIGINAL)
@@ -347,7 +354,7 @@ def restore(request: HttpRequest, id: int, user: User):
         if service_type == 'wms':
             parent_metadata = metadata.service.parent_service.metadata
         elif service_type == 'wfs':
-            parent_metadata = metadata.featuretype.service.metadata
+            parent_metadata = metadata.featuretype.parent_service.metadata
         else:
             # This case is not important now
             pass

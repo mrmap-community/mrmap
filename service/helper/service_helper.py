@@ -63,25 +63,29 @@ def split_service_uri(uri):
     tmp = {}
 
     # remove duplicate parameters
-    service_keywords = ["REQUEST", "SERVICE", "VERSION"]
+    service_keywords = [
+        "REQUEST",
+        "SERVICE",
+        "VERSION"
+    ]
     for param_key, param_val in cap_url_dict.items():
         p = param_key.upper()
         if p not in tmp:
             tmp[p] = param_val
-    cap_url_dict = tmp
 
     cap_url_query = urllib.parse.urlsplit(uri).query
-    ret_dict["service"] = resolve_service_enum(cap_url_dict.get("SERVICE", None))
-    ret_dict["request"] = cap_url_dict.get("REQUEST", None)
-    ret_dict["version"] = resolve_version_enum(cap_url_dict.get("VERSION", DEFAULT_SERVICE_VERSION))
+    ret_dict["service"] = resolve_service_enum(tmp.get("SERVICE", None))
+    ret_dict["request"] = tmp.get("REQUEST", None)
+    ret_dict["version"] = resolve_version_enum(tmp.get("VERSION", DEFAULT_SERVICE_VERSION))
     ret_dict["base_uri"] = uri.replace(cap_url_query, "")
     additional_params = []
-    for param_key, param_val in cap_url_dict.items():
-        if param_key not in service_keywords:
-            # append it back on the base uri
-            additional_params.append(param_key + "=" + param_val)
-    ret_dict["base_uri"] += "&".join(additional_params)
 
+    # append additional parameters back to the base uri
+    for param_key, param_val in cap_url_dict.items():
+        if param_key.upper() not in service_keywords:
+            additional_params.append(param_key + "=" + param_val)
+
+    ret_dict["base_uri"] += "&".join(additional_params)
     return ret_dict
 
 

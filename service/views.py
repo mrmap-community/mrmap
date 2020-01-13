@@ -362,7 +362,7 @@ def register_form(request: HttpRequest, user: User):
         cap_url = POST_params.get("uri", "")
         url_dict = service_helper.split_service_uri(cap_url)
 
-        if url_dict["request"].lower() != "getcapabilities":
+        if url_dict["request"].lower() != ServiceOperationEnum.GET_CAPABILITIES.value.lower():
             # not allowed!
             error = True
 

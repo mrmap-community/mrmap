@@ -274,6 +274,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
 
         params = {
             "service_metadata": md,
+            "has_ext_auth": md.has_external_authentication(),
             "operations": tmp,
             "spatial_restrictable_operations": spatial_restrictable_operations,
         }

@@ -216,6 +216,11 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
 
         service.persist_capabilities_doc(xml)
 
+        # after service AND documents have been persisted, we can now set the service proxy if the service has
+        # an external authentication
+        if external_auth is not None:
+            service.metadata.set_proxy(True)
+
         print(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
         user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
 

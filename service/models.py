@@ -654,6 +654,7 @@ class Metadata(Resource):
         for child_md in child_mds:
             child_md.use_proxy_uri = self.use_proxy_uri
             child_md.save()
+        self.save()
 
     def set_secured(self, is_secured: bool):
         """ Set is_secured to a new value.

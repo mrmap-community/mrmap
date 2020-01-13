@@ -430,11 +430,11 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
 
     # use_proxy=False and log_proxy=True is not allowed!
     # use_proxy=False and metadata.log_proxy_access is not allowed either!
-    if not use_proxy and log_proxy or not use_proxy and md.log_proxy_access:
+    if not use_proxy and log_proxy:
         raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING)
 
     # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
-    if md.has_external_authentication() and (not use_proxy or not is_secured):
+    if md.has_external_authentication() and not use_proxy:
         raise Exception(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
 
     if log_proxy != md.log_proxy_access:

@@ -1051,7 +1051,7 @@ class OGCOperationRequestHandler:
         )
 
         if sec_ops.count() == 0:
-            # this means the service is secured but the group have access!
+            # this means the service is secured but the group has access!
             return response
 
         else:

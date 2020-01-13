@@ -806,20 +806,20 @@ def get_metadata_operation(request: HttpRequest, id: int):
                 # at least one requested layer could not be found in the database
                 return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
 
+        if md_secured:
+            response = operation_handler.get_secured_operation_response(request, metadata)
+
+            if response is None:
+                # metadata is secured but user is not allowed
+                return HttpResponse(status=401, content=SECURITY_PROXY_NOT_ALLOWED)
+
+            return HttpResponse(response, content_type="")
+        return HttpResponse(operation_handler.get_operation_response(), content_type="")
+
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
     except Exception as e:
         return HttpResponse(status=500, content=e)
-
-    if md_secured:
-        response = operation_handler.get_secured_operation_response(request, metadata)
-
-        if response is None:
-            # metadata is secured but user is not allowed
-            return HttpResponse(status=401, content=SECURITY_PROXY_NOT_ALLOWED)
-
-        return HttpResponse(response, content_type="")
-    return HttpResponse(operation_handler.get_operation_response(), content_type="")
 
 
 def get_metadata_legend(request: HttpRequest, id: int, style_id: id):

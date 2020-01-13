@@ -181,7 +181,8 @@ class OGCOperationRequestHandler:
         Returns:
             nothing
         """
-        self._resolve_layer_param_to_leaf_layers(md)
+        if md.get_service_type().lower() == ServiceEnum.WMS.value:
+            self._resolve_layer_param_to_leaf_layers(md)
 
         if self.layers_param is not None and self.type_name_param is None:
             # in case of WMS

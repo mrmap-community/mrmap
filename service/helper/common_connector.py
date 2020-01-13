@@ -16,6 +16,9 @@ import types
 
 import re
 
+from django.http import HttpResponse
+from requests.auth import HTTPBasicAuth, HTTPDigestAuth
+
 from service.settings import DEFAULT_CONNECTION_TYPE, REQUEST_TIMEOUT
 from MapSkinner.settings import HTTP_PROXY, PROXIES
 from service.helper.enums import ConnectionEnum
@@ -166,10 +169,8 @@ class CommonConnector:
             if self.external_auth.auth_type is None:
                 response = requests.request(self.http_method, self._url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
             elif self.external_auth.auth_type == 'http_basic':
-                from requests.auth import HTTPBasicAuth
                 response = requests.request(self.http_method, self._url, params=params, auth=HTTPBasicAuth(self.external_auth.username, self.external_auth.password), proxies=proxies, timeout=REQUEST_TIMEOUT)
             elif self.external_auth.auth_type == 'http_digest':
-                from requests.auth import HTTPDigestAuth
                 response = requests.request(self.http_method, self._url, params=params, auth=HTTPDigestAuth(self.external_auth.username, self.external_auth.password), proxies=proxies, timeout=REQUEST_TIMEOUT)
             else:
                 response = requests.request(self.http_method, self._url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
@@ -197,13 +198,32 @@ class CommonConnector:
             # perform curl post
             pass
         elif self.connection_type is ConnectionEnum.REQUESTS:
+            response = HttpResponse()
             # perform requests post
-            response = requests.post(
-                self._url,
-                data,
-                timeout=REQUEST_TIMEOUT,
-                proxies=PROXIES
-            )
+            if self.external_auth is None:
+                response = requests.post(
+                    self._url,
+                    data,
+                    timeout=REQUEST_TIMEOUT,
+                    proxies=PROXIES,
+                )
+            elif self.external_auth.auth_type == "http_basic":
+                response = requests.post(
+                    self._url,
+                    data,
+                    timeout=REQUEST_TIMEOUT,
+                    proxies=PROXIES,
+                    auth=HTTPBasicAuth(self.external_auth.username, self.external_auth.password)
+                )
+            elif self.external_auth.auth_type == "http_digest":
+                response = requests.post(
+                    self._url,
+                    data,
+                    timeout=REQUEST_TIMEOUT,
+                    proxies=PROXIES,
+                    auth=HTTPDigestAuth(self.external_auth.username, self.external_auth.password)
+                )
+            self.status_code = response.status_code
             self.content = response.content
         else:
             # something

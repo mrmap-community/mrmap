@@ -1025,7 +1025,8 @@ class OGCOperationRequestHandler:
             )
             leaf_layers += layer_obj.get_leaf_layers()
 
-        self.layers_param = ",".join(leaf_layers)
+        if len(leaf_layers) > 0:
+            self.layers_param = ",".join(leaf_layers)
         self.new_params_dict["LAYERS"] = self.layers_param
 
     def get_secured_operation_response(self, request: HttpRequest, metadata: Metadata):

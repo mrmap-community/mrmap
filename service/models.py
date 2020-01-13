@@ -929,8 +929,8 @@ class Document(Resource):
 
             # get metadata url
             metadata_uri = xml_helper.get_href_attribute(xml_metadata)
-
-            if is_secured:
+            own_uri_prefix = "{}{}".format(HTTP_OR_SSL, HOST_NAME)
+            if not own_uri_prefix in metadata_uri:
                 # find metadata record which matches the metadata uri
                 dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
                 uri = "{}{}/service/metadata/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
@@ -964,8 +964,9 @@ class Document(Resource):
         for xml_elem in xml_legend_elements:
             legend_uri = xml_helper.get_href_attribute(xml_elem)
 
+            own_uri_prefix = "{}{}".format(HTTP_OR_SSL, HOST_NAME)
             # extract layer identifier from legend_uri (stores as parameter 'layer')
-            if is_secured:
+            if not own_uri_prefix in legend_uri:
                 layer_identifier = dict(urllib.parse.parse_qsl(legend_uri)).get("layer", None)
                 style_id = Style.objects.get(layer__parent_service__metadata=self.related_metadata,
                                              layer__identifier=layer_identifier).id

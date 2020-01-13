@@ -55,16 +55,16 @@
     {% csrf_token %}
     <table class="form-table">
         {% if service_metadata.is_root %}
-        <tr class="field-label metadata-editor-label {% if has_ext_auth %}disabled{% endif %}" {% if has_ext_auth %}title="{% trans 'You can not deactivate the proxy setting on this service!' %}"{% endif %}>
+        <tr class="field-label metadata-editor-label" {% if has_ext_auth %}title="{% trans 'You can not deactivate the proxy setting on this service!' %}"{% endif %}>
             <td>{% trans 'Use proxy:' %}</td>
-            <td><input id="checkbox-use-proxy" type="checkbox" name="use_proxy" {% if has_ext_auth %}disabled="disabled"{% endif %} {% if service_metadata.use_proxy_uri %}checked{% endif %} title="{% trans 'Use proxy' %}"></td>
+            <td><input id="checkbox-use-proxy" type="checkbox" name="use_proxy" {% if service_metadata.use_proxy_uri %}checked{% endif %} title="{% trans 'Use proxy' %}"></td>
         </tr>
         <tr class="field-label metadata-editor-label">
             <td>{% trans 'Log proxy:' %}</td>
             <td><input id="checkbox-log-proxy" type="checkbox" name="log_proxy" {% if service_metadata.log_proxy_access %}checked{% endif %} title="{% trans 'Log proxy' %}"></td>
         </tr>
         {% endif %}
-        <tr class="field-label metadata-editor-label">
+        <tr class="field-label metadata-editor-label" {% if has_ext_auth %}title="{% trans 'You can not deactivate the security setting on this service!' %}"{% endif %}>
             <td>{% trans 'Restrict access:' %}</td>
             <td><input id="checkbox-restrict-access" type="checkbox" name="is_secured" {% if service_metadata.is_secured %}checked{% endif %} title="{% trans 'Restrict access' %}"></td>
         </tr>

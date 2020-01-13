@@ -16,7 +16,7 @@ from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK, SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, \
-    SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING, SECURITY_PROXY_DEACTIVATING_PROXY_NOT_ALLOWED
+    SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
 from MapSkinner import utils
 
@@ -415,7 +415,7 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
     is_secured = post_params.get("is_secured", "")
     is_secured = is_secured == "on"  # resolve True|False
 
-    use_proxy = post_params.get("use_proxy", None)
+    use_proxy = post_params.get("use_proxy", "")
     # use_proxy could be None in case of subelements, which are not able to toggle the proxy option
     if use_proxy is not None:
         use_proxy = use_proxy == "on"  # resolve True|False
@@ -434,8 +434,8 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
         raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING)
 
     # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
-    if md.has_external_authentication() and not use_proxy:
-        raise Exception(SECURITY_PROXY_DEACTIVATING_PROXY_NOT_ALLOWED)
+    if md.has_external_authentication() and (not use_proxy or not is_secured):
+        raise Exception(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
 
     if log_proxy != md.log_proxy_access:
         md.log_proxy_access = log_proxy

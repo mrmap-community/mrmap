@@ -49,7 +49,7 @@ class Command(BaseCommand):
         uri_lang = origin.uri.format(language)
         connector = CommonConnector(uri_lang)
         connector.load()
-        return connector.text
+        return connector.content
 
     def check_category_origins(self):
         """ Checks if the category origins exist and creates them if not.

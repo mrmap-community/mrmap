@@ -118,7 +118,8 @@ class OGCWebService:
                 raise Exception(tmp)
             self.service_capabilities_xml = tmp
         else:
-            self.service_capabilities_xml = ows_connector.text
+            # self.service_capabilities_xml = ows_connector.text
+            self.service_capabilities_xml = ows_connector.content
             
         self.connect_duration = ows_connector.run_time
         self.descriptive_document_encoding = ows_connector.encoding

@@ -201,10 +201,10 @@ def capabilities_are_different(cap_url_1, cap_url_2):
     # load xmls
     connector = CommonConnector(cap_url_1)
     connector.load()
-    xml_1 = connector.text
+    xml_1 = connector.content
     connector = CommonConnector(cap_url_2)
     connector.load()
-    xml_2 = connector.text
+    xml_2 = connector.content
 
     sec_handler = CryptoHandler()
 

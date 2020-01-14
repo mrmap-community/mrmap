@@ -894,17 +894,23 @@ class OGCOperationRequestHandler:
         except OSError:
             raise Exception("Could not create image! Content was:\n {}".format(img))
         try:
+            alpha_layer = Image.new("RGBA", img.size, (255, 0, 0, 0))
             if mask is None:
                 # no bounding geometry for masking exist, just create a mask that does nothing
                 mask = Image.new("RGB", img.size, (0, 0, 0))
             else:
                 mask = Image.open(io.BytesIO(mask))
+
         except OSError:
             raise Exception("Could not create image! Content was:\n {}".format(mask))
-        mask = mask.convert("L").resize(img.size)
-        mask = ImageOps.invert(mask)
 
-        img.putalpha(mask)
+        mask = mask.convert("L").resize(img.size)
+
+        # save image format for restoring a few steps later
+        img_format = img.format
+        img = Image.composite(alpha_layer, img, mask)
+        img.format = img_format
+        del img_format
 
         # add access_denied_img image
         if self.access_denied_img is not None:

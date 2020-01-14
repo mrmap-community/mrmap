@@ -120,12 +120,16 @@ $(document).ready(function(){
         var elem = $(this);
         // deactivate log proxy if use proxy is deactivated
         var logProxyElem = $("#checkbox-log-proxy")
+        var securedElem = $("#checkbox-restrict-access")
         if(!elem.is(":checked") && logProxyElem.is(":checked")){
             logProxyElem.click();
         }
+        if(!elem.is(":checked") && securedElem.is(":checked")){
+            securedElem.click();
+        }
     });
 
-    $("#checkbox-log-proxy").change(function(){
+    $("#checkbox-log-proxy, #checkbox-restrict-access").change(function(){
         var elem = $(this);
         // activate use proxy if log proxy is activated
         var useProxyElem = $("#checkbox-use-proxy")

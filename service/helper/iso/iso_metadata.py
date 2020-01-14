@@ -130,7 +130,7 @@ class ISOMetadata:
             # self.raw_metadata = ows_connector.content.decode(ows_connector.encoding)  # Has to use utf-8 hardcoded because provided encodings didn't work properly
             self.raw_metadata = ows_connector.content.decode("UTF-8")
         else:
-            self.raw_metadata = ows_connector.text
+            self.raw_metadata = ows_connector.content
 
     def _parse_xml_dataset_id(self, xml_obj: _Element, xpath_type: str):
         """ Parse the dataset id and it's code space from the metadata xml

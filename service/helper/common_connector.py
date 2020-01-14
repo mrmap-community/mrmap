@@ -47,7 +47,6 @@ class CommonConnector:
         self.http_cookie_session = None
         self.content = None
         self.encoding = None
-        self.text = None
         self.status_code = None
         self.is_local_request = False
 
@@ -79,7 +78,6 @@ class CommonConnector:
         # parse response
         self.content = response.content
         self.encoding = response.encoding
-        self.text = response.text
         self.run_time = time.time() - self.init_time
 
     def __load_curl(self, params: dict = None):

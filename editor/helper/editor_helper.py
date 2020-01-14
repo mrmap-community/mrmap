@@ -415,10 +415,13 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
     is_secured = post_params.get("is_secured", "")
     is_secured = is_secured == "on"  # resolve True|False
 
-    use_proxy = post_params.get("use_proxy", "")
-    # use_proxy could be None in case of subelements, which are not able to toggle the proxy option
-    if use_proxy is not None:
+    # only root metadata can toggle the use_proxy setting
+    if md.is_root():
+        use_proxy = post_params.get("use_proxy", "")
+        # use_proxy could be None in case of subelements, which are not able to toggle the proxy option
         use_proxy = use_proxy == "on"  # resolve True|False
+    else:
+        use_proxy = None
 
     log_proxy = post_params.get("log_proxy", "")
     log_proxy = log_proxy == "on"  # resolve True|False
@@ -440,13 +443,13 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
     if log_proxy != md.log_proxy_access:
         md.log_proxy_access = log_proxy
 
-    # set new metadata proxy value and iterate over all children
-    if use_proxy is not None and use_proxy != md.use_proxy_uri:
-        md.set_proxy(use_proxy)
-
     # set new secured value and iterate over all children
     if is_secured != md.is_secured:
         md.set_secured(is_secured)
+
+    # set new metadata proxy value and iterate over all children
+    if use_proxy is not None and use_proxy != md.use_proxy_uri:
+        md.set_proxy(use_proxy)
 
     if not is_secured:
         # remove all secured settings

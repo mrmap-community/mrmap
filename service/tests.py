@@ -174,7 +174,7 @@ class ServiceTestCase(TestCase):
         cap_uri = service.metadata.capabilities_original_uri
         connector = CommonConnector(url=cap_uri)
         connector.load()
-        received_xml = connector.text
+        received_xml = connector.content
 
         self.assertEqual(received_xml, cap_doc, msg="Received capabilities document does not match the persisted one!")
         for layer in layers:
@@ -186,7 +186,7 @@ class ServiceTestCase(TestCase):
                 continue
             connector = CommonConnector(url=cap_uri)
             connector.load()
-            received_xml = connector.text
+            received_xml = connector.content
             self.assertEqual(received_xml, cap_doc,
                              msg="Received capabilities document for layer '{}' does not match the persisted one"
                              .format(layer.identifier)

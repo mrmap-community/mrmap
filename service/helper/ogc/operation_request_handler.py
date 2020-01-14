@@ -24,7 +24,7 @@ from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import ServiceOperationEnum, ServiceEnum, VersionEnum
-from service.models import Metadata, FeatureType, Layer, SecuredOperation
+from service.models import Metadata, FeatureType, Layer, SecuredOperation, Style
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
@@ -1024,6 +1024,9 @@ class OGCOperationRequestHandler:
              nothing
         """
         leaf_layers = []
+        if self.layers_param is None:
+            return
+
         for layer_param in self.layers_param.split(","):
             layer_obj = Layer.objects.get(
                 parent_service__metadata=metadata,
@@ -1077,6 +1080,13 @@ class OGCOperationRequestHandler:
                 img = self.get_operation_response()
                 mask = self._get_secured_service_mask(metadata, sec_ops)
                 response = self._create_masked_image(img, mask, as_bytes=True)
+
+            # WMS - 'Legend image'
+            elif self.request_param.upper() == ServiceOperationEnum.GET_LEGEND_GRAPHIC.value.upper():
+                uri = self.full_operation_uri
+                con = CommonConnector(uri)
+                con.load()
+                response = con.content
 
             # WFS
             elif self.request_param.upper() == ServiceOperationEnum.GET_FEATURE.value.upper():

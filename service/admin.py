@@ -94,6 +94,9 @@ class ProxyLogAdmin(admin.ModelAdmin):
 class ExternalAuthenticationAdmin(admin.ModelAdmin):
     list_display = ('metadata', 'auth_type')
 
+class StyleAdmin(admin.ModelAdmin):
+    list_display = ('id', 'layer',)
+
 
 admin.site.register(Document, DocumentAdmin)
 admin.site.register(RequestOperation, RequestOperationAdmin)
@@ -118,3 +121,4 @@ admin.site.register(FeatureTypeElement, FeatureTypeElementAdmin)
 admin.site.register(Namespace, NamespaceAdmin)
 admin.site.register(ProxyLog, ProxyLogAdmin)
 admin.site.register(ExternalAuthentication, ExternalAuthenticationAdmin)
+admin.site.register(Style, StyleAdmin)

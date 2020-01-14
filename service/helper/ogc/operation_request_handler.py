@@ -199,9 +199,15 @@ class OGCOperationRequestHandler:
                 secured_operations__operation__operation_name__iexact=self.request_param,
             )
             allowed_layers_identifier_list = [l.identifier for l in allowed_layers]
-            allowed_layers_identifier = ",".join(allowed_layers_identifier_list)
-            restricted_layers = [l_i for l_i in layer_identifiers if l_i not in allowed_layers_identifier_list]
-            self.new_params_dict["LAYERS"] = allowed_layers_identifier
+
+            restricted_layers = []
+            allowed_layers = []
+            for l_i in layer_identifiers:
+                if l_i in allowed_layers_identifier_list:
+                    allowed_layers.append(l_i)
+                else:
+                    restricted_layers.append(l_i)
+            self.new_params_dict["LAYERS"] = ",".join(allowed_layers)
 
             # create text for image of restricted layers
             if RENDER_TEXT_ON_IMG:

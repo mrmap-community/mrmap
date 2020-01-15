@@ -8,7 +8,7 @@ from django.contrib.gis.geos import Polygon
 from django.db import transaction
 from requests import ReadTimeout
 
-from MapSkinner.messages import SERVICE_REGISTRATION_TIMEOUT
+from MapSkinner.messages import CONNECTION_TIMEOUT
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, VersionEnum, ServiceEnum
@@ -109,7 +109,7 @@ class OGCWebService:
             if ows_connector.status_code != 200:
                 raise ConnectionError(ows_connector.status_code)
         except ReadTimeout:
-            raise ConnectionError(SERVICE_REGISTRATION_TIMEOUT.format(self.service_connect_url))
+            raise ConnectionError(CONNECTION_TIMEOUT.format(self.service_connect_url))
         if ows_connector.encoding is not None:
             tmp = ows_connector.content.decode(ows_connector.encoding)
             # check if tmp really contains an xml file

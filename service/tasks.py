@@ -109,8 +109,6 @@ def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int,
     # if whole service (wms AND wfs) shall be secured, create SecuredOperations for service object
     if md_type == MetadataEnum.SERVICE.value:
         md.service.perform_single_element_securing(md.service, is_secured, group, operation, group_polygons, secured_operation)
-        legend_graphic_operation = RequestOperation.objects.get_or_create(operation_name=ServiceOperationEnum.GET_LEGEND_GRAPHIC.value)[0]
-        md.service.perform_single_element_securing(md.service, is_secured, group, legend_graphic_operation, group_polygons, secured_operation)
 
     # secure subelements afterwards
     if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:

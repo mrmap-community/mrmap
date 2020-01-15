@@ -11,13 +11,14 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
+from requests import ReadTimeout
 
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
-    SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED, SECURITY_PROXY_NOT_ALLOWED
+    SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED, SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
@@ -818,6 +819,8 @@ def get_metadata_operation(request: HttpRequest, id: int):
 
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+    except ReadTimeout:
+        return HttpResponse(status=408, content=CONNECTION_TIMEOUT.format(request.build_absolute_uri()))
     except Exception as e:
         return HttpResponse(status=500, content=e)
 

@@ -33,7 +33,7 @@ class OGCWebFeatureServiceFactory:
     """ Creates the correct OGCWebFeatureService objects
 
     """
-    def get_ogc_wfs(self, version: VersionEnum, service_connect_url=None):
+    def get_ogc_wfs(self, version: VersionEnum, service_connect_url=None, external_auth=None):
         """ Returns the correct implementation of an OGCWebFeatureService according to the given version
 
         Args:
@@ -43,22 +43,23 @@ class OGCWebFeatureServiceFactory:
             An OGCWebFeatureService
         """
         if version is VersionEnum.V_1_0_0:
-            return OGCWebFeatureService_1_0_0(service_connect_url=service_connect_url)
+            return OGCWebFeatureService_1_0_0(service_connect_url=service_connect_url, external_auth=external_auth)
         if version is VersionEnum.V_1_1_0:
-            return OGCWebFeatureService_1_1_0(service_connect_url=service_connect_url)
+            return OGCWebFeatureService_1_1_0(service_connect_url=service_connect_url, external_auth=external_auth)
         if version is VersionEnum.V_2_0_0:
-            return OGCWebFeatureService_2_0_0(service_connect_url=service_connect_url)
+            return OGCWebFeatureService_2_0_0(service_connect_url=service_connect_url, external_auth=external_auth)
         if version is VersionEnum.V_2_0_2:
-            return OGCWebFeatureService_2_0_2(service_connect_url=service_connect_url)
+            return OGCWebFeatureService_2_0_2(service_connect_url=service_connect_url, external_auth=external_auth)
 
 
 class OGCWebFeatureService(OGCWebService):
 
-    def __init__(self, service_connect_url, service_version, service_type):
+    def __init__(self, service_connect_url, service_version, service_type, external_auth: ExternalAuthentication):
         super().__init__(
             service_connect_url=service_connect_url,
             service_version=service_version,
-            service_type=service_type
+            service_type=service_type,
+            external_auth=external_auth
         )
         # wfs specific attributes
         self.get_capabilities_uri = {
@@ -708,11 +709,12 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
     The wfs version 1.0.0 is slightly different than the rest. Therefore we need to overwrite the abstract
     methods and provide an individual way to parse the data.
     """
-    def __init__(self, service_connect_url):
+    def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(
             service_connect_url=service_connect_url,
             service_version=VersionEnum.V_1_0_0,
             service_type=ServiceEnum.WFS,
+            external_auth=external_auth
         )
         XML_NAMESPACES["schemaLocation"] = "http://geodatenlb1.rlp:80/geoserver/schemas/wfs/1.0.0/WFS-capabilities.xsd"
         XML_NAMESPACES["xsi"] = "http://www.w3.org/2001/XMLSchema-instance"
@@ -912,11 +914,12 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
     """
     Uses base implementation from OGCWebFeatureService class
     """
-    def __init__(self, service_connect_url):
+    def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(
             service_connect_url=service_connect_url,
             service_version=VersionEnum.V_1_1_0,
             service_type=ServiceEnum.WFS,
+            external_auth=external_auth
         )
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs"
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows"
@@ -946,11 +949,12 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
     """
     Uses base implementation from OGCWebFeatureService class
     """
-    def __init__(self, service_connect_url):
+    def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(
             service_connect_url=service_connect_url,
             service_version=VersionEnum.V_2_0_0,
             service_type=ServiceEnum.WFS,
+            external_auth=external_auth
         )
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
@@ -1033,11 +1037,12 @@ class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
     """
     Uses base implementation from OGCWebFeatureService class
     """
-    def __init__(self, service_connect_url):
+    def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(
             service_connect_url=service_connect_url,
             service_version=VersionEnum.V_2_0_2,
             service_type=ServiceEnum.WFS,
+            external_auth=external_auth
         )
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"

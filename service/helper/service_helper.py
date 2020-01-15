@@ -157,7 +157,7 @@ def get_service_model_instance(service_type, version, base_uri, user, register_g
     else:
         # create WFS object
         wfs_factory = OGCWebFeatureServiceFactory()
-        wfs = wfs_factory.get_ogc_wfs(version=version, service_connect_url=base_uri)
+        wfs = wfs_factory.get_ogc_wfs(version=version, service_connect_url=base_uri, external_auth=external_auth)
         # let it load it's capabilities
         wfs.get_capabilities()
 

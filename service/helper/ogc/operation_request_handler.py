@@ -477,7 +477,7 @@ class OGCOperationRequestHandler:
 
         return _filter
 
-    def set_intersected_allowed_geometry(self, allowed_geom: GEOSGeometry):
+    def _set_intersected_allowed_geometry(self, allowed_geom: GEOSGeometry):
         """ Setter for the intersected_allowed_geometry
 
         Removes data for the bbox_param and changes the geometry filter
@@ -804,7 +804,7 @@ class OGCOperationRequestHandler:
         point.srid = self.srs_code
         return point
 
-    def get_post_data_dict(self):
+    def _create_POST_data(self):
         """ Getter for the data which is used in a POST request
 
         Returns:
@@ -816,7 +816,7 @@ class OGCOperationRequestHandler:
                 post_data[key] = val
         return post_data
 
-    def get_final_operation_uri(self):
+    def _create_GET_uri(self):
         """ Returns the processed operation uri.
 
         Inserts parameter changes before returning.
@@ -829,50 +829,6 @@ class OGCOperationRequestHandler:
                 if val is not None:
                     self.get_uri = utils.set_uri_GET_param(self.get_uri, key, val)
         return self.get_uri
-
-    def get_post_data_body(self):
-        """ Getter for the data which is used in a POST request
-
-        Returns:
-             post_data (bytes)
-        """
-        ret_val = self.POST_raw_body
-        if not isinstance(ret_val, bytes):
-            ret_val = ret_val.encode("utf-8")
-        return ret_val
-
-    def get_operation_response(self, uri: str = None, post_data: dict = None):
-        """ Performs the request.
-
-        This may be called after the security checks have passed or otherwise if no security checks had to be done.
-
-        Args:
-            uri (str): The operation uri
-            post_data (dict): A key-value dict of the POST data
-        Returns:
-             The xml response
-        """
-        if uri is None:
-            uri = self.get_final_operation_uri()
-
-        force_POST = False
-        if len(uri) > 2048:
-            force_POST = True
-
-        if self.request_is_GET and not force_POST:
-            c = CommonConnector(url=uri, external_auth=self.external_auth)
-            c.load()
-
-        else:
-            c = CommonConnector(url=self.post_uri, external_auth=self.external_auth)
-            if post_data is None:
-                post_data = self.get_post_data_dict()  # get default POST as dict content
-            c.post(post_data)
-
-        if c.status_code is not None and c.status_code != 200:
-            raise Exception(c.status_code)
-
-        return c.content
 
     def _check_get_feature_info_operation_access(self, sec_ops: QueryDict):
         """ Checks whether the user given x/y Point parameter object is inside the geometry, which defines the allowed
@@ -902,7 +858,7 @@ class OGCOperationRequestHandler:
 
         return False not in constraints.values()
 
-    def _get_secured_service_mask(self, metadata: Metadata, sec_ops: QueryDict):
+    def _create_secured_service_mask(self, metadata: Metadata, sec_ops: QueryDict):
         """ Creates call to local mapserver and returns the response
 
         Gets a mask image, which can be used to remove restricted areas from another image
@@ -997,7 +953,7 @@ class OGCOperationRequestHandler:
         return img
 
     def _check_get_feature_operation_access(self, sec_ops: QueryDict):
-        """ Checks whether the GetFeature request can be allowed or not.
+        """ Checks whether the GetFeature request is allowed or not.
 
         Checks the SecuredOperations against bounding geometry from the request
 
@@ -1055,7 +1011,7 @@ class OGCOperationRequestHandler:
                 # we are only partially inside the bounding geometry
                 # -> we need to create the intersection between bbox and bounding geometry
                 # This is only the case for WFS requests!
-                self.set_intersected_allowed_geometry(bounding_geom.intersection(access_restricting_geom))
+                self._set_intersected_allowed_geometry(bounding_geom.intersection(access_restricting_geom))
                 ret_val = True
 
         return ret_val
@@ -1154,7 +1110,7 @@ class OGCOperationRequestHandler:
             # therefore we need to check if there is at least one secured child, somewhere, and then replace the top
             # level layer with all direct, allowed children!
             img = self.get_operation_response()
-            mask = self._get_secured_service_mask(metadata, sec_ops)
+            mask = self._create_secured_service_mask(metadata, sec_ops)
             response = self._create_masked_image(img, mask, as_bytes=True)
 
         # WMS - 'Legend image'
@@ -1173,7 +1129,7 @@ class OGCOperationRequestHandler:
         # WFS - 'DescribeFeatureType'
         elif self.request_param.upper() == ServiceOperationEnum.DESCRIBE_FEATURE_TYPE.value.upper():
             uri = self.get_uri
-            con = CommonConnector(uri)
+            con = CommonConnector(uri, external_auth=self.external_auth)
             con.load()
             response = con.content
 
@@ -1184,3 +1140,36 @@ class OGCOperationRequestHandler:
                 response = self.get_operation_response(self.POST_raw_body)
 
         return response
+
+    def get_operation_response(self, uri: str = None, post_data: dict = None):
+        """ Performs the request.
+
+        This may be called after the security checks have passed or otherwise if no security checks had to be done.
+
+        Args:
+            uri (str): The operation uri
+            post_data (dict): A key-value dict of the POST data
+        Returns:
+             The xml response
+        """
+        if uri is None:
+            uri = self._create_GET_uri()
+
+        force_POST = False
+        if len(uri) > 2048:
+            force_POST = True
+
+        if self.request_is_GET and not force_POST:
+            c = CommonConnector(url=uri, external_auth=self.external_auth)
+            c.load()
+
+        else:
+            c = CommonConnector(url=self.post_uri, external_auth=self.external_auth)
+            if post_data is None:
+                post_data = self._create_POST_data()  # get default POST as dict content
+            c.post(post_data)
+
+        if c.status_code is not None and c.status_code != 200:
+            raise Exception(c.status_code)
+
+        return c.content

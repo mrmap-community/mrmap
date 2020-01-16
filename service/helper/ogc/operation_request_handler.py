@@ -81,7 +81,7 @@ class OGCOperationRequestHandler:
         self.filter_param = None  # refers to param 'FILTER' (WFS)
         self.width_param = None  # refers to param 'WIDTH' (WMS)
         self.height_param = None  # refers to param 'HEIGHT' (WMS)
-        self.type_name_param = None  # refers to param 'TYPENAME' (WFS)
+        self.type_name_param = None  # refers to param 'TYPENAME' (WFS) or 'TYPENAMES' (> WFS 2.0.0)
         self.geom_property_name = None  # will be set, if type_name_param is not None
         self.POST_raw_body = None  # refers to the body content of a Transaction operation
         self.transaction_geometries = None  # contains all geometries that shall be INSERTed or UPDATEd by a  Transaction operation
@@ -130,7 +130,7 @@ class OGCOperationRequestHandler:
                 self.height_param = val
             elif key == "FILTER":
                 self.filter_param = val
-            elif key == "TYPENAME":
+            elif key == "TYPENAME" or key == "TYPENAMES":
                 self.type_name_param = val
 
         self._preprocess_get_feature_params(metadata)
@@ -291,7 +291,10 @@ class OGCOperationRequestHandler:
             self.new_params_dict["LAYERS"] = self.layers_param
 
         if self.type_name_param is not None:
-            self.new_params_dict["TYPENAME"] = self.type_name_param
+            typename_param_key = "TYPENAME"
+            if self.version_param == VersionEnum.V_2_0_0.value or self.version_param == VersionEnum.V_2_0_2.value:
+                typename_param_key = "TYPENAMES"
+            self.new_params_dict[typename_param_key] = self.type_name_param
 
         if self.version_param != VersionEnum.V_1_3_0.value:
             self.new_params_dict["SRS"] = "{}:{}".format(DEFAULT_SRS_FAMILY, self.srs_code)
@@ -1128,10 +1131,7 @@ class OGCOperationRequestHandler:
 
         # WFS - 'DescribeFeatureType'
         elif self.request_param.upper() == ServiceOperationEnum.DESCRIBE_FEATURE_TYPE.value.upper():
-            uri = self.get_uri
-            con = CommonConnector(uri, external_auth=self.external_auth)
-            con.load()
-            response = con.content
+            response = self.get_operation_response()
 
         # WFS
         elif self.request_param.upper() == ServiceOperationEnum.TRANSACTION.value.upper():

@@ -17,7 +17,8 @@ from MapSkinner import utils
 from MapSkinner.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
 from service.helper.enums import MetadataEnum, OGCServiceEnum, OGCOperationEnum
-from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication
+from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
+    MetadataRelation
 from structure.models import User, Group, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
@@ -63,6 +64,25 @@ def async_activate_service(service_id: int, user_id: int):
         service.activate_service(new_status)
         root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
         root_layer.activate_layer_recursive(new_status)
+
+    # activate features/related dataset metadata
+    elif service.servicetype.name == OGCServiceEnum.WFS.value:
+        featuretypes = service.featuretypes.all()
+
+        for featuretype in featuretypes:
+            ft_metadata = featuretype.metadata
+            ft_metadata.is_active = new_status
+
+            # activate related metadata (if it exists)
+            md_relations = MetadataRelation.objects.filter(
+                metadata_from=ft_metadata
+            )
+            for relation in md_relations:
+                related_md = relation.metadata_to
+                related_md.is_active = new_status
+                related_md.save()
+            ft_metadata.save()
+
 
     if service.metadata.is_active:
         msg = SERVICE_ACTIVATED

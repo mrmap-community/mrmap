@@ -281,7 +281,9 @@ def get_capabilities(request: HttpRequest, id: int):
          A HttpResponse containing the xml file
     """
     md = Metadata.objects.get(id=id)
-    service_version = md.get_service_version().value
+    stored_version = md.get_service_version().value
+    # move increasing hits to background process to speed up response time!
+    async_increase_hits.delay(id)
 
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
@@ -293,6 +295,8 @@ def get_capabilities(request: HttpRequest, id: int):
     request_param = None
     request_tag = None
 
+    use_fallback = None
+
     for k, v in request.GET.dict().items():
         if k.upper() == "VERSION":
             version_param = v
@@ -300,6 +304,8 @@ def get_capabilities(request: HttpRequest, id: int):
         elif k.upper() == "REQUEST":
             request_param = v
             request_tag = k
+        elif k.upper() == "FALLBACK":
+            use_fallback = utils.resolve_boolean_attribute_val(v)
 
     # if no version was provided on this request, we redirect using the registered version
     must_redirect = False
@@ -307,7 +313,7 @@ def get_capabilities(request: HttpRequest, id: int):
     if version_param is None or len(version_param) == 0:
         must_redirect = True
         redirect_uri = request.build_absolute_uri()
-        redirect_uri = utils.set_uri_GET_param(redirect_uri, "version", service_version)
+        redirect_uri = utils.set_uri_GET_param(redirect_uri, "version", stored_version)
 
     if request_param is None or len(request_param) == 0:
         must_redirect = True
@@ -318,29 +324,42 @@ def get_capabilities(request: HttpRequest, id: int):
         return redirect(redirect_uri)
 
     if version_param not in [data.value for data in OGCServiceVersionEnum]:
+        # version number not valid
         return HttpResponse(content=PARAMETER_ERROR.format(version_tag), status=404)
     elif request_param not in [data.value for data in OGCOperationEnum]:
+        # request not valid
         return HttpResponse(content=PARAMETER_ERROR.format(request_tag), status=404)
+    elif request_param != OGCOperationEnum.GET_CAPABILITIES.value and request_param in [data.value for data in OGCOperationEnum]:
+        # request valid but wrong uri called
+        query = request.META.get("QUERY_STRING", "")
+        redirect_obj = redirect("service:metadata-proxy-operation", id)
+        redirect_uri = "{}?{}".format(redirect_obj.url, query)
+        return redirect(redirect_uri)
 
-    if service_version == version_param:
-        # move increasing hits to background process to speed up response time!
-        async_increase_hits.delay(id)
+    if stored_version == version_param or use_fallback is True:
         cap_doc = Document.objects.get(related_metadata=md)
         doc = cap_doc.current_capability_document
     else:
-        # fetch the requested capabilities document from remote - we do not provide this as our default (registered) one
-        xml = md.get_remote_original_capabilities_document(version_param)
-        doc = Document(
-            original_capability_document=xml,
-            current_capability_document=xml,
-            related_metadata=md
-        )
-        doc.set_capabilities_secured(auto_save=False)
-        if md.use_proxy_uri:
-            doc.set_dataset_metadata_secured(True, auto_save=False)
-            doc.set_operations_secured(True, auto_save=False)
-            doc.set_legend_url_secured(True, auto_save=False)
-        doc = doc.current_capability_document
+        try:
+            # fetch the requested capabilities document from remote - we do not provide this as our default (registered) one
+            xml = md.get_remote_original_capabilities_document(version_param)
+
+            # we fake the persisted service version, so the document setters will change the correct elements in the xml
+            md.service.servicetype.version = version_param
+            doc = Document(
+                original_capability_document=xml,
+                current_capability_document=xml,
+                related_metadata=md
+            )
+            doc.set_capabilities_secured(auto_save=False)
+            if md.use_proxy_uri:
+                doc.set_dataset_metadata_secured(True, auto_save=False)
+                doc.set_operations_secured(True, auto_save=False)
+                doc.set_legend_url_secured(True, auto_save=False)
+            doc = doc.current_capability_document
+        except (ReadTimeout, TimeoutError, ConnectionError) as e:
+            # the remote server does not respond - we must deliver our stored capabilities document, which is not the requested version
+            return HttpResponse(content="The requested capabilities are currently unavailable. Add 'fallback=true' to your query if you want a cached document.")
 
     return HttpResponse(doc, content_type='application/xml')
 

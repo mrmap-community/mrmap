@@ -27,7 +27,7 @@ DEFAULT_SERVICE_VERSION = VersionEnum.V_1_1_1
 MD_RELATION_TYPE_VISUALIZES = "visualizes"
 MD_RELATION_TYPE_DESCRIBED_BY = "describedBy"
 
-REQUEST_TIMEOUT = 10  # seconds
+REQUEST_TIMEOUT = 100  # seconds
 
 # security proxy settings
 MAPSERVER_LOCAL_PATH = "http://127.0.0.1/cgi-bin/mapserv"

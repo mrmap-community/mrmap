@@ -10,6 +10,8 @@ from django.contrib.gis.db import models
 from django.utils import timezone
 
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
+from MapSkinner import utils
+from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceEnum, VersionEnum, MetadataEnum, ServiceOperationEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH
@@ -281,6 +283,27 @@ class Metadata(Resource):
 
     def __str__(self):
         return self.title
+
+    def get_remote_original_capabilities_document(self, version: str):
+        """ Fetches the original capabilities document from the remote server.
+
+        Returns:
+             doc (str): The xml document as string
+        """
+        if version is None or len(version) == 0:
+            raise ValueError()
+
+        if self.has_external_authentication():
+            ext_auth = self.external_authentication
+        else:
+            ext_auth = None
+
+        uri = self.capabilities_original_uri
+        uri = utils.set_uri_GET_param(uri, "version", version)
+        conn = CommonConnector(url=uri, external_auth=ext_auth)
+        conn.load()
+        doc = conn.content
+        return doc
 
     def has_external_authentication(self):
         """ Checks whether the metadata has a related ExternalAuthentication set
@@ -885,7 +908,64 @@ class Document(Resource):
                         txt=uri
                     )
 
-    def set_operations_secured(self, is_secured: bool):
+    def set_capabilities_secured(self, auto_save: bool=True):
+
+        # change some external linkage to internal links for the current_capability_document
+        uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)
+        xml = xml_helper.parse_xml(self.original_capability_document)
+
+        # wms and wfs have to be handled differently!
+        # Furthermore each standard has a different handling of attributes and elements ...
+        service_type = self.related_metadata.get_service_type()
+        service_version = self.related_metadata.get_service_version().value
+        if service_type == ServiceEnum.WMS.value:
+            xml_helper.write_attribute(
+                xml,
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                "{http://www.w3.org/1999/xlink}href", uri)
+            xml_helper.write_attribute(
+                xml,
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                "{http://www.w3.org/1999/xlink}href",
+                uri)
+            xml_helper.write_attribute(
+                xml,
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("Post") +
+                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                "{http://www.w3.org/1999/xlink}href",
+                uri)
+        elif service_type == ServiceEnum.WFS.value:
+            if service_version == "1.0.0":
+                prefix = "wfs:"
+                xml_helper.write_text_to_element(xml, "//{}Service/{}OnlineResource".format(prefix, prefix), uri)
+                xml_helper.write_attribute(xml, "//{}GetCapabilities/{}DCPType/{}HTTP/{}Get".format(prefix, prefix, prefix, prefix),
+                                           "onlineResource", uri)
+                xml_helper.write_attribute(xml, "//{}GetCapabilities/{}DCPType/{}HTTP/{}Post".format(prefix, prefix, prefix, prefix),
+                                           "onlineResource", uri)
+            else:
+                prefix = "ows:"
+                xml_helper.write_attribute(xml, "//{}ContactInfo/{}OnlineResource".format(prefix, prefix),
+                                           "{http://www.w3.org/1999/xlink}href", uri)
+                xml_helper.write_attribute(xml, "//{}Operation[@name='GetCapabilities']/{}DCP/{}HTTP/{}Get".format(prefix, prefix, prefix, prefix),
+                                           "{http://www.w3.org/1999/xlink}href", uri)
+                xml_helper.write_attribute(xml, "//{}Operation[@name='GetCapabilities']/{}DCP/{}HTTP/{}Post".format(prefix, prefix, prefix, prefix),
+                                           "{http://www.w3.org/1999/xlink}href", uri)
+
+        xml = xml_helper.xml_to_string(xml)
+        self.current_capability_document = xml
+
+        if auto_save:
+            self.save()
+
+    def set_operations_secured(self, is_secured: bool, auto_save: bool=True):
         """ Change external links to internal for service operations
 
         Args:
@@ -909,9 +989,11 @@ class Document(Resource):
                 self._set_wfs_operations_secured(xml_obj, uri, is_secured)
 
         self.current_capability_document = xml_helper.xml_to_string(xml_obj)
-        self.save()
 
-    def set_dataset_metadata_secured(self, is_secured: bool):
+        if auto_save:
+            self.save()
+
+    def set_dataset_metadata_secured(self, is_secured: bool, auto_save: bool=True):
         """ Set or unsets the proxy for the dataset metadata uris
 
         Args:
@@ -933,7 +1015,7 @@ class Document(Resource):
             if not own_uri_prefix in metadata_uri:
                 # find metadata record which matches the metadata uri
                 dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
-                uri = "{}{}/service/metadata/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
+                uri = "{}{}/service/metadata/dataset/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
             else:
                 # this means we have our own proxy uri in here and want to restore the original one
                 # metadata uri contains the proxy uri
@@ -945,9 +1027,11 @@ class Document(Resource):
             xml_helper.set_attribute(xml_metadata, attr, uri)
         xml_obj_str = xml_helper.xml_to_string(xml_obj)
         self.current_capability_document = xml_obj_str
-        self.save()
 
-    def set_legend_url_secured(self, is_secured: bool):
+        if auto_save:
+            self.save()
+
+    def set_legend_url_secured(self, is_secured: bool, auto_save: bool=True):
         """ Set or unsets the proxy for the style legend uris
 
         Args:
@@ -977,7 +1061,9 @@ class Document(Resource):
             xml_helper.set_attribute(xml_elem, attr, uri)
         xml_doc_str = xml_helper.xml_to_string(xml_doc)
         self.current_capability_document = xml_doc_str
-        self.save()
+
+        if auto_save:
+            self.save()
 
     def restore(self):
         """ We overwrite the current metadata xml with the original
@@ -1338,59 +1424,8 @@ class Service(Resource):
         # save original capabilities document
         cap_doc = Document()
         cap_doc.original_capability_document = xml
-
-        # change some external linkage to internal links for the current_capability_document
-        uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, self.metadata.id)
-        xml = xml_helper.parse_xml(xml)
-
-        # wms and wfs have to be handled differently!
-        # Furthermore each standard has a different handling of attributes and elements ...
-        if self.servicetype.name == ServiceEnum.WMS.value:
-            xml_helper.write_attribute(
-                xml,
-                "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
-                "{http://www.w3.org/1999/xlink}href", uri)
-            xml_helper.write_attribute(
-                xml,
-                "//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
-                "{http://www.w3.org/1999/xlink}href",
-                uri)
-            xml_helper.write_attribute(
-                xml,
-                "//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("Post") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
-                "{http://www.w3.org/1999/xlink}href",
-                uri)
-        elif self.servicetype.name == ServiceEnum.WFS.value:
-            if self.servicetype.version == "1.0.0":
-                prefix = "wfs:"
-                xml_helper.write_text_to_element(xml, "//{}Service/{}OnlineResource".format(prefix, prefix), uri)
-                xml_helper.write_attribute(xml, "//{}GetCapabilities/{}DCPType/{}HTTP/{}Get".format(prefix, prefix, prefix, prefix),
-                                           "onlineResource", uri)
-                xml_helper.write_attribute(xml, "//{}GetCapabilities/{}DCPType/{}HTTP/{}Post".format(prefix, prefix, prefix, prefix),
-                                           "onlineResource", uri)
-            else:
-                prefix = "ows:"
-                xml_helper.write_attribute(xml, "//{}ContactInfo/{}OnlineResource".format(prefix, prefix),
-                                           "{http://www.w3.org/1999/xlink}href", uri)
-                xml_helper.write_attribute(xml, "//{}Operation[@name='GetCapabilities']/{}DCP/{}HTTP/{}Get".format(prefix, prefix, prefix, prefix),
-                                           "{http://www.w3.org/1999/xlink}href", uri)
-                xml_helper.write_attribute(xml, "//{}Operation[@name='GetCapabilities']/{}DCP/{}HTTP/{}Post".format(prefix, prefix, prefix, prefix),
-                                           "{http://www.w3.org/1999/xlink}href", uri)
-
-        xml = xml_helper.xml_to_string(xml)
-
-        cap_doc.current_capability_document = xml
         cap_doc.related_metadata = self.metadata
-        cap_doc.save()
+        cap_doc.set_capabilities_secured()
 
 
 class Layer(Service):

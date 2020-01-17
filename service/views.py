@@ -1,5 +1,4 @@
 import json
-import urllib
 
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
@@ -18,19 +17,18 @@ from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
-    SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED, SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT
+    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SECURITY_PROXY_ERROR_PARAMETER
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
 from service.forms import ServiceURIForm
-from service.helper import service_helper, update_helper
+from service.helper import service_helper, update_helper, xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
-from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, SecuredOperation, \
-    MimeType, Style, ExternalAuthentication
+from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style
 from service.settings import MD_TYPE_SERVICE
 from service.tasks import async_remove_service_task, async_increase_hits
 from structure.models import User, Permission, PendingTask, Group
@@ -224,18 +222,19 @@ def get_dataset_metadata(request: HttpRequest, id: int):
     md = Metadata.objects.get(id=id)
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
-    if md.metadata_type != 'dataset':
-        try:
+    try:
+        if md.metadata_type.type != 'dataset':
             # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
             md = MetadataRelation.objects.get(
                 metadata_from=md,
             ).metadata_to
-            document = Document.objects.get(related_metadata=md)
-            document = document.dataset_metadata_document
-            if document is None:
-                raise ObjectDoesNotExist
-        except ObjectDoesNotExist:
-            return HttpResponse(content=_("No dataset metadata found"), status=404)
+            return redirect("service:get-dataset-metadata", id=md.id)
+        document = Document.objects.get(related_metadata=md)
+        document = document.dataset_metadata_document
+        if document is None:
+            raise ObjectDoesNotExist
+    except ObjectDoesNotExist:
+        return HttpResponse(content=_("No dataset metadata found"), status=404)
     return HttpResponse(document, content_type='application/xml')
 
 
@@ -286,10 +285,39 @@ def get_capabilities(request: HttpRequest, id: int):
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
 
-    # move increasing hits to background process to speed up response time!
-    async_increase_hits.delay(id)
-    cap_doc = Document.objects.get(related_metadata=md)
-    doc = cap_doc.current_capability_document
+    # check that we have the requested version in our database
+    version_param = None
+    version_tag = None
+    for k, v in request.GET.dict().items():
+        if k.upper() == "VERSION":
+            version_param = v
+            version_tag = k
+            break
+
+    # if no version was provided on this request, we redirect using the registered version
+    if version_param is None:
+        return HttpResponse(content=SECURITY_PROXY_ERROR_PARAMETER.format(version_tag), status=404)
+
+    service_version = md.get_service_version().value
+    if service_version == version_param:
+        # move increasing hits to background process to speed up response time!
+        async_increase_hits.delay(id)
+        cap_doc = Document.objects.get(related_metadata=md)
+        doc = cap_doc.current_capability_document
+    else:
+        # fetch the requested capabilities document from remote - we do not provide this as our default (registered) one
+        xml = md.get_remote_original_capabilities_document(version_param)
+        doc = Document(
+            original_capability_document=xml,
+            current_capability_document=xml,
+            related_metadata=md
+        )
+        doc.set_capabilities_secured(auto_save=False)
+        if md.use_proxy_uri:
+            doc.set_dataset_metadata_secured(True, auto_save=False)
+            doc.set_operations_secured(True, auto_save=False)
+            doc.set_legend_url_secured(True, auto_save=False)
+        doc = doc.current_capability_document
 
     return HttpResponse(doc, content_type='application/xml')
 

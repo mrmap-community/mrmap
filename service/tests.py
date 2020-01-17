@@ -9,7 +9,7 @@ from django.utils import timezone
 from service import tasks
 from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ServiceEnum, VersionEnum
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum
 from service.models import Service, Layer, Document
 from structure.models import User, Group, Role, Permission
 
@@ -62,15 +62,15 @@ class ServiceTestCase(TestCase):
 
         self.test_wms = {
             "title": "Karte RP",
-            "version": VersionEnum.V_1_1_1,
-            "type": ServiceEnum.WMS,
+            "version": OGCServiceVersionEnum.V_1_1_1,
+            "type": OGCServiceEnum.WMS,
             "uri": "https://www.geoportal.rlp.de/mapbender/php/mod_showMetadata.php/../wms.php?layer_id=38925&PHPSESSID=7qiruaoul2pdcadcohs7doeu07&withChilds=1",
         }
 
         self.test_wfs = {
             "title": "Nutzung",
-            "version": VersionEnum.V_1_0_0,
-            "type": ServiceEnum.WFS,
+            "version": OGCServiceVersionEnum.V_1_0_0,
+            "type": OGCServiceEnum.WFS,
             "uri": "https://www.geoportal.rlp.de/mapbender/php/mod_showMetadata.php/../wfs.php?FEATURETYPE_ID=2672&PHPSESSID=7qiruaoul2pdcadcohs7doeu07",
         }
 

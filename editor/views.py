@@ -16,7 +16,7 @@ from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import ROOT_URL, HTTP_OR_SSL, HOST_NAME
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
-from service.helper.enums import ServiceEnum, MetadataEnum
+from service.helper.enums import OGCServiceEnum, MetadataEnum
 from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation, \
     ExternalAuthentication
 from django.utils.translation import gettext_lazy as _
@@ -40,7 +40,7 @@ def index(request: HttpRequest, user:User):
     # get all services that are registered by the user
     template = "editor_index.html"
 
-    wms_services = user.get_services(ServiceEnum.WMS)
+    wms_services = user.get_services(OGCServiceEnum.WMS)
     wms_layers_custom_md = []
     wms_list = []
     for wms in wms_services:
@@ -51,7 +51,7 @@ def index(request: HttpRequest, user:User):
         }
         wms_list.append(tmp)
 
-    wfs_services = user.get_services(ServiceEnum.WFS)
+    wfs_services = user.get_services(OGCServiceEnum.WFS)
     wfs_list = []
     for wfs in wfs_services:
         custom_children = FeatureType.objects.filter(parent_service__metadata=wfs, metadata__is_custom=True)
@@ -245,13 +245,13 @@ def edit_access(request: HttpRequest, id: int, user: User):
         # render form
         metadata_type = md.metadata_type.type
         if metadata_type == MetadataEnum.FEATURETYPE.value:
-            _type = ServiceEnum.WFS.value
+            _type = OGCServiceEnum.WFS.value
         else:
             _type = md.service.servicetype.name
         secured_operations = []
-        if _type == ServiceEnum.WMS.value:
+        if _type == OGCServiceEnum.WMS.value:
             secured_operations = WMS_SECURED_OPERATIONS
-        elif _type == ServiceEnum.WFS.value:
+        elif _type == OGCServiceEnum.WFS.value:
             secured_operations = WFS_SECURED_OPERATIONS
 
         operations = RequestOperation.objects.filter(

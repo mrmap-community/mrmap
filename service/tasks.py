@@ -16,7 +16,7 @@ from requests.exceptions import InvalidURL
 from MapSkinner import utils
 from MapSkinner.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
-from service.helper.enums import MetadataEnum, ServiceEnum, ServiceOperationEnum
+from service.helper.enums import MetadataEnum, OGCServiceEnum, OGCOperationEnum
 from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication
 from structure.models import User, Group, Organization, PendingTask
 
@@ -59,7 +59,7 @@ def async_activate_service(service_id: int, user_id: int):
 
     # get root_layer of service and start changing of all statuses
     # also check all related metadata and activate them too
-    if service.servicetype.name == ServiceEnum.WMS.value:
+    if service.servicetype.name == OGCServiceEnum.WMS.value:
         service.activate_service(new_status)
         root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
         root_layer.activate_layer_recursive(new_status)

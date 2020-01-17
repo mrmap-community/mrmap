@@ -24,7 +24,7 @@ from service import tasks
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper, xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum, VersionEnum
+from service.helper.enums import OGCServiceEnum, MetadataEnum, OGCOperationEnum, OGCServiceVersionEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
@@ -72,7 +72,7 @@ def index(request: HttpRequest, user: User, service_type=None):
     # get services
     paginator_wms = None
     paginator_wfs = None
-    if service_type is None or service_type == ServiceEnum.WMS.value:
+    if service_type is None or service_type == OGCServiceEnum.WMS.value:
         md_list_wms = Metadata.objects.filter(
             service__servicetype__name="wms",
             service__is_root=is_root,
@@ -80,7 +80,7 @@ def index(request: HttpRequest, user: User, service_type=None):
             service__is_deleted=False,
         ).order_by("title")
         paginator_wms = Paginator(md_list_wms, results_per_page).get_page(wms_page)
-    if service_type is None or service_type == ServiceEnum.WFS.value:
+    if service_type is None or service_type == OGCServiceEnum.WFS.value:
         md_list_wfs = Metadata.objects.filter(
             service__servicetype__name="wfs",
             created_by__in=user.groups.all(),
@@ -123,9 +123,9 @@ def remove(request: HttpRequest, user: User):
     service = get_object_or_404(Service, id=service_id)
     service_type = service.servicetype
     sub_elements = None
-    if service_type.name == ServiceEnum.WMS.value:
+    if service_type.name == OGCServiceEnum.WMS.value:
         sub_elements = Layer.objects.filter(parent_service=service)
-    elif service_type.name == ServiceEnum.WFS.value:
+    elif service_type.name == OGCServiceEnum.WFS.value:
         sub_elements = service.featuretypes.all()
     metadata = get_object_or_404(Metadata, service=service)
     if confirmed == 'false':
@@ -251,9 +251,9 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
          A BackendAjaxResponse, containing a boolean, whether the requested element has a dataset metadata record or not
     """
     elementType = request.GET.get("serviceType")
-    if elementType == ServiceEnum.WMS.value:
+    if elementType == OGCServiceEnum.WMS.value:
         element = Layer.objects.get(id=id)
-    elif elementType == ServiceEnum.WFS.value:
+    elif elementType == OGCServiceEnum.WFS.value:
         element = FeatureType.objects.get(id=id)
     md = element.metadata
     try:
@@ -281,6 +281,7 @@ def get_capabilities(request: HttpRequest, id: int):
          A HttpResponse containing the xml file
     """
     md = Metadata.objects.get(id=id)
+    service_version = md.get_service_version().value
 
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
@@ -289,7 +290,6 @@ def get_capabilities(request: HttpRequest, id: int):
     version_param = None
     version_tag = None
 
-    # check that we have the requested version in our database
     request_param = None
     request_tag = None
 
@@ -300,8 +300,6 @@ def get_capabilities(request: HttpRequest, id: int):
         elif k.upper() == "REQUEST":
             request_param = v
             request_tag = k
-
-    service_version = md.get_service_version().value
 
     # if no version was provided on this request, we redirect using the registered version
     must_redirect = False
@@ -314,14 +312,14 @@ def get_capabilities(request: HttpRequest, id: int):
     if request_param is None or len(request_param) == 0:
         must_redirect = True
         redirect_uri = request.build_absolute_uri()
-        redirect_uri = utils.set_uri_GET_param(redirect_uri, "request", ServiceOperationEnum.GET_CAPABILITIES.value)
+        redirect_uri = utils.set_uri_GET_param(redirect_uri, "request", OGCOperationEnum.GET_CAPABILITIES.value)
 
     if must_redirect:
         return redirect(redirect_uri)
 
-    if version_param not in [data.value for data in VersionEnum]:
+    if version_param not in [data.value for data in OGCServiceVersionEnum]:
         return HttpResponse(content=PARAMETER_ERROR.format(version_tag), status=404)
-    elif request_param not in [data.value for data in ServiceOperationEnum]:
+    elif request_param not in [data.value for data in OGCOperationEnum]:
         return HttpResponse(content=PARAMETER_ERROR.format(request_tag), status=404)
 
     if service_version == version_param:
@@ -395,7 +393,7 @@ def wms(request:HttpRequest, user:User):
     Returns:
          A view
     """
-    return redirect("service:index", ServiceEnum.WMS.value)
+    return redirect("service:index", OGCServiceEnum.WMS.value)
 
 
 @check_session
@@ -416,7 +414,7 @@ def register_form(request: HttpRequest, user: User):
         cap_url = POST_params.get("uri", "")
         url_dict = service_helper.split_service_uri(cap_url)
 
-        if url_dict["request"].lower() != ServiceOperationEnum.GET_CAPABILITIES.value.lower():
+        if url_dict["request"].lower() != OGCOperationEnum.GET_CAPABILITIES.value.lower():
             # not allowed!
             error = True
 
@@ -588,10 +586,10 @@ def update_service(request: HttpRequest, user: User, id: int):
         old_service = update_helper.update_service(old_service, new_service)
         old_service.last_modified = timezone.now()
 
-        if new_service.servicetype.name == ServiceEnum.WFS.value:
+        if new_service.servicetype.name == OGCServiceEnum.WFS.value:
             old_service = update_helper.update_wfs(old_service, new_service, diff, links, keep_custom_metadata)
 
-        elif new_service.servicetype.name == ServiceEnum.WMS.value:
+        elif new_service.servicetype.name == OGCServiceEnum.WMS.value:
             old_service = update_helper.update_wms(old_service, new_service, diff, links, keep_custom_metadata)
 
         cap_document = Document.objects.get(related_metadata=old_service.metadata)
@@ -709,9 +707,9 @@ def wfs(request:HttpRequest, user:User):
          A view
     """
     params = {
-        "only": ServiceEnum.WFS
+        "only": OGCServiceEnum.WFS
     }
-    return redirect("service:index", ServiceEnum.WFS.value)
+    return redirect("service:index", OGCServiceEnum.WFS.value)
 
 
 @check_session
@@ -842,7 +840,7 @@ def get_metadata_operation(request: HttpRequest, id: int):
             )
             return redirect(redirect_uri)
 
-        elif operation_handler.request_param.upper() == ServiceOperationEnum.GET_CAPABILITIES.value.upper():
+        elif operation_handler.request_param.upper() == OGCOperationEnum.GET_CAPABILITIES.value.upper():
             cap_doc = Document.objects.get(related_metadata=metadata)
             return HttpResponse(cap_doc.current_capability_document, content_type="application/xml")
 

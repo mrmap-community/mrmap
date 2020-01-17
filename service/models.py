@@ -12,7 +12,7 @@ from django.utils import timezone
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ServiceEnum, VersionEnum, MetadataEnum, ServiceOperationEnum
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH
 from structure.models import Group, Organization
@@ -100,7 +100,7 @@ class SecuredOperation(models.Model):
 
         elif md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
             service_type = md.service.servicetype.name
-            if service_type == ServiceEnum.WFS.value:
+            if service_type == OGCServiceEnum.WFS.value:
                 # find all wfs featuretypes
                 featuretypes = md.service.featuretypes.all()
                 for featuretype in featuretypes:
@@ -111,7 +111,7 @@ class SecuredOperation(models.Model):
                     )
                     sec_ops.delete()
 
-            elif service_type == ServiceEnum.WMS.value:
+            elif service_type == OGCServiceEnum.WMS.value:
                 if md.service.is_root:
                     # find root layer
                     layer = Layer.objects.get(
@@ -404,7 +404,7 @@ class Metadata(Resource):
              The service version
         """
         service_version = self.service.servicetype.version
-        for v in VersionEnum:
+        for v in OGCServiceVersionEnum:
             if v.value == service_version:
                 return v
         return service_version
@@ -615,9 +615,9 @@ class Metadata(Resource):
 
         # identify whether this is a wfs or wms (we need to handle them in different ways)
         service_type = self.get_service_type()
-        if service_type == ServiceEnum.WFS.value:
+        if service_type == OGCServiceEnum.WFS.value:
             self._restore_wfs(identifier, external_auth=external_auth)
-        elif service_type == ServiceEnum.WMS.value:
+        elif service_type == OGCServiceEnum.WMS.value:
             self._restore_wms(identifier, external_auth=external_auth)
 
     def get_related_metadata_uris(self):
@@ -703,7 +703,7 @@ class Metadata(Resource):
 
         children = []
         if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
-            if self.service.servicetype.name == ServiceEnum.WMS.value:
+            if self.service.servicetype.name == OGCServiceEnum.WMS.value:
                 parent_service = self.service
                 children = Metadata.objects.filter(
                     service__parent_service=parent_service
@@ -711,7 +711,7 @@ class Metadata(Resource):
                 for child in children:
                     child._set_document_secured(self.use_proxy_uri)
 
-            elif self.service.servicetype.name == ServiceEnum.WFS.value:
+            elif self.service.servicetype.name == OGCServiceEnum.WFS.value:
                 children = [ft.metadata for ft in self.service.featuretypes.all()]
 
             for child in children:
@@ -785,7 +785,7 @@ class Document(Resource):
         for op in request_objs:
 
             # skip GetCapabilities - it is already set to another internal link
-            if ServiceOperationEnum.GET_CAPABILITIES.value in op.tag:
+            if OGCOperationEnum.GET_CAPABILITIES.value in op.tag:
                 continue
 
             uri_dict = op_uri_dict.get(op.tag, "")
@@ -889,7 +889,7 @@ class Document(Resource):
         for op in operation_objs:
             # skip GetCapabilities - it is already set to another internal link
             name = xml_helper.try_get_attribute_from_xml_element(op, "name")
-            if name == ServiceOperationEnum.GET_CAPABILITIES.value or name is None:
+            if name == OGCOperationEnum.GET_CAPABILITIES.value or name is None:
                 continue
 
             http_operations = ["Get", "Post"]
@@ -918,7 +918,7 @@ class Document(Resource):
         # Furthermore each standard has a different handling of attributes and elements ...
         service_type = self.related_metadata.get_service_type()
         service_version = self.related_metadata.get_service_version().value
-        if service_type == ServiceEnum.WMS.value:
+        if service_type == OGCServiceEnum.WMS.value:
             xml_helper.write_attribute(
                 xml,
                 "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
@@ -942,7 +942,7 @@ class Document(Resource):
                 "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
                 "{http://www.w3.org/1999/xlink}href",
                 uri)
-        elif service_type == ServiceEnum.WFS.value:
+        elif service_type == OGCServiceEnum.WFS.value:
             if service_version == "1.0.0":
                 prefix = "wfs:"
                 xml_helper.write_text_to_element(xml, "//{}Service/{}OnlineResource".format(prefix, prefix), uri)
@@ -980,10 +980,10 @@ class Document(Resource):
             uri = ""
         _type = self.related_metadata.service.servicetype.name
         _version = self.related_metadata.get_service_version()
-        if _type == ServiceEnum.WMS.value:
+        if _type == OGCServiceEnum.WMS.value:
             self._set_wms_operations_secured(xml_obj, uri, is_secured)
-        elif _type == ServiceEnum.WFS.value:
-            if _version is VersionEnum.V_1_0_0:
+        elif _type == OGCServiceEnum.WFS.value:
+            if _version is OGCServiceVersionEnum.V_1_0_0:
                 self._set_wfs_1_0_0_operations_secured(xml_obj, uri, is_secured)
             else:
                 self._set_wfs_operations_secured(xml_obj, uri, is_secured)
@@ -1311,9 +1311,9 @@ class Service(Resource):
         Returns:
              nothing
         """
-        if self.servicetype.name == ServiceEnum.WMS.value:
+        if self.servicetype.name == OGCServiceEnum.WMS.value:
             self._secure_sub_layers(is_secured, group, operation, group_polygons, secured_operation)
-        elif self.servicetype.name == ServiceEnum.WFS.value:
+        elif self.servicetype.name == OGCServiceEnum.WFS.value:
             self._secure_feature_types(is_secured, group, operation, group_polygons, secured_operation)
 
     @transaction.atomic
@@ -1674,7 +1674,7 @@ class FeatureType(Resource):
             return
         service_version = service_helper.resolve_version_enum(self.parent_service.servicetype.version)
         service = None
-        if self.parent_service.servicetype.name == ServiceEnum.WFS.value:
+        if self.parent_service.servicetype.name == OGCServiceEnum.WFS.value:
             service = OGCWebFeatureServiceFactory()
             service = service.get_ogc_wfs(version=service_version, service_connect_url=self.parent_service.metadata.capabilities_original_uri)
         if service is None:

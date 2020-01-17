@@ -11,7 +11,7 @@ import os
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 
 from MapSkinner.settings import BASE_DIR
-from service.helper.enums import ConnectionEnum, VersionEnum
+from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
 
 # Metadata types
 MD_TYPE_FEATURETYPE = "featuretype"
@@ -21,7 +21,7 @@ MD_TYPE_LAYER = "layer"
 
 # Some special things
 DEFAULT_CONNECTION_TYPE = ConnectionEnum.REQUESTS
-DEFAULT_SERVICE_VERSION = VersionEnum.V_1_1_1
+DEFAULT_SERVICE_VERSION = OGCServiceVersionEnum.V_1_1_1
 
 # semantic relation types
 MD_RELATION_TYPE_VISUALIZES = "visualizes"

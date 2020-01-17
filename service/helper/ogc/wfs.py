@@ -17,7 +17,7 @@ from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
 from MapSkinner.utils import execute_threads
-from service.helper.enums import VersionEnum, ServiceEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
@@ -33,7 +33,7 @@ class OGCWebFeatureServiceFactory:
     """ Creates the correct OGCWebFeatureService objects
 
     """
-    def get_ogc_wfs(self, version: VersionEnum, service_connect_url=None, external_auth=None):
+    def get_ogc_wfs(self, version: OGCServiceVersionEnum, service_connect_url=None, external_auth=None):
         """ Returns the correct implementation of an OGCWebFeatureService according to the given version
 
         Args:
@@ -42,13 +42,13 @@ class OGCWebFeatureServiceFactory:
         Returns:
             An OGCWebFeatureService
         """
-        if version is VersionEnum.V_1_0_0:
+        if version is OGCServiceVersionEnum.V_1_0_0:
             return OGCWebFeatureService_1_0_0(service_connect_url=service_connect_url, external_auth=external_auth)
-        if version is VersionEnum.V_1_1_0:
+        if version is OGCServiceVersionEnum.V_1_1_0:
             return OGCWebFeatureService_1_1_0(service_connect_url=service_connect_url, external_auth=external_auth)
-        if version is VersionEnum.V_2_0_0:
+        if version is OGCServiceVersionEnum.V_2_0_0:
             return OGCWebFeatureService_2_0_0(service_connect_url=service_connect_url, external_auth=external_auth)
-        if version is VersionEnum.V_2_0_2:
+        if version is OGCServiceVersionEnum.V_2_0_2:
             return OGCWebFeatureService_2_0_2(service_connect_url=service_connect_url, external_auth=external_auth)
 
 
@@ -713,8 +713,8 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
     def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionEnum.V_1_0_0,
-            service_type=ServiceEnum.WFS,
+            service_version=OGCServiceVersionEnum.V_1_0_0,
+            service_type=OGCServiceEnum.WFS,
             external_auth=external_auth
         )
         XML_NAMESPACES["schemaLocation"] = "http://geodatenlb1.rlp:80/geoserver/schemas/wfs/1.0.0/WFS-capabilities.xsd"
@@ -918,8 +918,8 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
     def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionEnum.V_1_1_0,
-            service_type=ServiceEnum.WFS,
+            service_version=OGCServiceVersionEnum.V_1_1_0,
+            service_type=OGCServiceEnum.WFS,
             external_auth=external_auth
         )
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs"
@@ -953,8 +953,8 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
     def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionEnum.V_2_0_0,
-            service_type=ServiceEnum.WFS,
+            service_version=OGCServiceVersionEnum.V_2_0_0,
+            service_type=OGCServiceEnum.WFS,
             external_auth=external_auth
         )
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
@@ -1041,8 +1041,8 @@ class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
     def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionEnum.V_2_0_2,
-            service_type=ServiceEnum.WFS,
+            service_version=OGCServiceVersionEnum.V_2_0_2,
+            service_type=OGCServiceEnum.WFS,
             external_auth=external_auth
         )
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"

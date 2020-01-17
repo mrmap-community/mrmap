@@ -20,7 +20,7 @@ from MapSkinner.messages import EDITOR_INVALID_ISO_LINK, SECURITY_PROXY_MUST_BE_
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
 from MapSkinner import utils
 
-from service.helper.enums import VersionEnum, ServiceEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
     MetadataOrigin, SecuredOperation, RequestOperation, Layer, Style
@@ -126,10 +126,10 @@ def overwrite_capabilities_document(metadata: Metadata):
     _version = metadata.get_service_version()
     element_selector = ""
     if is_root:
-        if _type == ServiceEnum.WMS.value:
+        if _type == OGCServiceEnum.WMS.value:
             element_selector = "//Service/Name"
-        elif _type == ServiceEnum.WFS.value:
-            if _version is VersionEnum.V_2_0_0 or _version is VersionEnum.V_2_0_2:
+        elif _type == OGCServiceEnum.WFS.value:
+            if _version is OGCServiceVersionEnum.V_2_0_0 or _version is OGCServiceVersionEnum.V_2_0_2:
                 XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
                 XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
                 XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
@@ -137,9 +137,9 @@ def overwrite_capabilities_document(metadata: Metadata):
             element_selector = "//ows:ServiceIdentification/ows:Title"
             identifier = metadata.title
     else:
-        if _type == ServiceEnum.WMS.value:
+        if _type == OGCServiceEnum.WMS.value:
             element_selector = "//Layer/Name"
-        elif _type == ServiceEnum.WFS.value:
+        elif _type == OGCServiceEnum.WFS.value:
             element_selector = "//wfs:FeatureType/wfs:Name"
     xml_obj = xml_helper.try_get_single_element_from_xml("{}[text()='{}']/parent::*".format(element_selector, identifier), xml_obj_root)
 

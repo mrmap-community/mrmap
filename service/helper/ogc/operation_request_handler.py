@@ -25,7 +25,7 @@ from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
-from service.helper.enums import ServiceOperationEnum, ServiceEnum, VersionEnum
+from service.helper.enums import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
 from service.models import Metadata, FeatureType, Layer
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
@@ -160,7 +160,7 @@ class OGCOperationRequestHandler:
         Returns:
 
         """
-        if self.request_param.upper() == ServiceOperationEnum.GET_FEATURE.value.upper() and self.type_name_param is not None:
+        if self.request_param.upper() == OGCOperationEnum.GET_FEATURE.value.upper() and self.type_name_param is not None:
             # for WFS we need to check a few things in here!
             # first get the featuretype object, that is requested
             featuretype = FeatureType.objects.get(
@@ -219,7 +219,7 @@ class OGCOperationRequestHandler:
         Returns:
             nothing
         """
-        if md.get_service_type().lower() == ServiceEnum.WMS.value:
+        if md.get_service_type().lower() == OGCServiceEnum.WMS.value:
             self._resolve_layer_param_to_leaf_layers(md)
 
         if self.layers_param is not None and self.type_name_param is None:
@@ -295,11 +295,11 @@ class OGCOperationRequestHandler:
 
         if self.type_name_param is not None:
             typename_param_key = "TYPENAME"
-            if self.version_param == VersionEnum.V_2_0_0.value or self.version_param == VersionEnum.V_2_0_2.value:
+            if self.version_param == OGCServiceVersionEnum.V_2_0_0.value or self.version_param == OGCServiceVersionEnum.V_2_0_2.value:
                 typename_param_key = "TYPENAMES"
             self.new_params_dict[typename_param_key] = self.type_name_param
 
-        if self.version_param != VersionEnum.V_1_3_0.value:
+        if self.version_param != OGCServiceVersionEnum.V_1_3_0.value:
             self.new_params_dict["SRS"] = "{}:{}".format(DEFAULT_SRS_FAMILY, self.srs_code)
             x_id = "X"
             y_id = "Y"
@@ -327,7 +327,7 @@ class OGCOperationRequestHandler:
         """
 
         # identify requested operation and resolve the uri
-        if metadata.service.servicetype.name == ServiceEnum.WFS.value:
+        if metadata.service.servicetype.name == OGCServiceEnum.WFS.value:
             secured_operation_uris = {
                 "GETFEATURE": {
                     "get": metadata.service.get_feature_info_uri_GET,
@@ -431,7 +431,7 @@ class OGCOperationRequestHandler:
         self.width_param = int(xml_helper.try_get_text_from_xml_element(size_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("Width")))
 
         # type_name differs in WFS versions
-        if self.version_param == VersionEnum.V_2_0_2.value or self.version_param == VersionEnum.V_2_0_0.value:
+        if self.version_param == OGCServiceVersionEnum.V_2_0_2.value or self.version_param == OGCServiceVersionEnum.V_2_0_0.value:
             type_name = "typeNames"
         else:
             type_name = "typeName"
@@ -470,7 +470,7 @@ class OGCOperationRequestHandler:
         within_elem = xml_helper.create_subelement(root, "{}Within".format(_filter_prefix))
 
         prop_tag = "PropertyName"
-        if self.version_param == VersionEnum.V_2_0_0.value or self.version_param == VersionEnum.V_2_0_2.value:
+        if self.version_param == OGCServiceVersionEnum.V_2_0_0.value or self.version_param == OGCServiceVersionEnum.V_2_0_2.value:
             prop_tag = "ValueReference"
         property_elem = xml_helper.create_subelement(within_elem, "{}{}".format(_filter_prefix, prop_tag))
         property_elem.text = self.geom_property_name
@@ -841,18 +841,18 @@ class OGCOperationRequestHandler:
         if ns is None or len(ns):
             # no SERVICE parameter given, we must try to detect it from the given REQUEST parameter
             wms_ops = [
-                ServiceOperationEnum.GET_MAP,
-                ServiceOperationEnum.GET_FEATURE_INFO,
-                ServiceOperationEnum.DESCRIBE_LAYER,
-                ServiceOperationEnum.GET_LEGEND_GRAPHIC,
-                ServiceOperationEnum.GET_STYLES,
-                ServiceOperationEnum.PUT_STYLES,
+                OGCOperationEnum.GET_MAP,
+                OGCOperationEnum.GET_FEATURE_INFO,
+                OGCOperationEnum.DESCRIBE_LAYER,
+                OGCOperationEnum.GET_LEGEND_GRAPHIC,
+                OGCOperationEnum.GET_STYLES,
+                OGCOperationEnum.PUT_STYLES,
             ]
             wfs_ops = [
-                ServiceOperationEnum.GET_FEATURE,
-                ServiceOperationEnum.TRANSACTION,
-                ServiceOperationEnum.LOCK_FEATURE,
-                ServiceOperationEnum.DESCRIBE_FEATURE_TYPE,
+                OGCOperationEnum.GET_FEATURE,
+                OGCOperationEnum.TRANSACTION,
+                OGCOperationEnum.LOCK_FEATURE,
+                OGCOperationEnum.DESCRIBE_FEATURE_TYPE,
             ]
             if self.request_param in wms_ops:
                 ns = "wms"
@@ -1157,13 +1157,13 @@ class OGCOperationRequestHandler:
             return response
 
         # WMS - Features
-        if self.request_param.upper() == ServiceOperationEnum.GET_FEATURE_INFO.value.upper():
+        if self.request_param.upper() == OGCOperationEnum.GET_FEATURE_INFO.value.upper():
             allowed = self._check_get_feature_info_operation_access(sec_ops)
             if allowed:
                 response = self.get_operation_response()
 
         # WMS - 'Map image'
-        elif self.request_param.upper() == ServiceOperationEnum.GET_MAP.value.upper():
+        elif self.request_param.upper() == OGCOperationEnum.GET_MAP.value.upper():
             # no need to check if the access is allowed, since we mask the output anyway
             # but we need to make sure, that no top level layer is called, which contains a secured child!
             # therefore we need to check if there is at least one secured child, somewhere, and then replace the top
@@ -1173,24 +1173,24 @@ class OGCOperationRequestHandler:
             response = self._create_masked_image(img, mask, as_bytes=True)
 
         # WMS - 'Legend image'
-        elif self.request_param.upper() == ServiceOperationEnum.GET_LEGEND_GRAPHIC.value.upper():
+        elif self.request_param.upper() == OGCOperationEnum.GET_LEGEND_GRAPHIC.value.upper():
             uri = self.get_uri
             con = CommonConnector(uri)
             con.load()
             response = con.content
 
         # WFS - 'GetFeature'
-        elif self.request_param.upper() == ServiceOperationEnum.GET_FEATURE.value.upper():
+        elif self.request_param.upper() == OGCOperationEnum.GET_FEATURE.value.upper():
             allowed = self._check_get_feature_operation_access(sec_ops)
             if allowed:
                 response = self.get_operation_response()
 
         # WFS - 'DescribeFeatureType'
-        elif self.request_param.upper() == ServiceOperationEnum.DESCRIBE_FEATURE_TYPE.value.upper():
+        elif self.request_param.upper() == OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value.upper():
             response = self.get_operation_response()
 
         # WFS
-        elif self.request_param.upper() == ServiceOperationEnum.TRANSACTION.value.upper():
+        elif self.request_param.upper() == OGCOperationEnum.TRANSACTION.value.upper():
             allowed = self._check_transaction_operation_access(sec_ops)
             if allowed:
                 response = self.get_operation_response(self.POST_raw_body)

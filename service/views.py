@@ -17,14 +17,14 @@ from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
-    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, SECURITY_PROXY_ERROR_PARAMETER
+    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper, xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum
+from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum, VersionEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
@@ -288,17 +288,42 @@ def get_capabilities(request: HttpRequest, id: int):
     # check that we have the requested version in our database
     version_param = None
     version_tag = None
+
+    # check that we have the requested version in our database
+    request_param = None
+    request_tag = None
+
     for k, v in request.GET.dict().items():
         if k.upper() == "VERSION":
             version_param = v
             version_tag = k
-            break
-
-    # if no version was provided on this request, we redirect using the registered version
-    if version_param is None:
-        return HttpResponse(content=SECURITY_PROXY_ERROR_PARAMETER.format(version_tag), status=404)
+        elif k.upper() == "REQUEST":
+            request_param = v
+            request_tag = k
 
     service_version = md.get_service_version().value
+
+    # if no version was provided on this request, we redirect using the registered version
+    must_redirect = False
+    redirect_uri = None
+    if version_param is None or len(version_param) == 0:
+        must_redirect = True
+        redirect_uri = request.build_absolute_uri()
+        redirect_uri = utils.set_uri_GET_param(redirect_uri, "version", service_version)
+
+    if request_param is None or len(request_param) == 0:
+        must_redirect = True
+        redirect_uri = request.build_absolute_uri()
+        redirect_uri = utils.set_uri_GET_param(redirect_uri, "request", ServiceOperationEnum.GET_CAPABILITIES.value)
+
+    if must_redirect:
+        return redirect(redirect_uri)
+
+    if version_param not in [data.value for data in VersionEnum]:
+        return HttpResponse(content=PARAMETER_ERROR.format(version_tag), status=404)
+    elif request_param not in [data.value for data in ServiceOperationEnum]:
+        return HttpResponse(content=PARAMETER_ERROR.format(request_tag), status=404)
+
     if service_version == version_param:
         # move increasing hits to background process to speed up response time!
         async_increase_hits.delay(id)

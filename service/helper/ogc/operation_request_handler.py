@@ -18,7 +18,7 @@ from django.http import HttpRequest, HttpResponse, QueryDict
 from lxml.etree import QName
 
 from MapSkinner import utils
-from MapSkinner.messages import SECURITY_PROXY_ERROR_PARAMETER, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
+from MapSkinner.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
     SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY, SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
@@ -599,7 +599,7 @@ class OGCOperationRequestHandler:
         tmp_bbox = self.bbox_param.split(",")
 
         if len(tmp_bbox) != 4:
-            return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("BBOX"))
+            return HttpResponse(status=500, content=PARAMETER_ERROR.format("BBOX"))
         bbox_param_geom = GEOSGeometry(Polygon.from_bbox(tmp_bbox), srid=self.srs_code)
 
         # check whether the axis of the bbox extent vertices have to be switched
@@ -629,10 +629,10 @@ class OGCOperationRequestHandler:
         # create Point object from raw X/Y parameters
         if self.x_y_param[0] is None and self.x_y_param[1] is not None:
             # make sure both values are set or none
-            return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("X"))
+            return HttpResponse(status=500, content=PARAMETER_ERROR.format("X"))
         elif self.x_y_param[0] is not None and self.x_y_param[1] is None:
             # make sure both values are set or none
-            return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_PARAMETER.format("Y"))
+            return HttpResponse(status=500, content=PARAMETER_ERROR.format("Y"))
         elif self.x_y_param[0] is not None and self.x_y_param[1] is not None:
             # we can create a Point object from this!
             self.x_y_param = Point(int(self.x_y_param[0]), int(self.x_y_param[1]))

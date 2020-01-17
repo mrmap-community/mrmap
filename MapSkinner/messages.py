@@ -24,6 +24,8 @@ GROUP_EDITED = "Group edited"
 
 ####################
 
+PARAMETER_ERROR = _("The parameter '{}' is invalid.")
+
 FORM_INPUT_INVALID = _("The input was not valid.")
 
 USERNAME_OR_PW_INVALID = _("Username or password incorrect")
@@ -90,7 +92,6 @@ SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING = _("Proxy must be activated to be lo
 SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS = _("Proxy must be enabled if service shall stay secured!")
 SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED = _("The requested operation is not supported by this resource.")
 SECURITY_PROXY_ERROR_BROKEN_URI = _("The requested uri seems to be broken. Please inform an administrator.")
-SECURITY_PROXY_ERROR_PARAMETER = _("The following parameter seems to be invalid. Please check '{}'.")
 SECURITY_PROXY_WARNING_ONLY_FOR_ROOT = _("This setting is only available for the top level element.")
 SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE = _("No 'request' parameter provided.")
 SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY = _("Login credentials for external authentication could not be decrypted. The key is missing. Please inform an administrator.")

@@ -17,7 +17,8 @@ from MapSkinner.settings import ROOT_URL, HTTP_OR_SSL, HOST_NAME
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper.enums import ServiceEnum, MetadataEnum
-from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation
+from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation, \
+    ExternalAuthentication
 from django.utils.translation import gettext_lazy as _
 
 from structure.models import User, Permission, Group
@@ -101,11 +102,6 @@ def edit(request: HttpRequest, id: int, user: User):
                 # this is for the case that we are working on a non root element which is not allowed to change the
                 # inheritance setting for the whole service -> we act like it didn't change
                 custom_md.use_proxy_uri = metadata.use_proxy_uri
-
-            if metadata.is_secured and not custom_md.use_proxy_uri:
-                # the resource is secured but the proxy shall be turned off - this can not be done!
-                messages.error(request, METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED)
-                return redirect("editor:edit", id)
 
             editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
             editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
@@ -328,6 +324,8 @@ def restore(request: HttpRequest, id: int, user: User):
     """
     metadata = Metadata.objects.get(id=id)
 
+    ext_auth = metadata.external_authentication
+
     # check if user owns this service by group-relation
     if metadata.created_by not in user.groups.all():
         messages.error(request, message=NO_PERMISSION)
@@ -344,7 +342,7 @@ def restore(request: HttpRequest, id: int, user: User):
         return redirect(request.META.get("HTTP_REFERER"))
 
     if metadata.is_custom:
-        metadata.restore(metadata.identifier)
+        metadata.restore(metadata.identifier, external_auth=ext_auth)
         metadata.save()
 
     for md in children_md:

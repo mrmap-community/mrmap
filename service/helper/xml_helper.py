@@ -56,8 +56,8 @@ def xml_to_string(xml_obj):
     return _str
 
 
-def get_feature_type_elements_xml(title, service_type_version, service_type, uri):
-    connector = CommonConnector(url=uri)
+def get_feature_type_elements_xml(title, service_type_version, service_type, uri, external_auth):
+    connector = CommonConnector(url=uri, external_auth=external_auth)
     params = {
         "service": service_type,
         "version": service_type_version,

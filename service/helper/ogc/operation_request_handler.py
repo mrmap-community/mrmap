@@ -70,6 +70,7 @@ class OGCOperationRequestHandler:
         self.original_params_dict = {}  # contains the original, unedited parameters
         self.new_params_dict = {}  # contains the parameters, which could be still original or might have changed during method processing
 
+        self.service_type_param = None  # refers to param 'SERVICE'
         self.request_param = None  # refers to param 'REQUEST'
         self.layers_param = None  # refers to param 'LAYERS'
         self.x_y_param = [None, None]  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)
@@ -106,6 +107,8 @@ class OGCOperationRequestHandler:
 
         # extract parameter attributes from params dict
         for key, val in self.new_params_dict.items():
+            if key == "SERVICE":
+                self.service_type_param = val
             if key == "REQUEST":
                 self.request_param = val
             elif key == "LAYERS":
@@ -444,8 +447,10 @@ class OGCOperationRequestHandler:
         """
         _filter = ""
         _filter_prefix = ""
-        nsmap = {"gml": XML_NAMESPACES["gml"]}
-        gml = "{" + nsmap.get("gml") + "}"
+        nsmap = {
+            "gml": XML_NAMESPACES["gml"],
+            "xsd": XML_NAMESPACES["xsd"],
+        }
 
         if self.version_param == "1.0.0" or self.version_param == "1.1.0":
             # default implementation, nothing to do here
@@ -453,12 +458,21 @@ class OGCOperationRequestHandler:
 
         elif self.version_param == "2.0.0" or self.version_param == "2.0.2":
             nsmap["fes"] = XML_NAMESPACES["fes"]
+            nsmap["gml"] = "http://www.opengis.net/gml/3.2"
             _filter_prefix = "{" + nsmap.get("fes") + "}"
+        gml = "{" + nsmap.get("gml") + "}"
 
         # create xml filter string
-        root = etree.Element("{}Filter".format(_filter_prefix), nsmap=nsmap)
+        root_attributes = {
+            "version": self.version_param,
+        }
+        root = etree.Element("{}Filter".format(_filter_prefix), nsmap=nsmap, attrib=root_attributes)
         within_elem = xml_helper.create_subelement(root, "{}Within".format(_filter_prefix))
-        property_elem = xml_helper.create_subelement(within_elem, "{}PropertyName".format(_filter_prefix))
+
+        prop_tag = "PropertyName"
+        if self.version_param == VersionEnum.V_2_0_0.value or self.version_param == VersionEnum.V_2_0_2.value:
+            prop_tag = "ValueReference"
+        property_elem = xml_helper.create_subelement(within_elem, "{}{}".format(_filter_prefix, prop_tag))
         property_elem.text = self.geom_property_name
         polygon_elem = xml_helper.create_subelement(within_elem, "{}Polygon".format(gml),
                                                     attrib={"srsName": self.srs_param})
@@ -819,6 +833,48 @@ class OGCOperationRequestHandler:
                 post_data[key] = val
         return post_data
 
+    def _create_POST_xml(self, post_data: dict):
+        xml = ""
+
+        # determine base namespace
+        ns = self.service_type_param
+        if ns is None or len(ns):
+            # no SERVICE parameter given, we must try to detect it from the given REQUEST parameter
+            wms_ops = [
+                ServiceOperationEnum.GET_MAP,
+                ServiceOperationEnum.GET_FEATURE_INFO,
+                ServiceOperationEnum.DESCRIBE_LAYER,
+                ServiceOperationEnum.GET_LEGEND_GRAPHIC,
+                ServiceOperationEnum.GET_STYLES,
+                ServiceOperationEnum.PUT_STYLES,
+            ]
+            wfs_ops = [
+                ServiceOperationEnum.GET_FEATURE,
+                ServiceOperationEnum.TRANSACTION,
+                ServiceOperationEnum.LOCK_FEATURE,
+                ServiceOperationEnum.DESCRIBE_FEATURE_TYPE,
+            ]
+            if self.request_param in wms_ops:
+                ns = "wms"
+            elif self.request_param in wfs_ops:
+                ns = "wfs"
+            else:
+                raise KeyError("Unknown request '{}'".format(self.request_param))
+
+        root_attributes = {
+            "service": self.service_type_param,
+            "version": self.version_param,
+            "outputFormat": self.format_param
+        }
+        root = etree.Element(_tag="{}:{}".format(ns, self.request_param), nsmap=XML_NAMESPACES, attrib=root_attributes)
+        query = etree.Element(_tag="{}:Query".format(ns), attrib={"typename": self.type_name_param})
+        query.text = self.filter_param
+        xml_helper.add_subelement(root, query)
+
+        xml = xml_helper.xml_to_string(root)
+
+        return xml
+
     def _create_GET_uri(self):
         """ Returns the processed operation uri.
 
@@ -1167,7 +1223,16 @@ class OGCOperationRequestHandler:
             c = CommonConnector(url=self.post_uri, external_auth=self.external_auth)
             if post_data is None:
                 post_data = self._create_POST_data()  # get default POST as dict content
+
+            # there are two ways to post data to a server:
+            # 1)    Using x-www-form-urlencoded (mostly used)
+            # 2)    Using a raw post body, which contains a xml (old style, used by some GIS servers
+            # So if 1) fails, due to missing support, we need to build a parameter xml and try another post with raw body
             c.post(post_data)
+            try_again_code_list = [500, 501, 502, 504, 510]
+            if c.status_code is not None and c.status_code not in try_again_code_list:
+                # create xml from parameters according to specification
+                post_xml = self._create_POST_xml(post_data)
 
         if c.status_code is not None and c.status_code != 200:
             raise Exception(c.status_code)

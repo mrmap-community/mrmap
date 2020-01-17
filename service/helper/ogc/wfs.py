@@ -116,7 +116,7 @@ class OGCWebFeatureService(OGCWebService):
         abstract = True
 
     @abstractmethod
-    def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):
+    def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None, external_auth: ExternalAuthentication = None):
         """ Fills the object with data from the capabilities document
 
         Returns:
@@ -141,7 +141,7 @@ class OGCWebFeatureService(OGCWebService):
 
         if not metadata_only:
             start_time = time.time()
-            self.get_feature_type_metadata(xml_obj=xml_obj, async_task=async_task)
+            self.get_feature_type_metadata(xml_obj=xml_obj, async_task=async_task, external_auth=external_auth)
             print(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
 
         # always execute version specific tasks AFTER multithreading
@@ -267,7 +267,7 @@ class OGCWebFeatureService(OGCWebService):
         self.describe_stored_queries_uri["get"] = get.get("DescribeStoredQueries", None)
         self.describe_stored_queries_uri["post"] = post.get("DescribeStoredQueries", None)
 
-    def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version: str, async_task: Task = None, step_size: float = None):
+    def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version: str, async_task: Task = None, step_size: float = None, external_auth: ExternalAuthentication = None):
         """ Get featuretype metadata of a single featuretype
 
         Args:
@@ -355,7 +355,7 @@ class OGCWebFeatureService(OGCWebService):
 
         # Feature type elements
         # Feature type namespaces
-        elements_namespaces = self._get_featuretype_elements_namespaces(f_t, service_type_version)
+        elements_namespaces = self._get_featuretype_elements_namespaces(f_t, service_type_version, external_auth=external_auth)
 
         self.feature_type_list[f_t.metadata.identifier] = {
             "feature_type": f_t,
@@ -367,7 +367,7 @@ class OGCWebFeatureService(OGCWebService):
         }
 
     @abstractmethod
-    def get_feature_type_metadata(self, xml_obj, async_task: Task = None):
+    def get_feature_type_metadata(self, xml_obj, async_task: Task = None, external_auth: ExternalAuthentication = None):
         """ Parse the capabilities document <FeatureTypeList> metadata into the self object
 
         This abstract implementation follows the wfs specification for version 1.1.0
@@ -395,15 +395,15 @@ class OGCWebFeatureService(OGCWebService):
         # decide whether to use multithreading or iterative approach
         if len_ft_list > MULTITHREADING_THRESHOLD:
             for xml_feature_type in feature_type_list:
-                thread_list.append(threading.Thread(target=self._get_feature_type_metadata, args=(xml_feature_type, epsg_api, service_type_version, async_task, step_size)))
+                thread_list.append(threading.Thread(target=self._get_feature_type_metadata, args=(xml_feature_type, epsg_api, service_type_version, async_task, step_size, external_auth)))
             execute_threads(thread_list)
         else:
             for xml_feature_type in feature_type_list:
-                self._get_feature_type_metadata(xml_feature_type, epsg_api, service_type_version, async_task, step_size)
+                self._get_feature_type_metadata(xml_feature_type, epsg_api, service_type_version, async_task, step_size, external_auth)
 
 
     @abstractmethod
-    def _get_featuretype_elements_namespaces(self, feature_type, service_type_version:str):
+    def _get_featuretype_elements_namespaces(self, feature_type, service_type_version: str, external_auth: ExternalAuthentication):
         """ Get the elements and their namespaces of a feature type object
 
         Args:
@@ -419,7 +419,8 @@ class OGCWebFeatureService(OGCWebService):
             descr_feat_root = xml_helper.get_feature_type_elements_xml(title=feature_type.metadata.identifier,
                                                                     service_type="wfs",
                                                                     service_type_version=service_type_version,
-                                                                    uri=self.describe_feature_type_uri.get("get"))
+                                                                    uri=self.describe_feature_type_uri.get("get"),
+                                                                    external_auth=external_auth)
             if descr_feat_root is not None:
                 # Feature type elements
                 elements = xml_helper.try_get_element_from_xml(elem="//xsd:element", xml_elem=descr_feat_root)
@@ -446,7 +447,7 @@ class OGCWebFeatureService(OGCWebService):
             "ns_list": ns_list,
         }
 
-    def get_single_feature_type_metadata(self, identifier):
+    def get_single_feature_type_metadata(self, identifier, external_auth: ExternalAuthentication):
         if self.service_capabilities_xml is None:
             # load xml, might have been forgotten
             self.get_capabilities()
@@ -459,7 +460,7 @@ class OGCWebFeatureService(OGCWebService):
         if len(feature_type) > 0:
             feature_type = feature_type[0]
             epsg_api = EpsgApi()
-            self._get_feature_type_metadata(feature_type, epsg_api, service_type_version)
+            self._get_feature_type_metadata(feature_type, epsg_api, service_type_version, external_auth=external_auth)
 
     @abstractmethod
     def create_service_model_instance(self, user: User, register_group, register_for_organization):
@@ -687,7 +688,7 @@ class OGCWebFeatureService(OGCWebService):
 
 
 
-    def get_feature_type_by_identifier(self, identifier: str = None):
+    def get_feature_type_by_identifier(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Extract a single feature type by its identifier and parse it into a FeatureType object
 
         Args:
@@ -696,7 +697,7 @@ class OGCWebFeatureService(OGCWebService):
             a parsed FeatureType object
         """
         # feature types are stored in the .feature_type_list attribute
-        self.get_single_feature_type_metadata(identifier)
+        self.get_single_feature_type_metadata(identifier, external_auth=external_auth)
         f_t = None
         for key, val in self.feature_type_list.items():
             f_t = val

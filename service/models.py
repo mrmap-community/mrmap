@@ -459,7 +459,7 @@ class Metadata(Resource):
         cap_doc.restore_subelement(identifier)
         return
 
-    def _restore_feature_type_md(self, service, identifier: str = None):
+    def _restore_feature_type_md(self, service, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Private function for retrieving single featuretype metadata
 
         Args:
@@ -471,7 +471,7 @@ class Metadata(Resource):
         from service.helper import service_helper
         # parse single layer
         identifier = self.identifier
-        f_t = service.get_feature_type_by_identifier(identifier)
+        f_t = service.get_feature_type_by_identifier(identifier, external_auth=external_auth)
         f_t_obj = f_t.get("feature_type", None)
         f_t_iso_links = f_t.get("dataset_md_list", [])
         self.title = f_t_obj.metadata.title
@@ -497,7 +497,7 @@ class Metadata(Resource):
         cap_doc.restore_subelement(identifier)
         return
 
-    def _restore_wms(self, identifier: str = None):
+    def _restore_wms(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Restore the metadata of a wms service
 
         Args;
@@ -512,7 +512,7 @@ class Metadata(Resource):
         service = OGCWebMapServiceFactory()
         service = service.get_ogc_wms(version=service_version, service_connect_url=self.capabilities_original_uri)
         service.get_capabilities()
-        service.create_from_capabilities(metadata_only=True)
+        service.create_from_capabilities(metadata_only=True, external_auth=external_auth)
 
         # check if whole service shall be restored or single layer
         if not self.is_root():
@@ -535,7 +535,7 @@ class Metadata(Resource):
         cap_doc = Document.objects.get(related_metadata=self)
         cap_doc.restore()
 
-    def _restore_wfs(self, identifier: str = None):
+    def _restore_wfs(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Restore the metadata of a wfs service
 
         Args;
@@ -562,7 +562,7 @@ class Metadata(Resource):
         service_tmp.create_from_capabilities(metadata_only=True)
         # check if whole service shall be restored or single layer
         if not self.is_root():
-            return self._restore_feature_type_md(service_tmp, identifier)
+            return self._restore_feature_type_md(service_tmp, identifier, external_auth=external_auth)
 
         self.title = service_tmp.service_identification_title
         self.abstract = service_tmp.service_identification_abstract
@@ -581,7 +581,7 @@ class Metadata(Resource):
         cap_doc = Document.objects.get(related_metadata=service.metadata)
         cap_doc.restore()
 
-    def restore(self, identifier: str = None):
+    def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Load original metadata from capabilities and ISO metadata
 
         Args:
@@ -593,9 +593,9 @@ class Metadata(Resource):
         # identify whether this is a wfs or wms (we need to handle them in different ways)
         service_type = self.get_service_type()
         if service_type == ServiceEnum.WFS.value:
-            self._restore_wfs(identifier)
+            self._restore_wfs(identifier, external_auth=external_auth)
         elif service_type == ServiceEnum.WMS.value:
-            self._restore_wms(identifier)
+            self._restore_wms(identifier, external_auth=external_auth)
 
     def get_related_metadata_uris(self):
         """ Generates a list of all related metadata online links and returns them

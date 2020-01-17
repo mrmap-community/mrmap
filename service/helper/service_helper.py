@@ -162,7 +162,7 @@ def get_service_model_instance(service_type, version, base_uri, user, register_g
         wfs.get_capabilities()
 
         # since we iterate through featuretypes, we can use async task here
-        wfs.create_from_capabilities(async_task=async_task)
+        wfs.create_from_capabilities(async_task=async_task, external_auth=external_auth)
         service = wfs.create_service_model_instance(user, register_group, register_for_organization)
         ret_dict["raw_data"] = wfs
     ret_dict["service"] = service

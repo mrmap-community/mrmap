@@ -6,13 +6,13 @@ from collections import OrderedDict
 import time
 
 from celery import Task
-from django.contrib.gis.geos import Polygon
+from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.db import transaction
 from lxml.etree import _Element
 
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import MD_TYPE_FEATURETYPE, MD_TYPE_SERVICE, MD_RELATION_TYPE_VISUALIZES, \
-    EXTERNAL_AUTHENTICATION_FILEPATH
+    EXTERNAL_AUTHENTICATION_FILEPATH, DEFAULT_SRS
 from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
@@ -351,7 +351,7 @@ class OGCWebFeatureService(OGCWebService):
             format_list.append(m_t)
 
         # Dataset (ISO) Metadata parsing
-        self.__parse_iso_md(f_t, feature_type)
+        self._parse_iso_md(f_t, feature_type)
 
         # Feature type elements
         # Feature type namespaces
@@ -674,13 +674,20 @@ class OGCWebFeatureService(OGCWebService):
                 f_t.namespaces.add(ns)
 
     ### ISO METADATA ###
-    def __parse_iso_md(self, feature_type, xml_feature_type_obj: _Element):
+    def _parse_iso_md(self, feature_type, xml_feature_type_obj: _Element, link_in_attrib: str=None):
         # check for possible ISO metadata
         if self.has_iso_metadata(xml_feature_type_obj):
             iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(xml_elem=xml_feature_type_obj,
                                                                             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL"))
             for iso_xml in iso_metadata_xml_elements:
-                iso_uri = xml_helper.try_get_text_from_xml_element(xml_elem=iso_xml)
+
+                # in some wfs versions, the dataset metadata uri can be found inside the text part of an element,
+                # in others we can find it inside an attribute
+                if link_in_attrib is None:
+                    iso_uri = xml_helper.try_get_text_from_xml_element(xml_elem=iso_xml)
+                else:
+                    iso_uri = xml_helper.try_get_attribute_from_xml_element(xml_elem=iso_xml, attribute=link_in_attrib)
+
                 try:
                     iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
                 except Exception as e:
@@ -853,6 +860,8 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             metadata = Metadata()
             feature_type.metadata = metadata
             feature_type.metadata.identifier = xml_helper.try_get_text_from_xml_element(elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Name"), xml_elem=node)
+            md_type = MetadataType.objects.get_or_create(type=MD_TYPE_FEATURETYPE)[0]
+            feature_type.metadata.metadata_type = md_type
             feature_type.metadata.title = xml_helper.try_get_text_from_xml_element(elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Title"), xml_elem=node)
             feature_type.metadata.abstract = xml_helper.try_get_text_from_xml_element(elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Abstract"), xml_elem=node)
             keywords = service_helper.resolve_keywords_array_string(
@@ -866,24 +875,6 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                     continue
                 kw = Keyword.objects.get_or_create(keyword=keyword)[0]
                 feature_type.metadata.keywords_list.append(kw)
-
-            # lat lon bounding box
-            bbox = {
-                "minx": xml_helper.try_get_attribute_from_xml_element(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"), xml_elem=node, attribute="minx"),
-                "miny": xml_helper.try_get_attribute_from_xml_element(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"), xml_elem=node, attribute="miny"),
-                "maxx": xml_helper.try_get_attribute_from_xml_element(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"), xml_elem=node, attribute="maxx"),
-                "maxy": xml_helper.try_get_attribute_from_xml_element(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"), xml_elem=node, attribute="maxy"),
-            }
-            # create polygon element from simple bbox dict
-
-            bounding_points = (
-                (float(bbox["minx"]), float(bbox["miny"])),
-                (float(bbox["minx"]), float(bbox["maxy"])),
-                (float(bbox["maxx"]), float(bbox["maxy"])),
-                (float(bbox["maxx"]), float(bbox["miny"])),
-                (float(bbox["minx"]), float(bbox["miny"]))
-            )
-            feature_type.bbox_lat_lon = Polygon(bounding_points)
 
             # reference systems
             # append only the ...ToFeatureType objects, since the reference systems will be created automatically
@@ -905,9 +896,34 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                 else:
                     srs_model_list.append(srs_model)
 
+            # lat lon bounding box
+            bbox = {
+                "minx": xml_helper.try_get_attribute_from_xml_element(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"), xml_elem=node,
+                    attribute="minx"),
+                "miny": xml_helper.try_get_attribute_from_xml_element(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"), xml_elem=node,
+                    attribute="miny"),
+                "maxx": xml_helper.try_get_attribute_from_xml_element(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"), xml_elem=node,
+                    attribute="maxx"),
+                "maxy": xml_helper.try_get_attribute_from_xml_element(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"), xml_elem=node,
+                    attribute="maxy"),
+            }
+            # create polygon element from simple bbox dict
+            geom = GEOSGeometry(Polygon.from_bbox([
+                float(bbox["minx"]), float(bbox["miny"]), float(bbox["maxx"]), float(bbox["maxy"])
+            ]), int(feature_type.default_srs.code))
+            geom.transform(DEFAULT_SRS)
+            feature_type.bbox_lat_lon = geom
+
             # Feature type elements
             # Feature type namespaces
             elements_namespaces = self._get_featuretype_elements_namespaces(feature_type, service_type_version, external_auth)
+
+            # check for possible ISO metadata
+            self._parse_iso_md(feature_type, node)
 
             # put the feature types objects with keywords and reference systems into the dict for the persisting process
             self.feature_type_list[feature_type.metadata.identifier] = {
@@ -917,6 +933,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                 "format_list": [],
                 "element_list": elements_namespaces["element_list"],
                 "ns_list": elements_namespaces["ns_list"],
+                "dataset_md_list": feature_type.dataset_md_list,
             }
 
             # update async task if this is called async
@@ -1003,17 +1020,19 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
              nothing
         """
         epsg_api = EpsgApi()
-        # featuretype keywords are different than in older versions
+
+        # featuretype keywords are different now
         feature_type_list = xml_helper.try_get_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("FeatureType"), xml_elem=xml_obj)
-        for feature_type in feature_type_list:
-            name = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Name"))
+        for feature_type_xml_elem in feature_type_list:
+            name = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type_xml_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Name"))
             try:
                 f_t = self.feature_type_list.get(name).get("feature_type")
             except AttributeError:
                 # if this happens the metadata is broken or not reachable due to bad configuration
                 raise BaseException(SERVICE_GENERIC_ERROR)
+
             # Feature type keywords
-            keywords = xml_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//ows:Keyword")
+            keywords = xml_helper.try_get_element_from_xml(xml_elem=feature_type_xml_elem, elem=".//ows:Keyword")
             keyword_list = []
             for keyword in keywords:
                 kw = xml_helper.try_get_text_from_xml_element(xml_elem=keyword)
@@ -1026,7 +1045,7 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
             # srs are now called crs -> parse for crs again!
             # CRS
             ## default
-            crs = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("DefaultCRS"))
+            crs = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type_xml_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("DefaultCRS"))
             if crs is not None:
                 parts = epsg_api.get_subelements(crs)
                 # check if this srs is allowed for us. If not, skip it!
@@ -1035,7 +1054,7 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
                 crs_default = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
                 f_t.default_srs = crs_default
             ## additional
-            crs = xml_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("OtherCRS"))
+            crs = xml_helper.try_get_element_from_xml(xml_elem=feature_type_xml_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("OtherCRS"))
             crs_list = []
             for sys in crs:
                 parts = epsg_api.get_subelements(sys.text)
@@ -1045,6 +1064,13 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
                 srs_other = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
                 crs_list.append(srs_other)
             self.feature_type_list[name]["srs_list"] = crs_list
+
+            # Dataset metadata
+            # Since version 2.0.0 the uris are not present in the text field of an xml element anymore,
+            # but can be found in the href:xlink attribute
+            feature_type = self.feature_type_list[name]["feature_type"]
+            self._parse_iso_md(feature_type, feature_type_xml_elem, "{" + XML_NAMESPACES["xlink"] + "}href")
+            self.feature_type_list[name]["dataset_md_list"] = feature_type.dataset_md_list
 
 
 class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
@@ -1081,4 +1107,66 @@ class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
             RequestOperation.objects.get_or_create(
                 operation_name=name,
             )
+
+    def get_version_specific_metadata(self, xml_obj):
+        """ Runs metadata parsing for data which is only present in this version
+
+        Args:
+            xml_obj: The xml metadata object
+        Returns:
+             nothing
+        """
+        epsg_api = EpsgApi()
+
+        # featuretype keywords are different now
+        feature_type_list = xml_helper.try_get_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("FeatureType"), xml_elem=xml_obj)
+        for feature_type_xml_elem in feature_type_list:
+            name = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type_xml_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Name"))
+            try:
+                f_t = self.feature_type_list.get(name).get("feature_type")
+            except AttributeError:
+                # if this happens the metadata is broken or not reachable due to bad configuration
+                raise BaseException(SERVICE_GENERIC_ERROR)
+
+            # Feature type keywords
+            keywords = xml_helper.try_get_element_from_xml(xml_elem=feature_type_xml_elem, elem=".//ows:Keyword")
+            keyword_list = []
+            for keyword in keywords:
+                kw = xml_helper.try_get_text_from_xml_element(xml_elem=keyword)
+                if kw is None:
+                    continue
+                kw = Keyword.objects.get_or_create(keyword=kw)[0]
+                keyword_list.append(kw)
+            self.feature_type_list[name]["keyword_list"] = keyword_list
+
+            # srs are now called crs -> parse for crs again!
+            # CRS
+            ## default
+            crs = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type_xml_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("DefaultCRS"))
+            if crs is not None:
+                parts = epsg_api.get_subelements(crs)
+                # check if this srs is allowed for us. If not, skip it!
+                if parts.get("code") not in ALLOWED_SRS:
+                    continue
+                crs_default = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
+                f_t.default_srs = crs_default
+            ## additional
+            crs = xml_helper.try_get_element_from_xml(xml_elem=feature_type_xml_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("OtherCRS"))
+            crs_list = []
+            for sys in crs:
+                parts = epsg_api.get_subelements(sys.text)
+                # check if this srs is allowed for us. If not, skip it!
+                if parts.get("code") not in ALLOWED_SRS:
+                    continue
+                srs_other = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
+                crs_list.append(srs_other)
+            self.feature_type_list[name]["srs_list"] = crs_list
+
+            # Dataset metadata
+            # Since version 2.0.0 the uris are not present in the text field of an xml element anymore,
+            # but can be found in the href:xlink attribute
+            feature_type = self.feature_type_list[name]["feature_type"]
+            self._parse_iso_md(feature_type, feature_type_xml_elem, "{" + XML_NAMESPACES["xlink"] + "}href")
+            self.feature_type_list[name]["dataset_md_list"] = feature_type.dataset_md_list
+
 

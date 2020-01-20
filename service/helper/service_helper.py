@@ -97,15 +97,16 @@ def resolve_keywords_array_string(keywords: str):
     Returns:
         The keywords in a nice list
     """
-
-    # first make sure no commas are left
-    keywords = keywords.replace(",", " ")
-    key_list = keywords.split(" ")
     ret_list = []
-    for key in key_list:
-        key = key.strip()
-        if len(key) > 0:
-            ret_list.append(key)
+
+    if keywords is not None:
+        # first make sure no commas are left
+        keywords = keywords.replace(",", " ")
+        key_list = keywords.split(" ")
+        for key in key_list:
+            key = key.strip()
+            if len(key) > 0:
+                ret_list.append(key)
     return ret_list
 
 

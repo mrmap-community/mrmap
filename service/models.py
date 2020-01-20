@@ -991,6 +991,13 @@ class Document(Resource):
                     )
 
     def set_capabilities_secured(self, auto_save: bool=True):
+        """ Change external links to internal for service capability document call
+
+        Args:
+            auto_save (bool): Whether the document shall be directly saved or not
+        Returns:
+
+        """
 
         # change some external linkage to internal links for the current_capability_document
         uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)

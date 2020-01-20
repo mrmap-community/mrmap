@@ -1,0 +1,71 @@
+{% load static i18n %}
+{% load fontawesome_5 %}
+<div class="card">
+    <div class="card-header">
+        {% trans 'Responsible party for publishing' %}
+    </div>
+    <div class="card-body">
+        <table class="table d-flex">
+            <!-- care about that the views.py will overwrite the metadata.contact with the published_for contact-->
+            <tbody itemprop="provider publisher" itemscope
+                   itemtype="https://schema.org/Organization">
+            <tr>
+                <th scope="row">{% trans 'Organization' %}</th>
+                <td itemprop="legalName">{{ contact.organization_name }}</td>
+            </tr>
+
+            <tr>
+                <th>{% trans 'Email' %}</th>
+                <td itemprop="email">{{ contact.email }}</td>
+            </tr>
+
+            <tr itemprop="address" itemscope itemtype="https://schema.org/PostalAddress">
+                <th scope="row">{% trans 'Address' %}</th>
+                <td>
+                    <p itemprop="addressCountry">{{ contact.address_country }}</p>
+                    <p itemprop="streetAddress">{{ contact.street_address }}</p>
+                    <span itemprop="addressRegion">{{ contact.address_region }}</span>
+                    <span itemprop="postalCode">{{ contact.postal_code }}</span>
+                    <span itemprop="addressLocality">{{ contact.address_locality }}</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<hr>
+<div class="card">
+    <div class="card-header">
+        {% trans 'Responsible party for service' %}
+    </div>
+    <div class="card-body">
+        <table class="table d-flex">
+            <tbody itemprop="accountablePerson" itemscope itemtype="https://schema.org/Person">
+            <tr>
+                <th scope="row">{% trans 'Organization' %}</th>
+                <td>{{ contact.organization_name }}</td>
+            </tr>
+            <tr>
+                <th scope="row">{% trans 'Contact person' %}</th>
+                <td>
+                    <p itemprop="givenName" itemprop="familyName">{{ contact.person_name }}</p>
+                    <p itemprop="telephone">{{ contact.telephone }}</p>
+                    <p itemprop="email">{{ contact.email }}</p>
+                </td>
+            </tr>
+            <tr itemprop="address" itemscope itemtype="https://schema.org/PostalAddress">
+                <th scope="row">{% trans 'Contact address' %}</th>
+                <td>
+
+                    <p itemprop="addressCountry">{{ contact.address_country }}</p>
+                    <p itemprop="streetAddress">{{ contact.street_address }}</p>
+                    <span itemprop="addressRegion">{{ contact.address_region }}</span>
+                    <span itemprop="postalCode">{{ contact.postal_code }}</span>
+                    <span itemprop="addressLocality">{{ contact.address_locality }}</span>
+
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

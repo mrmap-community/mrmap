@@ -119,6 +119,10 @@ INSTALLED_APPS = [
     'captcha',
     'rest_framework',
     'api',
+    'bootstrap4',
+    'fontawesome_5',
+    'django_tables2',
+    'query_parameters',
 ]
 
 MIDDLEWARE = [

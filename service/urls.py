@@ -1,4 +1,5 @@
 from django.urls import path
+
 from service.views import *
 
 app_name='service'
@@ -11,6 +12,8 @@ urlpatterns = [
     path('metadata/<int:id>', get_service_metadata, name='get-service-metadata'),
     path('metadata/dataset/<int:id>', get_dataset_metadata, name='get-dataset-metadata'),
     path('metadata/dataset/check/<int:id>', get_dataset_metadata_button, name='get-dataset-metadata-button'),
+    path('metadata/preview/<int:id>', get_service_metadata_preview, name='get-service-metadata-preview'),
+    path('metadata/html/<int:id>', get_metadata_html, name='get-metadata-html'),
 
     #path('proxy/metadata/<int:id>', metadata_proxy, name='metadata-proxy'),  # this route seems not to be used - remove by time
     path('metadata/<int:id>/operation', get_metadata_operation, name='metadata-proxy-operation'),

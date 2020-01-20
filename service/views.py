@@ -4,12 +4,13 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, QueryDict
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
+from django_tables2 import RequestConfig
 
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission, log_proxy
@@ -23,14 +24,17 @@ from service import tasks
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum
+from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum, VersionEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
+from service.settings import DEFAULT_SRS_STRING
+from service.tables import ChildLayerTable
+from service.filters import ChildLayerFilter
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style
 from service.tasks import async_remove_service_task
-from structure.models import User, Permission, PendingTask, Group
+from structure.models import User, Permission, PendingTask, Group, Organization
 from users.helper import user_helper
 
 
@@ -269,6 +273,57 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
     return BackendAjaxResponse(html="", has_dataset_doc=has_dataset_doc).get_response()
 
 @log_proxy
+# TODO: currently the preview is not pretty. Refactor this method to get a pretty preview img by consider the right scale of the layers
+def get_service_metadata_preview(request: HttpRequest, id: int):
+    """ Returns the service metadata previe als png for a given metadata id
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The metadata id
+    Returns:
+         A HttpResponse containing the png preview
+    """
+    md = Metadata.objects.get(id=id)
+
+    if md.service.servicetype.name == ServiceEnum.WMS.value and md.service.is_root:
+        layer = Layer.objects.get(
+            parent_service=Service.objects.get(id=md.service.id),
+            parent_layer=None,
+        )
+
+    elif md.service.servicetype.name == ServiceEnum.WMS.value and not md.service.is_root:
+        layer = md.service.layer
+
+    layer = layer.identifier
+    bbox = md.find_max_bounding_box()
+    bbox = str(bbox.extent).replace("(", "").replace(")", "")  # this is a little dumb, you may choose something better
+
+    data = {
+        "request": ServiceOperationEnum.GET_MAP.value,
+        "version": VersionEnum.V_1_1_1.value,
+        "layers": layer,
+        "srs": DEFAULT_SRS_STRING,
+        "bbox": bbox,
+        "format": "png",
+        "width": 200,
+        "height": 200,
+    }
+
+    query_data = QueryDict('', mutable=True)
+    query_data.update(data)
+
+    request_post = request.POST
+    request.POST._mutable = True
+    request.POST = query_data
+    request.method = 'POST'
+
+    operation_request_handler = OGCOperationRequestHandler(request=request, metadata=md)
+    img = operation_request_handler.get_operation_response(post_data=data)  # img is returned as a byte code
+
+    return HttpResponse(img, content_type='image/png')
+
+
+@log_proxy
 def get_capabilities(request: HttpRequest, id: int):
     """ Returns the current capabilities xml file
 
@@ -278,6 +333,7 @@ def get_capabilities(request: HttpRequest, id: int):
     Returns:
          A HttpResponse containing the xml file
     """
+
     md = Metadata.objects.get(id=id)
 
     if not md.is_active:
@@ -289,6 +345,143 @@ def get_capabilities(request: HttpRequest, id: int):
     doc = cap_doc.current_capability_document
 
     return HttpResponse(doc, content_type='application/xml')
+
+@log_proxy
+def get_metadata_html(request: HttpRequest, id: int):
+    """ Returns the metadata as html rendered view
+        Args:
+            request (HttpRequest): The incoming request
+            id (int): The metadata id
+        Returns:
+             A HttpResponse containing the html formated metadata
+    """
+
+    md = Metadata.objects.get(id=id)
+
+    params = {'md_id': md.id, 'title': md.title, 'abstract': md.abstract}
+
+    contact = {}
+
+    # if there is a published_for organization it will be presented
+    if md.service.published_for is not None:
+        contact['organization_name'] = md.service.published_for.organization_name
+        contact['email'] = md.service.published_for.email
+        contact['address_country'] = md.service.published_for.country
+        contact['street_address'] = md.service.published_for.address
+        contact['address_region'] = md.service.published_for.state_or_province
+        contact['postal_code'] = md.service.published_for.postal_code
+        contact['address_locality'] = md.service.published_for.city
+        contact['person_name'] = md.service.published_for.person_name
+        contact['telephone'] = md.service.published_for.phone
+    else:
+        contact['organization_name'] = md.contact.organization_name
+        contact['email'] = md.contact.email
+        contact['address_country'] = md.contact.country
+        contact['street_address'] = md.contact.address
+        contact['address_region'] = md.contact.state_or_province
+        contact['postal_code'] = md.contact.postal_code
+        contact['address_locality'] = md.contact.city
+        contact['person_name'] = md.contact.person_name
+        contact['telephone'] = md.contact.phone
+
+    params['contact'] = contact
+
+    # build the single view cases: wms root, wms layer, wfs root, wfs featuretype, wcs, metadata
+    if md.service.servicetype.name == ServiceEnum.WMS.value and md.service.is_root:
+        # wms root object
+        print('wms root')
+        base_template = 'metadata/base_wms_root_metadata_as_html.html'
+
+        # first layer item
+        layer = Layer.objects.get(
+           parent_service=md.service,
+           parent_layer=None,
+        )
+
+        params['name_of_the_resource'] = layer.identifier
+        params['is_queryable'] = layer.is_queryable
+
+        # search for sub children
+        child_child_layers = Layer.objects.filter(
+            parent_layer=layer
+        )
+        sub_layer = []
+        sub_layer.append({'id': layer.metadata.id,
+                         'title': layer.metadata.title,
+                         'sublayers_count': child_child_layers.count()}, )
+
+        sub_layer_table = ChildLayerTable(sub_layer, template_name='tables/child_layer_table.html',
+                                                orderable=False, show_header=False)
+
+        params['children'] = sub_layer_table
+
+    elif md.service.servicetype.name == ServiceEnum.WMS.value and not md.service.is_root:
+        # wms layer object
+        print('wms layer')
+        base_template = 'metadata/base_wms_layer_metadata_as_html.html'
+
+        params['name_of_the_resource'] = md.service.layer.identifier
+        params['is_queryable'] = md.service.layer.is_queryable
+
+        if md.service.parent_service:
+            params['parent_service'] = md.service.parent_service
+
+        try:
+            # is it a root layer?
+            params['parent_layer'] = Layer.objects.get(
+                child_layer=md.service.layer
+            )
+        except Layer.DoesNotExist:
+            # yes, it's a root layer, no parent available; skip
+            None
+
+        # get sublayers
+        child_layers = Layer.objects.filter(
+            parent_layer=md.service
+        )
+
+        # if child_layers > 0 collect more data about the child layers
+        if child_layers.count() > 0:
+            # filter queryset
+            child_layers_filtered = ChildLayerFilter(request.GET, queryset=child_layers)
+            params['layer_filter'] = child_layers_filtered
+
+            children = []
+            for child in child_layers_filtered.qs:
+                # search for sub children
+                child_child_layers = Layer.objects.filter(
+                    parent_layer=child
+                )
+
+                children.append({'id': child.metadata.id,
+                                 'title': child.metadata.title,
+                                 'sublayers_count': child_child_layers.count()}, )
+
+            child_layer_table = ChildLayerTable(children, template_name='tables/child_layer_table.html',
+                                                order_by='title')
+            RequestConfig(request).configure(child_layer_table)
+            child_layer_table.paginate(page=request.GET.get("page", 1), per_page=5)
+
+            params['children'] = child_layer_table
+
+    elif md.service.servicetype.name == ServiceEnum.WFS.value and md.service.is_root:
+        # wfs root object
+        print('wfs root')
+        base_template = 'metadata/base_wfs_root_metadata_as_html.html'
+    elif md.service.servicetype.name == ServiceEnum.WFS.value and not md.service.is_root:
+        # wfs featuretype object
+        print('wfs featuretype')
+        base_template = 'metadata/base_wfs_featuretype_metadata_as_html.html'
+        md.featuretype = md.service.featuretypes.all()
+    # TODO: WCS
+    # TODO: metadata
+    else:
+        # TODO: default view should be presented to prevent server errors
+        base_template = ''
+        print('else')
+
+    return render(request, base_template, params,)
+
 
 @log_proxy
 def get_capabilities_original(request: HttpRequest, id: int):

@@ -1,0 +1,43 @@
+{% load static i18n %}
+{% load fontawesome_5 %}
+<table class="table d-flex">
+    <tbody>
+    <tr>
+        <th scope="row">{% trans 'Title' %}</th>
+        <td itemprop="about headline">
+            {{ md.title }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Kind of resource' %}</th>
+        <td>
+            {% fa5_icon 'draw-polygon' 'fas' %} - Featuretype
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Resourceidentifier' %}</th>
+        <td><!-- TODO: insert the right information --></td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Name of the resource' %}</th>
+        <td>{{ md.service.layer.identifier }}</td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Information about the service' %}</th>
+        <td><!-- TODO: insert the right information --></td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Organization' %}</th>
+        <td>
+            <!-- TODO: Mapbender presents here a logo-->
+            {{ md.contact.organization_name }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Abstract' %}</th>
+        <td itemprop="abstract">
+            {{ md.abstract }}
+        </td>
+    </tr>
+    </tbody>
+</table>

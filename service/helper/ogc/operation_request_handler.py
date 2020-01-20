@@ -26,6 +26,7 @@ from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
+from service.helper.ogc.request_builder import OGCRequestPOSTBuilder
 from service.models import Metadata, FeatureType, Layer
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
@@ -833,48 +834,6 @@ class OGCOperationRequestHandler:
                 post_data[key] = val
         return post_data
 
-    def _create_POST_xml(self, post_data: dict):
-        xml = ""
-
-        # determine base namespace
-        ns = self.service_type_param
-        if ns is None or len(ns):
-            # no SERVICE parameter given, we must try to detect it from the given REQUEST parameter
-            wms_ops = [
-                OGCOperationEnum.GET_MAP,
-                OGCOperationEnum.GET_FEATURE_INFO,
-                OGCOperationEnum.DESCRIBE_LAYER,
-                OGCOperationEnum.GET_LEGEND_GRAPHIC,
-                OGCOperationEnum.GET_STYLES,
-                OGCOperationEnum.PUT_STYLES,
-            ]
-            wfs_ops = [
-                OGCOperationEnum.GET_FEATURE,
-                OGCOperationEnum.TRANSACTION,
-                OGCOperationEnum.LOCK_FEATURE,
-                OGCOperationEnum.DESCRIBE_FEATURE_TYPE,
-            ]
-            if self.request_param in wms_ops:
-                ns = "wms"
-            elif self.request_param in wfs_ops:
-                ns = "wfs"
-            else:
-                raise KeyError("Unknown request '{}'".format(self.request_param))
-
-        root_attributes = {
-            "service": self.service_type_param,
-            "version": self.version_param,
-            "outputFormat": self.format_param
-        }
-        root = etree.Element(_tag="{}:{}".format(ns, self.request_param), nsmap=XML_NAMESPACES, attrib=root_attributes)
-        query = etree.Element(_tag="{}:Query".format(ns), attrib={"typename": self.type_name_param})
-        query.text = self.filter_param
-        xml_helper.add_subelement(root, query)
-
-        xml = xml_helper.xml_to_string(root)
-
-        return xml
-
     def _create_GET_uri(self):
         """ Returns the processed operation uri.
 
@@ -1232,7 +1191,9 @@ class OGCOperationRequestHandler:
             try_again_code_list = [500, 501, 502, 504, 510]
             if c.status_code is not None and c.status_code not in try_again_code_list:
                 # create xml from parameters according to specification
-                post_xml = self._create_POST_xml(post_data)
+                request_builder = OGCRequestPOSTBuilder(post_data)
+                post_xml = request_builder.build_POST_xml()
+                c.post(post_xml)
 
         if c.status_code is not None and c.status_code != 200:
             raise Exception(c.status_code)

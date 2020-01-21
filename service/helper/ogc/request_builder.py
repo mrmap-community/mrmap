@@ -15,7 +15,16 @@ from service.helper.enums import OGCOperationEnum, OGCServiceVersionEnum, OGCSer
 
 
 class OGCRequestPOSTBuilder:
+    """ Builder for OGC XML POST documents
+
+    """
     def __init__(self, post_data: dict, post_body: str=None):
+        """ Constructor
+
+        Args:
+            post_data (dict): The post data as a dict
+            post_body (str): A previously existing post xml body
+        """
         self.wms_operations = [
                 OGCOperationEnum.GET_MAP,
                 OGCOperationEnum.GET_FEATURE_INFO,
@@ -284,28 +293,108 @@ class OGCRequestPOSTBuilder:
         return xml
 
     def _build_WMS_1_0_0_xml(self, service_param: str, version_param: str, request_param: str):
+        """ Returns the POST xml document for a WMS 1.0.0
+
+        PLEASE NOTE: THE SPECIFICATION FOR WMS 1.0.0 DOES NOT PROVIDE INFORMATION ABOUT THE SCHEMA OF A WMS POST REQUEST.
+        AS LONG AS THERE IS NO SUCH DATA, THIS FUNCTION IS A PLACEHOLDER FOR FUTURE IMPLEMENTATION.
+
+        Args:
+            service_param (str): The service param
+            version_param (str): The version param
+            request_param (str): The request param
+        Returns:
+             xml (str): The xml document
+        """
         xml = ""
 
         if request_param == OGCOperationEnum.GET_MAP.value.lower():
             xml = self._build_WMS_get_map_1_0_0_xml(service_param, version_param, request_param)
+        else:
+            xml = self._build_WMS_get_feature_info_1_0_0_xml(service_param, version_param, request_param)
 
         return xml
 
     def _build_WMS_get_map_1_0_0_xml(self, service_param: str, version_param: str, request_param: str):
+        """ Returns the POST xml document for a WMS 1.0.0
+
+        PLEASE NOTE: THE SPECIFICATION FOR WMS 1.0.0 DOES NOT PROVIDE INFORMATION ABOUT THE SCHEMA OF A WMS POST REQUEST.
+        AS LONG AS THERE IS NO SUCH DATA, THIS FUNCTION IS A PLACEHOLDER FOR FUTURE IMPLEMENTATION.
+
+        Args:
+            service_param (str): The service param
+            version_param (str): The version param
+            request_param (str): The request param
+        Returns:
+             xml (str): The xml document
+        """
         xml = ""
         return xml
 
-    def _build_WMS_1_1_1_xml(self, service_param: str, version_param: str):
+    def _build_WMS_get_feature_info_1_0_0_xml(self, service_param: str, version_param: str, request_param: str):
+        """ Returns the POST xml document for a WMS 1.0.0
+
+        PLEASE NOTE: THE SPECIFICATION FOR WMS 1.0.0 DOES NOT PROVIDE INFORMATION ABOUT THE SCHEMA OF A WMS POST REQUEST.
+        AS LONG AS THERE IS NO SUCH DATA, THIS FUNCTION IS A PLACEHOLDER FOR FUTURE IMPLEMENTATION.
+
+        Args:
+            service_param (str): The service param
+            version_param (str): The version param
+            request_param (str): The request param
+        Returns:
+             xml (str): The xml document
+        """
         xml = ""
         return xml
 
-    def _build_WMS_1_3_0_xml(self, service_param: str, version_param: str):
+    def _build_WMS_1_1_1_xml(self, service_param: str, version_param: str, request_param: str):
+        """ Returns the POST xml document for a WMS 1.1.1
+
+        PLEASE NOTE:
+        THE SPECIFICATION FOR WMS 1.1.1 EXPLICITLY STATES, THAT A WMS HAS TO BE REQUESTED USING HTTP GET.
+        THERE IS NO INDICATION OF ANY SUPPORT OF NON-SLD WMS 1.1.1 FOR USING POST XML DOCUMENTS.
+
+        Args:
+            service_param (str): The service param
+            version_param (str): The version param
+            request_param (str): The request param
+        Returns:
+             xml (str): The xml document
+        """
         xml = ""
         return xml
+
+    def _build_WMS_1_3_0_xml(self, service_param: str, version_param: str, request_param: str):
+        """ Returns the POST xml document for a WMS 1.1.1
+
+        PLEASE NOTE:
+        THE SPECIFICATION FOR WMS 1.3.0 EXPLICITLY STATES, A WMS POST REQUEST HAS TO BE MADE USING XML.
+
+        Args:
+            service_param (str): The service param
+            version_param (str): The version param
+            request_param (str): The request param
+        Returns:
+             xml (str): The xml document
+        """
+        xml = ""
+
+        if request_param == OGCOperationEnum.GET_MAP.value:
+            xml = self._build_get_map_1_3_0_xml(service_param, version_param, request_param)
+        elif request_param == OGCOperationEnum.GET_FEATURE_INFO:
+            xml = self._build_get_feature_info_1_3_0_xml(service_param, version_param, request_param)
+        else:
+            # Should not happen
+            pass
+
+        return xml
+
     def _build_get_map_1_3_0_xml(self, service_param: str, version_param: str, request_param: str):
         """ Returns the POST request XML for a GetMap request
 
-        An example can be found here: http://schemas.opengis.net/sld/1.1/example_getmap.xml
+        Examples can be found here:
+
+        http://schemas.opengis.net/sld/1.1/example_getmap.xml
+        https://www.how2map.com/2013/10/geoserver-getmap-with-http-post.html
 
         Args:
             service_param (str): The service param
@@ -324,7 +413,6 @@ class OGCRequestPOSTBuilder:
         srs_param = self._get_POST_val("srs")
 
         reduced_ns_map = self._get_version_specific_namespaces(version_param, service_param)
-        wms_ns = reduced_ns_map["wms"]
 
         root_attributes = {
             "version": version_param
@@ -380,4 +468,21 @@ class OGCRequestPOSTBuilder:
 
         xml = xml_helper.xml_to_string(root)
 
+        return xml
+
+    def _build_get_feature_info_1_3_0_xml(self, service_param: str, version_param: str, request_param: str):
+        """ Returns the POST request XML for a GetFeatureInfo request
+
+        PLEASE NOTE:
+        THE SPECIFICATION FOR WMS 1.3.0 DOES NOT PROVIDE INFORMATION ABOUT THE POST XML SCHEMA OF GetFeatureInfo.
+        THIS IS A PLACEHOLDER, WHICH SHALL HOLD A FUTURE IMPLEMENTATION - IF NEEDED.
+
+        Args:
+            service_param (str): The service param
+            version_param (str): The version param
+            request_param (str): The request param
+        Returns:
+             xml (str): The xml document
+        """
+        xml = ""
         return xml

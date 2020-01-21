@@ -87,9 +87,10 @@ class OGCRequestPOSTBuilder:
             pass
 
         # check for version depending differences
-        if version_param == OGCServiceVersionEnum.V_2_0_0 or version_param == OGCServiceVersionEnum.V_2_0_2:
+        if version_param == OGCServiceVersionEnum.V_2_0_0.value or version_param == OGCServiceVersionEnum.V_2_0_2.value:
             # WFS 2.0.0
             default_ns["wfs"] = "http://www.opengis.net/wfs/2.0"
+            default_ns["fes"] = XML_NAMESPACES["fes"]
 
         return default_ns
 
@@ -218,7 +219,7 @@ class OGCRequestPOSTBuilder:
             "version": version_param,
             "outputFormat": format_param
         }
-        root = etree.Element(_tag=request_param, nsmap=reduced_ns_map, attrib=root_attributes)
+        root = etree.Element(_tag="{" + wfs_ns + "}" + request_param, nsmap=reduced_ns_map, attrib=root_attributes)
 
         # create the xml filter object from the filter string parameter
         filter_xml = xml_helper.parse_xml(filter_param)
@@ -228,7 +229,7 @@ class OGCRequestPOSTBuilder:
             query_attributes = {
                 type_name_identifier: t_n_param
             }
-            query_elem = xml_helper.create_subelement(root, "Query", attrib=query_attributes)
+            query_elem = xml_helper.create_subelement(root, "{" + wfs_ns + "}" + "Query", attrib=query_attributes)
 
             # add the filter xml object as subobject to the query to use e.g. the spatial restriction
             xml_helper.add_subelement(query_elem, filter_xml_root)

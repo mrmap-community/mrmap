@@ -396,7 +396,7 @@ class OGCOperationRequestHandler:
         xml = xml_helper.parse_xml(body)
         self.POST_raw_body = body
 
-        root = xml_helper.try_get_single_element_from_xml(elem="/*", xml_elem=xml)
+        root = xml.getroot()
         self.request_param = QName(root).localname
         self.version_param = xml_helper.try_get_attribute_from_xml_element(root, "version")
 
@@ -405,22 +405,32 @@ class OGCOperationRequestHandler:
         bbox_elem = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("BoundingBox"), xml_elem=xml)
 
         # Old client implementations might not send the expected 'EPSG:xyz' style. Instead they send a link, which ends on e.g. '...#4326'
-        self.srs_param = xml_helper.try_get_attribute_from_xml_element(bbox_elem, "srsName")
-        possible_separators = [":", "#"]
-        for sep in possible_separators:
-            try:
-                self.srs_code = int(self.srs_param.split(sep)[-1])
-                break
-            except ValueError:
-                continue
+        self.srs_param = xml_helper.try_get_text_from_xml_element(root, "//" + GENERIC_NAMESPACE_TEMPLATE.format("CRS"))
+        if self.srs_param is None:
+            self.srs_param = xml_helper.try_get_attribute_from_xml_element(bbox_elem, "srsName")
+        if self.srs_param is not None:
+            possible_separators = [":", "#"]
+            for sep in possible_separators:
+                try:
+                    self.srs_code = int(self.srs_param.split(sep)[-1])
+                    break
+                except ValueError:
+                    continue
 
         bbox_extent = []
+        # bbox extent could exist by using gml:coord or ogc:lowerCorner/ogc:upperCorner
         bbox_coords = xml_helper.try_get_element_from_xml(elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("coord"), xml_elem=bbox_elem)
-
-        tmp = ["X", "Y"]
-        for coord in bbox_coords:
-            for t in tmp:
-                bbox_extent.append(xml_helper.try_get_text_from_xml_element(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format(t), xml_elem=coord))
+        if len(bbox_coords) > 0:
+            tmp = ["X", "Y"]
+            for coord in bbox_coords:
+                for t in tmp:
+                    bbox_extent.append(xml_helper.try_get_text_from_xml_element(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format(t), xml_elem=coord))
+        else:
+            del bbox_coords
+            bbox_lower_corner_txt = xml_helper.try_get_text_from_xml_element(bbox_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("lowerCorner"))
+            bbox_upper_corner_txt = xml_helper.try_get_text_from_xml_element(bbox_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("upperCorner"))
+            bbox_extent += bbox_lower_corner_txt.split(" ")
+            bbox_extent += bbox_upper_corner_txt.split(" ")
 
         self.bbox_param = ",".join(bbox_extent)
 
@@ -1189,7 +1199,7 @@ class OGCOperationRequestHandler:
             # So if 1) fails, due to missing support, we need to build a parameter xml and try another post with raw body
             c.post(post_data)
             try_again_code_list = [500, 501, 502, 504, 510]
-            if c.status_code is not None and c.status_code not in try_again_code_list:
+            if c.status_code is not None and c.status_code in try_again_code_list:
                 # create xml from parameters according to specification
                 request_builder = OGCRequestPOSTBuilder(post_data, self.POST_raw_body)
                 post_xml = request_builder.build_POST_xml()

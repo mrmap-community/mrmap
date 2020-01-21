@@ -284,6 +284,25 @@ class OGCRequestPOSTBuilder:
         return xml
 
     def _build_WMS_1_0_0_xml(self, service_param: str, version_param: str, request_param: str):
+        xml = ""
+
+        if request_param == OGCOperationEnum.GET_MAP.value.lower():
+            xml = self._build_WMS_get_map_1_0_0_xml(service_param, version_param, request_param)
+
+        return xml
+
+    def _build_WMS_get_map_1_0_0_xml(self, service_param: str, version_param: str, request_param: str):
+        xml = ""
+        return xml
+
+    def _build_WMS_1_1_1_xml(self, service_param: str, version_param: str):
+        xml = ""
+        return xml
+
+    def _build_WMS_1_3_0_xml(self, service_param: str, version_param: str):
+        xml = ""
+        return xml
+    def _build_get_map_1_3_0_xml(self, service_param: str, version_param: str, request_param: str):
         """ Returns the POST request XML for a GetMap request
 
         An example can be found here: http://schemas.opengis.net/sld/1.1/example_getmap.xml
@@ -298,7 +317,8 @@ class OGCRequestPOSTBuilder:
         xml = ""
 
         format_param = self._get_POST_val("format") or ""
-        filter_param = self._get_POST_val("filter")
+        width_param = self._get_POST_val("width")
+        height_param = self._get_POST_val("height")
         layers_param = self._get_POST_val("layer")
         bbox_param = self._get_POST_val("bbox")
         srs_param = self._get_POST_val("srs")
@@ -331,17 +351,33 @@ class OGCRequestPOSTBuilder:
         # Add <BoundingBox> element
         if bbox_param is not None:
             bbox_elem = etree.Element("BoundingBox")
-            bbox_elem.text = ""
-            # ToDo: Continue here tomorrow!!
+            lower_corner_elem = etree.Element("ows:LowerCorner")
+            upper_corner_elem = etree.Element("ows:UpperCorner")
+
+            bbox_params_list = bbox_param.split(",")
+            lower_corner_elem.text = "{} {}".format(bbox_params_list[0], bbox_params_list[1])
+            upper_corner_elem.text = "{} {}".format(bbox_params_list[2], bbox_params_list[3])
+
+            xml_helper.add_subelement(bbox_elem, lower_corner_elem)
+            xml_helper.add_subelement(bbox_elem, upper_corner_elem)
+            xml_helper.add_subelement(root, bbox_elem)
+
+        # Add <Output> element
+        output_elem = etree.Element("Output")
+        size_elem = etree.Element("Size")
+        width_elem = etree.Element("Width")
+        width_elem.text = width_param
+        height_elem = etree.Element("Height")
+        height_elem.text = height_param
+        xml_helper.add_subelement(size_elem, width_elem)
+        xml_helper.add_subelement(size_elem, height_elem)
+        format_elem = etree.Element("wms:Format")
+        format_elem.text = format_param
+
+        xml_helper.add_subelement(output_elem, size_elem)
+        xml_helper.add_subelement(output_elem, format_elem)
+        xml_helper.add_subelement(root, output_elem)
 
         xml = xml_helper.xml_to_string(root)
 
-        return xml
-
-    def _build_WMS_1_1_1_xml(self, service_param: str, version_param: str):
-        xml = ""
-        return xml
-
-    def _build_WMS_1_3_0_xml(self, service_param: str, version_param: str):
-        xml = ""
         return xml

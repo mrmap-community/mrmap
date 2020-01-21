@@ -14,32 +14,12 @@
     <tr>
         <th scope="row">{% trans 'Kind of resource' %}</th>
         <td>
-            {% fa5_icon 'map' 'far' %} - Web Map Service
+            {% fa5_icon 'clipboard-list' 'fas' %} - Dataset
         </td>
     </tr>
     <tr>
-        <th scope="row">{% trans 'Child Layer' %}</th>
-        <td>
-            <div class="list-group">
-                {% if children %}
-                    {% render_table children %}
-                {% endif%}
-            </div>
-        </td>
-    </tr>
-    <tr>
-        <th scope="row">{% trans 'Preview' %}</th>
-        <td>
-            <div>
-                <!-- TODO: show "no preview" if no preview is available -->
-                <a itemprop="exampleOfWork" itemtype="https://schema.org/CreativeWork"
-                   href="{% url 'service:get-service-metadata-preview' md_id %}">
-                    <img itemprop="thumbnailUrl"
-                         src="{% url 'service:get-service-metadata-preview' md_id %}" alt="preview"
-                         class="img-thumbnail">
-                </a>
-            </div>
-        </td>
+        <th scope="row">{% trans 'Name of the resource' %}</th>
+        <td>{{name_of_the_resource}}</td>
     </tr>
     <tr>
         <th scope="row">{% trans 'Organization' %}</th>
@@ -52,6 +32,17 @@
         <th scope="row">{% trans 'Abstract' %}</th>
         <td itemprop="abstract">
             {{ abstract }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Spatial extent' %}</th>
+        <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
+            <!-- TODO: insert here a dynamic generated preview of the spatial extent -->
+            {% if layer.bbox_lat_lon.area > 0.0 %}
+                TODO
+            {% else %}
+                {% trans 'No spatial data provided!' %}
+            {% endif %}
         </td>
     </tr>
     </tbody>

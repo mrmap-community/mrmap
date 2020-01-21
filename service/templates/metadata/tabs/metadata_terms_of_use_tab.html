@@ -4,11 +4,11 @@
     <tbody>
     <tr>
         <th scope="row">{% trans 'Public access restrictions' %}</th>
-        <td itemprop="publishingPrinciples">{{ md.access_constraints }}</td>
+        <td itemprop="publishingPrinciples">{{ access_constraints }}</td>
     </tr>
     <tr>
         <th scope="row">{% trans 'Information about costs/fees/licenses' %}</th>
-        <td itemprop="license"><!-- TODO: add the right information --></td>
+        <td itemprop="license">{{ fees }}</td>
     </tr>
     </tbody>
 </table>

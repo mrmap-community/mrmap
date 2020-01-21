@@ -17,10 +17,10 @@
         <th scope="row">{% trans 'Corner in geographic Coordinates' %}</th>
         <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
             <!-- TODO: test the box that the google testtool will find ==> https://search.google.com/structured-data/testing-tool -->
-            <p itemprop="box">{{md.service.layer.bbox_lat_lon.boundary.extent.0}}
-                {{md.service.layer.bbox_lat_lon.boundary.extent.1}}
-                {{md.service.layer.bbox_lat_lon.boundary.extent.2}}
-                {{md.service.layer.bbox_lat_lon.boundary.extent.3}}</p>
+            <p itemprop="box">{{featuretype.bbox_lat_lon.boundary.extent.0}}
+                {{featuretype.bbox_lat_lon.boundary.extent.1}}
+                {{featuretype.bbox_lat_lon.boundary.extent.2}}
+                {{featuretype.bbox_lat_lon.boundary.extent.3}}</p>
         </td>
     </tr>
     <tr>
@@ -38,7 +38,7 @@
     <tr>
         <th scope="row">{% trans 'Type of geometry' %}</th>
         <td>
-            <!-- TODO: insert the right information -->
+            {{ featuretype.bbox_lat_lon.geom_type }}
         </td>
     </tr>
     <tr>

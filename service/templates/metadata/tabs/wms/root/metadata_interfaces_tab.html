@@ -6,7 +6,7 @@
         <th scope="row">{% trans 'Capabilities' %}</th>
         <td>
             <p>
-                <a itemprop="url" class="btn btn-info" href="{{ md.capabilities_uri }}">
+                <a itemprop="url" class="btn btn-info" href="{{ capabilities_uri }}">
                     {% fa5_icon 'file-alt' 'fas' %} {% trans 'Show document' %}
                 </a>
             </p>
@@ -19,7 +19,7 @@
             </p>
             <div class="collapse" id="collapseCapsLink">
                 <div class="card card-body">
-                    <a itemprop="url" href="{{ md.capabilities_uri }}">{{ md.capabilities_uri }}</a>
+                    <a itemprop="url" href="{{ capabilities_uri }}">{{ capabilities_uri }}</a>
                 </div>
             </div>
         </td>
@@ -28,7 +28,7 @@
         <th scope="row">Original Capabilities</th>
         <td>
             <p>
-                <a itemprop="url" class="btn btn-info" href="{{ md.capabilities_original_uri }}">
+                <a itemprop="url" class="btn btn-info" href="{{ capabilities_original_uri }}">
                     {% fa5_icon 'external-link-alt' 'fas' %} {% trans 'Show document' %}
                 </a>
             </p>
@@ -42,8 +42,8 @@
             </p>
             <div class="collapse" id="collapseCapsOriginalLink">
                 <div class="card card-body">
-                    <a itemprop="url" href="{{ md.capabilities_original_uri }}">
-                        {{ md.capabilities_original_uri }}</a>
+                    <a itemprop="url" href="{{ capabilities_original_uri }}">
+                        {{ capabilities_original_uri }}</a>
                 </div>
             </div>
         </td>

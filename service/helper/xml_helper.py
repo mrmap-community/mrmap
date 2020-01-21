@@ -11,6 +11,7 @@ from requests.exceptions import ProxyError
 
 from MapSkinner.settings import XML_NAMESPACES
 from service.helper.common_connector import CommonConnector
+from service.helper.enums import OGCServiceVersionEnum
 
 
 def parse_xml(xml: str, encoding=None):
@@ -57,13 +58,29 @@ def xml_to_string(xml_obj):
 
 
 def get_feature_type_elements_xml(title, service_type_version, service_type, uri, external_auth):
+    """ Requests a DescribeFeatureType document
+
+    Args:
+        title (str):
+        service_type_version (str):
+        service_type (str):
+        uri (str):
+        external_auth (ExternalAuthentication):
+    Returns:
+         None | str
+    """
     connector = CommonConnector(url=uri, external_auth=external_auth)
+    type_name = "typeName"
+    if service_type_version == OGCServiceVersionEnum.V_2_0_0 or service_type_version == OGCServiceVersionEnum.V_2_0_2:
+        type_name = "typeNames"
+
     params = {
         "service": service_type,
         "version": service_type_version,
         "request": "DescribeFeatureType",
-        "typeNames": title
+        type_name: title
     }
+
     try:
         connector.load(params=params)
         response = connector.content

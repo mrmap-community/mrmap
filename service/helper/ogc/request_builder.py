@@ -219,8 +219,11 @@ class OGCRequestPOSTBuilder:
             "service": service_param,
             "version": version_param,
             "outputFormat": format_param,
-            "count": count_param,
         }
+
+        if count_param is not None:
+            root_attributes["count"] = count_param
+
         root = etree.Element(_tag="{" + wfs_ns + "}" + request_param, nsmap=reduced_ns_map, attrib=root_attributes)
 
         # create the xml filter object from the filter string parameter

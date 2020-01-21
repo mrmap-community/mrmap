@@ -205,6 +205,7 @@ class OGCRequestPOSTBuilder:
         format_param = self._get_POST_val("format") or ""
         type_name_param = self._get_POST_val("typename")
         filter_param = self._get_POST_val("filter")
+        count_param = self._get_POST_val("count")
 
         # check if the newer 'typeNames' instead of 'typeName' should be used
         type_name_identifier = "typeName"
@@ -217,7 +218,8 @@ class OGCRequestPOSTBuilder:
         root_attributes = {
             "service": service_param,
             "version": version_param,
-            "outputFormat": format_param
+            "outputFormat": format_param,
+            "count": count_param,
         }
         root = etree.Element(_tag="{" + wfs_ns + "}" + request_param, nsmap=reduced_ns_map, attrib=root_attributes)
 

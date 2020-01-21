@@ -79,6 +79,7 @@ class OGCOperationRequestHandler:
         self.srs_param = None  # refers to param 'SRS'|'SRSNAME' (WMS 1.0.0 - 1.1.1) and 'CRS' (WMS 1.3.0)
         self.srs_code = None  # only the srsid as int
         self.format_param = None  # refers to param 'FORMAT'
+        self.count_param = None  # refers to param 'COUNT'
         self.version_param = None  # refers to param 'VERSION'
         self.filter_param = None  # refers to param 'FILTER' (WFS)
         self.width_param = None  # refers to param 'WIDTH' (WMS)
@@ -132,6 +133,8 @@ class OGCOperationRequestHandler:
                 self.width_param = val
             elif key == "HEIGHT":
                 self.height_param = val
+            elif key == "COUNT":
+                self.count_param = val
             elif key == "FILTER":
                 self.filter_param = val
             elif key == "TYPENAME" or key == "TYPENAMES":
@@ -283,6 +286,8 @@ class OGCOperationRequestHandler:
         """
         # fill new_params_dict
         self.new_params_dict["REQUEST"] = self.request_param
+        self.new_params_dict["SERVICE"] = self.service_type_param
+        self.new_params_dict["COUNT"] = self.count_param
         self.new_params_dict["VERSION"] = self.version_param
         self.new_params_dict["FORMAT"] = self.format_param
         self.new_params_dict["WIDTH"] = self.width_param
@@ -398,21 +403,21 @@ class OGCOperationRequestHandler:
 
         if self.request_param == OGCOperationEnum.GET_MAP.value:
             self._parse_POST_get_map_xml_body(xml)
-        elif self.request_param == OGCOperationEnum.GET_FEATURE_INFO.value:
-            # TODO!
-            pass
         elif self.request_param == OGCOperationEnum.GET_FEATURE.value:
-            # TODO!
-            pass
+            self._parse_POST_get_feature_xml_body(xml)
         elif self.request_param == OGCOperationEnum.TRANSACTION.value:
             # TODO!
             pass
         else:
-            # No need to parse anything for further handling - we can allow it and just pass through!
+            # No need to parse anything other for further handling - we can allow it and just pass through!
             pass
 
     def _parse_POST_get_map_xml_body(self, xml):
         """ Reads all relevant request data from the GetMap POST body xml document
+
+        The WMS specification does not provide information about WMS POST XML structure. However, the WMS 1.3.0
+        allows POST XML messages. Examples are not provided, they can be found here and there on the web - which is pretty
+        bad for a clean implementation!
 
         For development the following (only available) example of a WMS GetMap request as xml document was used:
         https://docs.geoserver.org/stable/en/user/services/wms/reference.html
@@ -475,6 +480,23 @@ class OGCOperationRequestHandler:
 
         self.type_name_param = xml_helper.try_get_attribute_from_xml_element(xml, type_name, "//" + GENERIC_NAMESPACE_TEMPLATE.format("Query"))
         self.filter_param = xml_helper.xml_to_string(xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Filter"), xml_elem=xml))
+
+    def _parse_POST_get_feature_xml_body(self, xml):
+
+        root = xml.getroot()
+        self.version_param = xml_helper.try_get_attribute_from_xml_element(root, "version")
+        self.service_type_param = xml_helper.try_get_attribute_from_xml_element(root, "service")
+        self.format_param = xml_helper.try_get_attribute_from_xml_element(root, "outputFormat")
+        self.count_param = xml_helper.try_get_attribute_from_xml_element(root, "count")
+
+        # multiple <Query> objects are possible according to the specification
+        queries = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Query"), root)
+        type_name_param_list = []
+        for query in queries:
+            type_name = xml_helper.try_get_attribute_from_xml_element(query, "typeName")
+            if type_name is not None:
+                type_name_param_list.append(type_name)
+        self.type_name_param = ",".join(type_name_param_list)
 
     def _get_geom_filter_param(self, as_snippet: bool = False):
         """ Creates a xml string for the filter parameter of a WFS operation

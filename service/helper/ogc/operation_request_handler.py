@@ -381,9 +381,6 @@ class OGCOperationRequestHandler:
     def _parse_POST_xml_body(self, body: bytes):
         """ Reads all relevant request data from the POST body xml document
 
-        For development the following (only available) example of a WMS GetMap request as xml document was used:
-        https://docs.geoserver.org/stable/en/user/services/wms/reference.html
-
         Furthermore for the WFS operation implementation the following Oracle documentation was used:
         https://docs.oracle.com/database/121/SPATL/wfs-operations-requests-and-responses-xml-examples.htm#SPATL926
 
@@ -398,6 +395,35 @@ class OGCOperationRequestHandler:
 
         root = xml.getroot()
         self.request_param = QName(root).localname
+
+        if self.request_param == OGCOperationEnum.GET_MAP.value:
+            self._parse_POST_get_map_xml_body(xml)
+        elif self.request_param == OGCOperationEnum.GET_FEATURE_INFO.value:
+            # TODO!
+            pass
+        elif self.request_param == OGCOperationEnum.GET_FEATURE.value:
+            # TODO!
+            pass
+        elif self.request_param == OGCOperationEnum.TRANSACTION.value:
+            # TODO!
+            pass
+        else:
+            # No need to parse anything for further handling - we can allow it and just pass through!
+            pass
+
+    def _parse_POST_get_map_xml_body(self, xml):
+        """ Reads all relevant request data from the GetMap POST body xml document
+
+        For development the following (only available) example of a WMS GetMap request as xml document was used:
+        https://docs.geoserver.org/stable/en/user/services/wms/reference.html
+
+        Args:
+            xml: The parsed xml object
+        Returns:
+             nothing
+        """
+
+        root = xml.getroot()
         self.version_param = xml_helper.try_get_attribute_from_xml_element(root, "version")
 
         self.layers_param = xml_helper.try_get_text_from_xml_element(xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("NamedLayer") + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Name"))

@@ -15,7 +15,7 @@ from service.helper.enums import OGCOperationEnum, OGCServiceVersionEnum, OGCSer
 
 
 class OGCRequestPOSTBuilder:
-    def __init__(self, post_data: dict):
+    def __init__(self, post_data: dict, post_body: str=None):
         self.wms_operations = [
                 OGCOperationEnum.GET_MAP,
                 OGCOperationEnum.GET_FEATURE_INFO,
@@ -31,9 +31,10 @@ class OGCRequestPOSTBuilder:
                 OGCOperationEnum.DESCRIBE_FEATURE_TYPE,
             ]
 
-        self.post_data = post_data
+        self.post_data = post_data  # post data in a dict
+        self.post_body = post_body  # post data, that came as xml in a body
 
-    def _build_POST_val(self, key: str):
+    def _get_POST_val(self, key: str):
         """ Returns a value case insensitive
 
         Args:
@@ -46,7 +47,7 @@ class OGCRequestPOSTBuilder:
                 return post_val
         return None
 
-    def _get_version_specific_namespaces(self, version_param: str):
+    def _get_version_specific_namespaces(self, version_param: str, service_param: str):
         """ Returns a reduced namespace map.
 
         Overwrites the default reduced namespace depending on the given version
@@ -57,22 +58,43 @@ class OGCRequestPOSTBuilder:
              default_ns (dict): A reduced namespace map
         """
         default_ns = {
-            "wfs": XML_NAMESPACES["wfs"],
             "ogc": XML_NAMESPACES["ogc"],
             "xsi": XML_NAMESPACES["xsi"],
+            "ows": XML_NAMESPACES["ows"],
         }
 
+        # check for service type depending differences
+        if service_param == OGCServiceEnum.WFS.value.lower():
+            default_ns["wfs"] = XML_NAMESPACES["wfs"]
+
+        elif service_param == OGCServiceEnum.WMS.value.lower():
+            default_ns["sld"] = XML_NAMESPACES["sld"]
+            default_ns["wms"] = XML_NAMESPACES["wms"]
+            default_ns["gml"] = XML_NAMESPACES["gml"]
+            default_ns["se"] = XML_NAMESPACES["se"]
+
+        else:
+            # not happening
+            pass
+
+        # check for version depending differences
         if version_param == OGCServiceVersionEnum.V_2_0_0 or version_param == OGCServiceVersionEnum.V_2_0_2:
             # WFS 2.0.0
             default_ns["wfs"] = "http://www.opengis.net/wfs/2.0"
+
         return default_ns
 
     def build_POST_xml(self):
+        """ Builds a POST xml document, according to the OGC WMS/WFS specifications.
+
+        Returns:
+            xml (str): The xml document
+        """
         xml = None
 
         # decide which specification must be used for POST XML building
-        version_param = self._build_POST_val("version")
-        service_param = self._build_POST_val("service").lower()
+        version_param = self._get_POST_val("version")
+        service_param = self._get_POST_val("service").lower()
 
         if version_param is None:
             raise KeyError(PARAMETER_ERROR.format("VERSION"))
@@ -108,7 +130,7 @@ class OGCRequestPOSTBuilder:
         """
         xml = ""
 
-        request_param = self._build_POST_val("request")
+        request_param = self._get_POST_val("request")
 
         if request_param == OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value:
             xml = self._build_describe_feature_type_xml(service_param, version_param, request_param)
@@ -120,7 +142,7 @@ class OGCRequestPOSTBuilder:
             xml = self._build_lock_feature_xml(service_param, version_param, request_param)
             
         elif request_param == OGCOperationEnum.TRANSACTION.value:
-            xml = self._build_transaction_xml(service_param, version_param, request_param)
+            xml = self._build_transaction_xml()
             
         else:
             raise KeyError(PARAMETER_ERROR.format(request_param))
@@ -138,10 +160,10 @@ class OGCRequestPOSTBuilder:
              xml (str): The xml document
         """
         
-        format_param = self._build_POST_val("format") or ""
-        type_name_param = self._build_POST_val("typename")
+        format_param = self._get_POST_val("format") or ""
+        type_name_param = self._get_POST_val("typename")
         
-        reduced_ns_map = self._get_version_specific_namespaces(version_param)
+        reduced_ns_map = self._get_version_specific_namespaces(version_param, service_param)
 
         root_attributes = {
             "service": service_param,
@@ -170,17 +192,77 @@ class OGCRequestPOSTBuilder:
         """
         xml = ""
 
-        format_param = self._build_POST_val("format") or ""
-        type_name_param = self._build_POST_val("typename")
-        filter_param = self._build_POST_val("filter")
+        format_param = self._get_POST_val("format") or ""
+        type_name_param = self._get_POST_val("typename")
+        filter_param = self._get_POST_val("filter")
 
-        reduced_ns_map = self._get_version_specific_namespaces(version_param)
+        # check if the newer 'typeNames' instead of 'typeName' should be used
+        type_name_identifier = "typeName"
+        if version_param == OGCServiceVersionEnum.V_2_0_0.value or version_param == OGCServiceVersionEnum.V_2_0_2.value:
+            type_name_identifier = "typeNames"
+
+        reduced_ns_map = self._get_version_specific_namespaces(version_param, service_param)
         wfs_ns = reduced_ns_map["wfs"]
 
         root_attributes = {
             "service": service_param,
             "version": version_param,
             "outputFormat": format_param
+        }
+        root = etree.Element(_tag=request_param, nsmap=reduced_ns_map, attrib=root_attributes)
+
+        # create the xml filter object from the filter string parameter
+        filter_xml = xml_helper.parse_xml(filter_param)
+        filter_xml_root = filter_xml.getroot()
+
+        for t_n_param in type_name_param.split(","):
+            query_attributes = {
+                type_name_identifier: t_n_param
+            }
+            query_elem = xml_helper.create_subelement(root, "Query", attrib=query_attributes)
+
+            # add the filter xml object as subobject to the query to use e.g. the spatial restriction
+            xml_helper.add_subelement(query_elem, filter_xml_root)
+
+        xml = xml_helper.xml_to_string(root)
+
+        return xml
+    
+    def _build_transaction_xml(self):
+        """ Returns the POST request XML for a Transaction request
+
+        Since the Transaction request will already be transmitted as a POST xml, we simply return this one.
+        No need for further xml building.
+
+        Args:
+
+        Returns:
+             xml (str): The xml document
+        """
+        return self.post_body
+    
+    def _build_lock_feature_xml(self, service_param: str, version_param: str, request_param: str):
+        """ Returns the POST request XML for a Lock request
+
+        Args:
+            service_param (str): The service param
+            version_param (str): The version param
+            request_param (str): The request param
+        Returns:
+             xml (str): The xml document
+        """
+        xml = ""
+
+        lock_action_param = self._get_POST_val("lockAction") or ""
+        type_name_param = self._get_POST_val("typename")
+        filter_param = self._get_POST_val("filter")
+
+        reduced_ns_map = self._get_version_specific_namespaces(version_param, service_param)
+
+        root_attributes = {
+            "service": service_param,
+            "version": version_param,
+            "lockAction": lock_action_param
         }
         root = etree.Element(_tag=request_param, nsmap=reduced_ns_map, attrib=root_attributes)
 
@@ -200,17 +282,60 @@ class OGCRequestPOSTBuilder:
         xml = xml_helper.xml_to_string(root)
 
         return xml
-    
-    def _build_transaction_xml(self, service_param: str, version_param: str, request_param: str):
-        xml = ""
-        return xml
-    
-    def _build_lock_feature_xml(self, service_param: str, version_param: str, request_param: str):
-        xml = ""
-        return xml
 
-    def _build_WMS_1_0_0_xml(self, service_param: str, version_param: str):
+    def _build_WMS_1_0_0_xml(self, service_param: str, version_param: str, request_param: str):
+        """ Returns the POST request XML for a GetMap request
+
+        An example can be found here: http://schemas.opengis.net/sld/1.1/example_getmap.xml
+
+        Args:
+            service_param (str): The service param
+            version_param (str): The version param
+            request_param (str): The request param
+        Returns:
+             xml (str): The xml document
+        """
         xml = ""
+
+        format_param = self._get_POST_val("format") or ""
+        filter_param = self._get_POST_val("filter")
+        layers_param = self._get_POST_val("layer")
+        bbox_param = self._get_POST_val("bbox")
+        srs_param = self._get_POST_val("srs")
+
+        reduced_ns_map = self._get_version_specific_namespaces(version_param, service_param)
+        wms_ns = reduced_ns_map["wms"]
+
+        root_attributes = {
+            "version": version_param
+        }
+        root = etree.Element(_tag=request_param, nsmap=reduced_ns_map, attrib=root_attributes)
+
+        # Add <StyledLayerDescriptor> element with layer elements
+        styled_layer_descriptor = etree.Element("StyledLayerDescriptor", {"version": version_param}, reduced_ns_map)
+        for layer in layers_param.split(","):
+            named_layer_elem = etree.Element("NamedLayer")
+
+            name_elem = etree.Element("{" + reduced_ns_map["se"] + "}Name")
+            name_elem.text = layer
+
+            xml_helper.add_subelement(named_layer_elem, name_elem)
+            xml_helper.add_subelement(styled_layer_descriptor, named_layer_elem)
+        xml_helper.add_subelement(root, styled_layer_descriptor)
+
+        # Add <CRS> element
+        crs_elem = etree.Element("CRS")
+        crs_elem.text = srs_param
+        xml_helper.add_subelement(root, crs_elem)
+
+        # Add <BoundingBox> element
+        if bbox_param is not None:
+            bbox_elem = etree.Element("BoundingBox")
+            bbox_elem.text = ""
+            # ToDo: Continue here tomorrow!!
+
+        xml = xml_helper.xml_to_string(root)
+
         return xml
 
     def _build_WMS_1_1_1_xml(self, service_param: str, version_param: str):

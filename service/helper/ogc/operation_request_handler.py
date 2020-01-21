@@ -1191,7 +1191,7 @@ class OGCOperationRequestHandler:
             try_again_code_list = [500, 501, 502, 504, 510]
             if c.status_code is not None and c.status_code not in try_again_code_list:
                 # create xml from parameters according to specification
-                request_builder = OGCRequestPOSTBuilder(post_data)
+                request_builder = OGCRequestPOSTBuilder(post_data, self.POST_raw_body)
                 post_xml = request_builder.build_POST_xml()
                 c.post(post_xml)
 

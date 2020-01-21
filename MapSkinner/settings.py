@@ -71,6 +71,7 @@ XML_NAMESPACES = {
     "inspire_dls": "http://inspire.ec.europa.eu/schemas/inspire_dls/1.0",
     "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset",
     "ms": "http://mapserver.gis.umn.edu/mapserver",
+    "se": "http://www.opengis.net/se",
     "xsd": "http://www.w3.org/2001/XMLSchema",
     "sld": "http://www.opengis.net/sld",
     "fes": "http://www.opengis.net/fes/2.0",

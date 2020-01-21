@@ -1,0 +1,52 @@
+{% load i18n %}
+{% load fontawesome_5 %}
+<table class="table d-flex">
+    <tbody>
+    <tr>
+        <th scope="row">{% trans 'Capabilities' %}</th>
+        <td>
+            <p>
+                <a itemprop="url" class="btn btn-info" href="{{ md.capabilities_uri }}">
+                    {% fa5_icon 'file-alt' 'fas' %} {% trans 'Show document' %}
+                </a>
+            </p>
+
+            <p>
+                <a class="btn btn-info" data-toggle="collapse" href="#collapseCapsLink" role="button"
+                   aria-expanded="false" aria-controls="collapseCapsLink">
+                    {% fa5_icon 'link' 'fas' %} {% trans 'Show link' %}
+                </a>
+            </p>
+            <div class="collapse" id="collapseCapsLink">
+                <div class="card card-body">
+                    <a itemprop="url" href="{{ md.capabilities_uri }}">{{ md.capabilities_uri }}</a>
+                </div>
+            </div>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">Original Capabilities</th>
+        <td>
+            <p>
+                <a itemprop="url" class="btn btn-info" href="{{ md.capabilities_original_uri }}">
+                    {% fa5_icon 'external-link-alt' 'fas' %} {% trans 'Show document' %}
+                </a>
+            </p>
+
+            <p>
+                <a class="btn btn-info" data-toggle="collapse" href="#collapseCapsOriginalLink"
+                   role="button"
+                   aria-expanded="false" aria-controls="collapseCapsOriginalLink">
+                    {% fa5_icon 'external-link-alt' 'fas' %} {% trans 'Show link' %}
+                </a>
+            </p>
+            <div class="collapse" id="collapseCapsOriginalLink">
+                <div class="card card-body">
+                    <a itemprop="url" href="{{ md.capabilities_original_uri }}">
+                        {{ md.capabilities_original_uri }}</a>
+                </div>
+            </div>
+        </td>
+    </tr>
+    </tbody>
+</table>

@@ -1,5 +1,6 @@
 import json
 
+
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
@@ -10,7 +11,6 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from django_tables2 import RequestConfig
 
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission, log_proxy
@@ -29,14 +29,12 @@ from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.settings import DEFAULT_SRS_STRING
-from service.tables import ChildLayerTable, FeatureTypeTable, CoupledMetadataTable
-from service.filters import ChildLayerFilter, FeatureTypeFilter
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style
 from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group, Organization, Contact
 from users.helper import user_helper
-
+from service.utils import *
 
 @check_session
 def index(request: HttpRequest, user: User, service_type=None):
@@ -350,21 +348,6 @@ def get_capabilities(request: HttpRequest, id: int):
     return HttpResponse(doc, content_type='application/xml')
 
 
-def _collect_contact_data(organization: Organization):
-    contact = {}
-    contact['organization_name'] = organization.organization_name
-    contact['email'] = organization.email
-    contact['address_country'] = organization.country
-    contact['street_address'] = organization.address
-    contact['address_region'] = organization.state_or_province
-    contact['postal_code'] = organization.postal_code
-    contact['address_locality'] = organization.city
-    contact['person_name'] = organization.person_name
-    contact['telephone'] = organization.phone
-
-    return contact
-
-
 @log_proxy
 def get_metadata_html(request: HttpRequest, id: int):
     """ Returns the metadata as html rendered view
@@ -374,193 +357,47 @@ def get_metadata_html(request: HttpRequest, id: int):
         Returns:
              A HttpResponse containing the html formated metadata
     """
+    # ---- constant values
+    base_template = '404.html'
+    # ----
 
     md = Metadata.objects.get(id=id)
 
+    # collect global data for all cases
     params = {'md_id': md.id,
               'title': md.title,
               'abstract': md.abstract,
               'access_constraints': md.access_constraints,
               'capabilities_original_uri': md.capabilities_original_uri,
-              'capabilities_uri': md.capabilities_uri}
-
-    dataset_metadata_relations = MetadataRelation.objects.filter(
-        metadata_from=md,
-        metadata_to__metadata_type__type=MetadataEnum.DATASET.value
-    )
-    dataset_metadatas = [x.metadata_to for x in dataset_metadata_relations]
-
-    if dataset_metadata_relations.count() > 0:
-        datasets = []
-        for dataset in dataset_metadatas:
-            datasets.append({'id': dataset.id, 'title': dataset.title})
-
-        show_header = False
-        if dataset_metadata_relations.count() > 1:
-            show_header = True
-
-        coupled_metadata_table = CoupledMetadataTable(datasets, template_name='tables/child_layer_table.html',
-                                                      order_by='title', show_header=show_header)
-        RequestConfig(request).configure(coupled_metadata_table)
-        coupled_metadata_table.paginate(page=request.GET.get("page", 1), per_page=5)
-
-        params['related_metadata'] = coupled_metadata_table
+              'capabilities_uri': md.capabilities_uri,
+              'related_metadata': collect_metadata_related_objects(md, request)}
 
     # build the single view cases: wms root, wms layer, wfs root, wfs featuretype, wcs, metadata
     if md.metadata_type.type == MetadataEnum.DATASET.value:
+        base_template = 'metadata/base/dataset/dataset_metadata_as_html.html'
+        params['contact'] = collect_contact_data(md.contact)
         # TODO: implement the logic to collect all data for a dataset
-        base_template = 'metadata/base_dataset_metadata_as_html.html'
-        params['contact'] = _collect_contact_data(md.contact)
 
     elif md.metadata_type.type == MetadataEnum.FEATURETYPE.value:
-        print('its a featuretype')
-        base_template = 'metadata/base_wfs_featuretype_metadata_as_html.html'
-
-        if md.featuretype.parent_service.published_for is not None:
-            params['contact'] = _collect_contact_data(md.featuretype.parent_service.published_for)
-        else:
-            params['contact'] = _collect_contact_data(md.contact)
-
-        if md.featuretype.parent_service:
-            params['parent_service'] = md.featuretype.parent_service
-            params['fees'] = md.featuretype.parent_service.metadata.fees
-
-        params['name_of_the_resource'] = md.identifier
-        params['featuretype'] = md.featuretype
-
-        # TODO: build schema link:
-        # schema: describe_layer_uri_GET
-        # SERVICE=WFS&VERSION=1.0.0&REQUEST=DescribeFeatureType&typeName=verwaltungsgrenzen_rp.fcgi_landkreise_rlp_Polygon
+        base_template = 'metadata/base/wfs/featuretype_metadata_as_html.html'
+        params.update(collect_featuretype_data(md))
 
     elif md.metadata_type.type == MetadataEnum.LAYER.value:
-        print('wms layer')
-        base_template = 'metadata/base_wms_layer_metadata_as_html.html'
+        base_template = 'metadata/base/wms/layer_metadata_as_html.html'
+        params.update(collect_layer_data(md, request))
 
-        # if there is a published_for organization it will be presented
-        if md.service.published_for is not None:
-            params['contact'] = _collect_contact_data(md.service.published_for)
-        else:
-            params['contact'] = _collect_contact_data(md.contact)
-
-        params['layer'] = md.service.layer
-        params['name_of_the_resource'] = md.service.layer.identifier
-        params['is_queryable'] = md.service.layer.is_queryable
-
-        if md.service.parent_service:
-            params['parent_service'] = md.service.parent_service
-            params['fees'] = md.service.parent_service.metadata.fees
-
-        try:
-            # is it a root layer?
-            params['parent_layer'] = Layer.objects.get(
-                child_layer=md.service.layer
-            )
-        except Layer.DoesNotExist:
-            # yes, it's a root layer, no parent available; skip
-            None
-
-        # get sublayers
-        child_layers = Layer.objects.filter(
-            parent_layer=md.service
-        )
-
-        # if child_layers > 0 collect more data about the child layers
-        if child_layers.count() > 0:
-            # filter queryset
-            child_layers_filtered = ChildLayerFilter(request.GET, queryset=child_layers)
-            params['layer_filter'] = child_layers_filtered
-
-            children = []
-            for child in child_layers_filtered.qs:
-                # search for sub children
-                child_child_layers = Layer.objects.filter(
-                    parent_layer=child
-                )
-
-                children.append({'id': child.metadata.id,
-                                 'title': child.metadata.title,
-                                 'sublayers_count': child_child_layers.count()}, )
-
-            child_layer_table = ChildLayerTable(children, template_name='tables/child_layer_table.html',
-                                                order_by='title')
-            RequestConfig(request).configure(child_layer_table)
-            child_layer_table.paginate(page=request.GET.get("page", 1), per_page=5)
-
-            params['children'] = child_layer_table
-
-    elif md.service.servicetype.name == ServiceEnum.WMS.value and md.service.is_root:
+    elif md.service.servicetype.name == ServiceEnum.WMS.value:
         # wms root object
-        print('wms root')
-        base_template = 'metadata/base_wms_root_metadata_as_html.html'
+        base_template = 'metadata/base/wms/root_metadata_as_html.html'
+        params.update(collect_wms_root_data(md))
 
-        # if there is a published_for organization it will be presented
-        if md.service.published_for is not None:
-            params['contact'] = _collect_contact_data(md.service.published_for)
-        else:
-            params['contact'] = _collect_contact_data(md.contact)
-
-        # first layer item
-        layer = Layer.objects.get(
-            parent_service=md.service,
-            parent_layer=None,
-        )
-
-        params['layer'] = layer
-        params['name_of_the_resource'] = layer.identifier
-        params['is_queryable'] = layer.is_queryable
-
-        # search for sub children
-        child_child_layers = Layer.objects.filter(
-            parent_layer=layer
-        )
-        sub_layer = [{'id': layer.metadata.id,
-                      'title': layer.metadata.title,
-                      'sublayers_count': child_child_layers.count()}]
-
-        sub_layer_table = ChildLayerTable(sub_layer, template_name='tables/child_layer_table.html',
-                                          orderable=False, show_header=False)
-
-        params['children'] = sub_layer_table
-        params['fees'] = md.fees
-
-    elif md.service.servicetype.name == ServiceEnum.WFS.value and md.service.is_root:
+    elif md.service.servicetype.name == ServiceEnum.WFS.value:
         # wfs root object
-        print('wfs root')
-        base_template = 'metadata/base_wfs_root_metadata_as_html.html'
+        base_template = 'metadata/base/wfs/root_metadata_as_html.html'
+        params.update(collect_wfs_root_data(md, request))
 
-        # if there is a published_for organization it will be presented
-        if md.service.published_for is not None:
-            params['contact'] = _collect_contact_data(md.service.published_for)
-        else:
-            params['contact'] = _collect_contact_data(md.contact)
-
-        params['fees'] = md.service.metadata.fees
-
-        featuretypes = FeatureType.objects.filter(
-            parent_service=md.service
-        )
-
-        featuretypes_filtered = FeatureTypeFilter(request.GET, queryset=featuretypes)
-        params['featuretypes_filter'] = featuretypes_filtered
-
-        # if child_layers > 0 collect more data about the child layers
-
-        featuretypes = []
-        for child in featuretypes_filtered.qs:
-            # search for sub children
-
-            featuretypes.append({'id': child.metadata.id,
-                                 'title': child.metadata.title,
-                                 })
-
-        featuretype_table = FeatureTypeTable(featuretypes, template_name='tables/child_layer_table.html',
-                                             order_by='title')
-        RequestConfig(request).configure(featuretype_table)
-        featuretype_table.paginate(page=request.GET.get("page", 1), per_page=5)
-
-        params['featuretypes'] = featuretype_table
-
-    elif md.service.servicetype.name == ServiceEnum.WMC.value and md.service.is_root:
+    elif md.service.servicetype.name == ServiceEnum.WMC.value:
+        base_template = 'metadata/base/wmc/root_metadata_as_html.html'
         # TODO: implement the logic to collect all data
         None
 

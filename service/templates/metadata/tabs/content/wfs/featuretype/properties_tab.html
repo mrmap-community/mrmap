@@ -1,0 +1,51 @@
+{% load i18n %}
+{% load fontawesome_5 %}
+<table class="table d-flex">
+    <tbody>
+    <tr>
+        <th scope="row">{% trans 'Coordinate Reference System' %}</th>
+        <td>
+            <!-- TODO: is reference_system.all right? check it -->
+            {% for rs in md.service.layer.metadata.reference_system.all %}
+            <span class="listable">{{ rs.prefix }}{{ rs.code }}</span>
+            {% empty %}
+            {% trans 'No additional reference systems provided' %}
+            {% endfor %}
+        </td>
+    </tr>
+    <tr itemprop="spatialCoverage" itemscope itemtype="https://schema.org/Place">
+        <th scope="row">{% trans 'Corner in geographic Coordinates' %}</th>
+        <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
+            <!-- TODO: test the box that the google testtool will find ==> https://search.google.com/structured-data/testing-tool -->
+            <p itemprop="box">{{featuretype.bbox_lat_lon.boundary.extent.0}}
+                {{featuretype.bbox_lat_lon.boundary.extent.1}}
+                {{featuretype.bbox_lat_lon.boundary.extent.2}}
+                {{featuretype.bbox_lat_lon.boundary.extent.3}}</p>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Spatial extent' %}</th>
+        <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
+            <!-- TODO: insert here a dynamic generated preview of the spatial extent -->
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Dataschema' %}</th>
+        <td>
+            <!-- TODO: insert the right information -->
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Type of geometry' %}</th>
+        <td>
+            {{ featuretype.bbox_lat_lon.geom_type }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Coupled Metadata' %}</th>
+        <td>
+            <!-- TODO: insert the right information -->
+        </td>
+    </tr>
+    </tbody>
+</table>

@@ -1,0 +1,50 @@
+{% load i18n %}
+{% load fontawesome_5 %}
+{% load django_tables2 %}
+{% load render_table from django_tables2 %}
+<table class="table d-flex">
+    <tbody>
+    <tr>
+        <th scope="row">{% trans 'Title' %}</th>
+        <td itemprop="about headline">
+            {{ title }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Kind of resource' %}</th>
+        <td>
+            {% fa5_icon 'clipboard-list' 'fas' %} - Dataset
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Name of the resource' %}</th>
+        <td>{{name_of_the_resource}}</td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Organization' %}</th>
+        <td>
+            <!-- TODO: Mapbender presents here a logo-->
+            {{ contact.organization_name }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Abstract' %}</th>
+        <td itemprop="abstract">
+            {{ abstract }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Spatial extent' %}</th>
+        <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
+            <!-- TODO: insert here a dynamic generated preview of the spatial extent -->
+            {% if layer.bbox_lat_lon.area > 0.0 %}
+                TODO
+            {% else %}
+                {% trans 'No spatial data provided!' %}
+            {% endif %}
+        </td>
+    </tr>
+    </tbody>
+</table>
+<!-- TODO: implement the functionality of this button-->
+<button type="button" class="btn btn-primary">{% trans 'Show map' %}</button>

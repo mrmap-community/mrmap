@@ -1,0 +1,58 @@
+{% load i18n %}
+{% load fontawesome_5 %}
+{% load bootstrap4 %}
+{% load django_tables2 %}
+{% load render_table from django_tables2 %}
+<table class="table d-flex">
+    <tbody>
+    <tr>
+        <th scope="row">{% trans 'Title' %}</th>
+        <td itemprop="about headline">
+            {{ title }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Kind of resource' %}</th>
+        <td>
+            {% fa5_icon 'info' 'fas' %} - Web Feature Service
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Featuretypes' %}</th>
+        <td>
+            {% if featuretypes_filter %}
+                <form action="" method="get" class="form form-inline">
+                    <div class="row">
+                        <div class="form-group col-auto">
+                            {% bootstrap_form featuretypes_filter.form layout='inline' %}
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-primary">{% fa5_icon 'search' 'fas' %} Search</button>
+                        </div>
+                    </div>
+                </form>
+            {% endif %}
+            {% if featuretypes %}
+                {% render_table featuretypes %}
+            {% endif%}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Name of the resource' %}</th>
+        <td>{{ md.service.layer.identifier }}</td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Organization' %}</th>
+        <td>
+            <!-- TODO: Mapbender presents here a logo-->
+            {{ contact.organization_name }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Abstract' %}</th>
+        <td itemprop="abstract">
+            {{ abstract }}
+        </td>
+    </tr>
+    </tbody>
+</table>

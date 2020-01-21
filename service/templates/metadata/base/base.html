@@ -1,0 +1,41 @@
+{% load fontawesome_5 %}
+{% load static %}
+
+{% block head %}
+{% fontawesome_5_static %}
+<link rel="stylesheet" type="text/css" href="{% static '/structure/css/bootstrap.min.css' %}" media="all" />
+<script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
+<script type="text/javascript" src="{% static '/structure/js/bootstrap.min.js' %}"></script>
+{% endblock %}
+
+{% block body %}
+<div class="card" itemscope itemtype="https://schema.org/Map">
+    <!-- some other information about this view-->
+    <div class="d-none">
+        <!-- TODO: this is mess, insert the data from view by dynamic object-->
+        <div itemprop="sdPublisher" itemscope itemtype="https://schema.org/Organization">
+            <p itemprop="legalName">Zentrale Stelle GDI-RP</p>
+            <p itemprop="email">kontakt@geoportal.rlp.de</p>
+            <div itemprop="address" itemscope itemtype="https://schema.org/PostalAddress">
+                <p itemprop="addressCountry">DE</p>
+                <p itemprop="streetAddress">Von-Kuhl-Straße 49</p>
+                <span itemprop="addressRegion">RLP</span>
+                <span itemprop="postalCode">56070</span>
+                <span itemprop="addressLocality">Koblenz</span>
+            </div>
+        </div>
+    </div>
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs pull-right" role="tablist">
+            {% block tab_header%}
+            {% endblock %}
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content">
+            {% block tab_content %}
+            {% endblock %}
+        </div>
+    </div>
+</div>
+{% endblock %}

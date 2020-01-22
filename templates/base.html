@@ -1,88 +1,84 @@
 <!DOCTYPE html>
 {% load i18n static %}
+{% load fontawesome_5 %}
 <html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
     <title>
         MapSkinner {% block title %}{% endblock %}
     </title>
+    {% fontawesome_5_static %}
     <link rel="shortcut icon" href="{% static 'structure/images/favicon.ico' %}" type="image/x-icon">
     <link rel="icon" href="{% static 'structure/images/favicon.ico' %}" type="image/x-icon">
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base.css' %}" media="all" />
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/overview.css' %}" media="all" />
-    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
-        <script>
-            var rootUrl = '{{ ROOT_URL }}'
-        </script>
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/bootstrap.min.css' %}" media="all"/>
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base_.css' %}" media="all"/>
     <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
-    <script type="text/javascript" src="{% static '/structure/js/base.js' %}"></script>
+    <script type="text/javascript" src="{% static '/structure/js/popper.min.js' %}"></script>
+    <script type="text/javascript" src="{% static '/structure/js/bootstrap.min.js' %}"></script>
+    <script type="text/javascript" src="{% static '/structure/js/base_.js' %}"></script>
+    <script>var rootUrl = '{{ ROOT_URL }}'</script>
     {% block head %}
-    
     {% endblock %}
 </head>
 <header>
-    {% include 'messages.html' %}
-    <nav class="navigation-bar">
-        <div class="navigation-bar-left">
-            <a href="{% url 'home' %}" title="{% trans 'Dashboard' %}">
-                <img class="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" title="Map your s*** together!">
-            </a>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand" href="#">
+            <img class="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" width="30" height="30" alt=""
+                 title="Map your s*** together!">
+        </a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+                aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
 
-            <div class="navigation-menu {% if PATH == 'home' %}active-menu{% endif %}">
-                <a class="navigation-title" href="{% url 'home' %}" title="{% trans 'Dashboard' %}">
-                    {% trans 'Home' %}
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item {% if PATH == 'home' %}active{% endif %}">
+                    <a class="nav-link" href="{% url 'home' %}" title="{% trans 'Dashboard' %}">
+                        {% trans 'Home' %}
+                    </a>
+                </li>
+                <li class="nav-item dropdown {% if PATH == 'structure' %}active{% endif %}">
+                    <a class="nav-link dropdown-toggle" href="{% url 'structure:index' %}" id="navbarStructureDropdown"
+                       role="button"
+                       data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        {% trans 'Structure' %}
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="navbarStructureDropdown">
+                        <a class="dropdown-item" href="{% url 'structure:groups' %}">{% trans 'Groups' %}</a>
+                        <a class="dropdown-item" href="{% url 'structure:organizations' %}">
+                            {% trans 'Organizations'%}
+                        </a>
+                    </div>
+                </li>
+                <li class="nav-item dropdown {% if PATH == 'service' %}active{% endif %}">
+                    <a class="nav-link dropdown-toggle" href="{% url 'service:index' %}" id="navbarServicesDropdown"
+                       role="button"
+                       data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        {% trans 'Services' %}
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
+                        <a class="dropdown-item" href="{% url 'service:wms' %}">{% trans 'WMS' %}</a>
+                        <a class="dropdown-item" href="{% url 'service:wfs' %}">{% trans 'WFS' %}</a>
+                    </div>
+                </li>
+                <li class="nav-item {% if PATH == 'editor' %}active{% endif %}">
+                    <a class="nav-link" href="{% url 'editor:index' %}">
+                        {% trans 'Editor' %}
+                    </a>
+                </li>
+            </ul>
+            <div>
+                <a class="btn btn-outline-info" href="{% url 'account' %}" title="{% trans 'Account' %}" role="button">
+                    {% fa5_icon 'user' 'fas' %} {{ user.username }}
+                </a>
+                <a class="btn btn-outline-info" href="{% url 'logout' %}" title="{% trans 'Logout' %}" role="button">
+                    {% fa5_icon 'sign-out-alt' 'fas' %}
                 </a>
             </div>
-            <div class="navigation-menu {% if PATH == 'structure' %}active-menu{% endif %}">
-                <a class="navigation-title" href="{% url 'structure:index' %}">
-                    {% trans 'Structure' %}
-                </a>
-                <div class="navigation-element-list">
-                    <a href="{% url 'structure:groups' %}">
-                        <div class="navigation-element">
-                            {% trans 'Groups' %}
-                        </div>
-                    </a>
-                    <a href="{% url 'structure:organizations' %}">
-                        <div class="navigation-element">
-                            {% trans 'Organizations' %}
-                        </div>
-                    </a>
-                </div>
-            </div>
-            <div class="navigation-menu {% if PATH == 'service' %}active-menu{% endif %}">
-                <a class="navigation-title" href="{% url 'service:index' %}">
-                    {% trans 'Services' %}
-                </a>
-                <div class="navigation-element-list">
-                    <a href="{% url 'service:wms' %}">
-                        <div class="navigation-element">
-                            {% trans 'WMS' %}
-                        </div>
-                    </a>
-                    <a href="{% url 'service:wfs' %}">
-                        <div class="navigation-element">
-                            {% trans 'WFS' %}
-                        </div>
-                    </a>
-                </div>
-            </div>
-            <div class="navigation-menu {% if PATH == 'editor' %}active-menu{% endif %}">
-                <a class="navigation-title" href="{% url 'editor:index' %}">
-                    {% trans 'Editor' %}
-                </a>
-            </div>
-        </div>
-        <div class="navigation-bar-right">
-            <a id="account-button" class="navigation-button" href="{% url 'account' %}" title="{% trans 'Account' %}">
-                <span class="account-icn fas fa-user-circle"></span>
-                <span class="account-name">{{ user.username }}</span>
-            </a>
-            <a id="logout-button" class="navigation-button" href="{% url 'logout' %}" title="{% trans 'Logout' %}">
-                <img id="logout-img" src="{% static '/structure/images/logout.png' %}">
-            </a>
         </div>
     </nav>
+    {% include 'messages.html' %}
 </header>
 
 <body>
@@ -92,13 +88,20 @@
     </audio>
     <div id="overlay">
     </div>
-{% block body %}
+    {% block body %}
 
-{% endblock %}
+    {% endblock %}
 
 </div>
+
 </body>
 
 {% include 'footer.html' %}
 
 </html>
+
+<script>
+    $(function () {
+      $('[data-toggle="tooltip"]').tooltip()
+    })
+</script>

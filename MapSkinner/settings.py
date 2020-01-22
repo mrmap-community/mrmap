@@ -119,6 +119,8 @@ INSTALLED_APPS = [
     'captcha',
     'rest_framework',
     'api',
+    'bootstrap4',
+    'fontawesome_5',
 ]
 
 MIDDLEWARE = [

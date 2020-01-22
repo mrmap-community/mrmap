@@ -1,5 +1,5 @@
-
 {% load i18n static %}
+{% load fontawesome_5 %}
 {% block head %}
     <script type="text/javascript" src="{% static '/structure/js/structure.js' %}"></script>
 {% endblock %}
@@ -52,6 +52,7 @@
 
     {% if all_organizations|length > 0 %}
         <div class="collapsible-title">
+            {% fa5_icon 'plus' 'fas' %}
             <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
             {% trans 'All organizations' %}
         </div>

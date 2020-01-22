@@ -296,6 +296,9 @@ class Metadata(Resource):
         doc = None
         if self.has_external_authentication():
             ext_auth = self.external_authentication
+            crypto_handler = CryptoHandler()
+            key = crypto_handler.get_key_from_file(self.id)
+            ext_auth.decrypt(key)
         else:
             ext_auth = None
 

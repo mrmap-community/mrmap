@@ -336,13 +336,19 @@ def get_capabilities(request: HttpRequest, id: int):
         redirect_uri = "{}?{}".format(redirect_obj.url, query)
         return redirect(redirect_uri)
 
+    # we can deliver the document from the database
     if stored_version == version_param or use_fallback is True:
         cap_doc = Document.objects.get(related_metadata=md)
         doc = cap_doc.current_capability_document
     else:
+        # we have to fetch the remote document
         try:
             # fetch the requested capabilities document from remote - we do not provide this as our default (registered) one
             xml = md.get_remote_original_capabilities_document(version_param)
+
+            tmp = xml_helper.parse_xml(xml)
+            if tmp is None:
+                raise ValueError("No xml document was retrieved. Content was :'{}'".format(xml))
 
             # we fake the persisted service version, so the document setters will change the correct elements in the xml
             md.service.servicetype.version = version_param

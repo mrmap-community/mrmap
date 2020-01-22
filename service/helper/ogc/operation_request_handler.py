@@ -19,7 +19,8 @@ from lxml.etree import QName
 
 from MapSkinner import utils
 from MapSkinner.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
-    SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY, SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY
+    SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY, SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY, \
+    OPERATION_HANDLER_MULTIPLE_QUERIES_NOT_ALLOWED
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper import xml_helper
@@ -482,7 +483,13 @@ class OGCOperationRequestHandler:
         self.filter_param = xml_helper.xml_to_string(xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Filter"), xml_elem=xml))
 
     def _parse_POST_get_feature_xml_body(self, xml):
+        """ Tries to parse the most important data from the POST xml body
 
+        Args:
+            xml: The xml document
+        Returns:
+
+        """
         root = xml.getroot()
         self.version_param = xml_helper.try_get_attribute_from_xml_element(root, "version")
         self.service_type_param = xml_helper.try_get_attribute_from_xml_element(root, "service")
@@ -490,15 +497,19 @@ class OGCOperationRequestHandler:
         self.count_param = xml_helper.try_get_attribute_from_xml_element(root, "count")
 
         # multiple <Query> objects are possible according to the specification
+        # Due to our security restrictions we cannot allow a GetFeature POST xml request, since multiple different <Filter>
+        # elements could be provided
         queries = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Query"), root)
-        type_name_param_list = []
-        for query in queries:
-            type_name = xml_helper.try_get_attribute_from_xml_element(query, "typeName")
-            if type_name is not None:
-                type_name_param_list.append(type_name)
-        self.type_name_param = ",".join(type_name_param_list)
+        if len(queries) > 1:
+            raise Exception(OPERATION_HANDLER_MULTIPLE_QUERIES_NOT_ALLOWED)
 
-    def _get_geom_filter_param(self, as_snippet: bool = False):
+        for query in queries:
+            self.type_name_param = xml_helper.try_get_attribute_from_xml_element(query, "typeName")
+            filter_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Filter"), query)
+            self.filter_param = xml_helper.xml_to_string(filter_elem)
+
+
+    def _create_filter_param(self, as_snippet: bool = False):
         """ Creates a xml string for the filter parameter of a WFS operation
 
         Returns:
@@ -588,7 +599,18 @@ class OGCOperationRequestHandler:
 
         # change filter param, so the allowed_geom is the bounding geometry
         # create complete new filter object
-        _filter = self._get_geom_filter_param(as_snippet=False)
+        _filter = self._create_filter_param(as_snippet=False)
+
+        # check if there is already a filter, that came with the initial request. If so, we need to combine them
+        if self.filter_param is not None:
+            filter_param_xml = xml_helper.parse_xml(self.filter_param).getroot()
+            new_filter_elem = xml_helper.parse_xml(_filter).getroot()
+            new_filter_elem = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Within"), xml_elem=new_filter_elem)
+            add_elem = etree.Element("And")
+            xml_helper.add_subelement(add_elem, new_filter_elem)
+            xml_helper.add_subelement(filter_param_xml, add_elem)
+            _filter = xml_helper.xml_to_string(filter_param_xml)
+
         query["filter"] = _filter
         self.filter_param = _filter
         self.new_params_dict["FILTER"] = _filter
@@ -608,8 +630,8 @@ class OGCOperationRequestHandler:
         filter_xml = xml_helper.parse_xml(self.filter_param)
 
         # a simple bbox could be inside gml:Envelope/gml:lowerCorner and gml:Envelope/gml:upperCorner
-        lower_corner = xml_helper.try_get_text_from_xml_element(filter_xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("lowerCorner"))
-        upper_corner = xml_helper.try_get_text_from_xml_element(filter_xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("upperCorner"))
+        lower_corner = xml_helper.try_get_text_from_xml_element(filter_xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("lowerCorner")).strip()
+        upper_corner = xml_helper.try_get_text_from_xml_element(filter_xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("upperCorner")).strip()
 
         gml_polygons = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Polygon"), filter_xml)
 

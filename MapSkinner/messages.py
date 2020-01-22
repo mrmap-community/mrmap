@@ -97,6 +97,8 @@ SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE = _("No 'request' parameter provided."
 SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY = _("Login credentials for external authentication could not be decrypted. The key is missing. Please inform an administrator.")
 SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY = _("Login credentials for external authentication could not be decrypted. The key is wrong. Please inform an administrator.")
 
+OPERATION_HANDLER_MULTIPLE_QUERIES_NOT_ALLOWED = _("Multiple feature queries in a single request detected. Please use one query per request.")
+
 MULTIPLE_SERVICE_METADATA_FOUND = _("There are several service metadata documents for this service. Please contact an administrator.")
 
 EDITOR_INVALID_ISO_LINK = _("'{}' was invalid.")

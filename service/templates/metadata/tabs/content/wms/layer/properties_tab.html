@@ -51,14 +51,13 @@
             <!-- TODO: insert here a dynamic generated preview of the spatial extent -->
         </td>
     </tr>
+    {% if related_metadata %}
     <tr>
         <th scope="row">{% trans 'Coupled Metadata' %}</th>
         <td>
-            {% if related_metadata %}
                 {% render_table related_metadata %}
-
-            {% endif %}
         </td>
     </tr>
+    {% endif %}
     </tbody>
 </table>

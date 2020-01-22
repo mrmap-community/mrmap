@@ -370,7 +370,10 @@ def get_metadata_html(request: HttpRequest, id: int):
               'access_constraints': md.access_constraints,
               'capabilities_original_uri': md.capabilities_original_uri,
               'capabilities_uri': md.capabilities_uri,
-              'related_metadata': collect_metadata_related_objects(md, request)}
+              'contact': collect_contact_data(md.contact)
+              }
+
+    params.update(collect_metadata_related_objects(md, request))
 
     # build the single view cases: wms root, wms layer, wfs root, wfs featuretype, wcs, metadata
     if md.metadata_type.type == MetadataEnum.DATASET.value:

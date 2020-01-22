@@ -1,12 +1,14 @@
 {% load i18n %}
 {% load fontawesome_5 %}
+{% load django_tables2 %}
+{% load render_table from django_tables2 %}
 <table class="table d-flex">
     <tbody>
     <tr>
         <th scope="row">{% trans 'Coordinate Reference System' %}</th>
         <td>
             <!-- TODO: is reference_system.all right? check it -->
-            {% for rs in md.service.layer.metadata.reference_system.all %}
+            {% for rs in featuretype.metadata.reference_system.all %}
             <span class="listable">{{ rs.prefix }}{{ rs.code }}</span>
             {% empty %}
             {% trans 'No additional reference systems provided' %}
@@ -41,11 +43,13 @@
             {{ featuretype.bbox_lat_lon.geom_type }}
         </td>
     </tr>
+    {% if related_metadata %}
     <tr>
         <th scope="row">{% trans 'Coupled Metadata' %}</th>
         <td>
-            <!-- TODO: insert the right information -->
+            {% render_table related_metadata %}
         </td>
     </tr>
+    {% endif %}
     </tbody>
 </table>

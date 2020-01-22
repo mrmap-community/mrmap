@@ -14,7 +14,7 @@
             <p>
                 <a class="btn btn-info" data-toggle="collapse" href="#collapseCapsLink" role="button"
                    aria-expanded="false" aria-controls="collapseCapsLink">
-                    {% fa5_icon 'link' 'fas' %} {% trans 'Show link' %}
+                    {% fa5_icon 'external-link-alt' 'fas' %} {% trans 'Show link' %}
                 </a>
             </p>
             <div class="collapse" id="collapseCapsLink">
@@ -25,11 +25,11 @@
         </td>
     </tr>
     <tr>
-        <th scope="row">Original Capabilities</th>
+        <th scope="row">{% trans 'Original Capabilities' %}</th>
         <td>
             <p>
                 <a itemprop="url" class="btn btn-info" href="{{ capabilities_original_uri }}">
-                    {% fa5_icon 'external-link-alt' 'fas' %} {% trans 'Show document' %}
+                    {% fa5_icon 'file-alt' 'fas' %} {% trans 'Show document' %}
                 </a>
             </p>
 

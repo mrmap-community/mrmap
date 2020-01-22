@@ -10,7 +10,7 @@ from django.http import HttpRequest
 from django_tables2 import RequestConfig
 
 from service.helper.enums import MetadataEnum
-from service.models import Metadata, Organization, Layer, FeatureType, MetadataRelation
+from service.models import Metadata, Organization, Layer, FeatureType, MetadataRelation, Service
 from service.filters import ChildLayerFilter, FeatureTypeFilter
 from service.tables import ChildLayerTable, FeatureTypeTable, CoupledMetadataTable
 
@@ -26,6 +26,11 @@ def collect_contact_data(organization: Organization):
                'address_locality': organization.city, 'person_name': organization.person_name,
                'telephone': organization.phone}
 
+    # prevents None values
+    for key in contact:
+        if contact[key] is None:
+            contact[key] = ''
+
     return contact
 
 
@@ -34,8 +39,6 @@ def collect_featuretype_data(md: Metadata):
 
     if md.featuretype.parent_service.published_for is not None:
         params['contact'] = collect_contact_data(md.featuretype.parent_service.published_for)
-    else:
-        params['contact'] = collect_contact_data(md.contact)
 
     if md.featuretype.parent_service:
         params['parent_service'] = md.featuretype.parent_service
@@ -43,6 +46,8 @@ def collect_featuretype_data(md: Metadata):
 
     params['name_of_the_resource'] = md.identifier
     params['featuretype'] = md.featuretype
+    params['abstract'] = md.featuretype.parent_service.metadata.abstract
+    params['access_constraints'] = md.featuretype.parent_service.metadata.access_constraints
 
     # TODO: build schema link:
     # schema: describe_layer_uri_GET
@@ -57,8 +62,6 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
     # if there is a published_for organization it will be presented
     if md.service.published_for is not None:
         params['contact'] = collect_contact_data(md.service.published_for)
-    else:
-        params['contact'] = collect_contact_data(md.contact)
 
     params['layer'] = md.service.layer
     params['name_of_the_resource'] = md.service.layer.identifier
@@ -115,8 +118,6 @@ def collect_wms_root_data(md: Metadata):
     # if there is a published_for organization it will be presented
     if md.service.published_for is not None:
         params['contact'] = collect_contact_data(md.service.published_for)
-    else:
-        params['contact'] = collect_contact_data(md.contact)
 
     # first layer item
     layer = Layer.objects.get(
@@ -151,8 +152,6 @@ def collect_wfs_root_data(md: Metadata, request: HttpRequest):
     # if there is a published_for organization it will be presented
     if md.service.published_for is not None:
         params['contact'] = collect_contact_data(md.service.published_for)
-    else:
-        params['contact'] = collect_contact_data(md.contact)
 
     params['fees'] = md.service.metadata.fees
 

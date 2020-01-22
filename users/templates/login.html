@@ -1,52 +1,96 @@
 <!DOCTYPE html>
 {% load i18n static %}
+{% load fontawesome_5 %}
+{% load bootstrap4 %}
 <html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
     <title>MapSkinner - Login</title>
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base.css' %}" media="all" />
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/frame.css' %}" media="all" />
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/form.css' %}" media="all" />
-        <script>
-            var rootUrl = '{{ ROOT_URL }}'
-        </script>
+
+    {% fontawesome_5_static %}
+    <link rel="shortcut icon" href="{% static 'structure/images/favicon.ico' %}" type="image/x-icon">
+    <link rel="icon" href="{% static 'structure/images/favicon.ico' %}" type="image/x-icon">
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/bootstrap.min.css' %}" media="all"/>
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base_.css' %}" media="all"/>
+    <script>var rootUrl = '{{ ROOT_URL }}'</script>
     <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
-    <script type="text/javascript" src="{% static '/structure/js/base.js' %}"></script>
+    <script type="text/javascript" src="{% static '/structure/js/popper.min.js' %}"></script>
+    <script type="text/javascript" src="{% static '/structure/js/bootstrap.min.js' %}"></script>
+    <script type="text/javascript" src="{% static '/structure/js/base_.js' %}"></script>
+
 </head>
 <body class="background">
 
 {% include 'messages.html' %}
-<div class="frame-wrapper">
-    <div class="frame-article">
-        <h1>{{ login_article_title }}</h1>
-        <article class="login-article">{{ login_article }}</article>
-    </div>
-    <div class="frame">
-        <img class="frame-logo" src="{% static '/structure/images/mr_map.png' %}">
-        <div class="login-form">
-            <form action="{% url 'login' %}" method="post">
-                {% csrf_token %}
-                <table class="form-table">
-                    {% for field in login_form %}
-                    <tr>
-                        <td class="field-label">{{ field.label_tag }}</td>
-                    </tr>
-                    <tr class="login-form-tr">
-                        <td class="field">{{ field }}</td>
-                    </tr>
-                    {% endfor %}
-                </table>
-                <a href="{% url 'password-reset' %}">{% trans 'Forgot password' %}</a>
-                <div class="form-submit-area">
-                    <input class="button" type="submit" value="{% trans 'Sign in' %}">
-                    <a href="{% url 'register' %}"><input class="button" type="button" value="{% trans 'Register' %}"></a>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md mt-5">
+            <h1>{{ login_article_title }}</h1>
+            <article class="login-article">{{ login_article }}</article>
+        </div>
+        <div class="col-md mt-5 mb-5">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title text-center">Sign in</h4>
+                    <hr>
+                    <div class="media">
+                        <img class="align-self-start w-25 mr-3" src="{% static '/structure/images/mr_map.png' %}">
+                        <div class="media-body w-75">
+                            {% if form.non_field_errors %}
+                            <ul class='form-errors list-group'>
+                                {% for error in form.non_field_errors %}
+                                <li class="list-group-item list-group-item-danger">{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                            <hr>
+                            {% endif %}
+
+                            <form method="post" action="{% url 'login' %}">
+                                {% csrf_token %}
+
+
+                                {% for field in login_form %}
+                                <label class="sr-only" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                <div class="form-group input-group">
+
+                                    {% if 'Username' in field.label %}
+                                    <div class="input-group-prepend">
+                                        <div class="input-group-text">{% fa5_icon 'user' 'fas' %}</div>
+                                    </div>
+                                    {% elif 'Password' in field.label %}
+                                    <div class="input-group-prepend">
+                                        <div class="input-group-text">{% fa5_icon 'lock' 'fas' %}</div>
+                                    </div>
+                                    {% endif %}
+
+                                    <input type="{{ field.field.widget.input_type }}" name="{{ field.name }}"
+                                           class="form-control" id="{{ field.id_for_label }}"
+                                           placeholder="{{ field.label }}" required="{{ field.field.is_required }}">
+                                </div>
+
+                                {% endfor %}
+
+                                <button type="submit" class="btn btn-primary">
+                                    {% fa5_icon 'sign-in-alt' 'fas' %} {% trans 'Sign in' %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <span>{% trans 'Don\'t have an account?' %} </span>
+                        <a href="{% url 'register' %}">{% fa5_icon 'user-plus' 'fas' %} {% trans 'Sign up' %}</a><br>
+                        <a href="{% url 'password-reset' %}">{% fa5_icon 'undo' 'fas' %} {% trans 'Forgot your password?' %}</a>
+                    </div>
+
+
                 </div>
-            </form>
+
+            </div> <!-- card.// -->
         </div>
     </div>
-
 </div>
-
 {% include 'footer.html' %}
 </body>
 </html>

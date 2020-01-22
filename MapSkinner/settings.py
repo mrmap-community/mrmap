@@ -247,3 +247,13 @@ PROGRESS_STATUS_AFTER_PARSING = 90  # indicates at how much % status we are afte
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR + "/static/"
+
+# define the message tags for bootstrap4
+from django.contrib.messages import constants as messages
+MESSAGE_TAGS = {
+    messages.DEBUG: 'alert-info',
+    messages.INFO: 'alert-info',
+    messages.SUCCESS: 'alert-success',
+    messages.WARNING: 'alert-warning',
+    messages.ERROR: 'alert-danger',
+}

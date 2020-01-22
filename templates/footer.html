@@ -1,13 +1,13 @@
 {% load i18n static %}
-<footer>
-    <hr>
-    <div class="d-flex justify-content-between mb-3">
-        <div class="p-2"></div>
-        <div class="p-2">
+<footer class="footer bg-dark">
+    <div class="container ">
+    <div class="row mt-2">
+        <div class="col"></div>
+        <div class="col">
                 <div class="dropdown">
                     <div class="btn-group dropup">
                         <button type="button"
-                                class="btn btn-outline-secondary dropdown-toggle"
+                                class="btn btn-outline-info dropdown-toggle"
                                 data-toggle="dropdown"
                                 aria-haspopup="true"
                                 aria-expanded="false"
@@ -36,9 +36,10 @@
                     </div>
                 </div>
         </div>
-        <div class="p-2">
+        <div class="col">
             <div id="ee-trggr" class="text-secondary">Mr. Map</div>
-            <a href="{{ GIT_REPO_URI }}" target="_blank">v{{ VERSION }}</a>
+            <a href="{{ GIT_REPO_URI }}" target="_blank" class="text-info">v{{ VERSION }}</a>
         </div>
+    </div>
     </div>
 </footer>

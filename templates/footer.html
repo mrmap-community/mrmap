@@ -1,5 +1,5 @@
 {% load i18n static %}
-<footer class="footer bg-dark">
+<footer class="footer {{THEME.BG_COLOR}} {{THEME.TXT_SEC_COLOR}}">
     <div class="container-fluid">
     <div class="row align-items-center mt-1">
         <div class="col text-left"></div>
@@ -7,7 +7,7 @@
                 <div class="dropdown">
                     <div class="btn-group dropup">
                         <button type="button"
-                                class="btn btn-outline-info dropdown-toggle"
+                                class="btn {{THEME.BTN_COLOR}} dropdown-toggle"
                                 data-toggle="dropdown"
                                 aria-haspopup="true"
                                 aria-expanded="false"
@@ -37,8 +37,8 @@
                 </div>
         </div>
         <div class="col text-right">
-            <div id="ee-trggr" class="text-secondary">Mr. Map</div>
-            <a href="{{ GIT_REPO_URI }}" target="_blank" class="text-info">v{{ VERSION }}</a>
+            <div id="ee-trggr">Mr. Map</div>
+            <a href="{{ GIT_REPO_URI }}" target="_blank" class="{{THEME.LINK_COLOR}}">v{{ VERSION }}</a>
         </div>
     </div>
     </div>

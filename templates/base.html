@@ -23,12 +23,13 @@
     {% endblock %}
 </head>
 <header>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <!--navbar-->
+    <nav class="navbar navbar-expand-lg {{THEME.NAV.ITEM_COLOR}} {{THEME.BG_COLOR}}">
         <a class="navbar-brand" href="#">
             <img class="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" width="30" height="30" alt=""
                  title="Map your s*** together!">
         </a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+        <button class="navbar-toggler " type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
                 aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -43,7 +44,7 @@
                 <li class="nav-item dropdown {% if PATH == 'structure' %}active{% endif %}">
                     <a class="nav-link dropdown-toggle" href="{% url 'structure:index' %}" id="navbarStructureDropdown"
                        role="button"
-                       data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        aria-haspopup="true" aria-expanded="false">
                         {% trans 'Structure' %}
                     </a>
                     <div class="dropdown-menu" aria-labelledby="navbarStructureDropdown">
@@ -56,7 +57,7 @@
                 <li class="nav-item dropdown {% if PATH == 'service' %}active{% endif %}">
                     <a class="nav-link dropdown-toggle" href="{% url 'service:index' %}" id="navbarServicesDropdown"
                        role="button"
-                       data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                       aria-haspopup="true" aria-expanded="false">
                         {% trans 'Services' %}
                     </a>
                     <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
@@ -71,19 +72,20 @@
                 </li>
             </ul>
             <div>
-                <a class="btn btn-outline-info" href="{% url 'account' %}" title="{% trans 'Account' %}" role="button">
+                <a class="btn {{THEME.BTN_COLOR}}" href="{% url 'account' %}" title="{% trans 'Account' %}" role="button">
                     {% fa5_icon 'user' 'fas' %} {{ user.username }}
                 </a>
-                <a class="btn btn-outline-info" href="{% url 'logout' %}" title="{% trans 'Logout' %}" role="button">
+                <a class="btn {{THEME.BTN_COLOR}}" href="{% url 'logout' %}" title="{% trans 'Logout' %}" role="button">
                     {% fa5_icon 'sign-out-alt' 'fas' %}
                 </a>
             </div>
         </div>
     </nav>
+    <!--/navbar-->
     {% include 'messages.html' %}
 </header>
 
-<body>
+<body style="{{THEME.BACKGROUND}}">
 <div id="body-content">
     <audio id="ee-audio">
         <source src="{% static 'structure/audio/ee_audio.mp3' %}" type="audio/mpeg">
@@ -94,8 +96,8 @@
 
     {% endblock %}
 
-</div>
 
+</div>
 </body>
 
 {% include 'footer.html' %}

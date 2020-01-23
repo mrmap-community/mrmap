@@ -37,7 +37,7 @@
             <ul class="navbar-nav mr-auto">
                 <li class="nav-item {% if PATH == 'home' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'home' %}" title="{% trans 'Dashboard' %}">
-                        {% trans 'Home' %}
+                        {% fa5_icon 'tachometer-alt' 'fas' %} {% trans 'Dashboard' %}
                     </a>
                 </li>
                 <li class="nav-item dropdown {% if PATH == 'structure' %}active{% endif %}">
@@ -66,7 +66,7 @@
                 </li>
                 <li class="nav-item {% if PATH == 'editor' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'editor:index' %}">
-                        {% trans 'Editor' %}
+                        {% fa5_icon 'edit' 'fas' %} {% trans 'Editor' %}
                     </a>
                 </li>
             </ul>

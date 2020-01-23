@@ -114,12 +114,14 @@ def home_view(request: HttpRequest, user: User):
             created_by__in=user.groups.all(),
             service__is_deleted=False,
         ).count()
+
     activities_since = timezone.now() - datetime.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
     group_activities = GroupActivity.objects.filter(group__in=user.groups.all(), created_on__gte=activities_since).order_by("-created_on")
     pending_requests = PendingRequest.objects.filter(organization=user.organization)
     params = {
         "wms_count": user_services_wms,
         "wfs_count": user_services_wfs,
+        "all_count": user_services_wms + user_services_wfs,
         "requests": pending_requests,
         "group_activities": group_activities,
     }

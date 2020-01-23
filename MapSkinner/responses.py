@@ -7,7 +7,7 @@ Created on: 15.04.19
 """
 from django.http import JsonResponse, HttpRequest
 
-from MapSkinner.settings import ROOT_URL, VERSION, GIT_REPO_URI
+from MapSkinner.settings import ROOT_URL, VERSION, GIT_REPO_URI, THEME, DARK_THEME, LIGHT_THEME
 from structure.models import User
 from users.helper import user_helper
 
@@ -30,6 +30,7 @@ class DefaultContext:
             "user": user,
             "VERSION": VERSION,
             "GIT_REPO_URI": GIT_REPO_URI,
+            "THEME": self.get_theme(),
         }
         self.add_context(context)
 
@@ -50,6 +51,13 @@ class DefaultContext:
         """
         for key, val in context.items():
             self.context[key] = val
+
+    @staticmethod
+    def get_theme():
+        if THEME == 'DARK':
+            return DARK_THEME
+        else:
+            return LIGHT_THEME
 
 
 class BackendAjaxResponse:

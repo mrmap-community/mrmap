@@ -257,3 +257,37 @@ MESSAGE_TAGS = {
     messages.WARNING: 'alert-warning',
     messages.ERROR: 'alert-danger',
 }
+
+
+THEME = 'LIGHT'
+
+# dark theme settings
+DARK_THEME = {
+    'BACKGROUND': 'background-image: url("/static/structure/images/background_dark.png"); background-repeat: repeat;',
+    'BG_COLOR': 'bg-dark',
+    'BTN_COLOR': 'btn-outline-info',
+    'LINK_COLOR': 'text-info',
+    'TXT_DEF_COLOR': 'text-white',
+    'TXT_SEC_COLOR': 'text-secondary',
+    'BADGE_COLOR': 'badge-info',
+    'LIST_GRP_ITEM_COLOR': 'list-group-item-dark',
+
+    'NAV': {
+        'ITEM_COLOR': 'navbar-dark',
+    },
+}
+
+LIGHT_THEME = {
+    'BACKGROUND': 'background-image: url("/static/structure/images/background.png"); background-repeat: repeat;',
+    'BG_COLOR': 'bg-light',
+    'BTN_COLOR': 'btn-outline-primary',
+    'LINK_COLOR': 'text-primary',
+    'TXT_COLOR': 'text-dark',
+    'TXT_SEC_COLOR': 'text-secondary',
+    'BADGE_COLOR': 'badge-info',
+    'LIST_GRP_ITEM_COLOR': '',
+
+    'NAV': {
+        'ITEM_COLOR': 'navbar-light',
+    },
+}

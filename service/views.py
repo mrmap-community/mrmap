@@ -18,7 +18,7 @@ from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
-    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR
+    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
@@ -366,7 +366,7 @@ def get_capabilities(request: HttpRequest, id: int):
             doc = doc.current_capability_document
         except (ReadTimeout, TimeoutError, ConnectionError) as e:
             # the remote server does not respond - we must deliver our stored capabilities document, which is not the requested version
-            return HttpResponse(content="The requested capabilities are currently unavailable. Add 'fallback=true' to your query if you want a cached document.")
+            return HttpResponse(content=SERVICE_CAPABILITIES_UNAVAILABLE)
 
     return HttpResponse(doc, content_type='application/xml')
 

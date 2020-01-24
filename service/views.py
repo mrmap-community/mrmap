@@ -308,39 +308,26 @@ def get_capabilities(request: HttpRequest, id: int):
         elif k.upper() == "FALLBACK":
             use_fallback = utils.resolve_boolean_attribute_val(v)
 
-    # if no version was provided on this request, we redirect using the registered version
-    must_redirect = False
-    redirect_uri = None
+    # No version parameter has been provided by the request - we simply use the one we have.
     if version_param is None or len(version_param) == 0:
-        must_redirect = True
-        redirect_uri = request.build_absolute_uri()
-        redirect_uri = utils.set_uri_GET_param(redirect_uri, "version", stored_version)
-
-    if request_param is None or len(request_param) == 0:
-        must_redirect = True
-        redirect_uri = request.build_absolute_uri()
-        redirect_uri = utils.set_uri_GET_param(redirect_uri, "request", OGCOperationEnum.GET_CAPABILITIES.value)
-
-    if must_redirect:
-        return redirect(redirect_uri)
+        version_param = stored_version
 
     if version_param not in [data.value for data in OGCServiceVersionEnum]:
         # version number not valid
         return HttpResponse(content=PARAMETER_ERROR.format(version_tag), status=404)
-    elif request_param not in [data.value for data in OGCOperationEnum]:
+
+    elif request_param != OGCOperationEnum.GET_CAPABILITIES.value:
         # request not valid
         return HttpResponse(content=PARAMETER_ERROR.format(request_tag), status=404)
-    elif request_param != OGCOperationEnum.GET_CAPABILITIES.value and request_param in [data.value for data in OGCOperationEnum]:
-        # request valid but wrong uri called
-        query = request.META.get("QUERY_STRING", "")
-        redirect_obj = redirect("service:metadata-proxy-operation", id)
-        redirect_uri = "{}?{}".format(redirect_obj.url, query)
-        return redirect(redirect_uri)
 
-    # we can deliver the document from the database
+    else:
+        pass
+
     if stored_version == version_param or use_fallback is True:
+        # we can deliver the document from the database
         cap_doc = Document.objects.get(related_metadata=md)
         doc = cap_doc.current_capability_document
+
     else:
         # we have to fetch the remote document
         try:

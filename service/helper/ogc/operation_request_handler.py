@@ -33,7 +33,7 @@ from service.models import Metadata, FeatureType, Layer
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
-    RENDER_TEXT_ON_IMG, MAX_FONT_SIZE, ALLOWED_SRS_EXTENTS
+    RENDER_TEXT_ON_IMG, MAX_FONT_SIZE
 from users.helper import user_helper
 
 
@@ -109,6 +109,32 @@ class OGCOperationRequestHandler:
         for key, val in self.original_params_dict.items():
             self.new_params_dict[key.upper()] = val
 
+        self._parse_GET_params()
+        self._check_for_srs_in_bbox_param()
+        self._resolve_original_operation_uri(request, metadata)
+        self._process_bbox_param()
+        self._process_x_y_param()
+        self._process_transaction_geometries()
+        self._preprocess_get_feature_params(metadata)
+        self._fill_new_params_dict()
+
+        # We expect the srs_code to be set until now. There are cases where this might fail - so we make a last check in here.
+        # Check if the srs_param is set, but the srs_code isn't yet. If so -> find the code inside the param.
+        # srs_param could be a link, but also something like "EPSG:4326"...
+        if self.srs_param is not None and self.srs_code is None:
+            self.srs_code = int(self.srs_param.split(":")[-1])
+
+        # Only work on the requested param objects, if the metadata is secured.
+        # Otherwise we can pass this, since it's too expensive for a basic, non secured request
+        if metadata.is_secured:
+            self._filter_not_allowed_subelements(metadata)
+
+    def _parse_GET_params(self):
+        """ Parses the GET parameters into all member variables, which can be found in new_params_dict.
+
+        Returns:
+
+        """
         # extract parameter attributes from params dict
         for key, val in self.new_params_dict.items():
             if key == "SERVICE":
@@ -141,23 +167,6 @@ class OGCOperationRequestHandler:
                 self.filter_param = val
             elif key == "TYPENAME" or key == "TYPENAMES":
                 self.type_name_param = val
-
-        self._check_for_srs_in_bbox_param()
-        self._resolve_original_operation_uri(request, metadata)
-        self._process_bbox_param()
-        self._process_x_y_param()
-        self._process_transaction_geometries()
-        self._preprocess_get_feature_params(metadata)
-        self._fill_new_params_dict()
-
-        # we expect the srs_code to be set until now. There are cases where this might fail - so we make a last check in here
-        if self.srs_param is not None and self.srs_code is None:
-            self.srs_code = int(self.srs_param.split(":")[-1])
-
-        # Only work on the requested param objects, if the metadata is secured.
-        # Otherwise we can pass this, since it's too expensive for a basic, non secured request
-        if metadata.is_secured:
-            self._filter_not_allowed_subelements(metadata)
 
     def _bbox_to_filter(self):
         """ Transforms the BBOX parameter into a valid Filter. Removes the BBOX parameter from the query, since

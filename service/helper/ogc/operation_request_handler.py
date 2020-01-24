@@ -7,6 +7,7 @@ Created on: 05.12.19
 """
 import urllib
 import io
+from collections import OrderedDict
 
 from PIL import Image, ImageFont, ImageDraw
 from cryptography.fernet import InvalidToken
@@ -69,8 +70,8 @@ class OGCOperationRequestHandler:
 
         # check what type of request we are facing
         self.request_is_GET = request.method == "GET"
-        self.original_params_dict = {}  # contains the original, unedited parameters
-        self.new_params_dict = {}  # contains the parameters, which could be still original or might have changed during method processing
+        self.original_params_dict = OrderedDict()  # contains the original, unedited parameters
+        self.new_params_dict = OrderedDict()  # contains the parameters, which could be still original or might have changed during method processing
 
         self.service_type_param = None  # refers to param 'SERVICE'
         self.request_param = None  # refers to param 'REQUEST'
@@ -80,7 +81,7 @@ class OGCOperationRequestHandler:
         self.srs_param = None  # refers to param 'SRS'|'SRSNAME' (WMS 1.0.0 - 1.1.1) and 'CRS' (WMS 1.3.0)
         self.srs_code = None  # only the srsid as int
         self.format_param = None  # refers to param 'FORMAT'
-        self.count_param = None  # refers to param 'COUNT'
+        self.count_param = None  # refers to param 'COUNT' (WFS 2.x) and 'MAXFEATURES' (WFS 1.x)
         self.version_param = None  # refers to param 'VERSION'
         self.filter_param = None  # refers to param 'FILTER' (WFS)
         self.width_param = None  # refers to param 'WIDTH' (WMS)
@@ -134,25 +135,77 @@ class OGCOperationRequestHandler:
                 self.width_param = val
             elif key == "HEIGHT":
                 self.height_param = val
-            elif key == "COUNT":
+            elif key == "COUNT" or key == "MAXFEATURES":
                 self.count_param = val
             elif key == "FILTER":
                 self.filter_param = val
             elif key == "TYPENAME" or key == "TYPENAMES":
                 self.type_name_param = val
 
-        self._preprocess_get_feature_params(metadata)
         self._check_for_srs_in_bbox_param()
         self._resolve_original_operation_uri(request, metadata)
         self._process_bbox_param()
         self._process_x_y_param()
         self._process_transaction_geometries()
+        self._preprocess_get_feature_params(metadata)
         self._fill_new_params_dict()
+
+        # we expect the srs_code to be set until now. There are cases where this might fail - so we make a last check in here
+        if self.srs_param is not None and self.srs_code is None:
+            self.srs_code = int(self.srs_param.split(":")[-1])
 
         # Only work on the requested param objects, if the metadata is secured.
         # Otherwise we can pass this, since it's too expensive for a basic, non secured request
         if metadata.is_secured:
             self._filter_not_allowed_subelements(metadata)
+
+    def _bbox_to_filter(self):
+        """ Transforms the BBOX parameter into a valid Filter. Removes the BBOX parameter from the query, since
+        Filter and BBOX parameter can not coexist in one request.
+
+        THIS FUNCTION IS ONLY USED FOR GetFeature OPERATION!
+
+        Args:
+
+        Returns:
+
+        """
+        if self.bbox_param is None:
+            return
+
+        # remove srs from the last position of the bbox (if it is there - might be, or not)
+        _filter = self._create_filter_xml_from_geometries([self.bbox_param.get("geom")])
+
+        # Remove the bbox param
+        uri_parsed = urllib.parse.urlparse(self.get_uri)
+        query = dict(urllib.parse.parse_qsl(uri_parsed.query))
+
+        # remove bbox parameter (also from uri)
+        self.bbox_param = None
+        try:
+            bbox_param_name = None
+            for key, val in query.items():
+                if key.upper() == "BBOX":
+                    bbox_param_name = key
+                    break
+            if bbox_param_name is not None:
+                del query[bbox_param_name]
+        except KeyError:
+            # it was not there in the first place
+            pass
+        try:
+            del self.new_params_dict["BBOX"]
+        except KeyError:
+            # it was not there in the first place
+            pass
+
+        query["filter"] = _filter
+        self.filter_param = _filter
+        self.new_params_dict["FILTER"] = _filter
+
+        query = urllib.parse.urlencode(query, safe=", :")
+        uri_parsed = uri_parsed._replace(query=query)
+        self.get_uri = urllib.parse.urlunparse(uri_parsed)
 
     def _preprocess_get_feature_params(self, metadata: Metadata):
         """ Preprocessor for GetFeature operation requests
@@ -212,9 +265,6 @@ class OGCOperationRequestHandler:
             except ValueError:
                 # this is the case if the last element isn't a coordinate - we assume it must be the srs/crs
                 self.srs_param = last_elem
-                tmp = self.bbox_param.split(",")
-                del tmp[-1]
-                self.bbox_param = ",".join(tmp)
 
     def _filter_not_allowed_subelements(self, md: Metadata):
         """ Remove identifier names from parameter if the user has no access to them!
@@ -288,36 +338,58 @@ class OGCOperationRequestHandler:
         # fill new_params_dict
         self.new_params_dict["REQUEST"] = self.request_param
         self.new_params_dict["SERVICE"] = self.service_type_param
-        self.new_params_dict["COUNT"] = self.count_param
         self.new_params_dict["VERSION"] = self.version_param
         self.new_params_dict["FORMAT"] = self.format_param
         self.new_params_dict["WIDTH"] = self.width_param
         self.new_params_dict["HEIGHT"] = self.height_param
 
+        # We can not put all parameters directly in the new_params_dict. For the POST xml building - if the regular
+        # post fails - we must prevent some elements from existing, if they are None
         if self.filter_param is not None:
             self.new_params_dict["FILTER"] = self.filter_param
 
         if self.layers_param is not None:
             self.new_params_dict["LAYERS"] = self.layers_param
 
+        if self.count_param is not None:
+            param_tag = "MAXFEATURES"
+            if self.version_param == OGCServiceVersionEnum.V_2_0_0.value or self.version_param == OGCServiceVersionEnum.V_2_0_2.value:
+                param_tag = "COUNT"
+            self.new_params_dict[param_tag] = self.count_param
+
         if self.type_name_param is not None:
             typename_param_key = "TYPENAME"
-            if self.version_param == OGCServiceVersionEnum.V_2_0_0.value or self.version_param == OGCServiceVersionEnum.V_2_0_2.value:
-                typename_param_key = "TYPENAMES"
+
+            # The specification for WFS states, that for version 1.x this parameter is called "TYPENAME".
+            # For version 2.x it was renamed to "TYPENAMES".
+            # However, if you are requesting a DescribeFeatureType instead of GetFeature, it is still called "TYPENAME"
+            # just like in the 1.x specification... great!
+            # So just change this parameter name if we have the case of WFS 2.x AND a non DescribeFeatureType request
+            if self.request_param != OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value:
+                if self.version_param == OGCServiceVersionEnum.V_2_0_0.value or self.version_param == OGCServiceVersionEnum.V_2_0_2.value:
+                    typename_param_key = "TYPENAMES"
             self.new_params_dict[typename_param_key] = self.type_name_param
 
-        if self.version_param != OGCServiceVersionEnum.V_1_3_0.value:
+        x_id = None
+        y_id = None
+        if self.version_param == OGCServiceVersionEnum.V_1_0_0.value or self.version_param == OGCServiceVersionEnum.V_1_1_1.value:
+            # WMS 1.0.0 | 1.1.1
             self.new_params_dict["SRS"] = "{}:{}".format(DEFAULT_SRS_FAMILY, self.srs_code)
             x_id = "X"
             y_id = "Y"
-        else:
+        elif self.version_param == OGCServiceVersionEnum.V_1_1_0.value:
+            # WFS 1.1.0
+            if self.new_params_dict.get("SRSNAME", None) is None:
+                self.new_params_dict["SRSNAME"] = self.srs_param
+        elif self.version_param == OGCServiceVersionEnum.V_1_3_0.value:
+            # WMS 1.3.0
             self.new_params_dict["CRS"] = "{}:{}".format(DEFAULT_SRS_FAMILY, self.srs_code)
             x_id = "I"
             y_id = "J"
 
-        if self.x_y_param is not None:
+        if self.x_y_param is not None and x_id is not None:
             self.new_params_dict[x_id] = self.x_y_param[0]
-        if self.x_y_param is not None:
+        if self.x_y_param is not None and y_id is not None:
             self.new_params_dict[y_id] = self.x_y_param[1]
 
     def _resolve_original_operation_uri(self, request: HttpRequest, metadata: Metadata):
@@ -494,7 +566,7 @@ class OGCOperationRequestHandler:
         self.version_param = xml_helper.try_get_attribute_from_xml_element(root, "version")
         self.service_type_param = xml_helper.try_get_attribute_from_xml_element(root, "service")
         self.format_param = xml_helper.try_get_attribute_from_xml_element(root, "outputFormat")
-        self.count_param = xml_helper.try_get_attribute_from_xml_element(root, "count")
+        self.count_param = xml_helper.try_get_attribute_from_xml_element(root, "count") or xml_helper.try_get_attribute_from_xml_element(root, "maxFeatures")
 
         # multiple <Query> objects are possible according to the specification
         # Due to our security restrictions we cannot allow a GetFeature POST xml request, since multiple different <Filter>
@@ -508,14 +580,16 @@ class OGCOperationRequestHandler:
             filter_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Filter"), query)
             self.filter_param = xml_helper.xml_to_string(filter_elem)
 
-
-    def _create_filter_param(self, as_snippet: bool = False):
+    def _create_filter_xml_from_geometries(self, geom_list: list):
         """ Creates a xml string for the filter parameter of a WFS operation
 
         Returns:
              _filter (str): The xml parameter as string
         """
         _filter = ""
+        if len(geom_list) == 0:
+            return _filter
+
         _filter_prefix = ""
         nsmap = {
             "gml": XML_NAMESPACES["gml"],
@@ -537,128 +611,41 @@ class OGCOperationRequestHandler:
             "version": self.version_param,
         }
         root = etree.Element("{}Filter".format(_filter_prefix), nsmap=nsmap, attrib=root_attributes)
-        within_elem = xml_helper.create_subelement(root, "{}Within".format(_filter_prefix))
 
-        prop_tag = "PropertyName"
-        if self.version_param == OGCServiceVersionEnum.V_2_0_0.value or self.version_param == OGCServiceVersionEnum.V_2_0_2.value:
-            prop_tag = "ValueReference"
-        property_elem = xml_helper.create_subelement(within_elem, "{}{}".format(_filter_prefix, prop_tag))
-        property_elem.text = self.geom_property_name
-        polygon_elem = xml_helper.create_subelement(within_elem, "{}Polygon".format(gml),
-                                                    attrib={"srsName": self.srs_param})
-        outer_bound_elem = xml_helper.create_subelement(polygon_elem, "{}exterior".format(gml))
-        linear_ring_elem = xml_helper.create_subelement(outer_bound_elem, "{}LinearRing".format(gml))
-        pos_list_elem = xml_helper.create_subelement(linear_ring_elem, "{}posList".format(gml))
-        tmp = []
+        geom_list_len = len(geom_list)
 
-        for vertex in self.intersected_allowed_geometry.coords[0]:
-            tmp.append(str(vertex[0]))
-            tmp.append(str(vertex[1]))
-        pos_list_elem.text = " ".join(tmp)
+        if geom_list_len > 1:
+            upper_elem = xml_helper.create_subelement(root, "{}Or".format(_filter_prefix))
+        else:
+            upper_elem = root
 
-        if as_snippet:
-            # we do not need the root <Filter> element, so just take the <Within> element and below!
-            root = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Within"), root)
+        for geom in geom_list:
+            within_elem = xml_helper.create_subelement(upper_elem, "{}Within".format(_filter_prefix))
+
+            prop_tag = "PropertyName"
+            outer_bound_tag = "outerBoundaryIs"
+
+            if self.version_param == OGCServiceVersionEnum.V_2_0_0.value or self.version_param == OGCServiceVersionEnum.V_2_0_2.value:
+                prop_tag = "ValueReference"
+                outer_bound_tag = "exterior"
+
+            property_elem = xml_helper.create_subelement(within_elem, "{}{}".format(_filter_prefix, prop_tag))
+            property_elem.text = self.geom_property_name
+            polygon_elem = xml_helper.create_subelement(within_elem, "{}Polygon".format(gml),
+                                                        attrib={"srsName": self.srs_param})
+            outer_bound_elem = xml_helper.create_subelement(polygon_elem, "{}{}".format(gml, outer_bound_tag))
+            linear_ring_elem = xml_helper.create_subelement(outer_bound_elem, "{}LinearRing".format(gml))
+            pos_list_elem = xml_helper.create_subelement(linear_ring_elem, "{}posList".format(gml))
+            tmp = []
+
+            for vertex in geom.coords[0]:
+                tmp.append(str(vertex[0]))
+                tmp.append(str(vertex[1]))
+            pos_list_elem.text = " ".join(tmp)
 
         _filter = xml_helper.xml_to_string(root)
 
         return _filter
-
-    def _set_intersected_allowed_geometry(self, allowed_geom: GEOSGeometry):
-        """ Setter for the intersected_allowed_geometry
-
-        Removes data for the bbox_param and changes the geometry filter
-
-        Args:
-            allowed_geom (GEOSGeometry): The intersected, allowed geometry
-        Returns:
-        """
-        allowed_geom.transform(self.srs_code)
-        self.intersected_allowed_geometry = allowed_geom
-        uri_parsed = urllib.parse.urlparse(self.get_uri)
-        query = dict(urllib.parse.parse_qsl(uri_parsed.query))
-
-        # remove bbox parameter (also from uri)
-        self.bbox_param = None
-        try:
-            bbox_param_name = None
-            for key, val in query.items():
-                if key.upper() == "BBOX":
-                    bbox_param_name = key
-                    break
-            if bbox_param_name is not None:
-                del query[bbox_param_name]
-        except KeyError:
-            # it was not there in the first place
-            pass
-        try:
-            del self.new_params_dict["BBOX"]
-        except KeyError:
-            # it was not there in the first place
-            pass
-
-        # change filter param, so the allowed_geom is the bounding geometry
-        # create complete new filter object
-        _filter = self._create_filter_param(as_snippet=False)
-
-        # check if there is already a filter, that came with the initial request. If so, we need to combine them
-        if self.filter_param is not None:
-            filter_param_xml = xml_helper.parse_xml(self.filter_param).getroot()
-            new_filter_elem = xml_helper.parse_xml(_filter).getroot()
-            new_filter_elem = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Within"), xml_elem=new_filter_elem)
-            add_elem = etree.Element("And")
-            xml_helper.add_subelement(add_elem, new_filter_elem)
-            xml_helper.add_subelement(filter_param_xml, add_elem)
-            _filter = xml_helper.xml_to_string(filter_param_xml)
-
-        query["filter"] = _filter
-        self.filter_param = _filter
-        self.new_params_dict["FILTER"] = _filter
-
-        query = urllib.parse.urlencode(query, safe=", :")
-        uri_parsed = uri_parsed._replace(query=query)
-        self.get_uri = urllib.parse.urlunparse(uri_parsed)
-
-    def get_bounding_geometry_from_filter_param(self):
-        """ Returns the gml:lowerCorner/gml:upperCorner data as Geometry bounding box
-
-        Returns:
-        """
-        bounding_geom = None
-        if self.filter_param is None:
-            return bounding_geom
-        filter_xml = xml_helper.parse_xml(self.filter_param)
-
-        # a simple bbox could be inside gml:Envelope/gml:lowerCorner and gml:Envelope/gml:upperCorner
-        lower_corner = xml_helper.try_get_text_from_xml_element(filter_xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("lowerCorner")).strip()
-        upper_corner = xml_helper.try_get_text_from_xml_element(filter_xml, "//" + GENERIC_NAMESPACE_TEMPLATE.format("upperCorner")).strip()
-
-        gml_polygons = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Polygon"), filter_xml)
-
-        if lower_corner is not None and upper_corner is not None:
-            # there is a simple bbox
-            lower_corner = lower_corner.split(" ")
-            upper_corner = upper_corner.split(" ")
-            corners = lower_corner + upper_corner
-            bounding_geom = GEOSGeometry(Polygon.from_bbox(corners), srid=self.srs_code or DEFAULT_SRS)
-        elif len(gml_polygons) > 0:
-            # there are n polygons
-            geom_collection = GeometryCollection(srid=self.srs_code or DEFAULT_SRS)
-            for polygon in gml_polygons:
-                vertices = xml_helper.try_get_text_from_xml_element(polygon, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("posList")).split(" ")
-                vertices_pairs = []
-                for i in range(0, len(vertices), 2):
-                    vertices_pairs.append((float(vertices[i]), float(vertices[i+1])))
-                polygon_obj = GEOSGeometry(
-                    Polygon(
-                        vertices_pairs
-                    ),
-                    srid=self.srs_code or DEFAULT_SRS
-                )
-                geom_collection.append(polygon_obj)
-            bounding_geom = geom_collection.unary_union
-
-        return bounding_geom
 
     def _process_bbox_param(self):
         """ Creates a polygon from the given string bounding box
@@ -679,8 +666,10 @@ class OGCOperationRequestHandler:
         # create Polygon object from raw BBOX parameter
         tmp_bbox = self.bbox_param.split(",")
 
-        if len(tmp_bbox) != 4:
-            return HttpResponse(status=500, content=PARAMETER_ERROR.format("BBOX"))
+        if len(tmp_bbox) == 5:
+            # this might happen, if the 5th element is a SRS identifier instead of a BBOX coordinate - could happen...
+            del tmp_bbox[-1]
+
         bbox_param_geom = GEOSGeometry(Polygon.from_bbox(tmp_bbox), srid=self.srs_code)
 
         # check whether the axis of the bbox extent vertices have to be switched
@@ -1050,70 +1039,6 @@ class OGCOperationRequestHandler:
                 img = outBytesStream.getvalue()
         return img
 
-    def _check_get_feature_operation_access(self, sec_ops: QueryDict):
-        """ Checks whether the GetFeature request is allowed or not.
-
-        Checks the SecuredOperations against bounding geometry from the request
-
-        Args:
-            sec_ops (QueryDict): The SecuredOperations in a QueryDict object
-        Returns:
-             True|False
-        """
-        ret_val = False
-
-        # GetFeature operation is a WFS operation, which means the given bbox parameter must not be in EPSG:4326!
-        bounding_geom = self.bbox_param
-
-        if bounding_geom is None:
-            # check if the filter parameter holds a bbox OR a bounding polygon
-            bounding_geom = self.get_bounding_geometry_from_filter_param()
-            if bounding_geom is None:
-                # There is no bounding geom inside the 'BBOX' param, and there is no 'FILTER' param, which contains
-                # a bounding box
-                # So the request does not restrict spatially
-                default_extent_dict = ALLOWED_SRS_EXTENTS.get(DEFAULT_SRS)
-                default_extents = [
-                    default_extent_dict.get("minx"),
-                    default_extent_dict.get("miny"),
-                    default_extent_dict.get("maxx"),
-                    default_extent_dict.get("maxy"),
-                ]
-                bounding_geom = GEOSGeometry(Polygon.from_bbox(default_extents), srid=DEFAULT_SRS)
-
-        else:
-            bounding_geom = bounding_geom.get("geom")
-
-        for sec_op in sec_ops:
-
-            if sec_op.bounding_geometry.empty:
-                # there is no allowed area defined, so this group is allowed to request everywhere
-                ret_val = True
-                break
-
-            # union all geometries in the geometrycollection (bounding_geometry) into one geometry
-            access_restricting_geom = sec_op.bounding_geometry.unary_union
-
-            if access_restricting_geom.srid != bounding_geom.srid:
-                # this may happen if another srs was provided per request parameter.
-                # we need to transform one of the geometries into the srs of the other
-                #access_restricting_geom.transform(bounding_geom.srid)
-                bounding_geom.transform(access_restricting_geom.srid)
-
-            if access_restricting_geom.covers(bounding_geom):
-                # we are fine, the bounding geometry covers the requested area completely!
-                ret_val = True
-                break
-
-            elif access_restricting_geom.intersects(bounding_geom):
-                # we are only partially inside the bounding geometry
-                # -> we need to create the intersection between bbox and bounding geometry
-                # This is only the case for WFS requests!
-                self._set_intersected_allowed_geometry(bounding_geom.intersection(access_restricting_geom))
-                ret_val = True
-
-        return ret_val
-
     def _check_transaction_operation_access(self, sec_ops: QueryDict):
         """ Checks whether the Transaction request can be allowed or not.
 
@@ -1165,6 +1090,52 @@ class OGCOperationRequestHandler:
         if len(leaf_layers) > 0:
             self.layers_param = ",".join(leaf_layers)
         self.new_params_dict["LAYERS"] = self.layers_param
+
+    def _extend_filter_by_spatial_restriction(self, sec_ops: QueryDict):
+        """ Appends the spatial restriction filter element to an already existing filter
+
+        Args:
+            sec_ops (QueryDict: The secured operations, which hold the bounding geometries
+        Returns:
+
+        """
+        bounding_geoms_filter_xml = []
+        prefix = ""
+        if self.version_param == OGCServiceVersionEnum.V_2_0_0 or OGCServiceVersionEnum.V_2_0_2:
+            prefix = "{" + XML_NAMESPACES["fes"] + "}"
+
+        # First get all single polygons from the GeometryCollection
+        for sec_op in sec_ops:
+            bounding_geom_collection = sec_op.bounding_geometry
+            for bounding_geom in bounding_geom_collection.coords:
+                coords = bounding_geom[0]
+                geom = GEOSGeometry(Polygon(coords), bounding_geom_collection.srid)
+                geom.transform(self.srs_code)
+                bounding_geoms_filter_xml.append(geom)
+
+        # Then transform them into spatial restricting filter xml elements
+        _filter = self._create_filter_xml_from_geometries(bounding_geoms_filter_xml)
+
+        # check if there is already a filter, that came with the initial request. If so, we need to combine this
+        # with our newly created one
+        if self.filter_param is not None and len(_filter) > 0:
+            request_filter_elem = xml_helper.parse_xml(self.filter_param).getroot()
+            request_filter_elem_children = request_filter_elem.getchildren()
+            backend_filter_elem = xml_helper.parse_xml(_filter).getroot()
+            backend_filter_elem_children = backend_filter_elem.getchildren()
+
+            if len(backend_filter_elem_children) > 0 and len(request_filter_elem_children) > 0:
+                add_elem = etree.Element("{}And".format(prefix))
+                for child in request_filter_elem_children:
+                    xml_helper.add_subelement(add_elem, child)
+                for child in backend_filter_elem_children:
+                    xml_helper.add_subelement(add_elem, child)
+
+                xml_helper.add_subelement(request_filter_elem, add_elem)
+            _filter = xml_helper.xml_to_string(request_filter_elem)
+
+            self.filter_param = _filter
+            self.new_params_dict["FILTER"] = self.filter_param
 
     def get_secured_operation_response(self, request: HttpRequest, metadata: Metadata):
         """ Calls the operation of a service if it is secured.
@@ -1220,9 +1191,9 @@ class OGCOperationRequestHandler:
 
         # WFS - 'GetFeature'
         elif self.request_param.upper() == OGCOperationEnum.GET_FEATURE.value.upper():
-            allowed = self._check_get_feature_operation_access(sec_ops)
-            if allowed:
-                response = self.get_operation_response()
+            self._bbox_to_filter()
+            self._extend_filter_by_spatial_restriction(sec_ops)
+            response = self.get_operation_response()
 
         # WFS - 'DescribeFeatureType'
         elif self.request_param.upper() == OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value.upper():

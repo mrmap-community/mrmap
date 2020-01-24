@@ -77,6 +77,7 @@ class CommonConnector:
             response = self.__load_urllib()
         # parse response
         self.content = response.content
+        self.http_external_headers = response.headers._store
         self.encoding = response.encoding
         self.run_time = time.time() - self.init_time
 

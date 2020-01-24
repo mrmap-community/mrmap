@@ -195,7 +195,7 @@ class OGCWebFeatureService(OGCWebService):
         self.service_provider_onlineresource_linkage = xml_helper.get_href_attribute(online_resource_elem)
         if self.service_provider_onlineresource_linkage is None or self.service_provider_onlineresource_linkage == "":
             # There are metadatas where no online resource link is given. We need to generate it manually therefore...
-            self.service_provider_onlineresource_linkage = service_helper.split_service_uri(self.service_connect_url).get("base_uri") + "?"
+            self.service_provider_onlineresource_linkage = service_helper.split_service_uri(self.service_connect_url).get("base_uri")
         self.service_provider_contact_hoursofservice = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:HoursOfService")
         self.service_provider_contact_contactinstructions = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ContactInstructions")
 

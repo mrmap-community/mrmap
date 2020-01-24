@@ -104,6 +104,7 @@ class OGCRequestPOSTBuilder:
 
         # decide which specification must be used for POST XML building
         version_param = self._get_POST_val("version")
+        request_param = self._get_POST_val("request")
         service_param = self._get_POST_val("service").lower()
 
         if version_param is None:
@@ -117,11 +118,11 @@ class OGCRequestPOSTBuilder:
 
         elif service_param == OGCServiceEnum.WMS.value.lower():
             if version_param == OGCServiceVersionEnum.V_1_0_0.value:
-                xml = self._build_WMS_1_0_0_xml(service_param, version_param)
+                xml = self._build_WMS_1_0_0_xml(service_param, version_param, request_param)
             elif version_param == OGCServiceVersionEnum.V_1_1_1.value:
-                xml = self._build_WMS_1_1_1_xml(service_param, version_param)
+                xml = self._build_WMS_1_1_1_xml(service_param, version_param, request_param)
             elif version_param == OGCServiceVersionEnum.V_1_3_0.value:
-                xml = self._build_WMS_1_3_0_xml(service_param, version_param)
+                xml = self._build_WMS_1_3_0_xml(service_param, version_param, request_param)
             else:
                 raise KeyError(PARAMETER_ERROR.format(version_param))
         else:
@@ -202,10 +203,11 @@ class OGCRequestPOSTBuilder:
         """
         xml = ""
 
-        format_param = self._get_POST_val("format") or ""
-        type_name_param = self._get_POST_val("typename")
+        format_param = self._get_POST_val("format")
+        type_name_param = self._get_POST_val("typename") or self._get_POST_val("typenames")
         filter_param = self._get_POST_val("filter")
-        count_param = self._get_POST_val("count")
+        count_param = self._get_POST_val("count") or self._get_POST_val("maxFeatures")
+        resulttype_param = self._get_POST_val("count") or self._get_POST_val("resultType")
 
         # check if the newer 'typeNames' instead of 'typeName' should be used
         type_name_identifier = "typeName"
@@ -218,28 +220,35 @@ class OGCRequestPOSTBuilder:
         root_attributes = {
             "service": service_param,
             "version": version_param,
-            "outputFormat": format_param,
         }
 
+        if resulttype_param is not None:
+            root_attributes["resultType"] = resulttype_param
+        if format_param is not None:
+            root_attributes["outputFormat"] = format_param
         if count_param is not None:
-            root_attributes["count"] = count_param
+            param_tag = "maxFeatures"
+            if version_param == OGCServiceVersionEnum.V_2_0_0.value or version_param == OGCServiceVersionEnum.V_2_0_2.value:
+                param_tag = "count"
+            root_attributes[param_tag] = count_param
 
         root = etree.Element(_tag="{" + wfs_ns + "}" + request_param, nsmap=reduced_ns_map, attrib=root_attributes)
 
         # create the xml filter object from the filter string parameter
         filter_xml = xml_helper.parse_xml(filter_param)
-        filter_xml_root = filter_xml.getroot()
+        if filter_xml is not None:
+            filter_xml_root = filter_xml.getroot()
 
-        for t_n_param in type_name_param.split(","):
-            query_attributes = {
-                type_name_identifier: t_n_param
-            }
-            query_elem = xml_helper.create_subelement(root, "{" + wfs_ns + "}" + "Query", attrib=query_attributes)
+            for t_n_param in type_name_param.split(","):
+                query_attributes = {
+                    type_name_identifier: t_n_param
+                }
+                query_elem = xml_helper.create_subelement(root, "{" + wfs_ns + "}" + "Query", attrib=query_attributes)
 
-            # add the filter xml object as subobject to the query to use e.g. the spatial restriction
-            xml_helper.add_subelement(query_elem, filter_xml_root)
+                # add the filter xml object as subobject to the query to use e.g. the spatial restriction
+                xml_helper.add_subelement(query_elem, filter_xml_root)
 
-        xml = xml_helper.xml_to_string(root)
+            xml = xml_helper.xml_to_string(root)
 
         return xml
     

@@ -1,10 +1,11 @@
 import json
+from io import BytesIO
 
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -889,9 +890,20 @@ def get_metadata_operation(request: HttpRequest, id: int):
             if response is None:
                 # metadata is secured but user is not allowed
                 return HttpResponse(status=401, content=SECURITY_PROXY_NOT_ALLOWED)
+        else:
+            response = operation_handler.get_operation_response()
 
+        len_response = len(response)
+
+        if len_response <= 10000:
             return HttpResponse(response, content_type="")
-        return HttpResponse(operation_handler.get_operation_response(), content_type="")
+        else:
+            # data too big - we should stream it!
+            # make sure the response is in bytes
+            if not isinstance(response, bytes):
+                response = bytes(response)
+            buffer = BytesIO(response)
+            return StreamingHttpResponse(buffer)
 
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)

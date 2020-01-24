@@ -121,7 +121,13 @@ INSTALLED_APPS = [
     'api',
     'bootstrap4',
     'fontawesome_5',
+    'django_tables2',
+    'query_parameters',
 ]
+
+TEMPLATE_LOADERS = (
+    'django.template.loaders.structure.django_tables2_extras.py',
+)
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -161,6 +167,8 @@ TEMPLATES = [
         },
     },
 ]
+
+
 
 WSGI_APPLICATION = 'MapSkinner.wsgi.application'
 
@@ -271,6 +279,7 @@ DARK_THEME = {
     'TXT_SEC_COLOR': 'text-secondary',
     'BADGE_COLOR': 'badge-info',
     'LIST_GRP_ITEM_COLOR': 'list-group-item-dark',
+    'TBL_COLOR': 'table-dark',
 
     'NAV': {
         'ITEM_COLOR': 'navbar-dark',
@@ -286,6 +295,7 @@ LIGHT_THEME = {
     'TXT_SEC_COLOR': 'text-secondary',
     'BADGE_COLOR': 'badge-info',
     'LIST_GRP_ITEM_COLOR': '',
+    'TBL_COLOR': '',
 
     'NAV': {
         'ITEM_COLOR': 'navbar-light',

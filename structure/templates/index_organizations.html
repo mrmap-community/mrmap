@@ -1,111 +1,29 @@
-{% load i18n static %}
+{% load i18n %}
+{% load django_tables2 %}
 {% load fontawesome_5 %}
-{% block head %}
-    <script type="text/javascript" src="{% static '/structure/js/structure.js' %}"></script>
-{% endblock %}
-{% block body %}
-<div class="overview">
-    <div class="overview-title-actions-container">
-        <div class="container-left">
-            <h2>{% trans 'Organizations' %}</h2>
-            {% if 'can_create_organization' in user_permissions %}
-            <div class="overview-action">
-                <span class="add-button" title="{% trans 'Create new' %}" typeof="structure/organizations">
-                    &#xFF0B;
-                </span>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    {% if user_organizations|length > 0 %}
-    <h3>{% trans 'You are member of the following organizations:' %}</h3>
-    <table class="overview-table">
-        <tr>
-            <th class="overview-table-header">
-                {% trans 'Name' %}
-            </th>
-            <th class="overview-table-header">
-                {% trans 'Description' %}
-            </th>
-        </tr>
-        {% for org_key, org_val in user_organizations.items %}
-            {% if org_val is not None %}
-                <tr>
-                    <td class="overview-table-cell">
-                        <a href="{% url 'structure:detail-organization' org_val.id %}">{{ org_val.organization_name }}</a>
-                        <a href="{% url 'structure:detail-organization' org_val.id %}">
-                            {% if pub_requests_count > 0 %}
-                                <span class="notification-badge unread" title="{% trans 'New publish requests' %}">
-                                    {{ pub_requests_count }}
-                                </span>
-                            {% endif %}
-                        </a>
-                    </td>
-                    <td class="overview-table-cell">
-                        {{ org_val.description }}
-                    </td>
-                </tr>
-            {% endif %}
-        {% endfor %}
-    </table>
-    {% endif %}
+{% load bootstrap4 %}
 
-    {% if all_organizations|length > 0 %}
-        <div class="collapsible-title">
-            {% fa5_icon 'plus' 'fas' %}
-            <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
-            {% trans 'All organizations' %}
-        </div>
-        <div class="subelements hidden">
-            <div class="filter-container">
-                <div class="container-left">
-                    <div>
-                    <input class="search-field" type="text" name="text-filter" placeholder="{% trans 'Enter text to filter' %}">
-                        <div>
-                            <label for="checkbox-real-orgs">{% trans 'Only real organizations' %}</label>
-                            <input id="checkbox-real-orgs" type="checkbox" checked="checked" name="checkbox-real-orgs" title="{% trans 'Only real organizations' %}">
-                        </div>
-                    </div>
+{% block body %}
+<div class="card {{THEME.TXT_DEF_COLOR}} {{THEME.BG_COLOR}} mt-3 mb-5">
+    <div class="card-header">
+        <h4>{% trans 'Organizations' %}</h4>
+    </div>
+    <div class="card-body">
+        <form action="" method="get" class="form form-inline">
+            <div class="row">
+                <div class="form-group col-auto">
+                    {% bootstrap_form all_organizations_filter.form layout='inline' %}
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn {{THEME.BTN_COLOR}}">{% fa5_icon 'search' 'fas' %} Search</button>
                 </div>
             </div>
-            <table class="detail-table">
-                <tr>
-                    <th class="overview-table-header">
-                        {% trans 'Name' %}
-                    </th>
-                    <th class="overview-table-header">
-                        {% trans 'Description' %}
-                    </th>
-                    <th class="overview-table-header">
-                        {% trans 'Real organization' %}
-                    </th>
-                    <th class="overview-table-header">
-                        {% trans 'Parent' %}
-                    </th>
-                </tr>
-                {% for org in all_organizations %}
-                    <tr class="org">
-                        <td class="overview-table-cell" data-type="name">
-                            <a href="{% url 'structure:detail-organization' org.id %}">{{ org.organization_name }}</a>
-                        </td>
-                        <td class="overview-table-cell" data-type="descr">
-                            {{ org.description }}
-                        </td>
-                        <td class="overview-table-cell center" data-type="auto-gen" data-toggle="{{ org.is_auto_generated }}">
-                            {% if org.is_auto_generated %}
-                                <img src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Automatically generated by service registration.' %}">
-                            {% else %}
-                                <img src="{% static 'service/images/icn_true.png' %}"  title="{% trans 'Created by administrator.' %}">
-                            {% endif %}
-                        </td>
-                        <td class="overview-table-cell">
-                            {{ org.parent }}
-                        </td>
-                    </tr>
-                {% endfor %}
-            </table>
-        </div>
-    {% endif %}
+        </form>
 
+
+        <br>
+        <h5 class="card-title">{% trans 'You are member of the following organizations:' %}</h5>
+        {% render_table all_organizations %}
+    </div>
 </div>
 {% endblock %}

@@ -9,6 +9,7 @@ from django.shortcuts import render, get_object_or_404, redirect, render_to_resp
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django_tables2 import RequestConfig
 
 from MapSkinner import utils
 from MapSkinner.celery_app import app
@@ -21,11 +22,12 @@ from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service.models import Service
+from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganization
 from structure.models import Group, Role, Permission, Organization, PendingRequest, PendingTask
 from structure.models import User
-from users.helper import user_helper
+from structure.tables import GroupTable, OrganizationTable
 
 
 @check_session
@@ -40,25 +42,40 @@ def index(request: HttpRequest, user: User):
     """
     template = "index_structure.html"
     user_groups = user.groups.all()
-    all_orgs = Organization.objects.all().order_by('organization_name')
+    all_orgs = Organization.objects.all()
     user_orgs = {
         "primary": user.organization,
     }
+
+    user_groups_filtered = GroupFilter(request.GET, queryset=user_groups)
+    all_orgs_filtered = OrganizationFilter(request.GET, queryset=all_orgs)
+
     groups = []
-    for user_group in user_groups:
+    for user_group in user_groups_filtered.qs:
         groups.append(user_group)
         groups.extend(Group.objects.filter(
             parent=user_group
         ))
+
+    groups_table = GroupTable(groups, template_name='django_tables2_bootstrap4_custom.html', page_field='group_page', order_by_field='sg')  # sg = sort groups
+    RequestConfig(request).configure(groups_table)
+    groups_table.paginate(page=request.GET.get("group_page", 1), per_page=5)
+
+    all_orgs_table = OrganizationTable(all_orgs_filtered.qs, template_name='django_tables2_bootstrap4_custom.html', page_field='orgs_page', order_by_field='so')  # so = sort organizations
+    RequestConfig(request).configure(all_orgs_table)
+    all_orgs_table.paginate(page=request.GET.get("orgs_page", 1), per_page=5)
+
     # check for notifications like publishing requests
     # publish requests
     pub_requests_count = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=user.organization).count()
-
     params = {
-        "groups": groups,
-        "all_organizations": all_orgs,
+        "groups": groups_table,
+        "groups_filter": user_groups_filtered,
+        "all_organizations": all_orgs_table,
+        "all_organizations_filter": all_orgs_filtered,
         "user_organizations": user_orgs,
         "pub_requests_count": pub_requests_count,
+
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())

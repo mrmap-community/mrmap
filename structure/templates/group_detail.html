@@ -1,11 +1,6 @@
 {% extends 'base.html' %}
 {% load static i18n %}
 
-{% block head %}
-    <script type="text/javascript" src="{% static '/structure/js/structure.js' %}"></script>
-
-{% endblock %}
-
 {% block body %}
 <a href="{% url 'structure:index' %}">
     <h3 class="back-title">

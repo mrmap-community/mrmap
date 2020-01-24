@@ -1,52 +1,27 @@
-
 {% load i18n %}
-{% block body %}
-<div class="overview">
-    <div class="overview-title-actions-container">
-        <div class="container-left">
-            <h2>{% trans 'Groups' %}</h2>
-            {% if 'can_create_group' in user_permissions %}
-            <div class="overview-action">
-                <span class="add-button" title="{% trans 'Create new' %}" typeof="structure/groups">
-                    &#xFF0B;
-                </span>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    {% if groups|length > 0 %}
-    <h3>{% trans 'You are member of the following groups:' %}</h3>
-    <table class="overview-table">
-        <tr>
-            <th class="overview-table-header">
-                {% trans 'Name' %}
-            </th>
-            <th class="overview-table-header">
-                {% trans 'Description' %}
-            </th>
-            <th class="overview-table-header">
-                {% trans 'Organization' %}
-            </th>
-        </tr>
-        {% for group in groups %}
-            <tr>
-                <td class="overview-table-cell">
-                    <a href="{% url 'structure:detail-group' id=group.id %}">{{ group.name }}</a>
-                </td>
-                <td class="overview-table-cell">
-                    {{ group.description }}
-                </td>
-                <td class="overview-table-cell">
-                    {% if group.organization is not None %}
-                        <a href="{% url 'structure:detail-organization' group.organization.id %}">{{ group.organization }}</a>
-                    {% else %}
-                        {{ group.organization }}
-                    {% endif %}
-                </td>
-            </tr>
-        {% endfor %}
-    </table>
-    {% endif %}
+{% load django_tables2 %}
+{% load fontawesome_5 %}
+{% load bootstrap4 %}
 
+{% block body %}
+<div class="card {{THEME.TXT_DEF_COLOR}} {{THEME.BG_COLOR}} mt-3">
+    <div class="card-header">
+        <h4>{% trans 'Groups' %}</h4>
+    </div>
+    <div class="card-body">
+        <form action="" method="get" class="form form-inline">
+            <div class="row">
+                <div class="form-group col-auto">
+                    {% bootstrap_form groups_filter.form layout='inline' %}
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn {{THEME.BTN_COLOR}}">{% fa5_icon 'search' 'fas' %} Search</button>
+                </div>
+            </div>
+        </form>
+        <br>
+        <h5 class="card-title">{% trans 'You are member of the following groups:' %}</h5>
+        {% render_table groups %}
+    </div>
 </div>
 {% endblock %}

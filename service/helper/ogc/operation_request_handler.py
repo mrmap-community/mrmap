@@ -1201,10 +1201,7 @@ class OGCOperationRequestHandler:
 
         # WMS - 'Legend image'
         elif self.request_param.upper() == OGCOperationEnum.GET_LEGEND_GRAPHIC.value.upper():
-            uri = self.get_uri
-            con = CommonConnector(uri)
-            con.load()
-            response = con.content
+            response = self.get_operation_response()
 
         # WFS - 'GetFeature'
         elif self.request_param.upper() == OGCOperationEnum.GET_FEATURE.value.upper():

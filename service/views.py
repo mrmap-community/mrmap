@@ -885,25 +885,28 @@ def get_metadata_operation(request: HttpRequest, id: int):
                 return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
 
         if md_secured:
-            response = operation_handler.get_secured_operation_response(request, metadata)
-
-            if response is None:
-                # metadata is secured but user is not allowed
-                return HttpResponse(status=401, content=SECURITY_PROXY_NOT_ALLOWED)
+            response_dict = operation_handler.get_secured_operation_response(request, metadata)
         else:
-            response = operation_handler.get_operation_response()
+            response_dict = operation_handler.get_operation_response()
+
+        response = response_dict.get("response", None)
+        content_type = response_dict.get("response_type", "")
+
+        if response is None:
+            # metadata is secured but user is not allowed
+            return HttpResponse(status=401, content=SECURITY_PROXY_NOT_ALLOWED)
 
         len_response = len(response)
 
         if len_response <= 10000:
-            return HttpResponse(response, content_type="")
+            return HttpResponse(response, content_type=content_type)
         else:
             # data too big - we should stream it!
             # make sure the response is in bytes
             if not isinstance(response, bytes):
                 response = bytes(response)
             buffer = BytesIO(response)
-            return StreamingHttpResponse(buffer)
+            return StreamingHttpResponse(buffer, content_type=content_type)
 
     except ObjectDoesNotExist:
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)

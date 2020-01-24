@@ -1258,4 +1258,9 @@ class OGCOperationRequestHandler:
         if c.status_code is not None and c.status_code != 200:
             raise Exception(c.status_code)
 
-        return c.content
+        ret_val = {
+            "response": c.content,
+            "response_type": c.http_external_headers.get("content-type", ("", ""))[1]
+        }
+
+        return ret_val

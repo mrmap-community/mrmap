@@ -224,7 +224,8 @@ class CommonConnector:
                 )
             self.status_code = response.status_code
             self.content = response.content
+            self.http_external_headers = response.headers._store
         else:
-            # something
+            # Should not happen - we only accept REQUEST or CURL
             pass
         self.run_time = time.time() - self.init_time

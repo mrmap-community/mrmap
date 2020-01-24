@@ -29,7 +29,7 @@ from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
 from service.helper.ogc.request_builder import OGCRequestPOSTBuilder
-from service.models import Metadata, FeatureType, Layer
+from service.models import Metadata, FeatureType, Layer, MimeType
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
@@ -1026,9 +1026,8 @@ class OGCOperationRequestHandler:
         img_format = img.format
         img = Image.composite(alpha_layer, img, mask)
         img.format = img_format
-        del img_format
 
-        # add access_denied_img image
+        # add access_denied_img image (contains info about which layers are restricted for the requesting user)
         if self.access_denied_img is not None:
             old_format = img.format
             img = Image.alpha_composite(img, self.access_denied_img)
@@ -1046,6 +1045,7 @@ class OGCOperationRequestHandler:
                 bg.paste(img, mask=img.split()[3])
                 bg.save(outBytesStream, img.format, optimize=True, quality=80)
                 img = outBytesStream.getvalue()
+
         return img
 
     def _check_transaction_operation_access(self, sec_ops: QueryDict):
@@ -1155,7 +1155,10 @@ class OGCOperationRequestHandler:
         Returns:
 
         """
-        response = None
+        response = {
+            "response": None,
+            "response_type": ""
+        }
 
         # if user could not be found in request -> not logged in -> no permission!
         if self.user is None:
@@ -1187,9 +1190,14 @@ class OGCOperationRequestHandler:
             # but we need to make sure, that no top level layer is called, which contains a secured child!
             # therefore we need to check if there is at least one secured child, somewhere, and then replace the top
             # level layer with all direct, allowed children!
-            img = self.get_operation_response()
+            response = self.get_operation_response()
+            img = response.get("response", "")
+            img_format = response.get("response_type", "")
+
             mask = self._create_secured_service_mask(metadata, sec_ops)
-            response = self._create_masked_image(img, mask, as_bytes=True)
+
+            response["response"] = self._create_masked_image(img, mask, as_bytes=True)
+            response["response_type"] = img_format
 
         # WMS - 'Legend image'
         elif self.request_param.upper() == OGCOperationEnum.GET_LEGEND_GRAPHIC.value.upper():

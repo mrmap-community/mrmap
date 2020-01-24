@@ -9,6 +9,9 @@ import urllib
 import io
 from collections import OrderedDict
 
+from queue import Queue
+from threading import Thread
+
 from PIL import Image, ImageFont, ImageDraw
 from cryptography.fernet import InvalidToken
 from django.core.exceptions import ObjectDoesNotExist
@@ -23,6 +26,7 @@ from MapSkinner.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES,
     SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY, SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY, \
     OPERATION_HANDLER_MULTIPLE_QUERIES_NOT_ALLOWED
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
+from MapSkinner.utils import execute_threads
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
@@ -1186,15 +1190,33 @@ class OGCOperationRequestHandler:
 
         # WMS - 'Map image'
         elif self.request_param.upper() == OGCOperationEnum.GET_MAP.value.upper():
-            # no need to check if the access is allowed, since we mask the output anyway
-            # but we need to make sure, that no top level layer is called, which contains a secured child!
-            # therefore we need to check if there is at least one secured child, somewhere, and then replace the top
-            # level layer with all direct, allowed children!
-            response = self.get_operation_response()
+            # We don't check any kind of is-allowed or not here.
+            # Instead, we simply fetch the map image as it is and mask it, using our secured operations geometry.
+            # To improve the performance here, we use a multithreaded approach, where the original map image and the
+            # mask are generated at the same time. This speed up the process by ~30%!
+            thread_list = []
+            results = Queue()
+            thread_list.append(
+                Thread(target=lambda r: r.put(self.get_operation_response()), args=(results,))
+            )
+            thread_list.append(
+                Thread(target=lambda r, m, s: r.put(self._create_secured_service_mask(m, s)), args=(results, metadata, sec_ops))
+            )
+            execute_threads(thread_list)
+
+            # Since we have no idea which result will be on which position in the query
+            response = None
+            mask = None
+            while not results.empty():
+                result = results.get()
+                if isinstance(result, dict):
+                    # the img response!
+                    response = result
+                else:
+                    mask = result
+
             img = response.get("response", "")
             img_format = response.get("response_type", "")
-
-            mask = self._create_secured_service_mask(metadata, sec_ops)
 
             response["response"] = self._create_masked_image(img, mask, as_bytes=True)
             response["response_type"] = img_format

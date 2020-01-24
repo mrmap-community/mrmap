@@ -124,6 +124,7 @@ def home_view(request: HttpRequest, user: User):
         "all_count": user_services_wms + user_services_wfs,
         "requests": pending_requests,
         "group_activities": group_activities,
+        "groups": user.groups.all(),
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())

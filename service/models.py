@@ -1059,20 +1059,56 @@ class Document(Resource):
 
         elif service_type == OGCServiceEnum.WFS.value:
             if service_version == "1.0.0":
-                prefix = "wfs:"
-                xml_helper.write_text_to_element(xml, "//{}Service/{}OnlineResource".format(prefix, prefix), uri)
-                xml_helper.write_attribute(xml, "//{}GetCapabilities/{}DCPType/{}HTTP/{}Get".format(prefix, prefix, prefix, prefix),
-                                           "onlineResource", uri)
-                xml_helper.write_attribute(xml, "//{}GetCapabilities/{}DCPType/{}HTTP/{}Post".format(prefix, prefix, prefix, prefix),
-                                           "onlineResource", uri)
+                xml_helper.write_text_to_element(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    uri
+                )
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='GetCapabilities']" +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
+                    "onlineResource",
+                    uri
+                )
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='GetCapabilities']" +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
+                    "onlineResource",
+                    uri
+                )
             else:
-                prefix = "ows:"
-                xml_helper.write_attribute(xml, "//{}ContactInfo/{}OnlineResource".format(prefix, prefix),
-                                           "{http://www.w3.org/1999/xlink}href", uri)
-                xml_helper.write_attribute(xml, "//{}Operation[@name='GetCapabilities']/{}DCP/{}HTTP/{}Get".format(prefix, prefix, prefix, prefix),
-                                           "{http://www.w3.org/1999/xlink}href", uri)
-                xml_helper.write_attribute(xml, "//{}Operation[@name='GetCapabilities']/{}DCP/{}HTTP/{}Post".format(prefix, prefix, prefix, prefix),
-                                           "{http://www.w3.org/1999/xlink}href", uri)
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInfo") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    "{http://www.w3.org/1999/xlink}href",
+                    uri
+                )
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='GetCapabilities']" +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
+                    "{http://www.w3.org/1999/xlink}href",
+                    uri
+                )
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='GetCapabilities']" +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
+                    "{http://www.w3.org/1999/xlink}href",
+                    uri
+                )
 
         xml = xml_helper.xml_to_string(xml)
         self.current_capability_document = xml

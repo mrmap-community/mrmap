@@ -91,9 +91,9 @@ class ServiceTestCase(TestCase):
         self.raw_data = service.get("raw_data", None)
         self.service = service.get("service", None)
 
-        service_helper.persist_service_model_instance(self.service)
+        # run process without an external authentication - since the service does not require an authentication
+        service_helper.persist_service_model_instance(self.service, external_auth=None)
         self.service.persist_capabilities_doc(self.raw_data.service_capabilities_xml)
-
 
     def _get_logged_in_client(self, user: User):
         """ Helping function to encapsulate the login process
@@ -175,6 +175,8 @@ class ServiceTestCase(TestCase):
         connector = CommonConnector(url=cap_uri)
         connector.load()
         received_xml = connector.content
+        if isinstance(received_xml, bytes):
+            received_xml = received_xml.decode("UTF-8")
 
         self.assertEqual(received_xml, cap_doc, msg="Received capabilities document does not match the persisted one!")
         for layer in layers:

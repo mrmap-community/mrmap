@@ -316,7 +316,7 @@ def get_capabilities(request: HttpRequest, id: int):
         # version number not valid
         return HttpResponse(content=PARAMETER_ERROR.format(version_tag), status=404)
 
-    elif request_param != OGCOperationEnum.GET_CAPABILITIES.value:
+    elif request_param is not None and request_param != OGCOperationEnum.GET_CAPABILITIES.value:
         # request not valid
         return HttpResponse(content=PARAMETER_ERROR.format(request_tag), status=404)
 

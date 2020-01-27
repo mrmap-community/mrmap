@@ -969,7 +969,9 @@ class OGCOperationRequestHandler:
         Returns:
              bytes
         """
-        response = ""
+        masks = []
+        width = int(self.width_param)
+        height = int(self.height_param)
         for op in sec_ops:
             if op.bounding_geometry.empty:
                 return None
@@ -982,8 +984,8 @@ class OGCOperationRequestHandler:
                 "layers": "mask",
                 "srs": self.srs_param,
                 "bbox": self.bbox_param.get("bbox_param"),
-                "width": self.width_param,
-                "height": self.height_param,
+                "width": width,
+                "height": height,
                 "keys": op.id,
                 "table": MAPSERVER_SECURITY_MASK_TABLE,
                 "key_column": MAPSERVER_SECURITY_MASK_KEY_COLUMN,
@@ -996,9 +998,20 @@ class OGCOperationRequestHandler:
 
             c = CommonConnector(url=uri)
             c.load()
-            response = c.content
+            mask = Image.open(io.BytesIO(c.content))
+            masks.append(mask)
 
-        return response
+        # Create empty final mask object
+        mask = Image.new("RGBA", (width, height), (255, 0, 0, 0))
+
+        # Combine all single masks into one!
+        for m in masks:
+            mask = Image.alpha_composite(m, mask)
+
+        # Put combined mask on white background
+        background = Image.new("RGB", (width, height), (255, 255, 255))
+        background.paste(mask, mask=mask)
+        return background
 
     def _create_masked_image(self, img: bytes, mask: bytes, as_bytes: bool = False):
         """ Creates a masked image from two image byte object
@@ -1019,7 +1032,14 @@ class OGCOperationRequestHandler:
                 # no bounding geometry for masking exist, just create a mask that does nothing
                 mask = Image.new("RGB", img.size, (0, 0, 0))
             else:
-                mask = Image.open(io.BytesIO(mask))
+                if isinstance(mask, bytes):
+                    mask = Image.open(io.BytesIO(mask))
+                elif isinstance(mask, Image.Image):
+                    # This is not useful but improves the understanding
+                    mask = mask
+                else:
+                    # Not supported!
+                    raise OSError
 
         except OSError:
             raise Exception("Could not create image! Content was:\n {}".format(mask))

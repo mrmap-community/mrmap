@@ -7,7 +7,8 @@ from django.db.models import QuerySet
 from django.test import TestCase, Client
 from django.utils import timezone
 
-from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, HOST_NAME
+from MapSkinner.messages import SECURITY_PROXY_NOT_ALLOWED
+from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, HOST_NAME, HTTP_OR_SSL
 from service import tasks
 from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
@@ -105,13 +106,10 @@ class ServiceTestCase(TestCase):
              user_id (int): The user (id) who shall be logged in
         """
         client = Client()
-        user = User.objects.get(
-            id=user.id
-        )
         self.assertEqual(user.logged_in, False, msg="User already logged in")
         response = client.post("/", data={"username": user.username, "password": self.pw})
         user.refresh_from_db()
-        self.assertEqual(response.url, "/home", msg="Redirect wrong")
+        self.assertEqual(response.url, "{}{}/home".format(HTTP_OR_SSL, HOST_NAME), msg="Redirect wrong")
         self.assertEqual(user.logged_in, True, msg="User not logged in")
         return client
 
@@ -333,7 +331,7 @@ class ServiceTestCase(TestCase):
             self._test_new_service_check_register_dependencies,
             self._test_new_service_check_version_and_type,
             self._test_new_service_check_reference_systems,
-            self._test_proxy_service,
+            #self.test_proxy_service,
         ]
         for check_func in checks:
             check_func(self.service, child_layers, cap_xml)
@@ -497,14 +495,13 @@ class ServiceTestCase(TestCase):
             else:
                 pass
 
-    def _test_proxy_service(self, service: Service, child_layers, cap_xml):
+    def test_proxy_service(self):
         """ Tests the securing functionality for services
 
         Returns:
 
         """
-        service = self.service
-        metadata = service.metadata
+        metadata = self.service.metadata
 
         cap_doc_secured = Document.objects.get(
             related_metadata=metadata
@@ -525,6 +522,66 @@ class ServiceTestCase(TestCase):
         # 1) all uris of the capabilities document have been changed to use the internal proxy
         # 2) operations can not be performed by anyone who has no permission
         self._test_proxy_is_set(metadata, cap_doc_unsecured, cap_doc_secured)
+
+    def test_secure_service(self):
+        """ Tests the securing functionalities
+
+        1) Secure a service
+        2) Try to perform an operation -> must fail
+        3) Give performing user the permission (example call for WMS: GetMap, for WFS: GetFeature)
+        4) Try to perform an operation -> must not fail
+
+        Args:
+            service (Service):
+            child_layers:
+            cap_xml:
+        Returns:
+
+        """
+        # activate service
+        # since activating runs async as well, we need to call this function directly
+        tasks.async_activate_service(self.service.id, self.user.id)
+        self.service.refresh_from_db()
+
+        service = self.service
+        metadata = service.metadata
+        service_type = metadata.get_service_type()
+
+
+        if service_type == OGCServiceEnum.WMS.value:
+            uri = "{}{}/service/metadata/{}/operation".format(HTTP_OR_SSL, HOST_NAME, metadata.id)
+            params = {
+                "request": OGCOperationEnum.GET_MAP.value,
+                "version": OGCServiceVersionEnum.V_1_1_1.value,
+                "layers": "atkis1",  # the root layer for test data
+                "bbox": "6.3635678506, 49.8043950464, 8.2910611844, 50.4544433675",
+                "srs": "EPSG:4326",
+                "format": "png",
+                "width": "100",
+                "height": "100",
+            }
+
+            # case 0: Service not secured -> Runs!
+            response = self._run_request(params, uri, "get")
+            self.assertEqual(response.status_code, 200)
+
+            # Proxy the service!
+            metadata.set_proxy(True)
+
+            # Secure the service!
+            metadata.set_secured(True)
+
+            # case 1: Service secured but no permission was given to any user, guest user tries to perform request    -> Fails!
+            response = self._run_request(params, uri, "get")
+            self.assertEqual(response.status_code, 401)
+            self.assertEqual(response.content.decode("utf-8"), SECURITY_PROXY_NOT_ALLOWED)
+
+            # case 2: Service secured but no permission was given to any user, logged in user performs request via logged in client     -> Fails!
+            client = self._get_logged_in_client(self.user)
+            response = self._run_request(params, uri, "get", client)
+            self.assertEqual(response.status_code, 401)
+            self.assertEqual(response.content.decode("utf-8"), SECURITY_PROXY_NOT_ALLOWED)
+
 
     def _run_request(self, params: dict, uri: str, request_type: str, client: Client = Client()):
         """ Helping function which performs a request and returns the response

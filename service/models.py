@@ -657,6 +657,24 @@ class Metadata(Resource):
         except ObjectDoesNotExist:
             pass
 
+    def set_logging(self, logging: bool):
+        """ Set the metadata logging flag to a new value
+
+        Args:
+            logging (bool): Whether the metadata shall be logged or not
+        Returns:
+        """
+        if self.use_proxy_uri:
+            self.log_proxy_access = logging
+
+            # If the metadata shall be logged, all of it's subelements shall be logged as well!
+            child_mds = Metadata.objects.filter(service__parent_service=self.service)
+            for child_md in child_mds:
+                child_md.log_proxy_access = logging
+                child_md.save()
+
+            self.save()
+
     def set_proxy(self, use_proxy: bool):
         """ Set the metadata proxy to a new value.
 

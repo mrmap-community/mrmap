@@ -441,7 +441,7 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
         raise Exception(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
 
     if log_proxy != md.log_proxy_access:
-        md.log_proxy_access = log_proxy
+        md.set_logging(log_proxy)
 
     # set new secured value and iterate over all children
     if is_secured != md.is_secured:

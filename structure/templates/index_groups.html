@@ -2,6 +2,7 @@
 {% load django_tables2 %}
 {% load fontawesome_5 %}
 {% load bootstrap4 %}
+{% load query_parameters %}
 
 {% block body %}
 <div class="card {{THEME.TXT_DEF_COLOR}} {{THEME.BG_COLOR}} mt-3">
@@ -20,8 +21,21 @@
             </div>
         </form>
         <br>
-        <h5 class="card-title">{% trans 'You are member of the following groups:' %}</h5>
-        {% render_table groups %}
+        <div class="row">
+            <div class="col">
+                <h5 class="card-title">{% trans 'You are member of the following groups:' %}</h5>
+            </div>
+            <div class="col">
+                <div class="float-right">
+                    {% if pagination.page_size %}
+                        {% include 'django_tables2_show_x_entries.html' %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="mt-1">
+            {% render_table groups %}
+        </div>
     </div>
 </div>
 {% endblock %}

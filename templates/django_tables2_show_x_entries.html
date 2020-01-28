@@ -1,0 +1,13 @@
+{% load i18n %}
+<div class="dropdown d-inline-block">
+    {% trans 'Show' %}
+    <button class="btn {{THEME.BTN_COLOR}} dropdown-toggle" type="button" id="dropdownMenuButton"
+            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ pagination.page_size }}
+    </button>
+    {% trans 'entries' %}
+    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+        {% for page_size in pagination.page_size_options %}
+        <a class="dropdown-item" href="?{{ pagination.page_size_param }}={{page_size}} ">{{ page_size }}</a>
+        {% endfor %}
+    </div>
+</div>

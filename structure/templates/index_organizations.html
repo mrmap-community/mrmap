@@ -19,11 +19,22 @@
                 </div>
             </div>
         </form>
-
-
         <br>
-        <h5 class="card-title">{% trans 'You are member of the following organizations:' %}</h5>
+        <div class="row">
+            <div class="col">
+                <h5 class="card-title">{% trans 'You are member of the following organizations:' %}</h5>
+            </div>
+            <div class="col">
+                <div class="float-right">
+                    {% if pagination.page_size %}
+                        {% include 'django_tables2_show_x_entries.html' %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="mt-1">
         {% render_table all_organizations %}
+        </div>
     </div>
 </div>
 {% endblock %}

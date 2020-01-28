@@ -43,6 +43,7 @@ ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
 EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
 
+PAGE_SIZE_OPTIONS = [1, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100, 200, 500]
 
 CATEGORIES = {
     "inspire": "https://www.eionet.europa.eu/gemet/getTopmostConcepts?thesaurus_uri=http://inspire.ec.europa.eu/theme/&language={}",

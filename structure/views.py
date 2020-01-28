@@ -20,7 +20,7 @@ from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT
     PUBLISH_PERMISSION_REMOVED, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-from MapSkinner.settings import ROOT_URL
+from MapSkinner.settings import ROOT_URL, PAGE_SIZE_OPTIONS
 from service.models import Service
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
@@ -166,14 +166,41 @@ def groups(request: HttpRequest, user: User):
     """
     template = "index_groups_extends.html"
     user_groups = user.groups.all()
+    user_groups_filtered = GroupFilter(request.GET, queryset=user_groups)
+
     groups = []
-    for user_group in user_groups:
+    for user_group in user_groups_filtered.qs:
         groups.append(user_group)
         groups.extend(Group.objects.filter(
             parent=user_group
         ))
+
+    page_size_options = PAGE_SIZE_OPTIONS
+    page_size_options = list(filter(lambda item: item <= len(groups), page_size_options))
+
+    if not page_size_options.__contains__(len(groups)):
+        page_size_options.append(len(groups))
+
+    pagination = {'page_size_param': 'group-size',
+                  'page_size_options': page_size_options,
+                  'page_name': 'group_page'
+                  }
+    pagination.update({'page_size': request.GET.get(pagination.get('page_size_param'), page_size_options[0])})
+
+    groups_table = GroupTable(groups,
+                              template_name='django_tables2_bootstrap4_custom.html',
+                              page_field='group_page',
+                              order_by_field='sg')  # sg = sort groups
+
+    RequestConfig(request).configure(groups_table)
+
+    groups_table.paginate(page=request.GET.get(pagination.get('page_name'), 1),
+                          per_page=request.GET.get(pagination.get('page_size_param')))
+
     params = {
-        "groups": groups,
+        "groups": groups_table,
+        "groups_filter": user_groups_filtered,
+        'pagination': pagination,
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
@@ -191,6 +218,29 @@ def organizations(request: HttpRequest, user: User):
     """
     template = "index_organizations_extended.html"
     all_orgs = Organization.objects.all()
+    all_orgs_filtered = OrganizationFilter(request.GET, queryset=all_orgs)
+
+    all_orgs_table = OrganizationTable(all_orgs_filtered.qs, template_name='django_tables2_bootstrap4_custom.html',
+                                       page_field='orgs_page', order_by_field='so')  # so = sort organizations
+
+    page_size_options = PAGE_SIZE_OPTIONS
+    page_size_options = list(filter(lambda item: item <= all_orgs_table.__sizeof__(), page_size_options))
+
+    if not page_size_options.__contains__(all_orgs_table.__sizeof__()):
+        page_size_options.append(all_orgs_table.__sizeof__())
+
+    pagination = {'page_size_param': 'orgs-size',
+                  'page_size_options': page_size_options,
+                  'page_name': 'orgs_page'
+                  }
+
+    pagination.update({'page_size': request.GET.get(pagination.get('page_size_param'), page_size_options[0])})
+
+    RequestConfig(request).configure(all_orgs_table)
+
+    all_orgs_table.paginate(page=request.GET.get(pagination.get('page_name'), 1),
+                            per_page=request.GET.get(pagination.get('page_size_param')))
+
     # check for notifications like publishing requests
     # publish requests
     pub_requests_count = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=user.organization).count()
@@ -198,9 +248,12 @@ def organizations(request: HttpRequest, user: User):
         "primary": user.organization,
     }
     params = {
-        "user_organizations": orgs,
-        "all_organizations": all_orgs,
-        "pub_requests_count": pub_requests_count,
+        "all_organizations": all_orgs_table,
+        "all_organizations_filter": all_orgs_filtered,
+
+       # "user_organizations": orgs,
+       # "pub_requests_count": pub_requests_count,
+        'pagination': pagination,
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())

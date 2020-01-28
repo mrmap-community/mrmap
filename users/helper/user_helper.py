@@ -43,12 +43,11 @@ def get_user(request: HttpRequest=None, username: str=None, user_id: int=None):
                     credentials = auth_header[-1].encode("ascii")
                     username, password = base64.b64decode(credentials).decode("utf-8").split(":")
                     user = get_user(username=username)
-
-                    # directly check if the password is valid!
-                    if user.is_password_valid(password):
-                        return user
-                    else:
-                        return None
+                    if user is not None:
+                        # directly check if the password is valid!
+                        if user.is_password_valid(password):
+                            return user
+                    return None
         else:
             return None
         return user

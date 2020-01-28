@@ -885,7 +885,7 @@ def get_metadata_operation(request: HttpRequest, id: int):
 
         len_response = len(response)
 
-        if len_response <= 10000:
+        if len_response <= 50000:
             return HttpResponse(response, content_type=content_type)
         else:
             # data too big - we should stream it!

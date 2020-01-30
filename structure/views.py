@@ -4,6 +4,7 @@ import json
 from celery.result import AsyncResult
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
+from django.forms import formset_factory
 from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect, render_to_response
 from django.template.loader import render_to_string
@@ -18,13 +19,14 @@ from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT
     PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, GROUP_FORM_INVALID, \
     PUBLISH_PERMISSION_REMOVED, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_IS_OTHERS_PROPERTY, \
-    GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED
+    GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED, \
+    GROUP_SUCCESSFULLY_DELETED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL, PAGE_SIZE_OPTIONS
 from service.models import Service
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
-from structure.forms import GroupForm, OrganizationForm, PublisherForOrganization
+from structure.forms import GroupForm, OrganizationForm, PublisherForOrganization, EditGroupForm
 from structure.models import Group, Role, Permission, Organization, PendingRequest, PendingTask
 from structure.models import User
 from structure.tables import GroupTable, OrganizationTable
@@ -75,6 +77,7 @@ def index(request: HttpRequest, user: User):
         "all_organizations_filter": all_orgs_filtered,
         "user_organizations": user_orgs,
         "pub_requests_count": pub_requests_count,
+        "new_group_form": GroupForm(),
 
     }
     context = DefaultContext(request, params, user)
@@ -201,6 +204,7 @@ def groups(request: HttpRequest, user: User):
         "groups": groups_table,
         "groups_filter": user_groups_filtered,
         'pagination': pagination,
+        "new_group_form": GroupForm(),
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
@@ -220,8 +224,11 @@ def organizations(request: HttpRequest, user: User):
     all_orgs = Organization.objects.all()
     all_orgs_filtered = OrganizationFilter(request.GET, queryset=all_orgs)
 
-    all_orgs_table = OrganizationTable(all_orgs_filtered.qs, template_name='django_tables2_bootstrap4_custom.html',
-                                       page_field='orgs_page', order_by_field='so')  # so = sort organizations
+    all_orgs_table = OrganizationTable(all_orgs_filtered.qs,
+                                       template_name='django_tables2_bootstrap4_custom.html',
+                                       page_field='orgs_page',
+                                       order_by_field='so',
+                                       )  # so = sort organizations
 
     page_size_options = PAGE_SIZE_OPTIONS
     page_size_options = list(filter(lambda item: item <= all_orgs_table.__sizeof__(), page_size_options))
@@ -540,13 +547,16 @@ def detail_group(request: HttpRequest, id: int, user: User):
     group = Group.objects.get(id=id)
     members = group.users.all()
     template = "group_detail.html"
-    t = user in members
+
+    edit_form = EditGroupForm(instance=group)
+
     params = {
         "group": group,
         "permissions": user.get_permissions(),  # user_helper.get_permissions(user=user),
         "group_permissions": user.get_permissions(group),  # user_helper.get_permissions(group=group),
         "members": members,
         "show_registering_for": True,
+        "edit_form": edit_form,
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
@@ -619,7 +629,7 @@ def list_publisher_group(request: HttpRequest, id: int, user: User):
 
 @check_session
 @check_permission(Permission(can_delete_group=True))
-def remove_group(request: HttpRequest, user: User):
+def remove_group(request: HttpRequest, id: int, user: User):
     """ Renders the remove form for a group
 
     Args:
@@ -627,23 +637,12 @@ def remove_group(request: HttpRequest, user: User):
     Returns:
         A rendered view
     """
-    template = "remove_group_confirmation.html"
-    group_id = request.GET.dict().get("id")
-    confirmed = request.GET.dict().get("confirmed")
-    group = get_object_or_404(Group, id=group_id)
+    group = get_object_or_404(Group, id=id)
+
     if group.created_by != user:
         messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)
-        return redirect("structure:detail-organization", group.id)
-    permission = group.role.permission
-    if confirmed == 'false':
-        params = {
-            "group": group,
-            "permissions": permission,
-        }
-        html = render_to_string(template_name=template, context=params, request=request)
-        return BackendAjaxResponse(html=html).get_response()
+        return redirect("structure:detail-group", group.id)
     else:
-
         # clean subgroups from parent
         sub_groups = Group.objects.filter(
             parent=group
@@ -654,7 +653,8 @@ def remove_group(request: HttpRequest, user: User):
 
         # remove group and all of the related content
         group.delete()
-        return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure").get_response()
+        messages.success(request, message=GROUP_SUCCESSFULLY_DELETED % group.name, )
+        return redirect("structure:groups")
 
 
 @check_session
@@ -674,9 +674,8 @@ def edit_group(request: HttpRequest, user: User, id: int):
     if group.created_by != user:
         messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)
         return redirect("structure:detail-organization", group.id)
-    form = GroupForm(request.POST or None, instance=group)
+    form = EditGroupForm(request.POST or None, instance=group)
     if request.method == "POST":
-        form.fields.get('role').disabled = True
         if form.is_valid():
             # save changes of group
             group = form.save(commit=False)

@@ -70,6 +70,7 @@ PUBLISH_PERMISSION_REMOVING_DENIED = _("Publish permission removing denied. You 
 GROUP_CAN_NOT_BE_OWN_PARENT = _("A group can not be parent to itself!")
 GROUP_IS_OTHERS_PROPERTY = _("This group is owned by another user. Action denied.")
 GROUP_FORM_INVALID = _("The form data was not valid.")
+GROUP_SUCCESSFULLY_DELETED = _("Group %s successfully deleted.")
 ORGANIZATION_FORM_INVALID = GROUP_FORM_INVALID
 ORGANIZATION_CAN_NOT_BE_OWN_PARENT = _("An organization can not be parent to itself!")
 ORGANIZATION_IS_OTHERS_PROPERTY = _("This organization is owned by another user. Action denied.")

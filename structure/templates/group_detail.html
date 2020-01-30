@@ -1,72 +1,85 @@
 {% extends 'base.html' %}
 {% load static i18n %}
+{% load fontawesome_5 %}
 
 {% block body %}
-<a href="{% url 'structure:index' %}">
-    <h3 class="back-title">
-        <img src="{% static 'service/images/icn_back.png' %}">
-        {% trans 'Overview' %}
-    </h3>
-</a>
-<hr>
-<div class="container-row">
-    <div class="container-left">
-        {% if 'can_edit_group' in user_permissions %}
-            <div id="edit-button" class="button button-wrapper" data-parent="{{ group.id }}" typeof="structure/groups">
-                <img src="{% static 'structure/images/icn_edit.png' %}">
-                <span>{% trans 'Edit group' %}</span>
-            </div>
-        {% endif %}
-    </div>
-    {% if 'can_delete_group' in user_permissions %}
-        <div class="container-right">
-            <div class="delete-container button" data-parent="{{ group.id }}" typeof="structure/groups">
-                <img src="{% static 'service/images/icn_minus.png' %}">
-                <span>{% trans 'Delete group' %}</span>
+<div class="container">
+    <div class="card {{THEME.TXT_DEF_COLOR}} {{THEME.BG_COLOR}} mt-3">
+        <div class="card-header">
+            <div class="d-flex w-100 justify-content-between">
+                <h4 class="mb-1 mr-3">{% fa5_icon 'users' 'fas' %} <b>{{ group.name }}</b></h4>
+                <a href="{% url 'structure:index' %}">
+                    {% fa5_icon 'arrow-circle-left' 'fas' %} {% trans 'Overview' %}
+                </a>
             </div>
         </div>
-    {% endif %}
-</div>
+        <div class="card-body">
+            <div class="row mb-2 ">
+                <div class="col">
+                    <div class="d-flex justify-content-between">
+                        {% if 'can_edit_group' in user_permissions %}
+                        <div>
+                            <button type="button" class="btn {{THEME.BTN_WARNING_COLOR}}" data-toggle="modal" data-target="#edit_group">
+                                {% fa5_icon 'edit' 'fas' %} {% trans 'Edit group' %}
+                            </button>
+                        </div>
+                        {% include 'modals/edit_group.html' %}
+                        {% endif %}
+                        {% if 'can_delete_group' in user_permissions %}
+                        <div class="ml-auto">
+                            <button type="button" class="btn {{THEME.BTN_DANGER_COLOR}}" data-toggle="modal" data-target="#delete_group">
+                                {% fa5_icon 'trash' 'fas' %} {% trans 'Delete group' %}
+                            </button>
+                        </div>
+                        {% include 'modals/delete_group.html' %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <table class="table table-hover">
+                    <tr>
+                        <th>{% trans 'Organization' %}</th>
+                        <td>{{ group.organization }}</td>
+                    </tr>
+                    <tr>
+                        <th>{% trans 'Description' %}</th>
+                        <td>{{ group.description }}</td>
+                    </tr>
+                    <tr>
+                        <th>{% trans 'Members' %}</th>
+                        <td>
+                            {% for member in members %}
+                                {{ member.username }}<br>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>{% trans 'Parent' %}</th>
+                        <td>{{ group.parent }}</td>
+                    </tr>
+                    <tr>
+                        <th>{% trans 'Permissions' %}</th>
+                        <td>
+                            {% for perm in group_permissions %}
+                                {{ perm }} <br>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                </table>
 
-<h2>{{ group.name }}</h2>
-<table class="detail-table">
-    <tr>
-        <th>{% trans 'Organization' %}</th>
-        <td>{{ group.organization }}</td>
-    </tr>
-    <tr>
-        <th>{% trans 'Description' %}</th>
-        <td>{{ group.description }}</td>
-    </tr>
-    <tr>
-        <th>{% trans 'Members' %}</th>
-        <td>
-            {% for member in members %}
-                {{ member.username }}<br>
-            {% endfor %}
-        </td>
-    </tr>
-    <tr>
-        <th>{% trans 'Parent' %}</th>
-        <td>{{ group.parent }}</td>
-    </tr>
-    <tr>
-        <th>{% trans 'Permissions' %}</th>
-        <td>
-            {% for perm in group_permissions %}
-                {{ perm }} <br>
-            {% endfor %}
-        </td>
-    </tr>
-</table>
-<div class="collapsible-wrapper">
-    <div class="collapsible-title">
-        <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
-        {% trans 'Publishes for' %}
-    </div>
-    <div class="subelements hidden">
-         {% include 'index_publish_requests.html' %}
+                <div class="collapsible-wrapper">
+                    <div class="collapsible-title">
+                        <img src="{% static 'service/images/icn_plus.png' %}"
+                             data-toggle="{% static 'service/images/icn_minus.png' %}">
+                        {% trans 'Publishes for' %}
+                    </div>
+                    <div class="subelements hidden">
+                        {% include 'index_publish_requests.html' %}
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
-
 {% endblock %}

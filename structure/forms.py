@@ -26,6 +26,22 @@ class GroupForm(ModelForm):
         ]
 
 
+class EditGroupForm(ModelForm):
+    description = forms.CharField(
+        widget=forms.Textarea(),
+        required=False,
+    )
+
+    class Meta:
+        model = Group
+        fields = '__all__'
+        exclude = [
+            "created_by",
+            "publish_for_organizations",
+            "role"
+        ]
+
+
 class PublisherForOrganization(forms.Form):
     organization_name = forms.CharField(max_length=500, label_suffix=" ", label=_("Organization"), disabled=True)
     group = forms.ChoiceField(widget=forms.Select)

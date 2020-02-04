@@ -78,6 +78,7 @@ def index(request: HttpRequest, user: User):
         "user_organizations": user_orgs,
         "pub_requests_count": pub_requests_count,
         "new_group_form": GroupForm(),
+        "new_organization_form": OrganizationForm(),
 
     }
     context = DefaultContext(request, params, user)
@@ -261,6 +262,7 @@ def organizations(request: HttpRequest, user: User):
        # "user_organizations": orgs,
        # "pub_requests_count": pub_requests_count,
         'pagination': pagination,
+        "new_organization_form": OrganizationForm(),
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
@@ -295,6 +297,8 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
         "pub_requests": pub_requests,
         "all_publisher": all_publishing_groups,
         "pub_requests_count": pub_requests_count,
+        "edit_form": OrganizationForm(instance=org)
+
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
@@ -552,7 +556,6 @@ def detail_group(request: HttpRequest, id: int, user: User):
 
     params = {
         "group": group,
-        "permissions": user.get_permissions(),  # user_helper.get_permissions(user=user),
         "group_permissions": user.get_permissions(group),  # user_helper.get_permissions(group=group),
         "members": members,
         "show_registering_for": True,

@@ -9,7 +9,7 @@
             <div class="d-flex w-100 justify-content-between">
                 <h4 class="mb-1 mr-3">{% fa5_icon 'users' 'fas' %} <b>{{ group.name }}</b></h4>
                 <a href="{% url 'structure:index' %}">
-                    {% fa5_icon 'arrow-circle-left' 'fas' %} {% trans 'Overview' %}
+                    <span style="white-space: nowrap;">{% fa5_icon 'arrow-circle-left' 'fas' %} {% trans 'Overview' %}</span>
                 </a>
             </div>
         </div>
@@ -36,49 +36,60 @@
                     </div>
                 </div>
             </div>
-            <div class="row">
-                <table class="table table-hover">
-                    <tr>
-                        <th>{% trans 'Organization' %}</th>
-                        <td>{{ group.organization }}</td>
-                    </tr>
-                    <tr>
-                        <th>{% trans 'Description' %}</th>
-                        <td>{{ group.description }}</td>
-                    </tr>
-                    <tr>
-                        <th>{% trans 'Members' %}</th>
-                        <td>
-                            {% for member in members %}
-                                {{ member.username }}<br>
-                            {% endfor %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>{% trans 'Parent' %}</th>
-                        <td>{{ group.parent }}</td>
-                    </tr>
-                    <tr>
-                        <th>{% trans 'Permissions' %}</th>
-                        <td>
-                            {% for perm in group_permissions %}
-                                {{ perm }} <br>
-                            {% endfor %}
-                        </td>
-                    </tr>
-                </table>
-
-                <div class="collapsible-wrapper">
-                    <div class="collapsible-title">
-                        <img src="{% static 'service/images/icn_plus.png' %}"
-                             data-toggle="{% static 'service/images/icn_minus.png' %}">
-                        {% trans 'Publishes for' %}
-                    </div>
-                    <div class="subelements hidden">
-                        {% include 'index_publish_requests.html' %}
-                    </div>
+            <div class="row mb-2 ">
+                <div class="col">
+                    <table class="table table-hover">
+                        <tr>
+                            <th>{% trans 'Organization' %}</th>
+                            <td>{{ group.organization }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans 'Description' %}</th>
+                            <td>{{ group.description }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans 'Members' %}</th>
+                            <td>
+                                {% for member in members %}
+                                    {{ member.username }}<br>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>{% trans 'Parent' %}</th>
+                            <td>{{ group.parent }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans 'Permissions' %}</th>
+                            <td>
+                                {% for perm in group_permissions %}
+                                    {{ perm }} <br>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                    </table>
                 </div>
-            </div>
+            </div><!--row-->
+            <div class="row mb-2 ">
+                <div class="col">
+                    <div class="accordion" id="accordionPublishes">
+                      <div class="card">
+                        <div class="card-header " id="headingPublishes">
+                          <h2 class="mb-0">
+                            <button class="btn {{THEME.BTN_SECONDARY_COLOR}} collapsed" type="button" data-toggle="collapse" data-target="#collapsePublishes" aria-expanded="false" aria-controls="collapsePublishes">
+                                <i class="fa" aria-hidden="true"></i> Publishes for
+                            </button>
+                          </h2>
+                        </div>
+                        <div id="collapsePublishes" class="collapse" aria-labelledby="headingPublishes" data-parent="#accordionPublishes">
+                          <div class="card-body">
+                            {% include 'index_publish_requests.html' %}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                </div><!--col-->
+            </div><!--row-->
         </div>
     </div>
 </div>

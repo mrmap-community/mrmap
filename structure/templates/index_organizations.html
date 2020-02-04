@@ -6,7 +6,15 @@
 {% block body %}
 <div class="card {{THEME.TXT_DEF_COLOR}} {{THEME.BG_COLOR}} mt-3 mb-5">
     <div class="card-header">
-        <h4>{% fa5_icon 'building' 'fas' %} {% trans 'Organizations' %}</h4>
+        <div class="d-flex w-100 justify-content-between">
+            <h4>{% fa5_icon 'building' 'fas' %} {% trans 'Organizations' %}</h4>
+            {% if 'can_create_organization' in user_permissions %}
+                <button type="button" class="btn {{THEME.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#new_organization">
+                            {% fa5_icon 'plus-circle' 'fas' %} {% trans 'New organization' %}
+                </button>
+                {% include 'modals/new_organization.html' %}
+            {% endif %}
+        </div>
     </div>
     <div class="card-body">
         <form action="" method="get" class="form form-inline">

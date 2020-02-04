@@ -1,7 +1,7 @@
 {% load static i18n %}
 {% load bootstrap4 %}
 <!-- Modal -->
-<div class="modal fade" id="delete_group" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+<div class="modal fade" id="delete_organization" data-backdrop="static" tabindex="-1" role="dialog" aria-labelledby="staticBackdropLabel" aria-hidden="true">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -44,7 +44,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn {{ THEME.BTN_SECONDARY_COLOR }}" data-dismiss="modal">{% trans 'Cancle' %}</button>
-          <form action="{% url 'structure:delete-group' group.id %}" method="post">
+          <form action="{% url 'structure:delete-organization' organization.id %}" method="post">
             {% csrf_token %}
             <button type="button submit" class="btn {{ THEME.BTN_DANGER_COLOR }}">{% trans 'Yes, delete!' %}</button>
           </form>

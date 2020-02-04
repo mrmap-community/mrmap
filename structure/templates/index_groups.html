@@ -9,10 +9,12 @@
     <div class="card-header">
         <div class="d-flex w-100 justify-content-between">
             <h4 class="mb-1 mr-3">{% fa5_icon 'users' 'fas' %} {% trans 'Groups' %}</h4>
-            <button type="button" class="btn {{THEME.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#new_group">
-                {% fa5_icon 'plus-circle' 'fas' %} {% trans 'New group' %}
-            </button>
-            {% include 'modals/new_group.html' %}
+                {% if 'can_create_group' in user_permissions %}
+                    <button type="button" class="btn {{THEME.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#new_group">
+                        {% fa5_icon 'plus-circle' 'fas' %} {% trans 'New group' %}
+                    </button>
+                    {% include 'modals/new_group.html' %}
+                {% endif %}
         </div>
     </div>
     <div class="card-body">

@@ -10,6 +10,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
+from django_tables2 import RequestConfig
 
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission, log_proxy
@@ -18,8 +19,10 @@ from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-from MapSkinner.settings import ROOT_URL
+from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
+from MapSkinner.utils import prepare_table_pagination_settings
 from service import tasks
+from service.filters import WmsFilter
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
@@ -27,6 +30,7 @@ from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
+from service.tables import WmsServiceTable, WmsLayerTable
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style
 from service.tasks import async_remove_service_task
@@ -71,6 +75,7 @@ def index(request: HttpRequest, user: User, service_type=None):
     # get services
     paginator_wms = None
     paginator_wfs = None
+    wms_table = None
     if service_type is None or service_type == ServiceEnum.WMS.value:
         md_list_wms = Metadata.objects.filter(
             service__servicetype__name="wms",
@@ -78,6 +83,25 @@ def index(request: HttpRequest, user: User, service_type=None):
             created_by__in=user.groups.all(),
             service__is_deleted=False,
         ).order_by("title")
+
+        wms_table_filtered = WmsFilter(request.GET, queryset=md_list_wms)
+
+        if display_service_type is None or display_service_type == 's':
+            wms_table = WmsServiceTable(wms_table_filtered.qs,
+                                        template_name='django_tables2_bootstrap4_custom.html',
+                                        order_by_field='swms')  # swms = sort wms
+        else:
+            wms_table = WmsLayerTable(wms_table_filtered.qs,
+                                      template_name='django_tables2_bootstrap4_custom.html',
+                                      order_by_field='swms')  # swms = sort wms
+
+        RequestConfig(request).configure(wms_table)
+        pagination = prepare_table_pagination_settings(request, wms_table, 'wms-t')
+
+        wms_table.page_field = pagination.get('page_name')
+        wms_table.paginate(page=request.GET.get(pagination.get('page_name'), PAGE_DEFAULT),
+                           per_page=request.GET.get(pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+
         paginator_wms = Paginator(md_list_wms, results_per_page).get_page(wms_page)
     if service_type is None or service_type == ServiceEnum.WFS.value:
         md_list_wfs = Metadata.objects.filter(
@@ -94,6 +118,9 @@ def index(request: HttpRequest, user: User, service_type=None):
     params = {
         "metadata_list_wms": paginator_wms,
         "metadata_list_wfs": paginator_wfs,
+        "wms_filter": wms_table_filtered,
+        "wms_table": wms_table,
+        'wms_pagination': pagination,
         "select_default": display_service_type,
         "only_type": service_type,
         "user": user,

@@ -9,8 +9,7 @@ class GroupFilter(django_filters.FilterSet):
                                         label='Search')
 
     @staticmethod
-    def filter_search_over_all(queryset, name, value):
-        dic = list(queryset)
+    def filter_search_over_all(queryset, name, value): # parameter name is needed cause 3 values are expected
         return queryset.filter(name__icontains=value) | \
                queryset.filter(description__icontains=value) | \
                queryset.filter(organization__organization_name__icontains=value)
@@ -33,7 +32,7 @@ class OrganizationFilter(django_filters.FilterSet):
                                         )
 
     @staticmethod
-    def filter_oiag(queryset, name, value):
+    def filter_oiag(queryset, name, value): # parameter name is needed cause 3 values are expected
         if value:
             q = (queryset.filter(is_auto_generated=True) | queryset.filter(is_auto_generated=False))
         else:
@@ -41,7 +40,7 @@ class OrganizationFilter(django_filters.FilterSet):
         return q
 
     @staticmethod
-    def filter_search_over_all(queryset, name, value):
+    def filter_search_over_all(queryset, name, value): # parameter name is needed cause 3 values are expected
         return queryset.filter(organization_name__icontains=value) | \
                queryset.filter(description__icontains=value) | \
                queryset.filter(parent__organization_name__icontains=value)

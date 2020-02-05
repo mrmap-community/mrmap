@@ -22,7 +22,8 @@ from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED, \
     GROUP_SUCCESSFULLY_DELETED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-from MapSkinner.settings import ROOT_URL, PAGE_SIZE_OPTIONS
+from MapSkinner.settings import ROOT_URL, PAGE_SIZE_OPTIONS, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
+from MapSkinner.utils import prepare_table_pagination_settings, prepare_list_pagination_settings
 from service.models import Service
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
@@ -59,13 +60,28 @@ def index(request: HttpRequest, user: User):
             parent=user_group
         ))
 
-    groups_table = GroupTable(groups, template_name='django_tables2_bootstrap4_custom.html', page_field='group_page', order_by_field='sg')  # sg = sort groups
-    RequestConfig(request).configure(groups_table)
-    groups_table.paginate(page=request.GET.get("group_page", 1), per_page=5)
+    groups_table = GroupTable(groups,
+                              template_name='django_tables2_bootstrap4_custom.html',
+                              order_by_field='sg')  # sg = sort groups
 
-    all_orgs_table = OrganizationTable(all_orgs_filtered.qs, template_name='django_tables2_bootstrap4_custom.html', page_field='orgs_page', order_by_field='so')  # so = sort organizations
+    RequestConfig(request).configure(groups_table)
+    groups_pagination = prepare_list_pagination_settings(request, groups, 'wms-t')
+
+    groups_table.page_field = groups_pagination.get('page_name')
+    groups_table.paginate(page=request.GET.get(groups_pagination.get('page_name'), PAGE_DEFAULT),
+                          per_page=request.GET.get(groups_pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+
+    all_orgs_table = OrganizationTable(all_orgs_filtered.qs,
+                                       template_name='django_tables2_bootstrap4_custom.html',
+                                       order_by_field='so',
+                                       )  # so = sort organizations
+
     RequestConfig(request).configure(all_orgs_table)
-    all_orgs_table.paginate(page=request.GET.get("orgs_page", 1), per_page=5)
+    organizations_pagination = prepare_table_pagination_settings(request, all_orgs_table, 'orgs')
+
+    all_orgs_table.page_field = organizations_pagination.get('page_name')
+    all_orgs_table.paginate(page=request.GET.get(organizations_pagination.get('page_name'), PAGE_DEFAULT),
+                            per_page=request.GET.get(organizations_pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
     # check for notifications like publishing requests
     # publish requests
@@ -73,8 +89,10 @@ def index(request: HttpRequest, user: User):
     params = {
         "groups": groups_table,
         "groups_filter": user_groups_filtered,
-        "all_organizations": all_orgs_table,
-        "all_organizations_filter": all_orgs_filtered,
+        "groups_pagination": groups_pagination,
+        "organizations": all_orgs_table,
+        "organizations_filter": all_orgs_filtered,
+        "organizations_pagination": organizations_pagination,
         "user_organizations": user_orgs,
         "pub_requests_count": pub_requests_count,
         "new_group_form": GroupForm(),
@@ -179,32 +197,21 @@ def groups(request: HttpRequest, user: User):
             parent=user_group
         ))
 
-    page_size_options = PAGE_SIZE_OPTIONS
-    page_size_options = list(filter(lambda item: item <= len(groups), page_size_options))
-
-    if not page_size_options.__contains__(len(groups)):
-        page_size_options.append(len(groups))
-
-    pagination = {'page_size_param': 'group-size',
-                  'page_size_options': page_size_options,
-                  'page_name': 'group_page'
-                  }
-    pagination.update({'page_size': request.GET.get(pagination.get('page_size_param'), page_size_options[0])})
-
     groups_table = GroupTable(groups,
                               template_name='django_tables2_bootstrap4_custom.html',
-                              page_field='group_page',
                               order_by_field='sg')  # sg = sort groups
 
     RequestConfig(request).configure(groups_table)
+    pagination = prepare_list_pagination_settings(request, groups, 'wms-t')
 
-    groups_table.paginate(page=request.GET.get(pagination.get('page_name'), 1),
-                          per_page=request.GET.get(pagination.get('page_size_param')))
+    groups_table.page_field = pagination.get('page_name')
+    groups_table.paginate(page=request.GET.get(pagination.get('page_name'), PAGE_DEFAULT),
+                          per_page=request.GET.get(pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
     params = {
         "groups": groups_table,
         "groups_filter": user_groups_filtered,
-        'pagination': pagination,
+        'groups_pagination': pagination,
         "new_group_form": GroupForm(),
     }
     context = DefaultContext(request, params, user)
@@ -227,27 +234,15 @@ def organizations(request: HttpRequest, user: User):
 
     all_orgs_table = OrganizationTable(all_orgs_filtered.qs,
                                        template_name='django_tables2_bootstrap4_custom.html',
-                                       page_field='orgs_page',
                                        order_by_field='so',
                                        )  # so = sort organizations
 
-    page_size_options = PAGE_SIZE_OPTIONS
-    page_size_options = list(filter(lambda item: item <= all_orgs_table.__sizeof__(), page_size_options))
-
-    if not page_size_options.__contains__(all_orgs_table.__sizeof__()):
-        page_size_options.append(all_orgs_table.__sizeof__())
-
-    pagination = {'page_size_param': 'orgs-size',
-                  'page_size_options': page_size_options,
-                  'page_name': 'orgs_page'
-                  }
-
-    pagination.update({'page_size': request.GET.get(pagination.get('page_size_param'), page_size_options[0])})
-
     RequestConfig(request).configure(all_orgs_table)
+    pagination = prepare_table_pagination_settings(request, all_orgs_table, 'orgs')
 
-    all_orgs_table.paginate(page=request.GET.get(pagination.get('page_name'), 1),
-                            per_page=request.GET.get(pagination.get('page_size_param')))
+    all_orgs_table.page_field = pagination.get('page_name')
+    all_orgs_table.paginate(page=request.GET.get(pagination.get('page_name'), PAGE_DEFAULT),
+                            per_page=request.GET.get(pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
     # check for notifications like publishing requests
     # publish requests
@@ -256,12 +251,12 @@ def organizations(request: HttpRequest, user: User):
         "primary": user.organization,
     }
     params = {
-        "all_organizations": all_orgs_table,
-        "all_organizations_filter": all_orgs_filtered,
-
+        "organizations": all_orgs_table,
+        "organizations_filter": all_orgs_filtered,
+        'organizations_pagination': pagination,
        # "user_organizations": orgs,
        # "pub_requests_count": pub_requests_count,
-        'pagination': pagination,
+
         "new_organization_form": OrganizationForm(),
     }
     context = DefaultContext(request, params, user)

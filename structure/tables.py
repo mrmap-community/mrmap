@@ -5,8 +5,6 @@ from structure.models import Group, Organization
 
 
 class GroupTable(tables.Table):
-    model = Group
-
     groups_name = tables.Column(accessor='name', verbose_name='Name', )
     groups_description = tables.Column(accessor='description', verbose_name='Description', )
     groups_organization = tables.Column(accessor='organization', verbose_name='Organization', )
@@ -23,8 +21,6 @@ class GroupTable(tables.Table):
 
 
 class OrganizationTable(tables.Table):
-    model = Organization
-
     orgs_organization_name = tables.Column(accessor='organization_name', verbose_name='Name', )
     orgs_description = tables.Column(accessor='description', verbose_name='Description', )
     orgs_is_auto_generated = tables.Column(accessor='is_auto_generated', verbose_name='Real organization', )

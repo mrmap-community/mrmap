@@ -35,14 +35,31 @@
             </div>
             <div class="col">
                 <div class="float-right">
-                    {% if pagination.page_size %}
-                        {% include 'django_tables2_show_x_entries.html' %}
+                    {% if groups_pagination.page_size %}
+                        <div class="dropdown d-inline-block">
+                            {% trans 'Show' %}
+                            <button class="btn {{THEME.BTN_COLOR}} dropdown-toggle" type="button" id="groupsPagingButton"
+                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ groups_pagination.page_size }}
+                            </button>
+                            {% trans 'entries' %}
+                            <div class="dropdown-menu" aria-labelledby="groupsPagingButton">
+                                {% for page_size in groups_pagination.page_size_options %}
+                                <a class="dropdown-item" href="{% querystring groups_pagination.page_size_param=page_size%}">{{ page_size }}</a>
+                                {% endfor %}
+                            </div>
+                        </div>
                     {% endif %}
                 </div>
             </div>
         </div>
         <div class="mt-1">
-            {% render_table groups %}
+            <div class="row">
+                <div class="col">
+                    <div class="overflow-auto">
+                        {% render_table groups %}
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

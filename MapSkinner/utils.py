@@ -6,6 +6,10 @@ Created on: 17.04.19
 
 """
 import urllib
+import django_tables2
+from django.http import HttpRequest
+
+from MapSkinner.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 
 
 def execute_threads(thread_list):
@@ -97,3 +101,30 @@ def set_uri_GET_param(uri: str, param: str, val):
     uri = urllib.parse.urlunsplit(base_uri)
 
     return uri
+
+
+def prepare_table_pagination_settings(request: HttpRequest, table: django_tables2, param_lead: str):
+    return prepare_list_pagination_settings(request, list(table.rows), param_lead)
+
+
+def prepare_list_pagination_settings(request: HttpRequest, l: list, param_lead: str):
+    page_size_options = list(filter(lambda item: item <= len(l), PAGE_SIZE_OPTIONS))
+
+    if not page_size_options.__contains__(len(l)):
+        page_size_options.append(len(l))
+
+    page_size_options = list(filter(lambda item: item <= PAGE_SIZE_MAX, page_size_options))
+
+    pagination = {'page_size_param': param_lead + '-size',
+                  'page_size_options': page_size_options,
+                  'page_name': param_lead + '-page'
+                  }
+
+    if PAGE_SIZE_DEFAULT <= page_size_options[-1]:
+        page_size = PAGE_SIZE_DEFAULT
+    else:
+        page_size = page_size_options[-1]
+
+    pagination.update({'page_size': request.GET.get(pagination.get('page_size_param'), page_size)})
+
+    return pagination

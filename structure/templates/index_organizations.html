@@ -20,7 +20,7 @@
         <form action="" method="get" class="form form-inline">
             <div class="row">
                 <div class="form-group col-auto">
-                    {% bootstrap_form all_organizations_filter.form layout='inline' %}
+                    {% bootstrap_form organizations_filter.form layout='inline' %}
                 </div>
                 <div class="col-auto">
                     <button type="submit" class="btn {{THEME.BTN_COLOR}}">{% fa5_icon 'search' 'fas' %} Search</button>
@@ -34,14 +34,31 @@
             </div>
             <div class="col">
                 <div class="float-right">
-                    {% if pagination.page_size %}
-                        {% include 'django_tables2_show_x_entries.html' %}
+                    {% if organizations_pagination.page_size %}
+                        <div class="dropdown d-inline-block">
+                            {% trans 'Show' %}
+                            <button class="btn {{THEME.BTN_COLOR}} dropdown-toggle" type="button" id="organizationsPagingButton"
+                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ organizations_pagination.page_size }}
+                            </button>
+                            {% trans 'entries' %}
+                            <div class="dropdown-menu" aria-labelledby="organizationsPagingButton">
+                                {% for page_size in organizations_pagination.page_size_options %}
+                                <a class="dropdown-item" href="{% querystring organizations_pagination.page_size_param=page_size%}">{{ page_size }}</a>
+                                {% endfor %}
+                            </div>
+                        </div>
                     {% endif %}
                 </div>
             </div>
         </div>
         <div class="mt-1">
-        {% render_table all_organizations %}
+            <div class="row">
+                <div class="col">
+                    <div class="overflow-auto">
+                        {% render_table organizations %}
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

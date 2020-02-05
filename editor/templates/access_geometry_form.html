@@ -332,11 +332,17 @@ article{
         // show 'listable' element, which indicates that polygons have been set
         if(polygons.length > 0){
             operationGroupPolygonElement.siblings(".listable").show();
-            if(!operationGroupPolygonElement.is(":checked")){
-                operationGroupPolygonElement.click();
-            }
+
             // set data to element
             operationGroupPolygonElement.attr("data-polygons", JSON.stringify(polygons));
+
+            // activate all checkboxes
+            operationGroupPolygonElement.each(function(i, elem){
+                elem = $(elem);
+                if(!elem.is(":checked")){
+                    elem.click();
+                }
+            });
         }else{
             operationGroupPolygonElement.removeAttr("data-polygons");
             operationGroupPolygonElement.siblings(".listable").hide();

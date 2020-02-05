@@ -8,7 +8,6 @@ $(document).on("click", ".selected-value", function(){
 });
 
 $(document).on("input.metadata-url", "input", function(){
-    var elem = $(this);
     var inputs = $("input.metadata-url");
     var lastInput = inputs.last();
     var allFull = true;
@@ -91,11 +90,11 @@ $(document).ready(function(){
                 getMapCheckbox.click();
             }
         }
-        if(operation == "GetMap"){
+        else if(operation == "GetMap"){
             // make sure that 'GetMap' is selected as well -> useless without!
-            var getMapCheckbox = $(".group-permission[data-operation='GetFeatureInfo'][data-group=" + group + "]")
-            if(getMapCheckbox.is(":checked") && !isElementChecked){
-                getMapCheckbox.click();
+            var getFeatureInfoCheckbox = $(".group-permission[data-operation='GetFeatureInfo'][data-group=" + group + "]")
+            if(getFeatureInfoCheckbox.is(":checked") && !isElementChecked){
+                getFeatureInfoCheckbox.click();
             }
         }
 
@@ -147,20 +146,19 @@ $(document).ready(function(){
         operations.each(function(i, elem){
             elem = $(elem);
             var checkedElements = elem.find("input[id*='checkbox-sec-']:checked,input[id*='checkbox-sec-'][data-remove='true']");
-            tmp = {
+            var tmp = {
                 "operation": elem.attr("data-operation"),
                 "groups": [],
             }
             checkedElements.each(function(j, checkedElement){
                 checkedElement = $(checkedElement);
                 var dataSecId = checkedElement.attr("data-sec-id");
-                var remove = checkedElement.attr("data-remove");
                 if(dataSecId == ""){
                     dataSecId = -1;
                 }
 
                 // add groups and polygons
-                tmpItem = {
+                var tmpItem = {
                     "groupId": checkedElement.attr("data-group"),
                     "polygons": checkedElement.attr("data-polygons"),
                     "securedOperation": dataSecId,
@@ -171,6 +169,7 @@ $(document).ready(function(){
             });
             txtArr.push(tmp);
         });
+
         hiddenInput.val(JSON.stringify(txtArr));
     });
 
@@ -198,19 +197,6 @@ $(document).ready(function(){
         var datalistOptions = elem.siblings("datalist").find("option");
         if(input.includes(",")){
             input = input.replace(",", "");
-            var type = elem.parents("tr").attr("id");
-            // if type != 'keywords' -> user is not allowed to add custom values
-            if(type != 'keywords'){
-                // check if the input is a word from the datalist
-                var optionsArr = []
-                datalistOptions.each(function(i, option){
-                    optionsArr.push($(option).text())
-                });
-                if(!optionsArr.includes(input)){
-                    alert("Please use only predefined values!");
-                    return;
-                }
-            }
             elem.val("");
             var dataId = "-1"
             // find correct dataId of element, if it is a value from the datalist

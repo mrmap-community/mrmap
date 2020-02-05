@@ -74,7 +74,11 @@
             <div class="row">
                 <div class="col">
                     <div class="overflow-auto">
-                        {% render_table wms_table %}
+                        {% if wms_table.rows %}
+                            {% render_table wms_table %}
+                        {% else %}
+                            {% trans 'None ¯\_(ツ)_/¯' %}
+                        {% endif %}
                     </div>
                 </div>
             </div>

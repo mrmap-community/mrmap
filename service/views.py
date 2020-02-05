@@ -22,7 +22,7 @@ from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
 from MapSkinner.utils import prepare_table_pagination_settings
 from service import tasks
-from service.filters import WmsFilter
+from service.filters import WmsFilter, WfsFilter
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
@@ -30,7 +30,7 @@ from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
-from service.tables import WmsServiceTable, WmsLayerTable
+from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style
 from service.tasks import async_remove_service_task
@@ -72,9 +72,6 @@ def index(request: HttpRequest, user: User, service_type=None):
     if display_service_type is not None:
         is_root = display_service_type != "l"
 
-    # get services
-    paginator_wms = None
-    paginator_wfs = None
     wms_table = None
     if service_type is None or service_type == ServiceEnum.WMS.value:
         md_list_wms = Metadata.objects.filter(
@@ -96,31 +93,44 @@ def index(request: HttpRequest, user: User, service_type=None):
                                       order_by_field='swms')  # swms = sort wms
 
         RequestConfig(request).configure(wms_table)
-        pagination = prepare_table_pagination_settings(request, wms_table, 'wms-t')
+        wms_pagination = prepare_table_pagination_settings(request, wms_table, 'wms-t')
 
-        wms_table.page_field = pagination.get('page_name')
-        wms_table.paginate(page=request.GET.get(pagination.get('page_name'), PAGE_DEFAULT),
-                           per_page=request.GET.get(pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+        wms_table.page_field = wms_pagination.get('page_name')
+        wms_table.paginate(page=request.GET.get(wms_pagination.get('page_name'), PAGE_DEFAULT),
+                           per_page=request.GET.get(wms_pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
-        paginator_wms = Paginator(md_list_wms, results_per_page).get_page(wms_page)
     if service_type is None or service_type == ServiceEnum.WFS.value:
         md_list_wfs = Metadata.objects.filter(
             service__servicetype__name="wfs",
             created_by__in=user.groups.all(),
             service__is_deleted=False,
         ).order_by("title")
-        paginator_wfs = Paginator(md_list_wfs, results_per_page).get_page(wfs_page)
+
+        wfs_table_filtered = WfsFilter(request.GET, queryset=md_list_wfs)
+        wfs_table = WfsServiceTable(wfs_table_filtered.qs,
+                                    template_name='django_tables2_bootstrap4_custom.html',
+                                    order_by_field='swfs')  # swms = sort wms
+
+        RequestConfig(request).configure(wfs_table)
+        wfs_pagination = prepare_table_pagination_settings(request, wfs_table, 'wms-t')
+
+        wfs_table.page_field = wfs_pagination.get('page_name')
+        wfs_table.paginate(page=request.GET.get(wfs_pagination.get('page_name'), PAGE_DEFAULT),
+                           per_page=request.GET.get(wfs_pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
     # get pending tasks
     pending_tasks = PendingTask.objects.filter(created_by__in=user.groups.all())
     for task in pending_tasks:
         task.description = json.loads(task.description)
     params = {
-        "metadata_list_wms": paginator_wms,
-        "metadata_list_wfs": paginator_wfs,
         "wms_filter": wms_table_filtered,
         "wms_table": wms_table,
-        'wms_pagination': pagination,
+        "wms_pagination": wms_pagination,
+
+        "wfs_filter": wfs_table_filtered,
+        "wfs_table": wfs_table,
+        "wfs_pagination": wfs_pagination,
+
         "select_default": display_service_type,
         "only_type": service_type,
         "user": user,

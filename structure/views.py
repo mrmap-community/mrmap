@@ -5,7 +5,7 @@ from celery.result import AsyncResult
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
-from django.shortcuts import render, get_object_or_404, redirect, render_to_response
+from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -25,7 +25,6 @@ from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_R
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganization
 from structure.models import Group, Role, Permission, Organization, PendingRequest, PendingTask
 from structure.models import User
-from users.helper import user_helper
 
 
 @check_session

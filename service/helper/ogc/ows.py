@@ -144,12 +144,11 @@ class OGCWebService:
     Methods that have to be implemented in the sub classes
     """
     @abstractmethod
-    def get_service_operations(self, xml_obj, prefix: str):
+    def get_service_operations(self, xml_obj):
         """ Creates table records from <Capability><Request></Request></Capability contents
 
         Args:
             xml_obj: The xml document object
-            prefix: The prefix for the service type ('wms'/'wfs')
         Returns:
 
         """
@@ -163,10 +162,6 @@ class OGCWebService:
             RequestOperation.objects.get_or_create(
                 operation_name=operation.tag,
             )
-
-    @abstractmethod
-    def get_parser_prefix(self):
-        pass
 
     @abstractmethod
     def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):

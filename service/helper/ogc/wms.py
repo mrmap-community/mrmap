@@ -72,12 +72,6 @@ class OGCWebMapService(OGCWebService):
     class Meta:
         abstract = True
 
-    def get_parser_prefix(self):
-        prefix = ""
-        if isinstance(self, OGCWebMapService_1_3_0) or isinstance(self, OGCWebMapService_1_1_0):
-            prefix = "wms:"
-        return prefix
-
     def get_layer_by_identifier(self, identifier: str):
         """ Returns the layer identified by the parameter 'identifier' as OGCWebMapServiceLayer object
 
@@ -119,7 +113,7 @@ class OGCWebMapService(OGCWebService):
 
         # check possible operations on this service
         start_time = time.time()
-        self.get_service_operations(xml_obj, self.get_parser_prefix())
+        self.get_service_operations(xml_obj)
         print(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
 
         # parse possible linked dataset metadata
@@ -732,7 +726,6 @@ class OGCWebMapService(OGCWebService):
         # handle keywords of this layer
         for kw in layer_obj.capability_keywords:
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            #keyword = Keyword(keyword=kw)
             metadata.keywords_list.append(keyword)
 
         # handle reference systems
@@ -741,7 +734,6 @@ class OGCWebMapService(OGCWebService):
             # check if this srs is allowed for us. If not, skip it!
             if parts.get("code") not in ALLOWED_SRS:
                 continue
-            # ref_sys = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
             ref_sys = ReferenceSystem(code=parts.get("code"), prefix=parts.get("prefix"))
             metadata.reference_system_list.append(ref_sys)
 
@@ -1043,7 +1035,6 @@ class OGCWebMapService(OGCWebService):
 
             # handle keywords of this layer
             for kw in layer.metadata.keywords_list:
-                #kw = Keyword.objects.get_or_create(keyword=kw.keyword)[0]
                 layer.metadata.keywords.add(kw)
 
             # handle reference systems

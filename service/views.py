@@ -416,9 +416,9 @@ def new_service(request: HttpRequest, user: User):
     register_group = POST_params.get("registerGroup")
     register_for_organization = POST_params.get("registerForOrg")
 
-    external_username = POST_params.get("username")
-    external_password = POST_params.get("password")
-    external_auth_type = POST_params.get("authType")
+    external_username = POST_params.get("username", "")
+    external_password = POST_params.get("password", "")
+    external_auth_type = POST_params.get("authType", "")
     external_auth = None
     if len(external_username) > 0 and len(external_password) > 0:
         external_auth = {

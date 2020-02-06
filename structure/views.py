@@ -114,7 +114,6 @@ def task(request: HttpRequest, id: str):
             "service": "",
             "phase": "finished",
         })
-        pass
     return BackendAjaxResponse(html="", task=params).get_response()
 
 
@@ -470,7 +469,6 @@ def detail_group(request: HttpRequest, id: int, user: User):
     group = Group.objects.get(id=id)
     members = group.users.all()
     template = "group_detail.html"
-    t = user in members
     params = {
         "group": group,
         "permissions": user.get_permissions(),  # user_helper.get_permissions(user=user),
@@ -630,13 +628,12 @@ def edit_group(request: HttpRequest, user: User, id: int):
         return BackendAjaxResponse(html=html).get_response()
 
 
-def handler404(request: HttpRequest, exception, template_name="404.html"):
+def handler404(request: HttpRequest, exception):
     """ Handles a general 404 (Page not found) error and renders a custom response page
 
     Args:
         request: The incoming request
         exception: An exception, if one occured
-        template_name: The template name
     Returns:
          A rendered 404 response
     """
@@ -644,18 +641,17 @@ def handler404(request: HttpRequest, exception, template_name="404.html"):
 
     }
     context = DefaultContext(request, params)
-    response = render_to_response("404.html", context=context.get_context())
+    response = render("404.html", context=context.get_context())
     response.status_code = 404
     return response
 
 
-def handler500(request: HttpRequest, exception, template_name="500.html"):
+def handler500(request: HttpRequest, exception):
     """ Handles a general 500 (Internal Server Error) error and renders a custom response page
 
     Args:
         request: The incoming request
         exception: An exception, if one occured
-        template_name: The template name
     Returns:
          A rendered 500 response
     """
@@ -663,6 +659,6 @@ def handler500(request: HttpRequest, exception, template_name="500.html"):
 
     }
     context = DefaultContext(request, params)
-    response = render_to_response("500.html", context=context.get_context())
+    response = render("500.html", context=context.get_context())
     response.status_code = 500
     return response

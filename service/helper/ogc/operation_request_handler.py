@@ -492,8 +492,7 @@ class OGCOperationRequestHandler:
         elif self.request_param == OGCOperationEnum.GET_FEATURE.value:
             self._parse_POST_get_feature_xml_body(xml)
         elif self.request_param == OGCOperationEnum.TRANSACTION.value:
-            # TODO!
-            pass
+            self._parse_POST_transaction_xml_body(xml)
         else:
             # No need to parse anything other for further handling - we can allow it and just pass through!
             pass
@@ -592,6 +591,10 @@ class OGCOperationRequestHandler:
             self.type_name_param = xml_helper.try_get_attribute_from_xml_element(query, "typeName")
             filter_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Filter"), query)
             self.filter_param = xml_helper.xml_to_string(filter_elem)
+
+    def _parse_POST_transaction_xml_body(self, xml):
+        root = xml.getroot()
+        i = 0
 
     def _create_filter_xml_from_geometries(self, geom_list: list):
         """ Creates a xml string for the filter parameter of a WFS operation
@@ -1259,7 +1262,8 @@ class OGCOperationRequestHandler:
         elif self.request_param.upper() == OGCOperationEnum.TRANSACTION.value.upper():
             allowed = self._check_transaction_operation_access(sec_ops)
             if allowed:
-                response = self.get_operation_response(self.POST_raw_body)
+                i= 0
+                #response = self.get_operation_response(self.POST_raw_body)
 
         return response
 

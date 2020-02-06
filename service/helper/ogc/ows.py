@@ -9,6 +9,7 @@ from django.db import transaction
 from requests import ReadTimeout
 
 from MapSkinner.messages import SERVICE_REGISTRATION_TIMEOUT
+from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, VersionEnum, ServiceEnum
@@ -110,16 +111,15 @@ class OGCWebService:
                 raise ConnectionError(ows_connector.status_code)
         except ReadTimeout:
             raise ConnectionError(SERVICE_REGISTRATION_TIMEOUT.format(self.service_connect_url))
-        if ows_connector.encoding is not None:
-            tmp = ows_connector.content.decode(ows_connector.encoding)
-            # check if tmp really contains an xml file
-            xml = xml_helper.parse_xml(tmp)
-            if xml is None:
-                raise Exception(tmp)
-            self.service_capabilities_xml = tmp
-        else:
-            self.service_capabilities_xml = ows_connector.text
-            
+
+        tmp = ows_connector.content.decode("UTF-8")
+        # check if tmp really contains an xml file
+        xml = xml_helper.parse_xml(tmp)
+
+        if xml is None:
+            raise Exception(tmp)
+
+        self.service_capabilities_xml = tmp
         self.connect_duration = ows_connector.run_time
         self.descriptive_document_encoding = ows_connector.encoding
     
@@ -144,25 +144,24 @@ class OGCWebService:
     Methods that have to be implemented in the sub classes
     """
     @abstractmethod
-    def get_service_operations(self, xml_obj, prefix: str):
+    def get_service_operations(self, xml_obj):
         """ Creates table records from <Capability><Request></Request></Capability contents
 
         Args:
             xml_obj: The xml document object
-            prefix: The prefix for the service type ('wms'/'wfs')
         Returns:
 
         """
-        cap_request = xml_helper.try_get_single_element_from_xml("//{}Capability/{}Request".format(prefix, prefix), xml_obj)
+        cap_request = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request"),
+            xml_obj
+        )
         operations = cap_request.getchildren()
         for operation in operations:
             RequestOperation.objects.get_or_create(
                 operation_name=operation.tag,
             )
-
-    @abstractmethod
-    def get_parser_prefix(self):
-        pass
 
     @abstractmethod
     def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):

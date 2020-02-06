@@ -107,7 +107,7 @@ class OGCOperationRequestHandler:
         if len(self.original_params_dict) == 0:
             # Possible, if no GET query parameter or no x-www-form-urlencoded POST values have been given
             # In this case, all the information can be found inside a xml document in the POST body, that has to be parsed now.
-            self._parse_POST_xml_body(request.body)
+            self._parse_post_xml_body(request.body)
 
         # fill new_params_dict with upper case keys from original_params_dict
         for key, val in self.original_params_dict.items():
@@ -469,7 +469,7 @@ class OGCOperationRequestHandler:
         self.get_uri = urllib.parse.urlunparse(uri_GET)
         self.post_uri = uri_POST
 
-    def _parse_POST_xml_body(self, body: bytes):
+    def _parse_post_xml_body(self, body: bytes):
         """ Reads all relevant request data from the POST body xml document
 
         Furthermore for the WFS operation implementation the following Oracle documentation was used:
@@ -488,16 +488,16 @@ class OGCOperationRequestHandler:
         self.request_param = QName(root).localname
 
         if self.request_param == OGCOperationEnum.GET_MAP.value:
-            self._parse_POST_get_map_xml_body(xml)
+            self._parse_post_get_map_xml_body(xml)
         elif self.request_param == OGCOperationEnum.GET_FEATURE.value:
-            self._parse_POST_get_feature_xml_body(xml)
+            self._parse_post_get_feature_xml_body(xml)
         elif self.request_param == OGCOperationEnum.TRANSACTION.value:
-            self._parse_POST_transaction_xml_body(xml)
+            self._parse_post_transaction_xml_body(xml)
         else:
             # No need to parse anything other for further handling - we can allow it and just pass through!
             pass
 
-    def _parse_POST_get_map_xml_body(self, xml):
+    def _parse_post_get_map_xml_body(self, xml):
         """ Reads all relevant request data from the GetMap POST body xml document
 
         The WMS specification does not provide information about WMS POST XML structure. However, the WMS 1.3.0
@@ -566,7 +566,7 @@ class OGCOperationRequestHandler:
         self.type_name_param = xml_helper.try_get_attribute_from_xml_element(xml, type_name, "//" + GENERIC_NAMESPACE_TEMPLATE.format("Query"))
         self.filter_param = xml_helper.xml_to_string(xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Filter"), xml_elem=xml))
 
-    def _parse_POST_get_feature_xml_body(self, xml):
+    def _parse_post_get_feature_xml_body(self, xml):
         """ Tries to parse the most important data from the POST xml body
 
         Args:
@@ -592,9 +592,36 @@ class OGCOperationRequestHandler:
             filter_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Filter"), query)
             self.filter_param = xml_helper.xml_to_string(filter_elem)
 
-    def _parse_POST_transaction_xml_body(self, xml):
+    def _parse_post_transaction_xml_body(self, xml):
+        """ Parses the most important data from the POST xml body for a <Transaction> request
+
+        Args:
+            xml: The xml document
+        Returns:
+
+        """
         root = xml.getroot()
-        i = 0
+        self.version_param = xml_helper.try_get_attribute_from_xml_element(root, "version")
+        self.service_type_param = xml_helper.try_get_attribute_from_xml_element(root, "service")
+
+        inserts = xml_helper.try_get_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Insert"),
+            root
+        )
+        updates = xml_helper.try_get_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Update"),
+            root
+        )
+        deletes = xml_helper.try_get_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Delete"),
+            root
+        )
+
+        self.transaction_geometries = {
+            "Insert": inserts,
+            "Update": updates,
+            "Delete": deletes
+        }
 
     def _create_filter_xml_from_geometries(self, geom_list: list):
         """ Creates a xml string for the filter parameter of a WFS operation

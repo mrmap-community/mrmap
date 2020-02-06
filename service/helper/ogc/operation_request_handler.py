@@ -617,11 +617,45 @@ class OGCOperationRequestHandler:
             root
         )
 
-        self.transaction_geometries = {
-            "Insert": inserts,
-            "Update": updates,
-            "Delete": deletes
-        }
+        all = []
+        all += inserts
+        all += updates
+        all += deletes
+
+        processed_elements = []
+
+        for xml_element in all:
+            # Fetch srs information
+            srs_name = xml_helper.try_get_attribute_from_xml_element(
+                xml_element,
+                "srsName",
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MultiPolygon")
+            )
+            srs_id = int(srs_name.split(":")[-1])
+
+            # Fetch geometry information
+            xml_geom = xml_helper.try_get_single_element_from_xml(
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("coordinates"),
+                xml_element
+            )
+            separator = xml_helper.try_get_attribute_from_xml_element(
+                xml_geom,
+                "ts"
+            )
+            geom_coords = xml_helper.try_get_text_from_xml_element(xml_geom)
+            geom_coords = geom_coords.split(separator)
+
+            # Create geometry object from coordinates
+            geom_obj = GEOSGeometry(Polygon(geom_coords), srid=srs_id)
+
+            processed_elements.append(
+                {
+                    "geometry": geom_obj,
+                    "xml_element": xml_element,
+                }
+            )
+
+        self.transaction_geometries = processed_elements
 
     def _create_filter_xml_from_geometries(self, geom_list: list):
         """ Creates a xml string for the filter parameter of a WFS operation

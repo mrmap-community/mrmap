@@ -23,7 +23,7 @@ from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
 from MapSkinner import utils
 from MapSkinner.utils import execute_threads
 from service.helper.crypto_handler import CryptoHandler
-from service.helper.enums import VersionEnum, MetadataEnum
+from service.helper.enums import VersionEnum, MetadataEnum, ServiceOperationEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
@@ -138,10 +138,11 @@ class OGCWebMapService(OGCWebService):
     def parse_iso_md(self, layer, layer_obj):
         # check for possible ISO metadata
         if self.has_iso_metadata(layer):
-            iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(xml_elem=layer,
-                                                                            elem="./{}MetadataURL/{}OnlineResource".format(
-                                                                                self.get_parser_prefix(), self.get_parser_prefix()
-                                                                            ))
+            iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(
+                xml_elem=layer,
+                elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL") +
+                      "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
+            )
             for iso_xml in iso_metadata_xml_elements:
                 iso_uri = xml_helper.get_href_attribute(xml_elem=iso_xml)
                 try:
@@ -153,7 +154,9 @@ class OGCWebMapService(OGCWebService):
 
     ### IDENTIFIER ###
     def parse_identifier(self, layer, layer_obj):
-        layer_obj.identifier = xml_helper.try_get_text_from_xml_element(elem="./{}Name".format(self.get_parser_prefix()), xml_elem=layer)
+        layer_obj.identifier = xml_helper.try_get_text_from_xml_element(
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Name"),
+            xml_elem=layer)
         if layer_obj.identifier is None:
             u = str(uuid.uuid4())
             sec_handler = CryptoHandler()
@@ -171,22 +174,34 @@ class OGCWebMapService(OGCWebService):
 
     ### ABSTRACT ###
     def parse_abstract(self, layer, layer_obj):
-        layer_obj.abstract = xml_helper.try_get_text_from_xml_element(elem="./{}Abstract".format(self.get_parser_prefix()), xml_elem=layer)
+        layer_obj.abstract = xml_helper.try_get_text_from_xml_element(
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Abstract"),
+            xml_elem=layer
+        )
 
     ### TITLE ###
     def parse_title(self, layer, layer_obj):
-        layer_obj.title = xml_helper.try_get_text_from_xml_element(elem="./{}Title".format(self.get_parser_prefix()), xml_elem=layer)
+        layer_obj.title = xml_helper.try_get_text_from_xml_element(
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Title"),
+            xml_elem=layer
+        )
 
     ### SRS/CRS     PROJECTION SYSTEM ###
     def parse_projection_system(self, layer, layer_obj):
-        srs = xml_helper.try_get_element_from_xml(elem="./{}SRS".format(self.get_parser_prefix()), xml_elem=layer)
+        srs = xml_helper.try_get_element_from_xml(
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("SRS"),
+            xml_elem=layer
+        )
         for elem in srs:
             layer_obj.capability_projection_system.append(elem.text)
 
     ### BOUNDING BOX    LAT LON ###
     def parse_lat_lon_bounding_box(self, layer, layer_obj):
         try:
-            bbox = xml_helper.try_get_element_from_xml(elem="./{}LatLonBoundingBox".format(self.get_parser_prefix()), xml_elem=layer)[0]
+            bbox = xml_helper.try_get_element_from_xml(
+                elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLonBoundingBox"),
+                xml_elem=layer
+            )[0]
             attrs = ["minx", "miny", "maxx", "maxy"]
             for attr in attrs:
                 val = bbox.get(attr, 0)
@@ -198,7 +213,10 @@ class OGCWebMapService(OGCWebService):
 
     ### BOUNDING BOX ###
     def parse_bounding_box_generic(self, layer, layer_obj, elem_name):
-        bboxs = xml_helper.try_get_element_from_xml(elem="./BoundingBox", xml_elem=layer)
+        bboxs = xml_helper.try_get_element_from_xml(
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("BoundingBox"),
+            xml_elem=layer
+        )
         for bbox in bboxs:
             srs = bbox.get(elem_name)
             srs_dict = {
@@ -228,7 +246,10 @@ class OGCWebMapService(OGCWebService):
     ### SCALE HINT ###
     def parse_scale_hint(self, layer, layer_obj):
         try:
-            scales = xml_helper.try_get_element_from_xml(elem="./{}ScaleHint".format(self.get_parser_prefix()), xml_elem=layer)[0]
+            scales = xml_helper.try_get_element_from_xml(
+                elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("ScaleHint"),
+                xml_elem=layer
+            )[0]
             attrs = ["min", "max"]
             for attr in attrs:
                 layer_obj.capability_scale_hint[attr] = scales.get(attr)
@@ -273,19 +294,36 @@ class OGCWebMapService(OGCWebService):
 
     ### REQUEST URIS ###
     def parse_request_uris(self, layer, layer_obj):
+        suffix_get = GENERIC_NAMESPACE_TEMPLATE.format("DCPType") + \
+                     "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") + \
+                     "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get") + \
+                     "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
+        suffix_post = GENERIC_NAMESPACE_TEMPLATE.format("DCPType") + \
+                      "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") + \
+                      "/" + GENERIC_NAMESPACE_TEMPLATE.format("Post") + \
+                      "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
+
+        # shortens the usage of our constant values
+        get_cap = ServiceOperationEnum.GET_CAPABILITIES.value
+        get_map = ServiceOperationEnum.GET_MAP.value
+        get_feat = ServiceOperationEnum.GET_FEATURE_INFO.value
+        descr_lay = ServiceOperationEnum.DESCRIBE_LAYER.value
+        get_leg = ServiceOperationEnum.GET_LEGEND_GRAPHIC.value
+        get_sty = ServiceOperationEnum.GET_STYLES.value
+
         attributes = {
-            "cap_GET": "//GetCapabilities/DCPType/HTTP/Get/OnlineResource",
-            "cap_POST": "//GetCapabilities/DCPType/HTTP/Post/OnlineResource",
-            "map_GET": "//GetMap/DCPType/HTTP/Get/OnlineResource",
-            "map_POST": "//GetMap/DCPType/HTTP/Post/OnlineResource",
-            "feat_GET": "//GetFeatureInfo/DCPType/HTTP/Get/OnlineResource",
-            "feat_POST": "//GetFeatureInfo/DCPType/HTTP/Post/OnlineResource",
-            "desc_GET": "//DescribeLayer/DCPType/HTTP/Get/OnlineResource",
-            "desc_POST": "//DescribeLayer/DCPType/HTTP/Post/OnlineResource",
-            "leg_GET": "//GetLegendGraphic/DCPType/HTTP/Get/OnlineResource",
-            "leg_POST": "//GetLegendGraphic/DCPType/HTTP/Post/OnlineResource",
-            "style_GET": "//GetStyles/DCPType/HTTP/Get/OnlineResource",
-            "style_POST": "//GetStyles/DCPType/HTTP/Post/OnlineResource",
+            "cap_GET": "//" + GENERIC_NAMESPACE_TEMPLATE.format(get_cap) + "/" + suffix_get,
+            "cap_POST": "//" + GENERIC_NAMESPACE_TEMPLATE.format(get_cap) + "/" + suffix_post,
+            "map_GET": "//" + GENERIC_NAMESPACE_TEMPLATE.format(get_map) + "/" + suffix_get,
+            "map_POST": "//" + GENERIC_NAMESPACE_TEMPLATE.format(get_map) + "/" + suffix_post,
+            "feat_GET": "//" + GENERIC_NAMESPACE_TEMPLATE.format(get_feat) + "/" + suffix_get,
+            "feat_POST": "//" + GENERIC_NAMESPACE_TEMPLATE.format(get_feat) + "/" + suffix_post,
+            "desc_GET": "//" + GENERIC_NAMESPACE_TEMPLATE.format(descr_lay) + "/" + suffix_get,
+            "desc_POST": "//" + GENERIC_NAMESPACE_TEMPLATE.format(descr_lay) + "/" + suffix_post,
+            "leg_GET": "//" + GENERIC_NAMESPACE_TEMPLATE.format(get_leg) + "/" + suffix_get,
+            "leg_POST": "//" + GENERIC_NAMESPACE_TEMPLATE.format(get_leg) + "/" + suffix_post,
+            "style_GET": "//" + GENERIC_NAMESPACE_TEMPLATE.format(get_sty) + "/" + suffix_get,
+            "style_POST": "//" + GENERIC_NAMESPACE_TEMPLATE.format(get_sty) + "/" + suffix_post,
         }
         for key, val in attributes.items():
             try:
@@ -330,8 +368,14 @@ class OGCWebMapService(OGCWebService):
     def parse_dimension(self, layer, layer_obj):
         dims_list = []
         try:
-            dim = xml_helper.try_get_single_element_from_xml(elem="./{}Dimension".format(self.get_parser_prefix()), xml_elem=layer)
-            ext = xml_helper.try_get_single_element_from_xml(elem="./{}Extent".format(self.get_parser_prefix()), xml_elem=layer)
+            dim = xml_helper.try_get_single_element_from_xml(
+                elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
+                xml_elem=layer
+            )
+            ext = xml_helper.try_get_single_element_from_xml(
+                elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Extent"),
+                xml_elem=layer
+            )
             dim_dict = {
                 "name": dim.get("name"),
                 "units": dim.get("units"),
@@ -345,8 +389,10 @@ class OGCWebMapService(OGCWebService):
 
     ### STYLES ###
     def parse_style(self, layer, layer_obj):
-        parser_prefix = self.get_parser_prefix()
-        style_xml = xml_helper.try_get_single_element_from_xml("./{}Style".format(parser_prefix), layer)
+        style_xml = xml_helper.try_get_single_element_from_xml(
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Style"),
+            layer
+        )
 
         if style_xml is None:
             # no <Style> element found
@@ -354,13 +400,36 @@ class OGCWebMapService(OGCWebService):
 
         style_obj = Style()
 
-        style_obj.name = xml_helper.try_get_text_from_xml_element(style_xml, "./Name")
-        style_obj.title = xml_helper.try_get_text_from_xml_element(style_xml, "./Title")
-        legend_elem = xml_helper.try_get_single_element_from_xml(elem="./LegendURL/OnlineResource", xml_elem=style_xml)
+        style_obj.name = xml_helper.try_get_text_from_xml_element(
+            style_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Name")
+        )
+        style_obj.title = xml_helper.try_get_text_from_xml_element(
+            style_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
+        )
+        legend_elem = xml_helper.try_get_single_element_from_xml(
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LegendURL") +
+                 "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+            xml_elem=style_xml
+        )
         style_obj.legend_uri = xml_helper.get_href_attribute(legend_elem)
-        style_obj.width = int(xml_helper.try_get_attribute_from_xml_element(style_xml, "width", "./LegendURL"))
-        style_obj.height = int(xml_helper.try_get_attribute_from_xml_element(style_xml, "height", "./LegendURL"))
-        style_obj.mime_type = MimeType.objects.filter(mime_type=xml_helper.try_get_text_from_xml_element(style_xml, "./LegendURL/Format")).first()
+        style_obj.width = int(xml_helper.try_get_attribute_from_xml_element(
+            style_xml,
+            "width",
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("LegendURL")
+        ) or 0)
+        style_obj.height = int(xml_helper.try_get_attribute_from_xml_element(
+            style_xml,
+            "height",
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("LegendURL")
+        ) or 0)
+        style_obj.mime_type = MimeType.objects.filter(
+            mime_type=xml_helper.try_get_text_from_xml_element(
+                style_xml,
+                "./" + GENERIC_NAMESPACE_TEMPLATE.format("LegendURL") +
+                "/ " + GENERIC_NAMESPACE_TEMPLATE.format("Format"))
+        ).first()
 
         layer_obj.style = style_obj
 
@@ -419,7 +488,10 @@ class OGCWebMapService(OGCWebService):
         if self.layers is None:
             self.layers = []
         self.layers.append(layer_obj)
-        sublayers = xml_helper.try_get_element_from_xml(elem="./{}Layer".format(self.get_parser_prefix()), xml_elem=layer)
+        sublayers = xml_helper.try_get_element_from_xml(
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Layer"),
+            xml_elem=layer
+        )
         if parent is not None:
             parent.child_layer.append(layer_obj)
         position += 1
@@ -465,12 +537,22 @@ class OGCWebMapService(OGCWebService):
              nothing
         """
         # get most upper parent layer, which normally lives directly in <Capability>
-        layers = xml_helper.try_get_element_from_xml(elem="//{}Capability/{}Layer".format(self.get_parser_prefix(), self.get_parser_prefix()), xml_elem=xml_obj)
-        total_layers = xml_helper.try_get_element_from_xml(elem="//{}Layer".format(self.get_parser_prefix()), xml_elem=xml_obj)
+        layers = xml_helper.try_get_element_from_xml(
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+                 "/" + GENERIC_NAMESPACE_TEMPLATE.format("Layer"),
+            xml_elem=xml_obj
+        )
+        total_layers = xml_helper.try_get_element_from_xml(
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Layer"),
+            xml_elem=xml_obj
+        )
 
         # calculate the step size for an async call
         # 55 is the diff from the last process update (10) to the next static one (65)
         len_layers = len(total_layers)
+        if len_layers == 0:
+            # No division by zero!
+            len_layers = 1
         step_size = float(PROGRESS_STATUS_AFTER_PARSING / len_layers)
         print("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
 
@@ -485,59 +567,84 @@ class OGCWebMapService(OGCWebService):
         Returns:
             Nothing
         """
-        parser_prefix = self.get_parser_prefix()
+        service_xml = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service"),
+            xml_obj
+        )
 
-        self.service_file_identifier = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Name".format(parser_prefix, parser_prefix))
-        self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Abstract".format(parser_prefix, parser_prefix))
-        self.service_identification_title = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Title".format(parser_prefix, parser_prefix))
+        self.service_file_identifier = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Name")
+        )
+        self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Abstract")
+        )
+        self.service_identification_title = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
+        )
 
         if async_task is not None:
             task_helper.update_service_description(async_task, self.service_identification_title)
 
-        self.service_identification_fees = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}Fees".format(parser_prefix, parser_prefix))
-        self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}AccessConstraints".format(parser_prefix, parser_prefix))
-        self.service_provider_providername = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactPersonPrimary/{}ContactOrganization".format(
-            parser_prefix,
-            parser_prefix,
-            parser_prefix,
-            parser_prefix
-        ))
-        authority_elem = xml_helper.try_get_single_element_from_xml(elem="//{}AuthorityURL".format(parser_prefix), xml_elem=xml_obj)
-        self.service_provider_url = xml_helper.get_href_attribute(authority_elem)
-        self.service_provider_contact_contactinstructions = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//{}Service/{}ContactInformation".format(parser_prefix, parser_prefix))
-        self.service_provider_responsibleparty_individualname = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactPersonPrimary/{}ContactPerson".format(
-            parser_prefix,
-            parser_prefix,
-            parser_prefix,
-            parser_prefix
-        ))
-        self.service_provider_responsibleparty_positionname = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactPersonPrimary/{}ContactPosition".format(
-            parser_prefix,
-            parser_prefix,
-            parser_prefix,
-            parser_prefix
-        ))
-        self.service_provider_telephone_voice = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactVoiceTelephone".format(
-            parser_prefix,
-            parser_prefix,
-            parser_prefix
-        ))
-        self.service_provider_telephone_facsimile = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactFacsimileTelephone".format(
-            parser_prefix,
-            parser_prefix,
-            parser_prefix
-        ))
-        self.service_provider_address_electronicmailaddress = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactElectronicMailAddress".format(
-            parser_prefix,
-            parser_prefix,
-            parser_prefix
-        ))
+        self.service_identification_fees = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Fees")
+        )
+        self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("AccessConstraints")
+        )
+        self.service_provider_providername = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("ContactPersonPrimary")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("ContactOrganization")
 
-        keywords = xml_helper.try_get_element_from_xml("//{}Service/{}KeywordList/{}Keyword".format(
-            parser_prefix,
-            parser_prefix,
-            parser_prefix
-        ), xml_obj)
+        )
+        authority_elem = xml_helper.try_get_single_element_from_xml(
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("AuthorityURL"),
+            xml_elem=xml_obj
+        )
+        self.service_provider_url = xml_helper.get_href_attribute(authority_elem)
+        self.service_provider_contact_contactinstructions = xml_helper.try_get_text_from_xml_element(
+            xml_elem=service_xml,
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation")
+        )
+        self.service_provider_responsibleparty_individualname = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("ContactPersonPrimary")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("ContactPerson")
+        )
+        self.service_provider_responsibleparty_positionname = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("ContactPersonPrimary")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("ContactPosition")
+        )
+        self.service_provider_telephone_voice = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("ContactVoiceTelephone")
+        )
+        self.service_provider_telephone_facsimile = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("ContactFacsimileTelephone")
+        )
+        self.service_provider_address_electronicmailaddress = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("ContactElectronicMailAddress")
+        )
+
+        keywords = xml_helper.try_get_element_from_xml(
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("KeywordList")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Keyword"),
+            service_xml
+        )
 
         kw = []
         for keyword in keywords:
@@ -553,36 +660,36 @@ class OGCWebMapService(OGCWebService):
         link = xml_helper.get_href_attribute(online_res_elem)
         self.service_provider_onlineresource_linkage = link
 
-        self.service_provider_address_country = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactAddress/{}Country".format(
-            parser_prefix,
-            parser_prefix,
-            parser_prefix,
-            parser_prefix,
-        ))
-        self.service_provider_address_postalcode = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactAddress/{}PostCode".format(
-            parser_prefix,
-            parser_prefix,
-            parser_prefix,
-            parser_prefix,
-        ))
-        self.service_provider_address_city = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactAddress/{}City".format(
-            parser_prefix,
-            parser_prefix,
-            parser_prefix,
-            parser_prefix,
-        ))
-        self.service_provider_address_state_or_province = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactAddress/{}StateOrProvince".format(
-            parser_prefix,
-            parser_prefix,
-            parser_prefix,
-            parser_prefix,
-        ))
-        self.service_provider_address = xml_helper.try_get_text_from_xml_element(xml_obj, "//{}Service/{}ContactInformation/{}ContactAddress/{}Address".format(
-            parser_prefix,
-            parser_prefix,
-            parser_prefix,
-            parser_prefix,
-        ))
+        self.service_provider_address_country = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("ContactAddress") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Country")
+        )
+        self.service_provider_address_postalcode = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation") +
+             "/" + GENERIC_NAMESPACE_TEMPLATE.format("ContactAddress") +
+             "/" + GENERIC_NAMESPACE_TEMPLATE.format("PostCode")
+        )
+        self.service_provider_address_city = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation") +
+             "/" + GENERIC_NAMESPACE_TEMPLATE.format("ContactAddress") +
+             "/" + GENERIC_NAMESPACE_TEMPLATE.format("City")
+        )
+        self.service_provider_address_state_or_province = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation") +
+             "/" + GENERIC_NAMESPACE_TEMPLATE.format("ContactAddress") +
+             "/" + GENERIC_NAMESPACE_TEMPLATE.format("StateOrProvince")
+        )
+        self.service_provider_address = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation") +
+             "/" + GENERIC_NAMESPACE_TEMPLATE.format("ContactAddress") +
+             "/" + GENERIC_NAMESPACE_TEMPLATE.format("Address")
+        )
 
         # parse request uris from capabilities document
         self.parse_request_uris(xml_obj, self)
@@ -985,13 +1092,16 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
         self.service_version = VersionEnum.V_1_0_0
 
     def __parse_formats(self, layer, layer_obj):
-        # ToDo: Find wms 1.0.0 for testing!!!!
         actions = ["Map", "Capabilities", "FeatureInfo"]
         results = {}
         for action in actions:
             try:
                 results[action] = []
-                format_list = layer.xpath("//Request/" + action + "/Format").getchildren()
+                format_list = layer.xpath(
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Request") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format(action) +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Format")
+                ).getchildren()
                 for format in format_list:
                     results[action].append(format.text)
             except AttributeError:
@@ -999,7 +1109,33 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
         layer_obj.format_list = results
 
     def get_version_specific_metadata(self, xml_obj):
-        pass
+        service_xml = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service"),
+            xml_obj
+        )
+        # Keywords
+        # Keywords are not separated in single <Keyword> elements.
+        # There is a single <Keywords> element, containing a continuous string, where keywords are space separated
+        keywords = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Keywords")
+        )
+        keywords = keywords.split(" ")
+        tmp = []
+        for kw in keywords:
+            kw = kw.strip()
+            if len(kw) != 0:
+               tmp.append(kw)
+        self.service_identification_keywords = tmp
+
+        # Online Resource
+        # The online resource is not found as an attribute of an element.
+        # It is the text of the <OnlineResource> element
+        online_resource = xml_helper.try_get_text_from_xml_element(
+            service_xml,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
+        )
+        self.service_provider_onlineresource_linkage = online_resource
 
 
 class OGCWebMapService_1_1_0(OGCWebMapService):
@@ -1052,7 +1188,9 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
              nothing
         """
         try:
-            bbox = xml_helper.try_get_element_from_xml("./{}EX_GeographicBoundingBox".format(self.get_parser_prefix()), layer)[0]
+            bbox = xml_helper.try_get_element_from_xml(
+                "./" + GENERIC_NAMESPACE_TEMPLATE.format("EX_GeographicBoundingBox"),
+                layer)[0]
             attrs = {
                 "westBoundLongitude": "minx",
                 "eastBoundLongitude": "maxx",
@@ -1060,7 +1198,10 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
                 "northBoundLatitude": "maxy",
             }
             for key, val in attrs.items():
-                tmp = xml_helper.try_get_text_from_xml_element(xml_elem=bbox, elem="./{}{}".format(self.get_parser_prefix(), key))
+                tmp = xml_helper.try_get_text_from_xml_element(
+                    xml_elem=bbox,
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format(key)
+                )
                 if tmp is None:
                     tmp = 0
                 layer_obj.capability_bbox_lat_lon[val] = tmp
@@ -1076,7 +1217,10 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         Returns:
              nothing
         """
-        crs = xml_helper.try_get_element_from_xml("./{}CRS".format(self.get_parser_prefix()), layer)
+        crs = xml_helper.try_get_element_from_xml(
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("CRS"),
+            layer
+        )
         for elem in crs:
             layer_obj.capability_projection_system.append(elem.text)
 
@@ -1091,7 +1235,10 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         """
         dims_list = []
         try:
-            dims = xml_helper.try_get_element_from_xml(elem="./{}Dimension".format(self.get_parser_prefix()), xml_elem=layer)
+            dims = xml_helper.try_get_element_from_xml(
+                elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
+                xml_elem=layer
+            )
             for dim in dims:
                 dim_dict = {
                     "name": dim.get("name"),
@@ -1118,11 +1265,23 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
              nothing
         """
         # layer limit is new
-        layer_limit = xml_helper.try_get_text_from_xml_element(elem="//{}LayerLimit".format(self.get_parser_prefix()), xml_elem=xml_obj)
+        layer_limit = xml_helper.try_get_text_from_xml_element(
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("LayerLimit"),
+            xml_elem=xml_obj
+        )
         self.layer_limit = layer_limit
+
         # max height and width is new
-        max_width = xml_helper.try_get_text_from_xml_element(elem="//{}MaxWidth".format(self.get_parser_prefix()), xml_elem=xml_obj)
+        max_width = xml_helper.try_get_text_from_xml_element(
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("MaxWidth"),
+            xml_elem=xml_obj
+        )
         self.max_width = max_width
-        max_height = xml_helper.try_get_text_from_xml_element(elem="//{}MaxHeight".format(self.get_parser_prefix()), xml_elem=xml_obj)
+
+        max_height = xml_helper.try_get_text_from_xml_element(
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("MaxHeight"),
+            xml_elem=xml_obj
+        )
         self.max_height = max_height
+
         self.get_layers(xml_obj=xml_obj)

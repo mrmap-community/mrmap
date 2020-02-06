@@ -627,7 +627,7 @@ def edit_group(request: HttpRequest, user: User, id: int):
         return BackendAjaxResponse(html=html).get_response()
 
 
-def handler404(request: HttpRequest, exception):
+def handler404(request: HttpRequest, exception=None):
     """ Handles a general 404 (Page not found) error and renders a custom response page
 
     Args:
@@ -645,7 +645,7 @@ def handler404(request: HttpRequest, exception):
     return response
 
 
-def handler500(request: HttpRequest, exception):
+def handler500(request: HttpRequest, exception=None):
     """ Handles a general 500 (Internal Server Error) error and renders a custom response page
 
     Args:

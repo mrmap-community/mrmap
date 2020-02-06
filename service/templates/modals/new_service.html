@@ -1,1 +1,45 @@
-<!--TODO-->
+{% load static i18n %}
+{% load bootstrap4 %}
+<!-- Modal -->
+
+<div class="modal {% if not show_new_service_modal %} fade {% endif %}" id="new_service" data-backdrop="static" tabindex="-1" role="dialog"
+     aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticBackdropLabel">{% trans 'Add new service' %}</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="new_service_form" action="{% url 'service:index' %}" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    {% bootstrap_form new_service_form %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn {{ THEME.BTN_DANGER_OUT_COLOR }}" data-dismiss="modal">
+                        {% trans 'Cancel' %}
+                    </button>
+                    <button type="button submit" class="btn {{ THEME.BTN_SECONDARY_OUT_COLOR }}">
+                        {% trans 'Next' %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% if show_new_service_modal %}
+    <script type="text/javascript">
+        $('#new_service').modal('show');
+    </script>
+{% endif %}
+
+<script type="text/javascript">
+    $(function() {
+       $(".auto_submit_item").change(function() {
+         $('#id_is_form_update').val('True');
+         $('#new_service_form').submit();
+       });
+    });
+</script>

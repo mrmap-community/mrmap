@@ -6,10 +6,90 @@ Created on: 15.04.19
 
 """
 from django import forms
+from service.helper import service_helper
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from django.forms import ModelForm
+
+
+def validate_get_request_uri(value):
+
+    cap_url = value
+    url_dict = service_helper.split_service_uri(cap_url)
+
+    try:
+        if url_dict["request"].lower() != "getcapabilities":
+            # not allowed!
+            raise ValidationError(
+                _('requested method is not GetCapabilities '),
+            )
+
+        params = {
+            "uri": url_dict["base_uri"],
+            "version": url_dict["version"].value,
+            "service_type": url_dict["service"].value,
+            "request_action": url_dict["request"],
+            "full_uri": cap_url,
+        }
+    except AttributeError as value:
+        raise ValidationError(
+                    _('%(value)s'),
+                    params={'value': value},
+               )
 
 
 class ServiceURIForm(forms.Form):
     uri = forms.CharField(label=_("GetRequest URI"), widget=forms.TextInput(attrs={
         "id": "capabilities-uri"
     }))
+
+
+class RegisterNewServiceWizardPage1(forms.Form):
+    page = forms.IntegerField(widget=forms.HiddenInput(), initial=1)
+    get_request_uri = forms.URLField(validators=[validate_get_request_uri])
+
+
+class RegisterNewServiceWizardPage2(forms.Form):
+    page = forms.IntegerField(widget=forms.HiddenInput(), initial=2)
+    is_form_update = forms.BooleanField(widget=forms.HiddenInput(), initial=False)
+    ogc_request = forms.CharField(label='OGC Request', widget=forms.TextInput(attrs={'readonly': '', }))
+    ogc_service = forms.CharField(label='OGC Service', widget=forms.TextInput(attrs={'readonly': '', }))
+    ogc_version = forms.CharField(label='OGC Version', widget=forms.TextInput(attrs={'readonly': '', }))
+    uri = forms.URLField(label='URI', widget=forms.TextInput(attrs={'readonly': '', }))
+    registering_with_group = forms.ModelChoiceField(widget=forms.Select(attrs={'class': 'auto_submit_item'}), queryset=None, to_field_name='id', initial=1)
+    registering_for_other_organization = forms.ModelChoiceField(required=False, queryset=None, to_field_name='id', empty_label="No other")
+
+    # TODO: initial with false
+    service_needs_authentication = forms.BooleanField(required=False, widget=forms.CheckboxInput(attrs={'class': 'auto_submit_item'}))
+    username = forms.CharField(disabled=True)
+    password = forms.CharField(widget=forms.PasswordInput, disabled=True)
+    authentication_type = forms.ChoiceField(disabled=True, choices=(('http_digest', 'HTTP Digest'), ('http_basic', 'HTTP Basic')))
+
+    def __init__(self, *args, **kwargs):
+        # pop custom kwargs before invoke super constructor and hold them
+        self.user = kwargs.pop('user')
+        self.selected_group = kwargs.pop('selected_group')
+        self.service_needs_authentication = kwargs.pop('service_needs_authentication')
+        self.is_auth_needed = False
+        if self.service_needs_authentication == 'on':
+            self.is_auth_needed = True
+
+        # run super constructor to construct the form
+        super(RegisterNewServiceWizardPage2, self).__init__(*args, **kwargs)
+
+        # initial the fields with the poped kwargs
+        self.fields['registering_with_group'].queryset = self.user.groups.all()
+        self.fields['registering_with_group'].initial = self.user.groups.first()
+        self.fields['registering_for_other_organization'].queryset = self.selected_group.publish_for_organizations.all()
+        self.fields['service_needs_authentication'].initial = self.service_needs_authentication
+
+        if self.service_needs_authentication == 'on':
+            self.fields['username'].disabled = not self.is_auth_needed  # negation cause disabled is contrary
+            self.fields['password'].disabled = not self.is_auth_needed  # negation cause disabled is contrary
+            self.fields['authentication_type'].disabled = not self.is_auth_needed  # negation cause disabled is contrary
+
+
+class RegisterNewServiceWizardPage3(forms.Form):
+    page = forms.IntegerField(widget=forms.HiddenInput(), initial=3)
+    get_request_uri = forms.CharField()
+

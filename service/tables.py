@@ -1,8 +1,11 @@
 import django_tables2 as tables
 from django.utils.html import format_html
 from django.urls import reverse
+import json
+
 
 URL_PATTERN = "<a href='{}'>{}</a>"
+URL_PATTERN_BTN_DANGER = "<a class='btn btn-sm btn-danger' href='{}'>{}</a>"
 
 
 def _get_icon(self):
@@ -85,7 +88,7 @@ class WmsLayerTable(ServiceTable):
 
 class WfsServiceTable(tables.Table):
     wfs_title = tables.Column(accessor='title', verbose_name='Title', )
-    wfs_featuretypes = tables.Column(verbose_name='Featuretypes', empty_values=[],)
+    wfs_featuretypes = tables.Column(verbose_name='Featuretypes', empty_values=[], )
     wfs_active = tables.Column(accessor='is_active', verbose_name='Active', )
     wfs_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', )
     wfs_secured_externally = tables.Column(accessor='has_external_authentication', verbose_name='Secured externally', )
@@ -138,3 +141,47 @@ class WfsServiceTable(tables.Table):
             return format_html(URL_PATTERN, url, value, )
         else:
             return value
+
+
+class PendingTasksTable(tables.Table):
+    pt_cancle = tables.Column(verbose_name=' ', empty_values=[], )
+    pt_status = tables.Column(verbose_name='Status', empty_values=[], )
+    pt_service = tables.Column(verbose_name='Service', empty_values=[], )
+    pt_phase = tables.Column(verbose_name='Phase', empty_values=[], )
+    pt_progress = tables.Column(accessor='progress', verbose_name='Progress', empty_values=[], )
+
+    @staticmethod
+    def render_pt_cancle(record):
+        url = reverse('structure:remove-task', args=(record.task_id,))
+        value = format_html('<i class="fas fa-window-close"></i>')
+        return format_html(URL_PATTERN_BTN_DANGER, url, value, )
+
+    @staticmethod
+    def render_pt_status():
+        return format_html('<div class="spinner-border spinner-border-sm" role="status">'
+                           '<span class="sr-only">Loading...</span>'
+                           '</div>')
+
+    @staticmethod
+    def render_pt_service(record):
+        # TODO: remove this sticky json
+        return str(json.loads(record.description)['service'])
+
+    @staticmethod
+    def render_pt_phase(record):
+        # TODO: remove this sticky json
+        return str(json.loads(record.description)['phase'])
+
+    @staticmethod
+    def render_pt_progress(value, ):
+        if value is None:
+            progress_value = '1'  # 1 % to show something ¯\_(ツ)_/¯
+        else:
+            progress_value = str(value)
+
+        return format_html('<div class="progress">' \
+                           '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" ' \
+                           'aria-valuenow="' + progress_value + '" aria-valuemin="0" aria-valuemax="100" ' \
+                                                                'style="width: ' + progress_value + '%">' \
+                                                                                                    '</div>' \
+                                                                                                    '</div>')

@@ -4,9 +4,10 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
+from django.template.response import TemplateResponse, SimpleTemplateResponse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -23,14 +24,15 @@ from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
 from MapSkinner.utils import prepare_table_pagination_settings
 from service import tasks
 from service.filters import WmsFilter, WfsFilter
-from service.forms import ServiceURIForm
+from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1,  \
+    RegisterNewServiceWizardPage2
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
-from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable
+from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style
 from service.tasks import async_remove_service_task
@@ -38,8 +40,165 @@ from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
 
 
+def _prepare_wms_table(request: HttpRequest, user: User, ):
+
+
+    # whether whole services or single layers should be displayed
+    display_service_type = request.GET.get("q", None)  # s=services, l=layers
+    is_root = True
+    if display_service_type is not None:
+        is_root = display_service_type != "l"
+
+    md_list_wms = Metadata.objects.filter(
+        service__servicetype__name="wms",
+        service__is_root=is_root,
+        created_by__in=user.groups.all(),
+        service__is_deleted=False,
+    ).order_by("title")
+
+    wms_table_filtered = WmsFilter(request.GET, queryset=md_list_wms)
+
+    if display_service_type is None or display_service_type == 's':
+        wms_table = WmsServiceTable(wms_table_filtered.qs,
+                                    template_name='django_tables2_bootstrap4_custom.html',
+                                    order_by_field='swms')  # swms = sort wms
+    else:
+        wms_table = WmsLayerTable(wms_table_filtered.qs,
+                                  template_name='django_tables2_bootstrap4_custom.html',
+                                  order_by_field='swms')  # swms = sort wms
+
+    RequestConfig(request).configure(wms_table)
+    # TODO: # since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    wms_pagination = prepare_table_pagination_settings(request, wms_table, 'wms-t')
+
+    wms_table.page_field = wms_pagination.get('page_name')
+    wms_table.paginate(page=request.GET.get(wms_pagination.get('page_name'), PAGE_DEFAULT),
+                       per_page=request.GET.get(wms_pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+
+    params = {
+        "wms_filter": wms_table_filtered,
+        "wms_table": wms_table,
+        "wms_pagination": wms_pagination,
+    }
+
+    return params
+
+
+def _prepare_wfs_table(request: HttpRequest, user: User, ):
+
+    md_list_wfs = Metadata.objects.filter(
+        service__servicetype__name="wfs",
+        created_by__in=user.groups.all(),
+        service__is_deleted=False,
+    ).order_by("title")
+
+    wfs_table_filtered = WfsFilter(request.GET, queryset=md_list_wfs)
+    wfs_table = WfsServiceTable(wfs_table_filtered.qs,
+                                template_name='django_tables2_bootstrap4_custom.html',
+                                order_by_field='swfs')  # swms = sort wms
+
+    RequestConfig(request).configure(wfs_table)
+    wfs_pagination = prepare_table_pagination_settings(request, wfs_table, 'wms-t')
+
+    wfs_table.page_field = wfs_pagination.get('page_name')
+    wfs_table.paginate(page=request.GET.get(wfs_pagination.get('page_name'), PAGE_DEFAULT),
+                       per_page=request.GET.get(wfs_pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+
+    params = {
+        "wfs_filter": wfs_table_filtered,
+        "wfs_table": wfs_table,
+        "wfs_pagination": wfs_pagination,
+    }
+
+    return params
+
+
+def _new_service_wizard(request, user):
+    params = {}
+    page = int(request.POST.get("page"))
+
+    if page is 1:
+        # Page One is posted --> validate it
+        form = RegisterNewServiceWizardPage1(request.POST)
+        if form.is_valid():
+            # Form is valid --> response with page 2
+            url_dict = service_helper.split_service_uri(form.cleaned_data['get_request_uri'])
+            init_data = {'ogc_request': url_dict["request"],
+                         'ogc_service': url_dict["service"].value,
+                         'ogc_version': url_dict["version"].value,
+                         'uri': url_dict["base_uri"],
+                         }
+            params.update({
+                "new_service_form": RegisterNewServiceWizardPage2(initial=init_data,
+                                                                  user=user,
+                                                                  selected_group=user.groups.first(),
+                                                                  service_needs_authentication='off'),
+                "show_new_service_modal": True,
+            })
+        else:
+            # Form is not valid --> response with page 1 and show errors
+            params.update({
+                "new_service_form": form,
+                "show_new_service_modal": True,
+            })
+
+    elif page is 2:
+        # Page two is posted --> validate it
+        if request.POST.get("is_form_update") == 'True':
+            selected_group = user.groups.all().get(id=int(request.POST.get("registering_with_group")))
+            init_data = {'ogc_request': request.POST.get("ogc_request"),
+                         'ogc_service': request.POST.get("ogc_service"),
+                         'ogc_version': request.POST.get("ogc_version"),
+                         'uri': request.POST.get("uri"),
+                         'registering_with_group': request.POST.get("registering_with_group")
+                         }
+
+            form = RegisterNewServiceWizardPage2(initial=init_data,
+                                                 user=user,
+                                                 selected_group=selected_group,
+                                                 service_needs_authentication=request.POST.get(
+                                                     "service_needs_authentication"))
+            params.update({
+                "new_service_form": form,
+                "show_new_service_modal": True,
+            })
+        else:
+            selected_group = user.groups.all().get(id=int(request.POST.get("registering_with_group")))
+            init_data = {'ogc_request': request.POST.get("ogc_request"),
+                         'ogc_service': request.POST.get("ogc_service"),
+                         'ogc_version': request.POST.get("ogc_version"),
+                         'uri': request.POST.get("uri"),
+                         'registering_with_group': request.POST.get("registering_with_group")
+                         }
+
+            form = RegisterNewServiceWizardPage2(initial=init_data,
+                                                 user=user,
+                                                 selected_group=selected_group,
+                                                 service_needs_authentication=request.POST.get(
+                                                     "service_needs_authentication"))
+
+            if form.is_valid():
+                # TODO: # Form is valid --> register new service --> response with page 3
+                pass
+
+
+            else:
+                # Form is not valid --> response with page 1 and show errors
+                params.update({
+                    "new_service_form": form,
+                    "show_new_service_modal": True,
+                })
+
+    elif page is 3:
+        # Page three is posted --> validate it
+        pass
+        # TODO
+
+    return params
+
+
 @check_session
-def index(request: HttpRequest, user: User, service_type=None):
+def index(request: HttpRequest, user: User):
     """ Renders an overview of all wms and wfs
 
     Args:
@@ -49,95 +208,28 @@ def index(request: HttpRequest, user: User, service_type=None):
     Returns:
          A view
     """
+    # Default content
     template = "service_index.html"
-    GET_params = request.GET
-
-    # possible results per page values
-    rpp_select = [5, 10, 15, 20, 50, 100, 200, 500, 1000]
-    try:
-        wms_page = int(GET_params.get("wmsp", 1))
-        wfs_page = int(GET_params.get("wfsp", 1))
-        results_per_page = int(GET_params.get("rpp", 5))
-        if wms_page < 1 or wfs_page < 1 or results_per_page < 1:
-            raise ValueError
-        if results_per_page not in rpp_select:
-            results_per_page = 5
-    except ValueError as e:
-        # since parameters could be changed directly in the uri, we need to make sure to avoid problems
-        return redirect("service:index")
-
-    # whether whole services or single layers should be displayed
-    display_service_type = GET_params.get("q", None)  # s=services, l=layers
-    is_root = True
-    if display_service_type is not None:
-        is_root = display_service_type != "l"
-
-    wms_table = None
-    if service_type is None or service_type == ServiceEnum.WMS.value:
-        md_list_wms = Metadata.objects.filter(
-            service__servicetype__name="wms",
-            service__is_root=is_root,
-            created_by__in=user.groups.all(),
-            service__is_deleted=False,
-        ).order_by("title")
-
-        wms_table_filtered = WmsFilter(request.GET, queryset=md_list_wms)
-
-        if display_service_type is None or display_service_type == 's':
-            wms_table = WmsServiceTable(wms_table_filtered.qs,
-                                        template_name='django_tables2_bootstrap4_custom.html',
-                                        order_by_field='swms')  # swms = sort wms
-        else:
-            wms_table = WmsLayerTable(wms_table_filtered.qs,
-                                      template_name='django_tables2_bootstrap4_custom.html',
-                                      order_by_field='swms')  # swms = sort wms
-
-        RequestConfig(request).configure(wms_table)
-        wms_pagination = prepare_table_pagination_settings(request, wms_table, 'wms-t')
-
-        wms_table.page_field = wms_pagination.get('page_name')
-        wms_table.paginate(page=request.GET.get(wms_pagination.get('page_name'), PAGE_DEFAULT),
-                           per_page=request.GET.get(wms_pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
-
-    if service_type is None or service_type == ServiceEnum.WFS.value:
-        md_list_wfs = Metadata.objects.filter(
-            service__servicetype__name="wfs",
-            created_by__in=user.groups.all(),
-            service__is_deleted=False,
-        ).order_by("title")
-
-        wfs_table_filtered = WfsFilter(request.GET, queryset=md_list_wfs)
-        wfs_table = WfsServiceTable(wfs_table_filtered.qs,
-                                    template_name='django_tables2_bootstrap4_custom.html',
-                                    order_by_field='swfs')  # swms = sort wms
-
-        RequestConfig(request).configure(wfs_table)
-        wfs_pagination = prepare_table_pagination_settings(request, wfs_table, 'wms-t')
-
-        wfs_table.page_field = wfs_pagination.get('page_name')
-        wfs_table.paginate(page=request.GET.get(wfs_pagination.get('page_name'), PAGE_DEFAULT),
-                           per_page=request.GET.get(wfs_pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
     # get pending tasks
     pending_tasks = PendingTask.objects.filter(created_by__in=user.groups.all())
-    for task in pending_tasks:
-        task.description = json.loads(task.description)
+    pt_table = PendingTasksTable(pending_tasks,
+                                 template_name='django_tables2_bootstrap4_custom.html',
+                                 orderable=False,)
+
     params = {
-        "wms_filter": wms_table_filtered,
-        "wms_table": wms_table,
-        "wms_pagination": wms_pagination,
-
-        "wfs_filter": wfs_table_filtered,
-        "wfs_table": wfs_table,
-        "wfs_pagination": wfs_pagination,
-
-        "select_default": display_service_type,
-        "only_type": service_type,
+        "pt_table": pt_table,
+        "new_service_form": RegisterNewServiceWizardPage1(),
         "user": user,
-        "rpp_select_options": rpp_select,
-        "rpp": results_per_page,
-        "pending_tasks": pending_tasks,
     }
+
+    params.update(_prepare_wms_table(request, user, ))
+    params.update(_prepare_wfs_table(request, user, ))
+
+    # special content for new service wizard
+    if request.method == 'POST':
+        params.update(_new_service_wizard(request, user))
+
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 
@@ -378,7 +470,7 @@ def wms(request:HttpRequest, user:User):
     """
     return redirect("service:index", ServiceEnum.WMS.value)
 
-
+# TODO: deprecated function
 @check_session
 @check_permission(Permission(can_register_service=True))
 def register_form(request: HttpRequest, user: User):

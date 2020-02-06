@@ -1,5 +1,8 @@
 from django.urls import path
+
+from service.forms import RegisterNewServiceWizardPage2, RegisterNewServiceWizardPage3
 from service.views import *
+from django.conf.urls import url
 
 app_name='service'
 urlpatterns = [
@@ -20,7 +23,7 @@ urlpatterns = [
     path('capabilities/<int:id>/original', get_capabilities_original, name='get-capabilities-original'),
 
     path('new/register-form', register_form, name='register-form'),
-    path('new/', new_service, name='wms'),
+    path('new/', new_service, name='new-service'),
 
     path('update/register-form/<id>', update_service_form, name='register-form'),
     path('update/<id>', update_service, name='update-service'),

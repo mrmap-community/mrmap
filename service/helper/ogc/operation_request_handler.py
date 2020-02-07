@@ -1451,36 +1451,49 @@ class OGCOperationRequestHandler:
         Returns:
              The xml response
         """
+
+        # First try to perform a regular GET call
         if uri is None:
             uri = self._create_GET_uri()
 
+        # Check if GET wouldn't work due to the length limitation of 2048 characters
         force_post = False
         if len(uri) > 2048:
             force_post = True
 
+        # If we had a request incoming as GET and we do not need to switch to perform a POST, due to the length, we
+        # are good to go!
         if self.request_is_GET and not force_post:
             c = CommonConnector(url=uri, external_auth=self.external_auth)
             c.load()
 
+        # Otherwise we need to perform a POST request
         else:
+            # Create a CommonConnector object using the post uri
             c = CommonConnector(url=self.post_uri, external_auth=self.external_auth)
 
             # If a post_body xml is given, we always prefer this over post_data
             if post_body is not None:
                 post_content = post_body
 
+            # ... so we do not have any xml post body content. If no other post_data content was provided as variable
+            # we will construct our own post_data!
             elif post_data is None:
                 post_content = self._create_POST_data()  # get default POST as dict content
 
+            # Fallback - this would only happen if absolutely no parameters were given to this function
             else:
                 post_content = ""
 
-            # there are two ways to post data to a server:
-            # 1)    Using x-www-form-urlencoded (mostly used)
-            # 2)    Using a raw post body, which contains a xml (old style, used by some GIS servers
-            # So if 1) fails, due to missing support, we need to build a parameter xml and try another post with raw body
+            # There are two ways to post data to a server in the OGC service world:
+            # 1)    Using x-www-form-urlencoded (mostly used in todays world)
+            # 2)    Using a raw post body, which contains a xml (old style, used by some GIS servers)
+            #
+            # We try to perform 1)
+            # It may happen, that some GIS servers can not handle the x-www-form-urlencoded content, so we need to
+            # create a XML document, based on our post_content, and try to post again!
             c.post(post_content)
-            try_again_code_list = [500, 501, 502, 504, 510]
+            try_again_code_list = [500, 501, 502, 504, 510]  # if one of these codes will be returned, we need to try again using xml post
 
             if c.status_code is not None and c.status_code in try_again_code_list:
                 # create xml from parameters according to specification

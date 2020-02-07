@@ -8,6 +8,7 @@ class MonitoringSetting(models.Model):
 
 
 class MonitoringResult(models.Model):
+    monitoring_successful = models.BooleanField(null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE)
     needs_update = models.BooleanField(null=True, blank=True)

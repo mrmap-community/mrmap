@@ -19,7 +19,7 @@ from lxml import etree
 
 from django.contrib.gis.geos import Polygon, GEOSGeometry, Point, GeometryCollection, MultiLineString
 from django.http import HttpRequest, HttpResponse, QueryDict
-from lxml.etree import QName
+from lxml.etree import QName, _Element
 
 from MapSkinner import utils
 from MapSkinner.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
@@ -118,7 +118,6 @@ class OGCOperationRequestHandler:
         self._resolve_original_operation_uri(request, metadata)
         self._process_bbox_param()
         self._process_x_y_param()
-        self._process_transaction_geometries()
         self._preprocess_get_feature_params(metadata)
         self._fill_new_params_dict()
 
@@ -442,32 +441,32 @@ class OGCOperationRequestHandler:
                 },
             }
 
-        secured_uri_GET = secured_operation_uris.get(self.request_param.upper(), {}).get("get", None)
-        secured_uri_POST = secured_operation_uris.get(self.request_param.upper(), {}).get("post", None)
+        secured_uri_get = secured_operation_uris.get(self.request_param.upper(), {}).get("get", None)
+        secured_uri_post = secured_operation_uris.get(self.request_param.upper(), {}).get("post", None)
 
-        if secured_uri_GET is not None:
+        if secured_uri_get is not None:
             # use the secured uri
-            uri_GET = secured_uri_GET
+            uri_get = secured_uri_get
         else:
             # use the original uri
-            uri_GET = metadata.online_resource
+            uri_get = metadata.online_resource
 
-        if secured_uri_POST is not None:
+        if secured_uri_post is not None:
             # use the secured uri
-            uri_POST = secured_uri_POST
+            uri_post = secured_uri_post
         else:
             # use the original uri
-            uri_POST = metadata.online_resource
+            uri_post = metadata.online_resource
 
         # add the request query parameter to the ones, which already exist in the persisted uri
-        uri_GET = list(urllib.parse.urlparse(uri_GET))
+        uri_get = list(urllib.parse.urlparse(uri_get))
         get_query_params = request.GET.dict()
-        uri_params = dict(urllib.parse.parse_qsl(uri_GET[4]))
+        uri_params = dict(urllib.parse.parse_qsl(uri_get[4]))
         uri_params.update(get_query_params)
         get_query_string = urllib.parse.urlencode(uri_params)
-        uri_GET[4] = get_query_string
-        self.get_uri = urllib.parse.urlunparse(uri_GET)
-        self.post_uri = uri_POST
+        uri_get[4] = get_query_string
+        self.get_uri = urllib.parse.urlunparse(uri_get)
+        self.post_uri = uri_post
 
     def _parse_post_xml_body(self, body: bytes):
         """ Reads all relevant request data from the POST body xml document
@@ -524,7 +523,7 @@ class OGCOperationRequestHandler:
         self.srs_param = xml_helper.try_get_text_from_xml_element(root, "//" + GENERIC_NAMESPACE_TEMPLATE.format("CRS"))
         if self.srs_param is None:
             self.srs_param = xml_helper.try_get_attribute_from_xml_element(bbox_elem, "srsName")
-        if self.srs_param is not None:
+        else:
             possible_separators = [":", "#"]
             for sep in possible_separators:
                 try:
@@ -604,6 +603,7 @@ class OGCOperationRequestHandler:
         self.version_param = xml_helper.try_get_attribute_from_xml_element(root, "version")
         self.service_type_param = xml_helper.try_get_attribute_from_xml_element(root, "service")
 
+        # Collect all transaction types which may exist in this transaction request
         inserts = xml_helper.try_get_element_from_xml(
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("Insert"),
             root
@@ -617,6 +617,7 @@ class OGCOperationRequestHandler:
             root
         )
 
+        # Put all in one list, so we can iterate as simple as possible
         all = []
         all += inserts
         all += updates
@@ -625,37 +626,150 @@ class OGCOperationRequestHandler:
         processed_elements = []
 
         for xml_element in all:
-            # Fetch srs information
-            srs_name = xml_helper.try_get_attribute_from_xml_element(
+
+            # Find the srsName attribute, which defines the spatial reference system for further processing
+            srs_name = xml_helper.get_children_with_attribute(
                 xml_element,
                 "srsName",
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MultiPolygon")
+                nearest_only=True
             )
-            srs_id = int(srs_name.split(":")[-1])
+            srs_name = xml_helper.try_get_attribute_from_xml_element(
+                srs_name,
+                "srsName"
+            )
+            self.srs_param = srs_name
+            self.srs_code = int(srs_name.split(":")[-1])
 
-            # Fetch geometry information
-            xml_geom = xml_helper.try_get_single_element_from_xml(
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("coordinates"),
-                xml_element
-            )
-            separator = xml_helper.try_get_attribute_from_xml_element(
-                xml_geom,
-                "ts"
-            )
-            geom_coords = xml_helper.try_get_text_from_xml_element(xml_geom)
-            geom_coords = geom_coords.split(separator)
+            # Check which type of gml format is used to store the geometrical information
+            has_coordinates = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("coordinates"), xml_element) is not None
+            has_pos_list = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("posList"), xml_element) is not None
+            has_pos = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("pos"), xml_element) is not None
 
-            # Create geometry object from coordinates
-            geom_obj = GEOSGeometry(Polygon(geom_coords), srid=srs_id)
+            if has_coordinates:
+                geometry_obj = self._create_geometry_from_gml_coordinates(xml_element)
+
+            elif has_pos_list:
+                geometry_obj = self._create_geometry_from_gml_pos_list(xml_element)
+
+            elif has_pos:
+                geometry_obj = self._create_geometry_from_gml_pos(xml_element)
+            else:
+                raise LookupError(PARAMETER_ERROR.format("gml:coordinates | gml: posList | gml:pos"))
 
             processed_elements.append(
                 {
-                    "geometry": geom_obj,
+                    "geometry": geometry_obj,
                     "xml_element": xml_element,
                 }
             )
 
         self.transaction_geometries = processed_elements
+
+    def _create_geometry_from_gml_coordinates(self, xml_element: _Element):
+        """ Creates a GEOSGeometry object from the <gml:coordinates> element found in the xml_element.
+
+        Args:
+            xml_element (_Element): The xml element
+        Returns:
+
+        """
+        # Refers to http://www.datypic.com/sc/niem21/e-gml32_coordinates.html
+        geometry_element = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("coordinates"),
+            xml_element
+        )
+        # Xml element holds geometry data in <coordinates> element.
+        cs = xml_helper.try_get_attribute_from_xml_element(
+            geometry_element,
+            "cs"
+        )
+        ts = xml_helper.try_get_attribute_from_xml_element(
+            geometry_element,
+            "ts"
+        )
+        coord_list = xml_helper.try_get_text_from_xml_element(geometry_element)
+        coord_list = coord_list.split(ts)
+        tmp = []
+        for coord in coord_list:
+            coord = coord.split(cs)
+            tmp.append(
+                (
+                    float(coord[0]),
+                    float(coord[1]),
+                )
+            )
+        coord_list = tmp
+
+        # Create geometry object
+        geometry_obj = GEOSGeometry(
+            Polygon(
+                coord_list
+            ),
+            srid=self.srs_code
+        )
+        return geometry_obj
+
+    def _create_geometry_from_gml_pos_list(self, xml_element: _Element):
+        """ Creates a GEOSGeometry object from the <gml:posList> element found in the xml_element.
+
+        Args:
+            xml_element (_Element): The xml element
+        Returns:
+
+        """
+        # Refers to http://www.datypic.com/sc/niem21/e-gml32_posList.html
+        geometry_element = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("posList"),
+            xml_element
+        )
+        coord_list = xml_helper.try_get_text_from_xml_element(geometry_element)
+        coord_list = coord_list.split(" ")
+        tmp = []
+        for i in range(0, coord_list, 2):
+            tmp.append(
+                (
+                    float(coord_list[i]),
+                    float(coord_list[i + 1])
+                )
+            )
+        coord_list = tmp
+
+        # Create geometry object
+        geometry_obj = GEOSGeometry(
+            Polygon(
+                coord_list
+            ),
+            srid=self.srs_code
+        )
+        return geometry_obj
+
+    def _create_geometry_from_gml_pos(self, xml_element: _Element):
+        """ Creates a GEOSGeometry object from the <gml:pos> element found in the xml_element.
+
+        Args:
+            xml_element (_Element): The xml element
+        Returns:
+
+        """
+        # Refers to http://www.datypic.com/sc/niem21/e-gml32_pos.html
+        geometry_element = xml_helper.try_get_element_from_xml(
+            xml_element,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("pos")
+        )
+        geometry_element = geometry_element.split(" ")
+
+        if len(geometry_element) != 2:
+            raise ValueError(TD_POINT_HAS_NOT_ENOUGH_VALUES)
+
+        # Create geometry object
+        geometry_obj = GEOSGeometry(
+            Point(
+                geometry_element[0],
+                geometry_element[1]
+            ),
+            srid=self.srs_code or DEFAULT_SRS
+        )
+        return geometry_obj
 
     def _create_filter_xml_from_geometries(self, geom_list: list):
         """ Creates a xml string for the filter parameter of a WFS operation
@@ -805,11 +919,10 @@ class OGCOperationRequestHandler:
         ret_list = []
 
         for poly in polygon_elements:
-            pos_list = xml_helper.try_get_text_from_xml_element(poly,
-                                                                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("posList"))
-
-            if pos_list is None or len(pos_list) == 0:
-                continue
+            pos_list = xml_helper.try_get_text_from_xml_element(
+                poly,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("posList")
+            )
 
             pos_list = pos_list.split(" ")
             vertices_pairs = []
@@ -1016,9 +1129,8 @@ class OGCOperationRequestHandler:
                 constraints["x_y"] = True
                 break
             total_bounding_geometry = sec_op.bounding_geometry.unary_union
-            if self.x_y_coord is not None:
-                if total_bounding_geometry.covers(self.x_y_coord):
-                    constraints["x_y"] = True
+            if self.x_y_coord is not None and total_bounding_geometry.covers(self.x_y_coord):
+                constraints["x_y"] = True
 
         return False not in constraints.values()
 
@@ -1122,21 +1234,21 @@ class OGCOperationRequestHandler:
             img.format = old_format
 
         if as_bytes:
-            outBytesStream = io.BytesIO()
+            out_bytes_stream = io.BytesIO()
             try:
-                img.save(outBytesStream, img.format, optimize=True, quality=80)
-                img = outBytesStream.getvalue()
+                img.save(out_bytes_stream, img.format, optimize=True, quality=80)
+                img = out_bytes_stream.getvalue()
             except IOError:
                 # happens if a non-alpha channel format is requested, such as jpeg
                 # replace alpha channel with white background
                 bg = Image.new("RGB", img.size, (255, 255, 255))
                 bg.paste(img, mask=img.split()[3])
-                bg.save(outBytesStream, img.format, optimize=True, quality=80)
-                img = outBytesStream.getvalue()
+                bg.save(out_bytes_stream, img.format, optimize=True, quality=80)
+                img = out_bytes_stream.getvalue()
 
         return img
 
-    def _check_transaction_operation_access(self, sec_ops: QueryDict):
+    def _filter_transaction_geometries(self, sec_ops: QueryDict):
         """ Checks whether the Transaction request can be allowed or not.
 
         Checks the SecuredOperations against geometries from the request
@@ -1146,22 +1258,24 @@ class OGCOperationRequestHandler:
         Returns:
              True|False
         """
-        ret_val = True
-
+        root_xml = None
         for sec_op in sec_ops:
 
             if sec_op.bounding_geometry.empty:
-                # there is no allowed area defined, so this group is allowed to request everywhere
-                return ret_val
+                # there is no allowed area defined, so this group is allowed to request everywhere. No filter needed
+                return
 
             bounding_geom = sec_op.bounding_geometry.unary_union
 
-            if not bounding_geom.covers(self.transaction_geometries):
-                # If the geometries, that can be found in the transaction operation are not fully covered by the allowed
-                # geometry, we do not allowe the access!
-                return False
-
-        return ret_val
+            for trans_geom in self.transaction_geometries:
+                xml_element = trans_geom.get("xml_element")
+                root_xml = xml_element.getroottree().getroot()
+                geometry = trans_geom.get("geometry")
+                geometry.transform(bounding_geom.srid)
+                if not bounding_geom.covers(geometry):
+                    # If the geometry is not allowed, we remove the corresponding xml from the transaction request
+                    xml_helper.remove_element(xml_element)
+        self.POST_raw_body = xml_helper.xml_to_string(root_xml)
 
     def _resolve_layer_param_to_leaf_layers(self, metadata: Metadata):
         """ Replaces the original requested layer param with all (leaf) child layers identifier as param.
@@ -1319,51 +1433,58 @@ class OGCOperationRequestHandler:
         elif self.request_param.upper() == OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value.upper():
             response = self.get_operation_response()
 
-        # WFS
+        # WFS - 'Transaction'
         elif self.request_param.upper() == OGCOperationEnum.TRANSACTION.value.upper():
-            allowed = self._check_transaction_operation_access(sec_ops)
-            if allowed:
-                i= 0
-                #response = self.get_operation_response(self.POST_raw_body)
+            self._filter_transaction_geometries(sec_ops)
+            response = self.get_operation_response(post_body=self.POST_raw_body)
 
         return response
 
-    def get_operation_response(self, uri: str = None, post_data: dict = None):
+    def get_operation_response(self, uri: str = None, post_data: dict = None, post_body: str = None):
         """ Performs the request.
 
         This may be called after the security checks have passed or otherwise if no security checks had to be done.
 
         Args:
             uri (str): The operation uri
-            post_data (dict): A key-value dict of the POST data
+            post_data(dict): A key-value dict of the POST data
         Returns:
              The xml response
         """
         if uri is None:
             uri = self._create_GET_uri()
 
-        force_POST = False
+        force_post = False
         if len(uri) > 2048:
-            force_POST = True
+            force_post = True
 
-        if self.request_is_GET and not force_POST:
+        if self.request_is_GET and not force_post:
             c = CommonConnector(url=uri, external_auth=self.external_auth)
             c.load()
 
         else:
             c = CommonConnector(url=self.post_uri, external_auth=self.external_auth)
-            if post_data is None:
-                post_data = self._create_POST_data()  # get default POST as dict content
+
+            # If a post_body xml is given, we always prefer this over post_data
+            if post_body is not None:
+                post_content = post_body
+
+            elif post_data is None:
+                post_content = self._create_POST_data()  # get default POST as dict content
+
+            else:
+                post_content = ""
 
             # there are two ways to post data to a server:
             # 1)    Using x-www-form-urlencoded (mostly used)
             # 2)    Using a raw post body, which contains a xml (old style, used by some GIS servers
             # So if 1) fails, due to missing support, we need to build a parameter xml and try another post with raw body
-            c.post(post_data)
+            c.post(post_content)
             try_again_code_list = [500, 501, 502, 504, 510]
+
             if c.status_code is not None and c.status_code in try_again_code_list:
                 # create xml from parameters according to specification
-                request_builder = OGCRequestPOSTBuilder(post_data, self.POST_raw_body)
+                request_builder = OGCRequestPOSTBuilder(post_content, self.POST_raw_body)
                 post_xml = request_builder.build_POST_xml()
                 c.post(post_xml)
 

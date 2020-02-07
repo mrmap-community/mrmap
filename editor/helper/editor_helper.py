@@ -410,7 +410,7 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
          nothing - directly changes the database
     """
     # process form input
-    sec_operations_groups = json.loads(post_params.get("secured-operation-groups"), "{}")
+    sec_operations_groups = json.loads(post_params.get("secured-operation-groups", {}))
 
     is_secured = post_params.get("is_secured", "")
     is_secured = is_secured == "on"  # resolve True|False

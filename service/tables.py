@@ -2,7 +2,8 @@ import django_tables2 as tables
 from django.utils.html import format_html
 from django.urls import reverse
 import json
-
+from MapSkinner.celery_app import app
+from celery.result import AsyncResult
 
 URL_PATTERN = "<a href='{}'>{}</a>"
 URL_PATTERN_BTN_DANGER = "<a class='btn btn-sm btn-danger' href='{}'>{}</a>"
@@ -148,7 +149,7 @@ class PendingTasksTable(tables.Table):
     pt_status = tables.Column(verbose_name='Status', empty_values=[], )
     pt_service = tables.Column(verbose_name='Service', empty_values=[], )
     pt_phase = tables.Column(verbose_name='Phase', empty_values=[], )
-    pt_progress = tables.Column(accessor='progress', verbose_name='Progress', empty_values=[], )
+    pt_progress = tables.Column(verbose_name='Progress', empty_values=[], )
 
     @staticmethod
     def render_pt_cancle(record):
@@ -173,15 +174,22 @@ class PendingTasksTable(tables.Table):
         return str(json.loads(record.description)['phase'])
 
     @staticmethod
-    def render_pt_progress(value, ):
-        if value is None:
-            progress_value = '1'  # 1 % to show something ¯\_(ツ)_/¯
+    def render_pt_progress(record):
+
+        task = AsyncResult(record.task_id, app=app)
+        info_dict = task.info
+
+        if info_dict is not None:
+            if task.info['current'] is None:
+                progress_value = '1'  # 1 % to show something ¯\_(ツ)_/¯
+            else:
+                progress_value = str(int(task.info['current']))
         else:
-            progress_value = str(value)
+            progress_value = '1' # 1 % to show something ¯\_(ツ)_/¯
 
         return format_html('<div class="progress">' \
                            '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" ' \
                            'aria-valuenow="' + progress_value + '" aria-valuemin="0" aria-valuemax="100" ' \
-                                                                'style="width: ' + progress_value + '%">' \
-                                                                                                    '</div>' \
+                                                                'style="width: ' + progress_value + '%">'+ progress_value + \
+                                                                                                    ' %</div>' \
                                                                                                     '</div>')

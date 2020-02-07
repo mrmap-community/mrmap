@@ -50,29 +50,25 @@ class RegisterNewServiceWizardPage1(forms.Form):
 
 
 class RegisterNewServiceWizardPage2(forms.Form):
-    page = forms.IntegerField(widget=forms.HiddenInput(), initial=2)
-    is_form_update = forms.BooleanField(widget=forms.HiddenInput(), initial=False)
+    page = forms.IntegerField(required=False, widget=forms.HiddenInput(), initial=2)
+    is_form_update = forms.BooleanField(required=False, widget=forms.HiddenInput(), initial=False)
     ogc_request = forms.CharField(label='OGC Request', widget=forms.TextInput(attrs={'readonly': '', }))
     ogc_service = forms.CharField(label='OGC Service', widget=forms.TextInput(attrs={'readonly': '', }))
     ogc_version = forms.CharField(label='OGC Version', widget=forms.TextInput(attrs={'readonly': '', }))
-    uri = forms.URLField(label='URI', widget=forms.TextInput(attrs={'readonly': '', }))
+    uri = forms.CharField(label='URI', widget=forms.TextInput(attrs={'readonly': '', }))
     registering_with_group = forms.ModelChoiceField(widget=forms.Select(attrs={'class': 'auto_submit_item'}), queryset=None, to_field_name='id', initial=1)
     registering_for_other_organization = forms.ModelChoiceField(required=False, queryset=None, to_field_name='id', empty_label="No other")
 
-    # TODO: initial with false
-    service_needs_authentication = forms.BooleanField(required=False, widget=forms.CheckboxInput(attrs={'class': 'auto_submit_item'}))
-    username = forms.CharField(disabled=True)
-    password = forms.CharField(widget=forms.PasswordInput, disabled=True)
-    authentication_type = forms.ChoiceField(disabled=True, choices=(('http_digest', 'HTTP Digest'), ('http_basic', 'HTTP Basic')))
+    service_needs_authentication = forms.BooleanField(required=False, widget=forms.CheckboxInput(attrs={'class': 'auto_submit_item', }))
+    username = forms.CharField(required=False, disabled=True)
+    password = forms.CharField(required=False, widget=forms.PasswordInput, disabled=True)
+    authentication_type = forms.ChoiceField(required=False, disabled=True, choices=(('http_digest', 'HTTP Digest'), ('http_basic', 'HTTP Basic')))
 
     def __init__(self, *args, **kwargs):
         # pop custom kwargs before invoke super constructor and hold them
         self.user = kwargs.pop('user')
         self.selected_group = kwargs.pop('selected_group')
         self.service_needs_authentication = kwargs.pop('service_needs_authentication')
-        self.is_auth_needed = False
-        if self.service_needs_authentication == 'on':
-            self.is_auth_needed = True
 
         # run super constructor to construct the form
         super(RegisterNewServiceWizardPage2, self).__init__(*args, **kwargs)
@@ -84,9 +80,15 @@ class RegisterNewServiceWizardPage2(forms.Form):
         self.fields['service_needs_authentication'].initial = self.service_needs_authentication
 
         if self.service_needs_authentication == 'on':
-            self.fields['username'].disabled = not self.is_auth_needed  # negation cause disabled is contrary
-            self.fields['password'].disabled = not self.is_auth_needed  # negation cause disabled is contrary
-            self.fields['authentication_type'].disabled = not self.is_auth_needed  # negation cause disabled is contrary
+            self.fields['username'].disabled = False
+            self.fields['username'].required = True
+            self.fields['password'].disabled = False
+            self.fields['password'].required = True
+            self.fields['authentication_type'].disabled = False
+            self.fields['authentication_type'].required = True
+
+
+
 
 
 class RegisterNewServiceWizardPage3(forms.Form):

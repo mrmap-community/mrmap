@@ -9,8 +9,24 @@
 {% block body %}
 <div class="container">
 
-    {% if pending_tasks|length > 0 %}
-        {% include 'pending_tasks.html' %}
+    {% if pt_table.rows %}
+        <div id="id_pending_tasks_div">
+            {% include 'pending_tasks.html' %}
+
+        </div>
+        <script type="text/javascript">
+            interval = setInterval(function(){
+                $.get( '{% url 'service:pending-tasks' %}', function( data ) {
+
+                    $( "#id_pending_tasks_div" ).html( data );
+                });
+                // stop interval if table is empty and delete the pt_table
+                if( $("#id_pt_empty").length ) {
+                    clearInterval(interval);
+                    $("#id_pending_tasks_div").remove();
+                };
+            }, 1000);
+        </script>
     {% endif %}
 
     {% if only_type == 'wms' or only_type is None %}

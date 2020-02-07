@@ -22,14 +22,17 @@ urlpatterns = [
     path('capabilities/<int:id>', get_capabilities, name='get-capabilities'),
     path('capabilities/<int:id>/original', get_capabilities_original, name='get-capabilities-original'),
 
-    path('new/register-form', register_form, name='register-form'),
-    path('new/', new_service, name='new-service'),
+    # TODO: if we need separated paths... we have to refactor this by using _new_service_wizard function
+    #path('new/register-form', register_form, name='register-form'),
+    #path('new/', new_service, name='new-service'),
 
     path('update/register-form/<id>', update_service_form, name='register-form'),
     path('update/<id>', update_service, name='update-service'),
     path('update/discard/', discard_update, name='update-discard'),
 
     path('remove', remove, name='remove'),
+
+    path('pending-tasks/', pending_tasks, name="pending-tasks"),
 
     path('wms/', wms, name='wms'),
     path('wfs/', wfs, name='wfs'),

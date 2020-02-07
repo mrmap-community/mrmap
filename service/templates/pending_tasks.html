@@ -20,7 +20,7 @@
                     {% if pt_table.rows %}
                         {% render_table pt_table %}
                     {% else %}
-                        {% trans 'None ¯\_(ツ)_/¯' %}
+                    <span id="id_pt_empty">{% trans 'None ¯\_(ツ)_/¯' %}</span>
                     {% endif %}
                 </div>
             </div>

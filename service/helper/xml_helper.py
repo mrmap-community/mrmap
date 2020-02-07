@@ -172,6 +172,22 @@ def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str = Non
     except (IndexError, AttributeError) as e:
         return None
 
+def get_children_with_attribute(xml_elem, attribute: str, nearest_only: bool=False):
+    """ Returns the next or all children which hold a specific attribute name
+
+    Args:
+        xml_elem: The xml element
+        attribute: The requested attribute name
+        nearest_only: Whether to return only the next children or all found
+    Returns:
+         children (list|_Element): The child or a list of children
+    """
+    children = xml_elem.xpath(".//*[@" + attribute + "]")
+
+    if nearest_only and len(children) > 0:
+        return children[0]
+    else:
+        return children
 
 def set_attribute(xml_elem, attribute: str, value: str):
     """ Set an attribute for a xml element

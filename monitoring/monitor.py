@@ -44,13 +44,14 @@ class Monitor:
         """
         service_type = self.metadata.service.servicetype.name.lower()
         metadata_type = self.metadata.metadata_type.type.lower()
-        url = None
         if metadata_type == MetadataEnum.LAYER.value.lower():
             if service_type.lower() == ServiceEnum.WMS.value.lower():
                 get_map_url = self.get_map_url()
                 if get_map_url is not None:
                     self.check_service(get_map_url)
-            # TODO add get_feature_info
+                get_feature_info_url = self.get_feature_info_url()
+                if get_feature_info_url is not None:
+                    self.check_service(get_feature_info_url)
             # TODO add get_legend_graphic
             # TODO get_styles
             pass
@@ -60,6 +61,37 @@ class Monitor:
                 get_capabilities_url = self.get_capabilities_url()
                 if get_capabilities_url is not None:
                     self.check_service(get_capabilities_url)
+
+    def get_feature_info_url(self):
+        """ Creates the url for the wms getFeatureInfo request.
+
+        Returns:
+            str: URL for getFeatureInfo request.
+        """
+        service = self.metadata.service
+        uri = service.get_feature_info_uri_GET
+        if uri is None:
+            return
+        request_type = ServiceOperationEnum.GET_FEATURE_INFO.value
+        service_version = service.servicetype.version
+        layers = service.layer.identifier
+        styles = ''
+        crs = f'EPSG:{service.layer.bbox_lat_lon.crs.srid}'
+        bbox = ','.join(map(str, service.layer.bbox_lat_lon.extent))
+        width = 0
+        height = 0
+        query_layers = layers
+        x = 0
+        y = 0
+        url = (
+            f'{uri}REQUEST={request_type}&VERSION={service_version}&LAYERS={layers}&STYLES={styles}&CRS={crs}'
+            f'&BBOX={bbox}&WIDTH={width}&HEIGHT={height}&QUERY_LAYERS={query_layers}'
+        )
+        if service_version.lower() == VersionEnum.V_1_3_0.value.lower():
+            url = f'{url}&I={x}&J={y}'
+        else:
+            url = f'{url}&X={x}&Y={y}'
+        return url
 
     def get_map_url(self):
         """ Creates the url for the wms getMap request.

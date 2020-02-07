@@ -8,11 +8,12 @@ Created on: 09.12.2019
 from datetime import timedelta
 import difflib
 
-from MapSkinner.utils import sha256
+from service.helper.crypto_handler import CryptoHandler
 from monitoring.models import MonitoringResult
 from service.helper.common_connector import CommonConnector
 from service.helper.xml_helper import parse_xml
 from service.models import Metadata, Document
+from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum, VersionEnum
 
 
 class Monitor:
@@ -41,17 +42,51 @@ class Monitor:
         Returns:
             nothing
         """
-        if self.metadata.metadata_type.type.lower() == 'layer':
+        service_type = self.metadata.service.servicetype.name.lower()
+        metadata_type = self.metadata.metadata_type.type.lower()
+        url = None
+        if metadata_type == MetadataEnum.LAYER.value.lower():
+            if service_type.lower() == ServiceEnum.WMS.value.lower():
+                get_map_url = self.get_map_url()
+                if get_map_url is not None:
+                    self.check_service(get_map_url)
             # TODO add get_feature_info
             # TODO add get_legend_graphic
-            # TODO add get_map
             # TODO get_styles
             pass
-        elif self.metadata.metadata_type.type.lower() == 'service':
-            service_type = self.metadata.service.servicetype.name.lower()
-            if (service_type == 'wms') or (service_type == 'wfs'):
-                url = self.get_capabilities_url()
-                self.check_service(url)
+        elif metadata_type == MetadataEnum.SERVICE.value.lower():
+            if (service_type.lower() == ServiceEnum.WMS.value.lower())\
+                    or (service_type.lower() == ServiceEnum.WFS.value.lower()):
+                get_capabilities_url = self.get_capabilities_url()
+                if get_capabilities_url is not None:
+                    self.check_service(get_capabilities_url)
+
+    def get_map_url(self):
+        """ Creates the url for the wms getMap request.
+
+        Returns:
+            str: URL for getMap request.
+        """
+        service = self.metadata.service
+        uri = service.get_map_uri_GET
+        if uri is None:
+            return
+        request_type = ServiceOperationEnum.GET_MAP.value
+        service_version = service.servicetype.version
+        layers = service.layer.identifier
+        crs = f'EPSG:{service.layer.bbox_lat_lon.crs.srid}'
+        bbox = ','.join(map(str, service.layer.bbox_lat_lon.extent))
+        styles = ''
+        width = 1
+        height = 1
+        service_format = str(service.formats.all()[0])
+        if 'image/png' in [str(f) for f in service.formats.all()]:
+            service_format = 'image/png'
+        url = (
+            f'{uri}REQUEST={request_type}&VERSION={service_version}&LAYERS={layers}&CRS={crs}'
+            f'&BBOX={bbox}&STYLES={styles}&WIDTH={width}&HEIGHT={height}&FORMAT={service_format}'
+        )
+        return url
 
     def get_capabilities_url(self):
         """ Creates the url for the wms getCapabilities request.
@@ -60,20 +95,14 @@ class Monitor:
             str: URL for getCapabilities request.
         """
         service = self.metadata.service
-        uri = service.get_capabilities_uri
-        request_type = 'GetCapabilities'
-        service_type = service.servicetype.name
+        uri = service.get_capabilities_uri_GET
+        if uri is None:
+            # Return None if uri is not defined so that service check fails
+            return
+        request_type = ServiceOperationEnum.GET_CAPABILITIES.value
         service_version = service.servicetype.version
 
-        if uri is None:
-            # TODO what should happen if service is None?
-            print(
-                "get_capabilities_uri is None for metadata id {}. Using capabilities_original_uri instead.".format(
-                    self.metadata.pk
-                )
-            )
-            return self.metadata.capabilities_original_uri
-        url = '{}?SERVICE={}&REQUEST={}&VERSION={}'.format(uri, service_type, request_type, service_version)
+        url = f'{uri}REQUEST={request_type}&VERSION={service_version}'
         return url
 
     def check_service(self, url: str):
@@ -84,13 +113,14 @@ class Monitor:
         Returns:
             nothing
         """
-        service_status = self.check_status(url)
+        service_status = Monitor.check_status(url)
         if service_status.success is True:
             self.handle_service_success(service_status)
         else:
             self.handle_service_error(service_status)
 
-    def check_status(self, url: str) -> ServiceStatus:
+    @staticmethod
+    def check_status(url: str) -> ServiceStatus:
         """ Check status of ogc service.
 
         Args:
@@ -99,22 +129,26 @@ class Monitor:
             ServiceStatus: Status info of service.
         """
         success = False
-        response_text = None
         duration = None
         connector = CommonConnector(url=url)
         try:
             connector.load()
         except Exception as e:
+            # handler if server sends no response (e.g. outdated uri)
             response_text = str(e)
+            return Monitor.ServiceStatus(success, response_text, connector.status_code, duration)
 
-        if response_text is None:
-            response_text = connector.text
+        duration = timedelta(seconds=connector.run_time)
+        response_text = connector.text
         if connector.status_code == 200:
             success = True
-            duration = timedelta(seconds=connector.load_time)
-            xml = parse_xml(response_text)
-            if 'Exception' in xml.getroot().tag:
-                success = False
+            try:
+                xml = parse_xml(response_text)
+                if 'Exception' in xml.getroot().tag:
+                    success = False
+            except AttributeError:
+                # handle successful responses that do not return xml
+                response_text = None
 
         return Monitor.ServiceStatus(success, response_text, connector.status_code, duration)
 
@@ -127,7 +161,8 @@ class Monitor:
             nothing
         """
         monitoring_result = MonitoringResult(
-            metadata=self.metadata, needs_update=None, error_msg=service_status.message
+            monitoring_successful=service_status.success, metadata=self.metadata, needs_update=None,
+            error_msg=service_status.message
         )
         monitoring_result.save()
 
@@ -139,19 +174,30 @@ class Monitor:
         Returns:
             nothing
         """
-        document = Document.objects.get(related_metadata=self.metadata)
-        current_document = document.current_capability_document
-        response_hash = sha256(service_status.message)
-        current_document_hash = sha256(current_document)
-        if response_hash == current_document_hash:
-            monitoring_result = MonitoringResult(
-                metadata=self.metadata, needs_update=False, duration=service_status.duration
-            )
-            monitoring_result.save()
+        metadata_type = self.metadata.metadata_type.type.lower()
+        if metadata_type == MetadataEnum.SERVICE.value.lower():
+            document = Document.objects.get(related_metadata=self.metadata)
+            current_document = document.current_capability_document
+            crypto_handler = CryptoHandler()
+            response_hash = crypto_handler.sha256(service_status.message)
+            current_document_hash = crypto_handler.sha256(current_document)
+            if response_hash == current_document_hash:
+                monitoring_result = MonitoringResult(
+                    monitoring_successful=service_status.success, metadata=self.metadata, needs_update=False,
+                    duration=service_status.duration
+                )
+                monitoring_result.save()
+            else:
+                diff = difflib.unified_diff(current_document, service_status.message)
+                monitoring_result = MonitoringResult(
+                    monitoring_successful=service_status.success, metadata=self.metadata, needs_update=True,
+                    duration=service_status.duration, diff=''.join(diff)
+                )
+                monitoring_result.save()
         else:
-            diff = difflib.unified_diff(current_document, service_status.message)
             monitoring_result = MonitoringResult(
-                metadata=self.metadata, needs_update=True, duration=service_status.duration, diff=''.join(diff)
+                monitoring_successful=service_status.success, metadata=self.metadata, needs_update=False,
+                duration=service_status.duration
             )
             monitoring_result.save()
 

@@ -10,7 +10,7 @@ URL_PATTERN_BTN_DANGER = "<a class='btn btn-sm btn-danger' href='{}'>{}</a>"
 
 
 def _get_icon(self):
-    if not self:
+    if self:
         return format_html("<i class='fas fa-check text-success'></i>")
     else:
         return format_html("<i class='fas fa-times text-danger'></i>")
@@ -171,25 +171,31 @@ class PendingTasksTable(tables.Table):
     @staticmethod
     def render_pt_phase(record):
         # TODO: remove this sticky json
-        return str(json.loads(record.description)['phase'])
+        try:
+            return str(json.loads(record.description)['phase'])
+        except KeyError as e:
+            return str(e)
 
     @staticmethod
     def render_pt_progress(record):
 
         task = AsyncResult(record.task_id, app=app)
-        info_dict = task.info
+        try:
+            info_dict = task.info
 
-        if info_dict is not None:
-            if task.info['current'] is None:
-                progress_value = '1'  # 1 % to show something ¯\_(ツ)_/¯
+            if info_dict is not None:
+                if task.info['current'] is None:
+                    progress_value = '1'  # 1 % to show something ¯\_(ツ)_/¯
+                else:
+                    progress_value = str(int(task.info['current']))
             else:
-                progress_value = str(int(task.info['current']))
-        else:
-            progress_value = '1' # 1 % to show something ¯\_(ツ)_/¯
+                progress_value = '1' # 1 % to show something ¯\_(ツ)_/¯
 
-        return format_html('<div class="progress">' \
-                           '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" ' \
-                           'aria-valuenow="' + progress_value + '" aria-valuemin="0" aria-valuemax="100" ' \
-                                                                'style="width: ' + progress_value + '%">'+ progress_value + \
-                                                                                                    ' %</div>' \
-                                                                                                    '</div>')
+            return format_html('<div class="progress">' \
+                               '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" ' \
+                               'aria-valuenow="' + progress_value + '" aria-valuemin="0" aria-valuemax="100" ' \
+                                                                    'style="width: ' + progress_value + '%">'+ progress_value + \
+                                                                                                        ' %</div>' \
+                                                                                                        '</div>')
+        except Exception as e:
+            return str(e)

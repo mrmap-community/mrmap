@@ -8,7 +8,7 @@
         <div class="col-md-4 ">
             <div class="row mt-2">
                 <div class="col text-center">
-                    <h3>{% trans 'Pending requests' %} {% fa5_icon 'question' 'fas' %}</h3>
+                    <h3>{% trans 'Pending requests' %} {% autoescape off %}{{THEME.ICONS.PENDINGTASK}}{% endautoescape %}</h3>
                     <hr>
                 </div>
             </div>
@@ -35,7 +35,7 @@
 
             <div class="row mt-2">
                 <div class="col text-center">
-                    <h3>{% trans 'Last activities' %} {% fa5_icon 'snowboarding' 'fas' %}</h3>
+                    <h3>{% trans 'Last activities' %} {% autoescape off %}{{THEME.ICONS.ACTIVITY}}{% endautoescape %}</h3>
                     <hr>
                 </div>
             </div>
@@ -68,7 +68,7 @@
         <div class="col-md-8">
             <div class="row mt-2">
                 <div class="col text-center">
-                    <h2>{% trans 'My services' %} {% fa5_icon 'concierge-bell' 'fas' %}</h2>
+                    <h2>{% trans 'My services' %} {% autoescape off %}{{THEME.ICONS.SERVICE}}{% endautoescape %}</h2>
                     <hr>
                 </div>
             </div>
@@ -76,7 +76,7 @@
                 <div class="col-sm">
                     <div class="card {{THEME.BG_COLOR}}">
                         <div class="card-body">
-                            <h5 class="card-title">{% fa5_icon 'map' 'fas' %} {% trans 'Web map service' %}</h5>
+                            <h5 class="card-title">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %} {% trans 'Web map service' %}</h5>
                             <h6 class="card-subtitle mb-2 text-muted">
                                 {% trans 'count' %} <span
                                     class="badge badge-pill {{THEME.BADGE_COLOR}}">{{ wms_count }}</span>
@@ -94,7 +94,7 @@
                 <div class="col-sm">
                     <div class="card {{THEME.BG_COLOR}}">
                         <div class="card-body">
-                            <h5 class="card-title">{% fa5_icon 'draw-polygon' 'fas' %} {% trans 'Web feature service' %}</h5>
+                            <h5 class="card-title">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'Web feature service' %}</h5>
                             <h6 class="card-subtitle mb-2 text-muted">
                                 {% trans 'count' %} <span
                                     class="badge badge-pill {{THEME.BADGE_COLOR}}">{{ wfs_count }}</span>
@@ -140,7 +140,7 @@
                 <div class="col-sm">
                     <div class="card {{THEME.BG_COLOR}}">
                         <div class="card-body">
-                            <h5 class="card-title">{% fa5_icon 'users' 'fas' %} {% trans 'Groups' %}</h5>
+                            <h5 class="card-title">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} {% trans 'Groups' %}</h5>
                             <h6 class="card-subtitle mb-2 text-muted">
                                 {% trans 'count' %}
                                 <span class="badge badge-pill {{THEME.BADGE_COLOR}}">
@@ -160,7 +160,7 @@
                 <div class="col-sm">
                     <div class="card {{THEME.BG_COLOR}}">
                         <div class="card-body">
-                            <h5 class="card-title">{% fa5_icon 'building' 'fas' %} {% trans 'Organizations' %}</h5>
+                            <h5 class="card-title">{% autoescape off %}{{THEME.ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations' %}</h5>
                             <h6 class="card-subtitle mb-2 text-muted">
                                 {% trans 'count' %}
                                 <span class="badge badge-pill {{THEME.BADGE_COLOR}}">

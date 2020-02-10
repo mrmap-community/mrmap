@@ -38,7 +38,7 @@
             <ul class="navbar-nav mr-auto">
                 <li class="nav-item {% if PATH == 'home' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'home' %}" title="{% trans 'Dashboard' %}">
-                        {% fa5_icon 'tachometer-alt' 'fas' %} {% trans 'Dashboard' %}
+                        {% autoescape off %}{{THEME.ICONS.DASHBOARD}}{% endautoescape %} {% trans 'Dashboard' %}
                     </a>
                 </li>
                 <li class="nav-item dropdown {% if PATH == 'structure' %}active{% endif %}">
@@ -48,9 +48,9 @@
                         {% trans 'Structure' %}
                     </a>
                     <div class="dropdown-menu" aria-labelledby="navbarStructureDropdown">
-                        <a class="dropdown-item" href="{% url 'structure:groups' %}">{% trans 'Groups' %}</a>
+                        <a class="dropdown-item" href="{% url 'structure:groups' %}">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} {% trans 'Groups' %}</a>
                         <a class="dropdown-item" href="{% url 'structure:organizations' %}">
-                            {% trans 'Organizations'%}
+                            {% autoescape off %}{{THEME.ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations'%}
                         </a>
                     </div>
                 </li>
@@ -61,22 +61,22 @@
                         {% trans 'Services' %}
                     </a>
                     <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
-                        <a class="dropdown-item" href="{% url 'service:wms' %}">{% trans 'WMS' %}</a>
-                        <a class="dropdown-item" href="{% url 'service:wfs' %}">{% trans 'WFS' %}</a>
+                        <a class="dropdown-item" href="{% url 'service:wms' %}">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %}</a>
+                        <a class="dropdown-item" href="{% url 'service:wfs' %}">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %}</a>
                     </div>
                 </li>
                 <li class="nav-item {% if PATH == 'editor' %}active{% endif %}">
                     <a class="nav-link" href="{% url 'editor:index' %}">
-                        {% fa5_icon 'edit' 'fas' %} {% trans 'Editor' %}
+                        {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Editor' %}
                     </a>
                 </li>
             </ul>
             <div>
                 <a class="btn {{THEME.BTN_COLOR}}" href="{% url 'account' %}" title="{% trans 'Account' %}" role="button">
-                    {% fa5_icon 'user' 'fas' %} {{ user.username }}
+                    {% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %} {{ user.username }}
                 </a>
                 <a class="btn {{THEME.BTN_COLOR}}" href="{% url 'logout' %}" title="{% trans 'Logout' %}" role="button">
-                    {% fa5_icon 'sign-out-alt' 'fas' %}
+                    {% autoescape off %}{{THEME.ICONS.SIGNOUT}}{% endautoescape %}
                 </a>
             </div>
         </div>

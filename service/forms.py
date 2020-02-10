@@ -88,10 +88,11 @@ class RegisterNewServiceWizardPage2(forms.Form):
             self.fields['authentication_type'].required = True
 
 
-
-
-
 class RegisterNewServiceWizardPage3(forms.Form):
     page = forms.IntegerField(widget=forms.HiddenInput(), initial=3)
     get_request_uri = forms.CharField()
 
+
+class RemoveService(forms.Form):
+    service_id = forms.IntegerField(widget=forms.HiddenInput())
+    is_confirmed = forms.BooleanField(label='Do you realy want to remove this service?')

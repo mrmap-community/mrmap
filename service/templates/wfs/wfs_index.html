@@ -9,12 +9,12 @@
         <div class="d-flex w-100 justify-content-between">
             <div class="row">
                 <div class="col">
-                    <h4 class="mb-1 mr-3">{% fa5_icon 'info' 'fas' %} {% trans 'WFS' %}</h4>
+                    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %}</h4>
                 </div>
             </div>
             {% if 'can_register_service' in user_permissions %}
                 <button type="button" class="btn {{THEME.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#new_service">
-                    {% fa5_icon 'plus-circle' 'fas' %} {% trans 'New Service' %}
+                    {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New Service' %}
                 </button>
                 {% include 'modals/new_service.html' %}
             {% endif %}
@@ -29,7 +29,7 @@
                             {% bootstrap_form wfs_filter.form layout='inline' %}
                         </div>
                         <div class="col-auto">
-                            <button type="submit" class="btn {{THEME.BTN_COLOR}}">{% fa5_icon 'search' 'fas' %} Search</button>
+                            <button type="submit" class="btn {{THEME.BTN_COLOR}}">{% autoescape off %}{{THEME.ICONS.SEARCH}}{% endautoescape %} Search</button>
                         </div>
                     </div>
                 </form>

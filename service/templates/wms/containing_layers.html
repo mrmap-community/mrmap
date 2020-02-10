@@ -1,74 +1,74 @@
-
 {% load static i18n %}
-
 {% if layers|length > 0 %}
-<div class="sublayer-container">
-    <div class="sublayer-headline">
-        <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
-        {% trans 'Show sublayers' %} ({{ layers|length }})
+<div class="accordion" id="accordionSubLayers">
+  <div class="card">
+    <div class="card-header" id="headingSubLayers">
+      <h2 class="mb-0">
+        <button class="btn {{THEME.BTN_SECONDARY_OUT_COLOR}} collapsed" type="button" data-toggle="collapse" data-target="#id_collapseSubLayers" aria-expanded="false" aria-controls="collapsePublishes">
+            <i class="fa" aria-hidden="true"></i> {% trans 'Show sublayers' %} <span class="badge {{THEME.PILL_BADGE_INFO_COLOR}}">{{ layers|length }}</span>
+        </button>
+      </h2>
     </div>
-    <div class="sublayer hidden">
-        {% for layer in layers %}
-        <div class="collapsible-table">
-            <h3 class="layer-title" title="{% trans 'Click to expand' %}" data-id="{{ layer.id }}" data-type="wms">
-                <img class="collapse-img" src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
-                <span class="{% if layer.metadata.is_custom %}custom-metadata-headline{% endif %}">
-                    {{ layer.metadata.title }}
-                    {% if layer.metadata.is_custom %}
-                    <img class="invert" src="{% static 'structure/images/icn_edit.png' %}" title="{% trans 'Custom Metadata' %}">
-                    {% endif %}
-                </span>
-            </h3>
-            <div class="subelements hidden">
-                <div class="container-row">
-                <div class="container-left">
-                    {% if 'can_edit_metadata_service' in user_permissions %}
-                        <div class="collapsible-container">
-                            <div class="collapsible-toggler button button-wrapper" title="{% trans 'Edit layer' %}">
-                                <span>{% trans 'Edit layer' %}</span>
-                            </div>
-                            <div class="hide collapsible-list">
-                                <a target="_blank" href="{% url 'editor:edit' layer.metadata.id %}" title="{% trans 'Edit the layer metadata' %}">
-                                    <div class="button-wrapper button">{% trans 'Metadata' %}</div>
-                                </a>
-                                <a target="_blank" href="{% url 'editor:edit_access' layer.metadata.id %}" title="{% trans 'Edit the layer access' %}">
-                                    <div class="button-wrapper button">{% trans 'Access' %}</div>
-                                </a>
-                            </div>
-                        </div>
-                    {% endif %}
+    <div id="id_collapseSubLayers" class="collapse" aria-labelledby="headingSubLayers" data-parent="#accordionSubLayers">
+      <div class="card-body">
+          {% for layer in layers %}
+            <div class="accordion" id="id_accordion_{{layer.id}}">
+              <div class="card">
+                <div class="card-header " id="id_heading_{{layer.id}}">
+                  <h2 class="mb-0">
+                    <button id="id_collapse_service_{{layer.metadata.id}}" class="btn {{THEME.BTN_SECONDARY_OUT_COLOR}} collapsed" type="button" data-toggle="collapse" data-target="#id_collapse_{{layer.id}}" aria-expanded="false" aria-controls="id_collapse_{{layer.id}}">
+                        <i class="fa" aria-hidden="true"></i> {{ layer.metadata.title }} <span class="badge {{THEME.PILL_BADGE_INFO_COLOR}}">{{ layer.child_layer.all|length }}</span>
+                    </button>
+                  </h2>
                 </div>
-                <div class="container-center">
-                    <a data-id="{{ layer.id }}" class="hide" href="{% url 'service:get-dataset-metadata' layer.metadata.id %}" title="{% trans 'Get dataset metadata' %}" target="_blank">
-                        <div class="button-wrapper">
-                            <span>{% trans 'Dataset metadata' %}</span>
-                        </div>
-                    </a>
-
+                <div id="id_collapse_{{layer.id}}" class="collapse" aria-labelledby="id_heading_{{layer.id}}" data-parent="#id_accordion_{{layer.id}}">
+                  <div class="card-body">
+                      <div class="row mb-2 ">
+                        <div class="col-sm mb-2 text-center">
+                            {% if 'can_edit_metadata_service' in user_permissions %}
+                                <div class="dropdown">
+                                  <button class="btn {{THEME.BTN_SECONDARY_OUT_COLOR}} dropdown-toggle" type="button" id="id_edit_service_{{layer.id}}_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit layer' %}
+                                  </button>
+                                  <div class="dropdown-menu" aria-labelledby="id_edit_service_{{layer.id}}_dropdown">
+                                    <a class="dropdown-item" href="{% url 'editor:edit' layer.metadata.id %}">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}</a>
+                                    <a class="dropdown-item" href="{% url 'editor:edit_access' layer.metadata.id %}">{% autoescape off %}{{THEME.ICONS.ACCESS}}{% endautoescape %} {% trans 'Access' %}</a>
+                                  </div>
+                                </div>
+                            {% endif %}
+                            </div><!--</col>-->
+                            <div class="col-sm mb-2 text-center">
+                                <!--TODO: Hide?-->
+                                <a class="btn {{THEME.BTN_SECONDARY_OUT_COLOR}}" href="{% url 'service:get-dataset-metadata' layer.metadata.id %}">{% trans 'Dataset Metadata' %}</a>
+                            </div><!--</col>-->
+                            <div class="col-sm mb-2 text-center">
+                            {% if 'can_edit_metadata_service' in user_permissions %}
+                                <a class="btn {{THEME.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' layer.metadata.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
+                            {% endif %}
+                            </div><!--</col>-->
+                      </div><!--</row>-->
+                      <div class="row mb-2 ">
+                        <div class="col">
+                            <div id="id_content_service_{{layer.metadata.id}}"></div>
+                            <script type="text/javascript">
+                                $('#id_collapse_service_{{layer.metadata.id}}').click(function() {
+                                  if ( $('#id_collapse_service_{{layer.metadata.id}}').hasClass('collapsed') ) {
+                                    $.get( '{% url 'service:detail' layer.metadata.id %}', function( data ) {
+                                        $( "#id_content_service_{{layer.metadata.id}}" ).html( data );
+                                    });
+                                  }
+                                });
+                            </script>
+                      </div><!--</col>-->
+                      </div><!--</row>-->
+                  </div><!--</card-body>-->
                 </div>
-                <div class="container-right">
-                    {% if 'can_edit_metadata_service' in user_permissions %}
-                        <a href="{% url 'editor:restore' layer.metadata.id %}">
-                            <div class="button-wrapper">
-                                <span class="reset-icon large">&#8635;</span>
-                                <span>{% trans 'Restore metadata' %}</span>
-                            </div>
-                        </a>
-                    {% endif %}
-                </div>
-
-                </div>
-                <div class="content">
-                    <div class="loading-spinner">
-                        <i class="fas fa-circle-notch fa-spin primary-color"></i>
-                        <span id="submit-text">{% trans 'Loading...' %}</span>
-                    </div>
-
-                </div>
+              </div>
             </div>
-        </div>
-
         {% endfor %}
+      </div><!--</card-body>-->
     </div>
+  </div>
 </div>
+
 {% endif %}

@@ -17,12 +17,12 @@
                                 {% if '-' in column.order_by_alias.next and request.GET|get_order_by_alias_from_request:table.order_by_field is not None %}
                                 <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
                                 class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} text-success {% endif %}">
-                                    {% fa5_icon 'sort-alpha-up' 'fas' %}
+                                    {% autoescape off %}{{THEME.ICONS.SORT_ALPHA_UP}}{% endautoescape %}
                                 </a>
                                 {% else %}
                                 <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next%}"
                                 class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} text-success {% endif %}">
-                                    {% fa5_icon 'sort-alpha-down' 'fas' %}
+                                    {% autoescape off %}{{THEME.ICONS.SORT_ALPHA_DOWN}}{% endautoescape %}
                                 </a>
                                 {% endif %}
                                 </div>

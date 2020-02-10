@@ -34,11 +34,11 @@ urlpatterns = [
 
     path('pending-tasks/', pending_tasks, name="pending-tasks"),
 
+    # TODO: wms and wfs path are broken
     path('wms/', wms, name='wms'),
     path('wfs/', wfs, name='wfs'),
-    path('detail/<int:id>', detail, name='detail'),
-    path('detail-child/<int:id>', detail_child, name='detail-child'),
 
+    path('detail/<int:id>', detail, name='detail'),
 
 ]
 

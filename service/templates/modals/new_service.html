@@ -14,7 +14,7 @@
                     {% bootstrap_form new_service_form %}
                 </div>
                 <div class="modal-footer">
-                    <a class="btn {{ THEME.BTN_SECONDARY_OUT_COLOR }}" href="{% url 'service:index' %}" role="button">{% trans 'Dismiss' %}</a>
+                    <button type="button" class="btn {{ THEME.BTN_SECONDARY_COLOR }}" data-dismiss="modal">{% trans 'Cancle' %}</button>
                     <button type="button submit" class="btn {{ THEME.BTN_COLOR }}">
                         {% trans 'Next' %}
                     </button>

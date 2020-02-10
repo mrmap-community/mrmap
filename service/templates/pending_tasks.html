@@ -8,7 +8,7 @@
         <div class="d-flex w-100 justify-content-between">
             <div class="row">
                 <div class="col">
-                    <h4 class="mb-1 mr-3">{% fa5_icon 'tasks' 'fas' %} {% trans 'Pending tasks' %}</h4>
+                    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.PENDINGTASKS}}{% endautoescape %} {% trans 'Pending tasks' %}</h4>
                 </div>
             </div>
         </div>

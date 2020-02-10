@@ -25,7 +25,7 @@ from MapSkinner.utils import prepare_table_pagination_settings
 from service import tasks
 from service.filters import WmsFilter, WfsFilter
 from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
-    RegisterNewServiceWizardPage2
+    RegisterNewServiceWizardPage2, RemoveService
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum
@@ -316,39 +316,41 @@ def remove(request: HttpRequest, user: User):
         request(HttpRequest): The used request
         user (User): The performing user
     Returns:
-        A rendered view
+        Redirect to service:index
     """
-    template = "overlay/remove_service_confirmation.html"
-    service_id = request.GET.dict().get("id")
-    confirmed = request.GET.dict().get("confirmed")
-    service = get_object_or_404(Service, id=service_id)
-    service_type = service.servicetype
-    sub_elements = None
-    if service_type.name == ServiceEnum.WMS.value:
-        sub_elements = Layer.objects.filter(parent_service=service)
-    elif service_type.name == ServiceEnum.WFS.value:
-        sub_elements = service.featuretypes.all()
-    metadata = get_object_or_404(Metadata, service=service)
-    if confirmed == 'false':
-        params = {
-            "service": service,
-            "metadata": metadata,
-            "sub_elements": sub_elements,
-        }
-        html = render_to_string(template_name=template, context=params, request=request)
-        return BackendAjaxResponse(html=html).get_response()
-    else:
-        # remove service and all of the related content
-        user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
 
-        # set service as deleted, so it won't be listed anymore in the index view until completely removed
-        service.is_deleted = True
-        service.save()
+    remove_form = RemoveService(request.POST)
+    if remove_form.is_valid():
+        service = get_object_or_404(Service, id=remove_form.cleaned_data['service_id'])
+        service_type = service.servicetype
+        sub_elements = None
+        if service_type.name == ServiceEnum.WMS.value:
+            sub_elements = Layer.objects.filter(parent_service=service)
+        elif service_type.name == ServiceEnum.WFS.value:
+            sub_elements = service.featuretypes.all()
+        metadata = get_object_or_404(Metadata, service=service)
+        if remove_form.cleaned_data['is_confirmed'] == 'off':
+            # TODO: redirect to service:detail; show modal by default with error message
+            params = {
+                "service": service,
+                "metadata": metadata,
+                "sub_elements": sub_elements,
+            }
+            return redirect("service:detail", remove_form.cleaned_data['service_id'])
+        else:
+            # remove service and all of the related content
+            user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
 
-        # call removing as async task
-        async_remove_service_task.delay(service_id)
+            # set service as deleted, so it won't be listed anymore in the index view until completely removed
+            service.is_deleted = True
+            service.save()
 
-        return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
+            # call removing as async task
+            async_remove_service_task.delay(remove_form.cleaned_data['service_id'])
+            # TODO: we dont know this at this time; refactor this; async_remove function should add messages
+            messages.success(request, 'Service %s successfully deleted.' % remove_form.cleaned_data['service_id'])
+
+            return redirect("service:index")
 
 
 @check_session
@@ -362,7 +364,10 @@ def activate(request: HttpRequest, id: int, user: User):
          An Ajax response
     """
     # run activation async!
-    pending_task = tasks.async_activate_service.delay(id, user.id)
+    tasks.async_activate_service.delay(id, user.id)
+
+    # TODO: we dont know this at this time; refactor this; async_remove function should add messages
+    messages.success(request, 'Service %s successfully (de-)activated.' % id)
 
     return redirect("service:index")
 
@@ -541,7 +546,7 @@ def set_session(request: HttpRequest, user: User):
 def wms(request: HttpRequest, user: User):
     """ Renders an overview of all wms
 
-    Args:
+    Args:t
         request (HttpRequest): The incoming request
     Returns:
          A view
@@ -761,12 +766,18 @@ def detail(request: HttpRequest, id, user: User):
 
     if service_md.service.is_root:
         service = service_md.service
+        layers = Layer.objects.filter(parent_service=service_md.service)
+        layers_md_list = layers.filter(parent_layer=None)
     else:
+        template = "detail/child_layer_detail.html"
         service = Layer.objects.get(
             metadata=service_md
         )
-    layers = Layer.objects.filter(parent_service=service_md.service)
-    layers_md_list = layers.filter(parent_layer=None)
+        # get sublayers
+        layers_md_list = Layer.objects.filter(
+            parent_layer=service_md.service
+        )
+
 
     try:
         related_md = MetadataRelation.objects.get(
@@ -780,11 +791,27 @@ def detail(request: HttpRequest, id, user: User):
     except ObjectDoesNotExist:
         has_dataset_metadata = False
 
+    mime_types = {}
+
+    for mime in service.formats.all():
+        op = mime_types.get(mime.operation)
+        if op is None:
+            op = []
+        op.append(mime.mime_type)
+        mi = {mime.operation: op}
+        mime_types.update(mi)
+
+    remove_service_form = RemoveService(initial={'service_id': service.id,
+                                                 'service_needs_authentication': False,
+                                                 })
+
     params = {
         "has_dataset_metadata": has_dataset_metadata,
-        "root_metadata": service_md,
-        "root_service": service,
+        "service_md": service_md,
+        "service": service,
         "layers": layers_md_list,
+        "mime_types": mime_types,
+        "remove_service_form": remove_service_form,
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())

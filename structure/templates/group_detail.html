@@ -7,9 +7,9 @@
     <div class="card {{THEME.TXT_DEF_COLOR}} {{THEME.BG_COLOR}} mt-3">
         <div class="card-header">
             <div class="d-flex w-100 justify-content-between">
-                <h4 class="mb-1 mr-3">{% fa5_icon 'users' 'fas' %} <b>{{ group.name }}</b></h4>
+                <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} <b>{{ group.name }}</b></h4>
                 <a href="{% url 'structure:index' %}">
-                    <span style="white-space: nowrap;">{% fa5_icon 'arrow-circle-left' 'fas' %} {% trans 'Overview' %}</span>
+                    <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Overview' %}</span>
                 </a>
             </div>
         </div>
@@ -20,7 +20,7 @@
                         {% if 'can_edit_group' in user_permissions %}
                         <div>
                             <button type="button" class="btn {{THEME.BTN_WARNING_COLOR}}" data-toggle="modal" data-target="#edit_group">
-                                {% fa5_icon 'edit' 'fas' %} {% trans 'Edit group' %}
+                                {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit group' %}
                             </button>
                         </div>
                         {% include 'modals/edit_group.html' %}
@@ -28,7 +28,7 @@
                         {% if 'can_delete_group' in user_permissions %}
                         <div class="ml-auto">
                             <button type="button" class="btn {{THEME.BTN_DANGER_COLOR}}" data-toggle="modal" data-target="#delete_group">
-                                {% fa5_icon 'trash' 'fas' %} {% trans 'Delete group' %}
+                                {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Delete group' %}
                             </button>
                         </div>
                         {% include 'modals/delete_group.html' %}

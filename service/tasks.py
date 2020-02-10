@@ -22,6 +22,7 @@ from structure.models import User, Group, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
 from users.helper import user_helper
+from django.contrib import messages
 
 
 @shared_task(name="async_increase_hits")
@@ -226,6 +227,9 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         if curr_task_id is not None:
             pending_task = PendingTask.objects.get(task_id=curr_task_id)
             pending_task.delete()
+
+        # TODO: insert href to service:detail page in success message
+        messages.success('New Service registered.')
 
     except (BaseException, XMLSyntaxError, XPathEvalError, InvalidURL, ConnectionError) as e:
         if curr_task_id is not None:

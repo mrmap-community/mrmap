@@ -6,9 +6,9 @@
     <div class="card {{THEME.TXT_DEF_COLOR}} {{THEME.BG_COLOR}} mt-3">
         <div class="card-header">
             <div class="d-flex w-100 justify-content-between">
-                <h4 class="mb-1 mr-3">{% fa5_icon 'building' 'fas' %} <b>{{ organization.organization_name }}</b></h4>
+                <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.ORGANIZATION}}{% endautoescape %} <b>{{ organization.organization_name }}</b></h4>
                 <a href="{% url 'structure:index' %}">
-                    <span style="white-space: nowrap;">{% fa5_icon 'arrow-circle-left' 'fas' %} {% trans 'Overview' %}</span>
+                    <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Overview' %}</span>
                 </a>
             </div>
         </div><!--card-header-->
@@ -19,7 +19,7 @@
                         {% if 'can_edit_organization' in user_permissions %}
                         <div>
                             <button type="button" class="btn {{THEME.BTN_WARNING_COLOR}}" data-toggle="modal" data-target="#edit_organization">
-                                {% fa5_icon 'edit' 'fas' %} {% trans 'Edit organization' %}
+                                {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit organization' %}
                             </button>
                         </div>
                         {% include 'modals/edit_organization.html' %}
@@ -27,7 +27,7 @@
                         {% if 'can_delete_organization' in user_permissions %}
                         <div class="ml-auto">
                             <button type="button" class="btn {{THEME.BTN_DANGER_COLOR}}" data-toggle="modal" data-target="#delete_organization">
-                                {% fa5_icon 'trash' 'fas' %} {% trans 'Delete organization' %}
+                                {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Delete organization' %}
                             </button>
                         </div>
                         {% include 'modals/delete_organization.html' %}

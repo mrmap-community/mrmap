@@ -1239,7 +1239,7 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
         )
         for feature_type_xml_elem in feature_type_list:
             name = xml_helper.try_get_text_from_xml_element(
-                xml_elem=feature_type,
+                xml_elem=feature_type_xml_elem,
                 elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Name")
             )
             try:

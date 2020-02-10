@@ -61,14 +61,33 @@ class Monitor:
                 get_legend_graphic_url = self.get_legend_graphic_url()
                 if get_legend_graphic_url is not None:
                     self.check_service(get_legend_graphic_url)
-            # TODO add get_legend_graphic
-            # TODO get_styles
+
+                get_styles_url = self.get_styles_url()
+                if get_styles_url is not None:
+                    self.check_service(get_styles_url)
+
         elif metadata_type == MetadataEnum.SERVICE.value.lower():
             if (service_type.lower() == ServiceEnum.WMS.value.lower())\
                     or (service_type.lower() == ServiceEnum.WFS.value.lower()):
                 get_capabilities_url = self.get_capabilities_url()
                 if get_capabilities_url is not None:
                     self.check_service(get_capabilities_url)
+
+    def get_styles_url(self):
+        """ Creates the url for the wms getStyles request.
+
+        Returns:
+            str: URL for getStyles request.
+        """
+        service = self.metadata.service
+        uri = service.get_styles_uri_GET
+        if uri is None:
+            return
+        service_version = VersionEnum.V_1_1_1.value
+        layers = service.layer.identifier
+        request_type = ServiceOperationEnum.GET_STYLES.value
+        url = f'{uri}REQUEST={request_type}&VERSION={service_version}&LAYERS={layers}'
+        return url
 
     def get_legend_graphic_url(self):
         """ Creates the url for the wms getLegendGraphic request.

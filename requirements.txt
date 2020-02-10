@@ -1,6 +1,6 @@
 certifi==2019.3.9
 chardet==3.0.4
-Django
+Django==2.2.10
 django-extensions==2.1.6
 django-simple-captcha
 idna==2.8

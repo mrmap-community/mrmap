@@ -23,7 +23,7 @@ from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
 from MapSkinner import utils
 from MapSkinner.utils import execute_threads
 from service.helper.crypto_handler import CryptoHandler
-from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, ServiceOperationEnum
+from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
@@ -298,12 +298,12 @@ class OGCWebMapService(OGCWebService):
                       "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
 
         # shortens the usage of our constant values
-        get_cap = ServiceOperationEnum.GET_CAPABILITIES.value
-        get_map = ServiceOperationEnum.GET_MAP.value
-        get_feat = ServiceOperationEnum.GET_FEATURE_INFO.value
-        descr_lay = ServiceOperationEnum.DESCRIBE_LAYER.value
-        get_leg = ServiceOperationEnum.GET_LEGEND_GRAPHIC.value
-        get_sty = ServiceOperationEnum.GET_STYLES.value
+        get_cap = OGCOperationEnum.GET_CAPABILITIES.value
+        get_map = OGCOperationEnum.GET_MAP.value
+        get_feat = OGCOperationEnum.GET_FEATURE_INFO.value
+        descr_lay = OGCOperationEnum.DESCRIBE_LAYER.value
+        get_leg = OGCOperationEnum.GET_LEGEND_GRAPHIC.value
+        get_sty = OGCOperationEnum.GET_STYLES.value
 
         attributes = {
             "cap_GET": "//" + GENERIC_NAMESPACE_TEMPLATE.format(get_cap) + "/" + suffix_get,

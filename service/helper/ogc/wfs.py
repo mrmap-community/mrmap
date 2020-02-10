@@ -18,7 +18,7 @@ from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
 from MapSkinner.utils import execute_threads
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, ServiceOperationEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.enums import MetadataEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_metadata import ISOMetadata
@@ -320,16 +320,16 @@ class OGCWebFeatureService(OGCWebService):
             post[action] = _post
 
         # Shorten the usage of our operation enums
-        get_cap = ServiceOperationEnum.GET_CAPABILITIES.value
-        descr_feat = ServiceOperationEnum.DESCRIBE_FEATURE_TYPE.value
-        get_feat = ServiceOperationEnum.GET_FEATURE.value
-        trans = ServiceOperationEnum.TRANSACTION.value
-        lock_feat = ServiceOperationEnum.LOCK_FEATURE.value
-        get_feat_lock = ServiceOperationEnum.GET_FEATURE_WITH_LOCK.value
-        get_gml = ServiceOperationEnum.GET_GML_OBJECT.value
-        list_stored_queries = ServiceOperationEnum.LIST_STORED_QUERIES.value
-        descr_stored_queries = ServiceOperationEnum.DESCRIBE_STORED_QUERIES.value
-        get_prop_val = ServiceOperationEnum.GET_PROPERTY_VALUE.value
+        get_cap = OGCOperationEnum.GET_CAPABILITIES.value
+        descr_feat = OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value
+        get_feat = OGCOperationEnum.GET_FEATURE.value
+        trans = OGCOperationEnum.TRANSACTION.value
+        lock_feat = OGCOperationEnum.LOCK_FEATURE.value
+        get_feat_lock = OGCOperationEnum.GET_FEATURE_WITH_LOCK.value
+        get_gml = OGCOperationEnum.GET_GML_OBJECT.value
+        list_stored_queries = OGCOperationEnum.LIST_STORED_QUERIES.value
+        descr_stored_queries = OGCOperationEnum.DESCRIBE_STORED_QUERIES.value
+        get_prop_val = OGCOperationEnum.GET_PROPERTY_VALUE.value
 
         self.get_capabilities_uri["get"] = get.get(get_cap, None)
         self.get_capabilities_uri["post"] = post.get(get_cap, None)
@@ -549,7 +549,8 @@ class OGCWebFeatureService(OGCWebService):
                 title=feature_type.metadata.identifier,
                 service_type="wfs",
                 service_type_version=service_type_version,
-                uri=self.describe_feature_type_uri.get("get")
+                uri=self.describe_feature_type_uri.get("get", ""),
+                external_auth=external_auth,
             )
             if descr_feat_root is not None:
                 # Feature type elements
@@ -948,12 +949,12 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             xml_elem=xml_obj
         )
 
-        get_cap = ServiceOperationEnum.GET_CAPABILITIES.value
-        descr_feat = ServiceOperationEnum.DESCRIBE_FEATURE_TYPE.value
-        get_feat = ServiceOperationEnum.GET_FEATURE.value
-        trans = ServiceOperationEnum.TRANSACTION.value
-        lock_feat = ServiceOperationEnum.LOCK_FEATURE.value
-        get_feat_lock = ServiceOperationEnum.GET_FEATURE_WITH_LOCK.value
+        get_cap = OGCOperationEnum.GET_CAPABILITIES.value
+        descr_feat = OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value
+        get_feat = OGCOperationEnum.GET_FEATURE.value
+        trans = OGCOperationEnum.TRANSACTION.value
+        lock_feat = OGCOperationEnum.LOCK_FEATURE.value
+        get_feat_lock = OGCOperationEnum.GET_FEATURE_WITH_LOCK.value
 
         actions = [
             get_cap,

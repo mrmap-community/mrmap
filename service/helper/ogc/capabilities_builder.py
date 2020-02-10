@@ -14,45 +14,76 @@ Created on: 31.07.19
 """
 import xml.etree.ElementTree as et
 
+from lxml.etree import _Element
+
+from MapSkinner.settings import XML_NAMESPACES
+from service.helper import xml_helper
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
 from service.helper.ogc.capabilities.Service import Service
 from service.models import Metadata
 
+class CapabilityXMLBuilder:
+    def __init__(self, service: Service):
+        self.service = service
+        self.metadata = service.metadata
 
-class WMS130Builder():
-    def __init__(self, metadata: Metadata):
-        self.xml_doc_obj = None
-        self.metadata = metadata
+        self.service_type = service.servicetype.name
+        self.service_version = service.servicetype.version
 
     def generate_xml(self):
-        contact_information = {
-            "contact_person": self.metadata.contact.person_name,
-            "contact_organization": self.metadata.contact.organization_name,
-            "contact_position": self.metadata.contact.pos,
-            "address_type": self.metadata.contact.address_type,
-            "address": self.metadata.contact.address,
-            "city": self.metadata.contact.city,
-            "state_or_province": self.metadata.contact.state_or_province,
-            "post_code": self.metadata.contact.postal_code,
-            "country": self.metadata.contact.country,
-            "contact_voice_telephone": self.metadata.contact.phone,
-            "contact_electronic_mail_address": self.metadata.contact.email,
-        }
-        service_xml = Service(
-            self.metadata.identifier,
-            self.metadata.title,
-            self.metadata.abstract,
-            list(self.metadata.keywords_list.all()),
-            self.metadata.online_resource,
-            contact_information,
-            self.metadata.fees,
-            self.metadata.access_constraints,
-            layer_limit=None,
-            max_width=None,
-            max_height=None
-        )
-        print(service_xml)
+        xml_builder = None
+        xml = ""
 
-    def build_xml(self):
+        if self.service_type == OGCServiceEnum.WMS.value:
+
+            if self.service_version == OGCServiceVersionEnum.V_1_0_0.value:
+                xml_builder = CapabilityWMS100Builder(self.service)
+
+            elif self.service_version == OGCServiceVersionEnum.V_1_1_1.value:
+                xml_builder = CapabilityWMS111Builder(self.service)
+
+            elif self.service_version == OGCServiceVersionEnum.V_1_3_0.value:
+                xml_builder = CapabilityWMS130Builder(self.service)
+
+        elif self.service_type == OGCServiceEnum.WFS.value:
+
+            if self.service_version == OGCServiceVersionEnum.V_1_0_0.value:
+                xml_builder = CapabilityWFS100Builder(self.service)
+
+            elif self.service_version == OGCServiceVersionEnum.V_1_1_0.value:
+                xml_builder = CapabilityWFS110Builder(self.service)
+
+            elif self.service_version == OGCServiceVersionEnum.V_2_0_0.value:
+                xml_builder = CapabilityWFS200Builder(self.service)
+
+            elif self.service_version == OGCServiceVersionEnum.V_2_0_2.value:
+                xml_builder = CapabilityWFS202Builder(self.service)
+
+        xml = xml_builder.generate_xml()
+        return xml
+
+class CapabilityWMS100Builder(CapabilityXMLBuilder):
+    def __init__(self, service: Service):
+        self.xml_doc_obj = None
+        super().__init__(service=service)
+
+class CapabilityWMS111Builder(CapabilityXMLBuilder):
+    def __init__(self, service: Service):
+        self.xml_doc_obj = None
+        super().__init__(service=service)
+
+class CapabilityWMS130Builder(CapabilityXMLBuilder):
+    def __init__(self, service: Service):
+        self.xml_doc_obj = None
+        self.namespaces = {
+            "sld": XML_NAMESPACES["sld"],
+            "xsi": XML_NAMESPACES["xsi"],
+            "default": XML_NAMESPACES["wms"],
+        }
+        self.ns_prefix = "{" + self.namespaces["default"] + "}"
+        super().__init__(service=service)
+
+    def generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
 
         Args:
@@ -60,24 +91,72 @@ class WMS130Builder():
         Returns:
              nothing
         """
-        root = et.Element('WMS_Capabilities')
-        service = et.SubElement(root, "Service")
-        capability = et.SubElement(root, "Capability")
-        self._build_service_xml(service, self.metadata)
-        self.xml_doc = root
+        root = et.Element(
+            'WMS_Capabilities',
+            attrib={
+                "version": self.service_version
+            }
+        )
+        self.xml_doc_obj = root
 
-    def _build_service_xml(self, service):
+        service = et.SubElement(root, "{}Service".format(self.ns_prefix))
+        self._generate_service_xml(service)
+        xml_helper.add_subelement(root, service)
+
+        capability = et.SubElement(root, "{}Capability".format(self.ns_prefix))
+        self._generate_capability_xml(service)
+        xml_helper.add_subelement(root, capability)
+
+        return xml_helper.xml_to_string(root)
+
+
+    def _generate_service_xml(self, service_elem: _Element):
         """ Generate the 'Service' subelement of a xml service object
 
         Args:
-            service: The service xml object
-            metadata (Metadata): The metadata of the requested service
+            service_elem (_Element): The service xml element
         Returns:
             nothing
         """
-        et.SubElement(service, "Name")
-        et.SubElement(service, "Title")
-        xml_keyword_list = et.SubElement(service, "KeywordList")
+        md = self.metadata
+        md:Metadata
+
+        name_elem = xml_helper.create_subelement(service_elem, "Name")
+        xml_helper.write_text_to_element(name_elem, txt=md.identifier)
+
+        name_elem = xml_helper.create_subelement(service_elem, "Title")
+        xml_helper.write_text_to_element(name_elem, txt=md.title)
+
+        name_elem = xml_helper.create_subelement(service_elem, "Abstract")
+        xml_helper.write_text_to_element(name_elem, txt=md.abstract)
+
+
+        xml_keyword_list = et.SubElement(service_elem, "KeywordList")
         for kw in self.metadata.keywords.all():
-            xml_kw = et.SubElement(xml_keyword_list, "Keyword")
+            xml_kw = et.SubElement(xml_keyword_list, "{}Keyword".format(self.ns_prefix))
             xml_kw.text = kw.keyword
+
+    def _generate_capability_xml(self, capability_elem: _Element):
+        # ToDO: Implement
+        pass
+
+
+class CapabilityWFS100Builder(CapabilityXMLBuilder):
+    def __init__(self, service: Service):
+        self.xml_doc_obj = None
+        super().__init__(service=service)
+
+class CapabilityWFS110Builder(CapabilityXMLBuilder):
+    def __init__(self, service: Service):
+        self.xml_doc_obj = None
+        super().__init__(service=service)
+
+class CapabilityWFS200Builder(CapabilityXMLBuilder):
+    def __init__(self, service: Service):
+        self.xml_doc_obj = None
+        super().__init__(service=service)
+
+class CapabilityWFS202Builder(CapabilityXMLBuilder):
+    def __init__(self, service: Service):
+        self.xml_doc_obj = None
+        super().__init__(service=service)

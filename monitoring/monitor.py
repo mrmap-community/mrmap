@@ -49,18 +49,39 @@ class Monitor:
                 get_map_url = self.get_map_url()
                 if get_map_url is not None:
                     self.check_service(get_map_url)
+
                 get_feature_info_url = self.get_feature_info_url()
                 if get_feature_info_url is not None:
                     self.check_service(get_feature_info_url)
+
+                describe_layer_url = self.get_describe_layer_url()
+                if describe_layer_url is not None:
+                    self.check_service(describe_layer_url)
             # TODO add get_legend_graphic
             # TODO get_styles
-            pass
         elif metadata_type == MetadataEnum.SERVICE.value.lower():
             if (service_type.lower() == ServiceEnum.WMS.value.lower())\
                     or (service_type.lower() == ServiceEnum.WFS.value.lower()):
                 get_capabilities_url = self.get_capabilities_url()
                 if get_capabilities_url is not None:
                     self.check_service(get_capabilities_url)
+
+    def get_describe_layer_url(self):
+        """ Creates the url for the wms DescribeLayer request.
+
+        Returns:
+            str: URL for DescribeLayer request.
+        """
+        service = self.metadata.service
+        uri = service.describe_layer_uri_GET
+        if uri is None:
+            return
+        request_type = ServiceOperationEnum.DESCRIBE_LAYER.value
+        # make sure that version is describeLayer specific version 1.1.1 and not wms version 1.3.0
+        service_version = VersionEnum.V_1_1_1.value
+        layers = service.layer.identifier
+        url = f'{uri}REQUEST={request_type}&VERSION={service_version}&LAYERS={layers}'
+        return url
 
     def get_feature_info_url(self):
         """ Creates the url for the wms getFeatureInfo request.

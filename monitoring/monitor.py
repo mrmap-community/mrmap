@@ -57,6 +57,10 @@ class Monitor:
                 describe_layer_url = self.get_describe_layer_url()
                 if describe_layer_url is not None:
                     self.check_service(describe_layer_url)
+
+                get_legend_graphic_url = self.get_legend_graphic_url()
+                if get_legend_graphic_url is not None:
+                    self.check_service(get_legend_graphic_url)
             # TODO add get_legend_graphic
             # TODO get_styles
         elif metadata_type == MetadataEnum.SERVICE.value.lower():
@@ -65,6 +69,24 @@ class Monitor:
                 get_capabilities_url = self.get_capabilities_url()
                 if get_capabilities_url is not None:
                     self.check_service(get_capabilities_url)
+
+    def get_legend_graphic_url(self):
+        """ Creates the url for the wms getLegendGraphic request.
+
+        Returns:
+            str: URL for getLegendGraphic request.
+        """
+        service = self.metadata.service
+        uri = service.get_legend_graphic_uri_GET
+        if uri is None:
+            return
+        request_type = ServiceOperationEnum.GET_LEGEND_GRAPHIC.value
+        layer = service.layer.identifier
+        service_format = str(service.formats.all()[0])
+        if 'image/png' in [str(f) for f in service.formats.all()]:
+            service_format = 'image/png'
+        url = f'{uri}REQUEST={request_type}&LAYER={layer}&FORMAT={service_format}'
+        return url
 
     def get_describe_layer_url(self):
         """ Creates the url for the wms DescribeLayer request.

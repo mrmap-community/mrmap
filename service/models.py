@@ -1393,6 +1393,113 @@ class Service(Resource):
     def __str__(self):
         return str(self.id)
 
+
+    def _create_wfs_capability_xml(self):
+        xml = ""
+        if self.servicetype.version == OGCServiceVersionEnum.V_1_0_0.value:
+            xml = self._create_wfs_1_0_0_capability_xml()
+        elif self.servicetype.version == OGCServiceVersionEnum.V_1_1_0.value:
+            xml = self._create_wfs_1_1_0_capability_xml()
+        elif self.servicetype.version == OGCServiceVersionEnum.V_2_0_0.value:
+            xml = self._create_wfs_2_0_0_capability_xml()
+        elif self.servicetype.version == OGCServiceVersionEnum.V_2_0_2.value:
+            xml = self._create_wfs_2_0_2_capability_xml()
+        return xml
+
+    def _create_wfs_1_0_0_capability_xml(self):
+        """ Creates a capability xml from the current state of the WFS 1.0.0 service object
+
+        Returns:
+             xml (str): The xml document as string
+        """
+        xml = ""
+        return xml
+
+    def _create_wfs_1_1_0_capability_xml(self):
+        """ Creates a capability xml from the current state of the WFS 1.1.0 service object
+
+        Returns:
+             xml (str): The xml document as string
+        """
+        xml = ""
+        return xml
+
+    def _create_wfs_2_0_0_capability_xml(self):
+        """ Creates a capability xml from the current state of the WFS 2.0.0 service object
+
+        Returns:
+             xml (str): The xml document as string
+        """
+        xml = ""
+        return xml
+
+    def _create_wfs_2_0_2_capability_xml(self):
+        """ Creates a capability xml from the current state of the WFS 2.0.2 service object
+
+        Returns:
+             xml (str): The xml document as string
+        """
+        xml = ""
+        return xml
+
+
+    def _create_wms_capability_xml(self):
+        """ Creates a capability xml from the current state of the WMS service object
+
+        Returns:
+             xml (str): The xml document as string
+        """
+        xml = ""
+        if self.servicetype.version == OGCServiceVersionEnum.V_1_0_0.value:
+            xml = self._create_wms_1_0_0_capability_xml()
+        elif self.servicetype.version == OGCServiceVersionEnum.V_1_1_1.value:
+            xml = self._create_wms_1_1_1_capability_xml()
+        elif self.servicetype.version == OGCServiceVersionEnum.V_1_3_0.value:
+            xml = self._create_wms_1_3_0_capability_xml()
+        return xml
+
+    def _create_wms_1_0_0_capability_xml(self):
+        """ Creates a capability xml from the current state of the WMS 1.0.0 service object
+
+        Returns:
+             xml (str): The xml document as string
+        """
+        xml = ""
+        return xml
+
+    def _create_wms_1_1_1_capability_xml(self):
+        """ Creates a capability xml from the current state of the WMS 1.1.1 service object
+
+        Returns:
+             xml (str): The xml document as string
+        """
+        xml = ""
+        return xml
+
+    def _create_wms_1_3_0_capability_xml(self):
+        """ Creates a capability xml from the current state of the WMS 1.3.0 service object
+
+        Returns:
+             xml (str): The xml document as string
+        """
+        xml = ""
+        return xml
+
+
+    def create_capability_xml(self):
+        """ Creates a capability xml from the current state of the service object
+
+        Returns:
+             xml (str): The xml document as string
+        """
+        xml = ""
+        if self.servicetype.name == OGCServiceEnum.WMS.value:
+            xml = self._create_wms_capability_xml()
+        elif self.servicetype.name == OGCServiceEnum.WFS.value:
+            xml = self._create_wfs_capability_xml()
+
+        return xml
+
     def perform_single_element_securing(self, element, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation):
         """ Secures a single element
 

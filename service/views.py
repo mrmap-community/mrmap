@@ -326,7 +326,19 @@ def get_capabilities(request: HttpRequest, id: int):
 
     if stored_version == version_param or use_fallback is True:
         # we can deliver the document from the database
-        cap_doc = Document.objects.get(related_metadata=md)
+        try:
+            cap_doc = Document.objects.get(related_metadata=md)
+        except ObjectDoesNotExist as e:
+            # This means we have no capability document in the db.
+            # This is possible for subelements of a service, which (usually) do not have an own capability document.
+            # We create a capability document on the fly for this metadata object and persist it for another call.
+            cap_xml = md.service.create_capability_xml()
+            cap_doc = Document(
+                related_metadata=md,
+                original_capability_document=cap_xml,
+                current_capability_document=cap_xml,
+            )
+            #cap_doc.save()
         doc = cap_doc.current_capability_document
 
     else:

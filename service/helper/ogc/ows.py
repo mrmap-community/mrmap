@@ -8,11 +8,11 @@ from django.contrib.gis.geos import Polygon
 from django.db import transaction
 from requests import ReadTimeout
 
-from MapSkinner.messages import SERVICE_REGISTRATION_TIMEOUT
+from MapSkinner.messages import CONNECTION_TIMEOUT
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ConnectionEnum, VersionEnum, ServiceEnum
+from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, OGCServiceEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import RequestOperation, ExternalAuthentication
 from structure.models import User
@@ -22,7 +22,7 @@ class OGCWebService:
     """ The base class for all derived web services
 
     """
-    def __init__(self, service_connect_url=None, service_type=ServiceEnum.WMS, service_version=VersionEnum.V_1_1_1, service_capabilities_xml=None, external_auth: ExternalAuthentication=None):
+    def __init__(self, service_connect_url=None, service_type=OGCServiceEnum.WMS, service_version=OGCServiceVersionEnum.V_1_1_1, service_capabilities_xml=None, external_auth: ExternalAuthentication=None):
         self.service_connect_url = service_connect_url
         self.service_type = service_type  # wms, wfs, wcs, ...
         self.service_version = service_version  # 1.0.0, 1.1.0, ...
@@ -110,7 +110,7 @@ class OGCWebService:
             if ows_connector.status_code != 200:
                 raise ConnectionError(ows_connector.status_code)
         except ReadTimeout:
-            raise ConnectionError(SERVICE_REGISTRATION_TIMEOUT.format(self.service_connect_url))
+            raise ConnectionError(CONNECTION_TIMEOUT.format(self.service_connect_url))
 
         tmp = ows_connector.content.decode("UTF-8")
         # check if tmp really contains an xml file
@@ -202,7 +202,7 @@ class OGCWebService:
         """
         # Must parse metadata document and merge metadata into this metadata object
         elem = "//inspire_common:URL"  # for wms by default
-        if self.service_type is ServiceEnum.WFS:
+        if self.service_type is OGCServiceEnum.WFS:
             elem = "//wfs:MetadataURL"
         service_md_link = xml_helper.try_get_text_from_xml_element(elem=elem, xml_elem=xml_obj)
         # get iso metadata xml object

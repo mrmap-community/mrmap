@@ -5,6 +5,8 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 07.05.19
 
 """
+import base64
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 
@@ -22,13 +24,30 @@ def get_user(request: HttpRequest=None, username: str=None, user_id: int=None):
     Returns:
         Returns the user object if found, None otherwise
     """
+    user = None
     try:
         if username is not None:
             user = User.objects.get(username=username)
         elif user_id is not None:
             user = User.objects.get(id=user_id)
         elif request is not None:
-            user = User.objects.get(id=request.session.get("user_id"))
+            try:
+                user = User.objects.get(id=request.session.get("user_id"))
+            except ObjectDoesNotExist:
+                pass
+            if user is None:
+                # check for basic authentication
+                auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+                auth_header = auth_header.split(" ")
+                if len(auth_header) == 2:
+                    credentials = auth_header[-1].encode("ascii")
+                    username, password = base64.b64decode(credentials).decode("utf-8").split(":")
+                    user = get_user(username=username)
+                    if user is not None:
+                        # directly check if the password is valid!
+                        if user.is_password_valid(password):
+                            return user
+                    return None
         else:
             return None
         return user

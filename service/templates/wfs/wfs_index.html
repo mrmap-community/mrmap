@@ -39,10 +39,10 @@
                     </a>
                     <span>...</span>
                     {% endif %}
-                    <input class="pagination-input" data-type="wmsp" type="number" min="1" value="{{ metadata_list_wfs.number }}">
+                    <input class="pagination-input" data-type="wfsp" type="number" min="1" value="{{ metadata_list_wfs.number }}">
                     {% if metadata_list_wfs.number != metadata_list_wfs.paginator.num_pages %}
                     <span>...</span>
-                    <a class="pagination-page" href="?wmsp={{ metadata_list_wms.paginator.num_pages }}&wfsp={{ metadata_list_wfs.number }}&rpp={{ rpp }}">
+                    <a class="pagination-page" href="?wmsp={{ metadata_list_wms.number }}&wfsp={{ metadata_list_wfs.paginator.num_pages }}&rpp={{ rpp }}">
                         {{ metadata_list_wfs.paginator.num_pages }}
                     </a>
                     {% endif %}

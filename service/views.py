@@ -1,29 +1,32 @@
 import json
+from io import BytesIO
 
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
+from requests import ReadTimeout
 
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
+    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
     SECURITY_PROXY_NOT_ALLOWED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
 from service.forms import ServiceURIForm
-from service.helper import service_helper, update_helper
+from service.helper import service_helper, update_helper, xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ServiceEnum, MetadataEnum, ServiceOperationEnum
+from service.helper.enums import OGCServiceEnum, MetadataEnum, OGCOperationEnum, OGCServiceVersionEnum
 from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
@@ -71,7 +74,7 @@ def index(request: HttpRequest, user: User, service_type=None):
     # get services
     paginator_wms = None
     paginator_wfs = None
-    if service_type is None or service_type == ServiceEnum.WMS.value:
+    if service_type is None or service_type == OGCServiceEnum.WMS.value:
         md_list_wms = Metadata.objects.filter(
             service__servicetype__name="wms",
             service__is_root=is_root,
@@ -79,7 +82,7 @@ def index(request: HttpRequest, user: User, service_type=None):
             service__is_deleted=False,
         ).order_by("title")
         paginator_wms = Paginator(md_list_wms, results_per_page).get_page(wms_page)
-    if service_type is None or service_type == ServiceEnum.WFS.value:
+    if service_type is None or service_type == OGCServiceEnum.WFS.value:
         md_list_wfs = Metadata.objects.filter(
             service__servicetype__name="wfs",
             created_by__in=user.groups.all(),
@@ -122,9 +125,9 @@ def remove(request: HttpRequest, user: User):
     service = get_object_or_404(Service, id=service_id)
     service_type = service.servicetype
     sub_elements = None
-    if service_type.name == ServiceEnum.WMS.value:
+    if service_type.name == OGCServiceEnum.WMS.value:
         sub_elements = Layer.objects.filter(parent_service=service)
-    elif service_type.name == ServiceEnum.WFS.value:
+    elif service_type.name == OGCServiceEnum.WFS.value:
         sub_elements = service.featuretypes.all()
     metadata = get_object_or_404(Metadata, service=service)
     if confirmed == 'false':
@@ -221,18 +224,19 @@ def get_dataset_metadata(request: HttpRequest, id: int):
     md = Metadata.objects.get(id=id)
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
-    if md.metadata_type != 'dataset':
-        try:
+    try:
+        if md.metadata_type.type != 'dataset':
             # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
             md = MetadataRelation.objects.get(
                 metadata_from=md,
             ).metadata_to
-            document = Document.objects.get(related_metadata=md)
-            document = document.dataset_metadata_document
-            if document is None:
-                raise ObjectDoesNotExist
-        except ObjectDoesNotExist:
-            return HttpResponse(content=_("No dataset metadata found"), status=404)
+            return redirect("service:get-dataset-metadata", id=md.id)
+        document = Document.objects.get(related_metadata=md)
+        document = document.dataset_metadata_document
+        if document is None:
+            raise ObjectDoesNotExist
+    except ObjectDoesNotExist:
+        return HttpResponse(content=_("No dataset metadata found"), status=404)
     return HttpResponse(document, content_type='application/xml')
 
 
@@ -249,9 +253,9 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
          A BackendAjaxResponse, containing a boolean, whether the requested element has a dataset metadata record or not
     """
     elementType = request.GET.get("serviceType")
-    if elementType == ServiceEnum.WMS.value:
+    if elementType == OGCServiceEnum.WMS.value:
         element = Layer.objects.get(id=id)
-    elif elementType == ServiceEnum.WFS.value:
+    elif elementType == OGCServiceEnum.WFS.value:
         element = FeatureType.objects.get(id=id)
     md = element.metadata
     try:
@@ -268,6 +272,7 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
 
     return BackendAjaxResponse(html="", has_dataset_doc=has_dataset_doc).get_response()
 
+@csrf_exempt
 @log_proxy
 def get_capabilities(request: HttpRequest, id: int):
     """ Returns the current capabilities xml file
@@ -279,14 +284,78 @@ def get_capabilities(request: HttpRequest, id: int):
          A HttpResponse containing the xml file
     """
     md = Metadata.objects.get(id=id)
+    stored_version = md.get_service_version().value
+    # move increasing hits to background process to speed up response time!
+    async_increase_hits.delay(id)
 
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
 
-    # move increasing hits to background process to speed up response time!
-    async_increase_hits.delay(id)
-    cap_doc = Document.objects.get(related_metadata=md)
-    doc = cap_doc.current_capability_document
+    # check that we have the requested version in our database
+    version_param = None
+    version_tag = None
+
+    request_param = None
+    request_tag = None
+
+    use_fallback = None
+
+    for k, v in request.GET.dict().items():
+        if k.upper() == "VERSION":
+            version_param = v
+            version_tag = k
+        elif k.upper() == "REQUEST":
+            request_param = v
+            request_tag = k
+        elif k.upper() == "FALLBACK":
+            use_fallback = utils.resolve_boolean_attribute_val(v)
+
+    # No version parameter has been provided by the request - we simply use the one we have.
+    if version_param is None or len(version_param) == 0:
+        version_param = stored_version
+
+    if version_param not in [data.value for data in OGCServiceVersionEnum]:
+        # version number not valid
+        return HttpResponse(content=PARAMETER_ERROR.format(version_tag), status=404)
+
+    elif request_param is not None and request_param != OGCOperationEnum.GET_CAPABILITIES.value:
+        # request not valid
+        return HttpResponse(content=PARAMETER_ERROR.format(request_tag), status=404)
+
+    else:
+        pass
+
+    if stored_version == version_param or use_fallback is True:
+        # we can deliver the document from the database
+        cap_doc = Document.objects.get(related_metadata=md)
+        doc = cap_doc.current_capability_document
+
+    else:
+        # we have to fetch the remote document
+        try:
+            # fetch the requested capabilities document from remote - we do not provide this as our default (registered) one
+            xml = md.get_remote_original_capabilities_document(version_param)
+
+            tmp = xml_helper.parse_xml(xml)
+            if tmp is None:
+                raise ValueError("No xml document was retrieved. Content was :'{}'".format(xml))
+
+            # we fake the persisted service version, so the document setters will change the correct elements in the xml
+            md.service.servicetype.version = version_param
+            doc = Document(
+                original_capability_document=xml,
+                current_capability_document=xml,
+                related_metadata=md
+            )
+            doc.set_capabilities_secured(auto_save=False)
+            if md.use_proxy_uri:
+                doc.set_dataset_metadata_secured(True, auto_save=False)
+                doc.set_operations_secured(True, auto_save=False)
+                doc.set_legend_url_secured(True, auto_save=False)
+            doc = doc.current_capability_document
+        except (ReadTimeout, TimeoutError, ConnectionError) as e:
+            # the remote server does not respond - we must deliver our stored capabilities document, which is not the requested version
+            return HttpResponse(content=SERVICE_CAPABILITIES_UNAVAILABLE)
 
     return HttpResponse(doc, content_type='application/xml')
 
@@ -339,7 +408,7 @@ def wms(request:HttpRequest, user:User):
     Returns:
          A view
     """
-    return redirect("service:index", ServiceEnum.WMS.value)
+    return redirect("service:index", OGCServiceEnum.WMS.value)
 
 
 @check_session
@@ -360,7 +429,7 @@ def register_form(request: HttpRequest, user: User):
         cap_url = POST_params.get("uri", "")
         url_dict = service_helper.split_service_uri(cap_url)
 
-        if url_dict["request"].lower() != "getcapabilities":
+        if url_dict["request"].lower() != OGCOperationEnum.GET_CAPABILITIES.value.lower():
             # not allowed!
             error = True
 
@@ -532,10 +601,10 @@ def update_service(request: HttpRequest, user: User, id: int):
         old_service = update_helper.update_service(old_service, new_service)
         old_service.last_modified = timezone.now()
 
-        if new_service.servicetype.name == ServiceEnum.WFS.value:
+        if new_service.servicetype.name == OGCServiceEnum.WFS.value:
             old_service = update_helper.update_wfs(old_service, new_service, diff, links, keep_custom_metadata)
 
-        elif new_service.servicetype.name == ServiceEnum.WMS.value:
+        elif new_service.servicetype.name == OGCServiceEnum.WMS.value:
             old_service = update_helper.update_wms(old_service, new_service, diff, links, keep_custom_metadata)
 
         cap_document = Document.objects.get(related_metadata=old_service.metadata)
@@ -653,9 +722,9 @@ def wfs(request:HttpRequest, user:User):
          A view
     """
     params = {
-        "only": ServiceEnum.WFS
+        "only": OGCServiceEnum.WFS
     }
-    return redirect("service:index", ServiceEnum.WFS.value)
+    return redirect("service:index", OGCServiceEnum.WFS.value)
 
 
 @check_session
@@ -786,7 +855,7 @@ def get_metadata_operation(request: HttpRequest, id: int):
             )
             return redirect(redirect_uri)
 
-        elif operation_handler.request_param.upper() == ServiceOperationEnum.GET_CAPABILITIES.value.upper():
+        elif operation_handler.request_param.upper() == OGCOperationEnum.GET_CAPABILITIES.value.upper():
             cap_doc = Document.objects.get(related_metadata=metadata)
             return HttpResponse(cap_doc.current_capability_document, content_type="application/xml")
 
@@ -804,20 +873,36 @@ def get_metadata_operation(request: HttpRequest, id: int):
                 # at least one requested layer could not be found in the database
                 return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
 
-    except ObjectDoesNotExist:
-        return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
-    except Exception as e:
-        return HttpResponse(status=500, content=e)
+        if md_secured:
+            response_dict = operation_handler.get_secured_operation_response(request, metadata)
+        else:
+            response_dict = operation_handler.get_operation_response()
 
-    if md_secured:
-        response = operation_handler.get_secured_operation_response(request, metadata)
+        response = response_dict.get("response", None)
+        content_type = response_dict.get("response_type", "")
 
         if response is None:
             # metadata is secured but user is not allowed
             return HttpResponse(status=401, content=SECURITY_PROXY_NOT_ALLOWED)
 
-        return HttpResponse(response, content_type="")
-    return HttpResponse(operation_handler.get_operation_response(), content_type="")
+        len_response = len(response)
+
+        if len_response <= 50000:
+            return HttpResponse(response, content_type=content_type)
+        else:
+            # data too big - we should stream it!
+            # make sure the response is in bytes
+            if not isinstance(response, bytes):
+                response = bytes(response)
+            buffer = BytesIO(response)
+            return StreamingHttpResponse(buffer, content_type=content_type)
+
+    except ObjectDoesNotExist:
+        return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+    except ReadTimeout:
+        return HttpResponse(status=408, content=CONNECTION_TIMEOUT.format(request.build_absolute_uri()))
+    except Exception as e:
+        return HttpResponse(status=500, content=e)
 
 
 def get_metadata_legend(request: HttpRequest, id: int, style_id: id):

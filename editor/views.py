@@ -16,8 +16,9 @@ from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import ROOT_URL, HTTP_OR_SSL, HOST_NAME
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
-from service.helper.enums import ServiceEnum, MetadataEnum
-from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation
+from service.helper.enums import OGCServiceEnum, MetadataEnum
+from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation, \
+    ExternalAuthentication
 from django.utils.translation import gettext_lazy as _
 
 from structure.models import User, Permission, Group
@@ -39,7 +40,7 @@ def index(request: HttpRequest, user:User):
     # get all services that are registered by the user
     template = "editor_index.html"
 
-    wms_services = user.get_services(ServiceEnum.WMS)
+    wms_services = user.get_services(OGCServiceEnum.WMS)
     wms_layers_custom_md = []
     wms_list = []
     for wms in wms_services:
@@ -50,7 +51,7 @@ def index(request: HttpRequest, user:User):
         }
         wms_list.append(tmp)
 
-    wfs_services = user.get_services(ServiceEnum.WFS)
+    wfs_services = user.get_services(OGCServiceEnum.WFS)
     wfs_list = []
     for wfs in wfs_services:
         custom_children = FeatureType.objects.filter(parent_service__metadata=wfs, metadata__is_custom=True)
@@ -101,11 +102,6 @@ def edit(request: HttpRequest, id: int, user: User):
                 # this is for the case that we are working on a non root element which is not allowed to change the
                 # inheritance setting for the whole service -> we act like it didn't change
                 custom_md.use_proxy_uri = metadata.use_proxy_uri
-
-            if metadata.is_secured and not custom_md.use_proxy_uri:
-                # the resource is secured but the proxy shall be turned off - this can not be done!
-                messages.error(request, METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED)
-                return redirect("editor:edit", id)
 
             editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
             editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
@@ -249,13 +245,13 @@ def edit_access(request: HttpRequest, id: int, user: User):
         # render form
         metadata_type = md.metadata_type.type
         if metadata_type == MetadataEnum.FEATURETYPE.value:
-            _type = ServiceEnum.WFS.value
+            _type = OGCServiceEnum.WFS.value
         else:
             _type = md.service.servicetype.name
         secured_operations = []
-        if _type == ServiceEnum.WMS.value:
+        if _type == OGCServiceEnum.WMS.value:
             secured_operations = WMS_SECURED_OPERATIONS
-        elif _type == ServiceEnum.WFS.value:
+        elif _type == OGCServiceEnum.WFS.value:
             secured_operations = WFS_SECURED_OPERATIONS
 
         operations = RequestOperation.objects.filter(
@@ -274,6 +270,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
 
         params = {
             "service_metadata": md,
+            "has_ext_auth": md.has_external_authentication(),
             "operations": tmp,
             "spatial_restrictable_operations": spatial_restrictable_operations,
         }
@@ -327,6 +324,8 @@ def restore(request: HttpRequest, id: int, user: User):
     """
     metadata = Metadata.objects.get(id=id)
 
+    ext_auth = metadata.external_authentication
+
     # check if user owns this service by group-relation
     if metadata.created_by not in user.groups.all():
         messages.error(request, message=NO_PERMISSION)
@@ -343,7 +342,7 @@ def restore(request: HttpRequest, id: int, user: User):
         return redirect(request.META.get("HTTP_REFERER"))
 
     if metadata.is_custom:
-        metadata.restore(metadata.identifier)
+        metadata.restore(metadata.identifier, external_auth=ext_auth)
         metadata.save()
 
     for md in children_md:

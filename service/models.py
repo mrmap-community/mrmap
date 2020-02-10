@@ -10,7 +10,9 @@ from django.contrib.gis.db import models
 from django.utils import timezone
 
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
-from service.helper.enums import ServiceEnum, VersionEnum, MetadataEnum, ServiceOperationEnum
+from MapSkinner import utils
+from service.helper.common_connector import CommonConnector
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH
 from structure.models import Group, Organization
@@ -98,7 +100,7 @@ class SecuredOperation(models.Model):
 
         elif md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
             service_type = md.service.servicetype.name
-            if service_type == ServiceEnum.WFS.value:
+            if service_type == OGCServiceEnum.WFS.value:
                 # find all wfs featuretypes
                 featuretypes = md.service.featuretypes.all()
                 for featuretype in featuretypes:
@@ -109,7 +111,7 @@ class SecuredOperation(models.Model):
                     )
                     sec_ops.delete()
 
-            elif service_type == ServiceEnum.WMS.value:
+            elif service_type == OGCServiceEnum.WMS.value:
                 if md.service.is_root:
                     # find root layer
                     layer = Layer.objects.get(
@@ -282,6 +284,34 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    def get_remote_original_capabilities_document(self, version: str):
+        """ Fetches the original capabilities document from the remote server.
+
+        Returns:
+             doc (str): The xml document as string
+        """
+        if version is None or len(version) == 0:
+            raise ValueError()
+
+        doc = None
+        if self.has_external_authentication():
+            ext_auth = self.external_authentication
+            crypto_handler = CryptoHandler()
+            key = crypto_handler.get_key_from_file(self.id)
+            ext_auth.decrypt(key)
+        else:
+            ext_auth = None
+
+        uri = self.capabilities_original_uri
+        uri = utils.set_uri_GET_param(uri, "version", version)
+        conn = CommonConnector(url=uri, external_auth=ext_auth)
+        conn.load()
+        if conn.status_code == 200:
+            doc = conn.content
+        else:
+            raise ConnectionError()
+        return doc
+
     def has_external_authentication(self):
         """ Checks whether the metadata has a related ExternalAuthentication set
 
@@ -381,7 +411,7 @@ class Metadata(Resource):
              The service version
         """
         service_version = self.service.servicetype.version
-        for v in VersionEnum:
+        for v in OGCServiceVersionEnum:
             if v.value == service_version:
                 return v
         return service_version
@@ -459,7 +489,7 @@ class Metadata(Resource):
         cap_doc.restore_subelement(identifier)
         return
 
-    def _restore_feature_type_md(self, service, identifier: str = None):
+    def _restore_feature_type_md(self, service, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Private function for retrieving single featuretype metadata
 
         Args:
@@ -471,7 +501,7 @@ class Metadata(Resource):
         from service.helper import service_helper
         # parse single layer
         identifier = self.identifier
-        f_t = service.get_feature_type_by_identifier(identifier)
+        f_t = service.get_feature_type_by_identifier(identifier, external_auth=external_auth)
         f_t_obj = f_t.get("feature_type", None)
         f_t_iso_links = f_t.get("dataset_md_list", [])
         self.title = f_t_obj.metadata.title
@@ -497,7 +527,7 @@ class Metadata(Resource):
         cap_doc.restore_subelement(identifier)
         return
 
-    def _restore_wms(self, identifier: str = None):
+    def _restore_wms(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Restore the metadata of a wms service
 
         Args;
@@ -512,7 +542,7 @@ class Metadata(Resource):
         service = OGCWebMapServiceFactory()
         service = service.get_ogc_wms(version=service_version, service_connect_url=self.capabilities_original_uri)
         service.get_capabilities()
-        service.create_from_capabilities(metadata_only=True)
+        service.create_from_capabilities(metadata_only=True, external_auth=external_auth)
 
         # check if whole service shall be restored or single layer
         if not self.is_root():
@@ -535,7 +565,7 @@ class Metadata(Resource):
         cap_doc = Document.objects.get(related_metadata=self)
         cap_doc.restore()
 
-    def _restore_wfs(self, identifier: str = None):
+    def _restore_wfs(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Restore the metadata of a wfs service
 
         Args;
@@ -562,7 +592,7 @@ class Metadata(Resource):
         service_tmp.create_from_capabilities(metadata_only=True)
         # check if whole service shall be restored or single layer
         if not self.is_root():
-            return self._restore_feature_type_md(service_tmp, identifier)
+            return self._restore_feature_type_md(service_tmp, identifier, external_auth=external_auth)
 
         self.title = service_tmp.service_identification_title
         self.abstract = service_tmp.service_identification_abstract
@@ -581,7 +611,7 @@ class Metadata(Resource):
         cap_doc = Document.objects.get(related_metadata=service.metadata)
         cap_doc.restore()
 
-    def restore(self, identifier: str = None):
+    def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Load original metadata from capabilities and ISO metadata
 
         Args:
@@ -592,10 +622,10 @@ class Metadata(Resource):
 
         # identify whether this is a wfs or wms (we need to handle them in different ways)
         service_type = self.get_service_type()
-        if service_type == ServiceEnum.WFS.value:
-            self._restore_wfs(identifier)
-        elif service_type == ServiceEnum.WMS.value:
-            self._restore_wms(identifier)
+        if service_type == OGCServiceEnum.WFS.value:
+            self._restore_wfs(identifier, external_auth=external_auth)
+        elif service_type == OGCServiceEnum.WMS.value:
+            self._restore_wms(identifier, external_auth=external_auth)
 
     def get_related_metadata_uris(self):
         """ Generates a list of all related metadata online links and returns them
@@ -627,6 +657,24 @@ class Metadata(Resource):
         except ObjectDoesNotExist:
             pass
 
+    def set_logging(self, logging: bool):
+        """ Set the metadata logging flag to a new value
+
+        Args:
+            logging (bool): Whether the metadata shall be logged or not
+        Returns:
+        """
+        if self.use_proxy_uri:
+            self.log_proxy_access = logging
+
+            # If the metadata shall be logged, all of it's subelements shall be logged as well!
+            child_mds = Metadata.objects.filter(service__parent_service=self.service)
+            for child_md in child_mds:
+                child_md.log_proxy_access = logging
+                child_md.save()
+
+            self.save()
+
     def set_proxy(self, use_proxy: bool):
         """ Set the metadata proxy to a new value.
 
@@ -654,6 +702,7 @@ class Metadata(Resource):
         for child_md in child_mds:
             child_md.use_proxy_uri = self.use_proxy_uri
             child_md.save()
+        self.save()
 
     def set_secured(self, is_secured: bool):
         """ Set is_secured to a new value.
@@ -679,7 +728,7 @@ class Metadata(Resource):
 
         children = []
         if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
-            if self.service.servicetype.name == ServiceEnum.WMS.value:
+            if self.service.servicetype.name == OGCServiceEnum.WMS.value:
                 parent_service = self.service
                 children = Metadata.objects.filter(
                     service__parent_service=parent_service
@@ -687,7 +736,7 @@ class Metadata(Resource):
                 for child in children:
                     child._set_document_secured(self.use_proxy_uri)
 
-            elif self.service.servicetype.name == ServiceEnum.WFS.value:
+            elif self.service.servicetype.name == OGCServiceEnum.WFS.value:
                 children = [ft.metadata for ft in self.service.featuretypes.all()]
 
             for child in children:
@@ -761,7 +810,7 @@ class Document(Resource):
         for op in request_objs:
 
             # skip GetCapabilities - it is already set to another internal link
-            if ServiceOperationEnum.GET_CAPABILITIES.value in op.tag:
+            if OGCOperationEnum.GET_CAPABILITIES.value in op.tag:
                 continue
 
             uri_dict = op_uri_dict.get(op.tag, "")
@@ -769,7 +818,7 @@ class Document(Resource):
 
             for http_operation in http_operations:
                 res_objs = xml_helper.try_get_element_from_xml(
-                    ".//{}/".format(http_operation) + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
+                    ".//{}/".format(GENERIC_NAMESPACE_TEMPLATE.format(http_operation)) + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
                     , op
                 )
 
@@ -801,19 +850,34 @@ class Document(Resource):
         )
         service = self.related_metadata.service
         op_uri_dict = {
-            "DescribeFeatureType": service.describe_layer_uri,
-            "GetFeature": service.get_feature_info_uri,
-            "GetPropertyValue": None,
-            "ListStoredQueries": None,
-            "DescribeStoredQueries": None,
+            "DescribeFeatureType": {
+                "Get": service.describe_layer_uri_GET,
+                "Post": service.describe_layer_uri_POST,
+            },
+            "GetFeature": {
+                "Get": service.get_feature_info_uri_GET,
+                "Post": service.get_feature_info_uri_POST,
+            },
+            "GetPropertyValue": {
+                "Get": service.get_property_value_uri_GET,
+                "Post": service.get_property_value_uri_POST,
+            },
+            "ListStoredQueries": {
+                "Get": service.list_stored_queries_uri_GET,
+                "Post": service.list_stored_queries_uri_POST,
+            },
+            "DescribeStoredQueries": {
+                "Get": service.describe_stored_queries_uri_GET,
+                "Post": service.describe_stored_queries_uri_POST,
+            },
         }
         for op in operation_objs:
             # skip GetCapabilities - it is already set to another internal link
             name = op.tag
-            if name == "GetCapabilities":
+            if OGCOperationEnum.GET_CAPABILITIES.value in name:
                 continue
             if not is_secured:
-                uri = op_uri_dict.get(name, "")
+                uri = op_uri_dict.get(name, {"Get": None, "Post": None})
             http_objs = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP"), op)
             for http_obj in http_objs:
                 requ_objs = http_obj.getchildren()
@@ -865,7 +929,7 @@ class Document(Resource):
         for op in operation_objs:
             # skip GetCapabilities - it is already set to another internal link
             name = xml_helper.try_get_attribute_from_xml_element(op, "name")
-            if name == ServiceOperationEnum.GET_CAPABILITIES.value or name is None:
+            if name == OGCOperationEnum.GET_CAPABILITIES.value or name is None:
                 continue
 
             http_operations = ["Get", "Post"]
@@ -884,7 +948,193 @@ class Document(Resource):
                         txt=uri
                     )
 
-    def set_operations_secured(self, is_secured: bool):
+    def _set_wms_1_0_0_operation_secured(self, xml_obj, uri: str, is_secured: bool):
+        """ Change external links to internal for wms 1.0.0 operations
+
+        Args:
+            xml_obj: The xml document object
+            uri: The new uri to be set, if secured
+            is_secured: Whether the document shall be secured or not
+        Returns:
+             Nothing, directly works on the xml_obj
+        """
+        request_objs = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request")
+            , xml_obj
+        )
+        request_objs = request_objs.getchildren()
+        service = self.related_metadata.service
+        op_uri_dict = {
+            "GetMap": {
+                "Get": service.get_map_uri_GET,
+                "Post": service.get_map_uri_POST,
+            },
+            "GetFeatureInfo": {
+                "Get": service.get_feature_info_uri_GET,
+                "Post": service.get_feature_info_uri_POST,
+            },
+            "DescribeLayer": {
+                "Get": service.describe_layer_uri_GET,
+                "Post": service.describe_layer_uri_POST,
+            },
+            "GetLegendGraphic": {
+                "Get": service.get_legend_graphic_uri_GET,
+                "Post": service.get_legend_graphic_uri_POST,
+            },
+            "GetStyles": {
+                "Get": service.get_styles_uri_GET,
+                "Post": service.get_styles_uri_POST,
+            },
+        }
+
+        for op in request_objs:
+
+            # skip GetCapabilities - it is already set to another internal link
+            if OGCOperationEnum.GET_CAPABILITIES.value in op.tag:
+                continue
+
+            uri_dict = op_uri_dict.get(op.tag, "")
+            http_operations = ["Get", "Post"]
+
+            for http_operation in http_operations:
+                res_objs = xml_helper.try_get_element_from_xml(".//{}".format(http_operation), op)
+
+                if not is_secured:
+                    # overwrite uri
+                    uri = uri_dict.get(http_operation, "")
+
+                for res_obj in res_objs:
+                    xml_helper.write_attribute(
+                        res_obj,
+                        attrib="onlineResource",
+                        txt=uri
+                    )
+
+    def set_capabilities_secured(self, auto_save: bool=True):
+        """ Change external links to internal for service capability document call
+
+        Args:
+            auto_save (bool): Whether the document shall be directly saved or not
+        Returns:
+
+        """
+
+        # change some external linkage to internal links for the current_capability_document
+        uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)
+        xml = xml_helper.parse_xml(self.original_capability_document)
+
+        # wms and wfs have to be handled differently!
+        # Furthermore each standard has a different handling of attributes and elements ...
+        service_type = self.related_metadata.get_service_type()
+        service_version = self.related_metadata.get_service_version().value
+
+        if service_type == OGCServiceEnum.WMS.value:
+
+            if service_version == "1.0.0":
+                # additional things to change for WMS 1.0.0
+                xml_helper.write_text_to_element(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    uri
+                )
+                http_methods = ["Get", "Post"]
+                for method in http_methods:
+                    xml_helper.write_attribute(
+                        xml,
+                        "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capabilities") +
+                        "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
+                        "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                        "/" + GENERIC_NAMESPACE_TEMPLATE.format(method),
+                        "onlineResource",
+                        uri)
+
+            else:
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    "{http://www.w3.org/1999/xlink}href", uri)
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    "{http://www.w3.org/1999/xlink}href",
+                    uri)
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Post") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    "{http://www.w3.org/1999/xlink}href",
+                    uri)
+
+        elif service_type == OGCServiceEnum.WFS.value:
+            if service_version == "1.0.0":
+                xml_helper.write_text_to_element(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    uri
+                )
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='GetCapabilities']" +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
+                    "onlineResource",
+                    uri
+                )
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='GetCapabilities']" +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
+                    "onlineResource",
+                    uri
+                )
+            else:
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInfo") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    "{http://www.w3.org/1999/xlink}href",
+                    uri
+                )
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='GetCapabilities']" +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
+                    "{http://www.w3.org/1999/xlink}href",
+                    uri
+                )
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='GetCapabilities']" +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
+                    "{http://www.w3.org/1999/xlink}href",
+                    uri
+                )
+
+        xml = xml_helper.xml_to_string(xml)
+        self.current_capability_document = xml
+
+        if auto_save:
+            self.save()
+
+    def set_operations_secured(self, is_secured: bool, auto_save: bool=True):
         """ Change external links to internal for service operations
 
         Args:
@@ -899,18 +1149,23 @@ class Document(Resource):
             uri = ""
         _type = self.related_metadata.service.servicetype.name
         _version = self.related_metadata.get_service_version()
-        if _type == ServiceEnum.WMS.value:
-            self._set_wms_operations_secured(xml_obj, uri, is_secured)
-        elif _type == ServiceEnum.WFS.value:
-            if _version is VersionEnum.V_1_0_0:
+        if _type == OGCServiceEnum.WMS.value:
+            if _version is OGCServiceVersionEnum.V_1_0_0:
+                self._set_wms_1_0_0_operation_secured(xml_obj, uri, is_secured)
+            else:
+                self._set_wms_operations_secured(xml_obj, uri, is_secured)
+        elif _type == OGCServiceEnum.WFS.value:
+            if _version is OGCServiceVersionEnum.V_1_0_0:
                 self._set_wfs_1_0_0_operations_secured(xml_obj, uri, is_secured)
             else:
                 self._set_wfs_operations_secured(xml_obj, uri, is_secured)
 
         self.current_capability_document = xml_helper.xml_to_string(xml_obj)
-        self.save()
 
-    def set_dataset_metadata_secured(self, is_secured: bool):
+        if auto_save:
+            self.save()
+
+    def set_dataset_metadata_secured(self, is_secured: bool, auto_save: bool=True):
         """ Set or unsets the proxy for the dataset metadata uris
 
         Args:
@@ -920,19 +1175,31 @@ class Document(Resource):
         """
         cap_doc_curr = self.current_capability_document
         xml_obj = xml_helper.parse_xml(cap_doc_curr)
+        service_version = self.related_metadata.get_service_version()
+        service_type = self.related_metadata.get_service_type()
+        is_wfs_1_0_0 = service_type == OGCServiceEnum.WFS.value and service_version is OGCServiceVersionEnum.V_1_0_0
+        is_wfs_1_1_0 = service_type == OGCServiceEnum.WFS.value and service_version is OGCServiceVersionEnum.V_1_1_0
 
         # get <MetadataURL> xml elements
-        xml_metadata_elements = xml_helper.try_get_element_from_xml("//MetadataURL/OnlineResource", xml_obj)
+        if is_wfs_1_0_0 or is_wfs_1_1_0:
+            xml_metadata_elements = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL"), xml_obj)
+        else:
+            xml_metadata_elements = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL") + "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"), xml_obj)
+
+        # iterate over elements and change the uris
         for xml_metadata in xml_metadata_elements:
             attr = "{http://www.w3.org/1999/xlink}href"
 
             # get metadata url
-            metadata_uri = xml_helper.get_href_attribute(xml_metadata)
-
-            if is_secured:
+            if is_wfs_1_0_0 or is_wfs_1_1_0:
+                metadata_uri = xml_helper.try_get_text_from_xml_element(xml_metadata)
+            else:
+                metadata_uri = xml_helper.get_href_attribute(xml_metadata)
+            own_uri_prefix = "{}{}".format(HTTP_OR_SSL, HOST_NAME)
+            if not own_uri_prefix in metadata_uri:
                 # find metadata record which matches the metadata uri
                 dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
-                uri = "{}{}/service/metadata/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
+                uri = "{}{}/service/metadata/dataset/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
             else:
                 # this means we have our own proxy uri in here and want to restore the original one
                 # metadata uri contains the proxy uri
@@ -941,12 +1208,17 @@ class Document(Resource):
                 md_id = md_uri_list[len(md_uri_list) - 1]
                 dataset_md_record = Metadata.objects.get(id=md_id)
                 uri = dataset_md_record.metadata_url
-            xml_helper.set_attribute(xml_metadata, attr, uri)
+            if is_wfs_1_0_0 or is_wfs_1_1_0:
+                xml_helper.write_text_to_element(xml_metadata, txt=uri)
+            else:
+                xml_helper.set_attribute(xml_metadata, attr, uri)
         xml_obj_str = xml_helper.xml_to_string(xml_obj)
         self.current_capability_document = xml_obj_str
-        self.save()
 
-    def set_legend_url_secured(self, is_secured: bool):
+        if auto_save:
+            self.save()
+
+    def set_legend_url_secured(self, is_secured: bool, auto_save: bool=True):
         """ Set or unsets the proxy for the style legend uris
 
         Args:
@@ -958,12 +1230,15 @@ class Document(Resource):
         xml_doc = xml_helper.parse_xml(cap_doc_curr)
 
         # get <LegendURL> elements
-        xml_legend_elements = xml_helper.try_get_element_from_xml("//LegendURL/OnlineResource", xml_doc)
+        xml_legend_elements = xml_helper.try_get_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("LegendURL") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+            xml_doc
+        )
         attr = "{http://www.w3.org/1999/xlink}href"
         for xml_elem in xml_legend_elements:
             legend_uri = xml_helper.get_href_attribute(xml_elem)
 
-            # extract layer identifier from legend_uri (stores as parameter 'layer')
             if is_secured:
                 layer_identifier = dict(urllib.parse.parse_qsl(legend_uri)).get("layer", None)
                 style_id = Style.objects.get(layer__parent_service__metadata=self.related_metadata,
@@ -977,7 +1252,9 @@ class Document(Resource):
             xml_helper.set_attribute(xml_elem, attr, uri)
         xml_doc_str = xml_helper.xml_to_string(xml_doc)
         self.current_capability_document = xml_doc_str
-        self.save()
+
+        if auto_save:
+            self.save()
 
     def restore(self):
         """ We overwrite the current metadata xml with the original
@@ -1225,9 +1502,9 @@ class Service(Resource):
         Returns:
              nothing
         """
-        if self.servicetype.name == ServiceEnum.WMS.value:
+        if self.servicetype.name == OGCServiceEnum.WMS.value:
             self._secure_sub_layers(is_secured, group, operation, group_polygons, secured_operation)
-        elif self.servicetype.name == ServiceEnum.WFS.value:
+        elif self.servicetype.name == OGCServiceEnum.WFS.value:
             self._secure_feature_types(is_secured, group, operation, group_polygons, secured_operation)
 
     @transaction.atomic
@@ -1338,59 +1615,8 @@ class Service(Resource):
         # save original capabilities document
         cap_doc = Document()
         cap_doc.original_capability_document = xml
-
-        # change some external linkage to internal links for the current_capability_document
-        uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, self.metadata.id)
-        xml = xml_helper.parse_xml(xml)
-
-        # wms and wfs have to be handled differently!
-        # Furthermore each standard has a different handling of attributes and elements ...
-        if self.servicetype.name == ServiceEnum.WMS.value:
-            xml_helper.write_attribute(
-                xml,
-                "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
-                "{http://www.w3.org/1999/xlink}href", uri)
-            xml_helper.write_attribute(
-                xml,
-                "//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
-                "{http://www.w3.org/1999/xlink}href",
-                uri)
-            xml_helper.write_attribute(
-                xml,
-                "//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("Post") +
-                "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
-                "{http://www.w3.org/1999/xlink}href",
-                uri)
-        elif self.servicetype.name == ServiceEnum.WFS.value:
-            if self.servicetype.version == "1.0.0":
-                prefix = "wfs:"
-                xml_helper.write_text_to_element(xml, "//{}Service/{}OnlineResource".format(prefix, prefix), uri)
-                xml_helper.write_attribute(xml, "//{}GetCapabilities/{}DCPType/{}HTTP/{}Get".format(prefix, prefix, prefix, prefix),
-                                           "onlineResource", uri)
-                xml_helper.write_attribute(xml, "//{}GetCapabilities/{}DCPType/{}HTTP/{}Post".format(prefix, prefix, prefix, prefix),
-                                           "onlineResource", uri)
-            else:
-                prefix = "ows:"
-                xml_helper.write_attribute(xml, "//{}ContactInfo/{}OnlineResource".format(prefix, prefix),
-                                           "{http://www.w3.org/1999/xlink}href", uri)
-                xml_helper.write_attribute(xml, "//{}Operation[@name='GetCapabilities']/{}DCP/{}HTTP/{}Get".format(prefix, prefix, prefix, prefix),
-                                           "{http://www.w3.org/1999/xlink}href", uri)
-                xml_helper.write_attribute(xml, "//{}Operation[@name='GetCapabilities']/{}DCP/{}HTTP/{}Post".format(prefix, prefix, prefix, prefix),
-                                           "{http://www.w3.org/1999/xlink}href", uri)
-
-        xml = xml_helper.xml_to_string(xml)
-
-        cap_doc.current_capability_document = xml
         cap_doc.related_metadata = self.metadata
-        cap_doc.save()
+        cap_doc.set_capabilities_secured()
 
 
 class Layer(Service):
@@ -1639,7 +1865,7 @@ class FeatureType(Resource):
             return
         service_version = service_helper.resolve_version_enum(self.parent_service.servicetype.version)
         service = None
-        if self.parent_service.servicetype.name == ServiceEnum.WFS.value:
+        if self.parent_service.servicetype.name == OGCServiceEnum.WFS.value:
             service = OGCWebFeatureServiceFactory()
             service = service.get_ogc_wfs(version=service_version, service_connect_url=self.parent_service.metadata.capabilities_original_uri)
         if service is None:

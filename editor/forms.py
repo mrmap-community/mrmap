@@ -19,15 +19,15 @@ class MetadataEditorForm(ModelForm):
             "abstract",
             "access_constraints",
             "terms_of_use",
-            "use_proxy_uri",
+            # "use_proxy_uri",
             # "metadata_url",
             # "keywords",
             # "categories",
             # "reference_system",
         ]
-        labels = {
-            "use_proxy_uri": _("Use proxy"),
-        }
+        # labels = {
+        #     "use_proxy_uri": _("Use proxy"),
+        # }
         widgets = {
             "use_proxy_uri": CheckboxInput(attrs={"class": "checkbox-input"}),
         }

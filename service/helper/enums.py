@@ -55,6 +55,11 @@ class OGCOperationEnum(Enum):
     TRANSACTION = "Transaction"
     LOCK_FEATURE = "LockFeature"
     DESCRIBE_FEATURE_TYPE = "DescribeFeatureType"
+    GET_FEATURE_WITH_LOCK = "GetFeatureWithLock"
+    GET_GML_OBJECT = "GetGmlObject"
+    LIST_STORED_QUERIES = "ListStoredQueries"
+    GET_PROPERTY_VALUE = "GetPropertyValue"
+    DESCRIBE_STORED_QUERIES = "DescribeStoredQueries"
 
 
 class MetadataEnum(Enum):

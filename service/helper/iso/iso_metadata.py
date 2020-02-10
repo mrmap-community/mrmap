@@ -18,11 +18,11 @@ from django.utils.timezone import utc
 from lxml.etree import _Element
 
 from MapSkinner.settings import XML_NAMESPACES
-from service.settings import MD_TYPE_DATASET, MD_TYPE_SERVICE, INSPIRE_LEGISLATION_FILE
+from service.settings import INSPIRE_LEGISLATION_FILE
 from MapSkinner import utils
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ConnectionEnum
+from service.helper.enums import ConnectionEnum, MetadataEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Metadata, Keyword, MetadataType, Document
 from structure.models import Organization
@@ -396,7 +396,7 @@ class ISOMetadata:
         return polygon
 
     @transaction.atomic
-    def to_db_model(self, type=MD_TYPE_DATASET):
+    def to_db_model(self, type=MetadataEnum.DATASET.value):
         """ Get corresponding metadata object from database or create it if not found!
 
         Returns:
@@ -459,9 +459,9 @@ class ISOMetadata:
             document = Document.objects.get_or_create(
                 related_metadata=metadata
             )[0]
-            if type is MD_TYPE_DATASET:
+            if type is MetadataEnum.DATASET.value:
                 document.dataset_metadata_document = self.raw_metadata
-            elif type is MD_TYPE_SERVICE:
+            elif type is MetadataEnum.SERVICE.value:
                 document.service_metadata_document = self.raw_metadata
             else:
                 # ToDo: For future implementations

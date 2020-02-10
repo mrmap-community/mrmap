@@ -19,6 +19,7 @@ from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
+    SECURITY_PROXY_NOT_ALLOWED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL
 from service import tasks
@@ -29,9 +30,9 @@ from service.helper.enums import OGCServiceEnum, MetadataEnum, OGCOperationEnum,
 from service.helper.iso.metadata_generator import MetadataGenerator
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
+from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style
-from service.settings import MD_TYPE_SERVICE
-from service.tasks import async_remove_service_task, async_increase_hits
+from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
 
@@ -183,7 +184,7 @@ def get_service_metadata(request: HttpRequest, id: int):
     md_relations = MetadataRelation.objects.filter(
         metadata_from=metadata,
         metadata__is_active=True,
-        metadata_to__metadata_type__type=MD_TYPE_SERVICE
+        metadata_to__metadata_type__type=MetadataEnum.SERVICE.value
     )
     for rel in md_relations:
         md_to = rel.metadata_to
@@ -484,9 +485,9 @@ def new_service(request: HttpRequest, user: User):
     register_group = POST_params.get("registerGroup")
     register_for_organization = POST_params.get("registerForOrg")
 
-    external_username = POST_params.get("username")
-    external_password = POST_params.get("password")
-    external_auth_type = POST_params.get("authType")
+    external_username = POST_params.get("username", "")
+    external_password = POST_params.get("password", "")
+    external_auth_type = POST_params.get("authType", "")
     external_auth = None
     if len(external_username) > 0 and len(external_password) > 0:
         external_auth = {

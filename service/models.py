@@ -14,7 +14,6 @@ from MapSkinner import utils
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.crypto_handler import CryptoHandler
-from service.helper.ogc.capabilities_builder import CapabilityXMLBuilder
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH
 from structure.models import Group, Organization
 from service.helper import xml_helper
@@ -1344,6 +1343,7 @@ class Service(Resource):
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
 
+
     get_capabilities_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_capabilities_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
@@ -1400,6 +1400,8 @@ class Service(Resource):
         Returns:
              xml (str): The xml document as string
         """
+        from service.helper.ogc.capabilities_builder import CapabilityXMLBuilder
+
         capabilty_builder = CapabilityXMLBuilder(service=self)
         xml = capabilty_builder.generate_xml()
         return xml

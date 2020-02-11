@@ -16,9 +16,10 @@ from abc import abstractmethod
 from collections import OrderedDict
 from time import time
 
+from django.db.models import QuerySet
 from lxml.etree import Element, QName
 
-from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
+from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE, HTTP_OR_SSL, HOST_NAME
 from service.helper import xml_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.models import Service, Metadata, MimeType, Layer
@@ -33,6 +34,10 @@ class CapabilityXMLBuilder:
 
         self.service_type = service.servicetype.name
         self.service_version = service.servicetype.version
+
+        self.proxy_capabilities_uri = HTTP_OR_SSL + HOST_NAME + "/service/capabilities/" + str(self.service.parent_service.metadata.id)
+        self.proxy_operations_uri = HTTP_OR_SSL + HOST_NAME + "/service/metadata/" + str(self.service.parent_service.metadata.id) + "/operation?"
+        self.proxy_legend_uri = "{}{}/service/metadata/{}/legend/".format(HTTP_OR_SSL, HOST_NAME, self.service.parent_service.metadata.id)
 
     @abstractmethod
     def generate_xml(self):
@@ -128,14 +133,22 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         start_time = time()
         service = xml_helper.create_subelement(root, "{}Service".format(self.default_ns))
         self._generate_service_xml(service)
-        print("Service creation took {} seconds".format(str((time() - start_time)/1000)))
+        print("Service creation took {} seconds".format((time() - start_time)))
 
         start_time = time()
         capability =  xml_helper.create_subelement(root, "{}Capability".format(self.default_ns))
         self._generate_capability_xml(capability)
-        print("Service creation took {} seconds".format(str((time() - start_time)/1000)))
+        print("Capabilities creation took {} seconds".format(time() - start_time))
 
-        return xml_helper.xml_to_string(root, pretty_print=True)
+        start_time = time()
+        xml = xml_helper.xml_to_string(root, pretty_print=True)
+        print("Rendering to string with pretty print took {} seconds".format(time() - start_time))
+
+        start_time = time()
+        xml = xml_helper.xml_to_string(root, pretty_print=False)
+        print("Rendering to string took {} seconds".format((time() - start_time)))
+
+        return xml
 
     def _generate_service_xml(self, service_elem: Element):
         """ Generate the 'Service' subelement of a xml service object
@@ -164,7 +177,11 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             k = key.format(self.default_ns)
             elem = xml_helper.create_subelement(service_elem, k)
             if "OnlineResource" in key:
-                xml_helper.set_attribute(elem, "{}href".format(self.xlink_ns), val)
+                if md.use_proxy_uri:
+                    uri = self.proxy_capabilities_uri
+                else:
+                    uri = val
+                xml_helper.set_attribute(elem, "{}href".format(self.xlink_ns), uri)
             else:
                 xml_helper.write_text_to_element(elem, txt=val)
 
@@ -358,7 +375,8 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        service = self.metadata.service
+        md = self.metadata
+        service = md.service
         tag = QName(operation_elem).localname
 
         operations = OrderedDict({
@@ -392,9 +410,17 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             },
         })
 
-        uris = operations.get(tag, {"get": "","post": ""})
-        get_uri = uris.get("get", "")
-        post_uri = uris.get("post", "")
+        if md.use_proxy_uri:
+            if tag == OGCOperationEnum.GET_CAPABILITIES.value:
+                get_uri = self.proxy_capabilities_uri
+                post_uri = self.proxy_capabilities_uri
+            else:
+                get_uri = self.proxy_operations_uri
+                post_uri = self.proxy_operations_uri
+        else:
+            uris = operations.get(tag, {"get": "","post": ""})
+            get_uri = uris.get("get", "")
+            post_uri = uris.get("post", "")
 
         # Add all mime types that are supported by this operation
         supported_formats = service.formats.filter(
@@ -432,11 +458,22 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        layer_elem = xml_helper.create_subelement(layer_elem, "{}Layer".format(self.default_ns))
         layer = Layer.objects.get(
             metadata=md
         )
         md = layer.metadata
+        layer_elem = xml_helper.create_subelement(
+            layer_elem,
+            "{}Layer".format(self.default_ns),
+            attrib={
+                "queryable": str(int(layer.is_queryable)),
+                "cascaded": str(int(layer.is_cascaded)),
+                "opaque": str(int(layer.is_opaque)),
+                "noSubsets": str(int(False)),  # ToDo: Implement this in registration!
+                "fixedWith": str(int(False)),  # ToDo: Implement this in registration!
+                "fixedHeight": str(int(False)),  # ToDo: Implement this in registration!
+            }
+        )
 
         elem = xml_helper.create_subelement(layer_elem, "{}Name".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt=layer.identifier)
@@ -463,8 +500,8 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         bbox = md.bounding_geometry.extent
         bbox_content = OrderedDict({
             "{}westBoundLongitude": str(bbox[0]),
-            "{}eastBoundLongitude": str(bbox[1]),
-            "{}southBoundLatitude": str(bbox[2]),
+            "{}eastBoundLongitude": str(bbox[2]),
+            "{}southBoundLatitude": str(bbox[1]),
             "{}northBoundLatitude": str(bbox[3]),
         })
         elem = xml_helper.create_subelement(layer_elem, "{}EX_GeographicBoundingBox".format(self.default_ns))
@@ -478,18 +515,87 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             layer_elem,
             "{}BoundingBox".format(self.default_ns),
             attrib={
-                "{}CRS".format(self.default_ns): "EPSG:{}".format(str(bounding_geometry.srid)),
-                "{}minx".format(self.default_ns): str(bbox[0]),
-                "{}miny".format(self.default_ns): str(bbox[1]),
-                "{}maxx".format(self.default_ns): str(bbox[2]),
-                "{}maxy".format(self.default_ns): str(bbox[3]),
+                "CRS": "EPSG:{}".format(str(bounding_geometry.srid)),
+                "minx": str(bbox[0]),
+                "miny": str(bbox[1]),
+                "maxx": str(bbox[2]),
+                "maxy": str(bbox[3]),
             }
         )
+
+        elem = xml_helper.create_subelement(layer_elem, "{}Dimension".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt=md.dimension)
+
+        elem = xml_helper.create_subelement(layer_elem, "{}Attribution".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt="")  # ToDo: Implement this in registration!
+
+        elem = xml_helper.create_subelement(layer_elem, "{}AuthorityURL".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt="")  # ToDo: Implement this in registration!
+
+        elem = xml_helper.create_subelement(layer_elem, "{}Identifier".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt="")  # ToDo: Implement this in registration!
+
+        elem = xml_helper.create_subelement(layer_elem, "{}MetadataURL".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt="")
+
+        elem = xml_helper.create_subelement(layer_elem, "{}DataURL".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt="")  # ToDo: Implement this in registration!
+
+        elem = xml_helper.create_subelement(layer_elem, "{}FeatureListURL".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt="")
+
+        self._generate_capability_layer_style_xml(layer_elem, layer.get_style())
+
+        elem = xml_helper.create_subelement(layer_elem, "{}MinScaleDenominator".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt="")
+
+        elem = xml_helper.create_subelement(layer_elem, "{}MaxScaleDenominator".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt="")
 
         # Recall the function with the children as input
         layer_children = layer.get_children()
         for layer_child in layer_children:
             self._generate_capability_layer_xml(layer_elem, layer_child.metadata)
+
+    def _generate_capability_layer_style_xml(self, layer_elem: Element, styles: QuerySet):
+        """ Generate the 'Style' subelement of a capability xml object
+
+        Args:
+            layer_elem (_Element): The layer xml element
+        Returns:
+            nothing
+        """
+        for style in styles:
+            style_elem = xml_helper.create_subelement(layer_elem, "{}Style".format(self.default_ns))
+            elem = xml_helper.create_subelement(style_elem, "{}Name".format(self.default_ns))
+            xml_helper.write_text_to_element(elem,txt=style.name)
+            elem = xml_helper.create_subelement(style_elem, "{}Title".format(self.default_ns))
+            xml_helper.write_text_to_element(elem, txt=style.title)
+            elem = xml_helper.create_subelement(
+                style_elem,
+                "{}LegendURL".format(self.default_ns),
+                attrib={
+                    "width": str(style.width),
+                    "height": str(style.height),
+                }
+            )
+            elem = xml_helper.create_subelement(elem, "{}Format".format(self.default_ns))
+            xml_helper.write_text_to_element(elem, txt=style.mime_type)
+
+            uri = style.legend_uri
+            if self.metadata.use_proxy_uri:
+                uri = self.proxy_legend_uri + str(style.id)
+
+            elem = xml_helper.create_subelement(
+                elem,
+                "{}OnlineResource".format(self.default_ns),
+                attrib={
+                    "{}type".format(self.xlink_ns): "simple",
+                    "{}href".format(self.xlink_ns): uri
+                }
+            )
+
+
 
 
 class CapabilityWFS100Builder(CapabilityXMLBuilder):

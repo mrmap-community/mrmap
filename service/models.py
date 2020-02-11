@@ -1667,6 +1667,14 @@ class Layer(Service):
     def __str__(self):
         return str(self.identifier)
 
+    def get_children(self):
+        """ Simple getter for the direct children of the current layer
+
+        Returns:
+             children (QuerySet): A query set containing all direct children layer of this layer
+        """
+        return self.child_layer.all()
+
     def delete_children_secured_operations(self, layer, operation, group):
         """ Walk recursive through all layers of wms and remove their secured operations
 

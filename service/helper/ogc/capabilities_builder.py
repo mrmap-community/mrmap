@@ -20,7 +20,7 @@ from lxml.etree import Element, QName
 from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
-from service.models import Service, Metadata, MimeType
+from service.models import Service, Metadata, MimeType, Layer
 
 from structure.models import Contact
 
@@ -284,13 +284,19 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         })
         for key, val in contents.items():
             k = key.format(self.default_ns)
-            elem = xml_helper.create_subelement(capability_elem, k)
+            xml_helper.create_subelement(capability_elem, k)
 
         request_elem = xml_helper.try_get_single_element_from_xml(
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("Request"),
             capability_elem
         )
         self._generate_capability_request_xml(request_elem)
+
+        layer_elem = xml_helper.try_get_single_element_from_xml(
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Layer"),
+            capability_elem
+        )
+        self._generate_capability_layer_xml(layer_elem, self.metadata)
 
     def _generate_capability_request_xml(self, request_elem: Element):
         """ Generate the 'Request' subelement of a xml capability object
@@ -401,20 +407,89 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         http_elem = xml_helper.create_subelement(dcp_elem, "{}HTTP".format(self.default_ns))
         get_elem = xml_helper.create_subelement(http_elem, "{}Get".format(self.default_ns))
         post_elem = xml_helper.create_subelement(http_elem, "{}Post".format(self.default_ns))
-        online_res_get_elem = xml_helper.create_subelement(
+        xml_helper.create_subelement(
             get_elem,
             "{}OnlineResource",
             attrib={
                 "{}href".format(self.xlink_ns): get_uri
             }
         )
-        online_res_post_elem = xml_helper.create_subelement(
+        xml_helper.create_subelement(
             post_elem,
             "{}OnlineResource",
             attrib={
                 "{}href".format(self.xlink_ns): post_uri
             }
         )
+
+    def _generate_capability_layer_xml(self, layer_elem: Element, md: Metadata):
+        """ Generate the 'Layer' subelement of a capability xml object
+
+        Args:
+            layer_elem (_Element): The layer xml element
+        Returns:
+            nothing
+        """
+        layer = Layer.objects.get(
+            metadata=md
+        )
+        md = layer.metadata
+
+        elem = xml_helper.create_subelement(layer_elem, "{}Name".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt=layer.identifier)
+
+        elem = xml_helper.create_subelement(layer_elem, "{}Title".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt=md.title)
+
+        elem = xml_helper.create_subelement(layer_elem, "{}Abstract".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt=md.abstract)
+
+        elem = xml_helper.create_subelement(layer_elem, "{}KeywordList".format(self.default_ns))
+        keywords = md.keywords.all()
+        for kw in keywords:
+            kw_element = xml_helper.create_subelement(elem, "{}Keyword".format(self.default_ns))
+            xml_helper.write_text_to_element(kw_element, txt=kw.keyword)
+
+        reference_systems = md.reference_system.all()
+        for crs in reference_systems:
+            crs_element = xml_helper.create_subelement(layer_elem, "{}CRS".format(self.default_ns))
+            xml_helper.write_text_to_element(crs_element, txt="{}{}".format(crs.prefix, crs.code))
+
+        # wms:EX_GeographicBoundingBox
+        bounding_geometry = md.bounding_geometry
+        bbox = md.bounding_geometry.extent
+        bbox_content = OrderedDict({
+            "{}westBoundLongitude": str(bbox[0]),
+            "{}eastBoundLongitude": str(bbox[1]),
+            "{}southBoundLatitude": str(bbox[2]),
+            "{}northBoundLatitude": str(bbox[3]),
+        })
+        elem = xml_helper.create_subelement(layer_elem, "{}EX_GeographicBoundingBox".format(self.default_ns))
+        for key, val in bbox_content.items():
+            k = key.format(self.default_ns)
+            bbox_elem = xml_helper.create_subelement(elem, k)
+            xml_helper.write_text_to_element(bbox_elem, txt=val)
+
+        # wms:BoundingBox
+        elem = xml_helper.create_subelement(
+            layer_elem,
+            "{}BoundingBox".format(self.default_ns),
+            attrib={
+                "{}CRS".format(self.default_ns): "EPSG:{}".format(str(bounding_geometry.srid)),
+                "{}minx".format(self.default_ns): str(bbox[0]),
+                "{}miny".format(self.default_ns): str(bbox[1]),
+                "{}maxx".format(self.default_ns): str(bbox[2]),
+                "{}maxy".format(self.default_ns): str(bbox[3]),
+            }
+        )
+
+        # Recall the function with the children as input
+        layer_children = layer.get_children()
+        for layer_child in layer_children:
+            # Overwrite layer_elem variable with new layer element
+            layer_elem = xml_helper.create_subelement(layer_elem, "{}Layer".format(self.default_ns))
+            self._generate_capability_layer_xml(layer_elem, layer_child.metadata)
+
 
 class CapabilityWFS100Builder(CapabilityXMLBuilder):
     def __init__(self, service: Service):

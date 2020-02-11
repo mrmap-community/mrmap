@@ -1239,12 +1239,12 @@ class Document(Resource):
         for xml_elem in xml_legend_elements:
             legend_uri = xml_helper.get_href_attribute(xml_elem)
 
-            if is_secured:
+            if is_secured and not self.related_metadata.use_proxy_uri:
                 layer_identifier = dict(urllib.parse.parse_qsl(legend_uri)).get("layer", None)
                 style_id = Style.objects.get(layer__parent_service__metadata=self.related_metadata,
                                              layer__identifier=layer_identifier).id
                 uri = "{}{}/service/metadata/{}/legend/{}".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id, style_id)
-            else:
+            elif not is_secured and self.related_metadata.use_proxy_uri:
                 # restore the original legend uri by using the layer identifier
                 style_id = legend_uri.split("/")[-1]
                 uri = Style.objects.get(id=style_id).legend_uri
@@ -1666,6 +1666,14 @@ class Layer(Service):
 
     def __str__(self):
         return str(self.identifier)
+
+    def get_style(self):
+        """ Simple getter for the style of the current layer
+
+        Returns:
+             styles (QuerySet): A query set containing all styles
+        """
+        return self.style.all()
 
     def get_children(self):
         """ Simple getter for the direct children of the current layer

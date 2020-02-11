@@ -14,6 +14,7 @@ Created on: 31.07.19
 """
 from abc import abstractmethod
 from collections import OrderedDict
+from time import time
 
 from lxml.etree import Element, QName
 
@@ -124,11 +125,15 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         )
         self.xml_doc_obj = root
 
+        start_time = time()
         service = xml_helper.create_subelement(root, "{}Service".format(self.default_ns))
         self._generate_service_xml(service)
+        print("Service creation took {} seconds".format(str((time() - start_time)/1000)))
 
+        start_time = time()
         capability =  xml_helper.create_subelement(root, "{}Capability".format(self.default_ns))
         self._generate_capability_xml(capability)
+        print("Service creation took {} seconds".format(str((time() - start_time)/1000)))
 
         return xml_helper.xml_to_string(root, pretty_print=True)
 

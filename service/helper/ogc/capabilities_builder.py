@@ -276,12 +276,13 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         """
         md = self.metadata
 
+        # Layers are not included in this contents dict, since they will be appended separately at the end
         contents = OrderedDict({
             "{}Request": "",
             "{}Exception": "",
             "{}ExtendedCapabilities": "",
-            "{}Layer": "",
         })
+
         for key, val in contents.items():
             k = key.format(self.default_ns)
             xml_helper.create_subelement(capability_elem, k)
@@ -292,11 +293,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         )
         self._generate_capability_request_xml(request_elem)
 
-        layer_elem = xml_helper.try_get_single_element_from_xml(
-            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Layer"),
-            capability_elem
-        )
-        self._generate_capability_layer_xml(layer_elem, self.metadata)
+        self._generate_capability_layer_xml(capability_elem, self.metadata)
 
     def _generate_capability_request_xml(self, request_elem: Element):
         """ Generate the 'Request' subelement of a xml capability object
@@ -430,6 +427,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
+        layer_elem = xml_helper.create_subelement(layer_elem, "{}Layer".format(self.default_ns))
         layer = Layer.objects.get(
             metadata=md
         )
@@ -486,8 +484,6 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         # Recall the function with the children as input
         layer_children = layer.get_children()
         for layer_child in layer_children:
-            # Overwrite layer_elem variable with new layer element
-            layer_elem = xml_helper.create_subelement(layer_elem, "{}Layer".format(self.default_ns))
             self._generate_capability_layer_xml(layer_elem, layer_child.metadata)
 
 

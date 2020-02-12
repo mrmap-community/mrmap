@@ -1404,15 +1404,17 @@ class Service(Resource):
     def __str__(self):
         return str(self.id)
 
-    def create_capability_xml(self):
+    def create_capability_xml(self, force_version: str = None):
         """ Creates a capability xml from the current state of the service object
 
+        Args:
+            force_version (str): The OGC standard version that has to be used for xml generating
         Returns:
              xml (str): The xml document as string
         """
         from service.helper.ogc.capabilities_builder import CapabilityXMLBuilder
 
-        capabilty_builder = CapabilityXMLBuilder(service=self)
+        capabilty_builder = CapabilityXMLBuilder(service=self, force_version=force_version)
         xml = capabilty_builder.generate_xml()
         return xml
 

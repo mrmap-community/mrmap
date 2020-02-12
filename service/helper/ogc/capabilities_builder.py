@@ -28,12 +28,12 @@ from structure.models import Contact
 
 
 class CapabilityXMLBuilder:
-    def __init__(self, service: Service):
+    def __init__(self, service: Service, force_version: str = None):
         self.service = service
         self.metadata = service.metadata
 
         self.service_type = service.servicetype.name
-        self.service_version = service.servicetype.version
+        self.service_version = force_version or service.servicetype.version
 
         self.proxy_operations_uri = "{}{}/service/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, str(self.service.parent_service.metadata.id))
         self.proxy_legend_uri = "{}{}/service/metadata/{}/legend/".format(HTTP_OR_SSL, HOST_NAME, self.service.parent_service.metadata.id)
@@ -46,44 +46,44 @@ class CapabilityXMLBuilder:
         if self.service_type == OGCServiceEnum.WMS.value:
 
             if self.service_version == OGCServiceVersionEnum.V_1_0_0.value:
-                xml_builder = CapabilityWMS100Builder(self.service)
+                xml_builder = CapabilityWMS100Builder(self.service, self.service_version)
 
             elif self.service_version == OGCServiceVersionEnum.V_1_1_1.value:
-                xml_builder = CapabilityWMS111Builder(self.service)
+                xml_builder = CapabilityWMS111Builder(self.service, self.service_version)
 
             elif self.service_version == OGCServiceVersionEnum.V_1_3_0.value:
-                xml_builder = CapabilityWMS130Builder(self.service)
+                xml_builder = CapabilityWMS130Builder(self.service, self.service_version)
 
         elif self.service_type == OGCServiceEnum.WFS.value:
 
             if self.service_version == OGCServiceVersionEnum.V_1_0_0.value:
-                xml_builder = CapabilityWFS100Builder(self.service)
+                xml_builder = CapabilityWFS100Builder(self.service, self.service_version)
 
             elif self.service_version == OGCServiceVersionEnum.V_1_1_0.value:
-                xml_builder = CapabilityWFS110Builder(self.service)
+                xml_builder = CapabilityWFS110Builder(self.service, self.service_version)
 
             elif self.service_version == OGCServiceVersionEnum.V_2_0_0.value:
-                xml_builder = CapabilityWFS200Builder(self.service)
+                xml_builder = CapabilityWFS200Builder(self.service, self.service_version)
 
             elif self.service_version == OGCServiceVersionEnum.V_2_0_2.value:
-                xml_builder = CapabilityWFS202Builder(self.service)
+                xml_builder = CapabilityWFS202Builder(self.service, self.service_version)
 
         xml = xml_builder.generate_xml()
         return xml
 
 class CapabilityWMS100Builder(CapabilityXMLBuilder):
-    def __init__(self, service: Service):
+    def __init__(self, service: Service, force_version: str = None):
         self.xml_doc_obj = None
-        super().__init__(service=service)
+        super().__init__(service=service, force_version=force_version)
 
     def generate_xml(self):
         xml = ""
         return xml
 
 class CapabilityWMS111Builder(CapabilityXMLBuilder):
-    def __init__(self, service: Service):
+    def __init__(self, service: Service, force_version: str = None):
         self.xml_doc_obj = None
-        super().__init__(service=service)
+        super().__init__(service=service, force_version=force_version)
 
     def generate_xml(self):
         xml = ""
@@ -97,7 +97,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
 
     """
 
-    def __init__(self, service: Service):
+    def __init__(self, service: Service, force_version: str = None):
         self.xml_doc_obj = None
 
         self.namespaces = {
@@ -110,7 +110,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         self.default_ns = "{" + self.namespaces.get(None) + "}"
         self.xlink_ns = "{" + XML_NAMESPACES["xlink"] + "}"
 
-        super().__init__(service=service)
+        super().__init__(service=service, force_version=force_version)
 
     def generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
@@ -158,16 +158,17 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             nothing
         """
         md = self.metadata
+        parent_md = md.service.parent_service.metadata
 
         contents = OrderedDict({
-            "{}Name": md.identifier,
-            "{}Title": md.title,
-            "{}Abstract": md.abstract,
+            "{}Name": parent_md.identifier,
+            "{}Title": parent_md.title,
+            "{}Abstract": parent_md.abstract,
             "{}KeywordList": "",
-            "{}OnlineResource": md.online_resource,
+            "{}OnlineResource": parent_md.online_resource,
             "{}ContactInformation": "",
-            "{}Fees": md.fees,
-            "{}AccessConstraints": md.access_constraints,
+            "{}Fees": parent_md.fees,
+            "{}AccessConstraints": parent_md.access_constraints,
             "{}MaxWidth": "",  # ToDo: Implement md.service.max_width in registration
             "{}MaxHeight": "",  # ToDo: Implement md.service.max_height in registration
         })
@@ -522,19 +523,19 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         xml_helper.write_text_to_element(elem, txt=md.dimension)
 
         elem = xml_helper.create_subelement(layer_elem, "{}Attribution".format(self.default_ns))
-        xml_helper.write_text_to_element(elem, txt="")  # ToDo: Implement this in registration!
+        xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
 
         elem = xml_helper.create_subelement(layer_elem, "{}AuthorityURL".format(self.default_ns))
-        xml_helper.write_text_to_element(elem, txt="")  # ToDo: Implement this in registration!
+        xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
 
         elem = xml_helper.create_subelement(layer_elem, "{}Identifier".format(self.default_ns))
-        xml_helper.write_text_to_element(elem, txt="")  # ToDo: Implement this in registration!
+        xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
 
         elem = xml_helper.create_subelement(layer_elem, "{}MetadataURL".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")
 
         elem = xml_helper.create_subelement(layer_elem, "{}DataURL".format(self.default_ns))
-        xml_helper.write_text_to_element(elem, txt="")  # ToDo: Implement this in registration!
+        xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
 
         elem = xml_helper.create_subelement(layer_elem, "{}FeatureListURL".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")
@@ -566,7 +567,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             xml_helper.write_text_to_element(elem,txt=style.name)
             elem = xml_helper.create_subelement(style_elem, "{}Title".format(self.default_ns))
             xml_helper.write_text_to_element(elem, txt=style.title)
-            elem = xml_helper.create_subelement(
+            legend_url_elem = xml_helper.create_subelement(
                 style_elem,
                 "{}LegendURL".format(self.default_ns),
                 attrib={
@@ -574,7 +575,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
                     "height": str(style.height),
                 }
             )
-            elem = xml_helper.create_subelement(elem, "{}Format".format(self.default_ns))
+            elem = xml_helper.create_subelement(legend_url_elem, "{}Format".format(self.default_ns))
             xml_helper.write_text_to_element(elem, txt=style.mime_type)
 
             uri = style.legend_uri
@@ -582,7 +583,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
                 uri = self.proxy_legend_uri + str(style.id)
 
             elem = xml_helper.create_subelement(
-                elem,
+                legend_url_elem,
                 "{}OnlineResource".format(self.default_ns),
                 attrib={
                     "{}type".format(self.xlink_ns): "simple",
@@ -590,40 +591,37 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
                 }
             )
 
-
-
-
 class CapabilityWFS100Builder(CapabilityXMLBuilder):
-    def __init__(self, service: Service):
+    def __init__(self, service: Service, force_version: str = None):
         self.xml_doc_obj = None
-        super().__init__(service=service)
+        super().__init__(service=service, force_version=force_version)
 
     def generate_xml(self):
         xml = ""
         return xml
 
 class CapabilityWFS110Builder(CapabilityXMLBuilder):
-    def __init__(self, service: Service):
+    def __init__(self, service: Service, force_version: str = None):
         self.xml_doc_obj = None
-        super().__init__(service=service)
+        super().__init__(service=service, force_version=force_version)
 
     def generate_xml(self):
         xml = ""
         return xml
 
 class CapabilityWFS200Builder(CapabilityXMLBuilder):
-    def __init__(self, service: Service):
+    def __init__(self, service: Service, force_version: str = None):
         self.xml_doc_obj = None
-        super().__init__(service=service)
+        super().__init__(service=service, force_version=force_version)
 
     def generate_xml(self):
         xml = ""
         return xml
 
 class CapabilityWFS202Builder(CapabilityXMLBuilder):
-    def __init__(self, service: Service):
+    def __init__(self, service: Service, force_version: str = None):
         self.xml_doc_obj = None
-        super().__init__(service=service)
+        super().__init__(service=service, force_version=force_version)
 
     def generate_xml(self):
         xml = ""

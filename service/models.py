@@ -651,9 +651,7 @@ class Metadata(Resource):
             cap_doc = Document.objects.get(
                 related_metadata=self
             )
-            cap_doc.set_operations_secured(is_secured)
-            cap_doc.set_dataset_metadata_secured(is_secured)
-            cap_doc.set_legend_url_secured(is_secured)
+            cap_doc.set_proxy(is_secured)
         except ObjectDoesNotExist:
             pass
 
@@ -691,9 +689,7 @@ class Metadata(Resource):
 
         # change capabilities document
         root_md_doc = Document.objects.get(related_metadata=root_md)
-        root_md_doc.set_dataset_metadata_secured(use_proxy)
-        root_md_doc.set_legend_url_secured(use_proxy)
-        root_md_doc.set_operations_secured(use_proxy)
+        root_md_doc.set_proxy(use_proxy)
 
         self.use_proxy_uri = use_proxy
 
@@ -766,6 +762,18 @@ class Document(Resource):
 
     def __str__(self):
         return self.related_metadata.title
+
+    def set_proxy(self, use_proxy: bool, auto_save: bool=True):
+        """ Sets different elements inside the document on a secured level
+
+        Args:
+            use_proxy (bool): Whether to use a proxy or not
+            auto_save (bool): Whether to directly save the modified document or not
+        Returns:
+        """
+        self.set_dataset_metadata_secured(use_proxy, auto_save=auto_save)
+        self.set_legend_url_secured(use_proxy, auto_save=auto_save)
+        self.set_operations_secured(use_proxy, auto_save=auto_save)
 
     def _set_wms_operations_secured(self, xml_obj, uri: str, is_secured: bool):
         """ Change external links to internal for wms operations

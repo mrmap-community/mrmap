@@ -336,6 +336,7 @@ def get_capabilities(request: HttpRequest, id: int):
                 original_capability_document=cap_xml,
                 current_capability_document=cap_xml,
             )
+
             #cap_doc.save()
         doc = cap_doc.current_capability_document
 
@@ -358,9 +359,7 @@ def get_capabilities(request: HttpRequest, id: int):
             )
             doc.set_capabilities_secured(auto_save=False)
             if md.use_proxy_uri:
-                doc.set_dataset_metadata_secured(True, auto_save=False)
-                doc.set_operations_secured(True, auto_save=False)
-                doc.set_legend_url_secured(True, auto_save=False)
+                doc.set_proxy(True, auto_save=False)
             doc = doc.current_capability_document
         except (ReadTimeout, TimeoutError, ConnectionError) as e:
             # the remote server does not respond - we must deliver our stored capabilities document, which is not the requested version

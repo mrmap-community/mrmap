@@ -9,7 +9,7 @@ from django.db import models, transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
 
-from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
+from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL
 from MapSkinner import utils
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
@@ -1248,10 +1248,15 @@ class Document(Resource):
             legend_uri = xml_helper.get_href_attribute(xml_elem)
 
             uri = None
-            if is_secured and not self.related_metadata.use_proxy_uri:
+            if is_secured and not legend_uri.startswith(ROOT_URL):
                 layer_identifier = dict(urllib.parse.parse_qsl(legend_uri)).get("layer", None)
+                parent_md = self.related_metadata
+
+                if not self.related_metadata.is_root():
+                    parent_md = self.related_metadata.service.parent_service.metadata
+
                 style_id = Style.objects.get(
-                    layer__parent_service__metadata=self.related_metadata,
+                    layer__parent_service__metadata=parent_md,
                     layer__identifier=layer_identifier
                 ).id
                 uri = "{}{}/service/metadata/{}/legend/{}".format(
@@ -1260,7 +1265,7 @@ class Document(Resource):
                     self.related_metadata.id,
                     style_id
                 )
-            elif not is_secured and self.related_metadata.use_proxy_uri:
+            elif not is_secured and legend_uri.startswith(ROOT_URL):
                 # restore the original legend uri by using the layer identifier
                 style_id = legend_uri.split("/")[-1]
                 uri = Style.objects.get(id=style_id).legend_uri

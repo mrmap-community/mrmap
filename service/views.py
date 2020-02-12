@@ -322,7 +322,7 @@ def get_capabilities(request: HttpRequest, id: int):
     else:
         pass
 
-    if stored_version == version_param or use_fallback is True:
+    if stored_version == version_param or use_fallback is True or not md.is_root():
         # we can deliver the document from the database
         try:
             cap_doc = Document.objects.get(related_metadata=md)
@@ -330,7 +330,7 @@ def get_capabilities(request: HttpRequest, id: int):
             # This means we have no capability document in the db.
             # This is possible for subelements of a service, which (usually) do not have an own capability document.
             # We create a capability document on the fly for this metadata object and persist it for another call.
-            cap_xml = md.service.create_capability_xml()
+            cap_xml = md.service.create_capability_xml(version_param)
             cap_doc = Document(
                 related_metadata=md,
                 original_capability_document=cap_xml,
@@ -855,6 +855,9 @@ def get_operation_result(request: HttpRequest, id: int):
         elif operation_handler.request_param is None:
             return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
 
+        elif operation_handler.request_param.upper() == OGCOperationEnum.GET_CAPABILITIES.value.upper():
+            return get_capabilities(request=request, id=id)
+
         elif not metadata.is_root():
             # we do not allow the direct call of operations on child elements, such as layers!
             # if the request tries that, we directly redirect it to the parent service!
@@ -863,9 +866,6 @@ def get_operation_result(request: HttpRequest, id: int):
                 get_query_string
             )
             return redirect(redirect_uri)
-
-        elif operation_handler.request_param.upper() == OGCOperationEnum.GET_CAPABILITIES.value.upper():
-            return get_capabilities(request=request, id=id)
 
         # We need to check if one of the requested layers is secured. If so, we need to check the
         md_secured = metadata.is_secured

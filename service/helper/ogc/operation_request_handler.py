@@ -132,7 +132,11 @@ class OGCOperationRequestHandler:
         # Only work on the requested param objects, if the metadata is secured.
         # Otherwise we can pass this, since it's too expensive for a basic, non secured request
         if metadata.is_secured:
-            self._filter_not_allowed_subelements(metadata)
+            # Prevent a subelement from being used for further handling
+            md = metadata
+            if not metadata.is_root():
+                md = metadata.service.parent_service.metadata
+            self._filter_not_allowed_subelements(md)
 
     def _parse_GET_params(self):
         """ Parses the GET parameters into all member variables, which can be found in new_params_dict.

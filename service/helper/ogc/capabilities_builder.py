@@ -35,7 +35,7 @@ class CapabilityXMLBuilder:
         self.service_type = service.servicetype.name
         self.service_version = force_version or service.servicetype.version
 
-        self.proxy_operations_uri = "{}{}/service/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, str(self.service.parent_service.metadata.id))
+        self.proxy_operations_uri_template = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}/operation?"
         self.proxy_legend_uri = "{}{}/service/metadata/{}/legend/".format(HTTP_OR_SSL, HOST_NAME, self.service.parent_service.metadata.id)
 
     @abstractmethod
@@ -165,7 +165,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             "{}Title": parent_md.title,
             "{}Abstract": parent_md.abstract,
             "{}KeywordList": "",
-            "{}OnlineResource": parent_md.online_resource,
+            "{}OnlineResource": self.proxy_operations_uri_template.format(parent_md.id),
             "{}ContactInformation": "",
             "{}Fees": parent_md.fees,
             "{}AccessConstraints": parent_md.access_constraints,
@@ -177,10 +177,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             k = key.format(self.default_ns)
             elem = xml_helper.create_subelement(service_elem, k)
             if "OnlineResource" in key:
-                if md.use_proxy_uri:
-                    uri = self.proxy_operations_uri
-                else:
-                    uri = val
+                uri = val
                 xml_helper.set_attribute(elem, "{}href".format(self.xlink_ns), uri)
             else:
                 xml_helper.write_text_to_element(elem, txt=val)
@@ -410,13 +407,14 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             },
         })
 
-        if md.use_proxy_uri:
-            get_uri = self.proxy_operations_uri
-            post_uri = self.proxy_operations_uri
-        else:
-            uris = operations.get(tag, {"get": "","post": ""})
-            get_uri = uris.get("get", "")
-            post_uri = uris.get("post", "")
+        uris = operations.get(tag, {"get": "","post": ""})
+        get_uri = uris.get("get", "")
+        post_uri = uris.get("post", "")
+
+        if OGCOperationEnum.GET_CAPABILITIES.value in tag:
+            # GetCapabilities is always set to our internal systems uri!
+            get_uri = self.proxy_operations_uri_template.format(md.id)
+            post_uri = self.proxy_operations_uri_template.format(md.id)
 
         # Add all mime types that are supported by this operation
         supported_formats = service.formats.filter(
@@ -494,6 +492,12 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         # wms:EX_GeographicBoundingBox
         bounding_geometry = md.bounding_geometry
         bbox = md.bounding_geometry.extent
+
+        # Prevent a situation where the bbox would be 0, by taking the maximum of subelement bboxes
+        if bbox == (0.0, 0.0, 0.0, 0.0):
+            bbox = md.find_max_bounding_box()
+            bbox = bbox.extent
+
         bbox_content = OrderedDict({
             "{}westBoundLongitude": str(bbox[0]),
             "{}eastBoundLongitude": str(bbox[2]),
@@ -579,8 +583,6 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             xml_helper.write_text_to_element(elem, txt=style.mime_type)
 
             uri = style.legend_uri
-            if self.metadata.use_proxy_uri:
-                uri = self.proxy_legend_uri + str(style.id)
 
             elem = xml_helper.create_subelement(
                 legend_url_elem,

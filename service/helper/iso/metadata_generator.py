@@ -420,7 +420,7 @@ class MetadataGenerator:
             self.gmd + "URL"
         )
         if self.metadata.use_proxy_uri:
-            tmp_elem.text = HTTP_OR_SSL + HOST_NAME + "/service/capabilities/" + str(self.metadata.id)
+            tmp_elem.text = HTTP_OR_SSL + HOST_NAME + "/service/metadata/" + str(self.metadata.id) + "/operation?"
         else:
             tmp_elem.text = self.metadata.capabilities_original_uri
         ci_resource_elem.append(linkage_elem)
@@ -1334,10 +1334,9 @@ class MetadataGenerator:
         for legislation in self.regislations["inspire_rules"]:
             if legislation["group"] in legislation_groups \
                     and self.metadata_type in legislation["subject"]:
-                if not self.use_legislation_amendment:
+                if not self.use_legislation_amendment and '_amendment' in legislation["type"]:
                     # skip amendments if not desired
-                    if '_amendment' in legislation["type"]:
-                        continue
+                    continue
                 report_elem = Element(
                     self.gmd + "report"
                 )

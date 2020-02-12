@@ -35,8 +35,7 @@ class CapabilityXMLBuilder:
         self.service_type = service.servicetype.name
         self.service_version = service.servicetype.version
 
-        self.proxy_capabilities_uri = HTTP_OR_SSL + HOST_NAME + "/service/capabilities/" + str(self.service.parent_service.metadata.id)
-        self.proxy_operations_uri = HTTP_OR_SSL + HOST_NAME + "/service/metadata/" + str(self.service.parent_service.metadata.id) + "/operation?"
+        self.proxy_operations_uri = "{}{}/service/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, str(self.service.parent_service.metadata.id))
         self.proxy_legend_uri = "{}{}/service/metadata/{}/legend/".format(HTTP_OR_SSL, HOST_NAME, self.service.parent_service.metadata.id)
 
     @abstractmethod
@@ -178,7 +177,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             elem = xml_helper.create_subelement(service_elem, k)
             if "OnlineResource" in key:
                 if md.use_proxy_uri:
-                    uri = self.proxy_capabilities_uri
+                    uri = self.proxy_operations_uri
                 else:
                     uri = val
                 xml_helper.set_attribute(elem, "{}href".format(self.xlink_ns), uri)
@@ -411,12 +410,8 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         })
 
         if md.use_proxy_uri:
-            if tag == OGCOperationEnum.GET_CAPABILITIES.value:
-                get_uri = self.proxy_capabilities_uri
-                post_uri = self.proxy_capabilities_uri
-            else:
-                get_uri = self.proxy_operations_uri
-                post_uri = self.proxy_operations_uri
+            get_uri = self.proxy_operations_uri
+            post_uri = self.proxy_operations_uri
         else:
             uris = operations.get(tag, {"get": "","post": ""})
             get_uri = uris.get("get", "")

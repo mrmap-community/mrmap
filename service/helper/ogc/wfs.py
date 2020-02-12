@@ -859,7 +859,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             service_type=OGCServiceEnum.WFS,
             external_auth=external_auth
         )
-        XML_NAMESPACES["schemaLocation"] = "http://geodatenlb1.rlp:80/geoserver/schemas/wfs/1.0.0/WFS-capabilities.xsd"
+        XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wfs/1.0.0/WFS-capabilities.xsd"
         XML_NAMESPACES["xsi"] = "http://www.w3.org/2001/XMLSchema-instance"
         XML_NAMESPACES["lvermgeo"] = "http://www.lvermgeo.rlp.de/lvermgeo"
         XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs")
@@ -1166,6 +1166,7 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
             service_type=OGCServiceEnum.WFS,
             external_auth=external_auth
         )
+        XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wfs/1.1.0/wfs.xsd"
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs"
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows"
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes"
@@ -1200,6 +1201,7 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
             service_type=OGCServiceEnum.WFS,
             external_auth=external_auth
         )
+        XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wfs/2.0/wfs.xsd"
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"

@@ -101,13 +101,15 @@ class OGCOperationRequestHandler:
 
         if self.request_is_GET:
             self.original_params_dict = request.GET.dict()
+            if len(self.original_params_dict) == 0:
+                # There are no parameters and therefore no operations to handle...
+                return
         else:
             self.original_params_dict = request.POST.dict()
-
-        if len(self.original_params_dict) == 0:
-            # Possible, if no GET query parameter or no x-www-form-urlencoded POST values have been given
-            # In this case, all the information can be found inside a xml document in the POST body, that has to be parsed now.
-            self._parse_post_xml_body(request.body)
+            if len(self.original_params_dict) == 0:
+                # Possible, if no GET query parameter or no x-www-form-urlencoded POST values have been given
+                # In this case, all the information can be found inside a xml document in the POST body, that has to be parsed now.
+                self._parse_post_xml_body(request.body)
 
         # fill new_params_dict with upper case keys from original_params_dict
         for key, val in self.original_params_dict.items():

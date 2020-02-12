@@ -1021,7 +1021,7 @@ class Document(Resource):
         """
 
         # change some external linkage to internal links for the current_capability_document
-        uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)
+        uri = "{}{}/service/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)
         xml = xml_helper.parse_xml(self.original_capability_document)
 
         # wms and wfs have to be handled differently!
@@ -1239,17 +1239,27 @@ class Document(Resource):
         for xml_elem in xml_legend_elements:
             legend_uri = xml_helper.get_href_attribute(xml_elem)
 
+            uri = None
             if is_secured and not self.related_metadata.use_proxy_uri:
                 layer_identifier = dict(urllib.parse.parse_qsl(legend_uri)).get("layer", None)
-                style_id = Style.objects.get(layer__parent_service__metadata=self.related_metadata,
-                                             layer__identifier=layer_identifier).id
-                uri = "{}{}/service/metadata/{}/legend/{}".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id, style_id)
+                style_id = Style.objects.get(
+                    layer__parent_service__metadata=self.related_metadata,
+                    layer__identifier=layer_identifier
+                ).id
+                uri = "{}{}/service/metadata/{}/legend/{}".format(
+                    HTTP_OR_SSL,
+                    HOST_NAME,
+                    self.related_metadata.id,
+                    style_id
+                )
             elif not is_secured and self.related_metadata.use_proxy_uri:
                 # restore the original legend uri by using the layer identifier
                 style_id = legend_uri.split("/")[-1]
                 uri = Style.objects.get(id=style_id).legend_uri
 
-            xml_helper.set_attribute(xml_elem, attr, uri)
+            if uri is not None:
+                xml_helper.set_attribute(xml_elem, attr, uri)
+
         xml_doc_str = xml_helper.xml_to_string(xml_doc)
         self.current_capability_document = xml_doc_str
 

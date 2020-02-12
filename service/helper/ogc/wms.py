@@ -227,12 +227,6 @@ class OGCWebMapService(OGCWebService):
     def parse_bounding_box(self, layer, layer_obj):
         # switch depending on service version
         elem_name = "SRS"
-        if self.service_version is OGCServiceVersionEnum.V_1_0_0:
-            pass
-        if self.service_version is OGCServiceVersionEnum.V_1_1_0:
-            pass
-        if self.service_version is OGCServiceVersionEnum.V_1_1_1:
-            pass
         if self.service_version is OGCServiceVersionEnum.V_1_3_0:
             elem_name = "CRS"
         self.parse_bounding_box_generic(layer=layer, layer_obj=layer_obj, elem_name=elem_name)
@@ -981,7 +975,7 @@ class OGCWebMapService(OGCWebService):
             md_relation.save()
             md.related_metadata.add(md_relation)
 
-        internal_capabilities_uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, md.id)
+        internal_capabilities_uri = "{}{}/service/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, md.id)
         md.capabilities_uri = internal_capabilities_uri
         # save again, due to added related metadata
         md.save()
@@ -1016,7 +1010,7 @@ class OGCWebMapService(OGCWebService):
             md_type = MetadataType.objects.get_or_create(type=md_type.type)[0]
             md.metadata_type = md_type
             md.save()
-            internal_capabilities_uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, md.id)
+            internal_capabilities_uri = "{}{}/service/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, md.id)
             md.capabilities_uri = internal_capabilities_uri
             md.save()
             for iso_md in layer.iso_metadata:
@@ -1081,6 +1075,7 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
     def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(service_connect_url=service_connect_url, external_auth=external_auth)
         self.service_version = OGCServiceVersionEnum.V_1_0_0
+        XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.0.0/capabilities_1_0_0.xml"
 
     def __parse_formats(self, layer, layer_obj):
         actions = ["Map", "Capabilities", "FeatureInfo"]
@@ -1136,6 +1131,7 @@ class OGCWebMapService_1_1_0(OGCWebMapService):
     def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(service_connect_url=service_connect_url, external_auth=external_auth)
         self.service_version = OGCServiceVersionEnum.V_1_1_0
+        XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.1.0/capabilities_1_1_0.xml"
 
     def get_version_specific_metadata(self, xml_obj):
         pass
@@ -1149,6 +1145,7 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
         super().__init__(service_connect_url=service_connect_url, external_auth=external_auth)
         self.service_version = OGCServiceVersionEnum.V_1_1_1
         XML_NAMESPACES["default"] = XML_NAMESPACES["wms"]
+        XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.1.1/capabilities_1_1_1.xml"
 
     def get_version_specific_metadata(self, xml_obj):
         pass
@@ -1167,6 +1164,7 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         self.max_width = None
         self.max_height = None
 
+        XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd"
         XML_NAMESPACES["default"] = XML_NAMESPACES["wms"]
 
     def parse_lat_lon_bounding_box(self, layer, layer_obj):

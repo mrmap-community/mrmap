@@ -65,7 +65,7 @@ def index(request: HttpRequest, user: User, service_type=None):
         return redirect("service:index")
 
     # whether whole services or single layers should be displayed
-    display_service_type = GET_params.get("q", None)  # s=services, l=layers
+    display_service_type = GET_params.get("q", None)  # possible contents of 'q' are s=services or l=layers
     is_root = True
     if display_service_type is not None:
         is_root = display_service_type != "l"
@@ -271,8 +271,6 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
 
     return BackendAjaxResponse(html="", has_dataset_doc=has_dataset_doc).get_response()
 
-@csrf_exempt
-@log_proxy
 def get_capabilities(request: HttpRequest, id: int):
     """ Returns the current capabilities xml file
 
@@ -829,7 +827,7 @@ def metadata_proxy(request: HttpRequest, id: int):
 
 @csrf_exempt
 @log_proxy
-def get_metadata_operation(request: HttpRequest, id: int):
+def get_operation_result(request: HttpRequest, id: int):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
 
     Decides which operation will be handled by resolving a given 'request=' query parameter.
@@ -867,8 +865,7 @@ def get_metadata_operation(request: HttpRequest, id: int):
             return redirect(redirect_uri)
 
         elif operation_handler.request_param.upper() == OGCOperationEnum.GET_CAPABILITIES.value.upper():
-            cap_doc = Document.objects.get(related_metadata=metadata)
-            return HttpResponse(cap_doc.current_capability_document, content_type="application/xml")
+            return get_capabilities(request=request, id=id)
 
         # We need to check if one of the requested layers is secured. If so, we need to check the
         md_secured = metadata.is_secured

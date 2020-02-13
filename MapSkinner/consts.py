@@ -19,3 +19,8 @@ STRUCTURE_INDEX_GROUP = "structure:groups-index"
 
 
 APP_XML = "application/xml"
+
+URL_PATTERN = "<a class={} href='{}'>{}</a>"
+URL_PATTERN_BTN_DANGER = "<a class='btn btn-sm btn-danger' href='{}'>{}</a>"
+URL_PATTERN_BTN_INFO = "<a class='btn btn-sm btn-info' href='{}'>{}</a>"
+URL_PATTERN_BTN_WARNING = "<a class='btn btn-sm btn-warning' href='{}'>{}</a>"

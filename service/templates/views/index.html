@@ -1,11 +1,6 @@
 {% extends 'base.html' %}
 {% load i18n static tz %}
 
-{% block head %}
-    <script type="text/javascript" src="{% static '/service/js/service.js' %}"></script>
-    <script type="text/javascript" src="{% static '/service/js/pending_tasks.js' %}"></script>
-{% endblock %}
-
 {% block body %}
 <div class="container">
     {% if pt_table.rows %}

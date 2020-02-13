@@ -9,7 +9,7 @@ from django.urls import path
 
 from editor.views import *
 
-app_name='editor'
+app_name = 'editor'
 urlpatterns = [
     path('', index, name='index'),
     path('edit/<id>', edit, name='edit'),

@@ -138,6 +138,14 @@ class User(Contact):
         Returns:
              md_list (list): A list containing all services related to the user
         """
+        return list(self.get_services_as_qs(type))
+
+    def get_services_as_qs(self, type: ServiceEnum = None):
+        """ Returns all services which are related to the user
+
+        Returns:
+             md_list:
+        """
         from service.models import Metadata
         md_list = Metadata.objects.filter(
             service__is_root=True,
@@ -146,9 +154,9 @@ class User(Contact):
         ).order_by("title")
         if type is not None:
             md_list = md_list.filter(service__servicetype__name=type.name.lower())
-        # convert to list
-        md_list = list(md_list)
         return md_list
+
+
 
     def get_permissions(self, group: Group = None):
         """ Overloaded function. Returns a list containing all permission identifiers as strings in a list.

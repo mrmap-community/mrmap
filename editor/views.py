@@ -8,6 +8,7 @@ from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
 
 from MapSkinner import utils
+from MapSkinner.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
@@ -19,10 +20,10 @@ from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper.enums import ServiceEnum, MetadataEnum
 from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation
 from django.utils.translation import gettext_lazy as _
-
 from structure.models import User, Permission, Group
 from users.helper import user_helper
 from editor.helper import editor_helper
+from editor.tables import WmsServiceTable
 
 
 @check_session
@@ -37,31 +38,19 @@ def index(request: HttpRequest, user:User):
     Returns:
     """
     # get all services that are registered by the user
-    template = "editor_index.html"
+    template = "views/editor_index.html"
 
-    wms_services = user.get_services(ServiceEnum.WMS)
-    wms_layers_custom_md = []
-    wms_list = []
-    for wms in wms_services:
-        child_layers = Layer.objects.filter(parent_service__metadata=wms, metadata__is_custom=True)
-        tmp = {
-            "root_metadata": wms,
-            "custom_subelement_metadata": child_layers,
-        }
-        wms_list.append(tmp)
+    wms_services = user.get_services_as_qs(ServiceEnum.WMS)
+    wms_table = WmsServiceTable(wms_services,
+                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE)
 
-    wfs_services = user.get_services(ServiceEnum.WFS)
-    wfs_list = []
-    for wfs in wfs_services:
-        custom_children = FeatureType.objects.filter(parent_service__metadata=wfs, metadata__is_custom=True)
-        tmp = {
-            "root_metadata": wfs,
-            "custom_subelement_metadata": custom_children,
-        }
-        wfs_list.append(tmp)
+    wfs_services = user.get_services_as_qs(ServiceEnum.WFS)
+    wfs_table = WmsServiceTable(wfs_services,
+                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE)
+
     params = {
-        "wfs": wfs_list,
-        "wms": wms_list,
+        "wms_table": wms_table,
+        "wfs_table": wfs_table,
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())

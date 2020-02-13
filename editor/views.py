@@ -6,6 +6,7 @@ from django.shortcuts import render, redirect
 
 # Create your views here.
 from django.template.loader import render_to_string
+from django_tables2 import RequestConfig
 
 from MapSkinner import utils
 from MapSkinner.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
@@ -14,7 +15,8 @@ from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, 
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
     METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED, SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
-from MapSkinner.settings import ROOT_URL, HTTP_OR_SSL, HOST_NAME
+from MapSkinner.settings import ROOT_URL, HTTP_OR_SSL, HOST_NAME, PAGE_DEFAULT, PAGE_SIZE_DEFAULT
+from MapSkinner.utils import prepare_table_pagination_settings
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper.enums import ServiceEnum, MetadataEnum
@@ -23,8 +25,8 @@ from django.utils.translation import gettext_lazy as _
 from structure.models import User, Permission, Group
 from users.helper import user_helper
 from editor.helper import editor_helper
-from editor.tables import WmsServiceTable
-
+from editor.tables import *
+from editor.filters import *
 
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))
@@ -41,12 +43,30 @@ def index(request: HttpRequest, user:User):
     template = "views/editor_index.html"
 
     wms_services = user.get_services_as_qs(ServiceEnum.WMS)
-    wms_table = WmsServiceTable(wms_services,
+    wms_table_filtered = WmsServiceFilter(request.GET, queryset=wms_services)
+    wms_table = WmsServiceTable(wms_table_filtered.qs,
                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE)
+    wms_table.filter = wms_table_filtered
+    RequestConfig(request).configure(wms_table)
+    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    # TODO: move pagination as function to ExtendedTable
+    wms_table.pagination = prepare_table_pagination_settings(request, wms_table, 'wms-t')
+    wms_table.page_field = wms_table.pagination.get('page_name')
+    wms_table.paginate(page=request.GET.get(wms_table.pagination.get('page_name'), PAGE_DEFAULT),
+                       per_page=request.GET.get(wms_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
     wfs_services = user.get_services_as_qs(ServiceEnum.WFS)
-    wfs_table = WmsServiceTable(wfs_services,
+    wfs_table_filtered = WfsServiceFilter(request.GET, queryset=wfs_services)
+    wfs_table = WfsServiceTable(wfs_table_filtered.qs,
                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE)
+    wfs_table.filter = wfs_table_filtered
+    RequestConfig(request).configure(wfs_table)
+    # TODO: # since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    # TODO: move pagination as function to ExtendedTable
+    wfs_table.pagination = prepare_table_pagination_settings(request, wfs_table, 'wfs-t')
+    wfs_table.page_field = wfs_table.pagination.get('page_name')
+    wfs_table.paginate(page=request.GET.get(wfs_table.pagination.get('page_name'), PAGE_DEFAULT),
+                       per_page=request.GET.get(wfs_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
     params = {
         "wms_table": wms_table,

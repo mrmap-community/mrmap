@@ -22,7 +22,12 @@ def _get_icon(self):
         return format_html("<i class='fas fa-times text-danger'></i>")
 
 
-class WmsServiceTable(tables.Table):
+class ExtendedTable(tables.Table):
+    filter = None
+    pagination = None
+
+
+class WmsServiceTable(ExtendedTable):
     wms_title = tables.Column(accessor='title', verbose_name='Title', )
     wms_active = tables.Column(accessor='is_active', verbose_name='Active', )
     wms_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', )
@@ -81,7 +86,7 @@ class WmsServiceTable(tables.Table):
         return format_html(URL_PATTERN_BTN_DANGER, url, format_html(_get_theme()["ICONS"]['UNDO']), )
 
 
-class WfsServiceTable(tables.Table):
+class WfsServiceTable(ExtendedTable):
     wfs_title = tables.Column(accessor='title', verbose_name='Title', )
     wfs_active = tables.Column(accessor='is_active', verbose_name='Active', )
     wfs_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', )

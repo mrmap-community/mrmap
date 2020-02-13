@@ -12,21 +12,11 @@ class LoginForm(forms.Form):
 
 
 class GroupForm(ModelForm):
-    description = forms.CharField(
-        widget=forms.Textarea(),
-        required=False,
-    )
+    # this action_url must fill after this object is created,
+    # cause the action_url containing the id of the group, which is not present on building time;
+    # maybe we could fill it by the constructor
+    action_url = ''
 
-    class Meta:
-        model = Group
-        fields = '__all__'
-        exclude = [
-            "created_by",
-            "publish_for_organizations"
-        ]
-
-
-class EditGroupForm(ModelForm):
     description = forms.CharField(
         widget=forms.Textarea(),
         required=False,
@@ -54,6 +44,11 @@ class PublisherForOrganization(forms.Form):
 
 
 class OrganizationForm(ModelForm):
+    # this action_url must fill after this object is created,
+    # cause the action_url containing the id of the group, which is not present on building time;
+    # maybe we could fill it by the constructor
+    action_url = ''
+
     description = forms.CharField(
         widget=forms.Textarea(),
         required=False,
@@ -66,6 +61,16 @@ class OrganizationForm(ModelForm):
         model = Organization
         fields = '__all__'
         exclude = ["created_by", "address_type", "is_auto_generated"]
+
+
+class RemoveGroupForm(forms.Form):
+    action_url = ''
+    is_confirmed = forms.BooleanField(label='Do you really want to remove this group?')
+
+
+class RemoveOrganizationForm(forms.Form):
+    action_url = ''
+    is_confirmed = forms.BooleanField(label='Do you really want to remove this organization?')
 
 
 class RegistrationForm(forms.Form):

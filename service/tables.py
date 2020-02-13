@@ -4,9 +4,18 @@ from django.urls import reverse
 import json
 from MapSkinner.celery_app import app
 from celery.result import AsyncResult
+from MapSkinner.settings import THEME, DARK_THEME, LIGHT_THEME
 
-URL_PATTERN = "<a href='{}'>{}</a>"
+URL_PATTERN = "<a class={} href='{}'>{}</a>"
 URL_PATTERN_BTN_DANGER = "<a class='btn btn-sm btn-danger' href='{}'>{}</a>"
+
+
+# TODO: refactor this; this function should be global
+def _get_theme():
+    if THEME == 'DARK':
+        return DARK_THEME
+    else:
+        return LIGHT_THEME
 
 
 def _get_icon(self):
@@ -30,7 +39,7 @@ class ServiceTable(tables.Table):
     @staticmethod
     def render_wms_title(value, record):
         url = reverse('service:detail', args=(record.id,))
-        return format_html(URL_PATTERN, url, value, )
+        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wms_active(value):
@@ -47,18 +56,18 @@ class ServiceTable(tables.Table):
     @staticmethod
     def render_wms_data_provider(value, record):
         url = reverse('structure:detail-organization', args=(record.contact.id,))
-        return format_html(URL_PATTERN, url, value, )
+        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wms_registered_by_group(value, record):
         url = reverse('structure:detail-group', args=(record.service.created_by.id,))
-        return format_html(URL_PATTERN, url, value, )
+        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wms_registered_for(value, record):
         if record.service.published_for is not None:
             url = reverse('structure:detail-organization', args=(record.service.published_for.id,))
-            return format_html(URL_PATTERN, url, value, )
+            return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
         else:
             return value
 
@@ -84,7 +93,7 @@ class WmsLayerTable(ServiceTable):
     @staticmethod
     def render_wms_parent_service(record):
         url = reverse('service:detail', args=(record.service.parent_service.metadata.id,))
-        return format_html(URL_PATTERN, url, record.service.parent_service.metadata.title)
+        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, record.service.parent_service.metadata.title)
 
 
 class WfsServiceTable(tables.Table):
@@ -102,7 +111,7 @@ class WfsServiceTable(tables.Table):
     @staticmethod
     def render_wfs_title(value, record):
         url = reverse('service:detail', args=(record.id,))
-        return format_html(URL_PATTERN, url, value, )
+        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wfs_featuretypes(record):
@@ -128,18 +137,18 @@ class WfsServiceTable(tables.Table):
     @staticmethod
     def render_wfs_data_provider(value, record):
         url = reverse('structure:detail-organization', args=(record.contact.id,))
-        return format_html(URL_PATTERN, url, value, )
+        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wfs_registered_by_group(value, record):
         url = reverse('structure:detail-group', args=(record.service.created_by.id,))
-        return format_html(URL_PATTERN, url, value, )
+        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wfs_registered_for(value, record):
         if record.service.published_for is not None:
             url = reverse('structure:detail-organization', args=(record.service.published_for.id,))
-            return format_html(URL_PATTERN, url, value, )
+            return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
         else:
             return value
 

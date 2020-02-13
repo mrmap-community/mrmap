@@ -1,30 +1,14 @@
-{% load static i18n %}
+{% extends 'sceletons/modal-form.html' %}
+{% load i18n %}
 {% load bootstrap4 %}
-<!-- Modal -->
-<div class="modal {% if not show_remove_service_modal %} fade {% endif %}" id="remove_service" data-backdrop="static" tabindex="-1" role="dialog"
-     aria-labelledby="staticBackdropLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="staticBackdropLabel">{% trans 'Remove service' %}</h5>
-            </div>
-            <form id="remove_service_form" action="{% url 'service:remove' %}" method="post">
-                {% csrf_token %}
-                <div class="modal-body">
-                    {% bootstrap_form remove_service_form %}
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn {{ THEME.BTN_SECONDARY_COLOR }}" data-dismiss="modal">{% trans 'Cancle' %}</button>
-                    <button type="button submit" class="btn {{ THEME.BTN_DANGER_COLOR }}">
-                        {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Remove' %}
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% if show_remove_service_modal %}
-    <script type="text/javascript">
-        $('#remove_service').modal('show');
-    </script>
-{% endif %}
+
+{% block modal-title %}
+{% trans 'Remove service' %}
+{% endblock %}
+
+{% block modal-footer %}
+<button type="button" class="btn {{ THEME.BTN_SECONDARY_COLOR }}" data-dismiss="modal">{% trans 'Cancle' %}</button>
+<button type="button submit" class="btn {{ THEME.BTN_DANGER_COLOR }}">
+    {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Remove' %}
+</button>
+{% endblock %}

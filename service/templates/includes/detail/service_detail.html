@@ -1,0 +1,112 @@
+{% extends 'sceletons/card.html' %}
+{% load static i18n %}
+{% load fontawesome_5 %}
+{% block card-header %}
+<div class="d-flex w-100 justify-content-between">
+    <h4 class="mb-1 mr-3">
+        <!--TODO: this will always show logo for root_service; if child is presented this is the wrong logo-->
+        {% if service.servicetype.name == 'wms' %}
+            {% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}
+        {% else %}
+            {% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %}
+        {% endif %} <b>{{ service_md.title }}</b></h4>
+    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'service:index' %}">
+        <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Overview' %}</span>
+    </a>
+</div>
+{% endblock %}
+{% block card-body %}
+<div class="row mb-2 ">
+    <div class="col-sm mb-2 text-center">
+            {% if 'can_activate_service' in user_permissions %}
+                    {% if service_md.is_active %}
+                        <a href="{% url 'service:activate' service.id %}" class="btn {{THEME.BTN_WARNING_COLOR}}" role="button">
+                            {% autoescape off %}{{THEME.ICONS.NOK}}{% endautoescape %} {% trans 'Deactivate' %}
+                        </a>
+                    {% else %}
+                        <a href="{% url 'service:activate' service.id %}" class="btn {{THEME.BTN_SUCCESS_COLOR}}" role="button">
+                            {% autoescape off %}{{THEME.ICONS.OK}}{% endautoescape %} {% trans 'Activate' %}
+                        </a>
+                {% endif %}
+            {% endif %}
+    </div>
+    <div class="col-sm mb-2 text-center">
+            {% if 'can_update_service' in user_permissions %}
+                <!--TODO: implement logic for this buttons-->
+                <button type="button" class="btn {{THEME.BTN_INFO_OUT_COLOR}}" data-toggle="modal" data-target="#edit_group">
+                    {% autoescape off %}{{THEME.ICONS.UPDATE}}{% endautoescape %} {% trans 'Update service' %}
+                </button>
+                <!--TODO: Modal necessary?-->
+            {% endif %}
+    </div>
+            {% if 'can_edit_metadata_service' in user_permissions %}
+    <div class="col-sm mb-2 text-center">
+            <div class="dropdown">
+                  <button class="btn {{THEME.BTN_SECONDARY_OUT_COLOR}} dropdown-toggle" type="button" id="id_edit_service_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit service' %}
+                  </button>
+                  <div class="dropdown-menu" aria-labelledby="id_edit_service_dropdown">
+                    <a class="dropdown-item" href="{% url 'editor:edit' service_md.id %}">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}</a>
+                    <a class="dropdown-item" href="{% url 'editor:edit_access' service_md.id %}">{% autoescape off %}{{THEME.ICONS.ACCESS}}{% endautoescape %} {% trans 'Access' %}</a>
+                  </div>
+                </div>
+    </div>
+            {% endif %}
+
+    <div class="col-sm mb-2 text-center">
+            <div class="dropdown">
+              <button class="btn {{THEME.BTN_SECONDARY_OUT_COLOR}} dropdown-toggle" type="button" id="id_caps_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                {% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'Capabilities' %}
+              </button>
+              <div class="dropdown-menu" aria-labelledby="id_caps_dropdown">
+                <a class="dropdown-item" href="{{ service_md.capabilities_original_uri }}">{% trans 'Original' %}</a>
+                <a class="dropdown-item" href="{% url 'service:get-capabilities' service_md.id %}">{% trans 'Current' %}</a>
+              </div>
+            </div>
+    </div>
+    <div class="col-sm mb-2 text-center">
+        <div class="dropdown">
+          <button class="btn {{THEME.BTN_SECONDARY_OUT_COLOR}} dropdown-toggle" type="button" id="id_metadata_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}
+          </button>
+          <div class="dropdown-menu" aria-labelledby="id_metadata_dropdown">
+            <a class="dropdown-item" href="{% url 'service:get-service-metadata' service_md.id %}">{% trans 'Service' %}</a>
+            <a class="dropdown-item" href="{% url 'service:get-dataset-metadata' service_md.id %}">{% trans 'Dataset' %}</a>
+          </div>
+        </div>
+    </div>
+            {% if 'can_remove_service' in user_permissions %}
+    <div class="col-sm mb-2 text-center">
+        <button type="button" class="btn {{THEME.BTN_DANGER_COLOR}}" data-toggle="modal" data-target="#id_modal_remove_service">
+            {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Remove' %}
+        </button>
+        {% with form=remove_service_form %}
+            {% with 'remove_service' as id_modal %}
+                {% include 'modals/remove_service.html' %}
+            {% endwith %}
+        {% endwith %}
+    </div>
+            {% endif %}
+    </div>
+</div>
+<div class="container">
+    {% include 'includes/detail/service_detail/root_service_detail_table.html' %}
+</div>
+
+<div class="row mb-2 ">
+    <div class="col">
+
+    {% if service.servicetype.name == 'wms' %}
+        {% comment "we need to pass a unique id for accordion button" %}{% endcomment %}
+        {% with service_md.id as id_accordion %}
+        {% include 'includes/wms/show_sublayer_accordion.html' %}
+        {% endwith %}
+    {% elif service.servicetype.name == 'wfs' %}
+        <!--TODO:-->
+        {% with service.featuretypes.all as featuretypes %}
+            {% include 'includes/wfs/containing_featuretypes.html' %}
+        {% endwith %}
+    {% endif %}
+    </div><!--</col-->
+</div><!--</row-->
+{% endblock %}

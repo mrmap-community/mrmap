@@ -94,5 +94,5 @@ class RegisterNewServiceWizardPage3(forms.Form):
 
 
 class RemoveService(forms.Form):
-    service_id = forms.IntegerField(widget=forms.HiddenInput())
-    is_confirmed = forms.BooleanField(label='Do you realy want to remove this service?')
+    action_url = ''
+    is_confirmed = forms.BooleanField(label='Do you really want to remove this service?')

@@ -1,0 +1,40 @@
+<!-- Modal -->
+{% load bootstrap4 %}
+{# TODO: statement 'if not show_modal' will only works if one modal is included to template  #}
+<div class="modal {% if not show_modal %} fade {% endif %}" id="id_modal_{{id_modal}}" data-backdrop="static" tabindex="-1" role="dialog"
+     aria-labelledby="id_modal_title_{{id_modal}}" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content {{THEME.MODAL.BG_COLOR}} {{THEME.MODAL.TXT_COLOR}}">
+            <div class="modal-header">
+                <h5 class="modal-title" id="id_modal_title_{{id_modal}}">
+                    {% block modal-title %}
+                    {% endblock %}
+                </h5>
+            </div><!--</modal-header-->
+            <form id="id_modal_form_{{id_modal}}" action="{{form.action_url}}" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    {% bootstrap_form form %}
+                </div><!--</modal-body-->
+                <div class="modal-footer">
+                    {% block modal-footer %}
+                    {% endblock %}
+                </div><!--</modal-footer-->
+            </form>
+        </div>
+    </div>
+</div><!--</modal-->
+{% if show_modal %}
+    <script type="text/javascript">
+        $('#id_modal_{{id_modal}}').modal('show');
+    </script>
+{% endif %}
+
+<script type="text/javascript">
+    $(function() {
+       $(".auto_submit_item").change(function() {
+         $('#id_is_form_update').val('True');
+         $('#id_modal_form_{{id_modal}}').submit();
+       });
+    });
+</script>

@@ -1,0 +1,56 @@
+{% extends 'sceletons/card.html' %}
+{% load static i18n %}
+{% load fontawesome_5 %}
+
+{% block card-header %}
+<div class="d-flex w-100 justify-content-between">
+    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} <b>{{ group.name }}</b></h4>
+    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'structure:index' %}">
+        <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Overview' %}</span>
+    </a>
+</div>
+{% endblock %}
+{% block card-body %}
+<div class="row mb-2 ">
+    <div class="col">
+        <div class="d-flex justify-content-between">
+            {% if 'can_edit_group' in user_permissions %}
+            <div>
+                <button type="button" class="btn {{THEME.BTN_WARNING_COLOR}}" data-toggle="modal" data-target="#id_modal_edit_group_modal">
+                    {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit group' %}
+                </button>
+            </div>
+            {% with form=edit_group_form %}
+                {% with 'edit_group_modal' as id_modal %}
+                    {% include 'modals/edit_group.html' %}
+                {% endwith %}
+            {% endwith %}
+            {% endif %}
+            {% if 'can_delete_group' in user_permissions %}
+            <div class="ml-auto">
+                <button type="button" class="btn {{THEME.BTN_DANGER_COLOR}}" data-toggle="modal" data-target="#id_modal_delete_group_modal">
+                    {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Delete group' %}
+                </button>
+            </div>
+            {% with form=delete_group_form %}
+                {% with 'delete_group_modal' as id_modal %}
+                    {% include 'modals/delete_group.html' %}
+                {% endwith %}
+            {% endwith %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+<div class="row mb-2 ">
+    <div class="col">
+        {% include 'includes/detail/groups_table.html' %}
+    </div>
+</div><!--row-->
+<div class="row mb-2 ">
+    <div class="col">
+        {% with group.id as id_accordion %}
+        {% include 'includes/detail/groups_publishes_for_accordion.html' %}
+        {% endwith %}
+    </div><!--col-->
+</div><!--row-->
+{% endblock %}

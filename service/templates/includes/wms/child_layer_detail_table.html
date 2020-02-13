@@ -1,0 +1,152 @@
+{% extends 'sceletons/table.html' %}
+{% load i18n static %}
+<div class="table-responsive">
+{% block table %}
+    <tr>
+        <th>{% trans 'Uuid' %}</th>
+        <td>{{ service.uuid }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Identifier' %}</th>
+        <td>{{ service.identifier }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Parent service' %}</th>
+        <td>
+            <a class="{{THEME.TABLE.LINK_COLOR}}" href="{% url 'service:detail' service.parent_service.metadata.id %}" title="{{ service.parent_service.metadata.uuid }}">
+                {{ service.parent_service.metadata.title }}
+            </a>
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Title' %}</th>
+        <td>{{ service.metadata.title }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Abstract' %}</th>
+        <td>{{ service.metadata.abstract }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Keywords' %}</th>
+        <td class="listable-container">
+            {% for kw in service.metadata.keywords.all %}
+                    <span class="badge {{THEME.PILL_BADGE_INFO_COLOR}}">{{ kw }}</span>
+            {% empty %}
+                {% trans 'No keywords provided' %}
+            {% endfor %}
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Is available' %}</th>
+        <td>
+            {% if service.is_available %}
+            <i class='fas fa-check text-success'></i>
+            {% else %}
+            <i class='fas fa-times text-danger'></i>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Is queryable' %}</th>
+        <td>
+            {% if service.is_queryable %}
+            <i class='fas fa-check text-success'></i>
+            {% else %}
+            <i class='fas fa-times text-danger'></i>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Is opaque' %}</th>
+        <td>
+            {% if service.is_opaque %}
+            <i class='fas fa-check text-success'></i>
+            {% else %}
+            <i class='fas fa-times text-danger'></i>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Is cascaded' %}</th>
+        <td>
+            {% if service.is_cascaded %}
+            <i class='fas fa-check text-success'></i>
+            {% else %}
+            <i class='fas fa-times text-danger'></i>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Access secured' %}</th>
+        <td>
+            {% if service.metadata.is_secured %}
+            <i class='fas fa-check text-success'></i>
+            {% else %}
+            <i class='fas fa-times text-danger'></i>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Hits' %}</th>
+        <td>{{ service.metadata.hits }}</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Scale range' %}</th>
+        <td>[{{ service.scale_min }}, {{ service.scale_max }}]</td>
+    </tr>
+    <tr>
+        <th>{% trans 'Bounding box' %}</th>
+        <td>
+            {% if service.bbox_lat_lon.area > 0.0 %}
+            <div id="{{ service.id }}_map" class="map-view">
+                <!--TODO:-->
+            </div>
+            <script>
+                L.map('{{ service.id }}_map', {
+                    center: [{{ service.bbox_lat_lon.centroid.y }}, {{ service.bbox_lat_lon.centroid.x }}],
+                    zoom: {{ service.bbox_lat_lon.area }},
+                    layers: [
+                        new L.geoJSON({{ service.bbox_lat_lon.geojson|safe }}),
+                        new L.TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        })
+                    ],
+                }).fitBounds(
+                    [
+                        [{{ service.bbox_lat_lon.boundary.extent.1 }}, {{ service.bbox_lat_lon.boundary.extent.0 }}],
+                        [{{ service.bbox_lat_lon.boundary.extent.3 }}, {{ service.bbox_lat_lon.boundary.extent.2 }}],
+                    ]
+                    );
+            </script>
+            {% else %}
+                {% trans 'No spatial data provided!' %}
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Reference systems:' %}</th>
+        <td class="listable-container">
+            {% for rs in service.metadata.reference_system.all %}
+                <span class="badge {{THEME.PILL_BADGE_INFO_COLOR}}">{{ rs.prefix }}{{ rs.code }}</span>
+            {% empty %}
+                {% trans 'No additional reference systems provided' %}
+            {% endfor %}
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Mime types:' %}</th>
+        <td>
+            {% with service.id as id_accordion %}
+                {% for key, values in mime_types.items %}
+                {% with key as id_accordion_combined and  'btn-link' as button_type%}
+
+                    {% include 'includes/wms/sublayer_mime_type_table.html' %}
+
+                {% endwith %}
+                {% endfor %}
+
+            {% endwith %}
+        </td>
+    </tr>
+{% endblock %}
+</div>

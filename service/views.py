@@ -2,18 +2,17 @@ import json
 
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.paginator import Paginator
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
-from django.template.response import TemplateResponse, SimpleTemplateResponse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django_tables2 import RequestConfig
 
 from MapSkinner import utils
+from MapSkinner.consts import *
 from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
@@ -40,9 +39,10 @@ from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
 from django.urls import reverse
 
+
 def _prepare_wms_table(request: HttpRequest, user: User, ):
     # whether whole services or single layers should be displayed
-    display_service_type = request.GET.get("q", None)  # s=services, l=layers
+    display_service_type = request.GET.get("q", None)  # s = services, l=layers
     is_root = True
     if display_service_type is not None:
         is_root = display_service_type != "l"
@@ -58,11 +58,11 @@ def _prepare_wms_table(request: HttpRequest, user: User, ):
 
     if display_service_type is None or display_service_type == 's':
         wms_table = WmsServiceTable(wms_table_filtered.qs,
-                                    template_name='django_tables2_bootstrap4_custom.html',
+                                    template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                     order_by_field='swms')  # swms = sort wms
     else:
         wms_table = WmsLayerTable(wms_table_filtered.qs,
-                                  template_name='django_tables2_bootstrap4_custom.html',
+                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                   order_by_field='swms')  # swms = sort wms
 
     RequestConfig(request).configure(wms_table)
@@ -91,7 +91,7 @@ def _prepare_wfs_table(request: HttpRequest, user: User, ):
 
     wfs_table_filtered = WfsFilter(request.GET, queryset=md_list_wfs)
     wfs_table = WfsServiceTable(wfs_table_filtered.qs,
-                                template_name='django_tables2_bootstrap4_custom.html',
+                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                 order_by_field='swfs')  # swms = sort wms
 
     RequestConfig(request).configure(wfs_table)
@@ -131,13 +131,15 @@ def _new_service_wizard(request, user):
                                                                   user=user,
                                                                   selected_group=user.groups.first(),
                                                                   service_needs_authentication='off'),
-                "show_new_service_modal": True,
+                "action_url": reverse(SERVICE_INDEX, ),
+                "show_modal": True,
             })
         else:
             # Form is not valid --> response with page 1 and show errors
             params.update({
                 "new_service_form": form,
-                "show_new_service_modal": True,
+                "action_url": reverse(SERVICE_INDEX, ),
+                "show_modal": True,
             })
 
     elif page is 2:
@@ -166,7 +168,8 @@ def _new_service_wizard(request, user):
             # it's just a updated form state. return the new state as view
             params.update({
                 "new_service_form": form,
-                "show_new_service_modal": True,
+                "action_url": reverse(SERVICE_INDEX, ),
+                "show_modal": True,
             })
             return params
         else:
@@ -218,12 +221,16 @@ def _new_service_wizard(request, user):
 
                     pending_task_db.save()
 
+
+
+
                 except Exception as e:
                     # Form is not valid --> response with page 2 and show errors
                     form.add_error(None, e)
                     params.update({
                         "new_service_form": form,
-                        "show_new_service_modal": True,
+                        "action_url": reverse(SERVICE_INDEX, ),
+                        "show_modal": True,
                     })
 
                 return {'wizard_finished': True}
@@ -232,7 +239,8 @@ def _new_service_wizard(request, user):
                 # Form is not valid --> response with page 2 and show errors
                 params.update({
                     "new_service_form": form,
-                    "show_new_service_modal": True,
+                    "action_url": reverse(SERVICE_INDEX, ),
+                    "show_modal": True,
                 })
 
     return params
@@ -249,17 +257,18 @@ def index(request: HttpRequest, user: User):
          A view
     """
     # Default content
-    template = "service_index.html"
+    template = "views/index.html"
 
     # get pending tasks
-    pending_tasks = PendingTask.objects.filter(created_by__in=user.groups.all())
-    pt_table = PendingTasksTable(pending_tasks,
-                                 template_name='django_tables2_bootstrap4_custom.html',
+    pt = PendingTask.objects.filter(created_by__in=user.groups.all())
+    pt_table = PendingTasksTable(pt,
+                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                  orderable=False, )
 
     params = {
         "pt_table": pt_table,
         "new_service_form": RegisterNewServiceWizardPage1(),
+        "action_url": reverse(SERVICE_INDEX, ),
         "user": user,
         "wizard_finished": False
     }
@@ -273,10 +282,11 @@ def index(request: HttpRequest, user: User):
 
     if params['wizard_finished'] is True:
         # we have to redirect to service:index, to prevent new post of the form after pressing f5
-        return redirect(reverse('service:index', ))
+        return redirect(reverse(SERVICE_INDEX, ))
 
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
+
 
 @check_session
 def pending_tasks(request: HttpRequest, user: User):
@@ -289,13 +299,13 @@ def pending_tasks(request: HttpRequest, user: User):
          A view
     """
     # Default content
-    template = "pending_tasks.html"
+    template = "includes/pending_tasks.html"
 
     # get pending tasks
     pt = PendingTask.objects.filter(created_by__in=user.groups.all())
 
     pt_table = PendingTasksTable(pt,
-                                 template_name='django_tables2_bootstrap4_custom.html',
+                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                  orderable=False, )
 
     params = {
@@ -309,7 +319,7 @@ def pending_tasks(request: HttpRequest, user: User):
 
 @check_session
 @check_permission(Permission(can_remove_service=True))
-def remove(request: HttpRequest, user: User):
+def remove(request: HttpRequest, id:int, user: User):
     """ Renders the remove form for a service
 
     Args:
@@ -321,7 +331,7 @@ def remove(request: HttpRequest, user: User):
 
     remove_form = RemoveService(request.POST)
     if remove_form.is_valid():
-        service = get_object_or_404(Service, id=remove_form.cleaned_data['service_id'])
+        service = get_object_or_404(Service, id=id)
         service_type = service.servicetype
         sub_elements = None
         if service_type.name == ServiceEnum.WMS.value:
@@ -336,7 +346,7 @@ def remove(request: HttpRequest, user: User):
                 "metadata": metadata,
                 "sub_elements": sub_elements,
             }
-            return redirect("service:detail", remove_form.cleaned_data['service_id'])
+            return redirect("service:detail", id)
         else:
             # remove service and all of the related content
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
@@ -346,19 +356,25 @@ def remove(request: HttpRequest, user: User):
             service.save()
 
             # call removing as async task
-            async_remove_service_task.delay(remove_form.cleaned_data['service_id'])
+            async_remove_service_task.delay(id)
             # TODO: we dont know this at this time; refactor this; async_remove function should add messages
-            messages.success(request, 'Service %s successfully deleted.' % remove_form.cleaned_data['service_id'])
+            messages.success(request, 'Service %s successfully deleted.' % id)
 
-            return redirect("service:index")
+            return redirect(SERVICE_INDEX)
+    else:
+        # TODO: redirect to service:detail; show modal by default with error message
+        return redirect("service:detail", id)
 
 
+# TODO: update function documentation
 @check_session
 @check_permission(Permission(can_activate_service=True))
 def activate(request: HttpRequest, id: int, user: User):
     """ (De-)Activates a service and all of its layers
 
     Args:
+        user:
+        id:
         request:
     Returns:
          An Ajax response
@@ -404,7 +420,7 @@ def get_service_metadata(request: HttpRequest, id: int):
     if len(docs) > 1:
         # Something is odd, there are multiple service metadata documents for this metadata record
         messages.error(request, MULTIPLE_SERVICE_METADATA_FOUND)
-        return redirect("service:detail", id)
+        return redirect(SERVICE_DETAIL, id)
     elif len(docs) == 1:
         # Everything is fine, we get the service metadata document
         doc = docs.pop().service_metadata_document
@@ -415,7 +431,7 @@ def get_service_metadata(request: HttpRequest, id: int):
         generator = MetadataGenerator(id, MetadataEnum.SERVICE)
         doc = generator.generate_service_metadata()
 
-    return HttpResponse(doc, content_type='application/xml')
+    return HttpResponse(doc, content_type=APP_XML)
 
 
 def get_dataset_metadata(request: HttpRequest, id: int):
@@ -442,7 +458,7 @@ def get_dataset_metadata(request: HttpRequest, id: int):
                 raise ObjectDoesNotExist
         except ObjectDoesNotExist:
             return HttpResponse(content=_("No dataset metadata found"), status=404)
-    return HttpResponse(document, content_type='application/xml')
+    return HttpResponse(document, content_type=APP_XML)
 
 
 def get_dataset_metadata_button(request: HttpRequest, id: int):
@@ -457,10 +473,10 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
     Returns:
          A BackendAjaxResponse, containing a boolean, whether the requested element has a dataset metadata record or not
     """
-    elementType = request.GET.get("serviceType")
-    if elementType == ServiceEnum.WMS.value:
+    element_type = request.GET.get("serviceType")
+    if element_type == ServiceEnum.WMS.value:
         element = Layer.objects.get(id=id)
-    elif elementType == ServiceEnum.WFS.value:
+    elif element_type == ServiceEnum.WFS.value:
         element = FeatureType.objects.get(id=id)
     md = element.metadata
     try:
@@ -498,7 +514,7 @@ def get_capabilities(request: HttpRequest, id: int):
     cap_doc = Document.objects.get(related_metadata=md)
     doc = cap_doc.current_capability_document
 
-    return HttpResponse(doc, content_type='application/xml')
+    return HttpResponse(doc, content_type=APP_XML)
 
 
 @log_proxy
@@ -541,9 +557,10 @@ def set_session(request: HttpRequest, user: User):
         request.session[_session_key] = _session_val
     return BackendAjaxResponse(html="").get_response()
 
+
 #TODO: refactor this method
 @check_session
-def wms(request: HttpRequest, user: User):
+def wms_index(request: HttpRequest, user: User):
     """ Renders an overview of all wms
 
     Args:t
@@ -551,8 +568,34 @@ def wms(request: HttpRequest, user: User):
     Returns:
          A view
     """
-    return redirect("service:index", ServiceEnum.WMS.value)
+    # Default content
+    template = "views/wms_index.html"
 
+    # get pending tasks
+    pt = PendingTask.objects.filter(created_by__in=user.groups.all())
+    pt_table = PendingTasksTable(pt,
+                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+                                 orderable=False, )
+
+    params = {
+        "pt_table": pt_table,
+        "new_service_form": RegisterNewServiceWizardPage1(),
+        "user": user,
+        "wizard_finished": False
+    }
+
+    params.update(_prepare_wms_table(request, user, ))
+
+    # special content for new service wizard
+    if request.method == 'POST':
+        params.update(_new_service_wizard(request, user))
+
+    if params['wizard_finished'] is True:
+        # we have to redirect to service:index, to prevent new post of the form after pressing f5
+        return redirect(reverse(SERVICE_INDEX, ))
+
+    context = DefaultContext(request, params, user)
+    return render(request=request, template_name=template, context=context.get_context())
 
 
 @check_session
@@ -736,9 +779,10 @@ def update_service_form(request: HttpRequest, user: User, id: int):
     html = render_to_string(template_name=template, request=request, context=params)
     return BackendAjaxResponse(html=html).get_response()
 
+
 #TODO: refactor this method
 @check_session
-def wfs(request: HttpRequest, user: User):
+def wfs_index(request: HttpRequest, user: User):
     """ Renders an overview of all wfs
 
     Args:
@@ -746,10 +790,34 @@ def wfs(request: HttpRequest, user: User):
     Returns:
          A view
     """
+    # Default content
+    template = "views/wfs_index.html"
+
+    # get pending tasks
+    pending_tasks = PendingTask.objects.filter(created_by__in=user.groups.all())
+    pt_table = PendingTasksTable(pending_tasks,
+                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+                                 orderable=False, )
+
     params = {
-        "only": ServiceEnum.WFS
+        "pt_table": pt_table,
+        "new_service_form": RegisterNewServiceWizardPage1(),
+        "user": user,
+        "wizard_finished": False
     }
-    return redirect("service:index", ServiceEnum.WFS.value)
+
+    params.update(_prepare_wfs_table(request, user, ))
+
+    # special content for new service wizard
+    if request.method == 'POST':
+        params.update(_new_service_wizard(request, user))
+
+    if params['wizard_finished'] is True:
+        # we have to redirect to service:index, to prevent new post of the form after pressing f5
+        return redirect(reverse(SERVICE_INDEX, ))
+
+    context = DefaultContext(request, params, user)
+    return render(request=request, template_name=template, context=context.get_context())
 
 
 @check_session
@@ -761,7 +829,7 @@ def detail(request: HttpRequest, id, user: User):
         id: The id of the selected metadata
     Returns:
     """
-    template = "detail/service_detail.html"
+    template = "views/detail.html"
     service_md = get_object_or_404(Metadata, id=id)
 
     if service_md.service.is_root:
@@ -769,7 +837,7 @@ def detail(request: HttpRequest, id, user: User):
         layers = Layer.objects.filter(parent_service=service_md.service)
         layers_md_list = layers.filter(parent_layer=None)
     else:
-        template = "detail/child_layer_detail.html"
+        template = "views/sublayer_detail.html"
         service = Layer.objects.get(
             metadata=service_md
         )
@@ -804,6 +872,7 @@ def detail(request: HttpRequest, id, user: User):
     remove_service_form = RemoveService(initial={'service_id': service.id,
                                                  'service_needs_authentication': False,
                                                  })
+    remove_service_form.action_url = reverse('service:remove', args=[id])
 
     params = {
         "has_dataset_metadata": has_dataset_metadata,

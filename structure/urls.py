@@ -8,14 +8,14 @@ urlpatterns = [
     path('task/<id>', task, name='task'),
     path('task/remove/<id>', remove_task, name='remove-task'),
 
-    path('groups/', groups, name='groups'),
+    path('groups/', groups_index, name='groups-index'),
     path('groups/detail/<id>', detail_group, name='detail-group'),
     path('groups/edit/<id>', edit_group, name='edit-group'),
     path('groups/delete/<id>', remove_group, name='delete-group'),
     path('groups/new/register-form/', new_group, name='new-group'),
     path('groups/publisher/<id>', list_publisher_group, name='publisher-group'),
 
-    path('organizations/', organizations, name='organizations'),
+    path('organizations/', organizations_index, name='organizations-index'),
     path('organizations/detail/<id>', detail_organizations, name='detail-organization'),
     path('organizations/edit/<id>', edit_org, name='edit-organization'),
     path('organizations/delete/<id>', remove_org, name='delete-organization'),

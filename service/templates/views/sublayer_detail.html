@@ -1,0 +1,13 @@
+{% comment "Optional note" %}TODO: {% extends 'base.html' %} if id in /service/detail/<id> is the same as requested layer {% endcomment %}
+{% block body %}
+<div class="container">
+    {% include 'includes/wms/child_layer_detail_table.html' %}
+
+    {% for layer in layers %}
+    {% with layer.metadata.id as id_accordion %}
+    {% include 'includes/wms/sublayer_detail_accordion.html' %}
+    {% endwith %}
+    {% endfor %}
+
+</div>
+{% endblock %}

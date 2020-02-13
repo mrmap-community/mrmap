@@ -1,0 +1,50 @@
+{% extends 'sceletons/accordion.html' %}
+{% load static i18n %}
+
+{% block accordion-button-title %}
+<i class="fa" aria-hidden="true"></i> {{ layer.metadata.title }} <span class="badge {{THEME.PILL_BADGE_INFO_COLOR}}">{{ layer.child_layer.all|length }}</span>
+{% endblock %}
+
+{% block accordion-body %}
+<div class="row mb-2 ">
+    {% if 'can_edit_metadata_service' in user_permissions %}
+  <div class="col mb-2 text-center">
+        <div class="dropdown">
+          <button class="btn {{THEME.BTN_SECONDARY_OUT_COLOR}} dropdown-toggle" type="button" id="id_edit_service_{{layer.id}}_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit layer' %}
+          </button>
+          <div class="dropdown-menu" aria-labelledby="id_edit_service_{{layer.id}}_dropdown">
+            <a class="dropdown-item" href="{% url 'editor:edit' layer.metadata.id %}">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}</a>
+            <a class="dropdown-item" href="{% url 'editor:edit_access' layer.metadata.id %}">{% autoescape off %}{{THEME.ICONS.ACCESS}}{% endautoescape %} {% trans 'Access' %}</a>
+          </div>
+        </div>
+    </div><!--</col>-->
+    {% endif %}
+  <div class="col mb-2 text-center">
+      <!--TODO: Hide?-->
+    <a class="btn {{THEME.BTN_SECONDARY_OUT_COLOR}}" href="{% url 'service:get-dataset-metadata' layer.metadata.id %}">{% trans 'Dataset Metadata' %}</a>
+  </div>
+      <div class="col mb-2 text-center">
+    {% if 'can_edit_metadata_service' in user_permissions %}
+        <a class="btn {{THEME.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' layer.metadata.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
+    {% endif %}
+</div><!--</col>-->
+</div><!--</row>-->
+
+<div class="row mb-2 ">
+<div class="col">
+    <div id="id_content_service_{{layer.metadata.id}}">
+    </div>
+    <script type="text/javascript">
+        $('#id_accordion_btn_{{id_accordion}}_{{id_accordion_combined}}').click(function() {
+            console.log('clicked');
+          if ( $('#id_accordion_btn_{{id_accordion}}_{{id_accordion_combined}}').hasClass('collapsed') ) {
+            $.get( '{% url 'service:detail' layer.metadata.id %}', function( data ) {
+                $( "#id_content_service_{{layer.metadata.id}}" ).html( data );
+            });
+          }
+        });
+    </script>
+</div><!--</col>-->
+</div><!--</row>-->
+{% endblock %}

@@ -1,5 +1,6 @@
 {% load static i18n %}
-{% block body %}
+<!--TODO: refactor with bootstrap 4 and sceletons-->
+<!--TODO: info: this is used in /templates/includes/detail/*_publishes_for_accordion.html-->
 {% if pub_requests.count > 0 %}
     {% if user in members %}
     <h2>{% trans 'Publishing Requests' %}</h2>
@@ -103,4 +104,3 @@
 </table>
 
 {% endif %}
-{% endblock %}

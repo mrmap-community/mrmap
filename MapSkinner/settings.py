@@ -271,11 +271,11 @@ MESSAGE_TAGS = {
 }
 
 
-THEME = 'LIGHT'
+THEME = 'DARK'
 
 # dark theme settings
 DARK_THEME = {
-    'BACKGROUND': 'background-image: url("/static/structure/images/background_dark.png"); background-repeat: repeat;',
+    'BACKGROUND': 'bg-secondary',
     'BG_COLOR': 'bg-dark',
     'BTN_COLOR': 'btn-outline-info',
     'BTN_INFO_COLOR': 'btn-info',
@@ -296,7 +296,6 @@ DARK_THEME = {
     'TXT_SEC_COLOR': 'text-secondary',
     'BADGE_COLOR': 'badge-info',
     'LIST_GRP_ITEM_COLOR': 'list-group-item-dark',
-    'TBL_COLOR': 'table-dark',
 
     'PILL_BADGE_PRIMARY_COLOR': 'badge-pill badge-primary',
     'PILL_BADGE_INFO_COLOR': 'badge-pill badge-info',
@@ -306,9 +305,32 @@ DARK_THEME = {
     'PILL_BADGE_LIGHT_COLOR': 'badge-pill badge-light',
     'PILL_BADGE_DARK_COLOR': 'badge-pill badge-dark',
 
+    'TABLE': {
+        'HOVER': 'table-hover',
+        'STRIPED': 'table-striped',
+        'BG': 'table-dark',
+        'BOARDER': 'border border-white rounded',
+        'LINK_COLOR': 'text-info',
+        'LINK_COLOR_SUCCESS': 'text-success',
+        'BORDERED': 'table-bordered',
+    },
+
+    'CARD': {
+        'BG': 'bg-dark',
+        'TXT_COLOR': 'text-white',
+        'BOARDER': 'border border-white rounded',
+        'LINK_COLOR': 'text-info',
+    },
 
     'NAV': {
         'ITEM_COLOR': 'navbar-dark',
+        'BG_COLOR': 'bg-dark',
+        'TXT_COLOR': 'text-white',
+    },
+
+    'MODAL': {
+        'BG_COLOR': 'bg-dark',
+        'TXT_COLOR': 'text-white',
     },
 
     'ICONS': {
@@ -373,7 +395,8 @@ LIGHT_THEME = {
     'TBL_COLOR': '',
 
     'NAV': {
-        'ITEM_COLOR': 'navbar-light',
+        'ITEM_COLOR': 'navbar-dark',
+        'BG_COLOR': 'bg-dark',
     },
 
     'ICONS': {

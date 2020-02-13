@@ -1,0 +1,10 @@
+{% extends 'sceletons/accordion.html' %}
+
+{% block accordion-button-title %}
+{{ key }}
+{% endblock %}
+{% block accordion-body %}
+    {% for value in values %}
+        <span class="badge {{THEME.PILL_BADGE_INFO_COLOR}}">{{ value }}</span>
+    {% endfor %}
+{% endblock %}

@@ -1,13 +1,9 @@
 from django.urls import path
-
-from service.forms import RegisterNewServiceWizardPage2, RegisterNewServiceWizardPage3
 from service.views import *
-from django.conf.urls import url
 
-app_name='service'
+app_name = 'service'
 urlpatterns = [
     path('', index, name='index'),
-    path('/<service_type>', index, name='index'),
     path('session', set_session, name='session'),
     path('activate/<id>', activate, name='activate'),
 
@@ -30,16 +26,15 @@ urlpatterns = [
     path('update/<id>', update_service, name='update-service'),
     path('update/discard/', discard_update, name='update-discard'),
 
-    path('remove', remove, name='remove'),
+    path('remove/<id>', remove, name='remove'),
 
     path('pending-tasks/', pending_tasks, name="pending-tasks"),
 
     # TODO: wms and wfs path are broken
-    path('wms/', wms, name='wms'),
-    path('wfs/', wfs, name='wfs'),
+    path('wms/', wms_index, name='wms-index'),
+    path('wfs/', wfs_index, name='wfs-index'),
 
     path('detail/<int:id>', detail, name='detail'),
-
 ]
 
 

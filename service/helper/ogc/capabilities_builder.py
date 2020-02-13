@@ -9,6 +9,7 @@ from abc import abstractmethod
 from collections import OrderedDict
 from time import time
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from lxml.etree import Element, QName
 
@@ -16,7 +17,7 @@ from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE, HTTP
 from service.helper import xml_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.epsg_api import EpsgApi
-from service.models import Service, Metadata, Layer
+from service.models import Service, Metadata, Layer, Document, MetadataRelation
 
 from structure.models import Contact
 
@@ -545,25 +546,40 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
                 })
             )
 
+        # Dimension
         elem = xml_helper.create_subelement(layer_elem, "{}Dimension".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt=md.dimension)
+
+        # Attribution
         elem = xml_helper.create_subelement(layer_elem, "{}Attribution".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
+
+        # AuthorityURL
         elem = xml_helper.create_subelement(layer_elem, "{}AuthorityURL".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
+
+        # Identifier
         elem = xml_helper.create_subelement(layer_elem, "{}Identifier".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
-        elem = xml_helper.create_subelement(layer_elem, "{}MetadataURL".format(self.default_ns))
-        xml_helper.write_text_to_element(elem, txt="")
+
+        # MetadataURL
+        self._generate_capability_layer_metadata_url_xml(layer_elem, layer)
+
+        # DataURL
         elem = xml_helper.create_subelement(layer_elem, "{}DataURL".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
+
+        # FeatureListURL
         elem = xml_helper.create_subelement(layer_elem, "{}FeatureListURL".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")
 
         self._generate_capability_layer_style_xml(layer_elem, layer.get_style())
 
+        # MinScaleDenominator
         elem = xml_helper.create_subelement(layer_elem, "{}MinScaleDenominator".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")
+
+        # MaxScaleDenominator
         elem = xml_helper.create_subelement(layer_elem, "{}MaxScaleDenominator".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")
 
@@ -572,8 +588,55 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         for layer_child in layer_children:
             self._generate_capability_layer_xml(layer_elem, layer_child.metadata)
 
+    def _generate_capability_layer_metadata_url_xml(self, layer_elem, layer):
+        """ Generate the 'MetadataURL' subelement of a layer xml object
+
+        Args:
+            layer_elem (_Element): The layer xml element
+        Returns:
+            nothing
+        """
+        md = layer.metadata
+
+        try:
+            dataset_md = MetadataRelation.objects.get(
+                metadata_from=md
+            ).metadata_to
+
+            doc = Document.objects.get(
+                related_metadata=dataset_md
+            )
+        except ObjectDoesNotExist as e:
+            # If there is no related Metadata, we can skip this element
+            return
+
+        metadata_elem = xml_helper.create_subelement(
+            layer_elem,
+            "{}MetadataURL".format(self.default_ns),
+            attrib={
+                "type": "ISO19115:2003"
+            }
+        )
+        elem = xml_helper.create_subelement(
+            metadata_elem,
+            "{}Format".format(self.default_ns)
+        )
+        xml_helper.write_text_to_element(elem, txt="text/xml")
+
+        uri = doc.related_metadata.metadata_url
+        xml_helper.create_subelement(
+            metadata_elem,
+            "{}OnlineResource".format(self.default_ns),
+            attrib={
+                "{}type".format(self.xlink_ns): "simple",
+                "{}href".format(self.xlink_ns): uri,
+            }
+        )
+
+
+
     def _generate_capability_layer_style_xml(self, layer_elem: Element, styles: QuerySet):
-        """ Generate the 'Style' subelement of a capability xml object
+        """ Generate the 'Style' subelement of a layer xml object
 
         Args:
             layer_elem (_Element): The layer xml element

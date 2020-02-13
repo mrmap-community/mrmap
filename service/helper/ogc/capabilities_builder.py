@@ -295,7 +295,6 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         # Layers are not included in this contents dict, since they will be appended separately at the end
         contents = OrderedDict({
             "{}Request": "",
-            "{}Exception": "",
             "{}ExtendedCapabilities": "",
         })
 
@@ -307,9 +306,38 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("Request"),
             capability_elem
         )
+
         self._generate_capability_request_xml(request_elem)
 
+        self._generate_capability_exception_xml(capability_elem)
+
         self._generate_capability_layer_xml(capability_elem, md)
+
+    def _generate_capability_exception_xml(self, capability_elem: Element):
+        """ Generate the 'Exception' subelement of a xml capability object
+
+        Args:
+            capability_elem (_Element): The request xml element
+        Returns:
+            nothing
+        """
+
+        # Since this is not a very important information, we do not parse the Exception information during registration.
+        # Therefore we do a little hack: Just copy the element from the `original_capability_document` of the related
+        # metadata document object.
+        try:
+            original_doc = Document.objects.get(
+                related_metadata=self.metadata.service.parent_service.metadata,
+            ).original_capability_document
+        except ObjectDoesNotExist as e:
+            return
+        original_doc = xml_helper.parse_xml(original_doc)
+        original_exception_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Exception"),
+            original_doc
+        )
+        xml_helper.add_subelement(capability_elem, original_exception_elem)
 
     def _generate_capability_request_xml(self, request_elem: Element):
         """ Generate the 'Request' subelement of a xml capability object
@@ -451,10 +479,6 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         """
         layer = Layer.objects.get(
             metadata=md
-        )
-        parent_service_root_layer = Layer.objects.get(
-            parent_service=layer.parent_service,
-            parent_layer=None
         )
         md = layer.metadata
         layer_elem = xml_helper.create_subelement(

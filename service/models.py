@@ -284,6 +284,21 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    def get_external_authentication_object(self):
+        """ Returns the external authentication object, if one exists
+
+        If none exists, None will be returned
+
+        Returns:
+             ext_auth (ExternalAuthentication) | None
+        """
+        ext_auth = None
+        try:
+            ext_auth = self.external_authentication
+        except ObjectDoesNotExist:
+            pass
+        return ext_auth
+
     def get_related_dataset_metadata(self):
         """ Returns a related dataset metadata record.
 
@@ -644,6 +659,13 @@ class Metadata(Resource):
             self._restore_wfs(identifier, external_auth=external_auth)
         elif service_type == OGCServiceEnum.WMS.value:
             self._restore_wms(identifier, external_auth=external_auth)
+
+        # Subelements like layers or featuretypes might have own capabilities documents. Delete them on restore!
+        if not self.is_root():
+            related_docs = Document.objects.filter(
+                related_metadata=self
+            )
+            related_docs.delete()
 
     def get_related_metadata_uris(self):
         """ Generates a list of all related metadata online links and returns them

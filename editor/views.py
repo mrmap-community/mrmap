@@ -17,8 +17,7 @@ from MapSkinner.settings import ROOT_URL, HTTP_OR_SSL, HOST_NAME
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper.enums import OGCServiceEnum, MetadataEnum
-from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation, \
-    ExternalAuthentication
+from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation, Document
 from django.utils.translation import gettext_lazy as _
 
 from structure.models import User, Permission, Group
@@ -103,6 +102,13 @@ def edit(request: HttpRequest, id: int, user: User):
                 # inheritance setting for the whole service -> we act like it didn't change
                 custom_md.use_proxy_uri = metadata.use_proxy_uri
 
+                # Furthermore we remove a possibly existing Capabilities document for this element, since the metadata
+                # might have changed!
+                related_docs = Document.objects.filter(
+                    related_metadata=metadata
+                )
+                related_docs.delete()
+
             editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
             editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
@@ -144,8 +150,6 @@ def edit(request: HttpRequest, id: int, user: User):
         template = "editor_edit.html"
         editor_form = MetadataEditorForm(instance=metadata)
         editor_form.fields["terms_of_use"].required = False
-        if not metadata.is_root():
-            del editor_form.fields["use_proxy_uri"]
         params = {
             "service_metadata": metadata,
             "addable_values_list": addable_values_list,
@@ -324,7 +328,7 @@ def restore(request: HttpRequest, id: int, user: User):
     """
     metadata = Metadata.objects.get(id=id)
 
-    ext_auth = metadata.external_authentication
+    ext_auth = metadata.get_external_authentication_object()
 
     # check if user owns this service by group-relation
     if metadata.created_by not in user.groups.all():

@@ -4,13 +4,6 @@ Organization: Spatial data infrastructure Rhineland-Palatinate, Germany
 Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 31.07.19
 
-
-    ATTENTION!!!
-    THIS IS CURRENTLY NOT UNDER DEVELOPMENT!
-    HOWEVER, SINCE WE WILL NEED CREATION OF XML IN THE FUTURE FOR OTHER FEATURES, THIS WILL BE KEPT IN THE CURRENT STATE
-    AS A REFERENCE OF HOW THINGS COULD BE DONE. FOR FURTHER INFORMATION READ
-    https://github.com/josuebrunel/pysxm
-
 """
 from abc import abstractmethod
 from collections import OrderedDict
@@ -22,7 +15,8 @@ from lxml.etree import Element, QName
 from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE, HTTP_OR_SSL, HOST_NAME
 from service.helper import xml_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
-from service.models import Service, Metadata, MimeType, Layer
+from service.helper.epsg_api import EpsgApi
+from service.models import Service, Metadata, Layer
 
 from structure.models import Contact
 
@@ -109,6 +103,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
 
         self.default_ns = "{" + self.namespaces.get(None) + "}"
         self.xlink_ns = "{" + XML_NAMESPACES["xlink"] + "}"
+        self.xsi_ns = "{" + XML_NAMESPACES["xsi"] + "}"
 
         super().__init__(service=service, force_version=force_version)
 
@@ -123,7 +118,8 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         root = Element(
             '{}WMS_Capabilities'.format(self.default_ns),
             attrib={
-                "version": self.service_version
+                "version": self.service_version,
+                "{}schemaLocation".format(self.xsi_ns): "http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd",
             },
             nsmap=self.namespaces
         )
@@ -312,7 +308,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         )
         self._generate_capability_request_xml(request_elem)
 
-        self._generate_capability_layer_xml(capability_elem, self.metadata)
+        self._generate_capability_layer_xml(capability_elem, md)
 
     def _generate_capability_request_xml(self, request_elem: Element):
         """ Generate the 'Request' subelement of a xml capability object
@@ -455,6 +451,10 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         layer = Layer.objects.get(
             metadata=md
         )
+        parent_service_root_layer = Layer.objects.get(
+            parent_service=layer.parent_service,
+            parent_layer=None
+        )
         md = layer.metadata
         layer_elem = xml_helper.create_subelement(
             layer_elem,
@@ -478,13 +478,19 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         elem = xml_helper.create_subelement(layer_elem, "{}Abstract".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt=md.abstract)
 
-        elem = xml_helper.create_subelement(layer_elem, "{}KeywordList".format(self.default_ns))
         keywords = md.keywords.all()
-        for kw in keywords:
-            kw_element = xml_helper.create_subelement(elem, "{}Keyword".format(self.default_ns))
-            xml_helper.write_text_to_element(kw_element, txt=kw.keyword)
+        if keywords.count() > 0:
+            elem = xml_helper.create_subelement(layer_elem, "{}KeywordList".format(self.default_ns))
+            for kw in keywords:
+                kw_element = xml_helper.create_subelement(elem, "{}Keyword".format(self.default_ns))
+                xml_helper.write_text_to_element(kw_element, txt=kw.keyword)
 
         reference_systems = md.reference_system.all()
+        if reference_systems.count() == 0:
+            # If service has no own reference systems declared, they might be inherited from the parent service.
+            # We simply fetch them!
+            reference_systems = parent_service_root_layer.metadata.reference_system.all()
+
         for crs in reference_systems:
             crs_element = xml_helper.create_subelement(layer_elem, "{}CRS".format(self.default_ns))
             xml_helper.write_text_to_element(crs_element, txt="{}{}".format(crs.prefix, crs.code))
@@ -493,10 +499,12 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         bounding_geometry = md.bounding_geometry
         bbox = md.bounding_geometry.extent
 
-        # Prevent a situation where the bbox would be 0, by taking the maximum of subelement bboxes
+        # Prevent a situation where the bbox would be 0, by taking the parent service bbox.
+        # We must(!) take the parent service root layer bounding geometry, since this information is the most reliable
+        # if this service is compared with another copy of itself!
         if bbox == (0.0, 0.0, 0.0, 0.0):
-            bbox = md.find_max_bounding_box()
-            bbox = bbox.extent
+            bounding_geometry = parent_service_root_layer.metadata.bounding_geometry
+            bbox = bounding_geometry.extent
 
         bbox_content = OrderedDict({
             "{}westBoundLongitude": str(bbox[0]),
@@ -511,36 +519,44 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             xml_helper.write_text_to_element(bbox_elem, txt=val)
 
         # wms:BoundingBox
-        elem = xml_helper.create_subelement(
-            layer_elem,
-            "{}BoundingBox".format(self.default_ns),
-            attrib={
-                "CRS": "EPSG:{}".format(str(bounding_geometry.srid)),
-                "minx": str(bbox[0]),
-                "miny": str(bbox[1]),
-                "maxx": str(bbox[2]),
-                "maxy": str(bbox[3]),
-            }
-        )
+        # We must provide appropriate bounding boxes for all supported reference systems, since we can not be sure the
+        # client may transform a bounding box by itself.
+        epsg_handler = EpsgApi()
+        for reference_system in reference_systems:
+            bounding_geometry.transform(reference_system.code)
+            bbox = list(bounding_geometry.extent)
+
+            switch_axis = epsg_handler.switch_axis_order(self.service_type, self.service_version, reference_system.code)
+            if switch_axis:
+                for i in range(0, len(bbox), 2):
+                    tmp = bbox[i]
+                    bbox[i] = bbox[i+1]
+                    bbox[i+1] = tmp
+
+            xml_helper.create_subelement(
+                layer_elem,
+                "{}BoundingBox".format(self.default_ns),
+                attrib=OrderedDict({
+                    "CRS": "EPSG:{}".format(str(bounding_geometry.srid)),
+                    "minx": str(bbox[0]),
+                    "miny": str(bbox[1]),
+                    "maxx": str(bbox[2]),
+                    "maxy": str(bbox[3]),
+                })
+            )
 
         elem = xml_helper.create_subelement(layer_elem, "{}Dimension".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt=md.dimension)
-
         elem = xml_helper.create_subelement(layer_elem, "{}Attribution".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
-
         elem = xml_helper.create_subelement(layer_elem, "{}AuthorityURL".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
-
         elem = xml_helper.create_subelement(layer_elem, "{}Identifier".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
-
         elem = xml_helper.create_subelement(layer_elem, "{}MetadataURL".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")
-
         elem = xml_helper.create_subelement(layer_elem, "{}DataURL".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
-
         elem = xml_helper.create_subelement(layer_elem, "{}FeatureListURL".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")
 
@@ -548,7 +564,6 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
 
         elem = xml_helper.create_subelement(layer_elem, "{}MinScaleDenominator".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")
-
         elem = xml_helper.create_subelement(layer_elem, "{}MaxScaleDenominator".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")
 

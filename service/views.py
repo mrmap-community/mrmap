@@ -862,11 +862,8 @@ def get_operation_result(request: HttpRequest, id: int):
         elif not metadata.is_root():
             # we do not allow the direct call of operations on child elements, such as layers!
             # if the request tries that, we directly redirect it to the parent service!
-            redirect_uri = "/service/metadata/{}/operation?{}".format(
-                metadata.service.parent_service.metadata.id,
-                get_query_string
-            )
-            return redirect(redirect_uri)
+            parent_md = metadata.service.parent_service.metadata
+            return get_operation_result(request=request, id=parent_md.id)
 
         # We need to check if one of the requested layers is secured. If so, we need to check the
         md_secured = metadata.is_secured

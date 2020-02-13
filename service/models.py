@@ -284,6 +284,24 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    def get_related_dataset_metadata(self):
+        """ Returns a related dataset metadata record.
+
+        If none exists, None is returned
+
+        Returns:
+             dataset_md (Metadata) | None
+        """
+        try:
+            dataset_md = MetadataRelation.objects.get(
+                metadata_from=self,
+                metadata_to__metadata_type__type=OGCServiceEnum.DATASET.value
+            )
+            dataset_md = dataset_md.metadata_to
+            return dataset_md
+        except ObjectDoesNotExist as e:
+            return None
+
     def get_remote_original_capabilities_document(self, version: str):
         """ Fetches the original capabilities document from the remote server.
 
@@ -1691,6 +1709,44 @@ class Layer(Service):
 
     def __str__(self):
         return str(self.identifier)
+
+    def get_inherited_reference_systems(self):
+        ref_systems = []
+        ref_systems += list(self.metadata.reference_system.all())
+
+        parent_layer = self.parent_layer
+        while parent_layer is not None:
+            parent_srs = parent_layer.metadata.reference_system.all()
+            for srs in parent_srs:
+                if srs not in ref_systems:
+                    ref_systems.append(srs)
+            parent_layer = parent_layer.parent_layer
+
+        return ref_systems
+
+    def get_inherited_bounding_geometry(self):
+        """ Returns the biggest bounding geometry of the service.
+
+        Bounding geometries shall be inherited. We do not persist them directly into the layer objects, since we might
+        lose the geometry, that is specified by the single layer object.
+        This function walks all the way up to the root layer of the service and returns the biggest bounding geometry.
+        Since upper layer geometries must cover the ones of their children, these big geometry includes the children ones.
+
+        Returns:
+             bounding_geometry (Polygon): A geometry object
+        """
+        bounding_geometry = self.metadata.bounding_geometry
+        parent_layer = self.parent_layer
+        while parent_layer is not None:
+            parent_geometry = parent_layer.metadata.bounding_geometry
+            if bounding_geometry.area > 0:
+                if parent_geometry.covers(bounding_geometry):
+                    bounding_geometry = parent_geometry
+            else:
+                bounding_geometry = parent_geometry
+            parent_layer = parent_layer.parent_layer
+        return bounding_geometry
+
 
     def get_style(self):
         """ Simple getter for the style of the current layer

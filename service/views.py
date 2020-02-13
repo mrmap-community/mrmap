@@ -224,11 +224,9 @@ def get_dataset_metadata(request: HttpRequest, id: int):
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
     try:
-        if md.metadata_type.type != 'dataset':
+        if md.metadata_type.type != OGCServiceEnum.DATASET.value:
             # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
-            md = MetadataRelation.objects.get(
-                metadata_from=md,
-            ).metadata_to
+            md = md.get_related_dataset_metadata()
             return redirect("service:get-dataset-metadata", id=md.id)
         document = Document.objects.get(related_metadata=md)
         document = document.dataset_metadata_document

@@ -17,7 +17,7 @@ from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE, HTTP
 from service.helper import xml_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.epsg_api import EpsgApi
-from service.models import Service, Metadata, Layer, Document, MetadataRelation
+from service.models import Service, Metadata, Layer, Document
 
 from structure.models import Contact
 
@@ -486,12 +486,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
                 kw_element = xml_helper.create_subelement(elem, "{}Keyword".format(self.default_ns))
                 xml_helper.write_text_to_element(kw_element, txt=kw.keyword)
 
-        reference_systems = md.reference_system.all()
-        if reference_systems.count() == 0:
-            # If service has no own reference systems declared, they might be inherited from the parent service.
-            # We simply fetch them!
-            reference_systems = parent_service_root_layer.metadata.reference_system.all()
-
+        reference_systems = layer.get_inherited_reference_systems()
         for crs in reference_systems:
             crs_element = xml_helper.create_subelement(layer_elem, "{}CRS".format(self.default_ns))
             xml_helper.write_text_to_element(crs_element, txt="{}{}".format(crs.prefix, crs.code))
@@ -504,7 +499,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         # We must(!) take the parent service root layer bounding geometry, since this information is the most reliable
         # if this service is compared with another copy of itself!
         if bbox == (0.0, 0.0, 0.0, 0.0):
-            bounding_geometry = parent_service_root_layer.metadata.bounding_geometry
+            bounding_geometry = layer.get_inherited_bounding_geometry()
             bbox = bounding_geometry.extent
 
         bbox_content = OrderedDict({
@@ -598,11 +593,10 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         """
         md = layer.metadata
 
+        dataset_md = md.get_related_dataset_metadata()
+        if dataset_md is None:
+            return
         try:
-            dataset_md = MetadataRelation.objects.get(
-                metadata_from=md
-            ).metadata_to
-
             doc = Document.objects.get(
                 related_metadata=dataset_md
             )

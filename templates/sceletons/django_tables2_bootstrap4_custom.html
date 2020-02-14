@@ -3,6 +3,7 @@
 {% load fontawesome_5 %}
 {% block table-wrapper %}
 {% load bootstrap4 %}
+{% load query_parameters %}
 {% load django_tables2_extras %}
 <div class="row"><!--filter and pagesize-->
     {% if table.filter.form %}
@@ -32,7 +33,7 @@
                 {% trans 'entries' %}
                 <div class="dropdown-menu" aria-labelledby="wmsPagingButton">
                     {% for page_size in table.pagination.page_size_options %}
-                    <a class="dropdown-item" href="{% querystring table.pagination.page_size_param=page_size%}">{{ page_size }}</a>
+                    <a class="dropdown-item" href="?{{table.pagination.page_size_param}}={{page_size}}">{{ page_size }}</a>
                     {% endfor %}
                 </div>
             </div>

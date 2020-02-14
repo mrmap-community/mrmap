@@ -20,6 +20,7 @@ app = Celery('MapSkinner')
 app.config_from_object('django.conf:settings')
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 
+app.conf.beat_scheduler = settings.CELERY_BEAT_SCHEDULER
 
 @app.task(bind=True)
 def debug_task(self):

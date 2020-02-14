@@ -1,5 +1,5 @@
 {% extends 'sceletons/card.html' %}
-{% load static i18n %}
+{% load i18n %}
 {% load fontawesome_5 %}
 {% block card-header-title-left %}
     <h4 class="mb-1 mr-3">
@@ -100,7 +100,7 @@
     {% if service.servicetype.name == 'wms' %}
         {% comment "we need to pass a unique id for accordion button" %}{% endcomment %}
         {% with service_md.id as id_accordion %}
-        {% include 'includes/wms/show_sublayer_accordion.html' %}
+            {% include 'includes/wms/show_sublayer_accordion.html' %}
         {% endwith %}
     {% elif service.servicetype.name == 'wfs' %}
         <!--TODO:-->

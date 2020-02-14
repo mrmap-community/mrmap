@@ -9,7 +9,6 @@ from django import forms
 from service.helper import service_helper
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
-from django.forms import ModelForm
 
 
 def validate_get_request_uri(value):

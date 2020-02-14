@@ -337,6 +337,7 @@ DARK_THEME = {
         'DASHBOARD': '<i class=\'fas fa-tachometer-alt\'></i>',
         'WMS': '<i class=\'far fa-map\'></i>',
         'WFS': '<i class=\'fas fa-draw-polygon\'></i>',
+        'LAYER': '<i class=\'fas fa-layer-group\'></i>',
         'PENDINGTASK': '<i class=\'fas fa-tasks\'></i>',
         'USER': '<i class=\'fas fa-user\'></i>',
         'PASSWORD': '<i class=\'fas fa-lock\'></i>',
@@ -360,7 +361,8 @@ DARK_THEME = {
         'SORT_ALPHA_UP': '<i class=\'fas fa-sort-alpha-up \'></i>',
         'SORT_ALPHA_DOWN': '<i class=\'fas fa-sort-alpha-up \'></i>',
         'ACTIVITY': '<i class=\'fas fa-snowboarding \'></i>',
-        'SERVICE': '<i class=\'fas fa-concierge-bell \'></i>'
+        'SERVICE': '<i class=\'fas fa-concierge-bell \'></i>',
+        'SAVE': '<i class=\'fas fa-save \'></i>',
     }
 }
 

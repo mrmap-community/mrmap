@@ -11,7 +11,7 @@ from typing import Union
 
 from django.core.exceptions import ObjectDoesNotExist
 
-from monitoring.models import Monitoring as MonitoringResult, MonitoringCapability
+from monitoring.models import Monitoring as MonitoringResult, MonitoringCapability, MonitoringRun
 from monitoring.helper.wmsHelper import WmsHelper
 from monitoring.helper.wfsHelper import WfsHelper
 from service.helper.crypto_handler import CryptoHandler
@@ -23,9 +23,13 @@ from service.helper.enums import ServiceEnum, MetadataEnum, VersionEnum
 
 class Monitoring:
 
-    def __init__(self, metadata: Metadata):
+    def __init__(self, metadata: Metadata, monitoring_run: MonitoringRun):
         self.metadata = metadata
         self.linked_metadata = None
+        self.monitoring_run = monitoring_run
+        # NOTE: Since there is no clear handling for which setting to use,
+        # we will always use the first (default) setting.
+        self.monitoring_settings = metadata.monitoring_setting.first()
 
     class ServiceStatus:
         """ Holds all required information about the service status.
@@ -178,7 +182,9 @@ class Monitoring:
         """
         success = False
         duration = None
-        connector = CommonConnector(url=url)
+        connector = CommonConnector(url=url, timeout=self.monitoring_settings.timeout)
+        if self.metadata.has_external_authentication():
+            connector.external_auth = self.metadata.external_authentication
         try:
             connector.load()
         except Exception as e:
@@ -223,14 +229,14 @@ class Monitoring:
                 monitoring_capability = MonitoringCapability(
                     available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri, diff=diff,
-                    needs_update=needs_update
+                    needs_update=needs_update, monitoring_run=self.monitoring_run
                 )
             else:
                 needs_update = False
                 monitoring_capability = MonitoringCapability(
                     available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                     duration=service_status.duration, monitored_uri=service_status.monitored_uri,
-                    needs_update=needs_update
+                    needs_update=needs_update, monitoring_run=self.monitoring_run
                 )
             monitoring_capability.save()
         else:
@@ -273,13 +279,14 @@ class Monitoring:
         if service_status.duration is None:
             monitoring_result = MonitoringResult(
                 available=service_status.success, metadata=self.metadata, status_code=service_status.status,
-                error_msg=service_status.message, monitored_uri=service_status.monitored_uri
+                error_msg=service_status.message, monitored_uri=service_status.monitored_uri,
+                monitoring_run=self.monitoring_run
             )
         else:
             monitoring_result = MonitoringResult(
                 available=service_status.success, metadata=self.metadata, status_code=service_status.status,
                 error_msg=service_status.message, monitored_uri=service_status.monitored_uri,
-                duration=service_status.duration
+                duration=service_status.duration, monitoring_run=self.monitoring_run
             )
 
         monitoring_result.save()
@@ -295,5 +302,6 @@ class Monitoring:
         monitoring_result = MonitoringResult(
             available=service_status.success, metadata=self.metadata, status_code=service_status.status,
             duration=service_status.duration, monitored_uri=service_status.monitored_uri,
+            monitoring_run=self.monitoring_run
         )
         monitoring_result.save()

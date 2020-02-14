@@ -13,7 +13,7 @@ from django.urls import path, include
 from rest_framework import routers
 
 from api.views import ServiceViewSet, LayerViewSet, OrganizationViewSet, GroupViewSet, RoleViewSet, MetadataViewSet, \
-    CatalogueViewSet
+    CatalogueViewSet, MonitoringViewSet
 
 router = routers.DefaultRouter()
 # catalogue api
@@ -24,6 +24,7 @@ router.register('metadata', MetadataViewSet, basename="metadata")
 router.register('service', ServiceViewSet, basename="service")
 router.register('layer', LayerViewSet, basename="layer")
 router.register('group', GroupViewSet, basename="group")
+router.register('monitoring', MonitoringViewSet, basename="monitoring")
 #router.register('role', RoleViewSet, basename="role")
 
 

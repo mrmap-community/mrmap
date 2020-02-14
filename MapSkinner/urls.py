@@ -31,7 +31,6 @@ urlpatterns = [
     path('captcha/', include('captcha.urls')),
     path("i18n/", include("django.conf.urls.i18n")),
     path('api/', include('api.urls')),
-    path('monitoring/', include('monitoring.urls')),
 ]
 
 handler404 = "structure.views.handler404"

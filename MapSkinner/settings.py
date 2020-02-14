@@ -125,6 +125,7 @@ INSTALLED_APPS = [
     'captcha',
     'rest_framework',
     'api',
+    'django_celery_beat',
     'monitoring',
     'bootstrap4',
     'fontawesome_5',

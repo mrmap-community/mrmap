@@ -8,6 +8,7 @@ Created on: 06.05.19
 from getpass import getpass
 
 import os
+from datetime import timedelta
 
 from django.contrib.auth.hashers import make_password
 from django.core.management import BaseCommand, call_command
@@ -16,6 +17,8 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from structure.models import Group, Role, Permission, Organization, User, Theme
+from monitoring.models import MonitoringSetting
+from MapSkinner.settings import MONITORING_INTERVAL, MONITORING_REQUEST_TIMEOUT
 
 
 class Command(BaseCommand):
@@ -87,6 +90,8 @@ class Command(BaseCommand):
         msg = "Superuser '" + name + "' added to organization '" + orga.organization_name + "'!"
         self.stdout.write(self.style.SUCCESS(msg))
 
+        self._create_default_monitoring_setting()
+
     def _create_default_group(self, user: User):
         """ Creates default group, default role for group and default superuser permission for role
 
@@ -135,3 +140,14 @@ class Command(BaseCommand):
 
         return orga
 
+    def _create_default_monitoring_setting(self):
+        """ Create default settings for monitoring
+
+        Returns:
+            nothing
+        """
+        interval = timedelta(minutes=MONITORING_INTERVAL)
+        monitoring_setting = MonitoringSetting.objects.get_or_create(
+            interval=interval, timeout=MONITORING_REQUEST_TIMEOUT
+        )[0]
+        monitoring_setting.save()

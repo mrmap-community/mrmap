@@ -1,4 +1,5 @@
 # Create your views here.
+from datetime import timedelta
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.utils.decorators import method_decorator
@@ -10,10 +11,11 @@ from rest_framework.response import Response
 from MapSkinner import utils
 from api import view_helper
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, RoleSerializer, \
-    MetadataSerializer, CatalogueMetadataSerializer
+    MetadataSerializer, CatalogueMetadataSerializer, MonitoringSerializer, MonitoringSummarySerializer
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS
 from service.models import Service, Layer, Metadata
 from structure.models import Organization, Group, Role
+from monitoring.models import Monitoring, MonitoringRun
 
 
 class APIPagination(PageNumberPagination):
@@ -400,3 +402,34 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         if not tmp.is_active:
             return Response(status=423)
         return Response(CatalogueMetadataSerializer(tmp).data)
+
+
+class MonitoringViewSet(viewsets.ReadOnlyModelViewSet):
+    """ Overview of the last Monitoring results
+
+    """
+    serializer_class = MonitoringSerializer
+
+    def get_queryset(self):
+        monitoring_run = MonitoringRun.objects.latest('start')
+        monitorings = Monitoring.objects.filter(monitoring_run=monitoring_run)
+        return monitorings
+
+    def retrieve(self, request, pk=None, *args, **kwargs):
+        tmp = Monitoring.objects.filter(metadata=pk).order_by('-timestamp')
+        last_monitoring = tmp[0]
+        sum_response = 0
+        sum_availability = 0
+        for monitor in tmp:
+            sum_response += monitor.duration.microseconds
+            if monitor.available:
+                sum_availability += 1
+        avg_response_microseconds = sum_response / len(tmp)
+        avg_response_time = timedelta(microseconds=avg_response_microseconds)
+        avg_availability = sum_availability / len(tmp) * 100
+        result = {
+            'last_monitoring': last_monitoring,
+            'avg_response_time': avg_response_time,
+            'avg_availability_percent': avg_availability
+        }
+        return Response(MonitoringSummarySerializer(result).data)

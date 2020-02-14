@@ -95,12 +95,13 @@ If a task didn't finish due to reasons, you can delete the related **Pending tas
 ## Dev Setup
 
 After initialising the project, the development setup can be started as follows.
-From within the project directory, run:
+From within the project directory, run each of the following commands in a dedicated terminal:
 
 ```shell
 docker-compose -f docker/docker-compose.yml up
 celery -A MapSkinner worker -l info
 python manage.py runserver_plus
+celery -A MapSkinner beat -l info
 ```
 
 ### Dev Setup With GeoServer/MapServer
@@ -137,10 +138,11 @@ Maps can then be accessed via `http://localhost:8091/?map=/etc/mapserver/MAPFILE
 disabled debugging, and verified the list of allowed hosts.
 
 After initialising the project, the production setup can be started as follows.
-From within the project directory, run:
+From within the project directory, run each of the following commands in a dedicated terminal:
 
 ```shell
 docker-compose -f docker/docker-compose.yml up 
 celery -A MapSkinner worker -l info
 python manage.py runserver
+celery -A MapSkinner beat -l info
 ```

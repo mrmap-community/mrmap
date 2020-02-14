@@ -9,6 +9,7 @@ from rest_framework import serializers
 
 from service.models import ServiceType
 from structure.models import Group, Role, Permission
+from monitoring.models import Monitoring
 
 
 class ServiceTypeSerializer(serializers.ModelSerializer):
@@ -180,3 +181,27 @@ class CatalogueMetadataSerializer(serializers.Serializer):
     keywords = KeywordSerializer(read_only=True, many=True)
     categories = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
 
+
+class MonitoringSerializer(serializers.ModelSerializer):
+    """ Serializer for Monitoring model
+
+    """
+    class Meta:
+        model = Monitoring
+        fields = [
+            'id', 'metadata', 'timestamp', 'duration', 'status_code', 'error_msg', 'available', 'monitored_uri',
+            'monitoring_run'
+        ]
+
+        # improves performance by 300%!
+        # check out https://hakibenita.com/django-rest-framework-slow for more information
+        read_only_fields = fields
+
+
+class MonitoringSummarySerializer(serializers.Serializer):
+    """ Serializer for Monitoring summary
+
+    """
+    last_monitoring = MonitoringSerializer()
+    avg_response_time = serializers.DurationField()
+    avg_availability_percent = serializers.FloatField()

@@ -21,51 +21,7 @@
 </div>
 {% endblock %}
 {% block card-body %}
-<div class="row">
-    <div class="col">
-        <form action="" method="get" class="form form-inline">
-            <div class="row">
-                <div class="form-group col-auto">
-                    {% bootstrap_form wfs_filter.form layout='inline' %}
-                </div>
-                <div class="col-auto">
-                    <button type="submit" class="btn {{THEME.BTN_COLOR}}">{% autoescape off %}{{THEME.ICONS.SEARCH}}{% endautoescape %} Search</button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-<div class="row">
-    <div class="col">
-        <div class="float-right">
-            {% if wfs_pagination.page_size %}
-                <div class="dropdown d-inline-block">
-                    {% trans 'Show' %}
-                    <button class="btn {{THEME.BTN_COLOR}} dropdown-toggle" type="button" id="wfsPagingButton"
-                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ wfs_pagination.page_size }}
-                    </button>
-                    {% trans 'entries' %}
-                    <div class="dropdown-menu" aria-labelledby="wfsPagingButton">
-                        {% for page_size in wfs_pagination.page_size_options %}
-                        <a class="dropdown-item" href="{% querystring wfs_pagination.page_size_param=page_size%}">{{ page_size }}</a>
-                        {% endfor %}
-                    </div>
-                </div>
-            {% endif %}
-        </div>
-    </div>
-</div>
-<div class="mt-1">
-    <div class="row">
-        <div class="col">
-            <div class="overflow-auto">
-                {% if wfs_table.rows %}
-                    {% render_table wfs_table %}
-                {% else %}
-                    {% trans 'None ¯\_(ツ)_/¯' %}
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
+
+{% render_table wfs_table %}
+
 {% endblock %}

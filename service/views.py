@@ -65,18 +65,17 @@ def _prepare_wms_table(request: HttpRequest, user: User, ):
                                   template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                   order_by_field='swms')  # swms = sort wms
 
+    wms_table.filter = wms_table_filtered
     RequestConfig(request).configure(wms_table)
-    # TODO: # since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    wms_pagination = prepare_table_pagination_settings(request, wms_table, 'wms-t')
-
-    wms_table.page_field = wms_pagination.get('page_name')
-    wms_table.paginate(page=request.GET.get(wms_pagination.get('page_name'), PAGE_DEFAULT),
-                       per_page=request.GET.get(wms_pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    # TODO: move pagination as function to ExtendedTable
+    wms_table.pagination = prepare_table_pagination_settings(request, wms_table, 'wms-t')
+    wms_table.page_field = wms_table.pagination.get('page_name')
+    wms_table.paginate(page=request.GET.get(wms_table.pagination.get('page_name'), PAGE_DEFAULT),
+                       per_page=request.GET.get(wms_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
     params = {
-        "wms_filter": wms_table_filtered,
         "wms_table": wms_table,
-        "wms_pagination": wms_pagination,
     }
 
     return params
@@ -94,17 +93,17 @@ def _prepare_wfs_table(request: HttpRequest, user: User, ):
                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                 order_by_field='swfs')  # swms = sort wms
 
+    wfs_table.filter = wfs_table_filtered
     RequestConfig(request).configure(wfs_table)
-    wfs_pagination = prepare_table_pagination_settings(request, wfs_table, 'wfs-t')
-
-    wfs_table.page_field = wfs_pagination.get('page_name')
-    wfs_table.paginate(page=request.GET.get(wfs_pagination.get('page_name'), PAGE_DEFAULT),
-                       per_page=request.GET.get(wfs_pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    # TODO: move pagination as function to ExtendedTable
+    wfs_table.pagination = prepare_table_pagination_settings(request, wfs_table, 'wfs-t')
+    wfs_table.page_field = wfs_table.pagination.get('page_name')
+    wfs_table.paginate(page=request.GET.get(wfs_table.pagination.get('page_name'), PAGE_DEFAULT),
+                       per_page=request.GET.get(wfs_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
     params = {
-        "wfs_filter": wfs_table_filtered,
         "wfs_table": wfs_table,
-        "wfs_pagination": wfs_pagination,
     }
 
     return params
@@ -558,7 +557,6 @@ def set_session(request: HttpRequest, user: User):
     return BackendAjaxResponse(html="").get_response()
 
 
-#TODO: refactor this method
 @check_session
 def wms_index(request: HttpRequest, user: User):
     """ Renders an overview of all wms
@@ -580,6 +578,7 @@ def wms_index(request: HttpRequest, user: User):
     params = {
         "pt_table": pt_table,
         "new_service_form": RegisterNewServiceWizardPage1(),
+        "action_url": reverse(SERVICE_INDEX, ),
         "user": user,
         "wizard_finished": False
     }
@@ -802,6 +801,7 @@ def wfs_index(request: HttpRequest, user: User):
     params = {
         "pt_table": pt_table,
         "new_service_form": RegisterNewServiceWizardPage1(),
+        "action_url": reverse(SERVICE_INDEX, ),
         "user": user,
         "wizard_finished": False
     }

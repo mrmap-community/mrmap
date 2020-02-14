@@ -27,8 +27,10 @@
     {% endif %}
 
     {% if 'can_register_service' in user_permissions %}
-        {% with 'new_service' as id_modal %}
+        {% with form=new_service_form %}
+            {% with 'new_service' as id_modal %}
                 {% include 'modals/new_service.html' %}
+            {% endwith %}
         {% endwith %}
     {% endif %}
 

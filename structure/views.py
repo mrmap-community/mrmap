@@ -65,25 +65,27 @@ def index(request: HttpRequest, user: User):
     groups_table = GroupTable(groups,
                               template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                               order_by_field='sg')  # sg = sort groups
-
+    groups_table.filter = user_groups_filtered
     RequestConfig(request).configure(groups_table)
-    groups_pagination = prepare_list_pagination_settings(request, groups, 'wms-t')
-
-    groups_table.page_field = groups_pagination.get('page_name')
-    groups_table.paginate(page=request.GET.get(groups_pagination.get('page_name'), PAGE_DEFAULT),
-                          per_page=request.GET.get(groups_pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    # TODO: move pagination as function to ExtendedTable
+    groups_table.pagination = prepare_table_pagination_settings(request, groups_table, 'groups-t')
+    groups_table.page_field = groups_table.pagination.get('page_name')
+    groups_table.paginate(page=request.GET.get(groups_table.pagination.get('page_name'), PAGE_DEFAULT),
+                          per_page=request.GET.get(groups_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
     all_orgs_table = OrganizationTable(all_orgs_filtered.qs,
                                        template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                        order_by_field='so',
                                        )  # so = sort organizations
-
+    all_orgs_table.filter = all_orgs_filtered
     RequestConfig(request).configure(all_orgs_table)
-    organizations_pagination = prepare_table_pagination_settings(request, all_orgs_table, 'orgs')
-
-    all_orgs_table.page_field = organizations_pagination.get('page_name')
-    all_orgs_table.paginate(page=request.GET.get(organizations_pagination.get('page_name'), PAGE_DEFAULT),
-                            per_page=request.GET.get(organizations_pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    # TODO: move pagination as function to ExtendedTable
+    all_orgs_table.pagination = prepare_table_pagination_settings(request, all_orgs_table, 'orgs-t')
+    all_orgs_table.page_field = all_orgs_table.pagination.get('page_name')
+    all_orgs_table.paginate(page=request.GET.get(all_orgs_table.pagination.get('page_name'), PAGE_DEFAULT),
+                            per_page=request.GET.get(all_orgs_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
     # check for notifications like publishing requests
     # publish requests
@@ -97,11 +99,7 @@ def index(request: HttpRequest, user: User):
 
     params = {
         "groups": groups_table,
-        "groups_filter": user_groups_filtered,
-        "groups_pagination": groups_pagination,
         "organizations": all_orgs_table,
-        "organizations_filter": all_orgs_filtered,
-        "organizations_pagination": organizations_pagination,
         "user_organizations": user_orgs,
         "pub_requests_count": pub_requests_count,
         "new_group_form": group_form,
@@ -209,20 +207,20 @@ def groups_index(request: HttpRequest, user: User):
                               template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                               order_by_field='sg')  # sg = sort groups
 
+    groups_table.filter = user_groups_filtered
     RequestConfig(request).configure(groups_table)
-    pagination = prepare_list_pagination_settings(request, groups, 'wms-t')
-
-    groups_table.page_field = pagination.get('page_name')
-    groups_table.paginate(page=request.GET.get(pagination.get('page_name'), PAGE_DEFAULT),
-                          per_page=request.GET.get(pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    # TODO: move pagination as function to ExtendedTable
+    groups_table.pagination = prepare_table_pagination_settings(request, groups_table, 'groups-t')
+    groups_table.page_field = groups_table.pagination.get('page_name')
+    groups_table.paginate(page=request.GET.get(groups_table.pagination.get('page_name'), PAGE_DEFAULT),
+                          per_page=request.GET.get(groups_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
     group_form = GroupForm()
     group_form.action_url = reverse('structure:new-group')
 
     params = {
         "groups": groups_table,
-        "groups_filter": user_groups_filtered,
-        'groups_pagination': pagination,
         "new_group_form": group_form,
     }
     context = DefaultContext(request, params, user)
@@ -247,13 +245,14 @@ def organizations_index(request: HttpRequest, user: User):
                                        template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                        order_by_field='so',
                                        )  # so = sort organizations
-
+    all_orgs_table.filter = all_orgs_filtered
     RequestConfig(request).configure(all_orgs_table)
-    pagination = prepare_table_pagination_settings(request, all_orgs_table, 'orgs')
-
-    all_orgs_table.page_field = pagination.get('page_name')
-    all_orgs_table.paginate(page=request.GET.get(pagination.get('page_name'), PAGE_DEFAULT),
-                            per_page=request.GET.get(pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    # TODO: move pagination as function to ExtendedTable
+    all_orgs_table.pagination = prepare_table_pagination_settings(request, all_orgs_table, 'orgs-t')
+    all_orgs_table.page_field = all_orgs_table.pagination.get('page_name')
+    all_orgs_table.paginate(page=request.GET.get(all_orgs_table.pagination.get('page_name'), PAGE_DEFAULT),
+                            per_page=request.GET.get(all_orgs_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
     # check for notifications like publishing requests
     # publish requests
@@ -267,8 +266,6 @@ def organizations_index(request: HttpRequest, user: User):
 
     params = {
         "organizations": all_orgs_table,
-        "organizations_filter": all_orgs_filtered,
-        "organizations_pagination": pagination,
         "new_organization_form": organization_form,
     }
     context = DefaultContext(request, params, user)

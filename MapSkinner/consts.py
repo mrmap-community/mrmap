@@ -8,7 +8,7 @@ Created on: 13.02.2020
 This file holds all global constants
 """
 
-DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE = "django_tables2_bootstrap4_custom.html"
+DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE = "sceletons/django_tables2_bootstrap4_custom.html"
 
 
 SERVICE_INDEX = "service:index"

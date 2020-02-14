@@ -1,7 +1,8 @@
 <!--TODO: this element should only have 50% of current viewport height-->
-{% extends 'sceletons/card.html' %}
+{% extends 'sceletons/card-dash.html' %}
 {% load i18n %}
 {% block card-header %}
+
 <div class="text-center">
 <h3>{% autoescape off %}{{THEME.ICONS.PENDINGTASK}}{% endautoescape %} {% trans 'Pending requests' %}</h3>
 </div>

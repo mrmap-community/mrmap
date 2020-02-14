@@ -6,19 +6,15 @@
 {% load bootstrap4 %}
 {% load query_parameters %}
 
-{% block card-header %}
-<div class="d-flex w-100 justify-content-between">
-    <div class="row">
-        <div class="col">
-            <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %}</h4>
-        </div>
-    </div>
+{% block card-header-title-left %}
+<h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %}</h4>
+{% endblock %}
+{% block card-header-title-right %}
     {% if 'can_register_service' in user_permissions %}
         <button type="button" class="btn {{THEME.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_service">
             {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New Service' %}
         </button>
     {% endif %}
-</div>
 {% endblock %}
 {% block card-body %}
 

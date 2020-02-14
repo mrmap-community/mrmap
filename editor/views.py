@@ -40,7 +40,7 @@ def index(request: HttpRequest, user:User):
     Returns:
     """
     # get all services that are registered by the user
-    template = "views/editor_index.html"
+    template = "views/editor_service_table_index.html"
 
     wms_services = user.get_services_as_qs(ServiceEnum.WMS)
     wms_table_filtered = WmsServiceFilter(request.GET, queryset=wms_services)
@@ -154,7 +154,7 @@ def edit(request: HttpRequest, id: int, user: User):
                 "all_values": Category.objects.all().order_by("title_EN"),
             },
         ]
-        template = "editor_edit.html"
+        template = "views/editor_metadata_index.html"
         editor_form = MetadataEditorForm(instance=metadata)
         editor_form.fields["terms_of_use"].required = False
         if not metadata.is_root():

@@ -4,9 +4,11 @@
 {% load fontawesome_5 %}
 {% load bootstrap4 %}
 
-{% block card-header %}
-<div class="d-flex w-100 justify-content-between">
+{% block card-header-title-left %}
     <h4>{% autoescape off %}{{THEME.ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations' %}</h4>
+{% endblock %}
+
+{% block card-header-title-right %}
     {% if 'can_create_organization' in user_permissions %}
         <button type="button" class="btn {{THEME.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_organization_modal">
                     {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New organization' %}
@@ -17,8 +19,8 @@
             {% endwith %}
         {% endwith %}
     {% endif %}
-</div>
 {% endblock %}
+
 {% block card-body %}
 
 {% render_table organizations %}

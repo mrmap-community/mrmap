@@ -1,13 +1,13 @@
 {% extends 'sceletons/card.html' %}
 {% load static i18n %}
 {% load fontawesome_5 %}
-{% block card-header %}
-<div class="d-flex w-100 justify-content-between">
+{% block card-header-title-left %}
     <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.ORGANIZATION}}{% endautoescape %} <b>{{ organization.organization_name }}</b></h4>
+{% endblock %}
+{% block card-header-title-right %}
     <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'structure:index' %}">
         <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Overview' %}</span>
     </a>
-</div>
 {% endblock %}
 {% block card-body %}
 <div class="row mb-2 ">

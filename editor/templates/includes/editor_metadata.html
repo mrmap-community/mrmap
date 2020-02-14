@@ -1,0 +1,42 @@
+<!--wfs_index.html -->
+{% extends 'sceletons/card.html' %}
+{% load i18n static tz %}
+{% load django_tables2 %}
+{% load fontawesome_5 %}
+{% load query_parameters %}
+
+{% block card-header-title-left %}
+    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata editor' %}</h4>
+{% endblock %}
+{% block card-header-title-right %}
+    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'editor:index' %}">
+        <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Overview' %}</span>
+    </a>
+{% endblock %}
+{% block card-header-subtitle-left %}
+    <h5 class="text-muted">
+        {% if service_metadata.is_root %}
+            Service:
+        {% elif service_metadata.metadata_type.type == 'featuretype' %}
+            Featuretype:
+        {% elif service_metadata.metadata_type.type == 'layer' %}
+            Layer:
+        {% endif %}
+        {{ service_metadata.title }}
+    </h5>
+{% endblock %}
+{% block card-header-subtitle-right %}
+        <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'editor:index' %}">
+            <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Overview' %}</span>
+        </a>
+{% endblock %}
+
+
+{% block card-body %}
+
+
+
+
+
+
+{% endblock %}

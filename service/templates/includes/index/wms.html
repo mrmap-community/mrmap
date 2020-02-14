@@ -4,34 +4,34 @@
 {% load fontawesome_5 %}
 {% load bootstrap4 %}
 
-{% block card-header %}
-        <div class="d-flex w-100 justify-content-between">
-            <div class="row">
-                <div class="col">
-                    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %} {% trans 'WMS' %}</h4>
-                </div>
-                <div class="col">
-                    <div class="dropdown">
-                      <button class="btn {{THEME.BTN_SECONDARY_OUT_COLOR}} dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                          {% if select_default == 'l' %}
-                            Show layers
-                          {% else %}
-                            Show services
-                          {% endif %}
-                      </button>
-                      <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                        <a class="dropdown-item" href="?q=s">Show services</a>
-                        <a class="dropdown-item" href="?q=l">Show layers</a>
-                      </div>
-                    </div>
-                </div>
-            </div>
-            {% if 'can_register_service' in user_permissions %}
-                <button type="button" class="btn {{THEME.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_service">
-                    {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New Service' %}
-                </button>
-            {% endif %}
+{% block card-header-title-left %}
+    <div class="row">
+        <div class="col">
+            <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %} {% trans 'WMS' %}</h4>
         </div>
+        <div class="col">
+            <div class="dropdown">
+              <button class="btn {{THEME.BTN_SECONDARY_OUT_COLOR}} dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  {% if select_default == 'l' %}
+                    Show layers
+                  {% else %}
+                    Show services
+                  {% endif %}
+              </button>
+              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                <a class="dropdown-item" href="?q=s">Show services</a>
+                <a class="dropdown-item" href="?q=l">Show layers</a>
+              </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+{% block card-header-title-right %}
+    {% if 'can_register_service' in user_permissions %}
+        <button type="button" class="btn {{THEME.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_service">
+            {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New Service' %}
+        </button>
+    {% endif %}
 {% endblock %}
 {% block card-body %}
 

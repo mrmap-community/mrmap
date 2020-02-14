@@ -5,20 +5,22 @@
 {% load bootstrap4 %}
 {% load query_parameters %}
 
-{% block card-header %}
-<div class="d-flex w-100 justify-content-between">
+{% block card-header-title-left %}
     <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} {% trans 'Groups' %}</h4>
-        {% if 'can_create_group' in user_permissions %}
-            <button type="button" class="btn {{THEME.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_group_modal">
-                {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New group' %}
-            </button>
-            {% with form=new_group_form %}
-                {% with 'new_group_modal' as id_modal %}
-                    {% include 'modals/new_group.html' %}
-                {% endwith %}
+{% endblock %}
+
+{% block card-header-title-right %}
+    {% if 'can_create_group' in user_permissions %}
+        <button type="button" class="btn {{THEME.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_group_modal">
+            {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New group' %}
+        </button>
+        {% with form=new_group_form %}
+            {% with 'new_group_modal' as id_modal %}
+                {% include 'modals/new_group.html' %}
             {% endwith %}
-        {% endif %}
-</div>
+        {% endwith %}
+    {% endif %}
+
 {% endblock %}
 {% block card-body %}
 

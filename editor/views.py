@@ -98,7 +98,6 @@ def edit(request: HttpRequest, id: int, user: User):
         return redirect("editor:index")
 
     editor_form = MetadataEditorForm(request.POST or None)
-    editor_form.fields["terms_of_use"].required = False
 
     if request.method == 'POST':
 
@@ -140,30 +139,16 @@ def edit(request: HttpRequest, id: int, user: User):
             messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
             return redirect("editor:edit", id)
     else:
-        addable_values_list = [
-            {
-                "title": _("Keywords"),
-                "name": "keywords",
-                "values": metadata.keywords.all(),
-                "all_values": Keyword.objects.all().order_by("keyword"),
-            },
-            {
-                "title": _("Categories"),
-                "name": "categories",
-                "values": metadata.categories.all(),
-                "all_values": Category.objects.all().order_by("title_EN"),
-            },
-        ]
+
         template = "views/editor_metadata_index.html"
         editor_form = MetadataEditorForm(instance=metadata)
-        editor_form.fields["terms_of_use"].required = False
+        editor_form.action_url = reverse("editor:edit", args=(id,))
+
         if not metadata.is_root():
             del editor_form.fields["use_proxy_uri"]
         params = {
             "service_metadata": metadata,
-            "addable_values_list": addable_values_list,
             "form": editor_form,
-            "action_url": "{}/editor/edit/{}".format(ROOT_URL, id),
         }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())

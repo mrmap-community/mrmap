@@ -287,11 +287,11 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     original_md.terms_of_use = custom_md.terms_of_use
     # get db objects from values
     # keywords are provided as usual text
-    keywords = editor_form.data.get("keywords").split(",")
+    keywords = editor_form.cleaned_data["keywords"]
     if len(keywords) == 1 and keywords[0] == '':
         keywords = []
     # categories are provided as id's to prevent language related conflicts
-    category_ids = editor_form.data.get("categories").split(",")
+    category_ids = editor_form.cleaned_data["categories"]
     if len(category_ids) == 1 and category_ids[0] == '':
         category_ids = []
     original_md.keywords.clear()

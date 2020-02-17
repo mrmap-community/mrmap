@@ -113,6 +113,24 @@ class CapabilityXMLBuilder:
 
         return xml
 
+    def _generate_simple_elements_from_dict(self, upper_elem: Element, contents: dict):
+        """ Generate multiple subelements of a xml object
+
+        Variable `contents` contains key-value pairs of Element tag names and their text content.
+        This method creates only simple xml elements, which have a tag name and the text value set.
+
+        Args:
+            upper_elem (_Element): The upper xml element
+            contents (dict): The content dict
+        Returns:
+            nothing
+        """
+        for key, val in contents.items():
+            k = key.format(self.default_ns)
+            elem = xml_helper.create_subelement(upper_elem, k)
+            xml_helper.write_text_to_element(elem, txt=val)
+
+
     @abstractmethod
     def _generate_service_xml(self, service_elem: Element):
         """ Generate the 'Service' subelement of a xml service object
@@ -125,41 +143,47 @@ class CapabilityXMLBuilder:
         md = self.metadata
         parent_md = md.service.parent_service.metadata
 
+        # Create generic xml starter elements
         contents = OrderedDict({
             "{}Name": parent_md.identifier,
             "{}Title": parent_md.title,
             "{}Abstract": parent_md.abstract,
-            "{}KeywordList": "",
-            "{}OnlineResource": self.proxy_operations_uri_template.format(parent_md.id),
-            "{}ContactInformation": "",
+        })
+        self._generate_simple_elements_from_dict(service_elem, contents)
+
+        # KeywordList and keywords
+        self._generate_keyword_xml(service_elem, parent_md)
+
+        # OnlineResource
+        self._generate_online_resource_xml(service_elem, parent_md)
+
+        # Fill in the data for <ContactInformation>
+        self._generate_service_contact_information_xml(service_elem)
+
+        # Create generic xml end elements
+        contents = OrderedDict({
             "{}Fees": parent_md.fees,
             "{}AccessConstraints": parent_md.access_constraints,
         })
+        self._generate_simple_elements_from_dict(service_elem, contents)
 
-        for key, val in contents.items():
-            k = key.format(self.default_ns)
-            elem = xml_helper.create_subelement(service_elem, k)
-            if "OnlineResource" in key:
-                uri = val
-                xml_helper.set_attribute(elem, "{}href".format(self.xlink_ns), uri)
-            else:
-                xml_helper.write_text_to_element(elem, txt=val)
+    @abstractmethod
+    def _generate_online_resource_xml(self, upper_elem: Element, md: Metadata):
+        """ Generate the 'Layer' subelement of a capability xml object
 
-        # Add keywords to <wms:KeywordList>
-        xml_keyword_list = xml_helper.try_get_single_element_from_xml(
-            "./" + GENERIC_NAMESPACE_TEMPLATE.format("KeywordList"),
-            service_elem
+        Args:
+            upper_elem (_Element): The upper xml element (service or layer level)
+            md (Metadata): The metadata object
+        Returns:
+            nothing
+        """
+        xml_helper.create_subelement(
+            upper_elem,
+            "{]OnlineResource".format(self.default_ns),
+            attrib={
+                "{}href".format(self.xlink_ns): self.proxy_operations_uri_template.format(md.id)
+            }
         )
-        for kw in md.keywords.all():
-            xml_kw = xml_helper.create_subelement(xml_keyword_list, "{}Keyword".format(self.default_ns))
-            xml_helper.write_text_to_element(xml_kw, txt=kw.keyword)
-
-        # Fill in the data for <ContactInformation>
-        contact_information_eleme = xml_helper.try_get_single_element_from_xml(
-            "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation"),
-            service_elem
-        )
-        self._generate_service_contact_information_xml(contact_information_eleme)
 
     @abstractmethod
     def _generate_service_contact_information_xml(self, service_elem):
@@ -174,6 +198,11 @@ class CapabilityXMLBuilder:
         contact = md.contact
         contact: Contact
 
+        contact_info_elem = xml_helper.create_subelement(
+            service_elem,
+            "{}ContactInformation".format(self.default_ns)
+        )
+
         contents = OrderedDict({
             "{}ContactPersonPrimary": "",
             "{}ContactAddress": "",
@@ -182,22 +211,19 @@ class CapabilityXMLBuilder:
             "{}ContactElectronicMailAddress": contact.email,
         })
 
-        for key, val in contents.items():
-            k = key.format(self.default_ns)
-            elem = xml_helper.create_subelement(service_elem, k)
-            xml_helper.write_text_to_element(elem, txt=val)
+        self._generate_simple_elements_from_dict(contact_info_elem, contents)
 
         # Get <ContactPersonPrimary> element to fill in the data
         contact_person_primary_elem = xml_helper.try_get_single_element_from_xml(
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactPersonPrimary"),
-            service_elem
+            contact_info_elem
         )
         self._generate_service_contact_person_primary_xml(contact_person_primary_elem)
 
         # Get <ContactAddress> element to fill in the data
         address_elem = xml_helper.try_get_single_element_from_xml(
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactAddress"),
-            service_elem
+            contact_info_elem
         )
         self._generate_service_contact_address_xml(address_elem)
 
@@ -218,11 +244,7 @@ class CapabilityXMLBuilder:
             "{}ContactPerson": contact.person_name,
             "{}ContactPosition": "",
         })
-
-        for key, val in contents.items():
-            k = key.format(self.default_ns)
-            elem = xml_helper.create_subelement(contact_person_primary_elem, k)
-            xml_helper.write_text_to_element(elem, txt=val)
+        self._generate_simple_elements_from_dict(contact_person_primary_elem, contents)
 
     @abstractmethod
     def _generate_service_contact_address_xml(self, address_elem: Element):
@@ -245,11 +267,7 @@ class CapabilityXMLBuilder:
             "{}PostCode": contact.postal_code,
             "{}Country": contact.country,
         }
-
-        for key, val in contents.items():
-            k = key.format(self.default_ns)
-            elem = xml_helper.create_subelement(address_elem, k)
-            xml_helper.write_text_to_element(elem, txt=val)
+        self._generate_simple_elements_from_dict(address_elem, contents)
 
     @abstractmethod
     def _generate_capability_xml(self, capability_elem: Element):
@@ -268,10 +286,7 @@ class CapabilityXMLBuilder:
             "{}VendorSpecificCapabilities": "",
             "{}UserDefinedSymbolization": "",
         })
-
-        for key, val in contents.items():
-            k = key.format(self.default_ns)
-            xml_helper.create_subelement(capability_elem, k)
+        self._generate_simple_elements_from_dict(capability_elem, contents)
 
         request_elem = xml_helper.try_get_single_element_from_xml(
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("Request"),
@@ -479,7 +494,7 @@ class CapabilityXMLBuilder:
         xml_helper.write_text_to_element(elem, txt=md.abstract)
 
         # KeywordList
-        self._generate_capability_layer_keyword_xml(layer_elem, layer)
+        self._generate_keyword_xml(layer_elem, layer.metadata)
 
         # SRS|CRS
         self._generate_capability_layer_srs_xml(layer_elem, layer)
@@ -525,22 +540,21 @@ class CapabilityXMLBuilder:
             self._generate_capability_layer_xml(layer_elem, layer_child.metadata)
 
     @abstractmethod
-    def _generate_capability_layer_keyword_xml(self, layer_elem, layer: Layer):
+    def _generate_keyword_xml(self, upper_elem, md: Metadata):
         """ Generate the 'KeywordList' subelement of a layer xml object and it's subelements
 
         Args:
-            layer_elem (_Element): The layer xml element
+            upper_elem (_Element): The upper xml element (service or layer level)
+
         Returns:
             nothing
         """
-        md = layer.metadata
         keywords = md.keywords.all()
         if keywords.count() > 0:
-            elem = xml_helper.create_subelement(layer_elem, "{}KeywordList".format(self.default_ns))
+            elem = xml_helper.create_subelement(upper_elem, "{}KeywordList".format(self.default_ns))
             for kw in keywords:
                 kw_element = xml_helper.create_subelement(elem, "{}Keyword".format(self.default_ns))
                 xml_helper.write_text_to_element(kw_element, txt=kw.keyword)
-
 
     @abstractmethod
     def _generate_capability_layer_srs_xml(self, layer_elem, layer: Layer):
@@ -722,6 +736,10 @@ class CapabilityXMLBuilder:
 class CapabilityWMS100Builder(CapabilityXMLBuilder):
     def __init__(self, service: Service, force_version: str = None):
         super().__init__(service=service, force_version=force_version)
+        self.schema_location = "http://schemas.opengis.net/wms/1.0.0/capabilities_1_0_0.dtd"
+
+
+
 
 class CapabilityWMS111Builder(CapabilityXMLBuilder):
     """
@@ -788,43 +806,29 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         md = self.metadata
         parent_md = md.service.parent_service.metadata
 
+        #Create start of <Service> elements
         contents = OrderedDict({
             "{}Name": parent_md.identifier,
             "{}Title": parent_md.title,
             "{}Abstract": parent_md.abstract,
-            "{}KeywordList": "",
             "{}OnlineResource": self.proxy_operations_uri_template.format(parent_md.id),
-            "{}ContactInformation": "",
+        })
+        self._generate_simple_elements_from_dict(service_elem, contents)
+
+        # Add keywords to <wms:KeywordList>
+        self._generate_keyword_xml(service_elem, parent_md)
+
+        # Fill in the data for <ContactInformation>
+        self._generate_service_contact_information_xml(service_elem)
+
+        # Create end of <Service> elements
+        contents = OrderedDict({
             "{}Fees": parent_md.fees,
             "{}AccessConstraints": parent_md.access_constraints,
             "{}MaxWidth": "",  # ToDo: Implement md.service.max_width in registration
             "{}MaxHeight": "",  # ToDo: Implement md.service.max_height in registration
         })
-
-        for key, val in contents.items():
-            k = key.format(self.default_ns)
-            elem = xml_helper.create_subelement(service_elem, k)
-            if "OnlineResource" in key:
-                uri = val
-                xml_helper.set_attribute(elem, "{}href".format(self.xlink_ns), uri)
-            else:
-                xml_helper.write_text_to_element(elem, txt=val)
-
-        # Add keywords to <wms:KeywordList>
-        xml_keyword_list = xml_helper.try_get_single_element_from_xml(
-            "./" + GENERIC_NAMESPACE_TEMPLATE.format("KeywordList"),
-            service_elem
-        )
-        for kw in md.keywords.all():
-            xml_kw = xml_helper.create_subelement(xml_keyword_list, "{}Keyword".format(self.default_ns))
-            xml_helper.write_text_to_element(xml_kw, txt=kw.keyword)
-
-        # Fill in the data for <ContactInformation>
-        contact_information_eleme = xml_helper.try_get_single_element_from_xml(
-            "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation"),
-            service_elem
-        )
-        self._generate_service_contact_information_xml(contact_information_eleme)
+        self._generate_simple_elements_from_dict(service_elem, contents)
 
     @abstractmethod
     def _generate_capability_xml(self, capability_elem: Element):
@@ -842,10 +846,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             "{}Request": "",
             "{}ExtendedCapabilities": "",
         })
-
-        for key, val in contents.items():
-            k = key.format(self.default_ns)
-            xml_helper.create_subelement(capability_elem, k)
+        self._generate_simple_elements_from_dict(capability_elem, contents)
 
         request_elem = xml_helper.try_get_single_element_from_xml(
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("Request"),
@@ -889,10 +890,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             "{}northBoundLatitude": str(bbox[3]),
         })
         elem = xml_helper.create_subelement(layer_elem, "{}EX_GeographicBoundingBox".format(self.default_ns))
-        for key, val in bbox_content.items():
-            k = key.format(self.default_ns)
-            bbox_elem = xml_helper.create_subelement(elem, k)
-            xml_helper.write_text_to_element(bbox_elem, txt=val)
+        self._generate_simple_elements_from_dict(elem, bbox_content)
 
         # wms:BoundingBox
         # We must provide appropriate bounding boxes for all supported reference systems, since we can not be sure the

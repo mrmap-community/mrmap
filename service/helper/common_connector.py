@@ -19,6 +19,7 @@ import re
 from django.http import HttpResponse
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
+from MapSkinner.utils import print_debug_mode
 from service.settings import DEFAULT_CONNECTION_TYPE, REQUEST_TIMEOUT
 from MapSkinner.settings import HTTP_PROXY, PROXIES
 from service.helper.enums import ConnectionEnum
@@ -145,14 +146,14 @@ class CommonConnector:
             match = re.search('charset=(\S+)', content_type)
             if match:
                 encoding = match.group(1)
-                print('Decoding using %s' % encoding)
+                print_debug_mode('Decoding using %s' % encoding)
                 
         if encoding is None:
             # Default encoding for HTML is iso-8859-1.
             # Other content types may have different default encoding,
             # or in case of binary data, may have no encoding at all.
             encoding = 'iso-8859-1'
-            print('Assuming encoding is %s' % encoding)
+            print_debug_mode('Assuming encoding is %s' % encoding)
 
         response.content = buffer.getvalue()
         response.encoding = encoding

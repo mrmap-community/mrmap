@@ -17,7 +17,7 @@ from service.settings import MD_RELATION_TYPE_VISUALIZES, \
 from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
-from MapSkinner.utils import execute_threads
+from MapSkinner.utils import execute_threads, print_debug_mode
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.enums import MetadataEnum
 from service.helper.epsg_api import EpsgApi
@@ -133,7 +133,7 @@ class OGCWebFeatureService(OGCWebService):
         # check possible operations on this service
         start_time = time.time()
         self.get_service_operations(xml_obj)
-        print(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
+        print_debug_mode(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
 
         # check if 'real' linked service metadata exist
         service_metadata_uri = xml_helper.try_get_text_from_xml_element(
@@ -149,7 +149,7 @@ class OGCWebFeatureService(OGCWebService):
         if not metadata_only:
             start_time = time.time()
             self.get_feature_type_metadata(xml_obj=xml_obj, async_task=async_task, external_auth=external_auth)
-            print(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
+            print_debug_mode(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
 
         # always execute version specific tasks AFTER multithreading
         # Otherwise we might face race conditions which lead to loss of data!

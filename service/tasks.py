@@ -16,6 +16,7 @@ from requests.exceptions import InvalidURL
 from MapSkinner import utils
 from MapSkinner.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
+from MapSkinner.utils import print_debug_mode
 from service.helper.enums import MetadataEnum, OGCServiceEnum, OGCOperationEnum
 from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
     MetadataRelation
@@ -240,7 +241,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         if external_auth is not None:
             service.metadata.set_proxy(True)
 
-        print(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
+        print_debug_mode(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
         user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
 
         if curr_task_id is not None:

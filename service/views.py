@@ -337,7 +337,7 @@ def get_capabilities(request: HttpRequest, id: int):
             if md.use_proxy_uri:
                 cap_doc.set_proxy(use_proxy=True, auto_save=False)
 
-            cap_doc.save()
+            #cap_doc.save()
         doc = cap_doc.current_capability_document
 
     else:

@@ -14,6 +14,7 @@ from django.db.models import QuerySet
 from lxml.etree import Element, QName
 
 from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE, HTTP_OR_SSL, HOST_NAME
+from MapSkinner.utils import print_debug_mode
 from service.helper import xml_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.epsg_api import EpsgApi
@@ -32,6 +33,17 @@ class CapabilityXMLBuilder:
 
         self.proxy_operations_uri_template = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}/operation?"
         self.proxy_legend_uri = "{}{}/service/metadata/{}/legend/".format(HTTP_OR_SSL, HOST_NAME, self.service.parent_service.metadata.id)
+
+        self.namespaces = {
+            "sld": XML_NAMESPACES["sld"],
+            "xlink": XML_NAMESPACES["xlink"],
+            "xsi": XML_NAMESPACES["xsi"],
+        }
+
+        self.default_ns = ""
+        self.xlink_ns = "{" + XML_NAMESPACES["xlink"] + "}"
+        self.xsi_ns = "{" + XML_NAMESPACES["xsi"] + "}"
+        self.schema_location = ""
 
     @abstractmethod
     def generate_xml(self):
@@ -63,52 +75,11 @@ class CapabilityXMLBuilder:
             elif self.service_version == OGCServiceVersionEnum.V_2_0_2.value:
                 xml_builder = CapabilityWFS202Builder(self.service, self.service_version)
 
-        xml = xml_builder.generate_xml()
+        xml = xml_builder._generate_xml()
         return xml
 
-class CapabilityWMS100Builder(CapabilityXMLBuilder):
-    def __init__(self, service: Service, force_version: str = None):
-        self.xml_doc_obj = None
-        super().__init__(service=service, force_version=force_version)
-
-    def generate_xml(self):
-        xml = ""
-        return xml
-
-class CapabilityWMS111Builder(CapabilityXMLBuilder):
-    def __init__(self, service: Service, force_version: str = None):
-        self.xml_doc_obj = None
-        super().__init__(service=service, force_version=force_version)
-
-    def generate_xml(self):
-        xml = ""
-        return xml
-
-class CapabilityWMS130Builder(CapabilityXMLBuilder):
-    """
-
-    Creates a xml document, according to the specification of WMS 1.3.0
-    http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd
-
-    """
-
-    def __init__(self, service: Service, force_version: str = None):
-        self.xml_doc_obj = None
-
-        self.namespaces = {
-            None: XML_NAMESPACES["wms"],
-            "sld": XML_NAMESPACES["sld"],
-            "xlink": XML_NAMESPACES["xlink"],
-            "xsi": XML_NAMESPACES["xsi"],
-        }
-
-        self.default_ns = "{" + self.namespaces.get(None) + "}"
-        self.xlink_ns = "{" + XML_NAMESPACES["xlink"] + "}"
-        self.xsi_ns = "{" + XML_NAMESPACES["xsi"] + "}"
-
-        super().__init__(service=service, force_version=force_version)
-
-    def generate_xml(self):
+    @abstractmethod
+    def _generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
 
         Args:
@@ -120,7 +91,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             '{}WMS_Capabilities'.format(self.default_ns),
             attrib={
                 "version": self.service_version,
-                "{}schemaLocation".format(self.xsi_ns): "http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd",
+                "{}schemaLocation".format(self.xsi_ns): self.schema_location,
             },
             nsmap=self.namespaces
         )
@@ -129,23 +100,20 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         start_time = time()
         service = xml_helper.create_subelement(root, "{}Service".format(self.default_ns))
         self._generate_service_xml(service)
-        print("Service creation took {} seconds".format((time() - start_time)))
+        print_debug_mode("Service creation took {} seconds".format((time() - start_time)))
 
         start_time = time()
         capability =  xml_helper.create_subelement(root, "{}Capability".format(self.default_ns))
         self._generate_capability_xml(capability)
-        print("Capabilities creation took {} seconds".format(time() - start_time))
-
-        start_time = time()
-        xml = xml_helper.xml_to_string(root, pretty_print=True)
-        print("Rendering to string with pretty print took {} seconds".format(time() - start_time))
+        print_debug_mode("Capabilities creation took {} seconds".format(time() - start_time))
 
         start_time = time()
         xml = xml_helper.xml_to_string(root, pretty_print=False)
-        print("Rendering to string took {} seconds".format((time() - start_time)))
+        print_debug_mode("Rendering to string took {} seconds".format((time() - start_time)))
 
         return xml
 
+    @abstractmethod
     def _generate_service_xml(self, service_elem: Element):
         """ Generate the 'Service' subelement of a xml service object
 
@@ -166,8 +134,6 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             "{}ContactInformation": "",
             "{}Fees": parent_md.fees,
             "{}AccessConstraints": parent_md.access_constraints,
-            "{}MaxWidth": "",  # ToDo: Implement md.service.max_width in registration
-            "{}MaxHeight": "",  # ToDo: Implement md.service.max_height in registration
         })
 
         for key, val in contents.items():
@@ -195,6 +161,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         )
         self._generate_service_contact_information_xml(contact_information_eleme)
 
+    @abstractmethod
     def _generate_service_contact_information_xml(self, service_elem):
         """ Generate the 'ContactInformation' subelement of a xml service object
 
@@ -234,6 +201,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         )
         self._generate_service_contact_address_xml(address_elem)
 
+    @abstractmethod
     def _generate_service_contact_person_primary_xml(self, contact_person_primary_elem: Element):
         """ Generate the 'ContactPersonPrimary' subelement of a xml service object
 
@@ -256,6 +224,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             elem = xml_helper.create_subelement(contact_person_primary_elem, k)
             xml_helper.write_text_to_element(elem, txt=val)
 
+    @abstractmethod
     def _generate_service_contact_address_xml(self, address_elem: Element):
         """ Generate the 'ContactAddress' subelement of a xml service object
 
@@ -282,6 +251,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             elem = xml_helper.create_subelement(address_elem, k)
             xml_helper.write_text_to_element(elem, txt=val)
 
+    @abstractmethod
     def _generate_capability_xml(self, capability_elem: Element):
         """ Generate the 'Capability' subelement of a xml object
 
@@ -295,7 +265,8 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         # Layers are not included in this contents dict, since they will be appended separately at the end
         contents = OrderedDict({
             "{}Request": "",
-            "{}ExtendedCapabilities": "",
+            "{}VendorSpecificCapabilities": "",
+            "{}UserDefinedSymbolization": "",
         })
 
         for key, val in contents.items():
@@ -313,6 +284,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
 
         self._generate_capability_layer_xml(capability_elem, md)
 
+    @abstractmethod
     def _generate_capability_exception_xml(self, capability_elem: Element):
         """ Generate the 'Exception' subelement of a xml capability object
 
@@ -339,6 +311,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         )
         xml_helper.add_subelement(capability_elem, original_exception_elem)
 
+    @abstractmethod
     def _generate_capability_request_xml(self, request_elem: Element):
         """ Generate the 'Request' subelement of a xml capability object
 
@@ -389,6 +362,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             elem = xml_helper.create_subelement(request_elem, k)
             self._generate_capability_operation_xml(elem)
 
+    @abstractmethod
     def _generate_capability_operation_xml(self, operation_elem: Element):
         """ Generate the various operation subelements of a xml capability object
 
@@ -469,6 +443,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             }
         )
 
+    @abstractmethod
     def _generate_capability_layer_xml(self, layer_elem: Element, md: Metadata):
         """ Generate the 'Layer' subelement of a capability xml object
 
@@ -503,67 +478,14 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         elem = xml_helper.create_subelement(layer_elem, "{}Abstract".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt=md.abstract)
 
-        keywords = md.keywords.all()
-        if keywords.count() > 0:
-            elem = xml_helper.create_subelement(layer_elem, "{}KeywordList".format(self.default_ns))
-            for kw in keywords:
-                kw_element = xml_helper.create_subelement(elem, "{}Keyword".format(self.default_ns))
-                xml_helper.write_text_to_element(kw_element, txt=kw.keyword)
+        # KeywordList
+        self._generate_capability_layer_keyword_xml(layer_elem, layer)
 
-        reference_systems = layer.get_inherited_reference_systems()
-        for crs in reference_systems:
-            crs_element = xml_helper.create_subelement(layer_elem, "{}CRS".format(self.default_ns))
-            xml_helper.write_text_to_element(crs_element, txt="{}{}".format(crs.prefix, crs.code))
+        # SRS|CRS
+        self._generate_capability_layer_srs_xml(layer_elem, layer)
 
-        # wms:EX_GeographicBoundingBox
-        bounding_geometry = md.bounding_geometry
-        bbox = md.bounding_geometry.extent
-
-        # Prevent a situation where the bbox would be 0, by taking the parent service bbox.
-        # We must(!) take the parent service root layer bounding geometry, since this information is the most reliable
-        # if this service is compared with another copy of itself!
-        if bbox == (0.0, 0.0, 0.0, 0.0):
-            bounding_geometry = layer.get_inherited_bounding_geometry()
-            bbox = bounding_geometry.extent
-
-        bbox_content = OrderedDict({
-            "{}westBoundLongitude": str(bbox[0]),
-            "{}eastBoundLongitude": str(bbox[2]),
-            "{}southBoundLatitude": str(bbox[1]),
-            "{}northBoundLatitude": str(bbox[3]),
-        })
-        elem = xml_helper.create_subelement(layer_elem, "{}EX_GeographicBoundingBox".format(self.default_ns))
-        for key, val in bbox_content.items():
-            k = key.format(self.default_ns)
-            bbox_elem = xml_helper.create_subelement(elem, k)
-            xml_helper.write_text_to_element(bbox_elem, txt=val)
-
-        # wms:BoundingBox
-        # We must provide appropriate bounding boxes for all supported reference systems, since we can not be sure the
-        # client may transform a bounding box by itself.
-        epsg_handler = EpsgApi()
-        for reference_system in reference_systems:
-            bounding_geometry.transform(reference_system.code)
-            bbox = list(bounding_geometry.extent)
-
-            switch_axis = epsg_handler.switch_axis_order(self.service_type, self.service_version, reference_system.code)
-            if switch_axis:
-                for i in range(0, len(bbox), 2):
-                    tmp = bbox[i]
-                    bbox[i] = bbox[i+1]
-                    bbox[i+1] = tmp
-
-            xml_helper.create_subelement(
-                layer_elem,
-                "{}BoundingBox".format(self.default_ns),
-                attrib=OrderedDict({
-                    "CRS": "EPSG:{}".format(str(bounding_geometry.srid)),
-                    "minx": str(bbox[0]),
-                    "miny": str(bbox[1]),
-                    "maxx": str(bbox[2]),
-                    "maxy": str(bbox[3]),
-                })
-            )
+        # Bounding Box
+        self._generate_capability_layer_bounding_box_xml(layer_elem, layer)
 
         # Dimension
         elem = xml_helper.create_subelement(layer_elem, "{}Dimension".format(self.default_ns))
@@ -592,21 +514,117 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         elem = xml_helper.create_subelement(layer_elem, "{}FeatureListURL".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")
 
+        # Style
         self._generate_capability_layer_style_xml(layer_elem, layer.get_style())
 
-        # MinScaleDenominator
-        elem = xml_helper.create_subelement(layer_elem, "{}MinScaleDenominator".format(self.default_ns))
-        xml_helper.write_text_to_element(elem, txt="")
-
-        # MaxScaleDenominator
-        elem = xml_helper.create_subelement(layer_elem, "{}MaxScaleDenominator".format(self.default_ns))
-        xml_helper.write_text_to_element(elem, txt="")
+        self._generate_capability_version_specific(layer_elem, layer)
 
         # Recall the function with the children as input
         layer_children = layer.get_children()
         for layer_child in layer_children:
             self._generate_capability_layer_xml(layer_elem, layer_child.metadata)
 
+    @abstractmethod
+    def _generate_capability_layer_keyword_xml(self, layer_elem, layer: Layer):
+        """ Generate the 'KeywordList' subelement of a layer xml object and it's subelements
+
+        Args:
+            layer_elem (_Element): The layer xml element
+        Returns:
+            nothing
+        """
+        md = layer.metadata
+        keywords = md.keywords.all()
+        if keywords.count() > 0:
+            elem = xml_helper.create_subelement(layer_elem, "{}KeywordList".format(self.default_ns))
+            for kw in keywords:
+                kw_element = xml_helper.create_subelement(elem, "{}Keyword".format(self.default_ns))
+                xml_helper.write_text_to_element(kw_element, txt=kw.keyword)
+
+
+    @abstractmethod
+    def _generate_capability_layer_srs_xml(self, layer_elem, layer: Layer):
+        """ Generate the 'SRS|CRS' subelement of a layer xml object
+
+        Args:
+            layer_elem (_Element): The layer xml element
+        Returns:
+            nothing
+        """
+        reference_systems = layer.get_inherited_reference_systems()
+        for crs in reference_systems:
+            crs_element = xml_helper.create_subelement(layer_elem, "{}SRS".format(self.default_ns))
+            xml_helper.write_text_to_element(crs_element, txt="{}{}".format(crs.prefix, crs.code))
+
+    @abstractmethod
+    def _generate_capability_layer_bounding_box_xml(self, layer_elem, layer: Layer):
+        """ Generate the 'LatLonBoundingBox' subelement of a layer xml object
+
+        Args:
+            layer_elem (_Element): The layer xml element
+        Returns:
+            nothing
+        """
+        md = layer.metadata
+        reference_systems = layer.get_inherited_reference_systems()
+
+        # Get bounding geometry object
+        bounding_geometry = md.bounding_geometry
+        bbox = md.bounding_geometry.extent
+
+        # Prevent a situation where the bbox would be 0, by taking the parent service bbox.
+        # We must(!) take the parent service root layer bounding geometry, since this information is the most reliable
+        # if this service is compared with another copy of itself!
+        if bbox == (0.0, 0.0, 0.0, 0.0):
+            bounding_geometry = layer.get_inherited_bounding_geometry()
+            bbox = bounding_geometry.extent
+
+        # Make sure EPSG:4326 is used for this element!
+        if bounding_geometry.srid != 4326:
+            bounding_geometry.transform(4326)
+            bbox = bounding_geometry.extent
+
+        # LatLonBoundingBox (default is EPSG:4326)
+        bbox_content = OrderedDict({
+            "{}minx": str(bbox[0]),
+            "{}miny": str(bbox[2]),
+            "{}maxx": str(bbox[1]),
+            "{}maxy": str(bbox[3]),
+        })
+        xml_helper.create_subelement(
+            layer_elem,
+            "{}LatLonBoundingBox".format(self.default_ns),
+            attrib=bbox_content
+        )
+
+        # wms:BoundingBox
+        # We must provide appropriate bounding boxes for all supported reference systems, since we can not be sure the
+        # client may transform a bounding box by itself.
+        epsg_handler = EpsgApi()
+        for reference_system in reference_systems:
+            bounding_geometry.transform(reference_system.code)
+            bbox = list(bounding_geometry.extent)
+
+            switch_axis = epsg_handler.switch_axis_order(self.service_type, self.service_version, reference_system.code)
+            if switch_axis:
+                for i in range(0, len(bbox), 2):
+                    tmp = bbox[i]
+                    bbox[i] = bbox[i+1]
+                    bbox[i+1] = tmp
+
+            xml_helper.create_subelement(
+                layer_elem,
+                "{}BoundingBox".format(self.default_ns),
+                attrib=OrderedDict({
+                    "SRS": "EPSG:{}".format(str(bounding_geometry.srid)),
+                    "minx": str(bbox[0]),
+                    "miny": str(bbox[1]),
+                    "maxx": str(bbox[2]),
+                    "maxy": str(bbox[3]),
+                })
+            )
+
+    @abstractmethod
     def _generate_capability_layer_metadata_url_xml(self, layer_elem, layer):
         """ Generate the 'MetadataURL' subelement of a layer xml object
 
@@ -651,8 +669,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             }
         )
 
-
-
+    @abstractmethod
     def _generate_capability_layer_style_xml(self, layer_elem: Element, styles: QuerySet):
         """ Generate the 'Style' subelement of a layer xml object
 
@@ -670,10 +687,10 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             legend_url_elem = xml_helper.create_subelement(
                 style_elem,
                 "{}LegendURL".format(self.default_ns),
-                attrib={
+                attrib=OrderedDict({
                     "width": str(style.width),
                     "height": str(style.height),
-                }
+                })
             )
             elem = xml_helper.create_subelement(legend_url_elem, "{}Format".format(self.default_ns))
             xml_helper.write_text_to_element(elem, txt=style.mime_type)
@@ -689,38 +706,267 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
                 }
             )
 
-class CapabilityWFS100Builder(CapabilityXMLBuilder):
+    @abstractmethod
+    def _generate_capability_version_specific(self, layer_elem: Element, layer: Layer):
+        """ Has to be implemented in each CapabilityBuilder version specific implementation
+
+        Args:
+            layer_elem: The layer xml element
+            layer: The layer object
+        Returns:
+
+        """
+        pass
+
+
+class CapabilityWMS100Builder(CapabilityXMLBuilder):
     def __init__(self, service: Service, force_version: str = None):
-        self.xml_doc_obj = None
         super().__init__(service=service, force_version=force_version)
 
-    def generate_xml(self):
+class CapabilityWMS111Builder(CapabilityXMLBuilder):
+    """
+
+    Creates a xml document, according to the specification of WMS 1.3.0
+    http://schemas.opengis.net/wms/1.1.1/capabilities_1_1_1.xml
+
+    """
+    def __init__(self, service: Service, force_version: str = None):
+        super().__init__(service=service, force_version=force_version)
+        self.schema_location = "http://schemas.opengis.net/wms/1.1.1/capabilities_1_1_1.dtd"
+
+
+    @abstractmethod
+    def _generate_capability_version_specific(self, layer_elem: Element, layer: Layer):
+        """ Generate different subelements of a layer xml object, which are specific for version 1.1.1
+
+        Args:
+            layer_elem (_Element): The layer xml element
+        Returns:
+            nothing
+        """
+        # ScaleHint
+        if layer.scale_min is not None and layer.scale_max is not None:
+            scale_hint = OrderedDict(
+                {
+                    "min": str(layer.scale_min),
+                    "max": str(layer.scale_max),
+                }
+            )
+        else:
+            scale_hint = {}
+        xml_helper.create_subelement(
+            layer_elem,
+            "{}ScaleHint".format(self.default_ns),
+            attrib=scale_hint
+        )
+
+
+class CapabilityWMS130Builder(CapabilityXMLBuilder):
+    """
+
+    Creates a xml document, according to the specification of WMS 1.3.0
+    http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd
+
+    """
+
+    def __init__(self, service: Service, force_version: str = None):
+        super().__init__(service=service, force_version=force_version)
+
+        self.namespaces[None] = XML_NAMESPACES["wms"]
+        self.default_ns = "{" + self.namespaces.get(None) + "}"
+        self.schema_location = "http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd"
+
+    @abstractmethod
+    def _generate_service_xml(self, service_elem: Element):
+        """ Generate the 'Service' subelement of a xml service object
+
+        Args:
+            service_elem (_Element): The service xml element
+        Returns:
+            nothing
+        """
+        md = self.metadata
+        parent_md = md.service.parent_service.metadata
+
+        contents = OrderedDict({
+            "{}Name": parent_md.identifier,
+            "{}Title": parent_md.title,
+            "{}Abstract": parent_md.abstract,
+            "{}KeywordList": "",
+            "{}OnlineResource": self.proxy_operations_uri_template.format(parent_md.id),
+            "{}ContactInformation": "",
+            "{}Fees": parent_md.fees,
+            "{}AccessConstraints": parent_md.access_constraints,
+            "{}MaxWidth": "",  # ToDo: Implement md.service.max_width in registration
+            "{}MaxHeight": "",  # ToDo: Implement md.service.max_height in registration
+        })
+
+        for key, val in contents.items():
+            k = key.format(self.default_ns)
+            elem = xml_helper.create_subelement(service_elem, k)
+            if "OnlineResource" in key:
+                uri = val
+                xml_helper.set_attribute(elem, "{}href".format(self.xlink_ns), uri)
+            else:
+                xml_helper.write_text_to_element(elem, txt=val)
+
+        # Add keywords to <wms:KeywordList>
+        xml_keyword_list = xml_helper.try_get_single_element_from_xml(
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("KeywordList"),
+            service_elem
+        )
+        for kw in md.keywords.all():
+            xml_kw = xml_helper.create_subelement(xml_keyword_list, "{}Keyword".format(self.default_ns))
+            xml_helper.write_text_to_element(xml_kw, txt=kw.keyword)
+
+        # Fill in the data for <ContactInformation>
+        contact_information_eleme = xml_helper.try_get_single_element_from_xml(
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation"),
+            service_elem
+        )
+        self._generate_service_contact_information_xml(contact_information_eleme)
+
+    @abstractmethod
+    def _generate_capability_xml(self, capability_elem: Element):
+        """ Generate the 'Capability' subelement of a xml object
+
+        Args:
+            capability_elem (_Element): The capability xml element
+        Returns:
+            nothing
+        """
+        md = self.metadata
+
+        # Layers are not included in this contents dict, since they will be appended separately at the end
+        contents = OrderedDict({
+            "{}Request": "",
+            "{}ExtendedCapabilities": "",
+        })
+
+        for key, val in contents.items():
+            k = key.format(self.default_ns)
+            xml_helper.create_subelement(capability_elem, k)
+
+        request_elem = xml_helper.try_get_single_element_from_xml(
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Request"),
+            capability_elem
+        )
+
+        self._generate_capability_request_xml(request_elem)
+
+        self._generate_capability_exception_xml(capability_elem)
+
+        self._generate_capability_layer_xml(capability_elem, md)
+
+    @abstractmethod
+    def _generate_capability_layer_bounding_box_xml(self, layer_elem, layer: Layer):
+        """ Generate the 'LatLonBoundingBox' subelement of a layer xml object
+
+        Args:
+            layer_elem (_Element): The layer xml element
+        Returns:
+            nothing
+        """
+
+        md = layer.metadata
+        reference_systems = layer.get_inherited_reference_systems()
+
+        # wms:EX_GeographicBoundingBox
+        bounding_geometry = md.bounding_geometry
+        bbox = md.bounding_geometry.extent
+
+        # Prevent a situation where the bbox would be 0, by taking the parent service bbox.
+        # We must(!) take the parent service root layer bounding geometry, since this information is the most reliable
+        # if this service is compared with another copy of itself!
+        if bbox == (0.0, 0.0, 0.0, 0.0):
+            bounding_geometry = layer.get_inherited_bounding_geometry()
+            bbox = bounding_geometry.extent
+
+        bbox_content = OrderedDict({
+            "{}westBoundLongitude": str(bbox[0]),
+            "{}eastBoundLongitude": str(bbox[2]),
+            "{}southBoundLatitude": str(bbox[1]),
+            "{}northBoundLatitude": str(bbox[3]),
+        })
+        elem = xml_helper.create_subelement(layer_elem, "{}EX_GeographicBoundingBox".format(self.default_ns))
+        for key, val in bbox_content.items():
+            k = key.format(self.default_ns)
+            bbox_elem = xml_helper.create_subelement(elem, k)
+            xml_helper.write_text_to_element(bbox_elem, txt=val)
+
+        # wms:BoundingBox
+        # We must provide appropriate bounding boxes for all supported reference systems, since we can not be sure the
+        # client may transform a bounding box by itself.
+        epsg_handler = EpsgApi()
+        for reference_system in reference_systems:
+            bounding_geometry.transform(reference_system.code)
+            bbox = list(bounding_geometry.extent)
+
+            switch_axis = epsg_handler.switch_axis_order(self.service_type, self.service_version, reference_system.code)
+            if switch_axis:
+                for i in range(0, len(bbox), 2):
+                    tmp = bbox[i]
+                    bbox[i] = bbox[i + 1]
+                    bbox[i + 1] = tmp
+
+            xml_helper.create_subelement(
+                layer_elem,
+                "{}BoundingBox".format(self.default_ns),
+                attrib=OrderedDict({
+                    "CRS": "EPSG:{}".format(str(bounding_geometry.srid)),
+                    "minx": str(bbox[0]),
+                    "miny": str(bbox[1]),
+                    "maxx": str(bbox[2]),
+                    "maxy": str(bbox[3]),
+                })
+            )
+
+    @abstractmethod
+    def _generate_capability_version_specific(self, layer_elem: Element, layer: Layer):
+        """ Generate different subelements of a layer xml object, which are specific for version 1.3.0
+
+        Args:
+            layer_elem (_Element): The layer xml element
+        Returns:
+            nothing
+        """
+        # MinScaleDenominator
+        elem = xml_helper.create_subelement(layer_elem, "{}MinScaleDenominator".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt="")
+
+        # MaxScaleDenominator
+        elem = xml_helper.create_subelement(layer_elem, "{}MaxScaleDenominator".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt="")
+
+
+class CapabilityWFS100Builder(CapabilityXMLBuilder):
+    def __init__(self, service: Service, force_version: str = None):
+        super().__init__(service=service, force_version=force_version)
+
+    def _generate_xml(self):
         xml = ""
         return xml
 
 class CapabilityWFS110Builder(CapabilityXMLBuilder):
     def __init__(self, service: Service, force_version: str = None):
-        self.xml_doc_obj = None
         super().__init__(service=service, force_version=force_version)
 
-    def generate_xml(self):
+    def _generate_xml(self):
         xml = ""
         return xml
 
 class CapabilityWFS200Builder(CapabilityXMLBuilder):
     def __init__(self, service: Service, force_version: str = None):
-        self.xml_doc_obj = None
         super().__init__(service=service, force_version=force_version)
 
-    def generate_xml(self):
+    def _generate_xml(self):
         xml = ""
         return xml
 
 class CapabilityWFS202Builder(CapabilityXMLBuilder):
     def __init__(self, service: Service, force_version: str = None):
-        self.xml_doc_obj = None
         super().__init__(service=service, force_version=force_version)
 
-    def generate_xml(self):
+    def _generate_xml(self):
         xml = ""
         return xml

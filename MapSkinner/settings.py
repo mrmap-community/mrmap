@@ -363,8 +363,6 @@ DARK_THEME = {
         'ACTIVITY': '<i class=\'fas fa-snowboarding \'></i>',
         'SERVICE': '<i class=\'fas fa-concierge-bell \'></i>',
         'SAVE': '<i class=\'fas fa-save \'></i>',
-        'UPLOAD': '<i class=\'fas fa-upload \'></i>',
-        'DOWNLOAD': '<i class=\'fas fa-download \'></i>',
     }
 }
 

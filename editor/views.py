@@ -1,14 +1,13 @@
 import json
 
 from django.contrib import messages
-from django.forms import formset_factory
 from django.http import HttpRequest
 from django.shortcuts import render, redirect
 
 # Create your views here.
 from django.template.loader import render_to_string
 from django_tables2 import RequestConfig
-from functools import partial, wraps
+
 from MapSkinner import utils
 from MapSkinner.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
 from MapSkinner.decorator import check_session, check_permission
@@ -18,8 +17,7 @@ from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, 
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import ROOT_URL, HTTP_OR_SSL, HOST_NAME, PAGE_DEFAULT, PAGE_SIZE_DEFAULT
 from MapSkinner.utils import prepare_table_pagination_settings
-from editor.forms import MetadataEditorForm, FeatureTypeEditorForm, AccessIsRootForm, AccessRestrictAccessForm, \
-    AccessGroupForm, AccessGroupGeoJsonForm
+from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper.enums import ServiceEnum, MetadataEnum
 from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation
@@ -220,7 +218,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
     """
     md = Metadata.objects.get(id=id)
     md_type = md.metadata_type.type
-    template = "views/editor_access_index.html"
+    template = "editor_edit_access.html"
     post_params = request.POST
 
     if request.method == "POST":
@@ -263,17 +261,6 @@ def edit_access(request: HttpRequest, id: int, user: User):
         all_groups = Group.objects.all()
         tmp = editor_helper.prepare_secured_operations_groups(operations, sec_ops, all_groups, md)
 
-        forms = [AccessIsRootForm(),
-                 AccessRestrictAccessForm(),
-                ]
-
-        group_forms = []
-        for group in all_groups:
-            geo_json_textarea = AccessGroupGeoJsonForm(geo_json_geometry_id='get_map_' + str(group.id))
-            geo_json_textarea.group_id = group.id
-            geo_json_textarea.group_name = group.name
-            group_forms.append(geo_json_textarea)
-
         spatial_restrictable_operations = [
             "GetMap",  # WMS
             "GetFeature"  # WFS
@@ -283,19 +270,14 @@ def edit_access(request: HttpRequest, id: int, user: User):
             "service_metadata": md,
             "operations": tmp,
             "spatial_restrictable_operations": spatial_restrictable_operations,
-            "forms": forms,
-            "geo_json_forms": group_forms,
-            "groups_form": AccessGroupForm(groups_queryset=all_groups),
-            "id": id,
         }
 
     context = DefaultContext(request, params, user).get_context()
     return render(request, template, context)
 
-
 @check_session
 def access_geometry_form(request: HttpRequest, id: int, user: User):
-    template = "leaflet_client.html"
+    template = "access_geometry_form.html"
 
     GET_params = request.GET
     operation = GET_params.get("operation", None)
@@ -314,6 +296,7 @@ def access_geometry_form(request: HttpRequest, id: int, user: User):
     service_bounding_geometry = md.find_max_bounding_box()
 
     params = {
+        "article": _("Add a geometry, which defines the area where this group can access the operation on this service."),
         "action_url": "{}{}/editor/edit/access/{}/geometry-form/".format(HTTP_OR_SSL, HOST_NAME, md.id),
         "bbox": service_bounding_geometry,
         "group_id": group_id,
@@ -321,9 +304,8 @@ def access_geometry_form(request: HttpRequest, id: int, user: User):
         "polygons": polygons,
     }
     context = DefaultContext(request, params, user).get_context()
-    return render(request, template, context)
-
-
+    html = render_to_string(template_name=template, request=request, context=context)
+    return BackendAjaxResponse(html=html).get_response()
 
 
 @check_session

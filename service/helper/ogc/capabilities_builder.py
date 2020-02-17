@@ -167,6 +167,9 @@ class CapabilityXMLBuilder:
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
 
+        # Various
+        self._generate_service_version_specific(service_elem, md)
+
     @abstractmethod
     def _generate_online_resource_xml(self, upper_elem: Element, md: Metadata):
         """ Generate the 'Layer' subelement of a capability xml object
@@ -532,6 +535,7 @@ class CapabilityXMLBuilder:
         # Style
         self._generate_capability_layer_style_xml(layer_elem, layer.get_style())
 
+        # Various
         self._generate_capability_version_specific(layer_elem, layer.metadata)
 
         # Recall the function with the children as input
@@ -721,12 +725,28 @@ class CapabilityXMLBuilder:
             )
 
     @abstractmethod
-    def _generate_capability_version_specific(self, upper_elem: Element, md: Metadata):
+    def _generate_capability_version_specific(self, upper_elem: Element, layer: Layer):
         """ Has to be implemented in each CapabilityBuilder version specific implementation
+
+        Generates/Modifies <Capability> content that is specific for this wms version
 
         Args:
             upper_elem: The layer xml element
-            md: The layer object
+            layer: The layer object
+        Returns:
+
+        """
+        pass
+
+    @abstractmethod
+    def _generate_service_version_specific(self, upper_elem: Element, md: Metadata):
+        """ Has to be implemented in each CapabilityBuilder version specific implementation
+
+        Generates/Modifies <Service> content that is specific for this wms version
+
+        Args:
+            upper_elem: The layer xml element
+            layer: The layer object
         Returns:
 
         """
@@ -755,8 +775,8 @@ class CapabilityWMS100Builder(CapabilityXMLBuilder):
         keywords = " ".join([kw.keyword for kw in md.keywords.all()])
         xml_helper.write_text_to_element(kw_elem, txt=keywords)
 
-    def _generate_capability_version_specific(self, upper_elem: Element, md: Metadata):
-        """ Generate different subelements of a layer xml object, which are specific for version 1.0.0
+    def _generate_service_version_specific(self, upper_elem: Element, layer: Layer):
+        """ Generate different subelements of a service xml object, which are specific for version 1.0.0
 
         Args:
             upper_elem (_Element): The upper xml element (service or layer level)
@@ -786,7 +806,7 @@ class CapabilityWMS111Builder(CapabilityXMLBuilder):
 
 
     @abstractmethod
-    def _generate_capability_version_specific(self, upper_elem: Element, md: Metadata):
+    def _generate_capability_version_specific(self, upper_elem: Element, layer: Layer):
         """ Generate different subelements of a layer xml object, which are specific for version 1.1.1
 
         Args:
@@ -794,9 +814,6 @@ class CapabilityWMS111Builder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        layer = Layer.objects.get(
-            metadata=md
-        )
         # ScaleHint
         if layer.scale_min is not None and layer.scale_max is not None:
             scale_hint = OrderedDict(
@@ -955,7 +972,7 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             )
 
     @abstractmethod
-    def _generate_capability_version_specific(self, upper_elem: Element, md: Metadata):
+    def _generate_capability_version_specific(self, upper_elem: Element, layer: Layer):
         """ Generate different subelements of a layer xml object, which are specific for version 1.3.0
 
         Args:

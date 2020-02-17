@@ -179,7 +179,7 @@ class CapabilityXMLBuilder:
         """
         xml_helper.create_subelement(
             upper_elem,
-            "{]OnlineResource".format(self.default_ns),
+            "{}OnlineResource".format(self.default_ns),
             attrib={
                 "{}href".format(self.xlink_ns): self.proxy_operations_uri_template.format(md.id)
             }

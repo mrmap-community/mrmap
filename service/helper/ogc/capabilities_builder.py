@@ -532,7 +532,7 @@ class CapabilityXMLBuilder:
         # Style
         self._generate_capability_layer_style_xml(layer_elem, layer.get_style())
 
-        self._generate_capability_version_specific(layer_elem, layer)
+        self._generate_capability_version_specific(layer_elem, layer.metadata)
 
         # Recall the function with the children as input
         layer_children = layer.get_children()
@@ -721,12 +721,12 @@ class CapabilityXMLBuilder:
             )
 
     @abstractmethod
-    def _generate_capability_version_specific(self, layer_elem: Element, layer: Layer):
+    def _generate_capability_version_specific(self, upper_elem: Element, md: Metadata):
         """ Has to be implemented in each CapabilityBuilder version specific implementation
 
         Args:
-            layer_elem: The layer xml element
-            layer: The layer object
+            upper_elem: The layer xml element
+            md: The layer object
         Returns:
 
         """
@@ -738,7 +738,39 @@ class CapabilityWMS100Builder(CapabilityXMLBuilder):
         super().__init__(service=service, force_version=force_version)
         self.schema_location = "http://schemas.opengis.net/wms/1.0.0/capabilities_1_0_0.dtd"
 
+    @abstractmethod
+    def _generate_keyword_xml(self, upper_elem, md: Metadata):
+        """ Generates the 'Keywords' subelement of a wms 1.0.0 service
 
+        Args:
+            upper_elem (Element): The upper xml element
+            md (Metadata): The metadata object
+        Returns:
+
+        """
+        kw_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}Keywords".format(self.default_ns)
+        )
+        keywords = " ".join([kw.keyword for kw in md.keywords.all()])
+        xml_helper.write_text_to_element(kw_elem, txt=keywords)
+
+    def _generate_capability_version_specific(self, upper_elem: Element, md: Metadata):
+        """ Generate different subelements of a layer xml object, which are specific for version 1.0.0
+
+        Args:
+            upper_elem (_Element): The upper xml element (service or layer level)
+        Returns:
+            nothing
+        """
+        # The <ContactInformation> element has been created. WMS 1.0.0 does not include this element, so we delete it again.
+        # Yes, we could simply create an own _generate_service_xml() implementation, where we ignore this element, but
+        # this increases the code length and maintain work. Furthermore ... seriously... wo uses WMS 1.0.0? Do not overengineer in here...
+        contact_info_elem = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInformation"),
+            upper_elem
+        )
+        xml_helper.remove_element(contact_info_elem)
 
 
 class CapabilityWMS111Builder(CapabilityXMLBuilder):
@@ -754,14 +786,17 @@ class CapabilityWMS111Builder(CapabilityXMLBuilder):
 
 
     @abstractmethod
-    def _generate_capability_version_specific(self, layer_elem: Element, layer: Layer):
+    def _generate_capability_version_specific(self, upper_elem: Element, md: Metadata):
         """ Generate different subelements of a layer xml object, which are specific for version 1.1.1
 
         Args:
-            layer_elem (_Element): The layer xml element
+            upper_elem (_Element): The layer xml element
         Returns:
             nothing
         """
+        layer = Layer.objects.get(
+            metadata=md
+        )
         # ScaleHint
         if layer.scale_min is not None and layer.scale_max is not None:
             scale_hint = OrderedDict(
@@ -773,7 +808,7 @@ class CapabilityWMS111Builder(CapabilityXMLBuilder):
         else:
             scale_hint = {}
         xml_helper.create_subelement(
-            layer_elem,
+            upper_elem,
             "{}ScaleHint".format(self.default_ns),
             attrib=scale_hint
         )
@@ -920,20 +955,20 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
             )
 
     @abstractmethod
-    def _generate_capability_version_specific(self, layer_elem: Element, layer: Layer):
+    def _generate_capability_version_specific(self, upper_elem: Element, md: Metadata):
         """ Generate different subelements of a layer xml object, which are specific for version 1.3.0
 
         Args:
-            layer_elem (_Element): The layer xml element
+            upper_elem (_Element): The layer xml element
         Returns:
             nothing
         """
         # MinScaleDenominator
-        elem = xml_helper.create_subelement(layer_elem, "{}MinScaleDenominator".format(self.default_ns))
+        elem = xml_helper.create_subelement(upper_elem, "{}MinScaleDenominator".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")
 
         # MaxScaleDenominator
-        elem = xml_helper.create_subelement(layer_elem, "{}MaxScaleDenominator".format(self.default_ns))
+        elem = xml_helper.create_subelement(upper_elem, "{}MaxScaleDenominator".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")
 
 

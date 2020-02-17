@@ -1,0 +1,226 @@
+{% load static %}
+{% load i18n %}
+<link rel="stylesheet" href="{% static 'editor/css/leaflet-geoman.css' %}" />
+<script src="{% static 'editor/js/leaflet-geoman.min.js' %}"></script>
+<div class="row">
+    <div class="col">
+        <div id="id_leaflet_map" class="map-view"></div>
+    </div>
+</div>
+<div class="row mt-2">
+    <div class="col">
+        <button id="geometry-upload" type="button" class="btn {{ THEME.BTN_COLOR }}">
+            {% autoescape off %}{{THEME.ICONS.UPLOAD}}{% endautoescape %} {% trans 'Import a GML3 or GeoJSON file' %}
+        </button>
+    </div>
+    <div class="col">
+        <button id="geometry-download" type="button" class="btn {{ THEME.BTN_COLOR }}">
+            {% autoescape off %}{{THEME.ICONS.DOWNLOAD}}{% endautoescape %} {% trans 'Export drawn geometry as GeoJSON' %}
+        </button>
+    </div>
+</div>
+<!--init leaflet client-->
+<script>
+   var map = L.map('id_leaflet_map', {
+       center: [{{ bbox.centroid.y }}, {{ bbox.centroid.x }}],
+       zoom: {{ bbox.area }},
+       layers: [
+           new L.TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+               attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+           })
+       ],
+   }).fitBounds(
+       [
+           [{{ bbox.boundary.extent.1 }}, {{ bbox.boundary.extent.0 }}],
+           [{{ bbox.boundary.extent.3 }}, {{ bbox.boundary.extent.2 }}],
+       ]
+       );
+
+    // set which controls should be available in the toolbar
+    map.pm.addControls({
+      position: 'topright',
+      drawCircle: false,
+      drawCircleMarker: false,
+      drawPolyline: false,
+      drawRectangle: true,
+      drawMarker: false,
+      removalMode: true,
+      cutPolygon: false,
+    });
+
+    // add pre-existing polygons
+    {% for poly  in polygons %}
+        tmpLayer = L.geoJSON({{ poly|safe }}, {style: {fillColor: 'red', color: 'red'}}).addTo(map);
+
+        // write layer directly back to session
+        layerId = tmpLayer._leaflet_id;
+
+        // leaflet creates a FeatureCollection for each Feature, we need to get rid of the wrapping object!
+        var layerGeoJson = JSON.stringify(tmpLayer.toGeoJSON());
+        layerGeoJson = JSON.stringify(JSON.parse(layerGeoJson).features[0]);
+
+        setSessionValue("polygon_" + layerId ,layerGeoJson);
+
+        // create listener for each layer, that writes the edited polygon back into the session storage
+        tmpLayer.on("pm:edit", function(e){
+            layerId = e.target._leaflet_id;
+            layerGeoJson = JSON.stringify(e.sourceTarget.toGeoJSON());
+
+            setSessionValue("polygon_" + layerId ,layerGeoJson);
+        });
+    {% endfor %}
+
+   // create a listener which is triggered when a new polygon is finished
+   map.on('pm:create', function(e){
+        // get the lat lon
+        var layerId = e.layer._leaflet_id;
+        var layerGeoJson = JSON.stringify(e.layer.toGeoJSON());
+
+        setSessionValue("polygon_" + layerId ,layerGeoJson);
+
+        // create a listener which is triggered when the polygon is edited
+        e.layer.on('pm:edit', e => {
+            layerId = e.sourceTarget._leaflet_id;
+            layerGeoJson = JSON.stringify(e.sourceTarget.toGeoJSON());
+            setSessionValue("polygon_" + layerId ,layerGeoJson);
+        });
+
+   });
+
+   // create listener that removes the polygon from the session if the layer is removed
+   map.on('pm:remove', function(e){
+        // there are Features and FeatureGroups
+        // Features are layers, that have just been created by the user
+        // FeatureGroups have been created by the user in the past and have been added to the map automatically
+        // To remove both clear, we need to handle them differently
+        var layer = null;
+        if(e.layer._eventParents != null){
+            // FeatureGroup
+            for(var item in e.layer._eventParents){
+                layer = item;
+            }
+            layer = e.layer._eventParents[layer];
+        }else{
+            // Feature
+            layer = e.layer;
+        }
+        layerId = layer._leaflet_id;
+        getSessionValue("polygon_" + layerId ,true);
+   });
+</script><!--</init leaflet client-->
+<script>
+    $("#geometry-download").click(function(){
+        console.log('clicked')
+        var elem = $(this)[0];
+        var data = {
+            "type": "FeatureCollection",
+            "features": []
+        };
+        vals = findSessionValuesLike("polygon_");
+        for(val in vals){
+            data["features"].push(JSON.parse(vals[val]));
+        }
+        data = JSON.stringify(data, null, 2);
+        var file = new Blob([data], {type: "geojson"});
+
+        if (window.navigator.msSaveOrOpenBlob) // IE10+
+            window.navigator.msSaveOrOpenBlob(file, filename);
+        else { // Others
+            var a = document.createElement("a"),
+                    url = URL.createObjectURL(file);
+            a.href = url;
+            a.download = "geometry.geojson";
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 0);
+        }
+    });
+
+    $("#geometry-upload").change(function(){
+        var elem = $(this)[0];
+        var file = elem.files[0];
+        var appType = file.type;
+
+        var fileReader = new FileReader();
+        fileReader.readAsText(file);
+
+        // wait until fileReader finished reading
+        fileReader.onload = function(e){
+            content = e.target.result;
+
+            if(appType == "application/geo+json"){
+                var geoJsonContent = JSON.parse(content);
+
+                // create GeoJsonLayer
+                tmpLayer = L.geoJSON(geoJsonContent, {style: {fillColor: 'red', color: 'red'}});
+
+                for(key in tmpLayer._layers){
+                    var layer = tmpLayer._layers[key];
+                    layer.addTo(map);
+
+                    // write layer directly back to session
+                    layerId = layer._leaflet_id;
+                    var layerGeoJson = JSON.stringify(layer.toGeoJSON());
+                    setSessionValue("polygon_" + layerId ,layerGeoJson);
+
+                    // create listener for each layer, that writes the edited polygon back into the session storage
+                    layer.on("pm:edit", function(e){
+                        layerId = e.target._leaflet_id;
+                        layerGeoJson = JSON.stringify(e.sourceTarget.toGeoJSON());
+                        setSessionValue("polygon_" + layerId ,layerGeoJson);
+                    });
+
+                }
+
+            }else if (appType == "application/gml+xml"){
+                parser = new DOMParser();
+                gmlDoc = parser.parseFromString(content, "text/xml");
+                gmlDocPolygons = gmlDoc.getElementsByTagName("gml:Polygon");
+
+                polygonsArray = []
+
+                for(l = 0; l < gmlDocPolygons.length; l++){
+                    poly = gmlDocPolygons[l];
+                    points = poly.getElementsByTagName("gml:posList");
+
+                    for(j = 0; j < points.length; j++){
+                        var tmp = []
+                        var point = points[j];
+                        var p = point.innerHTML.split(" ");
+
+                        for(i = 0; i < p.length; i+=2){
+                            // point pairs
+                            tmp.push([parseFloat(p[i+1]), parseFloat(p[i])]);
+                        }
+                        polygonsArray.push(tmp);
+                    }
+                }
+
+                // create own layer for each polygon
+                for(i = 0; i < polygonsArray.length; i++){
+                    polygon = polygonsArray[i];
+                    layer = L.polygon(polygon, {style: {fillColor: 'red', color: 'red'}}).addTo(map);
+
+                    // write layer directly back to session
+                    layerId = layer._leaflet_id;
+                    var layerGeoJson = JSON.stringify(layer.toGeoJSON());
+                    setSessionValue("polygon_" + layerId ,layerGeoJson);
+
+                    // create listener for each layer, that writes the edited polygon back into the session storage
+                    layer.on("pm:edit", function(e){
+                        layerId = e.target._leaflet_id;
+                        layerGeoJson = JSON.stringify(e.sourceTarget.toGeoJSON());
+                        setSessionValue("polygon_" + layerId ,layerGeoJson);
+                    });
+                }
+
+            }else{
+                alert("Unsupported geometry file type detected : '" + appType + "'");
+            }
+        }
+
+    });
+</script>

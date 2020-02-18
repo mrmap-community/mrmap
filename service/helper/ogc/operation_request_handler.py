@@ -1193,7 +1193,6 @@ class OGCOperationRequestHandler:
             c = CommonConnector(url=uri)
             c.load()
             mask = Image.open(io.BytesIO(c.content))
-            mask.save("/home/michel/Schreibtisch/mask_{}.png".format(len(masks)))
             masks.append(mask)
 
         # Create empty final mask object
@@ -1243,8 +1242,6 @@ class OGCOperationRequestHandler:
 
         # save image format for restoring a few steps later
         img_format = img.format
-        img.save("/home/michel/Schreibtisch/test.png")
-        mask.save("/home/michel/Schreibtisch/mask.png")
         img = Image.composite(alpha_layer, img, mask)
         img.format = img_format
 

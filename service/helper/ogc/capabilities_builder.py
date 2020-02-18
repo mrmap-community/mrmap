@@ -5,7 +5,6 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 31.07.19
 
 """
-from abc import abstractmethod
 from collections import OrderedDict
 from time import time
 
@@ -53,7 +52,6 @@ class CapabilityXMLBuilder:
         self.xsi_ns = "{" + XML_NAMESPACES["xsi"] + "}"
         self.schema_location = ""
 
-    @abstractmethod
     def generate_xml(self):
         """ Generates the capability xml
 
@@ -61,7 +59,6 @@ class CapabilityXMLBuilder:
              xml (str): The xml document as string
         """
         xml_builder = None
-        xml = ""
 
         if self.service_type == OGCServiceEnum.WMS.value:
 
@@ -98,7 +95,6 @@ class CapabilityXMLBuilder:
         xml = xml_builder._generate_xml()
         return xml
 
-    @abstractmethod
     def _generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
 
@@ -133,7 +129,6 @@ class CapabilityXMLBuilder:
 
         return xml
 
-    @abstractmethod
     def _generate_service_xml(self, service_elem: Element):
         """ Generate the 'Service' subelement of a xml service object
 
@@ -172,7 +167,6 @@ class CapabilityXMLBuilder:
         # Various
         self._generate_service_version_specific(service_elem, md)
 
-    @abstractmethod
     def _generate_online_resource_xml(self, upper_elem: Element, md: Metadata):
         """ Generate the 'Layer' subelement of a capability xml object
 
@@ -190,7 +184,6 @@ class CapabilityXMLBuilder:
             }
         )
 
-    @abstractmethod
     def _generate_service_contact_information_xml(self, service_elem):
         """ Generate the 'ContactInformation' subelement of a xml service object
 
@@ -232,7 +225,6 @@ class CapabilityXMLBuilder:
         )
         self._generate_service_contact_address_xml(address_elem)
 
-    @abstractmethod
     def _generate_service_contact_person_primary_xml(self, contact_person_primary_elem: Element):
         """ Generate the 'ContactPersonPrimary' subelement of a xml service object
 
@@ -251,7 +243,6 @@ class CapabilityXMLBuilder:
         })
         self._generate_simple_elements_from_dict(contact_person_primary_elem, contents)
 
-    @abstractmethod
     def _generate_service_contact_address_xml(self, address_elem: Element):
         """ Generate the 'ContactAddress' subelement of a xml service object
 
@@ -274,7 +265,6 @@ class CapabilityXMLBuilder:
         }
         self._generate_simple_elements_from_dict(address_elem, contents)
 
-    @abstractmethod
     def _generate_capability_xml(self, capability_elem: Element):
         """ Generate the 'Capability' subelement of a xml object
 
@@ -304,7 +294,6 @@ class CapabilityXMLBuilder:
 
         self._generate_capability_layer_xml(capability_elem, md)
 
-    @abstractmethod
     def _generate_capability_exception_xml(self, capability_elem: Element):
         """ Generate the 'Exception' subelement of a xml capability object
 
@@ -331,7 +320,6 @@ class CapabilityXMLBuilder:
         )
         xml_helper.add_subelement(capability_elem, original_exception_elem)
 
-    @abstractmethod
     def _generate_capability_request_xml(self, request_elem: Element):
         """ Generate the 'Request' subelement of a xml capability object
 
@@ -382,7 +370,6 @@ class CapabilityXMLBuilder:
             elem = xml_helper.create_subelement(request_elem, k)
             self._generate_capability_operation_xml(elem)
 
-    @abstractmethod
     def _generate_capability_operation_xml(self, operation_elem: Element):
         """ Generate the various operation subelements of a xml capability object
 
@@ -463,7 +450,6 @@ class CapabilityXMLBuilder:
             }
         )
 
-    @abstractmethod
     def _generate_capability_layer_xml(self, layer_elem: Element, md: Metadata):
         """ Generate the 'Layer' subelement of a capability xml object
 
@@ -545,7 +531,6 @@ class CapabilityXMLBuilder:
         for layer_child in layer_children:
             self._generate_capability_layer_xml(layer_elem, layer_child.metadata)
 
-    @abstractmethod
     def _generate_keyword_xml(self, upper_elem, md: Metadata):
         """ Generate the 'KeywordList' subelement of a layer xml object and it's subelements
 
@@ -562,7 +547,6 @@ class CapabilityXMLBuilder:
                 kw_element = xml_helper.create_subelement(elem, "{}Keyword".format(self.default_ns))
                 xml_helper.write_text_to_element(kw_element, txt=kw.keyword)
 
-    @abstractmethod
     def _generate_capability_layer_srs_xml(self, layer_elem, layer: Layer):
         """ Generate the 'SRS|CRS' subelement of a layer xml object
 
@@ -576,7 +560,6 @@ class CapabilityXMLBuilder:
             crs_element = xml_helper.create_subelement(layer_elem, "{}SRS".format(self.default_ns))
             xml_helper.write_text_to_element(crs_element, txt="{}{}".format(crs.prefix, crs.code))
 
-    @abstractmethod
     def _generate_capability_layer_bounding_box_xml(self, layer_elem, layer: Layer):
         """ Generate the 'LatLonBoundingBox' subelement of a layer xml object
 
@@ -644,7 +627,6 @@ class CapabilityXMLBuilder:
                 })
             )
 
-    @abstractmethod
     def _generate_capability_layer_metadata_url_xml(self, layer_elem, layer):
         """ Generate the 'MetadataURL' subelement of a layer xml object
 
@@ -689,7 +671,6 @@ class CapabilityXMLBuilder:
             }
         )
 
-    @abstractmethod
     def _generate_capability_layer_style_xml(self, layer_elem: Element, styles: QuerySet):
         """ Generate the 'Style' subelement of a layer xml object
 
@@ -726,7 +707,6 @@ class CapabilityXMLBuilder:
                 }
             )
 
-    @abstractmethod
     def _generate_capability_version_specific(self, upper_elem: Element, layer: Layer):
         """ Has to be implemented in each CapabilityBuilder version specific implementation
 
@@ -740,7 +720,6 @@ class CapabilityXMLBuilder:
         """
         pass
 
-    @abstractmethod
     def _generate_service_version_specific(self, upper_elem: Element, md: Metadata):
         """ Has to be implemented in each CapabilityBuilder version specific implementation
 

@@ -803,7 +803,7 @@ class Document(Resource):
     def __str__(self):
         return self.related_metadata.title
 
-    def set_proxy(self, use_proxy: bool, auto_save: bool=True):
+    def set_proxy(self, use_proxy: bool, force_version: OGCServiceVersionEnum=None, auto_save: bool=True):
         """ Sets different elements inside the document on a secured level
 
         Args:
@@ -811,9 +811,9 @@ class Document(Resource):
             auto_save (bool): Whether to directly save the modified document or not
         Returns:
         """
-        self.set_dataset_metadata_secured(use_proxy, auto_save=auto_save)
-        self.set_legend_url_secured(use_proxy, auto_save=auto_save)
-        self.set_operations_secured(use_proxy, auto_save=auto_save)
+        self.set_dataset_metadata_secured(use_proxy, force_version=force_version, auto_save=auto_save)
+        self.set_legend_url_secured(use_proxy, force_version=force_version, auto_save=auto_save)
+        self.set_operations_secured(use_proxy, force_version=force_version, auto_save=auto_save)
 
     def _set_wms_operations_secured(self, xml_obj, uri: str, is_secured: bool):
         """ Change external links to internal for wms operations
@@ -1182,11 +1182,13 @@ class Document(Resource):
         if auto_save:
             self.save()
 
-    def set_operations_secured(self, is_secured: bool, auto_save: bool=True):
+    def set_operations_secured(self, is_secured: bool, force_version: OGCServiceVersionEnum, auto_save: bool=True):
         """ Change external links to internal for service operations
 
         Args:
             is_secured (bool): Whether the service is secured or not
+            force_version (OGCServiceVersionEnum): Which version processing shall be forced
+            auto_save (bool): Whether to directly save at the end of the function or not
         Returns:
 
         """
@@ -1196,7 +1198,7 @@ class Document(Resource):
         else:
             uri = ""
         _type = self.related_metadata.service.servicetype.name
-        _version = self.related_metadata.get_service_version()
+        _version = force_version or self.related_metadata.get_service_version()
         if _type == OGCServiceEnum.WMS.value:
             if _version is OGCServiceVersionEnum.V_1_0_0:
                 self._set_wms_1_0_0_operation_secured(xml_obj, uri, is_secured)
@@ -1213,17 +1215,19 @@ class Document(Resource):
         if auto_save:
             self.save()
 
-    def set_dataset_metadata_secured(self, is_secured: bool, auto_save: bool=True):
+    def set_dataset_metadata_secured(self, is_secured: bool, force_version: OGCServiceVersionEnum=None, auto_save: bool=True):
         """ Set or unsets the proxy for the dataset metadata uris
 
         Args:
             is_secured (bool): Whether the proxy shall be activated or deactivated
+            force_version (OGCServiceVersionEnum): Which version processing shall be forced
+            auto_save (bool): Whether to directly save at the end of the function or not
         Returns:
              nothing
         """
         cap_doc_curr = self.current_capability_document
         xml_obj = xml_helper.parse_xml(cap_doc_curr)
-        service_version = self.related_metadata.get_service_version()
+        service_version = force_version or self.related_metadata.get_service_version()
         service_type = self.related_metadata.get_service_type()
         is_wfs_1_0_0 = service_type == OGCServiceEnum.WFS.value and service_version is OGCServiceVersionEnum.V_1_0_0
         is_wfs_1_1_0 = service_type == OGCServiceEnum.WFS.value and service_version is OGCServiceVersionEnum.V_1_1_0
@@ -1266,11 +1270,13 @@ class Document(Resource):
         if auto_save:
             self.save()
 
-    def set_legend_url_secured(self, is_secured: bool, auto_save: bool=True):
+    def set_legend_url_secured(self, is_secured: bool, force_version:OGCServiceVersionEnum=None, auto_save: bool=True):
         """ Set or unsets the proxy for the style legend uris
 
         Args:
             is_secured (bool): Whether the proxy shall be activated or deactivated
+            force_version (OGCServiceVersionEnum): Which version processing shall be forced
+            auto_save (bool): Whether to directly save at the end of the function or not
         Returns:
              nothing
         """

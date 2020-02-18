@@ -47,6 +47,11 @@ class CapabilityXMLBuilder:
 
     @abstractmethod
     def generate_xml(self):
+        """ Generates the capability xml
+
+        Returns:
+             xml (str): The xml document as string
+        """
         xml_builder = None
         xml = ""
 
@@ -61,6 +66,10 @@ class CapabilityXMLBuilder:
             elif self.service_version == OGCServiceVersionEnum.V_1_3_0.value:
                 xml_builder = CapabilityWMS130Builder(self.service, self.service_version)
 
+            else:
+                # If something unknown has been passed as version, we use 1.1.1 as default
+                xml_builder = CapabilityWMS111Builder(self.service, self.service_version)
+
         elif self.service_type == OGCServiceEnum.WFS.value:
 
             if self.service_version == OGCServiceVersionEnum.V_1_0_0.value:
@@ -74,6 +83,9 @@ class CapabilityXMLBuilder:
 
             elif self.service_version == OGCServiceVersionEnum.V_2_0_2.value:
                 xml_builder = CapabilityWFS202Builder(self.service, self.service_version)
+            else:
+                # If something unknown has been passed as version, we use 2.0.0 as default
+                xml_builder = CapabilityWFS200Builder(self.service, self.service_version)
 
         xml = xml_builder._generate_xml()
         return xml
@@ -112,24 +124,6 @@ class CapabilityXMLBuilder:
         print_debug_mode("Rendering to string took {} seconds".format((time() - start_time)))
 
         return xml
-
-    def _generate_simple_elements_from_dict(self, upper_elem: Element, contents: dict):
-        """ Generate multiple subelements of a xml object
-
-        Variable `contents` contains key-value pairs of Element tag names and their text content.
-        This method creates only simple xml elements, which have a tag name and the text value set.
-
-        Args:
-            upper_elem (_Element): The upper xml element
-            contents (dict): The content dict
-        Returns:
-            nothing
-        """
-        for key, val in contents.items():
-            k = key.format(self.default_ns)
-            elem = xml_helper.create_subelement(upper_elem, k)
-            xml_helper.write_text_to_element(elem, txt=val)
-
 
     @abstractmethod
     def _generate_service_xml(self, service_elem: Element):
@@ -536,7 +530,7 @@ class CapabilityXMLBuilder:
         self._generate_capability_layer_style_xml(layer_elem, layer.get_style())
 
         # Various
-        self._generate_capability_version_specific(layer_elem, layer.metadata)
+        self._generate_capability_version_specific(layer_elem, layer)
 
         # Recall the function with the children as input
         layer_children = layer.get_children()
@@ -752,13 +746,62 @@ class CapabilityXMLBuilder:
         """
         pass
 
+    def _generate_simple_elements_from_dict(self, upper_elem: Element, contents: dict):
+        """ Generate multiple subelements of a xml object
+
+        Variable `contents` contains key-value pairs of Element tag names and their text content.
+        This method creates only simple xml elements, which have a tag name and the text value set.
+
+        Args:
+            upper_elem (_Element): The upper xml element
+            contents (dict): The content dict
+        Returns:
+            nothing
+        """
+        for key, val in contents.items():
+            k = key.format(self.default_ns)
+            elem = xml_helper.create_subelement(upper_elem, k)
+            xml_helper.write_text_to_element(elem, txt=val)
+
+    def _generate_capability_layer_scale_hint(self, upper_elem: Element, layer: Layer):
+        """ Generate the 'ScaleHint' subelement of a layer xml object
+
+        Args:
+            upper_elem (Element): The upper xml element
+            layer (Layer): The layer object
+        Returns:
+
+        """
+        # ScaleHint
+        if layer.scale_min is not None and layer.scale_max is not None:
+            scale_hint = OrderedDict(
+                {
+                    "min": str(layer.scale_min),
+                    "max": str(layer.scale_max),
+                }
+            )
+        else:
+            scale_hint = {}
+        xml_helper.create_subelement(
+            upper_elem,
+            "{}ScaleHint".format(self.default_ns),
+            attrib=scale_hint
+        )
+
 
 class CapabilityWMS100Builder(CapabilityXMLBuilder):
     def __init__(self, service: Service, force_version: str = None):
         super().__init__(service=service, force_version=force_version)
         self.schema_location = "http://schemas.opengis.net/wms/1.0.0/capabilities_1_0_0.dtd"
 
-    @abstractmethod
+        # Since we have to fetch some elements from the original document, we simply load it on construction
+        try:
+            self.original_doc = self.metadata.get_remote_original_capabilities_document(self.service_version)
+            self.original_doc = xml_helper.parse_xml(self.original_doc)
+        except ConnectionError as e:
+            print_debug_mode(e)
+            self.original_doc = None
+
     def _generate_keyword_xml(self, upper_elem, md: Metadata):
         """ Generates the 'Keywords' subelement of a wms 1.0.0 service
 
@@ -792,6 +835,126 @@ class CapabilityWMS100Builder(CapabilityXMLBuilder):
         )
         xml_helper.remove_element(contact_info_elem)
 
+    def _generate_capability_request_xml(self, request_elem: Element):
+        """ Generate the 'Request' subelement of a xml capability object
+
+        Args:
+            request_elem (_Element): The request xml element
+        Returns:
+            nothing
+        """
+
+        if self.original_doc is None:
+            return
+
+        original_request_elem = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Request"),
+            self.original_doc
+        )
+        for elem in original_request_elem.getchildren():
+            xml_helper.add_subelement(
+                request_elem,
+                elem
+            )
+
+    def _generate_capability_exception_xml(self, capability_elem: Element):
+        """ Generate the 'Exception' subelement of a xml capability object
+
+        Args:
+            capability_elem (_Element): The request xml element
+        Returns:
+            nothing
+        """
+
+        if self.original_doc is None:
+            return
+
+        original_exception_elem = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Exception"),
+            self.original_doc
+        )
+        xml_helper.add_subelement(
+            capability_elem,
+            original_exception_elem
+        )
+
+    def _generate_capability_layer_xml(self, layer_elem: Element, md: Metadata):
+        """ Generate the 'Layer' subelement of a capability xml object
+
+        Args:
+            layer_elem (_Element): The layer xml element
+        Returns:
+            nothing
+        """
+        layer = Layer.objects.get(
+            metadata=md
+        )
+        md = layer.metadata
+        layer_elem = xml_helper.create_subelement(
+            layer_elem,
+            "{}Layer".format(self.default_ns),
+            attrib={
+                "queryable": str(int(layer.is_queryable)),
+            }
+        )
+
+        elem = xml_helper.create_subelement(layer_elem, "{}Name".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt=layer.identifier)
+
+        elem = xml_helper.create_subelement(layer_elem, "{}Title".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt=md.title)
+
+        elem = xml_helper.create_subelement(layer_elem, "{}Abstract".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt=md.abstract)
+
+        # KeywordList
+        self._generate_keyword_xml(layer_elem, layer.metadata)
+
+        # SRS|CRS
+        self._generate_capability_layer_srs_xml(layer_elem, layer)
+
+        # Bounding Box
+        self._generate_capability_layer_bounding_box_xml(layer_elem, layer)
+        # DataURL
+        elem = xml_helper.create_subelement(layer_elem, "{}DataURL".format(self.default_ns))
+        xml_helper.write_text_to_element(elem, txt="")  # We do not provide this. Leave it empty
+
+        # Style
+        self._generate_capability_layer_style_xml(layer_elem, layer.get_style())
+
+        # Various
+        self._generate_capability_version_specific(layer_elem, layer)
+
+        # Recall the function with the children as input
+        layer_children = layer.get_children()
+        for layer_child in layer_children:
+            self._generate_capability_layer_xml(layer_elem, layer_child.metadata)
+
+    def _generate_capability_layer_srs_xml(self, layer_elem, layer: Layer):
+        """ Generate the 'SRS' subelement of a layer xml object
+
+        Args:
+            layer_elem (_Element): The layer xml element
+        Returns:
+            nothing
+        """
+        reference_systems = layer.get_inherited_reference_systems()
+        srs_element = xml_helper.create_subelement(layer_elem, "{}SRS".format(self.default_ns))
+        srs_list = ["{}{}".format(srs.prefix, srs.code) for srs in reference_systems]
+        srs_list = " ".join(srs_list)
+        xml_helper.write_text_to_element(srs_element, txt=srs_list)
+
+
+    def _generate_capability_version_specific(self, upper_elem: Element, layer: Layer):
+        """ Generate different subelements of a layer xml object, which are specific for version 1.0.0
+
+        Args:
+            upper_elem (_Element): The layer xml element
+        Returns:
+            nothing
+        """
+        self._generate_capability_layer_scale_hint(upper_elem, layer)
+
 
 class CapabilityWMS111Builder(CapabilityXMLBuilder):
     """
@@ -804,8 +967,6 @@ class CapabilityWMS111Builder(CapabilityXMLBuilder):
         super().__init__(service=service, force_version=force_version)
         self.schema_location = "http://schemas.opengis.net/wms/1.1.1/capabilities_1_1_1.dtd"
 
-
-    @abstractmethod
     def _generate_capability_version_specific(self, upper_elem: Element, layer: Layer):
         """ Generate different subelements of a layer xml object, which are specific for version 1.1.1
 
@@ -814,21 +975,7 @@ class CapabilityWMS111Builder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        # ScaleHint
-        if layer.scale_min is not None and layer.scale_max is not None:
-            scale_hint = OrderedDict(
-                {
-                    "min": str(layer.scale_min),
-                    "max": str(layer.scale_max),
-                }
-            )
-        else:
-            scale_hint = {}
-        xml_helper.create_subelement(
-            upper_elem,
-            "{}ScaleHint".format(self.default_ns),
-            attrib=scale_hint
-        )
+        self._generate_capability_layer_scale_hint(upper_elem, layer)
 
 
 class CapabilityWMS130Builder(CapabilityXMLBuilder):
@@ -846,7 +993,6 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         self.default_ns = "{" + self.namespaces.get(None) + "}"
         self.schema_location = "http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd"
 
-    @abstractmethod
     def _generate_service_xml(self, service_elem: Element):
         """ Generate the 'Service' subelement of a xml service object
 
@@ -882,7 +1028,6 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
 
-    @abstractmethod
     def _generate_capability_xml(self, capability_elem: Element):
         """ Generate the 'Capability' subelement of a xml object
 
@@ -911,7 +1056,6 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
 
         self._generate_capability_layer_xml(capability_elem, md)
 
-    @abstractmethod
     def _generate_capability_layer_bounding_box_xml(self, layer_elem, layer: Layer):
         """ Generate the 'LatLonBoundingBox' subelement of a layer xml object
 
@@ -971,7 +1115,6 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
                 })
             )
 
-    @abstractmethod
     def _generate_capability_version_specific(self, upper_elem: Element, layer: Layer):
         """ Generate different subelements of a layer xml object, which are specific for version 1.3.0
 

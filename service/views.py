@@ -335,7 +335,8 @@ def get_capabilities(request: HttpRequest, id: int):
                 current_capability_document=cap_xml,
             )
             if md.use_proxy_uri:
-                cap_doc.set_proxy(use_proxy=True, auto_save=False)
+                version_param_enum = service_helper.resolve_version_enum(version=version_param)
+                cap_doc.set_proxy(use_proxy=True, force_version=version_param_enum, auto_save=False)
 
             #cap_doc.save()
         doc = cap_doc.current_capability_document

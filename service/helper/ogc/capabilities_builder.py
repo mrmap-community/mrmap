@@ -106,8 +106,30 @@ class CapabilityXMLBuilder:
         xml = xml_builder._generate_xml()
         return xml
 
-class CapabilityWMSBuilder(CapabilityXMLBuilder):
+    def _generate_simple_elements_from_dict(self, upper_elem: Element, contents: dict):
+        """ Generate multiple subelements of a xml object
 
+        Variable `contents` contains key-value pairs of Element tag names and their text content.
+        This method creates only simple xml elements, which have a tag name and the text value set.
+
+        Args:
+            upper_elem (_Element): The upper xml element
+            contents (dict): The content dict
+        Returns:
+            nothing
+        """
+        for key, val in contents.items():
+            k = key.format(self.default_ns)
+            elem = xml_helper.create_subelement(upper_elem, k)
+            xml_helper.write_text_to_element(elem, txt=val)
+
+class CapabilityWMSBuilder(CapabilityXMLBuilder):
+    """ Base class for WMS capabilities building
+
+    http://schemas.opengis.net/wms/
+    Wraps all basic capabilities generating methods
+
+    """
     def __init__(self, metadata: Metadata, force_version: str = None):
         super().__init__(metadata=metadata, force_version=force_version)
 
@@ -115,7 +137,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """ Generate an xml capabilities document from the metadata object
 
         Args:
-            metadata (Metadata): Metadata of the requested service
+
         Returns:
              nothing
         """
@@ -377,7 +399,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         for key, val in additional_contents.items():
             post_uri = val.get("post", "")
             get_uri = val.get("get", "")
-            if len(post_uri) > 0 or len(get_uri) > 0:
+            if post_uri is not None or get_uri is not None:
                 contents.update({"{}" + key: ""})
 
         # Create xml elements
@@ -749,23 +771,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         pass
 
-    def _generate_simple_elements_from_dict(self, upper_elem: Element, contents: dict):
-        """ Generate multiple subelements of a xml object
-
-        Variable `contents` contains key-value pairs of Element tag names and their text content.
-        This method creates only simple xml elements, which have a tag name and the text value set.
-
-        Args:
-            upper_elem (_Element): The upper xml element
-            contents (dict): The content dict
-        Returns:
-            nothing
-        """
-        for key, val in contents.items():
-            k = key.format(self.default_ns)
-            elem = xml_helper.create_subelement(upper_elem, k)
-            xml_helper.write_text_to_element(elem, txt=val)
-
     def _generate_capability_layer_scale_hint(self, upper_elem: Element, layer: Layer):
         """ Generate the 'ScaleHint' subelement of a layer xml object
 
@@ -953,6 +958,23 @@ class CapabilityWMS100Builder(CapabilityWMSBuilder):
         srs_list = " ".join(srs_list)
         xml_helper.write_text_to_element(srs_element, txt=srs_list)
 
+    def _generate_online_resource_xml(self, upper_elem: Element, md: Metadata):
+        """ Generate the 'OnlineResource' subelement of a xml object
+
+        Args:
+            upper_elem (Element): The capability xml element
+            md (Metadata): The metadata element (for OnlineResource it's the parent of the regular metadata)
+        Returns:
+            nothing
+        """
+        online_resource_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}OnlineResource".format(self.default_ns)
+        )
+        xml_helper.write_text_to_element(
+            online_resource_elem,
+            txt=self.proxy_operations_uri_template.format(md.id),
+        )
 
     def _generate_capability_version_specific(self, upper_elem: Element, layer: Layer):
         """ Generate different subelements of a layer xml object, which are specific for version 1.0.0
@@ -1038,24 +1060,6 @@ class CapabilityWMS130Builder(CapabilityWMSBuilder):
             "{}MaxHeight": "",  # ToDo: Implement md.service.max_height in registration
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
-
-    def _generate_online_resource_xml(self, upper_elem: Element, md: Metadata):
-        """ Generate the 'OnlineResource' subelement of a xml object
-
-        Args:
-            upper_elem (Element): The capability xml element
-            md (Metadata): The metadata element (for OnlineResource it's the parent of the regular metadata)
-        Returns:
-            nothing
-        """
-        online_resource_elem = xml_helper.create_subelement(
-            upper_elem,
-            "{}OnlineResource".format(self.default_ns)
-        )
-        xml_helper.write_text_to_element(
-            online_resource_elem,
-            txt=self.proxy_operations_uri_template.format(md.id),
-        )
 
     def _generate_capability_xml(self, capability_elem: Element):
         """ Generate the 'Capability' subelement of a xml object
@@ -1160,35 +1164,307 @@ class CapabilityWMS130Builder(CapabilityWMSBuilder):
         elem = xml_helper.create_subelement(upper_elem, "{}MaxScaleDenominator".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")
 
+class CapabilityWFSBuilder(CapabilityXMLBuilder):
+    """ Base class for WFS capabilities building
 
-class CapabilityWFS100Builder(CapabilityXMLBuilder):
-    def __init__(self, metadata: Metadata, force_version: str = None):
+    http://schemas.opengis.net/wfs/
+    Wraps all basic capabilities generating methods
+
+    """
+    def __init__(self, metadata: Metadata, force_version: str=None):
         super().__init__(metadata=metadata, force_version=force_version)
 
+        self.namespaces[None] = XML_NAMESPACES["wfs"]
+        self.default_ns = "{" + XML_NAMESPACES["wfs"] + "}"
+
+        # WFS 1.0.0 expects a /Service/Name
+        self.default_identifier = "WFS"
+
     def _generate_xml(self):
-        xml = ""
+        """ Generate an xml capabilities document from the metadata object
+
+        Args:
+
+        Returns:
+             nothing
+        """
+        root = Element(
+            '{}WFS_Capabilities'.format(self.default_ns),
+            attrib={
+                "version": self.service_version,
+                "{}schemaLocation".format(self.xsi_ns): self.schema_location,
+            },
+            nsmap=self.namespaces
+        )
+        self.xml_doc_obj = root
+
+
+        start_time = time()
+        service = xml_helper.create_subelement(root, "{}Service".format(self.default_ns))
+        self._generate_service_xml(service)
+        print_debug_mode("Service creation took {} seconds".format((time() - start_time)))
+
+        start_time = time()
+        capability =  xml_helper.create_subelement(root, "{}Capability".format(self.default_ns))
+        self._generate_capability_xml(capability)
+        print_debug_mode("Capabilities creation took {} seconds".format(time() - start_time))
+
+        start_time = time()
+        capability =  xml_helper.create_subelement(root, "{}FeatureTypeList".format(self.default_ns))
+        #self._generate_feature_type_list_xml(capability)
+        print_debug_mode("FeatureTypeList creation took {} seconds".format(time() - start_time))
+
+        start_time = time()
+        xml = xml_helper.xml_to_string(root, pretty_print=False)
+        print_debug_mode("Rendering to string took {} seconds".format((time() - start_time)))
+
         return xml
 
-class CapabilityWFS110Builder(CapabilityXMLBuilder):
+    def _generate_service_xml(self, service_elem):
+        """ Generate the 'Service' subelement of a xml service object
+
+        Args:
+            service_elem (_Element): The service xml element
+        Returns:
+            nothing
+        """
+        md = self.metadata
+        parent_md = FeatureType.objects.get(
+            metadata=md
+        ).parent_service.metadata
+
+        # Create generic xml starter elements
+        contents = OrderedDict({
+            "{}Name": parent_md.identifier or self.default_identifier,
+            "{}Title": parent_md.title,
+            "{}Abstract": parent_md.abstract,
+        })
+        self._generate_simple_elements_from_dict(service_elem, contents)
+
+        # KeywordList and keywords
+        self._generate_keyword_xml(service_elem, parent_md)
+
+        # OnlineResource
+        self._generate_online_resource_xml(service_elem, parent_md)
+
+        # Create generic xml end elements
+        contents = OrderedDict({
+            "{}Fees": parent_md.fees,
+            "{}AccessConstraints": parent_md.access_constraints,
+        })
+        self._generate_simple_elements_from_dict(service_elem, contents)
+
+    def _generate_keyword_xml(self, upper_elem, md: Metadata):
+        """ Generate the 'KeywordList' subelement of a layer xml object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+
+        Returns:
+            nothing
+        """
+        keywords = md.keywords.all()
+        elem = xml_helper.create_subelement(upper_elem, "{}Keywords".format(self.default_ns))
+        keyword_text = " ".join([kw.keyword for kw in keywords])
+        xml_helper.write_text_to_element(elem, txt=keyword_text)
+
+    def _generate_online_resource_xml(self, upper_elem: Element, md: Metadata):
+        """ Generate the 'OnlineResource' subelement of a xml object
+
+        Args:
+            upper_elem (Element): The capability xml element
+            md (Metadata): The metadata element (for OnlineResource it's the parent of the regular metadata)
+        Returns:
+            nothing
+        """
+        online_resource_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}OnlineResource".format(self.default_ns)
+        )
+        xml_helper.write_text_to_element(
+            online_resource_elem,
+            txt=self.proxy_operations_uri_template.format(md.id),
+        )
+
+    def _generate_capability_xml(self, upper_elem):
+        """ Generate the 'Capability' subelement of a layer xml object and it's subelements
+
+        Args:
+            upper_elem (_Element): The upper xml element
+
+        Returns:
+            nothing
+        """
+        request_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}Request".format(self.default_ns)
+        )
+        self._generate_capability_request_xml(request_elem)
+
+        vendor_specific_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}Request".format(self.default_ns)
+        )
+
+        self._generate_capability_vendor_specific_xml(request_elem)
+
+    def _generate_capability_request_xml(self, upper_elem: Element):
+        """ Generate the 'Request' subelement of a xml capability object
+
+        Args:
+            upper_elem (_Element): The request xml element
+        Returns:
+            nothing
+        """
+        service = self.service
+        contents = OrderedDict({
+            "{}" + OGCOperationEnum.GET_CAPABILITIES.value: "",
+            "{}" + OGCOperationEnum.GET_FEATURE.value: "",
+            "{}" + OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: "",
+            "{}" + OGCOperationEnum.TRANSACTION.value: "",
+            "{}" + OGCOperationEnum.GET_FEATURE_WITH_LOCK.value: "",
+            "{}" + OGCOperationEnum.LOCK_FEATURE.value: "",
+        })
+
+        additional_contents = OrderedDict({
+            OGCOperationEnum.GET_FEATURE.value: {
+                "get": service.get_feature_info_uri_GET,
+                "post": service.get_feature_info_uri_POST,
+            },
+            OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: {
+                "get": service.describe_layer_uri_GET,
+                "post": service.describe_layer_uri_POST,
+            },
+            OGCOperationEnum.TRANSACTION.value: {
+                "get": service.transaction_uri_GET,
+                "post": service.transaction_uri_POST,
+            },
+            OGCOperationEnum.GET_FEATURE_WITH_LOCK.value: {
+                "get": "", #ToDo: Implement(?)
+                "post": "",
+            },
+            OGCOperationEnum.LOCK_FEATURE.value: {
+                "get": "", #ToDo: Implement(?)
+                "post": "",
+            },
+        })
+
+        # Put additional contents (if they are valid) in the regular contents
+        for key, val in additional_contents.items():
+            post_uri = val.get("post", "")
+            get_uri = val.get("get", "")
+            if post_uri is not None or get_uri is not None:
+                contents.update({"{}" + key: ""})
+
+        # Create xml elements
+        for key, val in contents.items():
+            k = key.format(self.default_ns)
+            elem = xml_helper.create_subelement(upper_elem, k)
+            self._generate_capability_operation_xml(elem)
+
+    def _generate_capability_operation_xml(self, upper_elem: Element):
+        """ Generate the various operation subelements of a xml capability object
+
+        Args:
+            upper_elem (_Element): The operation xml element
+        Returns:
+            nothing
+        """
+        md = self.metadata
+        service = self.service
+        tag = QName(upper_elem).localname
+
+        operations = OrderedDict({
+            OGCOperationEnum.GET_CAPABILITIES.value: {
+                "get": service.get_capabilities_uri_GET,
+                "post": service.get_capabilities_uri_POST,
+            },
+            OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: {
+                "get": service.describe_layer_uri_GET,
+                "post": service.describe_layer_uri_POST,
+            },
+            OGCOperationEnum.GET_FEATURE.value: {
+                "get": service.get_feature_info_uri_GET,
+                "post": service.get_feature_info_uri_POST,
+            },
+            OGCOperationEnum.GET_FEATURE_WITH_LOCK.value: {
+                "get": "", # ToDo ?
+                "post": "",
+            },
+            OGCOperationEnum.LOCK_FEATURE.value: {
+                "get": "", # ToDo ?
+                "post": "",
+            },
+        })
+
+        uris = operations.get(tag, {"get": "","post": ""})
+        get_uri = uris.get("get", "")
+        post_uri = uris.get("post", "")
+
+        if OGCOperationEnum.GET_CAPABILITIES.value in tag:
+            # GetCapabilities is always set to our internal systems uri!
+            get_uri = self.proxy_operations_uri_template.format(md.id)
+            post_uri = self.proxy_operations_uri_template.format(md.id)
+
+        # Add all mime types that are supported by this operation
+        supported_formats = service.formats.filter(
+            operation=tag
+        )
+        for format in supported_formats:
+            format_elem = xml_helper.create_subelement(upper_elem, "{}Format".format(self.default_ns))
+            xml_helper.write_text_to_element(format_elem, txt=format.mime_type)
+
+        # Add <DCPType> contents
+        dcp_elem = xml_helper.create_subelement(upper_elem, "{}DCPType".format(self.default_ns))
+        http_elem = xml_helper.create_subelement(dcp_elem, "{}HTTP".format(self.default_ns))
+        get_elem = xml_helper.create_subelement(http_elem, "{}Get".format(self.default_ns))
+        post_elem = xml_helper.create_subelement(http_elem, "{}Post".format(self.default_ns))
+        xml_helper.create_subelement(
+            get_elem,
+            "{}OnlineResource",
+            attrib={
+                "{}href".format(self.xlink_ns): get_uri
+            }
+        )
+        xml_helper.create_subelement(
+            post_elem,
+            "{}OnlineResource",
+            attrib={
+                "{}href".format(self.xlink_ns): post_uri
+            }
+        )
+
+
+    def _generate_capability_vendor_specific_xml(self, upper_elem: Element):
+        """ Generate the 'VendorSpecificCapabilities' subelement of a xml element
+
+        Args:
+            upper_elem (_Element): The upper xml element (service or layer level)
+
+        Returns:
+            nothing
+        """
+        # ToDo(?)
+        pass
+
+
+
+class CapabilityWFS100Builder(CapabilityWFSBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):
         super().__init__(metadata=metadata, force_version=force_version)
+        self.schema_location = "http://schemas.opengis.net/wfs/1.0.0/WFS-capabilities.xsd"
 
-    def _generate_xml(self):
-        xml = ""
-        return xml
-
-class CapabilityWFS200Builder(CapabilityXMLBuilder):
+class CapabilityWFS110Builder(CapabilityWFSBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):
         super().__init__(metadata=metadata, force_version=force_version)
+        self.schema_location = "http://schemas.opengis.net/wfs/1.1.0/wfs.xsd"
 
-    def _generate_xml(self):
-        xml = ""
-        return xml
-
-class CapabilityWFS202Builder(CapabilityXMLBuilder):
+class CapabilityWFS200Builder(CapabilityWFSBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):
         super().__init__(metadata=metadata, force_version=force_version)
+        self.schema_location = "http://schemas.opengis.net/wfs/2.0/wfs.xsd"
 
-    def _generate_xml(self):
-        xml = ""
-        return xml
+class CapabilityWFS202Builder(CapabilityWFSBuilder):
+    def __init__(self, metadata: Metadata, force_version: str = None):
+        super().__init__(metadata=metadata, force_version=force_version)
+        self.schema_location = "http://schemas.opengis.net/wfs/2.0/wfs.xsd"

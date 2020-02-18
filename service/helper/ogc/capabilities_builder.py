@@ -1018,12 +1018,14 @@ class CapabilityWMS130Builder(CapabilityWMSBuilder):
             "{}Name": parent_md.identifier,
             "{}Title": parent_md.title,
             "{}Abstract": parent_md.abstract,
-            "{}OnlineResource": self.proxy_operations_uri_template.format(parent_md.id),
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
 
         # Add keywords to <wms:KeywordList>
         self._generate_keyword_xml(service_elem, parent_md)
+
+        # OnlineResource
+        self._generate_online_resource_xml(service_elem, parent_md)
 
         # Fill in the data for <ContactInformation>
         self._generate_service_contact_information_xml(service_elem)
@@ -1036,6 +1038,24 @@ class CapabilityWMS130Builder(CapabilityWMSBuilder):
             "{}MaxHeight": "",  # ToDo: Implement md.service.max_height in registration
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
+
+    def _generate_online_resource_xml(self, upper_elem: Element, md: Metadata):
+        """ Generate the 'OnlineResource' subelement of a xml object
+
+        Args:
+            upper_elem (Element): The capability xml element
+            md (Metadata): The metadata element (for OnlineResource it's the parent of the regular metadata)
+        Returns:
+            nothing
+        """
+        online_resource_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}OnlineResource".format(self.default_ns)
+        )
+        xml_helper.write_text_to_element(
+            online_resource_elem,
+            txt=self.proxy_operations_uri_template.format(md.id),
+        )
 
     def _generate_capability_xml(self, capability_elem: Element):
         """ Generate the 'Capability' subelement of a xml object

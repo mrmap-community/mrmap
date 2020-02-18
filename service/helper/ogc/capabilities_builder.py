@@ -106,6 +106,11 @@ class CapabilityXMLBuilder:
         xml = xml_builder._generate_xml()
         return xml
 
+class CapabilityWMSBuilder(CapabilityXMLBuilder):
+
+    def __init__(self, metadata: Metadata, force_version: str = None):
+        super().__init__(metadata=metadata, force_version=force_version)
+
     def _generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
 
@@ -787,7 +792,7 @@ class CapabilityXMLBuilder:
         )
 
 
-class CapabilityWMS100Builder(CapabilityXMLBuilder):
+class CapabilityWMS100Builder(CapabilityWMSBuilder):
     """
 
     Creates a xml document, according to the specification of WMS 1.0.0
@@ -960,7 +965,7 @@ class CapabilityWMS100Builder(CapabilityXMLBuilder):
         self._generate_capability_layer_scale_hint(upper_elem, layer)
 
 
-class CapabilityWMS111Builder(CapabilityXMLBuilder):
+class CapabilityWMS111Builder(CapabilityWMSBuilder):
     """
 
     Creates a xml document, according to the specification of WMS 1.1.1
@@ -982,7 +987,7 @@ class CapabilityWMS111Builder(CapabilityXMLBuilder):
         self._generate_capability_layer_scale_hint(upper_elem, layer)
 
 
-class CapabilityWMS130Builder(CapabilityXMLBuilder):
+class CapabilityWMS130Builder(CapabilityWMSBuilder):
     """
 
     Creates a xml document, according to the specification of WMS 1.3.0

@@ -9,6 +9,7 @@ from django.db import models, transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
 
+from MapSkinner.messages import PARAMETER_ERROR
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL
 from MapSkinner import utils
 from service.helper.common_connector import CommonConnector
@@ -284,6 +285,20 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    def create_capability_xml(self, force_version: str = None):
+        """ Creates a capability xml from the current state of the service object
+
+        Args:
+            force_version (str): The OGC standard version that has to be used for xml generating
+        Returns:
+             xml (str): The xml document as string
+        """
+        from service.helper.ogc.capabilities_builder import CapabilityXMLBuilder
+
+        capabilty_builder = CapabilityXMLBuilder(metadata=self, force_version=force_version)
+        xml = capabilty_builder.generate_xml()
+        return xml
+
     def get_external_authentication_object(self):
         """ Returns the external authentication object, if one exists
 
@@ -443,7 +458,16 @@ class Metadata(Resource):
         Returns:
              The service version
         """
-        service_version = self.service.servicetype.version
+        if not self.is_root():
+            if self.get_service_type() == OGCServiceEnum.WFS.value:
+                service = FeatureType.objects.get(
+                    metadata=self
+                ).parent_service
+            elif self.get_service_type() == OGCServiceEnum.WMS.value:
+                service = self.service.parent_service
+            else:
+                raise TypeError(PARAMETER_ERROR.format("SERVICE"))
+        service_version = service.servicetype.version
         for v in OGCServiceVersionEnum:
             if v.value == service_version:
                 return v
@@ -1462,20 +1486,6 @@ class Service(Resource):
 
     def __str__(self):
         return str(self.id)
-
-    def create_capability_xml(self, force_version: str = None):
-        """ Creates a capability xml from the current state of the service object
-
-        Args:
-            force_version (str): The OGC standard version that has to be used for xml generating
-        Returns:
-             xml (str): The xml document as string
-        """
-        from service.helper.ogc.capabilities_builder import CapabilityXMLBuilder
-
-        capabilty_builder = CapabilityXMLBuilder(service=self, force_version=force_version)
-        xml = capabilty_builder.generate_xml()
-        return xml
 
     def perform_single_element_securing(self, element, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation):
         """ Secures a single element

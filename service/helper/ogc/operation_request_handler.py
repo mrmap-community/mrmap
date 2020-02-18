@@ -35,7 +35,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.request_builder import OGCRequestPOSTBuilder
-from service.models import Metadata, FeatureType, Layer, MimeType
+from service.models import Metadata, FeatureType, Layer, MimeType, Service
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
@@ -427,15 +427,20 @@ class OGCOperationRequestHandler:
         """
 
         # identify requested operation and resolve the uri
-        if metadata.service.servicetype.name == OGCServiceEnum.WFS.value:
+        if metadata.get_service_type() == OGCServiceEnum.WFS.value:
+            feature_type = FeatureType.objects.get(
+                metadata=metadata
+            )
+            service = feature_type.parent_service
+            metadata = service.metadata
             secured_operation_uris = {
                 "GETFEATURE": {
-                    "get": metadata.service.get_feature_info_uri_GET,
-                    "post": metadata.service.get_feature_info_uri_POST,
+                    "get": service.get_feature_info_uri_GET,
+                    "post": service.get_feature_info_uri_POST,
                 },  # get_feature_info_uri_GET is reused in WFS for get_feature_uri
                 "TRANSACTION": {
-                    "get": metadata.service.transaction_uri_GET,
-                    "post": metadata.service.transaction_uri_POST,
+                    "get": service.transaction_uri_GET,
+                    "post": service.transaction_uri_POST,
                 },
             }
         else:

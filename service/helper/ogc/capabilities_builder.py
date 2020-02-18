@@ -17,7 +17,7 @@ from MapSkinner.utils import print_debug_mode
 from service.helper import xml_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.epsg_api import EpsgApi
-from service.models import Service, Metadata, Layer, Document
+from service.models import Service, Metadata, Layer, Document, FeatureType
 
 from structure.models import Contact
 
@@ -31,15 +31,26 @@ class CapabilityXMLBuilder:
     http://schemas.opengis.net/wfs/
 
     """
-    def __init__(self, service: Service, force_version: str = None):
-        self.service = service
-        self.metadata = service.metadata
+    def __init__(self, metadata: Metadata, force_version: str = None):
+        self.metadata = metadata
 
-        self.service_type = service.servicetype.name
-        self.service_version = force_version or service.servicetype.version
+        # A single FeatureType is not a service, therefore we can not use the regular metadata.service call.
+        if metadata.get_service_type() == OGCServiceEnum.WFS.value:
+            service = FeatureType.objects.get(
+                metadata=metadata
+            ).parent_service
+            parent_service = service
+        else:
+            service = metadata.service
+            parent_service = service.parent_service
+
+        self.service = service
+
+        self.service_type = self.service.servicetype.name
+        self.service_version = force_version or self.service.servicetype.version
 
         self.proxy_operations_uri_template = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}/operation?"
-        self.proxy_legend_uri = "{}{}/service/metadata/{}/legend/".format(HTTP_OR_SSL, HOST_NAME, self.service.parent_service.metadata.id)
+        self.proxy_legend_uri = "{}{}/service/metadata/{}/legend/".format(HTTP_OR_SSL, HOST_NAME, parent_service.metadata.id)
 
         self.namespaces = {
             "sld": XML_NAMESPACES["sld"],
@@ -63,34 +74,34 @@ class CapabilityXMLBuilder:
         if self.service_type == OGCServiceEnum.WMS.value:
 
             if self.service_version == OGCServiceVersionEnum.V_1_0_0.value:
-                xml_builder = CapabilityWMS100Builder(self.service, self.service_version)
+                xml_builder = CapabilityWMS100Builder(self.metadata, self.service_version)
 
             elif self.service_version == OGCServiceVersionEnum.V_1_1_1.value:
-                xml_builder = CapabilityWMS111Builder(self.service, self.service_version)
+                xml_builder = CapabilityWMS111Builder(self.metadata, self.service_version)
 
             elif self.service_version == OGCServiceVersionEnum.V_1_3_0.value:
-                xml_builder = CapabilityWMS130Builder(self.service, self.service_version)
+                xml_builder = CapabilityWMS130Builder(self.metadata, self.service_version)
 
             else:
                 # If something unknown has been passed as version, we use 1.1.1 as default
-                xml_builder = CapabilityWMS111Builder(self.service, self.service_version)
+                xml_builder = CapabilityWMS111Builder(self.metadata, self.service_version)
 
         elif self.service_type == OGCServiceEnum.WFS.value:
 
             if self.service_version == OGCServiceVersionEnum.V_1_0_0.value:
-                xml_builder = CapabilityWFS100Builder(self.service, self.service_version)
+                xml_builder = CapabilityWFS100Builder(self.metadata, self.service_version)
 
             elif self.service_version == OGCServiceVersionEnum.V_1_1_0.value:
-                xml_builder = CapabilityWFS110Builder(self.service, self.service_version)
+                xml_builder = CapabilityWFS110Builder(self.metadata, self.service_version)
 
             elif self.service_version == OGCServiceVersionEnum.V_2_0_0.value:
-                xml_builder = CapabilityWFS200Builder(self.service, self.service_version)
+                xml_builder = CapabilityWFS200Builder(self.metadata, self.service_version)
 
             elif self.service_version == OGCServiceVersionEnum.V_2_0_2.value:
-                xml_builder = CapabilityWFS202Builder(self.service, self.service_version)
+                xml_builder = CapabilityWFS202Builder(self.metadata, self.service_version)
             else:
                 # If something unknown has been passed as version, we use 2.0.0 as default
-                xml_builder = CapabilityWFS200Builder(self.service, self.service_version)
+                xml_builder = CapabilityWFS200Builder(self.metadata, self.service_version)
 
         xml = xml_builder._generate_xml()
         return xml
@@ -783,8 +794,8 @@ class CapabilityWMS100Builder(CapabilityXMLBuilder):
     http://schemas.opengis.net/wms/1.0.0/capabilities_1_0_0.dtd
 
     """
-    def __init__(self, service: Service, force_version: str = None):
-        super().__init__(service=service, force_version=force_version)
+    def __init__(self, metadata: Metadata, force_version: str = None):
+        super().__init__(metadata=metadata, force_version=force_version)
         self.schema_location = "http://schemas.opengis.net/wms/1.0.0/capabilities_1_0_0.dtd"
 
         # Since we have to fetch some elements from the original document, we simply load it on construction
@@ -956,8 +967,8 @@ class CapabilityWMS111Builder(CapabilityXMLBuilder):
     http://schemas.opengis.net/wms/1.1.1/capabilities_1_1_1.xml
 
     """
-    def __init__(self, service: Service, force_version: str = None):
-        super().__init__(service=service, force_version=force_version)
+    def __init__(self, metadata: Metadata, force_version: str = None):
+        super().__init__(metadata=metadata, force_version=force_version)
         self.schema_location = "http://schemas.opengis.net/wms/1.1.1/capabilities_1_1_1.dtd"
 
     def _generate_capability_version_specific(self, upper_elem: Element, layer: Layer):
@@ -979,8 +990,8 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
 
     """
 
-    def __init__(self, service: Service, force_version: str = None):
-        super().__init__(service=service, force_version=force_version)
+    def __init__(self, metadata: Metadata, force_version: str = None):
+        super().__init__(metadata=metadata, force_version=force_version)
 
         self.namespaces[None] = XML_NAMESPACES["wms"]
         self.default_ns = "{" + self.namespaces.get(None) + "}"
@@ -1126,32 +1137,32 @@ class CapabilityWMS130Builder(CapabilityXMLBuilder):
 
 
 class CapabilityWFS100Builder(CapabilityXMLBuilder):
-    def __init__(self, service: Service, force_version: str = None):
-        super().__init__(service=service, force_version=force_version)
+    def __init__(self, metadata: Metadata, force_version: str = None):
+        super().__init__(metadata=metadata, force_version=force_version)
 
     def _generate_xml(self):
         xml = ""
         return xml
 
 class CapabilityWFS110Builder(CapabilityXMLBuilder):
-    def __init__(self, service: Service, force_version: str = None):
-        super().__init__(service=service, force_version=force_version)
+    def __init__(self, metadata: Metadata, force_version: str = None):
+        super().__init__(metadata=metadata, force_version=force_version)
 
     def _generate_xml(self):
         xml = ""
         return xml
 
 class CapabilityWFS200Builder(CapabilityXMLBuilder):
-    def __init__(self, service: Service, force_version: str = None):
-        super().__init__(service=service, force_version=force_version)
+    def __init__(self, metadata: Metadata, force_version: str = None):
+        super().__init__(metadata=metadata, force_version=force_version)
 
     def _generate_xml(self):
         xml = ""
         return xml
 
 class CapabilityWFS202Builder(CapabilityXMLBuilder):
-    def __init__(self, service: Service, force_version: str = None):
-        super().__init__(service=service, force_version=force_version)
+    def __init__(self, metadata: Metadata, force_version: str = None):
+        super().__init__(metadata=metadata, force_version=force_version)
 
     def _generate_xml(self):
         xml = ""

@@ -328,7 +328,7 @@ def get_capabilities(request: HttpRequest, id: int):
             # This means we have no capability document in the db.
             # This is possible for subelements of a service, which (usually) do not have an own capability document.
             # We create a capability document on the fly for this metadata object and persist it for another call.
-            cap_xml = md.service.create_capability_xml(version_param)
+            cap_xml = md.create_capability_xml(version_param)
             cap_doc = Document(
                 related_metadata=md,
                 original_capability_document=cap_xml,

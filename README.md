@@ -64,12 +64,14 @@ git clone https://git.osgeo.org/gitea/hollsandre/MapSkinner
 cd /opt/MapSkinner 
 pip install -r requirements.txt  
 
-python manage.py makemigrations
+python manage.py makemigrations service
+python manage.py makemigrations structure
 python manage.py migrate  
 ```
 
 ## Initial setup:
-Call the setup command and follow the prompt instructions to generate the system's superuser and load default elements
+1. Make sure the `HTTP_PROXY` variable in `MapSkinner/settings.py` is set correctly for your system
+1. Call the setup command and follow the prompt instructions to generate the system's superuser and load default elements
 ```shell
 python manage.py setup
 ```

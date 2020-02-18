@@ -128,10 +128,10 @@ class OGCWebMapService(OGCWebService):
             self.get_layers(xml_obj=xml_obj, async_task=async_task)
             print_debug_mode(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
 
-    ### ISO METADATA ###
-    def parse_iso_md(self, layer, layer_obj):
-        # check for possible ISO metadata
-        if self.has_iso_metadata(layer):
+    ### DATASET METADATA ###
+    def parse_dataset_md(self, layer, layer_obj):
+        # check for possible dataset metadata
+        if self.has_dataset_metadata(layer):
             iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(
                 xml_elem=layer,
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL") +
@@ -447,7 +447,7 @@ class OGCWebMapService(OGCWebService):
             self.parse_dimension,
             self.parse_style,
             self.parse_identifier,
-            self.parse_iso_md,
+            self.parse_dataset_md,
         ]
         for func in parse_functions:
             func(layer=layer_xml, layer_obj=layer_obj)

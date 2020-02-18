@@ -472,7 +472,7 @@ class OGCWebFeatureService(OGCWebService):
             format_list.append(m_t)
 
         # Dataset (ISO) Metadata parsing
-        self._parse_iso_md(f_t, feature_type)
+        self._parse_dataset_md(f_t, feature_type)
 
         # Feature type elements
         # Feature type namespaces
@@ -808,27 +808,35 @@ class OGCWebFeatureService(OGCWebService):
             for ns in f_t.namespaces_list:
                 f_t.namespaces.add(ns)
 
-    ### ISO METADATA ###
-    def _parse_iso_md(self, feature_type, xml_feature_type_obj: _Element, link_in_attrib: str=None):
-        # check for possible ISO metadata
-        if self.has_iso_metadata(xml_feature_type_obj):
+    ### DATASET METADATA ###
+    def _parse_dataset_md(self, feature_type, xml_feature_type_obj: _Element):
+        """ Parses the dataset metadata from the element.
+
+        Creates new ISOMetadata elements, if parsing is successful.
+
+        Args:
+            feature_type: The feature type object
+            xml_feature_type_obj: The xml feature type object, that holds the dataset link information
+        Returns:
+
+        """
+        # check for possible dataset metadata
+        if self.has_dataset_metadata(xml_feature_type_obj):
             iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(
                 xml_elem=xml_feature_type_obj,
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL")
             )
             for iso_xml in iso_metadata_xml_elements:
-                iso_uri = xml_helper.try_get_text_from_xml_element(xml_elem=iso_xml)
+                # Depending on the service version, the uris can live inside a href attribute or inside the xml element as text
+                iso_uri = xml_helper.try_get_text_from_xml_element(xml_elem=iso_xml) or xml_helper.get_href_attribute(iso_xml)
                 if iso_uri is None:
-                    # iso uris could live inside a href attribute as well
-                    iso_uri = xml_helper.get_href_attribute(iso_xml)
+                    continue
                 try:
                     iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
                 except Exception as e:
                     # there are iso metadatas that have been filled wrongly -> if so we will drop them
                     continue
                 feature_type.dataset_md_list.append(iso_metadata.to_db_model())
-
-
 
     def get_feature_type_by_identifier(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Extract a single feature type by its identifier and parse it into a FeatureType object
@@ -1137,7 +1145,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             elements_namespaces = self._get_featuretype_elements_namespaces(feature_type, service_type_version, external_auth)
 
             # check for possible ISO metadata
-            self._parse_iso_md(feature_type, node)
+            self._parse_dataset_md(feature_type, node)
 
             # put the feature types objects with keywords and reference systems into the dict for the persisting process
             self.feature_type_list[feature_type.metadata.identifier] = {
@@ -1293,13 +1301,6 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
                 crs_list.append(srs_other)
             self.feature_type_list[name]["srs_list"] = crs_list
 
-            # Dataset metadata
-            # Since version 2.0.0 the uris are not present in the text field of an xml element anymore,
-            # but can be found in the href:xlink attribute
-            feature_type = self.feature_type_list[name]["feature_type"]
-            self._parse_iso_md(feature_type, feature_type_xml_elem, "{" + XML_NAMESPACES["xlink"] + "}href")
-            self.feature_type_list[name]["dataset_md_list"] = feature_type.dataset_md_list
-
 
 class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
     """
@@ -1389,12 +1390,5 @@ class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
                 srs_other = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
                 crs_list.append(srs_other)
             self.feature_type_list[name]["srs_list"] = crs_list
-
-            # Dataset metadata
-            # Since version 2.0.0 the uris are not present in the text field of an xml element anymore,
-            # but can be found in the href:xlink attribute
-            feature_type = self.feature_type_list[name]["feature_type"]
-            self._parse_iso_md(feature_type, feature_type_xml_elem, "{" + XML_NAMESPACES["xlink"] + "}href")
-            self.feature_type_list[name]["dataset_md_list"] = feature_type.dataset_md_list
 
 

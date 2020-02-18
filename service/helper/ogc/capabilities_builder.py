@@ -24,6 +24,14 @@ from structure.models import Contact
 
 
 class CapabilityXMLBuilder:
+    """
+
+    Creates a xml document, according to the specification of OGC WMS and WFS
+
+    http://schemas.opengis.net/wms/
+    http://schemas.opengis.net/wfs/
+
+    """
     def __init__(self, service: Service, force_version: str = None):
         self.service = service
         self.metadata = service.metadata
@@ -790,6 +798,12 @@ class CapabilityXMLBuilder:
 
 
 class CapabilityWMS100Builder(CapabilityXMLBuilder):
+    """
+
+    Creates a xml document, according to the specification of WMS 1.0.0
+    http://schemas.opengis.net/wms/1.0.0/capabilities_1_0_0.dtd
+
+    """
     def __init__(self, service: Service, force_version: str = None):
         super().__init__(service=service, force_version=force_version)
         self.schema_location = "http://schemas.opengis.net/wms/1.0.0/capabilities_1_0_0.dtd"
@@ -959,7 +973,7 @@ class CapabilityWMS100Builder(CapabilityXMLBuilder):
 class CapabilityWMS111Builder(CapabilityXMLBuilder):
     """
 
-    Creates a xml document, according to the specification of WMS 1.3.0
+    Creates a xml document, according to the specification of WMS 1.1.1
     http://schemas.opengis.net/wms/1.1.1/capabilities_1_1_1.xml
 
     """

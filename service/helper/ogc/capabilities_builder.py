@@ -1303,7 +1303,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
 
         vendor_specific_elem = xml_helper.create_subelement(
             upper_elem,
-            "{}Request".format(self.default_ns)
+            "{}VendorSpecificCapabilities".format(self.default_ns)
         )
 
         self._generate_capability_vendor_specific_xml(request_elem)

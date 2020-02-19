@@ -1386,14 +1386,14 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             http_elem,
             "{}Get".format(self.default_ns),
             attrib={
-                "{}href".format(self.xlink_ns): get_uri
+                "onlineResource": get_uri
             }
         )
         post_elem = xml_helper.create_subelement(
             http_elem,
             "{}Post".format(self.default_ns),
             attrib={
-                "{}href".format(self.xlink_ns): post_uri
+                "onlineResource": post_uri
             }
         )
 

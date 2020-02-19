@@ -1038,7 +1038,7 @@ class Document(Resource):
                 for requ_obj in requ_objs:
                     xml_helper.write_attribute(
                         requ_obj,
-                        attrib="{" + XML_NAMESPACES["xlink"] + "}href",
+                        attrib="onlineResource",
                         txt=uri
                     )
 

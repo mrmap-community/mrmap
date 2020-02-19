@@ -74,6 +74,7 @@ class RemoveOrganizationForm(forms.Form):
 
 
 class RegistrationForm(forms.Form):
+    # TODO: implement validators for this fields; see UserForm in users/forms.py
     username = forms.CharField(max_length=255, label=_("Username"), label_suffix=" ", required=True)
     password = forms.CharField(max_length=255, label=_("Password"), label_suffix=" ", widget=forms.PasswordInput, required=True)
     password_check = forms.CharField(max_length=255, label=_("Password again"), label_suffix=" ", widget=forms.PasswordInput, required=True)

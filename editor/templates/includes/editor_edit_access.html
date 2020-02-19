@@ -86,8 +86,10 @@
         </tr>
         {% endfor %}
     </table>
-    <input name="secured-operation-groups" type="text" class="hidden">
-    <input class="submit-button button secured-operations" id="submit-text" type="submit" value="{% trans 'Save' %}"/>
+    <input name="secured-operation-groups" type="text" class="d-none hidden">
+    <button type="submit" class="btn {{THEME.BTN_COLOR}} secured-operations submit-button" data-id="{{ service_metadata.id }}">
+        {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} Save
+    </button>
 </form>
 
 {% endblock %}

@@ -1,0 +1,61 @@
+{% load i18n static %}
+<!--navbar-->
+<nav class="navbar navbar-expand-lg {{THEME.NAV.ITEM_COLOR}} {{THEME.NAV.BG_COLOR}}">
+    <a class="navbar-brand" href="#">
+        <img class="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" width="30" height="30" alt=""
+             title="Map your s*** together!">
+    </a>
+    <button class="navbar-toggler " type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item {% if PATH == 'home' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'home' %}" title="{% trans 'Dashboard' %}">
+                    {% autoescape off %}{{THEME.ICONS.DASHBOARD}}{% endautoescape %} {% trans 'Dashboard' %}
+                </a>
+            </li>
+            <li class="nav-item dropdown {% if PATH == 'structure' %}active{% endif %}">
+                <a class="nav-link dropdown-toggle" href="{% url 'structure:index' %}" id="navbarStructureDropdown"
+                   role="button"
+                    aria-haspopup="true" aria-expanded="false">
+                    {% trans 'Structure' %}
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarStructureDropdown">
+                    <a class="dropdown-item" href="{% url 'structure:groups-index' %}">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} {% trans 'Groups' %}</a>
+                    <a class="dropdown-item" href="{% url 'structure:organizations-index' %}">
+                        {% autoescape off %}{{THEME.ICONS.ORGANIZATION}}{% endautoescape %} {% trans 'Organizations'%}
+                    </a>
+                </div>
+            </li>
+            <li class="nav-item dropdown {% if PATH == 'service' %}active{% endif %}">
+                <a class="nav-link dropdown-toggle" href="{% url 'service:index' %}" id="navbarServicesDropdown"
+                   role="button"
+                   aria-haspopup="true" aria-expanded="false">
+                    {% trans 'Services' %}
+                </a>
+                <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
+                    <a class="dropdown-item" href="{% url 'service:wms-index' %}">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %}</a>
+                    <a class="dropdown-item" href="{% url 'service:wfs-index' %}">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %}</a>
+                </div>
+            </li>
+            <li class="nav-item {% if PATH == 'editor' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'editor:index' %}">
+                    {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Editor' %}
+                </a>
+            </li>
+        </ul>
+        <div>
+            <span class="{{THEME.NAV.TXT_COLOR}}">{% now "SHORT_DATETIME_FORMAT" %} </span>
+            <a class="btn {{THEME.BTN_COLOR}}" href="{% url 'account' %}" title="{% trans 'Account' %}" role="button">
+                {% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %} {{ user.username }}
+            </a>
+            <a class="btn {{THEME.BTN_COLOR}}" href="{% url 'logout' %}" title="{% trans 'Logout' %}" role="button">
+                {% autoescape off %}{{THEME.ICONS.SIGNOUT}}{% endautoescape %}
+            </a>
+        </div>
+    </div>
+</nav>
+<!--/navbar-->

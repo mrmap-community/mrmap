@@ -1,28 +1,4 @@
-<!DOCTYPE html>
 {% load i18n static %}
-{% load fontawesome_5 %}
-{% load bootstrap4 %}
-<html lang="{{ LANGUAGE_CODE }}">
-<head>
-    <meta charset="UTF-8">
-    <title>MapSkinner - Login</title>
-
-    {% fontawesome_5_static %}
-    <link rel="shortcut icon" href="{% static 'structure/images/favicon.ico' %}" type="image/x-icon">
-    <link rel="icon" href="{% static 'structure/images/favicon.ico' %}" type="image/x-icon">
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/bootstrap.min.css' %}" media="all"/>
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base_.css' %}" media="all"/>
-    <script>var rootUrl = '{{ ROOT_URL }}'</script>
-    <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
-    <script type="text/javascript" src="{% static '/structure/js/popper.min.js' %}"></script>
-    <script type="text/javascript" src="{% static '/structure/js/bootstrap.min.js' %}"></script>
-    <script type="text/javascript" src="{% static '/structure/js/base_.js' %}"></script>
-
-</head>
-<body class="background">
-
-{% include 'messages.html' %}
-
 <div class="container">
     <div class="row">
         <div class="col-md mt-5">
@@ -30,7 +6,7 @@
             <article class="login-article">{{ login_article }}</article>
         </div>
         <div class="col-md mt-5 mb-5">
-            <div class="card">
+            <div class="card {{THEME.CARD.TXT_COLOR}} {{THEME.CARD.BG}} mt-3 {{THEME.CARD.BOARDER}}">
                 <div class="card-body">
                     <h4 class="card-title text-center">Sign in</h4>
                     <hr>
@@ -48,8 +24,6 @@
 
                             <form method="post" action="{% url 'login' %}">
                                 {% csrf_token %}
-
-
                                 {% for field in login_form %}
                                 <label class="sr-only" for="{{ field.id_for_label }}">{{ field.label }}</label>
                                 <div class="form-group input-group">
@@ -68,10 +42,8 @@
                                            class="form-control" id="{{ field.id_for_label }}"
                                            placeholder="{{ field.label }}" required="{{ field.field.is_required }}">
                                 </div>
-
                                 {% endfor %}
-
-                                <button type="submit" class="btn btn-primary">
+                                <button type="submit" class="btn {{THEME.BTN_COLOR}}">
                                     {% autoescape off %}{{THEME.ICONS.SIGNIN}}{% endautoescape %} {% trans 'Sign in' %}
                                 </button>
                             </form>
@@ -80,17 +52,12 @@
                     <hr>
                     <div class="text-center">
                         <span>{% trans 'Don\'t have an account?' %} </span>
-                        <a href="{% url 'register' %}">{% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}</a><br>
-                        <a href="{% url 'password-reset' %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Forgot your password?' %}</a>
+                        <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'register' %}">{% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}</a><br>
+                        <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'password-reset' %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Forgot your password?' %}</a>
                     </div>
-
-
                 </div>
 
             </div> <!-- card.// -->
         </div>
     </div>
 </div>
-{% include 'footer.html' %}
-</body>
-</html>

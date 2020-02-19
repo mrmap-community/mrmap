@@ -365,6 +365,7 @@ DARK_THEME = {
         'SAVE': '<i class=\'fas fa-save \'></i>',
         'UPLOAD': '<i class=\'fas fa-upload \'></i>',
         'DOWNLOAD': '<i class=\'fas fa-download \'></i>',
+        'SEND_EMAIL': '<i class=\'fas fa-envelope-open-text \'></i>',
     }
 }
 

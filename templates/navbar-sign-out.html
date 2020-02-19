@@ -1,0 +1,34 @@
+{% load i18n static %}
+<!--navbar-->
+<nav class="navbar navbar-expand-lg {{THEME.NAV.ITEM_COLOR}} {{THEME.NAV.BG_COLOR}}">
+    <a class="navbar-brand" href="#">
+        <img class="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" width="30" height="30" alt=""
+             title="Map your s*** together!">
+    </a>
+    <button class="navbar-toggler " type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item {% if PATH == '' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'login' %}">
+                    {% autoescape off %}{{THEME.ICONS.SIGNIN}}{% endautoescape %} {% trans 'Login' %}
+                </a>
+            </li>
+            <li class="nav-item {% if PATH == 'register' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'register' %}">
+                    {% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}
+                </a>
+            </li>
+            <li class="nav-item {% if PATH == 'password-reset' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'password-reset' %}">
+                    {% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Reset password' %}
+                </a>
+            </li>
+        </ul>
+
+    </div>
+</nav>
+<!--/navbar-->

@@ -427,7 +427,7 @@ class OGCOperationRequestHandler:
         """
 
         # identify requested operation and resolve the uri
-        if metadata.get_service_type() == OGCServiceEnum.WFS.value:
+        if metadata.get_service_type() == OGCServiceEnum.WFS.value and not metadata.is_root():
             feature_type = FeatureType.objects.get(
                 metadata=metadata
             )

@@ -297,9 +297,9 @@ class Metadata(Resource):
 
         """
         from service.helper import service_helper
+        cap_doc = None
         try:
             # Try to fetch an existing Document record from the db
-            cap_doc = None
             cap_doc = Document.objects.get(related_metadata=self)
 
             if cap_doc.current_capability_document is None:
@@ -324,7 +324,7 @@ class Metadata(Resource):
                 version_param_enum = service_helper.resolve_version_enum(version=version_param)
                 cap_doc.set_proxy(use_proxy=True, force_version=version_param_enum, auto_save=False)
 
-            cap_doc.save()
+            # cap_doc.save() #ToDo: Comment back in!
         return cap_doc.current_capability_document
 
     def _create_capability_xml(self, force_version: str = None):
@@ -765,6 +765,22 @@ class Metadata(Resource):
             cap_doc.set_proxy(is_secured)
         except ObjectDoesNotExist:
             pass
+
+    def set_documents_active_status(self, is_active: bool):
+        """ Sets the active status for related documents
+
+        Args:
+            is_active (bool): Whether the documents are active or not
+        Returns:
+
+        """
+        docs = Document.objects.filter(
+            related_metadata=self
+        )
+        for doc in docs:
+            doc.is_active = is_active
+            doc.save()
+
 
     def set_logging(self, logging: bool):
         """ Set the metadata logging flag to a new value
@@ -1927,8 +1943,10 @@ class Layer(Service):
         """
         self.metadata.is_active = new_status
         self.metadata.save()
+        self.metadata.set_documents_active_status(new_status)
         self.is_active = new_status
         self.save()
+
 
         # check for all related metadata, we need to toggle their active status as well
         rel_md = self.metadata.related_metadata.all()

@@ -285,7 +285,49 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
-    def create_capability_xml(self, force_version: str = None):
+    def get_current_capability_xml(self, version_param: str):
+        """ Getter for the capability xml of the current status of this metadata object.
+
+        If there is no capability document available (maybe the capabilities of a subelement of a service are requested),
+        the capabilities xml will be generated and persisted to the database to increase the speed of another request.
+
+        Args:
+            version_param (str): The version parameter for which the capabilities shall be built
+        Returns:
+
+        """
+        from service.helper import service_helper
+        try:
+            # Try to fetch an existing Document record from the db
+            cap_doc = None
+            cap_doc = Document.objects.get(related_metadata=self)
+
+            if cap_doc.current_capability_document is None:
+                # Well, there is one but no current_capability_document is found inside
+                raise ObjectDoesNotExist
+        except ObjectDoesNotExist as e:
+            # This means we have no capability document in the db or the value is set to None.
+            # This is possible for subelements of a service, which (usually) do not have an own capability document.
+            # We create a capability document on the fly for this metadata object and persist it for another call.
+            cap_xml = self._create_capability_xml(version_param)
+            if cap_doc is None:
+                cap_doc = Document(
+                    related_metadata=self,
+                    original_capability_document=cap_xml,
+                    current_capability_document=cap_xml,
+                )
+            else:
+                cap_doc.current_capability_document = cap_xml
+
+            # Do not forget to proxy the links inside the document, if needed
+            if self.use_proxy_uri:
+                version_param_enum = service_helper.resolve_version_enum(version=version_param)
+                cap_doc.set_proxy(use_proxy=True, force_version=version_param_enum, auto_save=False)
+
+            cap_doc.save()
+        return cap_doc.current_capability_document
+
+    def _create_capability_xml(self, force_version: str = None):
         """ Creates a capability xml from the current state of the service object
 
         Args:
@@ -1296,10 +1338,18 @@ class Document(Resource):
             else:
                 metadata_uri = xml_helper.get_href_attribute(xml_metadata)
             own_uri_prefix = "{}{}".format(HTTP_OR_SSL, HOST_NAME)
-            if not own_uri_prefix in metadata_uri:
+
+            if not metadata_uri.startswith(own_uri_prefix):
                 # find metadata record which matches the metadata uri
-                dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
-                uri = "{}{}/service/metadata/dataset/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
+                try:
+                    dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
+                    uri = "{}{}/service/metadata/dataset/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
+                except ObjectDoesNotExist:
+                    # This is a bad situation... Only possible if the registered service has not been updated BUT the
+                    # original remote service changed and maybe has a new - for us - unknown MetadataURL object.
+                    # This is why we can't find it in our db. We simply have to set it to some placeholder, since the
+                    # user has to update the service.
+                    uri = "unknown"
             else:
                 # this means we have our own proxy uri in here and want to restore the original one
                 # metadata uri contains the proxy uri

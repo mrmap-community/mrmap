@@ -322,30 +322,7 @@ def get_capabilities(request: HttpRequest, id: int):
 
     if stored_version == version_param or use_fallback is True or not md.is_root():
         # we can deliver the document from the database
-        try:
-            cap_doc = None
-            cap_doc = Document.objects.get(related_metadata=md)
-            if cap_doc.current_capability_document is None:
-                raise ObjectDoesNotExist
-        except ObjectDoesNotExist as e:
-            # This means we have no capability document in the db.
-            # This is possible for subelements of a service, which (usually) do not have an own capability document.
-            # We create a capability document on the fly for this metadata object and persist it for another call.
-            cap_xml = md.create_capability_xml(version_param)
-            if cap_doc is None:
-                cap_doc = Document(
-                    related_metadata=md,
-                    original_capability_document=cap_xml,
-                    current_capability_document=cap_xml,
-                )
-            else:
-                cap_doc.current_capability_document = cap_xml
-            if md.use_proxy_uri:
-                version_param_enum = service_helper.resolve_version_enum(version=version_param)
-                cap_doc.set_proxy(use_proxy=True, force_version=version_param_enum, auto_save=False)
-
-            cap_doc.save()
-        doc = cap_doc.current_capability_document
+        doc = md.get_current_capability_xml(version_param)
 
     else:
         # we have to fetch the remote document
@@ -358,7 +335,7 @@ def get_capabilities(request: HttpRequest, id: int):
                 raise ValueError("No xml document was retrieved. Content was :'{}'".format(xml))
 
             # we fake the persisted service version, so the document setters will change the correct elements in the xml
-            md.service.servicetype.version = version_param
+            #md.service.servicetype.version = version_param
             doc = Document(
                 original_capability_document=xml,
                 current_capability_document=xml,
@@ -366,7 +343,7 @@ def get_capabilities(request: HttpRequest, id: int):
             )
             doc.set_capabilities_secured(auto_save=False)
             if md.use_proxy_uri:
-                doc.set_proxy(True, auto_save=False)
+                doc.set_proxy(True, auto_save=False, force_version=version_param)
             doc = doc.current_capability_document
         except (ReadTimeout, TimeoutError, ConnectionError) as e:
             # the remote server does not respond - we must deliver our stored capabilities document, which is not the requested version

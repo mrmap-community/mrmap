@@ -301,7 +301,11 @@ $(document).ready(function(){
             dataType: 'json'
         }).done(function(data){
             var html = data["html"];
-            toggleOverlay(html);
+            $( "#id_leaflet_client_div" ).html( html );
+
+            $( "#id_modal_leaflet_modal").modal('show')
+
+            //toggleOverlay(html);
 
         }).always(function(data){
             checkRedirect(data);

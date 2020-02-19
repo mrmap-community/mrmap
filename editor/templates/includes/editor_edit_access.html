@@ -92,4 +92,8 @@
     </button>
 </form>
 
+{% with 'leaflet_modal' as id_modal %}
+    {% include 'modals/access_geometry_form.html'%}
+{% endwith %}
+
 {% endblock %}

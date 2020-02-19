@@ -70,19 +70,27 @@ article{
 
 </style>
 
-{% block body %}
-<div class="modal-dialog">
-    <div class="modal-close" title="{% trans 'Close' %}">
-        x
-    </div>
-    <div class="modal-content">
-        <div class="map-functions">
-        <article>
-            {{ article }}
-        </article>
-        <hr>
-        <div id="map" class="map-view">
+    <div class="row">
+        <div class="col">
+            <div id="map" class="map-view"></div>
         </div>
+    </div>
+    <div class="row mt-2">
+        <div class="col">
+            <button id="geometry-upload" type="button" class="btn {{ THEME.BTN_COLOR }} " onclick="$('.geometry-upload').click();">
+                {% autoescape off %}{{THEME.ICONS.UPLOAD}}{% endautoescape %} {% trans 'Import a GML3 or GeoJSON file' %}
+            </button>
+            <input class="d-none geometry-upload" type="file" title="{% trans 'Load geometry' %}"/>
+
+        </div>
+        <div class="col">
+            <button id="geometry-download" type="button" class="btn {{ THEME.BTN_COLOR }} geometry-download">
+                {% autoescape off %}{{THEME.ICONS.DOWNLOAD}}{% endautoescape %} {% trans 'Export drawn geometry as GeoJSON' %}
+            </button>
+        </div>
+    </div>
+
+
         <script>
                var map = L.map('map', {
                    center: [{{ bbox.centroid.y }}, {{ bbox.centroid.x }}],
@@ -172,25 +180,7 @@ article{
                });
 
            </script>
-        <div class="button-container">
-            <div class="geometry-button-container" onclick="$('.geometry-upload').click();">
-                <span class="geometry-button-img fa fa-upload"></span>
-                <article>{% trans 'Import a GML3 or GeoJSON file' %}</article>
-            </div>
-            <input class="hide geometry-upload" type="file" title="{% trans 'Load geometry' %}"/>
-            <div class="geometry-button-container geometry-download">
-                <span class="geometry-button-img fa fa-download"></span>
-                <article>{% trans 'Export drawn geometry as GeoJSON' %}</article>
-            </div>
 
-            </div>
-        </div>
-        <form action="{{ action_url }}" method="post" >
-
-            <input class="submit-button button" id="submit-text" type="submit" value="{% trans 'Save' %}"/>
-        </form>
-    </div>
-</div>
 
 <script>
 
@@ -308,14 +298,7 @@ article{
 
     });
 
-    $(".modal-close, .close-button").click(function(){
-        // remove session stored polygon data
-        removeSessionKeysLike("polygon_");
-
-        toggleOverlay("");
-    });
-
-    $(".submit-button").click(function(event){
+    $("#id_submit_modal").click(function(event){
         // get session stored polygon data
         values = findSessionKeysLike("polygon_");
 
@@ -341,9 +324,9 @@ article{
             operationGroupPolygonElement.removeAttr("data-polygons");
             operationGroupPolygonElement.siblings(".listable").hide();
         }
-        toggleOverlay("");
+
+        $( "#id_modal_leaflet_modal").modal('hide')
+
     });
 
 </script>
-
-{% endblock %}

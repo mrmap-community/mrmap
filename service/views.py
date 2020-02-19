@@ -323,22 +323,28 @@ def get_capabilities(request: HttpRequest, id: int):
     if stored_version == version_param or use_fallback is True or not md.is_root():
         # we can deliver the document from the database
         try:
+            cap_doc = None
             cap_doc = Document.objects.get(related_metadata=md)
+            if cap_doc.current_capability_document is None:
+                raise ObjectDoesNotExist
         except ObjectDoesNotExist as e:
             # This means we have no capability document in the db.
             # This is possible for subelements of a service, which (usually) do not have an own capability document.
             # We create a capability document on the fly for this metadata object and persist it for another call.
             cap_xml = md.create_capability_xml(version_param)
-            cap_doc = Document(
-                related_metadata=md,
-                original_capability_document=cap_xml,
-                current_capability_document=cap_xml,
-            )
+            if cap_doc is None:
+                cap_doc = Document(
+                    related_metadata=md,
+                    original_capability_document=cap_xml,
+                    current_capability_document=cap_xml,
+                )
+            else:
+                cap_doc.current_capability_document = cap_xml
             if md.use_proxy_uri:
                 version_param_enum = service_helper.resolve_version_enum(version=version_param)
                 cap_doc.set_proxy(use_proxy=True, force_version=version_param_enum, auto_save=False)
 
-            #cap_doc.save()
+            cap_doc.save()
         doc = cap_doc.current_capability_document
 
     else:

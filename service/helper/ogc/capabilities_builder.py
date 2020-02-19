@@ -1318,49 +1318,38 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         """
         service = self.service
         contents = OrderedDict({
-            "{}" + OGCOperationEnum.GET_CAPABILITIES.value: "",
-            "{}" + OGCOperationEnum.GET_FEATURE.value: "",
-            "{}" + OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: "",
-            "{}" + OGCOperationEnum.TRANSACTION.value: "",
-            "{}" + OGCOperationEnum.GET_FEATURE_WITH_LOCK.value: "",
-            "{}" + OGCOperationEnum.LOCK_FEATURE.value: "",
-        })
-
-        additional_contents = OrderedDict({
-            OGCOperationEnum.GET_FEATURE.value: {
+            "{}" + OGCOperationEnum.GET_CAPABILITIES.value: {
+                "get": service.get_capabilities_uri_GET,
+                "post": service.get_capabilities_uri_POST,
+            },
+            "{}" + OGCOperationEnum.GET_FEATURE.value: {
                 "get": service.get_feature_info_uri_GET,
                 "post": service.get_feature_info_uri_POST,
             },
-            OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: {
+            "{}" + OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: {
                 "get": service.describe_layer_uri_GET,
                 "post": service.describe_layer_uri_POST,
             },
-            OGCOperationEnum.TRANSACTION.value: {
+            "{}" + OGCOperationEnum.TRANSACTION.value: {
                 "get": service.transaction_uri_GET,
                 "post": service.transaction_uri_POST,
             },
-            OGCOperationEnum.GET_FEATURE_WITH_LOCK.value: {
-                "get": "", #ToDo: Implement(?)
-                "post": "",
+            "{}" + OGCOperationEnum.GET_FEATURE_WITH_LOCK.value: {
+                "get": None, #ToDo: Implement(?)
+                "post": None,
             },
-            OGCOperationEnum.LOCK_FEATURE.value: {
-                "get": "", #ToDo: Implement(?)
-                "post": "",
+            "{}" + OGCOperationEnum.LOCK_FEATURE.value: {
+                "get": None, #ToDo: Implement(?)
+                "post": None,
             },
         })
-
-        # Put additional contents (if they are valid) in the regular contents
-        for key, val in additional_contents.items():
-            post_uri = val.get("post", "")
-            get_uri = val.get("get", "")
-            if post_uri is not None or get_uri is not None:
-                contents.update({"{}" + key: ""})
 
         # Create xml elements
         for key, val in contents.items():
             k = key.format(self.default_ns)
-            elem = xml_helper.create_subelement(upper_elem, k)
-            self._generate_capability_operation_xml(elem)
+            if val.get("get", None) is not None or val.get("post", None) is not None:
+                elem = xml_helper.create_subelement(upper_elem, k)
+                self._generate_capability_operation_xml(elem)
 
     def _generate_capability_operation_xml(self, upper_elem: Element):
         """ Generate the various operation subelements of a xml capability object
@@ -1417,18 +1406,17 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         # Add <DCPType> contents
         dcp_elem = xml_helper.create_subelement(upper_elem, "{}DCPType".format(self.default_ns))
         http_elem = xml_helper.create_subelement(dcp_elem, "{}HTTP".format(self.default_ns))
-        get_elem = xml_helper.create_subelement(http_elem, "{}Get".format(self.default_ns))
-        post_elem = xml_helper.create_subelement(http_elem, "{}Post".format(self.default_ns))
-        xml_helper.create_subelement(
-            get_elem,
-            "{}OnlineResource",
+
+        get_elem = xml_helper.create_subelement(
+            http_elem,
+            "{}Get".format(self.default_ns),
             attrib={
                 "{}href".format(self.xlink_ns): get_uri
             }
         )
-        xml_helper.create_subelement(
-            post_elem,
-            "{}OnlineResource",
+        post_elem = xml_helper.create_subelement(
+            http_elem,
+            "{}Post".format(self.default_ns),
             attrib={
                 "{}href".format(self.xlink_ns): post_uri
             }

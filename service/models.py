@@ -10,7 +10,7 @@ from django.contrib.gis.db import models
 from django.utils import timezone
 
 from MapSkinner.messages import PARAMETER_ERROR
-from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL
+from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, XML_NAMESPACES
 from MapSkinner import utils
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
@@ -458,6 +458,8 @@ class Metadata(Resource):
         Returns:
              The service version
         """
+        # Non root elements have to be handled differently, since FeatureTypes are not Service instances and always use
+        # their parent_service as Service information holder
         if not self.is_root():
             if self.get_service_type() == OGCServiceEnum.WFS.value:
                 service = FeatureType.objects.get(
@@ -467,6 +469,8 @@ class Metadata(Resource):
                 service = self.service.parent_service
             else:
                 raise TypeError(PARAMETER_ERROR.format("SERVICE"))
+        else:
+            service = self.service
         service_version = service.servicetype.version
         for v in OGCServiceVersionEnum:
             if v.value == service_version:
@@ -689,7 +693,8 @@ class Metadata(Resource):
             related_docs = Document.objects.filter(
                 related_metadata=self
             )
-            related_docs.delete()
+            for doc in related_docs:
+                doc.clear_current_capability_document()
 
     def get_related_metadata_uris(self):
         """ Generates a list of all related metadata online links and returns them
@@ -757,11 +762,25 @@ class Metadata(Resource):
 
         self.use_proxy_uri = use_proxy
 
-        # if md uris shall be tunneled using the proxy, we need to make sure that all metadata elements of the service are aware of this!
-        child_mds = Metadata.objects.filter(service__parent_service=self.service)
-        for child_md in child_mds:
-            child_md.use_proxy_uri = self.use_proxy_uri
-            child_md.save()
+        # If md uris shall be tunneled using the proxy, we need to make sure that all metadata elements of the service are aware of this!
+        service_type = self.get_service_type()
+        subelements = []
+        if service_type == OGCServiceEnum.WFS.value:
+            subelements = self.service.featuretypes.all()
+        elif service_type == OGCServiceEnum.WMS.value:
+            subelements = Layer.objects.filter(parent_service=self.service)
+
+        for subelement in subelements:
+            subelement_md = subelement.metadata
+            subelement_md.use_proxy_uri = self.use_proxy_uri
+            subelement_md.save()
+
+            # Remove current_capability_documents that are related to this subelement
+            docs = Document.objects.filter(
+                related_metadata=subelement_md
+            )
+            for doc in docs:
+                doc.clear_current_capability_document()
         self.save()
 
     def set_secured(self, is_secured: bool):
@@ -920,7 +939,9 @@ class Document(Resource):
             "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request")
             , xml_obj
         )
-        service = self.related_metadata.service
+        service = FeatureType.objects.get(
+            metadata=self.related_metadata
+        ).parent_service
         op_uri_dict = {
             "DescribeFeatureType": {
                 "Get": service.describe_layer_uri_GET,
@@ -956,7 +977,7 @@ class Document(Resource):
                 for requ_obj in requ_objs:
                     xml_helper.write_attribute(
                         requ_obj,
-                        attrib="onlineResource",
+                        attrib="{" + XML_NAMESPACES["xlink"] + "}href",
                         txt=uri
                     )
 
@@ -998,6 +1019,9 @@ class Document(Resource):
                 "Post": service.get_gml_objct_uri_POST,
             },
         }
+
+        fallback_uri = service.get_feature_info_uri_GET
+
         for op in operation_objs:
             # skip GetCapabilities - it is already set to another internal link
             name = xml_helper.try_get_attribute_from_xml_element(op, "name")
@@ -1009,7 +1033,7 @@ class Document(Resource):
             for http_operation in http_operations:
 
                 if not is_secured:
-                    uri = op_uri_dict.get(name, {}).get(http_operation, None)
+                    uri = op_uri_dict.get(name, {}).get(http_operation, None) or fallback_uri
 
                 http_objs = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") + "/" + GENERIC_NAMESPACE_TEMPLATE.format(http_operation), op)
 
@@ -1221,7 +1245,7 @@ class Document(Resource):
             uri = "{}{}/service/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)
         else:
             uri = ""
-        _type = self.related_metadata.service.servicetype.name
+        _type = self.related_metadata.get_service_type()
         _version = force_version or self.related_metadata.get_service_version()
         if _type == OGCServiceEnum.WMS.value:
             if _version is OGCServiceVersionEnum.V_1_0_0:
@@ -1383,6 +1407,15 @@ class Document(Resource):
         parent_curr.remove(xml_layer_obj_curr)
 
         self.current_capability_document = xml_helper.xml_to_string(cap_doc_curr_obj)
+        self.save()
+
+    def clear_current_capability_document(self):
+        """ Sets the current_capability_document content to None
+
+        Returns:
+
+        """
+        self.current_capability_document = None
         self.save()
 
 class TermsOfUse(Resource):

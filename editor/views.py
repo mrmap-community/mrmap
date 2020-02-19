@@ -102,12 +102,13 @@ def edit(request: HttpRequest, id: int, user: User):
                 # inheritance setting for the whole service -> we act like it didn't change
                 custom_md.use_proxy_uri = metadata.use_proxy_uri
 
-                # Furthermore we remove a possibly existing Capabilities document for this element, since the metadata
+                # Furthermore we remove a possibly existing current_capability_document for this element, since the metadata
                 # might have changed!
                 related_docs = Document.objects.filter(
                     related_metadata=metadata
                 )
-                related_docs.delete()
+                for doc in related_docs:
+                    doc.clear_current_capability_document()
 
             editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
             editor_helper.overwrite_metadata(metadata, custom_md, editor_form)

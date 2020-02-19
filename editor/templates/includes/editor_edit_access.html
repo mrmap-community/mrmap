@@ -1,46 +1,12 @@
-{% extends 'base.html' %}
+{% extends 'sceletons/card.html' %}
 {% load i18n static %}
 
-{% block head %}
-    <script type="text/javascript" src="{% static '/editor/js/editor.js' %}"></script>
-    <link rel="stylesheet" type="text/css" href="{% static '/editor/css/editor.css' %}" media="all" />
-     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.5.1/dist/leaflet.css"
-   integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
-   crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.5.1/dist/leaflet.js"
-      integrity="sha512-GffPMF3RvMeYyc1LWMHtK8EbPv0iNZ8/oTtHPx9/cc2ILxQ+u905qIwdpULaqDkyBKgOaB57QTMg7ztg8Jm2Og=="
-      crossorigin=""></script>
-<!--
-    <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css" />
-    <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>
--->
+{% block card-header-title-left %}
+<h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.ACCESS}}{% endautoescape %} {% trans 'Access Editor' %}</h4>
 {% endblock %}
 
-{% block body %}
-<div class="back-links">
-    <a href="{% url 'editor:index' %}">
-        <h3 class="back-title">
-            <img src="{% static 'service/images/icn_back.png' %}">
-            {% trans 'Overview' %}
-        </h3>
-    </a>
-    <a href="{% url 'service:detail' service_metadata.id %}">
-        <h3 class="back-title">
-            <img src="{% static 'service/images/icn_back.png' %}">
-            {% trans 'Service Detail View' %}
-        </h3>
-    </a>
-</div>
-<hr>
-<div class="container-row space-above">
-    <div class="container-left">
-    </div>
-    <div class="container-right">
-    </div>
-</div>
-
-<h1>{% trans 'Access Editor' %}</h1>
-<h2>
+{% block card-header-subtitle-left %}
+<h5 class="text-muted">
     {% if service_metadata.is_root %}
         {% trans 'Service:' %}
     {% elif service_metadata.metadata_type.type == 'featuretype' %}
@@ -49,8 +15,24 @@
         {% trans 'Layer:' %}
     {% endif %}
     {{ service_metadata.title }}
-</h2>
+</h5>
 
+{% endblock %}
+
+{% block card-header-title-right %}
+    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'editor:index' %}">
+        <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Overview' %}</span>
+    </a>
+{% endblock %}
+
+{% block card-header-subtitle-right %}
+    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'service:detail' service_metadata.id %}">
+    <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Service Detail View' %}</span>
+    </a>
+{% endblock %}
+
+
+{% block card-body %}
 <form id="metadata-form" action="{{ action_url }}" method="post" >
     {% csrf_token %}
     <table class="form-table">
@@ -75,7 +57,7 @@
             </td>
             <td class="secured-operation-group-view">
                 <input class="search-field" type="text" data-type="{{ operation.operation.id }}" placeholder="{% trans 'Enter text to filter' %}">
-                <ul class="no-bullet" data-operation="{{ operation.operation.operation_name }}">
+                <ul class="list-unstyled" data-operation="{{ operation.operation.operation_name }}">
                 {% for group in operation.groups %}
                     <li class="{{ operation.operation.id }} secured-group-operation">
                         <input id="checkbox-sec-{{ group.group.id }}-{{ operation.operation.id }}"
@@ -88,13 +70,14 @@
                                data-remove="false"
                                data-polygons='{{ group.geo_json_geometry|safe }}'
                                data-sec-id="{{ group.sec_id }}">
-                        <label for="checkbox-sec-{{ group.group.id }}-{{ operation.operation.id }}">{{ group.group.name }} ({{ group.group.organization.organization_name }})</label>
+                        <label for="checkbox-sec-{{ group.group.id }}-{{ operation.operation.id }}">{{ group.group.name }} ({{ group.group.organization.organization_name }}) </label>
                         {% if operation.operation.operation_name in spatial_restrictable_operations and service_metadata.is_root %}
-                            <span class="add-geometry fas fa-pen" data-id="{{ service_metadata.id }}" title="{% trans 'Add restricting geometry' %}">
-                            </span>
+                            <button  type="button" class="btn btn-sm {{THEME.BTN_COLOR}} add-geometry_" data-id="{{ service_metadata.id }}">
+                                {% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} Add spatial restriction
+                            </button>
                         {% endif %}
-                        <span class="{% if group.geo_json_geometry is None %}hide{% endif %} listable geometry-indicator" title="{% trans 'Has restricting geometry' %}">
-                            <span class="fas fa-draw-polygon"></span>
+                        <span class="{% if group.geo_json_geometry is None %}d-none{% endif %} listable geometry-indicator" title="{% trans 'Has restricting geometry' %}">
+                            {% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %}
                         </span>
                     </li>
                 {% endfor %}

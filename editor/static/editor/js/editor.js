@@ -273,7 +273,7 @@ $(document).ready(function(){
         return true;
     });
 
-    $(".add-geometry").click(function(){
+    $(".add-geometry_").click(function(){
         var elem = $(this);
         var serviceMetadataId = elem.attr("data-id")
         var operation = elem.siblings("input").attr("data-operation");
@@ -287,6 +287,7 @@ $(document).ready(function(){
         }
 
         $.ajax({
+            // TODO: use url dispatcher....
             url: rootUrl + "/editor/edit/access/" + serviceMetadataId + "/geometry-form/",
             headers: {
                 "X-CSRFToken": getCookie("csrftoken")

@@ -218,7 +218,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
     """
     md = Metadata.objects.get(id=id)
     md_type = md.metadata_type.type
-    template = "editor_edit_access.html"
+    template = "views/editor_edit_access_index.html"
     post_params = request.POST
 
     if request.method == "POST":

@@ -1347,11 +1347,13 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         # Create xml elements
         for key, val in contents.items():
             k = key.format(self.default_ns)
-            if val.get("get", None) is not None or val.get("post", None) is not None:
+            get_uri = val.get("get", None)
+            post_uri = val.get("post", None)
+            if get_uri is not None or post_uri is not None:
                 elem = xml_helper.create_subelement(upper_elem, k)
-                self._generate_capability_operation_xml(elem)
+                self._generate_capability_operation_xml(elem, get_uri, post_uri)
 
-    def _generate_capability_operation_xml(self, upper_elem: Element):
+    def _generate_capability_operation_xml(self, upper_elem: Element, get_uri: str, post_uri: str):
         """ Generate the various operation subelements of a xml capability object
 
         Args:
@@ -1363,35 +1365,8 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         service = self.service
         tag = QName(upper_elem).localname
 
-        operations = OrderedDict({
-            OGCOperationEnum.GET_CAPABILITIES.value: {
-                "get": service.get_capabilities_uri_GET,
-                "post": service.get_capabilities_uri_POST,
-            },
-            OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: {
-                "get": service.describe_layer_uri_GET,
-                "post": service.describe_layer_uri_POST,
-            },
-            OGCOperationEnum.GET_FEATURE.value: {
-                "get": service.get_feature_info_uri_GET,
-                "post": service.get_feature_info_uri_POST,
-            },
-            OGCOperationEnum.GET_FEATURE_WITH_LOCK.value: {
-                "get": "", # ToDo ?
-                "post": "",
-            },
-            OGCOperationEnum.LOCK_FEATURE.value: {
-                "get": "", # ToDo ?
-                "post": "",
-            },
-        })
-
-        uris = operations.get(tag, {"get": "","post": ""})
-        get_uri = uris.get("get", "")
-        post_uri = uris.get("post", "")
-
         if OGCOperationEnum.GET_CAPABILITIES.value in tag:
-            # GetCapabilities is always set to our internal systems uri!
+            # GetCapabilities is always set to our internal systems uri, we do not touch it!
             get_uri = self.proxy_operations_uri_template.format(md.id)
             post_uri = self.proxy_operations_uri_template.format(md.id)
 

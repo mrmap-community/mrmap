@@ -981,9 +981,12 @@ class Document(Resource):
             "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request")
             , xml_obj
         )
-        service = FeatureType.objects.get(
-            metadata=self.related_metadata
-        ).parent_service
+        try:
+            service = self.related_metadata.service
+        except ObjectDoesNotExist:
+            service = FeatureType.objects.get(
+                metadata=self.related_metadata
+            ).parent_service
         op_uri_dict = {
             "DescribeFeatureType": {
                 "Get": service.describe_layer_uri_GET,
@@ -1034,7 +1037,14 @@ class Document(Resource):
              Nothing, directly works on the xml_obj
         """
         operation_objs = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation"), xml_obj)
-        service = self.related_metadata.service
+
+        try:
+            service = self.related_metadata.service
+        except ObjectDoesNotExist:
+            service = FeatureType.objects.get(
+                metadata=self.related_metadata
+            ).parent_service
+
         op_uri_dict = {
             "DescribeFeatureType": {
                 "Get": service.describe_layer_uri_GET,

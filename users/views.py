@@ -232,7 +232,7 @@ def activate_user(request: HttpRequest, activation_hash: str):
     Returns:
          A rendered view
     """
-    template = "user_activation.html"
+    template = "views/user_activation.html"
 
     try:
         user_activation = UserActivation.objects.get(activation_hash=activation_hash)

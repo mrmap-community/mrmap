@@ -832,20 +832,26 @@ def detail(request: HttpRequest, id, user: User):
     template = "views/detail.html"
     service_md = get_object_or_404(Metadata, id=id)
 
-    if service_md.service.is_root:
-        service = service_md.service
-        layers = Layer.objects.filter(parent_service=service_md.service)
-        layers_md_list = layers.filter(parent_layer=None)
+    # catch featuretype
+    if service_md.metadata_type.type == 'featuretype':
+        template = "views/featuretype_detail.html"
+        service = service_md.featuretype
+        layers_md_list = {}
     else:
-        template = "views/sublayer_detail.html"
-        service = Layer.objects.get(
-            metadata=service_md
-        )
-        # get sublayers
-        layers_md_list = Layer.objects.filter(
-            parent_layer=service_md.service
-        )
 
+        if service_md.service.is_root:
+            service = service_md.service
+            layers = Layer.objects.filter(parent_service=service_md.service)
+            layers_md_list = layers.filter(parent_layer=None)
+        else:
+            template = "views/sublayer_detail.html"
+            service = Layer.objects.get(
+                metadata=service_md
+            )
+            # get sublayers
+            layers_md_list = Layer.objects.filter(
+                parent_layer=service_md.service
+            )
 
     try:
         related_md = MetadataRelation.objects.get(
@@ -860,14 +866,14 @@ def detail(request: HttpRequest, id, user: User):
         has_dataset_metadata = False
 
     mime_types = {}
-
-    for mime in service.formats.all():
-        op = mime_types.get(mime.operation)
-        if op is None:
-            op = []
-        op.append(mime.mime_type)
-        mi = {mime.operation: op}
-        mime_types.update(mi)
+    if service_md.metadata_type.type != 'featuretype':
+        for mime in service.formats.all():
+            op = mime_types.get(mime.operation)
+            if op is None:
+                op = []
+            op.append(mime.mime_type)
+            mi = {mime.operation: op}
+            mime_types.update(mi)
 
     remove_service_form = RemoveService(initial={'service_id': service.id,
                                                  'service_needs_authentication': False,

@@ -105,7 +105,7 @@
     {% elif service.servicetype.name == 'wfs' %}
         <!--TODO:-->
         {% with service.featuretypes.all as featuretypes %}
-            {% include 'includes/wfs/containing_featuretypes.html' %}
+            {% include 'includes/wfs/show_featuretypes_accordion.html' %}
         {% endwith %}
     {% endif %}
     </div><!--</col-->

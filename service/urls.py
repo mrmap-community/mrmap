@@ -30,7 +30,6 @@ urlpatterns = [
 
     path('pending-tasks/', pending_tasks, name="pending-tasks"),
 
-    # TODO: wms and wfs path are broken
     path('wms/', wms_index, name='wms-index'),
     path('wfs/', wfs_index, name='wfs-index'),
 

@@ -22,13 +22,15 @@ class MetadataEditorForm(ModelForm):
             "abstract",
             "access_constraints",
             "terms_of_use",
-            "use_proxy_uri",
-            "categories",
-            "keywords",
+            # "use_proxy_uri",
+            # "metadata_url",
+            # "keywords",
+            # "categories",
+            # "reference_system",
         ]
-        labels = {
-            "use_proxy_uri": _("Use proxy"),
-        }
+        # labels = {
+        #     "use_proxy_uri": _("Use proxy"),
+        # }
         widgets = {
             "use_proxy_uri": CheckboxInput(),
             "categories": CheckboxSelectMultiple(),
@@ -41,8 +43,8 @@ class MetadataEditorForm(ModelForm):
 
         # there's a `fields` property now
         self.fields['terms_of_use'].required = False
-        self.fields['categories'].required = False
-        self.fields['keywords'].required = False
+        #self.fields['categories'].required = False
+        #self.fields['keywords'].required = False
 
 
 class FeatureTypeEditorForm(ModelForm):

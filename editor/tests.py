@@ -5,7 +5,7 @@ from django.test import TestCase, Client
 from django.utils import timezone
 
 from MapSkinner.settings import HOST_NAME, HTTP_OR_SSL
-from service.helper.enums import VersionEnum, ServiceEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
 from service.helper import service_helper
 from structure.models import Permission, Role, User, Group
 
@@ -53,8 +53,8 @@ class EditorTestCase(TestCase):
 
         self.test_wms = {
             "title": "Karte RP",
-            "version": VersionEnum.V_1_1_1,
-            "type": ServiceEnum.WMS,
+            "version": OGCServiceVersionEnum.V_1_1_1,
+            "type": OGCServiceEnum.WMS,
             "uri": "https://www.geoportal.rlp.de/mapbender/php/mod_showMetadata.php/../wms.php?layer_id=38925&PHPSESSID=7qiruaoul2pdcadcohs7doeu07&withChilds=1",
         }
 

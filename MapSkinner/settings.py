@@ -16,7 +16,7 @@ import sys
 from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-from service.helper.enums import ConnectionEnum, VersionEnum
+from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -75,6 +75,7 @@ XML_NAMESPACES = {
     "inspire_dls": "http://inspire.ec.europa.eu/schemas/inspire_dls/1.0",
     "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset",
     "ms": "http://mapserver.gis.umn.edu/mapserver",
+    "se": "http://www.opengis.net/se",
     "xsd": "http://www.w3.org/2001/XMLSchema",
     "sld": "http://www.opengis.net/sld",
     "fes": "http://www.opengis.net/fes/2.0",
@@ -135,11 +136,13 @@ TEMPLATE_LOADERS = (
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.gzip.GZipMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.auth.middleware.RemoteUserMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.forms import formset_factory
 from django.http import HttpRequest
-from django.shortcuts import render, get_object_or_404, redirect, render_to_response
+from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -159,7 +159,6 @@ def task(request: HttpRequest, id: str):
             "service": "",
             "phase": "finished",
         })
-        pass
     return BackendAjaxResponse(html="", task=params).get_response()
 
 
@@ -692,13 +691,12 @@ def edit_group(request: HttpRequest, user: User, id: int):
         return redirect("structure:detail-group", group.id)
 
 
-def handler404(request: HttpRequest, exception, template_name="404.html"):
+def handler404(request: HttpRequest, exception=None):
     """ Handles a general 404 (Page not found) error and renders a custom response page
 
     Args:
         request: The incoming request
         exception: An exception, if one occured
-        template_name: The template name
     Returns:
          A rendered 404 response
     """
@@ -706,18 +704,17 @@ def handler404(request: HttpRequest, exception, template_name="404.html"):
 
     }
     context = DefaultContext(request, params)
-    response = render_to_response("404.html", context=context.get_context())
+    response = render("404.html", context=context.get_context())
     response.status_code = 404
     return response
 
 
-def handler500(request: HttpRequest, exception, template_name="500.html"):
+def handler500(request: HttpRequest, exception=None):
     """ Handles a general 500 (Internal Server Error) error and renders a custom response page
 
     Args:
         request: The incoming request
         exception: An exception, if one occured
-        template_name: The template name
     Returns:
          A rendered 500 response
     """
@@ -725,6 +722,6 @@ def handler500(request: HttpRequest, exception, template_name="500.html"):
 
     }
     context = DefaultContext(request, params)
-    response = render_to_response("500.html", context=context.get_context())
+    response = render("500.html", context=context.get_context())
     response.status_code = 500
     return response

@@ -24,6 +24,8 @@ GROUP_EDITED = "Group edited"
 
 ####################
 
+PARAMETER_ERROR = _("The parameter '{}' is invalid.")
+
 FORM_INPUT_INVALID = _("The input was not valid.")
 
 USERNAME_OR_PW_INVALID = _("Username or password incorrect")
@@ -44,6 +46,7 @@ PASSWORD_CHANGE_NO_MATCH = _("Passwords didn't match!")
 PASSWORD_SENT = _("A new password has been sent. Please check your e-mails!")
 
 SESSION_TIMEOUT = _("Session timeout. You have been logged out.")
+CONNECTION_TIMEOUT = _("Timeout while loading '{}'!")
 
 NO_PERMISSION = _("You do not have permissions for this!")
 
@@ -76,29 +79,31 @@ ORGANIZATION_CAN_NOT_BE_OWN_PARENT = _("An organization can not be parent to its
 ORGANIZATION_IS_OTHERS_PROPERTY = _("This organization is owned by another user. Action denied.")
 
 SERVICE_REGISTRATION_ABORTED = _("The service registration for '{}' was canceled")
-SERVICE_REGISTRATION_TIMEOUT = _("Timeout while loading '{}'!")
 SERVICE_UPDATE_WRONG_TYPE = _("You tried to update a service to another service type. This is not possible!")
 SERVICE_UPDATE_ABORTED_NO_DIFF = _("The provided capabilities document is not different from the currently registered. Update canceled!")
 SERVICE_GENERIC_ERROR = _("The service could not be registered. Please check your metadata and contact an administrator.")
 SERVICE_LAYER_NOT_FOUND = _("The requested layer could not be found.")
 SERVICE_NOT_FOUND = _("The requested service could not be found.")
 SERVICE_DISABLED = _("423 - The requested resource is currently disabled.")
+SERVICE_CAPABILITIES_UNAVAILABLE =_("The requested capabilities are currently unavailable. Add 'fallback=true' to your query if you want a cached document.")
 
 SECURITY_PROXY_ERROR_MULTIPLE_SECURED_OPERATIONS = _("There are multiple secured operations for one metadata. Please contact an administator.")
 SECURITY_PROXY_NOT_ALLOWED = _("You have no permission to access this resource.")
+SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED = _("The resource is authenticated externally. Proxy can not be deactivated.")
 SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING = _("Proxy must be activated to be logged!")
 SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS = _("Proxy must be enabled if service shall stay secured!")
 SECURITY_PROXY_ERROR_OPERATION_NOT_SUPPORTED = _("The requested operation is not supported by this resource.")
 SECURITY_PROXY_ERROR_BROKEN_URI = _("The requested uri seems to be broken. Please inform an administrator.")
-SECURITY_PROXY_ERROR_PARAMETER = _("The following parameter seems to be invalid. Please check '{}'.")
 SECURITY_PROXY_WARNING_ONLY_FOR_ROOT = _("This setting is only available for the top level element.")
 SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE = _("No 'request' parameter provided.")
 SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY = _("Login credentials for external authentication could not be decrypted. The key is missing. Please inform an administrator.")
 SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY = _("Login credentials for external authentication could not be decrypted. The key is wrong. Please inform an administrator.")
+
+OPERATION_HANDLER_MULTIPLE_QUERIES_NOT_ALLOWED = _("Multiple feature queries in a single request detected. Please use one query per request.")
 
 MULTIPLE_SERVICE_METADATA_FOUND = _("There are several service metadata documents for this service. Please contact an administrator.")
 
 EDITOR_INVALID_ISO_LINK = _("'{}' was invalid.")
 EDITOR_ACCESS_RESTRICTED = _("Access for '{}' changed successfully.")
 
-TD_POINT_HAS_NOT_ENOUGH_VALUES = _("2D-Points must hold two values for x and y.")  # TD_ = 2D_
+TD_POINT_HAS_NOT_ENOUGH_VALUES = _("2D-Points must hold two values for x and y.")  # TD_ = 2D_, has to be renamed due to pep8

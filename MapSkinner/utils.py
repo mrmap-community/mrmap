@@ -78,7 +78,7 @@ def set_uri_GET_param(uri: str, param: str, val):
     base_uri = urllib.parse.urlsplit(uri)
     query_dict = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(uri).query))
 
-    if len(query_dict) == 0:
+    if "http" not in base_uri[0]:
         # the given 'uri' parameter is not a full uri, but rather the query part
         query_dict = dict(urllib.parse.parse_qsl(uri))
         if len(query_dict) == 0:

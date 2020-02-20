@@ -5,7 +5,7 @@ from django.db import models
 from django.utils import timezone
 
 from service.helper.crypto_handler import CryptoHandler
-from service.helper.enums import ServiceEnum
+from service.helper.enums import OGCServiceEnum
 from structure.settings import USER_ACTIVATION_TIME_WINDOW
 
 
@@ -132,7 +132,7 @@ class User(Contact):
     def __str__(self):
         return self.username
 
-    def get_services(self, type: ServiceEnum = None):
+    def get_services(self, type: OGCServiceEnum = None):
         """ Returns all services which are related to the user
 
         Returns:
@@ -140,7 +140,7 @@ class User(Contact):
         """
         return list(self.get_services_as_qs(type))
 
-    def get_services_as_qs(self, type: ServiceEnum = None):
+    def get_services_as_qs(self, type: OGCServiceEnum = None):
         """ Returns all services which are related to the user
 
         Returns:

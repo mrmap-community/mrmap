@@ -1,16 +1,19 @@
 import os
 
+from copy import copy
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from django.test import TestCase, Client
 from django.utils import timezone
 
+from MapSkinner.messages import SECURITY_PROXY_NOT_ALLOWED
+from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, HOST_NAME, HTTP_OR_SSL
 from service import tasks
 from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ServiceEnum, VersionEnum
-from service.models import Service, Layer, Document
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, OGCOperationEnum
+from service.models import Service, Layer, Document, Metadata
 from structure.models import User, Group, Role, Permission
 
 
@@ -62,15 +65,15 @@ class ServiceTestCase(TestCase):
 
         self.test_wms = {
             "title": "Karte RP",
-            "version": VersionEnum.V_1_1_1,
-            "type": ServiceEnum.WMS,
+            "version": OGCServiceVersionEnum.V_1_1_1,
+            "type": OGCServiceEnum.WMS,
             "uri": "https://www.geoportal.rlp.de/mapbender/php/mod_showMetadata.php/../wms.php?layer_id=38925&PHPSESSID=7qiruaoul2pdcadcohs7doeu07&withChilds=1",
         }
 
         self.test_wfs = {
             "title": "Nutzung",
-            "version": VersionEnum.V_1_0_0,
-            "type": ServiceEnum.WFS,
+            "version": OGCServiceVersionEnum.V_1_0_0,
+            "type": OGCServiceEnum.WFS,
             "uri": "https://www.geoportal.rlp.de/mapbender/php/mod_showMetadata.php/../wfs.php?FEATURETYPE_ID=2672&PHPSESSID=7qiruaoul2pdcadcohs7doeu07",
         }
 
@@ -91,9 +94,9 @@ class ServiceTestCase(TestCase):
         self.raw_data = service.get("raw_data", None)
         self.service = service.get("service", None)
 
-        service_helper.persist_service_model_instance(self.service)
+        # run process without an external authentication - since the service does not require an authentication
+        service_helper.persist_service_model_instance(self.service, external_auth=None)
         self.service.persist_capabilities_doc(self.raw_data.service_capabilities_xml)
-
 
     def _get_logged_in_client(self, user: User):
         """ Helping function to encapsulate the login process
@@ -103,13 +106,10 @@ class ServiceTestCase(TestCase):
              user_id (int): The user (id) who shall be logged in
         """
         client = Client()
-        user = User.objects.get(
-            id=user.id
-        )
         self.assertEqual(user.logged_in, False, msg="User already logged in")
         response = client.post("/", data={"username": user.username, "password": self.pw})
         user.refresh_from_db()
-        self.assertEqual(response.url, "/home", msg="Redirect wrong")
+        self.assertEqual(response.url, "{}{}/home".format(HTTP_OR_SSL, HOST_NAME), msg="Redirect wrong")
         self.assertEqual(user.logged_in, True, msg="User not logged in")
         return client
 
@@ -174,7 +174,9 @@ class ServiceTestCase(TestCase):
         cap_uri = service.metadata.capabilities_original_uri
         connector = CommonConnector(url=cap_uri)
         connector.load()
-        received_xml = connector.text
+        received_xml = connector.content
+        if isinstance(received_xml, bytes):
+            received_xml = received_xml.decode("UTF-8")
 
         self.assertEqual(received_xml, cap_doc, msg="Received capabilities document does not match the persisted one!")
         for layer in layers:
@@ -186,7 +188,7 @@ class ServiceTestCase(TestCase):
                 continue
             connector = CommonConnector(url=cap_uri)
             connector.load()
-            received_xml = connector.text
+            received_xml = connector.content
             self.assertEqual(received_xml, cap_doc,
                              msg="Received capabilities document for layer '{}' does not match the persisted one"
                              .format(layer.identifier)
@@ -254,10 +256,8 @@ class ServiceTestCase(TestCase):
 
         """
         self.assertEqual(service.created_by, self.group)
-        #self.assertEqual(service.published_for, self.org)
         for layer in layers:
             self.assertEqual(layer.created_by, self.group)
-            #self.assertEqual(layer.published_for, self.org)
 
     def _test_new_service_check_version_and_type(self, service: Service, layers: QuerySet, cap_xml):
         """ Tests whether the service has the correct version number and service type set.
@@ -331,9 +331,257 @@ class ServiceTestCase(TestCase):
             self._test_new_service_check_register_dependencies,
             self._test_new_service_check_version_and_type,
             self._test_new_service_check_reference_systems,
+            #self.test_proxy_service,
         ]
         for check_func in checks:
             check_func(self.service, child_layers, cap_xml)
+
+    def _test_proxy_is_set(self, metadata: Metadata, doc_unsecured: str, doc_secured: str):
+        """ Tests whether the proxy was set properly.
+
+        Args:
+            metadata (Metadata): The metadata object
+            doc_unsecured (str): The unsecured document as string
+            doc_secured (str): The secured document as string
+        Returns:
+        """
+        # Check for all operations if the uris has been changed!
+        # Do not check for GetCapabilities, since we always change this uri during registration!
+        # Make sure all versions can be matched by the code - the xml structure differs a lot from version to version
+        service_type = metadata.get_service_type()
+        service_version = metadata.get_service_version()
+
+        if service_type == OGCServiceEnum.WMS.value:
+            operations = [
+                OGCOperationEnum.GET_MAP.value,
+                OGCOperationEnum.GET_FEATURE_INFO.value,
+                OGCOperationEnum.DESCRIBE_LAYER.value,
+                OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
+                OGCOperationEnum.GET_STYLES.value,
+                OGCOperationEnum.PUT_STYLES.value,
+            ]
+        elif service_type == OGCServiceEnum.WFS.value:
+            operations = [
+                OGCOperationEnum.GET_FEATURE.value,
+                OGCOperationEnum.TRANSACTION.value,
+                OGCOperationEnum.LOCK_FEATURE.value,
+                OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
+            ]
+        else:
+            operations = []
+
+        # create xml documents from string documents and fetch only the relevant <Request> element for each
+        xml_unsecured = xml_helper.parse_xml(doc_unsecured)
+        request_unsecured = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Request"), xml_elem=xml_unsecured)
+        xml_secured = xml_helper.parse_xml(doc_secured)
+        request_secured = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Request"), xml_elem=xml_secured)
+
+        for operation in operations:
+            # Get <OPERATION> element
+            operation_unsecured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format(operation), request_unsecured)
+            operation_secured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format(operation), request_secured)
+
+            if service_version == OGCServiceVersionEnum.V_1_0_0:
+                if service_type == OGCServiceEnum.WMS.value:
+                    # The WMS 1.0.0 specification uses <OPERATION> instead of <GetOPERATION> for any operation element.
+                    operation = operation.replace("Get", "")
+
+                    # Get <OPERATION> element again
+                    operation_unsecured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format(operation), request_unsecured)
+                    operation_secured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format(operation), request_secured)
+
+                # Version 1.0.0 holds the uris in the "onlineResource" attribute of <Get> and <Post>
+                get_unsecured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"), operation_unsecured)
+                get_secured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"), operation_secured)
+                post_unsecured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"), operation_unsecured)
+                post_secured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"), operation_secured)
+
+                online_res = "onlineResource"
+                get_unsecured = xml_helper.try_get_attribute_from_xml_element(get_unsecured, online_res)
+                get_secured = xml_helper.try_get_attribute_from_xml_element(get_secured, online_res)
+                post_unsecured = xml_helper.try_get_attribute_from_xml_element(post_unsecured, online_res)
+                post_secured = xml_helper.try_get_attribute_from_xml_element(post_secured, online_res)
+
+                # Assert that all get/post elements are not None
+                self.assertIsNotNone(get_secured, msg="The secured uri of '{}' is None!".format(operation))
+                self.assertIsNotNone(post_secured, msg="The secured uri of '{}' is None!".format(operation))
+
+                # Assert that the secured version is different from the unsecured one
+                self.assertNotEqual(get_unsecured, get_secured, msg="The uri of '{}' has not been secured!".format(operation))
+                self.assertNotEqual(post_unsecured, post_secured, msg="The uri of '{}' has not been secured!".format(operation))
+
+                # Assert that the HOST_NAME constant appears in the secured uri
+                self.assertContains(get_secured, HOST_NAME)
+                self.assertContains(post_secured, HOST_NAME)
+
+            elif service_version == OGCServiceVersionEnum.V_1_1_0 or service_version == OGCServiceVersionEnum.V_2_0_0 or service_version == OGCServiceVersionEnum.V_2_0_2:
+                # Only WFS
+                # Get <OPERATION> element again, since the operation is now identified using an attribute, not an element tag
+                operation_unsecured = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='" + operation + "']",
+                    request_unsecured
+                )
+                operation_secured = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='" + operation + "']",
+                    request_secured
+                )
+
+                # Version 1.1.0 holds the uris in the href attribute of <Get> and <Post>
+                get_unsecured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"), operation_unsecured)
+                get_secured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"), operation_secured)
+                post_unsecured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"), operation_unsecured)
+                post_secured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"), operation_secured)
+
+                get_unsecured = xml_helper.get_href_attribute(get_unsecured)
+                get_secured = xml_helper.get_href_attribute(get_secured)
+                post_unsecured = xml_helper.get_href_attribute(post_unsecured)
+                post_secured = xml_helper.get_href_attribute(post_secured)
+
+                # Assert that all get/post elements are not None
+                self.assertIsNotNone(get_secured, msg="The secured uri of '{}' is None!".format(operation))
+                self.assertIsNotNone(post_secured, msg="The secured uri of '{}' is None!".format(operation))
+
+                # Assert that the secured version is different from the unsecured one
+                self.assertNotEqual(get_unsecured, get_secured, msg="The uri of '{}' has not been secured!".format(operation))
+                self.assertNotEqual(post_unsecured, post_secured, msg="The uri of '{}' has not been secured!".format(operation))
+
+                # Assert that the HOST_NAME constant appears in the secured uri
+                self.assertContains(get_secured, HOST_NAME)
+                self.assertContains(post_secured, HOST_NAME)
+
+            elif service_version == OGCServiceVersionEnum.V_1_1_1 or service_version == OGCServiceVersionEnum.V_1_3_0:
+                # Version 1.1.1 holds the uris in the <OnlineResource> element inside <Get> and <Post>
+                get_unsecured = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    operation_unsecured
+                )
+                get_secured = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    operation_secured
+                )
+                post_unsecured = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    operation_unsecured
+                )
+                post_secured = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    operation_secured
+                )
+
+                get_unsecured = xml_helper.get_href_attribute(get_unsecured)
+                get_secured = xml_helper.get_href_attribute(get_secured)
+                post_unsecured = xml_helper.get_href_attribute(post_unsecured)
+                post_secured = xml_helper.get_href_attribute(post_secured)
+
+                # Assert that both (secure/unsecure) uris are None or none of them
+                # This is possible for operations that are not supported by the service
+                if get_secured is not None and get_unsecured is not None:
+                    self.assertIsNotNone(get_secured, msg="The secured uri of '{}' is None!".format(operation))
+
+                    # Assert that the secured version is different from the unsecured one
+                    self.assertNotEqual(get_unsecured, get_secured, msg="The uri of '{}' has not been secured!".format(operation))
+
+                    # Assert that the HOST_NAME constant appears in the secured uri
+                    self.assertTrue(HOST_NAME in get_secured)
+
+                if post_secured is not None and post_unsecured is not None:
+                    self.assertIsNotNone(post_secured, msg="The secured uri of '{}' is None!".format(operation))
+                    self.assertNotEqual(post_unsecured, post_secured, msg="The uri of '{}' has not been secured!".format(operation))
+                    self.assertTrue(HOST_NAME in post_secured)
+            else:
+                pass
+
+    def test_proxy_service(self):
+        """ Tests the securing functionality for services
+
+        Returns:
+
+        """
+        metadata = self.service.metadata
+
+        cap_doc_secured = Document.objects.get(
+            related_metadata=metadata
+        )
+
+        # Create copy of 'cap_doc_secured' (which isn't secured yet) to avoid a simple reference between both variables
+        cap_doc_unsecured = copy(cap_doc_secured)
+        cap_doc_unsecured = cap_doc_unsecured.current_capability_document
+
+        # Proxy the service!
+        metadata.set_proxy(True)
+
+        # Fetch the secured status for 'cap_doc_secured' from the db
+        cap_doc_secured.refresh_from_db()
+        cap_doc_secured = cap_doc_secured.current_capability_document
+
+        # we expect that
+        # 1) all uris of the capabilities document have been changed to use the internal proxy
+        # 2) operations can not be performed by anyone who has no permission
+        self._test_proxy_is_set(metadata, cap_doc_unsecured, cap_doc_secured)
+
+    def test_secure_service(self):
+        """ Tests the securing functionalities
+
+        1) Secure a service
+        2) Try to perform an operation -> must fail
+        3) Give performing user the permission (example call for WMS: GetMap, for WFS: GetFeature)
+        4) Try to perform an operation -> must not fail
+
+        Args:
+            service (Service):
+            child_layers:
+            cap_xml:
+        Returns:
+
+        """
+        # activate service
+        # since activating runs async as well, we need to call this function directly
+        tasks.async_activate_service(self.service.id, self.user.id)
+        self.service.refresh_from_db()
+
+        service = self.service
+        metadata = service.metadata
+        service_type = metadata.get_service_type()
+
+
+        if service_type == OGCServiceEnum.WMS.value:
+            uri = "{}{}/service/metadata/{}/operation".format(HTTP_OR_SSL, HOST_NAME, metadata.id)
+            params = {
+                "request": OGCOperationEnum.GET_MAP.value,
+                "version": OGCServiceVersionEnum.V_1_1_1.value,
+                "layers": "atkis1",  # the root layer for test data
+                "bbox": "6.3635678506, 49.8043950464, 8.2910611844, 50.4544433675",
+                "srs": "EPSG:4326",
+                "format": "png",
+                "width": "100",
+                "height": "100",
+            }
+
+            # case 0: Service not secured -> Runs!
+            response = self._run_request(params, uri, "get")
+            self.assertEqual(response.status_code, 200)
+
+            # Proxy the service!
+            metadata.set_proxy(True)
+
+            # Secure the service!
+            metadata.set_secured(True)
+
+            # case 1: Service secured but no permission was given to any user, guest user tries to perform request    -> Fails!
+            response = self._run_request(params, uri, "get")
+            self.assertEqual(response.status_code, 401)
+            self.assertEqual(response.content.decode("utf-8"), SECURITY_PROXY_NOT_ALLOWED)
+
+            # case 2: Service secured but no permission was given to any user, logged in user performs request via logged in client     -> Fails!
+            client = self._get_logged_in_client(self.user)
+            response = self._run_request(params, uri, "get", client)
+            self.assertEqual(response.status_code, 401)
+            self.assertEqual(response.content.decode("utf-8"), SECURITY_PROXY_NOT_ALLOWED)
+
 
     def _run_request(self, params: dict, uri: str, request_type: str, client: Client = Client()):
         """ Helping function which performs a request and returns the response

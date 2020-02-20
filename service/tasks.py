@@ -16,8 +16,9 @@ from requests.exceptions import InvalidURL
 from MapSkinner import utils
 from MapSkinner.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
-from service.helper.enums import MetadataEnum, ServiceEnum
-from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication
+from service.helper.enums import MetadataEnum, OGCServiceEnum, OGCOperationEnum
+from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
+    MetadataRelation
 from structure.models import User, Group, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
@@ -60,10 +61,29 @@ def async_activate_service(service_id: int, user_id: int):
 
     # get root_layer of service and start changing of all statuses
     # also check all related metadata and activate them too
-    if service.servicetype.name == ServiceEnum.WMS.value:
+    if service.servicetype.name == OGCServiceEnum.WMS.value:
         service.activate_service(new_status)
         root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
         root_layer.activate_layer_recursive(new_status)
+
+    # activate features/related dataset metadata
+    elif service.servicetype.name == OGCServiceEnum.WFS.value:
+        featuretypes = service.featuretypes.all()
+
+        for featuretype in featuretypes:
+            ft_metadata = featuretype.metadata
+            ft_metadata.is_active = new_status
+
+            # activate related metadata (if it exists)
+            md_relations = MetadataRelation.objects.filter(
+                metadata_from=ft_metadata
+            )
+            for relation in md_relations:
+                related_md = relation.metadata_to
+                related_md.is_active = new_status
+                related_md.save()
+            ft_metadata.save()
+
 
     if service.metadata.is_active:
         msg = SERVICE_ACTIVATED
@@ -216,6 +236,10 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             task_helper.update_progress(async_new_service, 95)
 
         service.persist_capabilities_doc(xml)
+
+        # after service AND documents have been persisted, we can now set the service being secured
+        if external_auth is not None:
+            service.metadata.set_proxy(True)
 
         print(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
         user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)

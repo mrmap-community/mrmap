@@ -6,18 +6,20 @@ from collections import OrderedDict
 import time
 
 from celery import Task
-from django.contrib.gis.geos import Polygon
+from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.db import transaction
 from lxml.etree import _Element
 
 from service.helper.crypto_handler import CryptoHandler
+from service.settings import DEFAULT_SRS
 from service.settings import MD_RELATION_TYPE_VISUALIZES, \
     EXTERNAL_AUTHENTICATION_FILEPATH
 from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
 from MapSkinner.utils import execute_threads
-from service.helper.enums import VersionEnum, ServiceEnum, MetadataEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
+from service.helper.enums import MetadataEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
@@ -32,7 +34,7 @@ class OGCWebFeatureServiceFactory:
     """ Creates the correct OGCWebFeatureService objects
 
     """
-    def get_ogc_wfs(self, version: VersionEnum, service_connect_url=None):
+    def get_ogc_wfs(self, version: OGCServiceVersionEnum, service_connect_url=None, external_auth=None):
         """ Returns the correct implementation of an OGCWebFeatureService according to the given version
 
         Args:
@@ -41,23 +43,24 @@ class OGCWebFeatureServiceFactory:
         Returns:
             An OGCWebFeatureService
         """
-        if version is VersionEnum.V_1_0_0:
-            return OGCWebFeatureService_1_0_0(service_connect_url=service_connect_url)
-        if version is VersionEnum.V_1_1_0:
-            return OGCWebFeatureService_1_1_0(service_connect_url=service_connect_url)
-        if version is VersionEnum.V_2_0_0:
-            return OGCWebFeatureService_2_0_0(service_connect_url=service_connect_url)
-        if version is VersionEnum.V_2_0_2:
-            return OGCWebFeatureService_2_0_2(service_connect_url=service_connect_url)
+        if version is OGCServiceVersionEnum.V_1_0_0:
+            return OGCWebFeatureService_1_0_0(service_connect_url=service_connect_url, external_auth=external_auth)
+        if version is OGCServiceVersionEnum.V_1_1_0:
+            return OGCWebFeatureService_1_1_0(service_connect_url=service_connect_url, external_auth=external_auth)
+        if version is OGCServiceVersionEnum.V_2_0_0:
+            return OGCWebFeatureService_2_0_0(service_connect_url=service_connect_url, external_auth=external_auth)
+        if version is OGCServiceVersionEnum.V_2_0_2:
+            return OGCWebFeatureService_2_0_2(service_connect_url=service_connect_url, external_auth=external_auth)
 
 
 class OGCWebFeatureService(OGCWebService):
 
-    def __init__(self, service_connect_url, service_version, service_type):
+    def __init__(self, service_connect_url, service_version, service_type, external_auth: ExternalAuthentication):
         super().__init__(
             service_connect_url=service_connect_url,
             service_version=service_version,
-            service_type=service_type
+            service_type=service_type,
+            external_auth=external_auth
         )
         # wfs specific attributes
         self.get_capabilities_uri = {
@@ -114,7 +117,7 @@ class OGCWebFeatureService(OGCWebService):
         abstract = True
 
     @abstractmethod
-    def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):
+    def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None, external_auth: ExternalAuthentication = None):
         """ Fills the object with data from the capabilities document
 
         Returns:
@@ -129,17 +132,23 @@ class OGCWebFeatureService(OGCWebService):
 
         # check possible operations on this service
         start_time = time.time()
-        self.get_service_operations(xml_obj, self.get_parser_prefix())
+        self.get_service_operations(xml_obj)
         print(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
 
         # check if 'real' linked service metadata exist
-        service_metadata_uri = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ExtendedCapabilities/inspire_dls:ExtendedCapabilities/inspire_common:MetadataUrl/inspire_common:URL")
+        service_metadata_uri = xml_helper.try_get_text_from_xml_element(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("ExtendedCapabilities") +
+                 "/" + GENERIC_NAMESPACE_TEMPLATE.format("ExtendedCapabilities") +
+                 "/" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataUrl") +
+                 "/" + GENERIC_NAMESPACE_TEMPLATE.format("URL")
+        )
         if service_metadata_uri is not None:
             self.get_service_metadata(uri=service_metadata_uri, async_task=async_task)
 
         if not metadata_only:
             start_time = time.time()
-            self.get_feature_type_metadata(xml_obj=xml_obj, async_task=async_task)
+            self.get_feature_type_metadata(xml_obj=xml_obj, async_task=async_task, external_auth=external_auth)
             print(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
 
         # always execute version specific tasks AFTER multithreading
@@ -156,15 +165,38 @@ class OGCWebFeatureService(OGCWebService):
         Returns:
              Nothing
         """
-        self.service_identification_title = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Title")
+        service_xml = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("ServiceIdentification"),
+            xml_obj
+        )
+        self.service_identification_title = xml_helper.try_get_text_from_xml_element(
+            xml_elem=service_xml,
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
+        )
 
         if async_task is not None:
             task_helper.update_service_description(async_task, self.service_identification_title)
 
-        self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Abstract")
-        self.service_identification_fees = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Fees")
-        self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:AccessConstraints")
-        keywords = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//ows:ServiceIdentification/ows:Keywords/ows:Keyword")
+        self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(
+            xml_elem=service_xml,
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Abstract")
+        )
+
+        self.service_identification_fees = xml_helper.try_get_text_from_xml_element(
+            xml_elem=service_xml,
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Fees")
+        )
+
+        self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(
+            xml_elem=service_xml,
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("AccessConstraints")
+        )
+
+        keywords = xml_helper.try_get_element_from_xml(
+            xml_elem=service_xml,
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Keywords") +
+                 "/" + GENERIC_NAMESPACE_TEMPLATE.format("Keyword")
+        )
         kw = []
         for keyword in keywords:
             text = keyword.text
@@ -176,26 +208,72 @@ class OGCWebFeatureService(OGCWebService):
                 pass
         self.service_identification_keywords = kw
 
-        self.service_provider_providername = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ProviderName")
-        provider_site_elem = xml_helper.try_get_single_element_from_xml("//ows:ProviderSite", xml_obj)
+        self.service_provider_providername = xml_helper.try_get_text_from_xml_element(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("ProviderName")
+        )
+
+        provider_site_elem = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("ProviderSite"),
+            xml_obj
+        )
         self.service_provider_url = xml_helper.get_href_attribute(xml_elem=provider_site_elem)
-        self.service_provider_responsibleparty_individualname = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:IndividualName")
-        self.service_provider_responsibleparty_positionname = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:PositionName")
-        self.service_provider_telephone_voice = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:Voice")
-        self.service_provider_telephone_facsimile = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:Facsimile")
-        self.service_provider_address = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:DeliveryPoint")
-        self.service_provider_address_city = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:City")
-        self.service_provider_address_state_or_province = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:AdministrativeArea")
-        self.service_provider_address_postalcode = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:PostalCode")
-        self.service_provider_address_country = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:Country")
-        self.service_provider_address_electronicmailaddress = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ElectronicMailAddress")
-        online_resource_elem = xml_helper.try_get_single_element_from_xml(xml_elem=xml_obj, elem="//ows:OnlineResource")
+        self.service_provider_responsibleparty_individualname = xml_helper.try_get_text_from_xml_element(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("IndividualName")
+        )
+        self.service_provider_responsibleparty_positionname = xml_helper.try_get_text_from_xml_element(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("PositionName")
+        )
+        self.service_provider_telephone_voice = xml_helper.try_get_text_from_xml_element(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Voice")
+        )
+        self.service_provider_telephone_facsimile = xml_helper.try_get_text_from_xml_element(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Facsimile")
+        )
+        self.service_provider_address = xml_helper.try_get_text_from_xml_element(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("DeliveryPoint")
+        )
+        self.service_provider_address_city = xml_helper.try_get_text_from_xml_element(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("City")
+        )
+        self.service_provider_address_state_or_province = xml_helper.try_get_text_from_xml_element(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("AdministrativeArea")
+        )
+        self.service_provider_address_postalcode = xml_helper.try_get_text_from_xml_element(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("PostalCode")
+        )
+        self.service_provider_address_country = xml_helper.try_get_text_from_xml_element(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Country")
+        )
+        self.service_provider_address_electronicmailaddress = xml_helper.try_get_text_from_xml_element(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("ElectronicMailAddress")
+        )
+        online_resource_elem = xml_helper.try_get_single_element_from_xml(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
+        )
         self.service_provider_onlineresource_linkage = xml_helper.get_href_attribute(online_resource_elem)
         if self.service_provider_onlineresource_linkage is None or self.service_provider_onlineresource_linkage == "":
             # There are metadatas where no online resource link is given. We need to generate it manually therefore...
             self.service_provider_onlineresource_linkage = service_helper.split_service_uri(self.service_connect_url).get("base_uri") + "?"
-        self.service_provider_contact_hoursofservice = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:HoursOfService")
-        self.service_provider_contact_contactinstructions = xml_helper.try_get_text_from_xml_element(xml_elem=xml_obj, elem="//ows:ContactInstructions")
+        self.service_provider_contact_hoursofservice = xml_helper.try_get_text_from_xml_element(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("HoursOfService")
+        )
+        self.service_provider_contact_contactinstructions = xml_helper.try_get_text_from_xml_element(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInstructions")
+        )
 
     @abstractmethod
     def get_capability_metadata(self, xml_obj):
@@ -226,46 +304,64 @@ class OGCWebFeatureService(OGCWebService):
             if operation is None:
                 continue
 
-            get_elem = xml_helper.try_get_single_element_from_xml(elem=".//ows:Get", xml_elem=operation)
+            get_elem = xml_helper.try_get_single_element_from_xml(
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
+                xml_elem=operation
+            )
             _get = xml_helper.get_href_attribute(xml_elem=get_elem)
 
-            post_elem = xml_helper.try_get_single_element_from_xml(elem=".//ows:Post", xml_elem=operation)
+            post_elem = xml_helper.try_get_single_element_from_xml(
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
+                xml_elem=operation
+            )
             _post = xml_helper.get_href_attribute(xml_elem=post_elem)
 
             get[action] = _get
             post[action] = _post
 
-        self.get_capabilities_uri["get"] = get.get("GetCapabilities", None)
-        self.get_capabilities_uri["post"] = post.get("GetCapabilities", None)
+        # Shorten the usage of our operation enums
+        get_cap = OGCOperationEnum.GET_CAPABILITIES.value
+        descr_feat = OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value
+        get_feat = OGCOperationEnum.GET_FEATURE.value
+        trans = OGCOperationEnum.TRANSACTION.value
+        lock_feat = OGCOperationEnum.LOCK_FEATURE.value
+        get_feat_lock = OGCOperationEnum.GET_FEATURE_WITH_LOCK.value
+        get_gml = OGCOperationEnum.GET_GML_OBJECT.value
+        list_stored_queries = OGCOperationEnum.LIST_STORED_QUERIES.value
+        descr_stored_queries = OGCOperationEnum.DESCRIBE_STORED_QUERIES.value
+        get_prop_val = OGCOperationEnum.GET_PROPERTY_VALUE.value
 
-        self.describe_feature_type_uri["get"] = get.get("DescribeFeatureType", None)
-        self.describe_feature_type_uri["post"] = post.get("DescribeFeatureType", None)
+        self.get_capabilities_uri["get"] = get.get(get_cap, None)
+        self.get_capabilities_uri["post"] = post.get(get_cap, None)
 
-        self.get_feature_uri["get"] = get.get("GetFeature", None)
-        self.get_feature_uri["post"] = post.get("GetFeature", None)
+        self.describe_feature_type_uri["get"] = get.get(descr_feat, None)
+        self.describe_feature_type_uri["post"] = post.get(descr_feat, None)
 
-        self.transaction_uri["get"] = get.get("Transaction", None)
-        self.transaction_uri["post"] = post.get("Transaction", None)
+        self.get_feature_uri["get"] = get.get(get_feat, None)
+        self.get_feature_uri["post"] = post.get(get_feat, None)
 
-        self.lock_feature_uri["get"] = get.get("LockFeature", None)
-        self.lock_feature_uri["post"] = post.get("LockFeature", None)
+        self.transaction_uri["get"] = get.get(trans, None)
+        self.transaction_uri["post"] = post.get(trans, None)
 
-        self.get_feature_with_lock_uri["get"] = get.get("GetFeatureWithLock", None)
-        self.get_feature_with_lock_uri["post"] = post.get("GetFeatureWithLock", None)
+        self.lock_feature_uri["get"] = get.get(lock_feat, None)
+        self.lock_feature_uri["post"] = post.get(lock_feat, None)
 
-        self.get_gml_object_uri["get"] = get.get("GetGmlObject", None)
-        self.get_gml_object_uri["post"] = post.get("GetGmlObject", None)
+        self.get_feature_with_lock_uri["get"] = get.get(get_feat_lock, None)
+        self.get_feature_with_lock_uri["post"] = post.get(get_feat_lock, None)
 
-        self.list_stored_queries_uri["get"] = get.get("ListStoredQueries", None)
-        self.list_stored_queries_uri["post"] = post.get("ListStoredQueries", None)
+        self.get_gml_object_uri["get"] = get.get(get_gml, None)
+        self.get_gml_object_uri["post"] = post.get(get_gml, None)
 
-        self.get_property_value_uri["get"] = get.get("GetPropertyValue", None)
-        self.get_property_value_uri["post"] = post.get("GetPropertyValue", None)
+        self.list_stored_queries_uri["get"] = get.get(list_stored_queries, None)
+        self.list_stored_queries_uri["post"] = post.get(list_stored_queries, None)
 
-        self.describe_stored_queries_uri["get"] = get.get("DescribeStoredQueries", None)
-        self.describe_stored_queries_uri["post"] = post.get("DescribeStoredQueries", None)
+        self.get_property_value_uri["get"] = get.get(get_prop_val, None)
+        self.get_property_value_uri["post"] = post.get(get_prop_val, None)
 
-    def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version: str, async_task: Task = None, step_size: float = None):
+        self.describe_stored_queries_uri["get"] = get.get(descr_stored_queries, None)
+        self.describe_stored_queries_uri["post"] = post.get(descr_stored_queries, None)
+
+    def _get_feature_type_metadata(self, feature_type, epsg_api, service_type_version: str, async_task: Task = None, step_size: float = None, external_auth: ExternalAuthentication = None):
         """ Get featuretype metadata of a single featuretype
 
         Args:
@@ -286,13 +382,25 @@ class OGCWebFeatureService(OGCWebService):
         md.uuid = uuid.uuid4()
         f_t.metadata = md
         f_t.uuid = uuid.uuid4()
-        md.title = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Title")
-        md.identifier = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Name")
-        md.abstract = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Abstract")
+        md.title = xml_helper.try_get_text_from_xml_element(
+            xml_elem=feature_type,
+            elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
+        )
+        md.identifier = xml_helper.try_get_text_from_xml_element(
+            xml_elem=feature_type,
+            elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Name")
+        )
+        md.abstract = xml_helper.try_get_text_from_xml_element(
+            xml_elem=feature_type,
+            elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Abstract")
+        )
 
         # Feature type keywords
-        keywords = xml_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//ows:Keyword")
-        keyword_list = []
+        keywords = xml_helper.try_get_element_from_xml(
+            xml_elem=feature_type,
+            elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Keyword")
+        )
+
         for keyword in keywords:
             kw = xml_helper.try_get_text_from_xml_element(xml_elem=keyword)
             if kw is None:
@@ -302,13 +410,19 @@ class OGCWebFeatureService(OGCWebService):
 
         # SRS
         ## default
-        srs = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:DefaultSRS")
+        srs = xml_helper.try_get_text_from_xml_element(
+            xml_elem=feature_type,
+            elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("DefaultSRS")
+        )
         if srs is not None:
             parts = epsg_api.get_subelements(srs)
             srs_default = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
             f_t.default_srs = srs_default
+
         ## additional
-        srs = xml_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:OtherSRS")
+        srs = xml_helper.try_get_element_from_xml(
+            xml_elem=feature_type,
+            elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("OtherSRS"))
         srs_list = []
         for sys in srs:
             parts = epsg_api.get_subelements(sys.text)
@@ -319,10 +433,16 @@ class OGCWebFeatureService(OGCWebService):
             srs_list.append(srs_other)
 
         # Latlon bounding box
-        tmp = xml_helper.try_get_text_from_xml_element(elem=".//ows:LowerCorner", xml_elem=feature_type)
+        tmp = xml_helper.try_get_text_from_xml_element(
+            elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("LowerCorner"),
+            xml_elem=feature_type
+        )
         min_x = tmp.split(" ")[0]
         min_y = tmp.split(" ")[1]
-        tmp = xml_helper.try_get_text_from_xml_element(elem=".//ows:UpperCorner", xml_elem=feature_type)
+        tmp = xml_helper.try_get_text_from_xml_element(
+            elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("UpperCorner"),
+            xml_elem=feature_type
+        )
         max_x = tmp.split(" ")[0]
         max_y = tmp.split(" ")[1]
         tmp = OrderedDict()
@@ -338,7 +458,10 @@ class OGCWebFeatureService(OGCWebService):
         f_t.bbox_lat_lon = bbox
 
         # Output formats
-        formats = xml_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:Format")
+        formats = xml_helper.try_get_element_from_xml(
+            xml_elem=feature_type,
+            elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Format")
+        )
         format_list = []
         for _format in formats:
             m_t = MimeType.objects.get_or_create(
@@ -349,11 +472,11 @@ class OGCWebFeatureService(OGCWebService):
             format_list.append(m_t)
 
         # Dataset (ISO) Metadata parsing
-        self.__parse_iso_md(f_t, feature_type)
+        self._parse_iso_md(f_t, feature_type)
 
         # Feature type elements
         # Feature type namespaces
-        elements_namespaces = self._get_featuretype_elements_namespaces(f_t, service_type_version)
+        elements_namespaces = self._get_featuretype_elements_namespaces(f_t, service_type_version, external_auth=external_auth)
 
         self.feature_type_list[f_t.metadata.identifier] = {
             "feature_type": f_t,
@@ -365,7 +488,7 @@ class OGCWebFeatureService(OGCWebService):
         }
 
     @abstractmethod
-    def get_feature_type_metadata(self, xml_obj, async_task: Task = None):
+    def get_feature_type_metadata(self, xml_obj, async_task: Task = None, external_auth: ExternalAuthentication = None):
         """ Parse the capabilities document <FeatureTypeList> metadata into the self object
 
         This abstract implementation follows the wfs specification for version 1.1.0
@@ -376,15 +499,23 @@ class OGCWebFeatureService(OGCWebService):
         Returns:
              Nothing
         """
-        feature_type_list = xml_helper.try_get_element_from_xml(elem="//wfs:FeatureType", xml_elem=xml_obj)
-        service_type_version = xml_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj,
-                                                                                 attribute="version",
-                                                                                 elem="//wfs:WFS_Capabilities")
+        feature_type_list = xml_helper.try_get_element_from_xml(
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("FeatureType"),
+            xml_elem=xml_obj
+        )
+        service_type_version = xml_helper.try_get_attribute_from_xml_element(
+            xml_elem=xml_obj,
+            attribute="version",
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("WFS_Capabilities")
+        )
         epsg_api = EpsgApi()
         # Feature types
         thread_list = []
 
         len_ft_list = len(feature_type_list)
+        if len_ft_list == 0:
+            # do not divide by zero!
+            len_ft_list = 1
 
         # calculate the step size for an async call
         # 55 is the diff from the last process update (10) to the next static one (65)
@@ -393,15 +524,15 @@ class OGCWebFeatureService(OGCWebService):
         # decide whether to use multithreading or iterative approach
         if len_ft_list > MULTITHREADING_THRESHOLD:
             for xml_feature_type in feature_type_list:
-                thread_list.append(threading.Thread(target=self._get_feature_type_metadata, args=(xml_feature_type, epsg_api, service_type_version, async_task, step_size)))
+                thread_list.append(threading.Thread(target=self._get_feature_type_metadata, args=(xml_feature_type, epsg_api, service_type_version, async_task, step_size, external_auth)))
             execute_threads(thread_list)
         else:
             for xml_feature_type in feature_type_list:
-                self._get_feature_type_metadata(xml_feature_type, epsg_api, service_type_version, async_task, step_size)
+                self._get_feature_type_metadata(xml_feature_type, epsg_api, service_type_version, async_task, step_size, external_auth)
 
 
     @abstractmethod
-    def _get_featuretype_elements_namespaces(self, feature_type, service_type_version:str):
+    def _get_featuretype_elements_namespaces(self, feature_type, service_type_version: str, external_auth: ExternalAuthentication):
         """ Get the elements and their namespaces of a feature type object
 
         Args:
@@ -414,10 +545,13 @@ class OGCWebFeatureService(OGCWebService):
         ns_list = []
         if self.describe_feature_type_uri.get("get") is not None:
             XML_NAMESPACES["default"] = XML_NAMESPACES["xsd"]
-            descr_feat_root = xml_helper.get_feature_type_elements_xml(title=feature_type.metadata.identifier,
-                                                                    service_type="wfs",
-                                                                    service_type_version=service_type_version,
-                                                                    uri=self.describe_feature_type_uri.get("get"))
+            descr_feat_root = xml_helper.get_feature_type_elements_xml(
+                title=feature_type.metadata.identifier,
+                service_type="wfs",
+                service_type_version=service_type_version,
+                uri=self.describe_feature_type_uri.get("get", ""),
+                external_auth=external_auth,
+            )
             if descr_feat_root is not None:
                 # Feature type elements
                 elements = xml_helper.try_get_element_from_xml(elem="//xsd:element", xml_elem=descr_feat_root)
@@ -444,20 +578,27 @@ class OGCWebFeatureService(OGCWebService):
             "ns_list": ns_list,
         }
 
-    def get_single_feature_type_metadata(self, identifier):
+    def get_single_feature_type_metadata(self, identifier, external_auth: ExternalAuthentication):
         if self.service_capabilities_xml is None:
             # load xml, might have been forgotten
             self.get_capabilities()
 
         xml_obj = xml_helper.parse_xml(xml=self.service_capabilities_xml)
-        feature_type = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//wfs:FeatureType/wfs:Name[text()='{}']/parent::wfs:FeatureType".format(identifier))
-        service_type_version = xml_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj,
-                                                                                 attribute="version",
-                                                                                 elem="//wfs:WFS_Capabilities")
+        feature_type = xml_helper.try_get_element_from_xml(
+            xml_elem=xml_obj,
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("FeatureType") +
+                 "/" + GENERIC_NAMESPACE_TEMPLATE.format("Name") + "[text()='{}']".format(identifier) +
+                 "/" + "parent::" + GENERIC_NAMESPACE_TEMPLATE.format("FeatureType")
+        )
+        service_type_version = xml_helper.try_get_attribute_from_xml_element(
+            xml_elem=xml_obj,
+            attribute="version",
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("WFS_Capabilities")
+        )
         if len(feature_type) > 0:
             feature_type = feature_type[0]
             epsg_api = EpsgApi()
-            self._get_feature_type_metadata(feature_type, epsg_api, service_type_version)
+            self._get_feature_type_metadata(feature_type, epsg_api, service_type_version, external_auth=external_auth)
 
     @abstractmethod
     def create_service_model_instance(self, user: User, register_group, register_for_organization):
@@ -667,25 +808,29 @@ class OGCWebFeatureService(OGCWebService):
             for ns in f_t.namespaces_list:
                 f_t.namespaces.add(ns)
 
-
     ### ISO METADATA ###
-    def __parse_iso_md(self, feature_type, xml_feature_type_obj: _Element):
+    def _parse_iso_md(self, feature_type, xml_feature_type_obj: _Element, link_in_attrib: str=None):
         # check for possible ISO metadata
         if self.has_iso_metadata(xml_feature_type_obj):
-            iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(xml_elem=xml_feature_type_obj,
-                                                                            elem="./wfs:MetadataURL")
+            iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(
+                xml_elem=xml_feature_type_obj,
+                elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL")
+            )
             for iso_xml in iso_metadata_xml_elements:
                 iso_uri = xml_helper.try_get_text_from_xml_element(xml_elem=iso_xml)
+                if iso_uri is None:
+                    # iso uris could live inside a href attribute as well
+                    iso_uri = xml_helper.get_href_attribute(iso_xml)
                 try:
                     iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
-                except Exception:
+                except Exception as e:
                     # there are iso metadatas that have been filled wrongly -> if so we will drop them
                     continue
                 feature_type.dataset_md_list.append(iso_metadata.to_db_model())
 
 
 
-    def get_feature_type_by_identifier(self, identifier: str = None):
+    def get_feature_type_by_identifier(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Extract a single feature type by its identifier and parse it into a FeatureType object
 
         Args:
@@ -694,7 +839,7 @@ class OGCWebFeatureService(OGCWebService):
             a parsed FeatureType object
         """
         # feature types are stored in the .feature_type_list attribute
-        self.get_single_feature_type_metadata(identifier)
+        self.get_single_feature_type_metadata(identifier, external_auth=external_auth)
         f_t = None
         for key, val in self.feature_type_list.items():
             f_t = val
@@ -707,30 +852,31 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
     The wfs version 1.0.0 is slightly different than the rest. Therefore we need to overwrite the abstract
     methods and provide an individual way to parse the data.
     """
-    def __init__(self, service_connect_url):
+    def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionEnum.V_1_0_0,
-            service_type=ServiceEnum.WFS,
+            service_version=OGCServiceVersionEnum.V_1_0_0,
+            service_type=OGCServiceEnum.WFS,
+            external_auth=external_auth
         )
         XML_NAMESPACES["schemaLocation"] = "http://geodatenlb1.rlp:80/geoserver/schemas/wfs/1.0.0/WFS-capabilities.xsd"
         XML_NAMESPACES["xsi"] = "http://www.w3.org/2001/XMLSchema-instance"
         XML_NAMESPACES["lvermgeo"] = "http://www.lvermgeo.rlp.de/lvermgeo"
         XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs")
 
-    def get_parser_prefix(self):
-        return "wfs:"
-
-    def get_service_operations(self, xml_obj, prefix: str):
+    def get_service_operations(self, xml_obj):
         """ Creates table records from <Capability><Request></Request></Capability contents
 
         Args:
             xml_obj: The xml document object
-            prefix: The prefix for the service type ('wms'/'wfs')
         Returns:
 
         """
-        cap_request = xml_helper.try_get_single_element_from_xml("//{}Capability/{}Request".format(prefix, prefix), xml_obj)
+        cap_request = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request"),
+            xml_obj
+        )
         if cap_request is None:
             return
         operations = cap_request.getchildren()
@@ -747,27 +893,46 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         Returns:
              Nothing
         """
-        service_node = xml_helper.try_get_single_element_from_xml(elem="/wfs:WFS_Capabilities/wfs:Service", xml_elem=xml_obj)
+        service_node = xml_helper.try_get_single_element_from_xml(
+            elem="/" + GENERIC_NAMESPACE_TEMPLATE.format("WFS_Capabilities") +
+                 "/" + GENERIC_NAMESPACE_TEMPLATE.format("Service"),
+            xml_elem=xml_obj
+        )
         # TITLE
-        title_node = xml_helper.try_get_text_from_xml_element(elem="./wfs:Title", xml_elem=service_node)
+        title_node = xml_helper.try_get_text_from_xml_element(elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Title"), xml_elem=service_node)
         self.service_identification_title = title_node
 
         # ABSTRACT
-        self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(elem="./wfs:Abstract", xml_elem=service_node)
+        self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Abstract"),
+            xml_elem=service_node
+        )
 
         # FEES
-        self.service_identification_fees = xml_helper.try_get_text_from_xml_element(elem="./wfs:Fees", xml_elem=service_node)
+        self.service_identification_fees = xml_helper.try_get_text_from_xml_element(
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Fees"),
+            xml_elem=service_node
+        )
 
         # ACCESS CONSTRAINTS
-        self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(elem="./wfs:AccessConstraints", xml_elem=service_node)
+        self.service_identification_accessconstraints = xml_helper.try_get_text_from_xml_element(
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("AccessConstraints"),
+            xml_elem=service_node
+        )
 
         # KEYWORDS
-        keywords_str = xml_helper.try_get_text_from_xml_element(elem="./wfs:Keywords", xml_elem=service_node)
+        keywords_str = xml_helper.try_get_text_from_xml_element(
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Keywords"),
+            xml_elem=service_node
+        )
         self.service_identification_keywords = service_helper.resolve_keywords_array_string(keywords_str)
         del keywords_str
 
         # ONLINE RESOURCE
-        self.service_provider_onlineresource_linkage = xml_helper.try_get_text_from_xml_element(elem="./wfs:OnlineResource", xml_elem=service_node)
+        self.service_provider_onlineresource_linkage = xml_helper.try_get_text_from_xml_element(
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+            xml_elem=service_node
+        )
 
         del service_node
 
@@ -779,55 +944,85 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
         Returns:
              Nothing
         """
-        cap_node = xml_helper.try_get_single_element_from_xml("//wfs:Capability", xml_elem=xml_obj)
+        cap_node = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability"),
+            xml_elem=xml_obj
+        )
+
+        get_cap = OGCOperationEnum.GET_CAPABILITIES.value
+        descr_feat = OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value
+        get_feat = OGCOperationEnum.GET_FEATURE.value
+        trans = OGCOperationEnum.TRANSACTION.value
+        lock_feat = OGCOperationEnum.LOCK_FEATURE.value
+        get_feat_lock = OGCOperationEnum.GET_FEATURE_WITH_LOCK.value
+
         actions = [
-            "GetCapabilities",
-            "DescribeFeatureType",
-            "GetFeature",
-            "Transaction",
-            "LockFeature",
-            "GetFeatureWithLock"
+            get_cap,
+            descr_feat,
+            get_feat,
+            trans,
+            lock_feat,
+            get_feat_lock
         ]
         get = {}
         post = {}
         for action in actions:
-            node = xml_helper.try_get_single_element_from_xml(".//wfs:" + action, cap_node)
+            node = xml_helper.try_get_single_element_from_xml(
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format(action),
+                cap_node
+            )
             if node is None:
                 continue
-            get[action] = xml_helper.try_get_attribute_from_xml_element(elem=".//wfs:Get", xml_elem=node, attribute="onlineResource")
-            post[action] = xml_helper.try_get_attribute_from_xml_element(elem=".//wfs:Post", xml_elem=node, attribute="onlineResource")
+            get[action] = xml_helper.try_get_attribute_from_xml_element(
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
+                xml_elem=node,
+                attribute="onlineResource"
+            )
+            post[action] = xml_helper.try_get_attribute_from_xml_element(
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
+                xml_elem=node,
+                attribute="onlineResource"
+            )
         del cap_node
 
-        self.get_capabilities_uri["get"] = get.get("GetCapabilities", None)
-        self.get_capabilities_uri["post"] = post.get("GetCapabilities", None)
+        self.get_capabilities_uri["get"] = get.get(get_cap, None)
+        self.get_capabilities_uri["post"] = post.get(get_cap, None)
 
-        self.describe_feature_type_uri["get"] = get.get("DescribeFeatureType", None)
-        self.describe_feature_type_uri["post"] = post.get("DescribeFeatureType", None)
+        self.describe_feature_type_uri["get"] = get.get(descr_feat, None)
+        self.describe_feature_type_uri["post"] = post.get(descr_feat, None)
 
-        self.get_feature_uri["get"] = get.get("GetFeature", None)
-        self.get_feature_uri["post"] = post.get("GetFeature", None)
+        self.get_feature_uri["get"] = get.get(get_feat, None)
+        self.get_feature_uri["post"] = post.get(get_feat, None)
 
-        self.transaction_uri["get"] = get.get("Transaction", None)
-        self.transaction_uri["post"] = post.get("Transaction", None)
+        self.transaction_uri["get"] = get.get(trans, None)
+        self.transaction_uri["post"] = post.get(trans, None)
 
-        self.lock_feature_uri["get"] = get.get("LockFeature", None)
-        self.lock_feature_uri["post"] = post.get("LockFeature", None)
+        self.lock_feature_uri["get"] = get.get(lock_feat, None)
+        self.lock_feature_uri["post"] = post.get(lock_feat, None)
 
-        self.get_feature_with_lock_uri["get"] = get.get("GetFeatureWithLock", None)
-        self.get_feature_with_lock_uri["post"] = post.get("GetFeatureWithLock", None)
+        self.get_feature_with_lock_uri["get"] = get.get(get_feat_lock, None)
+        self.get_feature_with_lock_uri["post"] = post.get(get_feat_lock, None)
 
-    def get_feature_type_metadata(self, xml_obj, async_task: Task = None):
+    def get_feature_type_metadata(self, xml_obj, async_task: Task = None, external_auth: ExternalAuthentication = None):
         """ Parse the wfs <Service> metadata into the self object
 
         Args:
             xml_obj: A minidom object which holds the xml content
+            async_task: The asynchronous task object
         Returns:
              Nothing
         """
-        service_type_version = xml_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj,
-                                                                                 attribute="version",
-                                                                                 elem="//wfs:WFS_Capabilities")
-        feat_nodes = xml_helper.try_get_element_from_xml("/wfs:WFS_Capabilities/wfs:FeatureTypeList/wfs:FeatureType", xml_obj)
+        service_type_version = xml_helper.try_get_attribute_from_xml_element(
+            xml_elem=xml_obj,
+            attribute="version",
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("WFS_Capabilities")
+        )
+        feat_nodes = xml_helper.try_get_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("WFS_Capabilities") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("FeatureTypeList") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("FeatureType"),
+            xml_obj
+        )
 
         step_size = float(PROGRESS_STATUS_AFTER_PARSING / len(feat_nodes))
 
@@ -835,11 +1030,22 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             feature_type = FeatureType()
             metadata = Metadata()
             feature_type.metadata = metadata
-            feature_type.metadata.identifier = xml_helper.try_get_text_from_xml_element(elem=".//wfs:Name", xml_elem=node)
-            feature_type.metadata.title = xml_helper.try_get_text_from_xml_element(elem=".//wfs:Title", xml_elem=node)
-            feature_type.metadata.abstract = xml_helper.try_get_text_from_xml_element(elem=".//wfs:Abstract", xml_elem=node)
-            keywords = service_helper.resolve_keywords_array_string(
-                xml_helper.try_get_text_from_xml_element(elem=".//wfs:Keywords", xml_elem=node)
+            feature_type.metadata.identifier = xml_helper.try_get_text_from_xml_element(
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Name"),
+                xml_elem=node
+            )
+            feature_type.metadata.title = xml_helper.try_get_text_from_xml_element(
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Title"),
+                xml_elem=node
+            )
+            feature_type.metadata.abstract = xml_helper.try_get_text_from_xml_element(
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Abstract"),
+                xml_elem=node
+            )
+            keywords = service_helper.resolve_keywords_array_string(xml_helper.try_get_text_from_xml_element(
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Keywords"),
+                xml_elem=node
+            )
             )
 
             # keywords
@@ -852,10 +1058,26 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
 
             # lat lon bounding box
             bbox = {
-                "minx": xml_helper.try_get_attribute_from_xml_element(elem="./wfs:LatLongBoundingBox", xml_elem=node, attribute="minx"),
-                "miny": xml_helper.try_get_attribute_from_xml_element(elem="./wfs:LatLongBoundingBox", xml_elem=node, attribute="miny"),
-                "maxx": xml_helper.try_get_attribute_from_xml_element(elem="./wfs:LatLongBoundingBox", xml_elem=node, attribute="maxx"),
-                "maxy": xml_helper.try_get_attribute_from_xml_element(elem="./wfs:LatLongBoundingBox", xml_elem=node, attribute="maxy"),
+                "minx": xml_helper.try_get_attribute_from_xml_element(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"),
+                    xml_elem=node,
+                    attribute="minx"
+                ),
+                "miny": xml_helper.try_get_attribute_from_xml_element(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"),
+                    xml_elem=node,
+                    attribute="miny"
+                ),
+                "maxx": xml_helper.try_get_attribute_from_xml_element(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"),
+                    xml_elem=node,
+                    attribute="maxx"
+                ),
+                "maxy": xml_helper.try_get_attribute_from_xml_element(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"),
+                    xml_elem=node,
+                    attribute="maxy"
+                ),
             }
             # create polygon element from simple bbox dict
 
@@ -870,7 +1092,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
 
             # reference systems
             # append only the ...ToFeatureType objects, since the reference systems will be created automatically
-            srs_list = xml_helper.try_get_element_from_xml("./wfs:SRS", node)
+            srs_list = xml_helper.try_get_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format("SRS"), node)
             srs_model_list = []
             epsg_api = EpsgApi()
             i = 0
@@ -888,9 +1110,34 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                 else:
                     srs_model_list.append(srs_model)
 
+            # lat lon bounding box
+            bbox = {
+                "minx": xml_helper.try_get_attribute_from_xml_element(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"), xml_elem=node,
+                    attribute="minx"),
+                "miny": xml_helper.try_get_attribute_from_xml_element(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"), xml_elem=node,
+                    attribute="miny"),
+                "maxx": xml_helper.try_get_attribute_from_xml_element(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"), xml_elem=node,
+                    attribute="maxx"),
+                "maxy": xml_helper.try_get_attribute_from_xml_element(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("LatLongBoundingBox"), xml_elem=node,
+                    attribute="maxy"),
+            }
+            # create polygon element from simple bbox dict
+            geom = GEOSGeometry(Polygon.from_bbox([
+                float(bbox["minx"]), float(bbox["miny"]), float(bbox["maxx"]), float(bbox["maxy"])
+            ]), int(feature_type.default_srs.code))
+            geom.transform(DEFAULT_SRS)
+            feature_type.bbox_lat_lon = geom
+
             # Feature type elements
             # Feature type namespaces
-            elements_namespaces = self._get_featuretype_elements_namespaces(feature_type, service_type_version)
+            elements_namespaces = self._get_featuretype_elements_namespaces(feature_type, service_type_version, external_auth)
+
+            # check for possible ISO metadata
+            self._parse_iso_md(feature_type, node)
 
             # put the feature types objects with keywords and reference systems into the dict for the persisting process
             self.feature_type_list[feature_type.metadata.identifier] = {
@@ -900,6 +1147,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
                 "format_list": [],
                 "element_list": elements_namespaces["element_list"],
                 "ns_list": elements_namespaces["ns_list"],
+                "dataset_md_list": feature_type.dataset_md_list,
             }
 
             # update async task if this is called async
@@ -911,30 +1159,30 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
     """
     Uses base implementation from OGCWebFeatureService class
     """
-    def __init__(self, service_connect_url):
+    def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionEnum.V_1_1_0,
-            service_type=ServiceEnum.WFS,
+            service_version=OGCServiceVersionEnum.V_1_1_0,
+            service_type=OGCServiceEnum.WFS,
+            external_auth=external_auth
         )
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs"
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows"
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes"
         XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
 
-    def get_parser_prefix(self):
-        return "ows:"
-
-    def get_service_operations(self, xml_obj, prefix: str):
+    def get_service_operations(self, xml_obj):
         """ Creates table records from <Capability><Request></Request></Capability contents
 
         Args:
             xml_obj: The xml document object
-            prefix: The prefix for the service type ('wms'/'wfs')
         Returns:
 
         """
-        operations = xml_helper.try_get_element_from_xml("//{}OperationsMetadata/{}Operation".format(prefix, prefix), xml_obj)
+        operations = xml_helper.try_get_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("OperationsMetadata") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Operation"), xml_obj
+        )
         for operation in operations:
             name = xml_helper.try_get_attribute_from_xml_element(operation, "name")
             RequestOperation.objects.get_or_create(
@@ -945,30 +1193,30 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
     """
     Uses base implementation from OGCWebFeatureService class
     """
-    def __init__(self, service_connect_url):
+    def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionEnum.V_2_0_0,
-            service_type=ServiceEnum.WFS,
+            service_version=OGCServiceVersionEnum.V_2_0_0,
+            service_type=OGCServiceEnum.WFS,
+            external_auth=external_auth
         )
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
         XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
 
-    def get_parser_prefix(self):
-        return "ows:"
-
-    def get_service_operations(self, xml_obj, prefix: str):
+    def get_service_operations(self, xml_obj):
         """ Creates table records from <Capability><Request></Request></Capability contents
 
         Args:
             xml_obj: The xml document object
-            prefix: The prefix for the service type ('wms'/'wfs')
         Returns:
 
         """
-        operations = xml_helper.try_get_element_from_xml("//{}OperationsMetadata/{}Operation".format(prefix, prefix), xml_obj)
+        operations = xml_helper.try_get_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("OperationsMetadata") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Operation"), xml_obj
+        )
         for operation in operations:
             name = xml_helper.try_get_attribute_from_xml_element(operation, "name")
             RequestOperation.objects.get_or_create(
@@ -985,16 +1233,26 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
         """
         epsg_api = EpsgApi()
         # featuretype keywords are different than in older versions
-        feature_type_list = xml_helper.try_get_element_from_xml(elem="//wfs:FeatureType", xml_elem=xml_obj)
-        for feature_type in feature_type_list:
-            name = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:Name")
+        feature_type_list = xml_helper.try_get_element_from_xml(
+            elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("FeatureType"),
+            xml_elem=xml_obj
+        )
+        for feature_type_xml_elem in feature_type_list:
+            name = xml_helper.try_get_text_from_xml_element(
+                xml_elem=feature_type_xml_elem,
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Name")
+            )
             try:
                 f_t = self.feature_type_list.get(name).get("feature_type")
             except AttributeError:
                 # if this happens the metadata is broken or not reachable due to bad configuration
                 raise BaseException(SERVICE_GENERIC_ERROR)
+
             # Feature type keywords
-            keywords = xml_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//ows:Keyword")
+            keywords = xml_helper.try_get_element_from_xml(
+                xml_elem=feature_type_xml_elem,
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Keyword")
+            )
             keyword_list = []
             for keyword in keywords:
                 kw = xml_helper.try_get_text_from_xml_element(xml_elem=keyword)
@@ -1007,7 +1265,10 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
             # srs are now called crs -> parse for crs again!
             # CRS
             ## default
-            crs = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type, elem=".//wfs:DefaultCRS")
+            crs = xml_helper.try_get_text_from_xml_element(
+                xml_elem=feature_type_xml_elem,
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("DefaultCRS")
+            )
             if crs is not None:
                 parts = epsg_api.get_subelements(crs)
                 # check if this srs is allowed for us. If not, skip it!
@@ -1016,7 +1277,10 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
                 crs_default = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
                 f_t.default_srs = crs_default
             ## additional
-            crs = xml_helper.try_get_element_from_xml(xml_elem=feature_type, elem=".//wfs:OtherCRS")
+            crs = xml_helper.try_get_element_from_xml(
+                xml_elem=feature_type_xml_elem,
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("OtherCRS")
+            )
             crs_list = []
             for sys in crs:
                 parts = epsg_api.get_subelements(sys.text)
@@ -1027,38 +1291,108 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
                 crs_list.append(srs_other)
             self.feature_type_list[name]["srs_list"] = crs_list
 
+            # Dataset metadata
+            # Since version 2.0.0 the uris are not present in the text field of an xml element anymore,
+            # but can be found in the href:xlink attribute
+            feature_type = self.feature_type_list[name]["feature_type"]
+            self._parse_iso_md(feature_type, feature_type_xml_elem, "{" + XML_NAMESPACES["xlink"] + "}href")
+            self.feature_type_list[name]["dataset_md_list"] = feature_type.dataset_md_list
+
 
 class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
     """
     Uses base implementation from OGCWebFeatureService class
     """
-    def __init__(self, service_connect_url):
+    def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(
             service_connect_url=service_connect_url,
-            service_version=VersionEnum.V_2_0_2,
-            service_type=ServiceEnum.WFS,
+            service_version=OGCServiceVersionEnum.V_2_0_2,
+            service_type=OGCServiceEnum.WFS,
+            external_auth=external_auth
         )
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
         XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
 
-    def get_parser_prefix(self):
-        return "ows:"
-
-    def get_service_operations(self, xml_obj, prefix: str):
+    def get_service_operations(self, xml_obj):
         """ Creates table records from <Capability><Request></Request></Capability contents
 
         Args:
             xml_obj: The xml document object
-            prefix: The prefix for the service type ('wms'/'wfs')
         Returns:
 
         """
-        operations = xml_helper.try_get_element_from_xml("//{}OperationsMetadata/{}Operation".format(prefix, prefix), xml_obj)
+        operations = xml_helper.try_get_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("OperationsMetadata") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Operation"),
+            xml_obj
+        )
         for operation in operations:
             name = xml_helper.try_get_attribute_from_xml_element(operation, "name")
             RequestOperation.objects.get_or_create(
                 operation_name=name,
             )
+
+    def get_version_specific_metadata(self, xml_obj):
+        """ Runs metadata parsing for data which is only present in this version
+
+        Args:
+            xml_obj: The xml metadata object
+        Returns:
+             nothing
+        """
+        epsg_api = EpsgApi()
+
+        # featuretype keywords are different now
+        feature_type_list = xml_helper.try_get_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("FeatureType"), xml_elem=xml_obj)
+        for feature_type_xml_elem in feature_type_list:
+            name = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type_xml_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Name"))
+            try:
+                f_t = self.feature_type_list.get(name).get("feature_type")
+            except AttributeError:
+                # if this happens the metadata is broken or not reachable due to bad configuration
+                raise BaseException(SERVICE_GENERIC_ERROR)
+
+            # Feature type keywords
+            keywords = xml_helper.try_get_element_from_xml(xml_elem=feature_type_xml_elem, elem=".//ows:Keyword")
+            keyword_list = []
+            for keyword in keywords:
+                kw = xml_helper.try_get_text_from_xml_element(xml_elem=keyword)
+                if kw is None:
+                    continue
+                kw = Keyword.objects.get_or_create(keyword=kw)[0]
+                keyword_list.append(kw)
+            self.feature_type_list[name]["keyword_list"] = keyword_list
+
+            # srs are now called crs -> parse for crs again!
+            # CRS
+            ## default
+            crs = xml_helper.try_get_text_from_xml_element(xml_elem=feature_type_xml_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("DefaultCRS"))
+            if crs is not None:
+                parts = epsg_api.get_subelements(crs)
+                # check if this srs is allowed for us. If not, skip it!
+                if parts.get("code") not in ALLOWED_SRS:
+                    continue
+                crs_default = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
+                f_t.default_srs = crs_default
+            ## additional
+            crs = xml_helper.try_get_element_from_xml(xml_elem=feature_type_xml_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("OtherCRS"))
+            crs_list = []
+            for sys in crs:
+                parts = epsg_api.get_subelements(sys.text)
+                # check if this srs is allowed for us. If not, skip it!
+                if parts.get("code") not in ALLOWED_SRS:
+                    continue
+                srs_other = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
+                crs_list.append(srs_other)
+            self.feature_type_list[name]["srs_list"] = crs_list
+
+            # Dataset metadata
+            # Since version 2.0.0 the uris are not present in the text field of an xml element anymore,
+            # but can be found in the href:xlink attribute
+            feature_type = self.feature_type_list[name]["feature_type"]
+            self._parse_iso_md(feature_type, feature_type_xml_elem, "{" + XML_NAMESPACES["xlink"] + "}href")
+            self.feature_type_list[name]["dataset_md_list"] = feature_type.dataset_md_list
+
 

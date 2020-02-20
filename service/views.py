@@ -866,14 +866,13 @@ def detail(request: HttpRequest, id, user: User):
         has_dataset_metadata = False
 
     mime_types = {}
-    if service_md.metadata_type.type != 'featuretype':
-        for mime in service.formats.all():
-            op = mime_types.get(mime.operation)
-            if op is None:
-                op = []
-            op.append(mime.mime_type)
-            mi = {mime.operation: op}
-            mime_types.update(mi)
+    for mime in service.formats.all():
+        op = mime_types.get(mime.operation)
+        if op is None:
+            op = []
+        op.append(mime.mime_type)
+        mi = {mime.operation: op}
+        mime_types.update(mi)
 
     remove_service_form = RemoveService(initial={'service_id': service.id,
                                                  'service_needs_authentication': False,

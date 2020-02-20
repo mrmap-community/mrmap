@@ -7,10 +7,6 @@
         <td>{{ service.uuid }}</td>
     </tr>
     <tr>
-        <th>{% trans 'Identifier' %}</th>
-        <td>{{ service.identifier }}</td>
-    </tr>
-    <tr>
         <th>{% trans 'Parent service' %}</th>
         <td>
             <a class="{{THEME.TABLE.LINK_COLOR}}" href="{% url 'service:detail' service.parent_service.metadata.id %}" title="{{ service.parent_service.metadata.uuid }}">
@@ -37,39 +33,9 @@
         </td>
     </tr>
     <tr>
-        <th>{% trans 'Is available' %}</th>
+        <th>{% trans 'Is searchable' %}</th>
         <td>
-            {% if service.is_available %}
-            <i class='fas fa-check text-success'></i>
-            {% else %}
-            <i class='fas fa-times text-danger'></i>
-            {% endif %}
-        </td>
-    </tr>
-    <tr>
-        <th>{% trans 'Is queryable' %}</th>
-        <td>
-            {% if service.is_queryable %}
-            <i class='fas fa-check text-success'></i>
-            {% else %}
-            <i class='fas fa-times text-danger'></i>
-            {% endif %}
-        </td>
-    </tr>
-    <tr>
-        <th>{% trans 'Is opaque' %}</th>
-        <td>
-            {% if service.is_opaque %}
-            <i class='fas fa-check text-success'></i>
-            {% else %}
-            <i class='fas fa-times text-danger'></i>
-            {% endif %}
-        </td>
-    </tr>
-    <tr>
-        <th>{% trans 'Is cascaded' %}</th>
-        <td>
-            {% if service.is_cascaded %}
+            {% if service.searchable %}
             <i class='fas fa-check text-success'></i>
             {% else %}
             <i class='fas fa-times text-danger'></i>
@@ -85,14 +51,6 @@
             <i class='fas fa-times text-danger'></i>
             {% endif %}
         </td>
-    </tr>
-    <tr>
-        <th>{% trans 'Hits' %}</th>
-        <td>{{ service.metadata.hits }}</td>
-    </tr>
-    <tr>
-        <th>{% trans 'Scale range' %}</th>
-        <td>[{{ service.scale_min }}, {{ service.scale_max }}]</td>
     </tr>
     <tr>
         <th>{% trans 'Bounding box' %}</th>
@@ -124,7 +82,13 @@
         </td>
     </tr>
     <tr>
-        <th>{% trans 'Reference systems:' %}</th>
+        <th>{% trans 'Default reference system:' %}</th>
+        <td>
+            <span class="badge {{THEME.PILL_BADGE_INFO_COLOR}}">{{ service.default_srs.prefix }}{{ service.default_srs.code }}</span>
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Additional reference systems:' %}</th>
         <td class="listable-container">
             {% for rs in service.metadata.reference_system.all %}
                 <span class="badge {{THEME.PILL_BADGE_INFO_COLOR}}">{{ rs.prefix }}{{ rs.code }}</span>
@@ -138,13 +102,10 @@
         <td>
             {% with service.id as id_accordion %}
                 {% for key, values in mime_types.items %}
-                {% with key as id_accordion_combined and  'btn-link' as button_type%}
-
-                    {% include 'includes/wms/sublayer_mime_type_table.html' %}
-
-                {% endwith %}
+                    {% with key as id_accordion_combined and 'btn-link' as button_type and 'Show' as key %}
+                        {% include 'includes/wms/sublayer_mime_type_table.html' %}
+                    {% endwith %}
                 {% endfor %}
-
             {% endwith %}
         </td>
     </tr>

@@ -44,7 +44,9 @@
 
 
         {% include 'includes/wfs/featuretype_detail_table.html' %}
-
+        {% with service as featuretype %}
+            {% include 'includes/wfs/show_featuretype_elements_accordion.html' %}
+        {% endwith %}
 
         </div><!--</col>-->
 </div><!--</row>-->

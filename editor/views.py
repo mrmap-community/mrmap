@@ -277,7 +277,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
 
 @check_session
 def access_geometry_form(request: HttpRequest, id: int, user: User):
-    template = "access_geometry_form.html"
+    template = "views/access_geometry_form.html"
 
     GET_params = request.GET
     operation = GET_params.get("operation", None)

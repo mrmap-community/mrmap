@@ -1,6 +1,5 @@
 {% extends 'sceletons/table.html' %}
 {% load i18n static %}
-<div class="table-responsive">
 {% block table %}
     <tr>
         <th>{% trans 'Uuid' %}</th>
@@ -56,9 +55,7 @@
         <th>{% trans 'Bounding box' %}</th>
         <td>
             {% if service.bbox_lat_lon.area > 0.0 %}
-            <div id="{{ service.id }}_map" class="map-view">
-                <!--TODO:-->
-            </div>
+            <div id="{{ service.id }}_map" class="map-view" style="height: 40vh; min-height: 200px;"></div>
             <script>
                 L.map('{{ service.id }}_map', {
                     center: [{{ service.bbox_lat_lon.centroid.y }}, {{ service.bbox_lat_lon.centroid.x }}],
@@ -110,4 +107,3 @@
         </td>
     </tr>
 {% endblock %}
-</div>

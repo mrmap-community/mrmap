@@ -24,17 +24,9 @@
         </div>
     </div>
 </div><!--</modal-->
-
-
 <script>
-    $(".modal-close, .close-button").click(function(){
+    $('#id_modal_{{id_modal}}').on('hide.bs.modal', function (e) {
         // remove session stored polygon data
         removeSessionKeysLike("polygon_");
-
-        toggleOverlay("");
-    });
-
-
-
-
+    })
 </script>

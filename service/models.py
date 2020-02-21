@@ -16,7 +16,7 @@ from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
-    SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE
+    SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE
 from structure.models import Group, Organization
 from service.helper import xml_helper
 
@@ -1371,7 +1371,7 @@ class Document(Resource):
                 # find metadata record which matches the metadata uri
                 try:
                     dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
-                    uri = SERVICE_OPERATION_URI_TEMPLATE.format(dataset_md_record.id)
+                    uri = SERVICE_DATASET_URI_TEMPLATE.format(dataset_md_record.id)
                 except ObjectDoesNotExist:
                     # This is a bad situation... Only possible if the registered service has not been updated BUT the
                     # original remote service changed and maybe has a new - for us - unknown MetadataURL object.
@@ -2060,15 +2060,6 @@ class FeatureType(Resource):
     is_searchable = models.BooleanField(default=False)
     default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True, related_name="default_srs")
     inspire_download = models.BooleanField(default=False)
-    bbox_lat_lon = models.PolygonField(default=Polygon(
-        (
-            (-90.0, -180.0),
-            (-90.0, 180.0),
-            (90.0, 180.0),
-            (90.0, -180.0),
-            (-90.0, -180.0),
-        )
-    ))
     formats = models.ManyToManyField(MimeType)
     elements = models.ManyToManyField('FeatureTypeElement')
     namespaces = models.ManyToManyField('Namespace')

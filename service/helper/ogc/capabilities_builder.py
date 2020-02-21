@@ -15,10 +15,10 @@ from lxml.etree import Element, QName
 from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE, HTTP_OR_SSL, HOST_NAME
 from MapSkinner.utils import print_debug_mode
 from service.helper import xml_helper
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, MetadataEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Service, Metadata, Layer, Document, FeatureType
-from service.settings import SERVICE_OPERATION_URI_TEMPLATE
+from service.settings import SERVICE_OPERATION_URI_TEMPLATE, MD_RELATION_TYPE_DESCRIBED_BY, SERVICE_DATASET_URI_TEMPLATE
 
 from structure.models import Contact
 
@@ -1232,10 +1232,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        keywords = md.keywords.all()
-        elem = xml_helper.create_subelement(upper_elem, "{}Keywords".format(self.default_ns))
-        keyword_text = " ".join([kw.keyword for kw in keywords])
-        xml_helper.write_text_to_element(elem, txt=keyword_text)
+        pass
 
     def _fetch_original_xml(self, upper_elem: Element, element_tag: str):
         """ Paste an original xml element into the given upper_element
@@ -1255,7 +1252,6 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
                 upper_elem,
                 original_service_elem
             )
-
 
     def _generate_service_xml(self, upper_elem: Element):
         """ Generate the 'Service' subelement of a xml service object
@@ -1346,6 +1342,20 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
             online_resource_elem,
             txt=SERVICE_OPERATION_URI_TEMPLATE.format(md.id),
         )
+
+    def _generate_keyword_xml(self, upper_elem, md: Metadata):
+        """ Generate the 'Keywords' subelement of a wfs xml object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+
+        Returns:
+            nothing
+        """
+        keywords = md.keywords.all()
+        elem = xml_helper.create_subelement(upper_elem, "{}Keywords".format(self.default_ns))
+        keyword_text = " ".join([kw.keyword for kw in keywords])
+        xml_helper.write_text_to_element(elem, txt=keyword_text)
 
     def _generate_capability_xml(self, upper_elem):
         """ Generate the 'Capability' subelement of a layer xml object and it's subelements
@@ -1459,11 +1469,123 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
-        xml_helper.create_subelement(
+        feature_type_list_elem = xml_helper.create_subelement(
             upper_elem,
             "{}FeatureTypeList".format(self.default_ns)
         )
+        self._generate_feature_type_list_operations(feature_type_list_elem)
+        self._generate_feature_type_list_feature_type(feature_type_list_elem)
 
+    def _generate_feature_type_list_operations(self, upper_elem: Element):
+        """ Generate the 'Operation' subelement of a xml feature type list object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        # Since these are technical information, which are not editable using the metadata editor, we can again simply
+        # take the content from the original and insert it in our document
+        self._fetch_original_xml(upper_elem, "Operations")
+
+    def _generate_feature_type_list_feature_type(self, upper_elem: Element):
+        """ Generate the 'Operation' subelement of a xml feature type list object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        feature_type_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}FeatureType".format(self.default_ns)
+        )
+        contents = {
+            "{}Name": self.metadata.identifier,
+            "{}Title": self.metadata.title,
+            "{}Abstract": self.metadata.abstract,
+        }
+        for key, val in contents.items():
+            k = key.format(self.default_ns)
+            elem = xml_helper.create_subelement(feature_type_elem, k)
+            xml_helper.write_text_to_element(elem, txt=val)
+
+        self._generate_keyword_xml(feature_type_elem, md=self.metadata)
+        self._generate_feature_type_list_feature_type_srs(feature_type_elem)
+        self._generate_feature_type_list_feature_type_bbox(feature_type_elem)
+        self._generate_feature_type_list_feature_type_metadata_url(feature_type_elem)
+
+    def _generate_feature_type_list_feature_type_srs(self, upper_elem):
+        """ Generate the 'SRS' subelement of a xml feature type list object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        # In WFS 1.0.0 only one (the default) srs will be shown in the capabilities document
+        srs = self.feature_type.default_srs
+        srs_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}SRS".format(self.default_ns)
+        )
+        xml_helper.write_text_to_element(
+            srs_elem,
+            txt="{}{}".format(srs.prefix, srs.code)
+        )
+
+    def _generate_feature_type_list_feature_type_bbox(self, upper_elem):
+        """ Generate the 'LatLongBoundingBox' subelement of a xml feature type list object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        bounding_geom = self.metadata.bounding_geometry
+        bounding_geom.transform(self.feature_type.default_srs.code)
+        extent = bounding_geom.extent
+        bbox_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}LatLongBoundingBox".format(self.default_ns),
+            attrib=OrderedDict({
+                "minx": str(extent[0]),
+                "miny": str(extent[1]),
+                "maxx": str(extent[2]),
+                "maxy": str(extent[3]),
+            })
+        )
+
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+        """ Generate the 'MetadataURL' subelement of a xml feature type list object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        dataset_mds = self.metadata.related_metadata.filter(
+            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+        )
+        for dataset_md in dataset_mds:
+            try:
+                doc = Document.objects.get(
+                    related_metadata=dataset_md.metadata_to,
+                )
+                metadata_url_elem = xml_helper.create_subelement(
+                    upper_elem,
+                    "{}MetadataURL".format(self.default_ns),
+                    attrib=OrderedDict({
+                        "type": "TC211",
+                        "format": "text/xml",
+                    })
+                )
+                xml_helper.write_text_to_element(
+                    metadata_url_elem,
+                    txt=dataset_md.metadata_to.metadata_url
+                )
+            except ObjectDoesNotExist:
+                continue
 
 class CapabilityWFS110Builder(CapabilityWFSBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):

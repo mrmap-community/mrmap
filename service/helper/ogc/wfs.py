@@ -482,7 +482,7 @@ class OGCWebFeatureService(OGCWebService):
                 (float(min_x), float(min_y)),
             )
         )
-        f_t.bbox_lat_lon = bbox
+        f_t.metadata.bounding_geometry = bbox
 
         # Output formats
         formats = xml_helper.try_get_element_from_xml(

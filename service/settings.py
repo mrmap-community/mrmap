@@ -22,6 +22,7 @@ MD_RELATION_TYPE_VISUALIZES = "visualizes"
 MD_RELATION_TYPE_DESCRIBED_BY = "describedBy"
 
 SERVICE_OPERATION_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}" + "/operation?"
+SERVICE_DATASET_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "dataset/{}"
 SERVICE_LEGEND_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}" + "/legend/" + "{}"
 
 REQUEST_TIMEOUT = 100  # seconds

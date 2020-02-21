@@ -1161,18 +1161,33 @@ class CapabilityWMS130Builder(CapabilityWMSBuilder):
         elem = xml_helper.create_subelement(upper_elem, "{}MaxScaleDenominator".format(self.default_ns))
         xml_helper.write_text_to_element(elem, txt="")
 
+
 class CapabilityWFSBuilder(CapabilityXMLBuilder):
     """ Base class for WFS capabilities building
 
-    http://schemas.opengis.net/wfs/
     Wraps all basic capabilities generating methods
+
+    Follows the standard specifications from
+    http://schemas.opengis.net/ows/
+    http://schemas.opengis.net/wfs/
 
     """
     def __init__(self, metadata: Metadata, force_version: str=None):
         super().__init__(metadata=metadata, force_version=force_version)
 
-        self.namespaces[None] = XML_NAMESPACES["wfs"]
-        self.default_ns = "{" + XML_NAMESPACES["wfs"] + "}"
+        # Remove possible default namespace, since this does not seem to exist in WFS > 1.1.0
+        try:
+            del self.namespaces[None]
+        except KeyError:
+            pass
+
+        self.namespaces["ows"] = XML_NAMESPACES["ows"]
+        self.namespaces["ogc"] = XML_NAMESPACES["ogc"]
+        self.namespaces["gml"] = XML_NAMESPACES["gml"]
+        self.namespaces["wfs"] = XML_NAMESPACES["wfs"]
+
+        self.default_ns = "{" + XML_NAMESPACES["ows"] + "}"
+        self.wfs_ns = "{" + XML_NAMESPACES["wfs"] + "}"
 
         self.feature_type = FeatureType.objects.get(
             metadata=metadata,
@@ -1185,6 +1200,210 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
                 version=force_version
             )
         )
+
+    def _generate_xml(self):
+        """ Generate an xml capabilities document from the metadata object
+
+        Args:
+
+        Returns:
+             nothing
+        """
+        root = Element(
+            '{}WFS_Capabilities'.format(self.wfs_ns),
+            attrib={
+                "version": self.service_version,
+                "{}schemaLocation".format(self.xsi_ns): self.schema_location,
+            },
+            nsmap=self.namespaces
+        )
+        self.xml_doc_obj = root
+
+        start_time = time()
+        self._generate_service_identification_xml(root)
+        print_debug_mode("ServiceIdentification creation took {} seconds".format((time() - start_time)))
+
+        start_time = time()
+        self._generate_service_provider_xml(root)
+        print_debug_mode("ServiceProvider creation took {} seconds".format(time() - start_time))
+
+        start_time = time()
+        self._generate_operations_metadata_xml(root)
+        print_debug_mode("OperationsMetadata creation took {} seconds".format(time() - start_time))
+
+        start_time = time()
+        self._generate_feature_type_list_xml(root)
+        print_debug_mode("FeatureTypeList creation took {} seconds".format(time() - start_time))
+
+        start_time = time()
+        self._generate_filter_capabilities_xml(root)
+        print_debug_mode("Filter_Capabilities creation took {} seconds".format(time() - start_time))
+
+        start_time = time()
+        xml = xml_helper.xml_to_string(root, pretty_print=False)
+        print_debug_mode("Rendering to string took {} seconds".format((time() - start_time)))
+
+        return xml
+
+    def _generate_keyword_xml(self, upper_elem, md: Metadata):
+        """ Generate the 'Keywords' subelement of a wfs xml object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+
+        Returns:
+            nothing
+        """
+        keywords_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}Keywords".format(self.default_ns)
+        )
+        for kw in md.keywords.all():
+            keyword = kw.keyword
+            kw_elem = xml_helper.create_subelement(
+                keywords_elem,
+                "{}Keyword".format(self.default_ns)
+            )
+            xml_helper.write_text_to_element(
+                kw_elem,
+                txt=keyword
+            )
+
+    def _fetch_original_xml(self, upper_elem: Element, element_tag: str):
+        """ Paste an original xml element into the given upper_element
+
+        Args:
+            upper_elem (Element): The upper xml element
+            element_tag (str): The name of the original element
+        Returns:
+
+        """
+        original_service_elem = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format(element_tag),
+            self.original_doc
+        )
+        if original_service_elem is not None:
+            xml_helper.add_subelement(
+                upper_elem,
+                original_service_elem
+            )
+
+    def _generate_service_identification_xml(self, upper_elem: Element):
+        """ Generate the 'Service' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        service_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}ServiceIdentification".format(self.default_ns)
+        )
+
+        contents = OrderedDict({
+            "{}Title": self.service.metadata.title,
+            "{}Abstract": self.service.metadata.abstract,
+        })
+        self._generate_simple_elements_from_dict(service_elem, contents)
+        self._generate_keyword_xml(service_elem, self.service.metadata)
+        self._generate_service_type(service_elem)
+
+        contents = OrderedDict({
+            "{}ServiceTypeVersion": self.service_version,
+            "{}Fees": self.service.metadata.fees,
+            "{}AccessConstraints": self.service.metadata.access_constraints,
+        })
+        self._generate_simple_elements_from_dict(service_elem, contents)
+
+    def _generate_service_type(self, upper_elem: Element):
+        """ Generate the 'ServiceType' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        service_type_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}ServiceType".format(self.default_ns),
+            attrib={
+                "codeSpace": "OGC"
+            }
+        )
+        xml_helper.write_text_to_element(
+            service_type_elem,
+            txt="OGC WFS"
+        )
+
+    def _generate_service_provider_xml(self, upper_elem: Element):
+        """ Generate the 'Capability' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        service_provider_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}ServiceProvider".format(self.default_ns)
+        )
+
+    def _generate_operations_metadata_xml(self, upper_elem: Element):
+        """ Generate the 'Capability' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        operations_metadata_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}OperationsMetadata".format(self.default_ns)
+        )
+
+    def _generate_feature_type_list_xml(self, upper_elem: Element):
+        """ Generate the 'FeatureTypeList' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        pass
+
+    def _generate_filter_capabilities_xml(self, upper_elem: Element):
+        """ Generate the 'Filter_Capabilities' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        # This is a completely technical element, without any information that might be edited using the metadata editor.
+        # We can simply take the original content!
+        self._fetch_original_xml(
+            upper_elem,
+            "Filter_Capabilities"
+        )
+
+
+class CapabilityWFS100Builder(CapabilityWFSBuilder):
+    def __init__(self, metadata: Metadata, force_version: str = None):
+        super().__init__(metadata=metadata, force_version=force_version)
+        self.schema_location = "http://schemas.opengis.net/wfs/1.0.0/WFS-capabilities.xsd"
+
+        # Remove regular "wfs" namespace and add it as default for wfs 1.0.0
+        try:
+            del self.namespaces["wfs"]
+        except KeyError:
+            pass
+        self.namespaces[None] = XML_NAMESPACES["wfs"]
+        self.default_ns = "{" + XML_NAMESPACES["wfs"] + "}"
+
+        # WFS 1.0.0 expects a /Service/Name
+        self.default_identifier = "WFS"
+
 
     def _generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
@@ -1225,91 +1444,6 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         print_debug_mode("Rendering to string took {} seconds".format((time() - start_time)))
 
         return xml
-
-    def _generate_keyword_xml(self, upper_elem, md: Metadata):
-        """ Generate the 'KeywordList' subelement of a layer xml object
-
-        Args:
-            upper_elem (_Element): The upper xml element
-
-        Returns:
-            nothing
-        """
-        pass
-
-    def _fetch_original_xml(self, upper_elem: Element, element_tag: str):
-        """ Paste an original xml element into the given upper_element
-
-        Args:
-            upper_elem (Element): The upper xml element
-            element_tag (str): The name of the original element
-        Returns:
-
-        """
-        original_service_elem = xml_helper.try_get_single_element_from_xml(
-            "//" + GENERIC_NAMESPACE_TEMPLATE.format(element_tag),
-            self.original_doc
-        )
-        if original_service_elem is not None:
-            xml_helper.add_subelement(
-                upper_elem,
-                original_service_elem
-            )
-
-    def _generate_service_xml(self, upper_elem: Element):
-        """ Generate the 'Service' subelement of a xml service object
-
-        Args:
-            upper_elem (_Element): The upper xml element
-        Returns:
-            nothing
-        """
-        pass
-
-    def _generate_capability_xml(self, upper_elem: Element):
-        """ Generate the 'Capability' subelement of a xml service object
-
-        Args:
-            upper_elem (_Element): The upper xml element
-        Returns:
-            nothing
-        """
-        pass
-
-    def _generate_feature_type_list_xml(self, upper_elem: Element):
-        """ Generate the 'FeatureTypeList' subelement of a xml service object
-
-        Args:
-            upper_elem (_Element): The upper xml element
-        Returns:
-            nothing
-        """
-        pass
-
-    def _generate_filter_capabilities_xml(self, upper_elem: Element):
-        """ Generate the 'Filter_Capabilities' subelement of a xml service object
-
-        Args:
-            upper_elem (_Element): The upper xml element
-        Returns:
-            nothing
-        """
-        # This is a completely technical element, without any information that might be edited using the metadata editor.
-        # We can simply take the original content!
-        self._fetch_original_xml(
-            upper_elem,
-            "Filter_Capabilities"
-        )
-
-
-class CapabilityWFS100Builder(CapabilityWFSBuilder):
-    def __init__(self, metadata: Metadata, force_version: str = None):
-        super().__init__(metadata=metadata, force_version=force_version)
-        self.schema_location = "http://schemas.opengis.net/wfs/1.0.0/WFS-capabilities.xsd"
-
-        # WFS 1.0.0 expects a /Service/Name
-        self.default_identifier = "WFS"
-
 
     def _generate_service_xml(self, upper_elem: Element):
         """ Generate the 'Service' subelement of a xml service object
@@ -1606,6 +1740,7 @@ class CapabilityWFS110Builder(CapabilityWFSBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):
         super().__init__(metadata=metadata, force_version=force_version)
         self.schema_location = "http://schemas.opengis.net/wfs/1.1.0/wfs.xsd"
+
 
 class CapabilityWFS200Builder(CapabilityWFSBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):

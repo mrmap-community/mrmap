@@ -1180,6 +1180,18 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         # WFS 1.0.0 expects a /Service/Name
         self.default_identifier = "WFS"
 
+        self.feature_type = FeatureType.objects.get(
+            metadata=metadata,
+        )
+        self.service = self.feature_type.parent_service
+
+        self.original_doc = None
+        self.original_doc = xml_helper.parse_xml(
+            metadata.get_remote_original_capabilities_document(
+                version=force_version
+            )
+        )
+
     def _generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
 
@@ -1198,20 +1210,19 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         )
         self.xml_doc_obj = root
 
-
         start_time = time()
-        service = xml_helper.create_subelement(root, "{}Service".format(self.default_ns))
-        self._generate_service_xml(service)
+        service_elem = xml_helper.create_subelement(root, "{}Service".format(self.default_ns))
+        self._generate_service_xml(service_elem)
         print_debug_mode("Service creation took {} seconds".format((time() - start_time)))
 
         start_time = time()
-        capability =  xml_helper.create_subelement(root, "{}Capability".format(self.default_ns))
-        self._generate_capability_xml(capability)
+        capability_elem =  xml_helper.create_subelement(root, "{}Capability".format(self.default_ns))
+        self._generate_capability_xml(capability_elem)
         print_debug_mode("Capabilities creation took {} seconds".format(time() - start_time))
 
         start_time = time()
-        capability =  xml_helper.create_subelement(root, "{}FeatureTypeList".format(self.default_ns))
-        #self._generate_feature_type_list_xml(capability)
+        feature_type_list_elem =  xml_helper.create_subelement(root, "{}FeatureTypeList".format(self.default_ns))
+        self._generate_feature_type_list_xml(feature_type_list_elem)
         print_debug_mode("FeatureTypeList creation took {} seconds".format(time() - start_time))
 
         start_time = time()
@@ -1219,6 +1230,25 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         print_debug_mode("Rendering to string took {} seconds".format((time() - start_time)))
 
         return xml
+
+    def _fetch_original_xml(self, upper_elem: Element, element_tag: str):
+        """ Paste an original xml element into the given upper_element
+
+        Args:
+            upper_elem (Element): The upper xml element
+            element_tag (str): The name of the original element
+        Returns:
+
+        """
+        original_service_elem = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format(element_tag),
+            self.original_doc
+        )
+        if original_service_elem is not None:
+            xml_helper.add_subelement(
+                upper_elem,
+                original_service_elem
+            )
 
     def _generate_service_xml(self, service_elem):
         """ Generate the 'Service' subelement of a xml service object
@@ -1229,28 +1259,26 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             nothing
         """
         md = self.metadata
-        parent_md = FeatureType.objects.get(
-            metadata=md
-        ).parent_service.metadata
+        service_md = self.service.metadata
 
         # Create generic xml starter elements
         contents = OrderedDict({
-            "{}Name": parent_md.identifier or self.default_identifier,
-            "{}Title": parent_md.title,
-            "{}Abstract": parent_md.abstract,
+            "{}Name": service_md.identifier or self.default_identifier,
+            "{}Title": service_md.title,
+            "{}Abstract": service_md.abstract,
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
 
         # KeywordList and keywords
-        self._generate_keyword_xml(service_elem, parent_md)
+        self._generate_keyword_xml(service_elem, service_md)
 
         # OnlineResource
-        self._generate_online_resource_xml(service_elem, parent_md)
+        self._generate_online_resource_xml(service_elem, service_md)
 
         # Create generic xml end elements
         contents = OrderedDict({
-            "{}Fees": parent_md.fees,
-            "{}AccessConstraints": parent_md.access_constraints,
+            "{}Fees": service_md.fees,
+            "{}AccessConstraints": service_md.access_constraints,
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
 
@@ -1295,18 +1323,27 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
+        # Request
         request_elem = xml_helper.create_subelement(
             upper_elem,
             "{}Request".format(self.default_ns)
         )
         self._generate_capability_request_xml(request_elem)
 
+        # VendorSpecificCapabilities
+        # This information is not part of the registration process - we take the one from the original capabilities
         vendor_specific_elem = xml_helper.create_subelement(
             upper_elem,
             "{}VendorSpecificCapabilities".format(self.default_ns)
         )
+        self._fetch_original_xml(vendor_specific_elem, "VendorSpecificCapabilities")
 
-        self._generate_capability_vendor_specific_xml(request_elem)
+        # FeatureTypeList
+        feature_type_list_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}FeatureTypeList".format(self.default_ns),
+
+        )
 
     def _generate_capability_request_xml(self, upper_elem: Element):
         """ Generate the 'Request' subelement of a xml capability object
@@ -1397,18 +1434,11 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             }
         )
 
-
-    def _generate_capability_vendor_specific_xml(self, upper_elem: Element):
-        """ Generate the 'VendorSpecificCapabilities' subelement of a xml element
-
-        Args:
-            upper_elem (_Element): The upper xml element (service or layer level)
-
-        Returns:
-            nothing
-        """
-        # ToDo(?)
-        pass
+    def _generate_feature_type_list_xml(self, feature_type_list_elem):
+        xml_helper.create_subelement(
+            feature_type_list_elem,
+            "FeatureTypeList"
+        )
 
 
 

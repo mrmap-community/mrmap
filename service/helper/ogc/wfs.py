@@ -109,6 +109,7 @@ class OGCWebFeatureService(OGCWebService):
         }
 
         self.feature_type_list = {}
+        self.service_mime_type_list = []
 
         # for wfs we need to overwrite the default namespace with 'wfs'
         XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs", "")
@@ -289,35 +290,6 @@ class OGCWebFeatureService(OGCWebService):
             operation_metadata = operation_metadata[0]
         else:
             return
-        actions = ["GetCapabilities", "DescribeFeatureType", "GetFeature",
-                   "Transaction", "LockFeature", "GetFeatureWithLock",
-                   "GetGmlObject", "ListStoredQueries", "DescribeStoredQueries",
-                   "GetPropertyValue"
-                   ]
-        get = {}
-        post = {}
-
-        for action in actions:
-            xpath_str = './ows:Operation[@name="' + action + '"]'
-            operation = xml_helper.try_get_single_element_from_xml(xml_elem=operation_metadata, elem=xpath_str)
-
-            if operation is None:
-                continue
-
-            get_elem = xml_helper.try_get_single_element_from_xml(
-                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
-                xml_elem=operation
-            )
-            _get = xml_helper.get_href_attribute(xml_elem=get_elem)
-
-            post_elem = xml_helper.try_get_single_element_from_xml(
-                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
-                xml_elem=operation
-            )
-            _post = xml_helper.get_href_attribute(xml_elem=post_elem)
-
-            get[action] = _get
-            post[action] = _post
 
         # Shorten the usage of our operation enums
         get_cap = OGCOperationEnum.GET_CAPABILITIES.value
@@ -330,6 +302,61 @@ class OGCWebFeatureService(OGCWebService):
         list_stored_queries = OGCOperationEnum.LIST_STORED_QUERIES.value
         descr_stored_queries = OGCOperationEnum.DESCRIBE_STORED_QUERIES.value
         get_prop_val = OGCOperationEnum.GET_PROPERTY_VALUE.value
+
+        actions = [
+            get_cap,
+            descr_feat,
+            get_feat,
+            trans,
+            lock_feat,
+            get_feat_lock,
+            get_gml,
+            list_stored_queries,
+            descr_stored_queries,
+            get_prop_val,
+        ]
+        get = {}
+        post = {}
+
+        for action in actions:
+            xpath_str = './' + GENERIC_NAMESPACE_TEMPLATE.format('Operation') + '[@name="' + action + '"]'
+            operation_elem = xml_helper.try_get_single_element_from_xml(xml_elem=operation_metadata, elem=xpath_str)
+
+            if operation_elem is None:
+                continue
+
+            get_uri_elem = xml_helper.try_get_single_element_from_xml(
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
+                xml_elem=operation_elem
+            )
+            _get = xml_helper.get_href_attribute(xml_elem=get_uri_elem)
+
+            post_uri_elem = xml_helper.try_get_single_element_from_xml(
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
+                xml_elem=operation_elem
+            )
+            _post = xml_helper.get_href_attribute(xml_elem=post_uri_elem)
+
+            get[action] = _get
+            post[action] = _post
+
+            # Parse the possible outputFormats for every operation object
+            output_format_element = xml_helper.try_get_single_element_from_xml(
+                './/' +  GENERIC_NAMESPACE_TEMPLATE.format('Parameter') + '[@name="outputFormat"]',
+                operation_elem
+            )
+            if output_format_element is not None:
+                output_format_value_elements = xml_helper.try_get_element_from_xml(
+                    "./" + GENERIC_NAMESPACE_TEMPLATE.format("Value"),
+                    output_format_element
+                )
+                for value_elem in output_format_value_elements:
+                    format_value = xml_helper.try_get_text_from_xml_element(value_elem)
+                    mime_type = MimeType.objects.get_or_create(
+                        operation=action,
+                        mime_type=format_value
+                    )[0]
+                    self.service_mime_type_list.append(mime_type)
 
         self.get_capabilities_uri["get"] = get.get(get_cap, None)
         self.get_capabilities_uri["post"] = post.get(get_cap, None)
@@ -464,7 +491,10 @@ class OGCWebFeatureService(OGCWebService):
         )
         format_list = []
         for _format in formats:
+            # Due to missing semantic interpretation in the standard of WFS, we assume the outputFormats of featureTypes
+            # to define the GetFeature operation
             m_t = MimeType.objects.get_or_create(
+                operation=OGCOperationEnum.GET_FEATURE.value,
                 mime_type=xml_helper.try_get_text_from_xml_element(
                     xml_elem=_format
                 )
@@ -686,6 +716,8 @@ class OGCWebFeatureService(OGCWebService):
         service.get_gml_objct_uri_GET = self.get_gml_object_uri.get("get", None)
         service.get_gml_objct_uri_POST = self.get_gml_object_uri.get("post", None)
 
+        service.formats_list = self.service_mime_type_list
+
         service.availability = 0.0
         service.is_available = False
         service.is_root = True
@@ -762,6 +794,10 @@ class OGCWebFeatureService(OGCWebService):
         # Keywords
         for kw in service.metadata.keywords_list:
             service.metadata.keywords.add(kw)
+
+        # MimeTypes
+        for mime_type in service.formats_list:
+            service.formats.add(mime_type)
 
         # feature types
         for f_t in service.feature_type_list:

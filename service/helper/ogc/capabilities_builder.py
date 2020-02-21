@@ -40,10 +40,8 @@ class CapabilityXMLBuilder:
             service = FeatureType.objects.get(
                 metadata=metadata
             ).parent_service
-            parent_service = service
         else:
             service = metadata.service
-            parent_service = service.parent_service
 
         self.service = service
 
@@ -54,6 +52,7 @@ class CapabilityXMLBuilder:
             "sld": XML_NAMESPACES["sld"],
             "xlink": XML_NAMESPACES["xlink"],
             "xsi": XML_NAMESPACES["xsi"],
+            "ogc": XML_NAMESPACES["ogc"],
         }
 
         self.default_ns = ""
@@ -1218,6 +1217,10 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         print_debug_mode("FeatureTypeList creation took {} seconds".format(time() - start_time))
 
         start_time = time()
+        self._generate_filter_capabilities_xml(root)
+        print_debug_mode("Filter_Capabilities creation took {} seconds".format(time() - start_time))
+
+        start_time = time()
         xml = xml_helper.xml_to_string(root, pretty_print=False)
         print_debug_mode("Rendering to string took {} seconds".format((time() - start_time)))
 
@@ -1282,6 +1285,21 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             nothing
         """
         pass
+
+    def _generate_filter_capabilities_xml(self, upper_elem: Element):
+        """ Generate the 'Filter_Capabilities' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        # This is a completely technical element, without any information that might be edited using the metadata editor.
+        # We can simply take the original content!
+        self._fetch_original_xml(
+            upper_elem,
+            "Filter_Capabilities"
+        )
 
 
 class CapabilityWFS100Builder(CapabilityWFSBuilder):
@@ -1446,14 +1464,14 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         dcp_elem = xml_helper.create_subelement(upper_elem, "{}DCPType".format(self.default_ns))
         http_elem = xml_helper.create_subelement(dcp_elem, "{}HTTP".format(self.default_ns))
 
-        get_elem = xml_helper.create_subelement(
+        xml_helper.create_subelement(
             http_elem,
             "{}Get".format(self.default_ns),
             attrib={
                 "onlineResource": get_uri
             }
         )
-        post_elem = xml_helper.create_subelement(
+        xml_helper.create_subelement(
             http_elem,
             "{}Post".format(self.default_ns),
             attrib={
@@ -1545,7 +1563,7 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         bounding_geom = self.metadata.bounding_geometry
         bounding_geom.transform(self.feature_type.default_srs.code)
         extent = bounding_geom.extent
-        bbox_elem = xml_helper.create_subelement(
+        xml_helper.create_subelement(
             upper_elem,
             "{}LatLongBoundingBox".format(self.default_ns),
             attrib=OrderedDict({
@@ -1569,9 +1587,6 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         )
         for dataset_md in dataset_mds:
             try:
-                doc = Document.objects.get(
-                    related_metadata=dataset_md.metadata_to,
-                )
                 metadata_url_elem = xml_helper.create_subelement(
                     upper_elem,
                     "{}MetadataURL".format(self.default_ns),

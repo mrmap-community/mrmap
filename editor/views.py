@@ -272,6 +272,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
     context = DefaultContext(request, params, user).get_context()
     return render(request, template, context)
 
+
 @check_session
 def access_geometry_form(request: HttpRequest, id: int, user: User):
     template = "views/access_geometry_form.html"

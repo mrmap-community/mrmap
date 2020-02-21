@@ -483,6 +483,7 @@ class OGCWebFeatureService(OGCWebService):
             )
         )
         f_t.metadata.bounding_geometry = bbox
+        f_t.bbox_lat_lon = bbox
 
         # Output formats
         formats = xml_helper.try_get_element_from_xml(

@@ -2063,6 +2063,15 @@ class FeatureType(Resource):
     formats = models.ManyToManyField(MimeType)
     elements = models.ManyToManyField('FeatureTypeElement')
     namespaces = models.ManyToManyField('Namespace')
+    bbox_lat_lon = models.PolygonField(default=Polygon(
+        (
+            (-90.0, -180.0),
+            (-90.0, 180.0),
+            (90.0, 180.0),
+            (90.0, -180.0),
+            (-90.0, -180.0),
+        )
+    ))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

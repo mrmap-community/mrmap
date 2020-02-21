@@ -497,6 +497,7 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
 
     return BackendAjaxResponse(html="", has_dataset_doc=has_dataset_doc).get_response()
 
+
 @csrf_exempt
 @log_proxy
 def get_capabilities(request: HttpRequest, id: int):
@@ -903,7 +904,10 @@ def detail(request: HttpRequest, id, user: User):
 
     # catch featuretype
     if service_md.metadata_type.type == 'featuretype':
-        template = "views/featuretype_detail.html"
+        if 'no-base' in request.GET:
+            template = "views/featuretype_detail_no_base.html"
+        else:
+            template = "views/featuretype_detail.html"
         service = service_md.featuretype
         layers_md_list = {}
     else:
@@ -913,7 +917,10 @@ def detail(request: HttpRequest, id, user: User):
             layers = Layer.objects.filter(parent_service=service_md.service)
             layers_md_list = layers.filter(parent_layer=None)
         else:
-            template = "views/sublayer_detail.html"
+            if 'no-base' in request.GET:
+                template = "views/sublayer_detail_no_base.html"
+            else:
+                template = "views/sublayer_detail.html"
             service = Layer.objects.get(
                 metadata=service_md
             )

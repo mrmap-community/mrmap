@@ -33,7 +33,7 @@ function initializeSecuredFormStatus(){
     var isSecured = $("#id_is_secured").is(":checked");
     var securedSelectors = $(".secured-selector");
     var selectorParentRows = securedSelectors.closest("tr");
-    var addGeometryButtons = selectorParentRows.find(".add-geometry");
+    var addGeometryButtons = selectorParentRows.find(".add-geometry_");
 
     if(isSecured){
         securedSelectors.removeAttr("disabled")
@@ -51,7 +51,7 @@ function toggleSecuredCheckbox(){
     var checked = elem.is(":checked");
     var rows = $(".operation-row");
     var inputs = rows.find("input")
-    var addGeometryButtons = rows.find(".add-geometry")
+    var addGeometryButtons = rows.find(".add-geometry_")
     if(checked){
         rows.removeClass("disabled");
         inputs.removeAttr("disabled");

@@ -1188,19 +1188,6 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         )
 
     def _generate_xml(self):
-        xml = ""
-        return xml
-
-
-class CapabilityWFS100Builder(CapabilityWFSBuilder):
-    def __init__(self, metadata: Metadata, force_version: str = None):
-        super().__init__(metadata=metadata, force_version=force_version)
-        self.schema_location = "http://schemas.opengis.net/wfs/1.0.0/WFS-capabilities.xsd"
-
-        # WFS 1.0.0 expects a /Service/Name
-        self.default_identifier = "WFS"
-
-    def _generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
 
         Args:
@@ -1219,18 +1206,15 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         self.xml_doc_obj = root
 
         start_time = time()
-        service_elem = xml_helper.create_subelement(root, "{}Service".format(self.default_ns))
-        self._generate_service_xml(service_elem)
+        self._generate_service_xml(root)
         print_debug_mode("Service creation took {} seconds".format((time() - start_time)))
 
         start_time = time()
-        capability_elem =  xml_helper.create_subelement(root, "{}Capability".format(self.default_ns))
-        self._generate_capability_xml(capability_elem)
+        self._generate_capability_xml(root)
         print_debug_mode("Capabilities creation took {} seconds".format(time() - start_time))
 
         start_time = time()
-        feature_type_list_elem =  xml_helper.create_subelement(root, "{}FeatureTypeList".format(self.default_ns))
-        self._generate_feature_type_list_xml(feature_type_list_elem)
+        self._generate_feature_type_list_xml(root)
         print_debug_mode("FeatureTypeList creation took {} seconds".format(time() - start_time))
 
         start_time = time()
@@ -1238,6 +1222,20 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         print_debug_mode("Rendering to string took {} seconds".format((time() - start_time)))
 
         return xml
+
+    def _generate_keyword_xml(self, upper_elem, md: Metadata):
+        """ Generate the 'KeywordList' subelement of a layer xml object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+
+        Returns:
+            nothing
+        """
+        keywords = md.keywords.all()
+        elem = xml_helper.create_subelement(upper_elem, "{}Keywords".format(self.default_ns))
+        keyword_text = " ".join([kw.keyword for kw in keywords])
+        xml_helper.write_text_to_element(elem, txt=keyword_text)
 
     def _fetch_original_xml(self, upper_elem: Element, element_tag: str):
         """ Paste an original xml element into the given upper_element
@@ -1258,7 +1256,48 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
                 original_service_elem
             )
 
-    def _generate_service_xml(self, service_elem):
+
+    def _generate_service_xml(self, upper_elem: Element):
+        """ Generate the 'Service' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        pass
+
+    def _generate_capability_xml(self, upper_elem: Element):
+        """ Generate the 'Capability' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        pass
+
+    def _generate_feature_type_list_xml(self, upper_elem: Element):
+        """ Generate the 'FeatureTypeList' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        pass
+
+
+class CapabilityWFS100Builder(CapabilityWFSBuilder):
+    def __init__(self, metadata: Metadata, force_version: str = None):
+        super().__init__(metadata=metadata, force_version=force_version)
+        self.schema_location = "http://schemas.opengis.net/wfs/1.0.0/WFS-capabilities.xsd"
+
+        # WFS 1.0.0 expects a /Service/Name
+        self.default_identifier = "WFS"
+
+
+    def _generate_service_xml(self, upper_elem: Element):
         """ Generate the 'Service' subelement of a xml service object
 
         Args:
@@ -1266,9 +1305,9 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
-        md = self.metadata
         service_md = self.service.metadata
 
+        service_elem = xml_helper.create_subelement(upper_elem, "{}Service".format(self.default_ns))
         # Create generic xml starter elements
         contents = OrderedDict({
             "{}Name": service_md.identifier or self.default_identifier,
@@ -1289,20 +1328,6 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
             "{}AccessConstraints": service_md.access_constraints,
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
-
-    def _generate_keyword_xml(self, upper_elem, md: Metadata):
-        """ Generate the 'KeywordList' subelement of a layer xml object
-
-        Args:
-            upper_elem (_Element): The upper xml element
-
-        Returns:
-            nothing
-        """
-        keywords = md.keywords.all()
-        elem = xml_helper.create_subelement(upper_elem, "{}Keywords".format(self.default_ns))
-        keyword_text = " ".join([kw.keyword for kw in keywords])
-        xml_helper.write_text_to_element(elem, txt=keyword_text)
 
     def _generate_online_resource_xml(self, upper_elem: Element, md: Metadata):
         """ Generate the 'OnlineResource' subelement of a xml object
@@ -1331,23 +1356,17 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
+        capability_elem =  xml_helper.create_subelement(upper_elem, "{}Capability".format(self.default_ns))
         # Request
-        self._generate_capability_request_xml(upper_elem)
+        self._generate_capability_request_xml(capability_elem)
 
         # VendorSpecificCapabilities
         # This information is not part of the registration process - we take the one from the original capabilities
         vendor_specific_elem = xml_helper.create_subelement(
-            upper_elem,
+            capability_elem,
             "{}VendorSpecificCapabilities".format(self.default_ns)
         )
         self._fetch_original_xml(vendor_specific_elem, "VendorSpecificCapabilities")
-
-        # FeatureTypeList
-        feature_type_list_elem = xml_helper.create_subelement(
-            upper_elem,
-            "{}FeatureTypeList".format(self.default_ns),
-
-        )
 
     def _generate_capability_request_xml(self, upper_elem: Element):
         """ Generate the 'Request' subelement of a xml capability object
@@ -1357,6 +1376,9 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
+
+        # Due to strange Format declarations in WMS 1.0.0 we prefer to use the original <Request> content and modify the
+        # GetCapabilities links to match our internal uri
         self._fetch_original_xml(upper_elem, "Request")
 
         # Auto secure GetCapabilities links
@@ -1384,7 +1406,6 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
             "onlineResource",
             SERVICE_OPERATION_URI_TEMPLATE.format(self.metadata.id)
         )
-
 
     def _generate_capability_operation_xml(self, upper_elem: Element, get_uri: str, post_uri: str):
         """ Generate the various operation subelements of a xml capability object
@@ -1430,11 +1451,19 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
             }
         )
 
-    def _generate_feature_type_list_xml(self, feature_type_list_elem):
+    def _generate_feature_type_list_xml(self, upper_elem: Element):
+        """ Generate the 'FeatureTypeList' subelement of a xml capability object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
         xml_helper.create_subelement(
-            feature_type_list_elem,
-            "FeatureTypeList"
+            upper_elem,
+            "{}FeatureTypeList".format(self.default_ns)
         )
+
 
 class CapabilityWFS110Builder(CapabilityWFSBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):

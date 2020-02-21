@@ -15,7 +15,8 @@ from MapSkinner import utils
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.crypto_handler import CryptoHandler
-from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH
+from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
+    SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE
 from structure.models import Group, Organization
 from service.helper import xml_helper
 
@@ -1004,27 +1005,28 @@ class Document(Resource):
                 metadata=self.related_metadata
             ).parent_service
         op_uri_dict = {
-            "DescribeFeatureType": {
+            OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: {
                 "Get": service.describe_layer_uri_GET,
                 "Post": service.describe_layer_uri_POST,
             },
-            "GetFeature": {
+            OGCOperationEnum.GET_FEATURE.value: {
                 "Get": service.get_feature_info_uri_GET,
                 "Post": service.get_feature_info_uri_POST,
             },
-            "GetPropertyValue": {
+            OGCOperationEnum.GET_PROPERTY_VALUE.value: {
                 "Get": service.get_property_value_uri_GET,
                 "Post": service.get_property_value_uri_POST,
             },
-            "ListStoredQueries": {
+            OGCOperationEnum.LIST_STORED_QUERIES.value: {
                 "Get": service.list_stored_queries_uri_GET,
                 "Post": service.list_stored_queries_uri_POST,
             },
-            "DescribeStoredQueries": {
+            OGCOperationEnum.DESCRIBE_STORED_QUERIES.value: {
                 "Get": service.describe_stored_queries_uri_GET,
                 "Post": service.describe_stored_queries_uri_POST,
             },
         }
+
         for op in operation_objs:
             # skip GetCapabilities - it is already set to another internal link
             name = op.tag
@@ -1185,7 +1187,7 @@ class Document(Resource):
         """
 
         # change some external linkage to internal links for the current_capability_document
-        uri = "{}{}/service/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)
+        uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.related_metadata.id)
         xml = xml_helper.parse_xml(self.original_capability_document)
 
         # wms and wfs have to be handled differently!
@@ -1310,7 +1312,7 @@ class Document(Resource):
         """
         xml_obj = xml_helper.parse_xml(self.current_capability_document)
         if is_secured:
-            uri = "{}{}/service/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, self.related_metadata.id)
+            uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.related_metadata.id)
         else:
             uri = ""
         _type = self.related_metadata.get_service_type()
@@ -1369,7 +1371,7 @@ class Document(Resource):
                 # find metadata record which matches the metadata uri
                 try:
                     dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
-                    uri = "{}{}/service/metadata/dataset/{}".format(HTTP_OR_SSL, HOST_NAME, dataset_md_record.id)
+                    uri = SERVICE_OPERATION_URI_TEMPLATE.format(dataset_md_record.id)
                 except ObjectDoesNotExist:
                     # This is a bad situation... Only possible if the registered service has not been updated BUT the
                     # original remote service changed and maybe has a new - for us - unknown MetadataURL object.
@@ -1418,6 +1420,7 @@ class Document(Resource):
             legend_uri = xml_helper.get_href_attribute(xml_elem)
 
             uri = None
+
             if is_secured and not legend_uri.startswith(ROOT_URL):
                 layer_identifier = dict(urllib.parse.parse_qsl(legend_uri)).get("layer", None)
                 parent_md = self.related_metadata
@@ -1429,12 +1432,8 @@ class Document(Resource):
                     layer__parent_service__metadata=parent_md,
                     layer__identifier=layer_identifier
                 ).id
-                uri = "{}{}/service/metadata/{}/legend/{}".format(
-                    HTTP_OR_SSL,
-                    HOST_NAME,
-                    self.related_metadata.id,
-                    style_id
-                )
+                uri = SERVICE_LEGEND_URI_TEMPLATE.format(self.related_metadata.id, style_id)
+
             elif not is_secured and legend_uri.startswith(ROOT_URL):
                 # restore the original legend uri by using the layer identifier
                 style_id = legend_uri.split("/")[-1]

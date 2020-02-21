@@ -18,6 +18,7 @@ from service.helper import xml_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Service, Metadata, Layer, Document, FeatureType
+from service.settings import SERVICE_OPERATION_URI_TEMPLATE
 
 from structure.models import Contact
 
@@ -48,9 +49,6 @@ class CapabilityXMLBuilder:
 
         self.service_type = self.service.servicetype.name
         self.service_version = force_version or self.service.servicetype.version
-
-        self.proxy_operations_uri_template = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}/operation?"
-        self.proxy_legend_uri = "{}{}/service/metadata/{}/legend/".format(HTTP_OR_SSL, HOST_NAME, parent_service.metadata.id)
 
         self.namespaces = {
             "sld": XML_NAMESPACES["sld"],
@@ -218,7 +216,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
             upper_elem,
             "{}OnlineResource".format(self.default_ns),
             attrib={
-                "{}href".format(self.xlink_ns): self.proxy_operations_uri_template.format(md.id)
+                "{}href".format(self.xlink_ns): SERVICE_OPERATION_URI_TEMPLATE.format(md.id)
             }
         )
 
@@ -457,8 +455,8 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
 
         if OGCOperationEnum.GET_CAPABILITIES.value in tag:
             # GetCapabilities is always set to our internal systems uri!
-            get_uri = self.proxy_operations_uri_template.format(md.id)
-            post_uri = self.proxy_operations_uri_template.format(md.id)
+            get_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id)
+            post_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id)
 
         # Add all mime types that are supported by this operation
         supported_formats = service.formats.filter(
@@ -973,7 +971,7 @@ class CapabilityWMS100Builder(CapabilityWMSBuilder):
         )
         xml_helper.write_text_to_element(
             online_resource_elem,
-            txt=self.proxy_operations_uri_template.format(md.id),
+            txt=SERVICE_OPERATION_URI_TEMPLATE.format(md.id),
         )
 
     def _generate_capability_version_specific(self, upper_elem: Element, layer: Layer):
@@ -1177,9 +1175,6 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         self.namespaces[None] = XML_NAMESPACES["wfs"]
         self.default_ns = "{" + XML_NAMESPACES["wfs"] + "}"
 
-        # WFS 1.0.0 expects a /Service/Name
-        self.default_identifier = "WFS"
-
         self.feature_type = FeatureType.objects.get(
             metadata=metadata,
         )
@@ -1191,6 +1186,19 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
                 version=force_version
             )
         )
+
+    def _generate_xml(self):
+        xml = ""
+        return xml
+
+
+class CapabilityWFS100Builder(CapabilityWFSBuilder):
+    def __init__(self, metadata: Metadata, force_version: str = None):
+        super().__init__(metadata=metadata, force_version=force_version)
+        self.schema_location = "http://schemas.opengis.net/wfs/1.0.0/WFS-capabilities.xsd"
+
+        # WFS 1.0.0 expects a /Service/Name
+        self.default_identifier = "WFS"
 
     def _generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
@@ -1311,7 +1319,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         )
         xml_helper.write_text_to_element(
             online_resource_elem,
-            txt=self.proxy_operations_uri_template.format(md.id),
+            txt=SERVICE_OPERATION_URI_TEMPLATE.format(md.id),
         )
 
     def _generate_capability_xml(self, upper_elem):
@@ -1324,11 +1332,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             nothing
         """
         # Request
-        request_elem = xml_helper.create_subelement(
-            upper_elem,
-            "{}Request".format(self.default_ns)
-        )
-        self._generate_capability_request_xml(request_elem)
+        self._generate_capability_request_xml(upper_elem)
 
         # VendorSpecificCapabilities
         # This information is not part of the registration process - we take the one from the original capabilities
@@ -1353,42 +1357,34 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        service = self.service
-        contents = OrderedDict({
-            "{}" + OGCOperationEnum.GET_CAPABILITIES.value: {
-                "get": service.get_capabilities_uri_GET,
-                "post": service.get_capabilities_uri_POST,
-            },
-            "{}" + OGCOperationEnum.GET_FEATURE.value: {
-                "get": service.get_feature_info_uri_GET,
-                "post": service.get_feature_info_uri_POST,
-            },
-            "{}" + OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: {
-                "get": service.describe_layer_uri_GET,
-                "post": service.describe_layer_uri_POST,
-            },
-            "{}" + OGCOperationEnum.TRANSACTION.value: {
-                "get": service.transaction_uri_GET,
-                "post": service.transaction_uri_POST,
-            },
-            "{}" + OGCOperationEnum.GET_FEATURE_WITH_LOCK.value: {
-                "get": None, #ToDo: Implement(?)
-                "post": None,
-            },
-            "{}" + OGCOperationEnum.LOCK_FEATURE.value: {
-                "get": None, #ToDo: Implement(?)
-                "post": None,
-            },
-        })
+        self._fetch_original_xml(upper_elem, "Request")
 
-        # Create xml elements
-        for key, val in contents.items():
-            k = key.format(self.default_ns)
-            get_uri = val.get("get", None)
-            post_uri = val.get("post", None)
-            if get_uri is not None or post_uri is not None:
-                elem = xml_helper.create_subelement(upper_elem, k)
-                self._generate_capability_operation_xml(elem, get_uri, post_uri)
+        # Auto secure GetCapabilities links
+        get_cap_element = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities"),
+            upper_elem
+        )
+        get_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
+            get_cap_element
+        )
+        post_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
+            get_cap_element
+        )
+
+        xml_helper.set_attribute(
+            get_elem,
+            "onlineResource",
+            SERVICE_OPERATION_URI_TEMPLATE.format(self.metadata.id)
+        )
+
+        xml_helper.set_attribute(
+            post_elem,
+            "onlineResource",
+            SERVICE_OPERATION_URI_TEMPLATE.format(self.metadata.id)
+        )
+
 
     def _generate_capability_operation_xml(self, upper_elem: Element, get_uri: str, post_uri: str):
         """ Generate the various operation subelements of a xml capability object
@@ -1404,8 +1400,8 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
 
         if OGCOperationEnum.GET_CAPABILITIES.value in tag:
             # GetCapabilities is always set to our internal systems uri, we do not touch it!
-            get_uri = self.proxy_operations_uri_template.format(md.id)
-            post_uri = self.proxy_operations_uri_template.format(md.id)
+            get_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id)
+            post_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id)
 
         # Add all mime types that are supported by this operation
         supported_formats = service.formats.filter(
@@ -1439,13 +1435,6 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             feature_type_list_elem,
             "FeatureTypeList"
         )
-
-
-
-class CapabilityWFS100Builder(CapabilityWFSBuilder):
-    def __init__(self, metadata: Metadata, force_version: str = None):
-        super().__init__(metadata=metadata, force_version=force_version)
-        self.schema_location = "http://schemas.opengis.net/wfs/1.0.0/WFS-capabilities.xsd"
 
 class CapabilityWFS110Builder(CapabilityWFSBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):

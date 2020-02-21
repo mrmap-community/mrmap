@@ -14,6 +14,7 @@ from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, OGCOperationEnum
 from service.models import Service, Layer, Document, Metadata
+from service.settings import SERVICE_OPERATION_URI_TEMPLATE
 from structure.models import User, Group, Role, Permission
 
 
@@ -549,7 +550,7 @@ class ServiceTestCase(TestCase):
 
 
         if service_type == OGCServiceEnum.WMS.value:
-            uri = "{}{}/service/metadata/{}/operation".format(HTTP_OR_SSL, HOST_NAME, metadata.id)
+            uri = SERVICE_OPERATION_URI_TEMPLATE.format(metadata.id)
             params = {
                 "request": OGCOperationEnum.GET_MAP.value,
                 "version": OGCServiceVersionEnum.V_1_1_1.value,

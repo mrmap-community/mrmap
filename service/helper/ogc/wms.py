@@ -17,7 +17,7 @@ from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
+from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH, SERVICE_OPERATION_URI_TEMPLATE
 from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
     PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
@@ -975,7 +975,7 @@ class OGCWebMapService(OGCWebService):
             md_relation.save()
             md.related_metadata.add(md_relation)
 
-        internal_capabilities_uri = "{}{}/service/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, md.id)
+        internal_capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id)
         md.capabilities_uri = internal_capabilities_uri
         # save again, due to added related metadata
         md.save()
@@ -1010,7 +1010,7 @@ class OGCWebMapService(OGCWebService):
             md_type = MetadataType.objects.get_or_create(type=md_type.type)[0]
             md.metadata_type = md_type
             md.save()
-            internal_capabilities_uri = "{}{}/service/metadata/{}/operation?".format(HTTP_OR_SSL, HOST_NAME, md.id)
+            internal_capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id)
             md.capabilities_uri = internal_capabilities_uri
             md.save()
             for iso_md in layer.iso_metadata:

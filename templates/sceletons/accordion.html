@@ -2,7 +2,7 @@
     <div class="card {{THEME.CARD.TXT_COLOR}} {{THEME.CARD.BG}} mt-3 {{THEME.CARD.BOARDER}}">
     <div class="card-header">
       <h2 class="mb-0">
-        <button id="id_accordion_btn_{{id_accordion}}_{{id_accordion_combined}}" class="btn {% if button_type %}{{button_type}} {{THEME.CARD.LINK_COLOR}} {% else %} {{THEME.ACCORDION.BTN_PRIMARY_COLOR}} {% endif %} collapsed" type="button" data-toggle="collapse" data-target="#id_collapse_{{id_accordion}}_{{id_accordion_combined}}" aria-expanded="false" aria-controls="id_collapse_{{id_accordion}}_{{id_accordion_combined}}">
+        <button id="id_accordion_btn_{{id_accordion}}_{{id_accordion_combined}}" class="btn {% if button_type %}{{button_type}} {{THEME.CARD.LINK_COLOR}} {% else %} {{THEME.ACCORDION.BTN_COLOR}} {% endif %} collapsed" type="button" data-toggle="collapse" data-target="#id_collapse_{{id_accordion}}_{{id_accordion_combined}}" aria-expanded="false" aria-controls="id_collapse_{{id_accordion}}_{{id_accordion_combined}}">
             {% block accordion-button-title %}
             {% endblock %}
         </button>

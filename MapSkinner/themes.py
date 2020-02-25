@@ -38,6 +38,8 @@ FONT_AWESOME_ICONS = {
 
 # dark theme settings
 DARK_THEME = {
+    'NAME': 'dark',
+
     'BACKGROUND': 'bg-secondary',
 
     'TXT_DEF_COLOR': 'text-white',
@@ -118,6 +120,7 @@ DARK_THEME = {
 
 # dark theme settings
 LIGHT_THEME = {
+    'NAME': 'light',
     'BACKGROUND': 'bg-light',
 
     'TXT_DEF_COLOR': 'text-dark',
@@ -189,7 +192,7 @@ LIGHT_THEME = {
     },
 
     'ACCORDION': {
-        'BTN_PRIMARY_COLOR': 'btn-outline-primary',
+        'BTN_COLOR': 'btn-secondary',
         'PILL_BADGE_INFO_COLOR': 'badge-pill badge-primary',
     },
 

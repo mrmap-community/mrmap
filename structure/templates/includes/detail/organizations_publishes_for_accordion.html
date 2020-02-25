@@ -1,7 +1,7 @@
 {% extends 'sceletons/accordion.html' %}
 {% load i18n %}
 {% block accordion-button-title %}
-<i class="fa" aria-hidden="true"></i> {% trans 'Show all services' %} <span class="badge badge-pill badge-info">{{ services|length }}</span>
+<i class="fa" aria-hidden="true"></i> {% trans 'Show all services' %} <span class="badge {{THEME.ACCORDION.PILL_BADGE_INFO_COLOR}}">{{ services|length }}</span>
 {% endblock %}
 {% block accordion-body %}
 {% include 'index_publish_requests.html' %}

@@ -144,7 +144,7 @@ LIGHT_THEME = {
 
     'CARD': {
         'BG': 'bg-light',
-        'TXT_COLOR': 'text-dark',
+        'TXT_COLOR': ' ',
         'BOARDER': 'border border-dark rounded',
         'LINK_COLOR': 'text-primary',
         'BTN_PRIMARY_COLOR': 'btn-primary',
@@ -159,7 +159,7 @@ LIGHT_THEME = {
     'NAV': {
         'ITEM_COLOR': 'navbar-light',
         'BG_COLOR': 'bg-light',
-        'TXT_COLOR': 'text-dark',
+        'TXT_COLOR': ' ',
         'BTN_PRIMARY_COLOR': 'btn-primary',
         'BTN_SECONDARY_COLOR': 'btn-secondary',
         'BTN_SUCCESS_COLOR': 'btn-success',
@@ -170,7 +170,7 @@ LIGHT_THEME = {
 
     'FOOTER': {
         'BG_COLOR': 'bg-light',
-        'TXT_COLOR': 'text-dark',
+        'TXT_COLOR': ' ',
         'LINK_COLOR': 'text-primary',
         'BTN_PRIMARY_COLOR': 'btn-primary',
         'BTN_SECONDARY_COLOR': 'btn-secondary',
@@ -182,7 +182,7 @@ LIGHT_THEME = {
 
     'MODAL': {
         'BG_COLOR': 'bg-light',
-        'TXT_COLOR': 'text-dark',
+        'TXT_COLOR': ' ',
         'BTN_PRIMARY_COLOR': 'btn-primary',
         'BTN_SECONDARY_COLOR': 'btn-secondary',
         'BTN_SUCCESS_COLOR': 'btn-success',

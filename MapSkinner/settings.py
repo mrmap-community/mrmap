@@ -273,4 +273,4 @@ MESSAGE_TAGS = {
     messages.ERROR: 'alert-danger',
 }
 
-THEME = 'DARK'
+THEME = 'LIGHT'

@@ -103,7 +103,7 @@ class CapabilityXMLBuilder:
         xml = xml_builder._generate_xml()
         return xml
 
-    def _generate_simple_elements_from_dict(self, upper_elem: Element, contents: dict):
+    def _generate_simple_elements_from_dict(self, upper_elem: Element, contents: dict, ns: str=None):
         """ Generate multiple subelements of a xml object
 
         Variable `contents` contains key-value pairs of Element tag names and their text content.
@@ -115,8 +115,11 @@ class CapabilityXMLBuilder:
         Returns:
             nothing
         """
+        if ns is None:
+            ns = self.default_ns
+
         for key, val in contents.items():
-            k = key.format(self.default_ns)
+            k = key.format(ns)
             elem = xml_helper.create_subelement(upper_elem, k)
             xml_helper.write_text_to_element(elem, txt=val)
 
@@ -1184,7 +1187,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         self.namespaces["ows"] = XML_NAMESPACES["ows"]
         self.namespaces["ogc"] = XML_NAMESPACES["ogc"]
         self.namespaces["gml"] = XML_NAMESPACES["gml"]
-        self.namespaces["wfs"] = XML_NAMESPACES["wfs"]
+        self.namespaces[None] = XML_NAMESPACES["wfs"]
 
         self.default_ns = "{" + XML_NAMESPACES["ows"] + "}"
         self.wfs_ns = "{" + XML_NAMESPACES["wfs"] + "}"
@@ -1344,10 +1347,9 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        service_provider_elem = xml_helper.create_subelement(
-            upper_elem,
-            "{}ServiceProvider".format(self.default_ns)
-        )
+        # Again, we simply take the original information!
+        # Since these informations can not be changed by our metadata editor, we have this freedom.
+        self._fetch_original_xml(upper_elem, "ServiceProvider")
 
     def _generate_operations_metadata_xml(self, upper_elem: Element):
         """ Generate the 'Capability' subelement of a xml service object
@@ -1357,9 +1359,37 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        operations_metadata_elem = xml_helper.create_subelement(
+        # Again, we simply take the original information!
+        # Since these informations can not be changed by our metadata editor, we have this freedom.
+        self._fetch_original_xml(upper_elem, "OperationsMetadata")
+
+        # Auto secure GetCapabilities links
+        get_cap_element = xml_helper.find_element_where_attr(
             upper_elem,
-            "{}OperationsMetadata".format(self.default_ns)
+            "name",
+            "GetCapabilities"
+        )
+        if len(get_cap_element) != 0:
+            get_cap_element = get_cap_element[0]
+        get_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
+            get_cap_element
+        )
+        post_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
+            get_cap_element
+        )
+
+        xml_helper.set_attribute(
+            get_elem,
+            "{}href".format(self.xlink_ns),
+            SERVICE_OPERATION_URI_TEMPLATE.format(self.metadata.id)
+        )
+
+        xml_helper.set_attribute(
+            post_elem,
+            "{}href".format(self.xlink_ns),
+            SERVICE_OPERATION_URI_TEMPLATE.format(self.metadata.id)
         )
 
     def _generate_feature_type_list_xml(self, upper_elem: Element):
@@ -1370,7 +1400,144 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        pass
+        feature_type_list_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}FeatureTypeList".format(self.wfs_ns)
+        )
+
+        # Fetch original <Operations> element
+        self._fetch_original_xml(
+            feature_type_list_elem,
+            "Operations"
+        )
+
+        self._generate_feature_type_list_feature_type_xml(feature_type_list_elem)
+
+    def _generate_feature_type_list_feature_type_xml(self, upper_elem):
+        """ Generate the 'FeatureType' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        feature_type_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}FeatureType".format(self.wfs_ns)
+        )
+
+        # Generate dynamic contents
+        contents = OrderedDict({
+            "{}Name": self.metadata.identifier,
+            "{}Title": self.metadata.title,
+            "{}Abstract": self.metadata.abstract,
+        })
+        self._generate_simple_elements_from_dict(
+            feature_type_elem,
+            contents,
+            self.wfs_ns
+        )
+
+        # ows:Keywords
+        self._generate_keyword_xml(feature_type_elem, self.metadata)
+
+        # DefaultSRS | OtherSRS
+        self._generate_feature_type_list_feature_type_srs_xml(feature_type_elem)
+
+        # OutputFormats
+        self._generate_feature_type_list_feature_type_formats_xml(feature_type_elem)
+
+        # ows:WGS84BoundingBox
+        self._generate_feature_type_list_feature_type_bbox_xml(feature_type_elem)
+
+
+    def _generate_feature_type_list_feature_type_srs_xml(self, upper_elem):
+        """ Generate the 'DefaultSRS|OtherSRS' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        # DefaultSRS
+        elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}DefaultSRS".format(self.wfs_ns)
+        )
+        xml_helper.write_text_to_element(
+            elem,
+            txt="{}{}".format(self.feature_type.default_srs.prefix, self.feature_type.default_srs.code)
+        )
+        for srs in self.metadata.reference_system.all():
+            # OtherSRS
+            elem = xml_helper.create_subelement(
+                upper_elem,
+                "{}OtherSRS".format(self.wfs_ns)
+            )
+            xml_helper.write_text_to_element(
+                elem,
+                txt="{}{}".format(srs.prefix, srs.code)
+            )
+
+    def _generate_feature_type_list_feature_type_formats_xml(self, upper_elem: Element):
+        """ Generate the 'OutputFormats' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        output_format_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}OutputFormats".format(self.wfs_ns)
+        )
+        for format in self.feature_type.formats.all():
+            elem = xml_helper.create_subelement(
+                output_format_elem,
+                "{}Format".format(self.wfs_ns)
+            )
+            xml_helper.write_text_to_element(elem, txt=format.mime_type)
+
+    def _generate_feature_type_list_feature_type_bbox_xml(self, upper_elem: Element):
+        """ Generate the 'WGS84BoundingBox' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        bbox = self.metadata.bounding_geometry.extent
+        bbox_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}WGS84BoundingBox".format(self.default_ns),
+            attrib={
+                "dimensions": "2"
+            }
+        )
+
+        lower_corner_elem = xml_helper.create_subelement(
+            bbox_elem,
+            "{}LowerCorner".format(self.default_ns)
+        )
+        xml_helper.write_text_to_element(
+            lower_corner_elem,
+            txt="{} {}".format(
+                str(bbox[0]),
+                str(bbox[1])
+            )
+        )
+
+        upper_corner_elem = xml_helper.create_subelement(
+            bbox_elem,
+            "{}UpperCorner".format(self.default_ns)
+        )
+        xml_helper.write_text_to_element(
+            upper_corner_elem,
+            txt="{} {}".format(
+                str(bbox[2]),
+                str(bbox[3])
+            )
+        )
 
     def _generate_filter_capabilities_xml(self, upper_elem: Element):
         """ Generate the 'Filter_Capabilities' subelement of a xml service object

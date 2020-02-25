@@ -499,7 +499,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         # Layers are not included in this contents dict, since they will be appended separately at the end
         contents = OrderedDict({
             "{}Request": "",
-            "{}VendorSpecificCapabilities": "",
             "{}UserDefinedSymbolization": "",
         })
         self._generate_simple_elements_from_dict(capability_elem, contents)

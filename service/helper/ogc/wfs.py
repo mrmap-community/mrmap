@@ -11,7 +11,7 @@ from django.db import transaction
 from lxml.etree import _Element
 
 from service.helper.crypto_handler import CryptoHandler
-from service.settings import DEFAULT_SRS
+from service.settings import DEFAULT_SRS, SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE
 from service.settings import MD_RELATION_TYPE_VISUALIZES, \
     EXTERNAL_AUTHENTICATION_FILEPATH
 from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
@@ -765,6 +765,7 @@ class OGCWebFeatureService(OGCWebService):
         # save metadata
         md = service.metadata
         md.save()
+
         if external_auth is not None:
             external_auth.metadata = md
             crypt_handler = CryptoHandler()
@@ -785,6 +786,8 @@ class OGCWebFeatureService(OGCWebService):
             md_relation.save()
             md.related_metadata.add(md_relation)
 
+        md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
+        md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
         # save again, due to added related metadata
         md.save()
 
@@ -804,6 +807,10 @@ class OGCWebFeatureService(OGCWebService):
         for f_t in service.feature_type_list:
             f_t.parent_service = service
             md = f_t.metadata
+            md.save()
+            md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(
+                OGCOperationEnum.GET_CAPABILITIES.value)
+            md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
             md.save()
             f_t.metadata = md
             f_t.save()

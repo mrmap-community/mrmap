@@ -17,7 +17,8 @@ from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH, SERVICE_OPERATION_URI_TEMPLATE
+from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH, SERVICE_OPERATION_URI_TEMPLATE, \
+    SERVICE_METADATA_URI_TEMPLATE
 from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
     PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
@@ -955,6 +956,7 @@ class OGCWebMapService(OGCWebService):
         # save metadata
         md = service.metadata
         md.save()
+
         if external_auth is not None:
             external_auth.metadata = md
             crypt_handler = CryptoHandler()
@@ -975,8 +977,8 @@ class OGCWebMapService(OGCWebService):
             md_relation.save()
             md.related_metadata.add(md_relation)
 
-        internal_capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id)
-        md.capabilities_uri = internal_capabilities_uri
+        md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
+        md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
         # save again, due to added related metadata
         md.save()
 
@@ -1010,8 +1012,10 @@ class OGCWebMapService(OGCWebService):
             md_type = MetadataType.objects.get_or_create(type=md_type.type)[0]
             md.metadata_type = md_type
             md.save()
-            internal_capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id)
-            md.capabilities_uri = internal_capabilities_uri
+
+            md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(
+                OGCOperationEnum.GET_CAPABILITIES.value)
+            md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
             md.save()
             for iso_md in layer.iso_metadata:
                 iso_md = iso_md.to_db_model()

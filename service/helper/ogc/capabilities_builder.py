@@ -1975,6 +1975,17 @@ class CapabilityWFS200Builder(CapabilityWFSBuilder):
             txt="WFS"
         )
 
+    def _generate_feature_type_list_operations(self, upper_element: Element):
+        """ Generate the 'Operations' subelement of a xml feature type list object
+
+        This element does not exist since WFS 2.0.0 anymore. We need this method to overwrite the default creation.
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        pass
 
     def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
         """ Generate the 'MetadataURL' subelement of a xml feature type list object
@@ -2035,6 +2046,17 @@ class CapabilityWFS202Builder(CapabilityWFSBuilder):
             txt="WFS"
         )
 
+    def _generate_feature_type_list_operations(self, upper_element: Element):
+        """ Generate the 'Operations' subelement of a xml feature type list object
+
+        This element does not exist since WFS 2.0.0 anymore. We need this method to overwrite the default creation.
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        pass
 
     def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
         """ Generate the 'MetadataURL' subelement of a xml feature type list object

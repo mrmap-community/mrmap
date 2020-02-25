@@ -6,13 +6,13 @@
 {% block card-body %}
 <h6 class="card-subtitle mb-2 text-muted">
     {% trans 'count' %} <span
-        class="badge badge-pill {{THEME.BADGE_COLOR}}">{{ wfs_count }}</span>
+        class="badge badge-pill {{THEME.CARD.BADGE_COLOR}}">{{ wfs_count }}</span>
 </h6>
 <p class="card-text">Some quick example text to build on the card title and make up the bulk
     of the
     card's
     content.</p>
-<a class="btn {{THEME.BTN_COLOR}}" href="{% url 'service:wfs-index' %}" role="button">
+<a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'service:wfs-index' %}" role="button">
     {% trans 'Show'%}
 </a>
 {% endblock %}

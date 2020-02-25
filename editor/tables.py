@@ -1,25 +1,9 @@
 import django_tables2 as tables
 from django.utils.html import format_html
 from django.urls import reverse
-from MapSkinner.settings import THEME, DARK_THEME, LIGHT_THEME
 from service.models import Layer, FeatureType
 from MapSkinner.consts import *
-
-
-# TODO: refactor this; this function should be global
-def _get_theme():
-    if THEME == 'DARK':
-        return DARK_THEME
-    else:
-        return LIGHT_THEME
-
-
-# TODO: refactor this; this function should be global
-def _get_icon(self):
-    if self:
-        return format_html("<i class='fas fa-check text-success'></i>")
-    else:
-        return format_html("<i class='fas fa-times text-danger'></i>")
+from MapSkinner.utils import get_theme, get_ok_nok_icon
 
 
 class ExtendedTable(tables.Table):
@@ -42,48 +26,48 @@ class WmsServiceTable(ExtendedTable):
     @staticmethod
     def render_wms_title(value, record):
         url = reverse('service:detail', args=(record.id,))
-        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wms_active(value):
-        return _get_icon(value)
+        return get_ok_nok_icon(value)
 
     @staticmethod
     def render_wms_data_provider(value, record):
         url = reverse('structure:detail-organization', args=(record.contact.id,))
-        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wms_registered_by_group(value, record):
         url = reverse('structure:detail-group', args=(record.service.created_by.id,))
-        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wms_original_metadata(record):
         count = Layer.objects.filter(parent_service__metadata=record, metadata__is_custom=True).count()
         if not record.is_custom and count == 0:
-            return _get_icon(True)
+            return get_ok_nok_icon(True)
         else:
-            return _get_icon(False)
+            return get_ok_nok_icon(False)
 
     @staticmethod
     def render_wms_secured_access(value):
-        return _get_icon(value)
+        return get_ok_nok_icon(value)
 
     @staticmethod
     def render_wms_edit_metadata(record):
         url = reverse('editor:edit', args=(record.id,))
-        return format_html(URL_PATTERN_BTN_WARNING, url, format_html(_get_theme()["ICONS"]['EDIT']), )
+        return format_html(URL_PATTERN_BTN_WARNING, url, format_html(get_theme()["ICONS"]['EDIT']), )
 
     @staticmethod
     def render_wms_edit_access(record):
         url = reverse('editor:edit_access', args=(record.id,))
-        return format_html(URL_PATTERN_BTN_WARNING, url, format_html(_get_theme()["ICONS"]['EDIT']), )
+        return format_html(URL_PATTERN_BTN_WARNING, url, format_html(get_theme()["ICONS"]['EDIT']), )
 
     @staticmethod
     def render_wms_reset(record):
         url = reverse('editor:restore', args=(record.id,))
-        return format_html(URL_PATTERN_BTN_DANGER, url, format_html(_get_theme()["ICONS"]['UNDO']), )
+        return format_html(URL_PATTERN_BTN_DANGER, url, format_html(get_theme()["ICONS"]['UNDO']), )
 
 
 class WfsServiceTable(ExtendedTable):
@@ -101,45 +85,45 @@ class WfsServiceTable(ExtendedTable):
     @staticmethod
     def render_wfs_title(value, record):
         url = reverse('service:detail', args=(record.id,))
-        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wfs_active(value):
-        return _get_icon(value)
+        return get_ok_nok_icon(value)
 
     @staticmethod
     def render_wfs_data_provider(value, record):
         url = reverse('structure:detail-organization', args=(record.contact.id,))
-        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wfs_registered_by_group(value, record):
         url = reverse('structure:detail-group', args=(record.service.created_by.id,))
-        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wfs_original_metadata(record):
         count = FeatureType.objects.filter(parent_service__metadata=record, metadata__is_custom=True)
         if not record.is_custom and count == 0:
-            return _get_icon(True)
+            return get_ok_nok_icon(True)
         else:
-            return _get_icon(False)
+            return get_ok_nok_icon(False)
 
     @staticmethod
     def render_wfs_secured_access(value):
-        return _get_icon(value)
+        return get_ok_nok_icon(value)
 
     @staticmethod
     def render_wfs_edit_metadata(record):
         url = reverse('editor:edit', args=(record.id,))
-        return format_html(URL_PATTERN_BTN_WARNING, url, format_html(_get_theme()["ICONS"]['EDIT']), )
+        return format_html(URL_PATTERN_BTN_WARNING, url, format_html(get_theme()["ICONS"]['EDIT']), )
 
     @staticmethod
     def render_wfs_edit_access(record):
         url = reverse('editor:edit_access', args=(record.id,))
-        return format_html(URL_PATTERN_BTN_WARNING, url, format_html(_get_theme()["ICONS"]['EDIT']), )
+        return format_html(URL_PATTERN_BTN_WARNING, url, format_html(get_theme()["ICONS"]['EDIT']), )
 
     @staticmethod
     def render_wfs_reset(record):
         url = reverse('editor:restore', args=(record.id,))
-        return format_html(URL_PATTERN_BTN_DANGER, url, format_html(_get_theme()["ICONS"]['UNDO']), )
+        return format_html(URL_PATTERN_BTN_DANGER, url, format_html(get_theme()["ICONS"]['UNDO']), )

@@ -72,7 +72,7 @@
                                data-sec-id="{{ group.sec_id }}">
                         <label for="checkbox-sec-{{ group.group.id }}-{{ operation.operation.id }}">{{ group.group.name }} ({{ group.group.organization.organization_name }}) </label>
                         {% if operation.operation.operation_name in spatial_restrictable_operations and service_metadata.is_root %}
-                            <button  type="button" class="btn btn-sm {{THEME.BTN_COLOR}} add-geometry_" data-id="{{ service_metadata.id }}">
+                            <button  type="button" class="btn btn-sm {{THEME.CARD.BTN_PRIMARY_COLOR}} add-geometry_" data-id="{{ service_metadata.id }}">
                                 {% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} Add spatial restriction
                             </button>
                         {% endif %}
@@ -87,7 +87,7 @@
         {% endfor %}
     </table>
     <input name="secured-operation-groups" type="text" class="d-none hidden">
-    <button type="submit" class="btn {{THEME.BTN_COLOR}} secured-operations submit-button" data-id="{{ service_metadata.id }}">
+    <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}} secured-operations submit-button" data-id="{{ service_metadata.id }}">
         {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} Save
     </button>
 </form>

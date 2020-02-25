@@ -49,10 +49,10 @@
         </ul>
         <div>
             <span class="{{THEME.NAV.TXT_COLOR}}">{% now "SHORT_DATETIME_FORMAT" %} </span>
-            <a class="btn {{THEME.BTN_COLOR}}" href="{% url 'account' %}" title="{% trans 'Account' %}" role="button">
+            <a class="btn {{THEME.NAV.BTN_PRIMARY_COLOR}}" href="{% url 'account' %}" title="{% trans 'Account' %}" role="button">
                 {% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %} {{ user.username }}
             </a>
-            <a class="btn {{THEME.BTN_COLOR}}" href="{% url 'logout' %}" title="{% trans 'Logout' %}" role="button">
+            <a class="btn {{THEME.NAV.BTN_PRIMARY_COLOR}}" href="{% url 'logout' %}" title="{% trans 'Logout' %}" role="button">
                 {% autoescape off %}{{THEME.ICONS.SIGNOUT}}{% endautoescape %}
             </a>
         </div>

@@ -15,7 +15,7 @@
         <div class="d-flex justify-content-between">
             {% if 'can_edit_organization' in user_permissions %}
             <div>
-                <button type="button" class="btn {{THEME.BTN_WARNING_COLOR}}" data-toggle="modal" data-target="#id_modal_edit_organization_modal">
+                <button type="button" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" data-toggle="modal" data-target="#id_modal_edit_organization_modal">
                     {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit organization' %}
                 </button>
             </div>
@@ -27,7 +27,7 @@
             {% endif %}
             {% if 'can_delete_organization' in user_permissions %}
             <div class="ml-auto">
-                <button type="button" class="btn {{THEME.BTN_DANGER_COLOR}}" data-toggle="modal" data-target="#id_modal_delete_organization_modal">
+                <button type="button" class="btn {{THEME.CARD.BTN_DANGER_COLOR}}" data-toggle="modal" data-target="#id_modal_delete_organization_modal">
                     {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Delete organization' %}
                 </button>
             </div>

@@ -37,7 +37,7 @@
                 <th>{% trans 'Keywords' %}</th>
                 <td>
                     {% for kw in service_md.keywords.all %}
-                        <span class="badge {{THEME.PILL_BADGE_INFO_COLOR}}">{{ kw }}</span>
+                        <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ kw }}</span>
                     {% empty %}
                         {% trans 'No keywords provided' %}
                     {% endfor %}

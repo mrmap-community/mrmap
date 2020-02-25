@@ -11,7 +11,7 @@
 {% endblock %}
 {% block card-header-title-right %}
     {% if 'can_register_service' in user_permissions %}
-        <button type="button" class="btn {{THEME.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_service">
+        <button type="button" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_service">
             {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New Service' %}
         </button>
     {% endif %}

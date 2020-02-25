@@ -53,12 +53,30 @@ class CapabilityXMLBuilder:
             "xlink": XML_NAMESPACES["xlink"],
             "xsi": XML_NAMESPACES["xsi"],
             "ogc": XML_NAMESPACES["ogc"],
+            "inspire_vs": XML_NAMESPACES["inspire_vs"],
+            "inspire_common": XML_NAMESPACES["inspire_common"],
+            "inspire_dls": XML_NAMESPACES["inspire_dls"],
         }
 
         self.default_ns = ""
         self.xlink_ns = "{" + XML_NAMESPACES["xlink"] + "}"
         self.xsi_ns = "{" + XML_NAMESPACES["xsi"] + "}"
+
+        self.inspire_vs_ns = "{" + XML_NAMESPACES["inspire_vs"] + "}"
+        self.inspire_common_ns = "{" + XML_NAMESPACES["inspire_common"] + "}"
+        self.inspire_dls_ns = "{" + XML_NAMESPACES["inspire_dls"] + "}"
+        self.inspire_supported_language_code = "ger"
+        self.inspire_response_language_code = "ger"
+        self.inspire_media_type = "application/vnd.iso.19139+xml"
+
         self.schema_location = ""
+
+        self.original_doc = None
+        self.original_doc = xml_helper.parse_xml(
+            metadata.get_remote_original_capabilities_document(
+                version=force_version
+            )
+        )
 
     def generate_xml(self):
         """ Generates the capability xml
@@ -122,6 +140,157 @@ class CapabilityXMLBuilder:
             k = key.format(ns)
             elem = xml_helper.create_subelement(upper_elem, k)
             xml_helper.write_text_to_element(elem, txt=val)
+
+    def _fetch_original_xml(self, upper_elem: Element, element_tag: str):
+        """ Paste an original xml element into the given upper_element
+
+        Args:
+            upper_elem (Element): The upper xml element
+            element_tag (str): The name of the original element
+        Returns:
+
+        """
+        original_service_elem = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format(element_tag),
+            self.original_doc
+        )
+        if original_service_elem is not None:
+            xml_helper.add_subelement(
+                upper_elem,
+                original_service_elem
+            )
+
+    def _generate_vendor_specific_capabilities_xml(self, upper_elem: Element):
+        """ Generate the 'VendorSpecificCapabilities' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        # VendorSpecificCapabilities
+        # Take something from the original xml document (hopefully this is provided!)
+        self._fetch_original_xml(upper_elem, "VendorSpecificCapabilities")
+
+        # Check if the content exists
+        elem = xml_helper.try_get_single_element_from_xml(
+            upper_elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("VendorSpecificCapabilities")
+        )
+        if elem is None:
+            # Nothing was found, we must create our own service metadata!
+            elem = xml_helper.create_subelement(
+                upper_elem,
+                "VendorSpecificCapabilities"
+            )
+            elem = xml_helper.create_subelement(
+                elem,
+                "{}ExtendedCapabilities".format(self.inspire_vs_ns)
+            )
+
+            self._generate_vendor_specific_capabilities_metadata_url_xml(elem)
+            self._generate_vendor_specific_capabilities_supported_language_xml(elem)
+            self._generate_vendor_specific_capabilities_response_language_xml(elem)
+
+    def _generate_vendor_specific_capabilities_metadata_url_xml(self, upper_elem: Element):
+        """ Generate the 'MetadataUrl' subelement of a xml VendorSpecificCapabilities object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        metadata_url_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}MetadataUrl".format(self.inspire_common_ns),
+            attrib={
+                "{}type".format(self.xsi_ns): "inspire_common:resourceLocatorType"
+            }
+        )
+
+        # URL
+        url_elem = xml_helper.create_subelement(
+            metadata_url_elem,
+            "{}URL".format(self.inspire_common_ns)
+        )
+        xml_helper.write_text_to_element(
+            url_elem,
+            txt=""
+        )
+
+        # MediaType
+        media_type_elem = xml_helper.create_subelement(
+            metadata_url_elem,
+            "{}MediaType".format(self.inspire_common_ns)
+        )
+        xml_helper.write_text_to_element(
+            media_type_elem,
+            txt=self.inspire_media_type
+        )
+
+    def _generate_vendor_specific_capabilities_supported_language_xml(self, upper_elem: Element):
+        """ Generate the 'SupportedLanguages' subelement of a xml VendorSpecificCapabilities object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        supported_languages_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}SupportedLanguages".format(self.inspire_common_ns),
+        )
+
+        # DefaultLanguage
+        default_lang_elem = xml_helper.create_subelement(
+            supported_languages_elem,
+            "{}DefaultLanguage".format(self.inspire_common_ns)
+        )
+        lang_elem = xml_helper.create_subelement(
+            default_lang_elem,
+            "{}Language".format(self.inspire_common_ns)
+        )
+        xml_helper.write_text_to_element(
+            lang_elem,
+            txt=self.inspire_supported_language_code
+        )
+
+        # SupportedLanguage
+        default_lang_elem = xml_helper.create_subelement(
+            supported_languages_elem,
+            "{}SupportedLanguage".format(self.inspire_common_ns)
+        )
+        lang_elem = xml_helper.create_subelement(
+            default_lang_elem,
+            "{}Language".format(self.inspire_common_ns)
+        )
+        xml_helper.write_text_to_element(
+            lang_elem,
+            txt=self.inspire_supported_language_code
+        )
+
+    def _generate_vendor_specific_capabilities_response_language_xml(self, upper_elem: Element):
+        """ Generate the 'ResponseLanguage' subelement of a xml VendorSpecificCapabilities object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        response_languages_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}ResponseLanguage".format(self.inspire_common_ns),
+        )
+        lang_elem = xml_helper.create_subelement(
+            response_languages_elem,
+            "{}Language".format(self.inspire_common_ns)
+        )
+        xml_helper.write_text_to_element(
+            lang_elem,
+            txt=self.inspire_response_language_code
+        )
+
+
 
 class CapabilityWMSBuilder(CapabilityXMLBuilder):
     """ Base class for WMS capabilities building
@@ -1199,13 +1368,6 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         )
         self.service = self.feature_type.parent_service
 
-        self.original_doc = None
-        self.original_doc = xml_helper.parse_xml(
-            metadata.get_remote_original_capabilities_document(
-                version=force_version
-            )
-        )
-
     def _generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
 
@@ -1272,25 +1434,6 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             xml_helper.write_text_to_element(
                 kw_elem,
                 txt=keyword
-            )
-
-    def _fetch_original_xml(self, upper_elem: Element, element_tag: str):
-        """ Paste an original xml element into the given upper_element
-
-        Args:
-            upper_elem (Element): The upper xml element
-            element_tag (str): The name of the original element
-        Returns:
-
-        """
-        original_service_elem = xml_helper.try_get_single_element_from_xml(
-            "//" + GENERIC_NAMESPACE_TEMPLATE.format(element_tag),
-            self.original_doc
-        )
-        if original_service_elem is not None:
-            xml_helper.add_subelement(
-                upper_elem,
-                original_service_elem
             )
 
     def _generate_service_identification_xml(self, upper_elem: Element):
@@ -1718,16 +1861,12 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
             nothing
         """
         capability_elem =  xml_helper.create_subelement(upper_elem, "{}Capability".format(self.default_ns))
+
         # Request
         self._generate_capability_request_xml(capability_elem)
 
         # VendorSpecificCapabilities
-        # This information is not part of the registration process - we take the one from the original capabilities
-        vendor_specific_elem = xml_helper.create_subelement(
-            capability_elem,
-            "{}VendorSpecificCapabilities".format(self.default_ns)
-        )
-        self._fetch_original_xml(vendor_specific_elem, "VendorSpecificCapabilities")
+        self._generate_vendor_specific_capabilities_xml(capability_elem)
 
     def _generate_capability_request_xml(self, upper_elem: Element):
         """ Generate the 'Request' subelement of a xml capability object

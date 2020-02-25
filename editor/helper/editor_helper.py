@@ -129,23 +129,16 @@ def overwrite_capabilities_document(metadata: Metadata):
     # find matching xml element in xml doc
     _type = metadata.get_service_type()
     _version = metadata.get_service_version()
-    element_selector = ""
+
     if is_root:
-        if _type == OGCServiceEnum.WMS.value:
-            element_selector = "//Service/Name"
-        elif _type == OGCServiceEnum.WFS.value:
+        if _type == OGCServiceEnum.WFS.value:
             if _version is OGCServiceVersionEnum.V_2_0_0 or _version is OGCServiceVersionEnum.V_2_0_2:
                 XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
                 XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
                 XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
                 XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
-            element_selector = "//ows:ServiceIdentification/ows:Title"
             identifier = metadata.title
-    else:
-        if _type == OGCServiceEnum.WMS.value:
-            element_selector = "//Layer/Name"
-        elif _type == OGCServiceEnum.WFS.value:
-            element_selector = "//wfs:FeatureType/wfs:Name"
+
     xml_obj = xml_helper.find_element_where_text(xml_obj_root, txt=identifier)
     if len(xml_obj) > 0:
         xml_obj = xml_obj[0]

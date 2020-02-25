@@ -9,6 +9,7 @@ from django.db import models, transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
 
+from MapSkinner.cacher import DocumentCacher
 from MapSkinner.messages import PARAMETER_ERROR
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, XML_NAMESPACES
 from MapSkinner import utils
@@ -287,6 +288,36 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+
+    def clear_cached_documents(self):
+        """ Sets the content of all possibly auto-generated documents to None
+
+        Returns:
+
+        """
+        self._clear_current_capability_document()
+        self._clear_service_metadata_document()
+
+    def _clear_service_metadata_document(self):
+        """ Sets the service_metadata_document content to None
+
+        Returns:
+
+        """
+        cacher = DocumentCacher("SERVICE_METADATA", "0")
+        cacher.remove(str(self.id))
+
+    def _clear_current_capability_document(self):
+        """ Sets the current_capability_document content to None
+
+        Returns:
+
+        """
+
+        for version in OGCServiceVersionEnum:
+            cacher = DocumentCacher(OGCOperationEnum.GET_CAPABILITIES.value, version.value)
+            cacher.remove(str(self.id))
+
     def get_service_metadata_xml(self):
         """ Getter for the service metadata.
 
@@ -295,22 +326,26 @@ class Metadata(Resource):
         Returns:
             service_metadata_document (str): The xml document
         """
-        cap_doc = None
+        doc = None
         try:
             # Try to fetch an existing Document record from the db
             cap_doc = Document.objects.get(related_metadata=self)
-            cap_doc = cap_doc.service_metadata_document
+            doc = cap_doc.service_metadata_document
 
-            if cap_doc is None:
+            if doc is None:
                 # Well, there is one but no service_metadata_document is found inside
                 raise ObjectDoesNotExist
 
         except ObjectDoesNotExist as e:
             # There is no service metadata document in the database, we need to create it
-            builder = ServiceMetadataBuilder(self.id, MetadataEnum.SERVICE)
-            cap_doc = builder.generate_service_metadata()
+            cacher = DocumentCacher(title="SERVICE_METADATA", version="0")
+            doc = cacher.get(self.id)
+            if doc is None:
+                builder = ServiceMetadataBuilder(self.id, MetadataEnum.SERVICE)
+                doc = builder.generate_service_metadata()
+                cacher.set(str(self.id), doc)
 
-        return cap_doc.service_metadata_document
+        return doc
 
 
     def get_current_capability_xml(self, version_param: str):
@@ -338,7 +373,13 @@ class Metadata(Resource):
             # This is possible for subelements of a service, which (usually) do not have an own capability document.
             # We create a capability document on the fly for this metadata object and use the set_proxy functionality
             # of the Document class for automatically setting all proxied links.
-            cap_xml = self._create_capability_xml(version_param)
+
+            cacher = DocumentCacher(title=OGCOperationEnum.GET_CAPABILITIES.value, version=version_param)
+            cap_xml = cacher.get(self.id)
+            if cap_xml is None:
+                cap_xml = self._create_capability_xml(version_param)
+                cacher.set(self.id, cap_xml)
+
             if cap_doc is None:
                 cap_doc = Document(
                     related_metadata=self,
@@ -592,7 +633,6 @@ class Metadata(Resource):
         Returns:
              nothing, it changes the Metadata object itself
         """
-        from service.helper import service_helper
         # parse single layer
         identifier = self.service.layer.identifier
         layer = service.get_layer_by_identifier(identifier)
@@ -629,7 +669,6 @@ class Metadata(Resource):
         Returns:
              nothing, it changes the Metadata object itself
         """
-        from service.helper import service_helper
         # parse single layer
         identifier = self.identifier
         f_t = service.get_feature_type_by_identifier(identifier, external_auth=external_auth)
@@ -759,12 +798,7 @@ class Metadata(Resource):
             self._restore_wms(identifier, external_auth=external_auth)
 
         # Subelements like layers or featuretypes might have own capabilities documents. Delete them on restore!
-        if not self.is_root():
-            related_docs = Document.objects.filter(
-                related_metadata=self
-            )
-            for doc in related_docs:
-                doc.clear_generated_documents()
+        self.clear_cached_documents()
 
     def get_related_metadata_uris(self):
         """ Generates a list of all related metadata online links and returns them
@@ -861,12 +895,8 @@ class Metadata(Resource):
             subelement_md.use_proxy_uri = self.use_proxy_uri
             subelement_md.save()
 
-            # Remove current_capability_documents that are related to this subelement
-            docs = Document.objects.filter(
-                related_metadata=subelement_md
-            )
-            for doc in docs:
-                doc.clear_generated_documents()
+            subelement_md.clear_cached_documents()
+
         self.save()
 
     def set_secured(self, is_secured: bool):
@@ -1511,34 +1541,6 @@ class Document(Resource):
         parent_curr.remove(xml_layer_obj_curr)
 
         self.current_capability_document = xml_helper.xml_to_string(cap_doc_curr_obj)
-        self.save()
-
-    def clear_generated_documents(self):
-        """ Sets the content of all possibly auto-generated documents to None
-
-        Returns:
-
-        """
-        self._clear_current_capability_document()
-        self._clear_service_metadata_document()
-
-
-    def _clear_service_metadata_document(self):
-        """ Sets the service_metadata_document content to None
-
-        Returns:
-
-        """
-        self.service_metadata_document = None
-        self.save()
-
-    def _clear_current_capability_document(self):
-        """ Sets the current_capability_document content to None
-
-        Returns:
-
-        """
-        self.current_capability_document = None
         self.save()
 
 class TermsOfUse(Resource):

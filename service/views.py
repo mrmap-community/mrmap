@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from requests import ReadTimeout
 
 from MapSkinner import utils
+from MapSkinner.cacher import DocumentCacher
 from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, \
@@ -161,7 +162,7 @@ def activate(request: HttpRequest, id: int, user:User):
          An Ajax response
     """
     # run activation async!
-    pending_task = tasks.async_activate_service.delay(id, user.id)
+    tasks.async_activate_service.delay(id, user.id)
 
     return redirect("service:index")
 
@@ -177,7 +178,11 @@ def get_service_metadata(request: HttpRequest, id: int):
     """
     metadata = Metadata.objects.get(id=id)
 
-    doc = metadata.get_service_metadata_xml()
+    cacher = DocumentCacher(title="SERVICE_METADATA", version="0")
+    doc = cacher.get(str(metadata.id))
+    if doc is None:
+        doc = metadata.get_service_metadata_xml()
+        cacher.set(str(metadata.id), doc)
 
     if not metadata.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
@@ -223,10 +228,10 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
     Returns:
          A BackendAjaxResponse, containing a boolean, whether the requested element has a dataset metadata record or not
     """
-    elementType = request.GET.get("serviceType")
-    if elementType == OGCServiceEnum.WMS.value:
+    element_type = request.GET.get("serviceType")
+    if element_type == OGCServiceEnum.WMS.value:
         element = Layer.objects.get(id=id)
-    elif elementType == OGCServiceEnum.WFS.value:
+    elif element_type == OGCServiceEnum.WFS.value:
         element = FeatureType.objects.get(id=id)
     md = element.metadata
     try:
@@ -295,9 +300,13 @@ def get_capabilities(request: HttpRequest, id: int):
         pass
 
     if stored_version == version_param or use_fallback is True or not md.is_root():
-        # we can deliver the document from the database
-        doc = md.get_current_capability_xml(version_param)
+        # This is the case if
+        # 1) a version is requested, which we have in our database
+        # 2) the fallback parameter is set explicitly
+        # 3) a subelement is requested, which normally do not have capability documents
 
+        # We can check the cache for this document or we need to generate it!
+        doc = md.get_current_capability_xml(version_param)
     else:
         # we have to fetch the remote document
         try:
@@ -590,7 +599,6 @@ def update_service(request: HttpRequest, user: User, id: int):
             "new_service": new_service,
             "page_indicator_list": [False, True],
         }
-        #request.session["update_confirmed"] = True
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
 
@@ -747,11 +755,11 @@ def detail_child(request: HttpRequest, id, user: User):
     Returns:
          A rendered view for ajax insertion
     """
-    elementType = request.GET.get("serviceType")
-    if elementType == "wms":
+    element_type = request.GET.get("serviceType")
+    if element_type == "wms":
         template = "detail/service_detail_child_wms.html"
         element = Layer.objects.get(id=id)
-    elif elementType == "wfs":
+    elif element_type == "wfs":
         template = "detail/service_detail_child_wfs.html"
         element = FeatureType.objects.get(id=id)
     else:

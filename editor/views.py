@@ -40,7 +40,6 @@ def index(request: HttpRequest, user:User):
     template = "editor_index.html"
 
     wms_services = user.get_services(OGCServiceEnum.WMS)
-    wms_layers_custom_md = []
     wms_list = []
     for wms in wms_services:
         child_layers = Layer.objects.filter(parent_service__metadata=wms, metadata__is_custom=True)
@@ -104,11 +103,7 @@ def edit(request: HttpRequest, id: int, user: User):
 
                 # Furthermore we remove a possibly existing current_capability_document for this element, since the metadata
                 # might have changed!
-                related_docs = Document.objects.filter(
-                    related_metadata=metadata
-                )
-                for doc in related_docs:
-                    doc.clear_generated_documents()
+                metadata.clear_cached_documents()
 
             editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
             editor_helper.overwrite_metadata(metadata, custom_md, editor_form)

@@ -8,10 +8,10 @@ Created on: 29.04.19
 import json
 
 import requests
-from django.core.cache import cache
 
+from MapSkinner.cacher import EPSGCacher
 from MapSkinner.settings import PROXIES, XML_NAMESPACES
-from service.helper import service_helper, xml_helper
+from service.helper import xml_helper
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum
 
 
@@ -20,9 +20,8 @@ class EpsgApi:
         self.registry_uri = "http://www.epsg-registry.org/export.htm?gml="
         self.id_prefix = "urn:ogc:def:crs:EPSG::"
 
-        # Cache settings
-        self.cache_ttl = 7 * 24 * 60 * 60  # 7 days
-        self.cache_prefix_template = "epsg_api_axis_order_{}"
+        # Cacher
+        self.cacher = EPSGCacher()
 
     def get_subelements(self, identifier: str):
         """ Returns both, id and prefix in a dict
@@ -70,7 +69,7 @@ class EpsgApi:
         """
         id = self.get_real_identifier(identifier)
 
-        axis_order = cache.get(self.cache_prefix_template.format(id))
+        axis_order = self.cacher.get(str(id))
         if axis_order is not None:
             axis_order = json.loads(axis_order)
             return axis_order
@@ -103,7 +102,7 @@ class EpsgApi:
         }
 
         # Write this to cache, so it can be used on another request!
-        cache.set(self.cache_prefix_template.format(id), json.dumps(order), timeout=self.cache_ttl)
+        self.cacher.set(str(id), json.dumps(order))
 
         return order
 

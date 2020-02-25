@@ -1450,6 +1450,8 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         # ows:WGS84BoundingBox
         self._generate_feature_type_list_feature_type_bbox_xml(feature_type_elem)
 
+        # MetadataURL
+        self._generate_feature_type_list_feature_type_metadata_url(feature_type_elem)
 
     def _generate_feature_type_list_feature_type_srs_xml(self, upper_elem):
         """ Generate the 'DefaultSRS|OtherSRS' subelement of a xml service object
@@ -1538,6 +1540,34 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
                 str(bbox[3])
             )
         )
+
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+        """ Generate the 'MetadataURL' subelement of a xml feature type list object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        dataset_mds = self.metadata.related_metadata.filter(
+            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+        )
+        for dataset_md in dataset_mds:
+            try:
+                metadata_url_elem = xml_helper.create_subelement(
+                    upper_elem,
+                    "{}MetadataURL".format(self.default_ns),
+                    attrib=OrderedDict({
+                        "type": "TC211",
+                        "format": "text/xml",
+                    })
+                )
+                xml_helper.write_text_to_element(
+                    metadata_url_elem,
+                    txt=dataset_md.metadata_to.metadata_url
+                )
+            except ObjectDoesNotExist:
+                continue
 
     def _generate_filter_capabilities_xml(self, upper_elem: Element):
         """ Generate the 'Filter_Capabilities' subelement of a xml service object
@@ -1874,34 +1904,6 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
                 "maxy": str(extent[3]),
             })
         )
-
-    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
-        """ Generate the 'MetadataURL' subelement of a xml feature type list object
-
-        Args:
-            upper_elem (_Element): The upper xml element
-        Returns:
-            nothing
-        """
-        dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
-        )
-        for dataset_md in dataset_mds:
-            try:
-                metadata_url_elem = xml_helper.create_subelement(
-                    upper_elem,
-                    "{}MetadataURL".format(self.default_ns),
-                    attrib=OrderedDict({
-                        "type": "TC211",
-                        "format": "text/xml",
-                    })
-                )
-                xml_helper.write_text_to_element(
-                    metadata_url_elem,
-                    txt=dataset_md.metadata_to.metadata_url
-                )
-            except ObjectDoesNotExist:
-                continue
 
 class CapabilityWFS110Builder(CapabilityWFSBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):

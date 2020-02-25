@@ -299,22 +299,16 @@ class Metadata(Resource):
         try:
             # Try to fetch an existing Document record from the db
             cap_doc = Document.objects.get(related_metadata=self)
+            cap_doc = cap_doc.service_metadata_document
 
-            if cap_doc.service_metadata_document is None:
+            if cap_doc is None:
                 # Well, there is one but no service_metadata_document is found inside
                 raise ObjectDoesNotExist
+
         except ObjectDoesNotExist as e:
-            # There is no service metadata document in the database, we need to create it during runtime
+            # There is no service metadata document in the database, we need to create it
             builder = ServiceMetadataBuilder(self.id, MetadataEnum.SERVICE)
-            doc_xml = builder.generate_service_metadata()
-            if cap_doc is None:
-                cap_doc = Document(
-                    related_metadata=self,
-                    service_metadata_document=doc_xml,
-                )
-            else:
-                cap_doc.service_metadata_document = doc_xml
-            cap_doc.save()
+            cap_doc = builder.generate_service_metadata()
 
         return cap_doc.service_metadata_document
 
@@ -342,7 +336,8 @@ class Metadata(Resource):
         except ObjectDoesNotExist as e:
             # This means we have no capability document in the db or the value is set to None.
             # This is possible for subelements of a service, which (usually) do not have an own capability document.
-            # We create a capability document on the fly for this metadata object and persist it for another call.
+            # We create a capability document on the fly for this metadata object and use the set_proxy functionality
+            # of the Document class for automatically setting all proxied links.
             cap_xml = self._create_capability_xml(version_param)
             if cap_doc is None:
                 cap_doc = Document(
@@ -358,7 +353,6 @@ class Metadata(Resource):
                 version_param_enum = service_helper.resolve_version_enum(version=version_param)
                 cap_doc.set_proxy(use_proxy=True, force_version=version_param_enum, auto_save=False)
 
-            cap_doc.save()
         return cap_doc.current_capability_document
 
     def _create_capability_xml(self, force_version: str = None):

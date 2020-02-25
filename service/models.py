@@ -1347,11 +1347,13 @@ class Document(Resource):
         xml_obj = xml_helper.parse_xml(cap_doc_curr)
         service_version = force_version or self.related_metadata.get_service_version()
         service_type = self.related_metadata.get_service_type()
-        is_wfs_1_0_0 = service_type == OGCServiceEnum.WFS.value and service_version is OGCServiceVersionEnum.V_1_0_0
-        is_wfs_1_1_0 = service_type == OGCServiceEnum.WFS.value and service_version is OGCServiceVersionEnum.V_1_1_0
+
+        is_wfs = service_type == OGCServiceEnum.WFS.value
+        is_wfs_1_0_0 = is_wfs and service_version is OGCServiceVersionEnum.V_1_0_0
+        is_wfs_1_1_0 = is_wfs and service_version is OGCServiceVersionEnum.V_1_1_0
 
         # get <MetadataURL> xml elements
-        if is_wfs_1_0_0 or is_wfs_1_1_0:
+        if is_wfs:
             xml_metadata_elements = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL"), xml_obj)
         else:
             xml_metadata_elements = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL") + "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"), xml_obj)

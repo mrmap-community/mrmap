@@ -31,13 +31,14 @@ from editor.filters import *
 
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))
-def index(request: HttpRequest, user:User):
+def index(request: HttpRequest, user: User,):
     """ The index view of the editor app.
 
     Lists all services with information of custom set metadata.
 
     Args:
         request: The incoming request
+        user:
     Returns:
     """
     # get all services that are registered by the user
@@ -46,7 +47,7 @@ def index(request: HttpRequest, user:User):
     wms_services = user.get_services_as_qs(OGCServiceEnum.WMS)
     wms_table_filtered = WmsServiceFilter(request.GET, queryset=wms_services)
     wms_table = WmsServiceTable(wms_table_filtered.qs,
-                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE)
+                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, user=user,)
     wms_table.filter = wms_table_filtered
     RequestConfig(request).configure(wms_table)
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
@@ -59,7 +60,7 @@ def index(request: HttpRequest, user:User):
     wfs_services = user.get_services_as_qs(OGCServiceEnum.WFS)
     wfs_table_filtered = WfsServiceFilter(request.GET, queryset=wfs_services)
     wfs_table = WfsServiceTable(wfs_table_filtered.qs,
-                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE)
+                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, user=user,)
     wfs_table.filter = wfs_table_filtered
     RequestConfig(request).configure(wfs_table)
     # TODO: # since parameters could be changed directly in the uri, we need to make sure to avoid problems

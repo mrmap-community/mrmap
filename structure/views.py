@@ -64,7 +64,8 @@ def index(request: HttpRequest, user: User):
 
     groups_table = GroupTable(groups,
                               template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                              order_by_field='sg')  # sg = sort groups
+                              order_by_field='sg',  # sg = sort groups
+                              user=user,)
     groups_table.filter = user_groups_filtered
     RequestConfig(request).configure(groups_table)
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
@@ -76,8 +77,8 @@ def index(request: HttpRequest, user: User):
 
     all_orgs_table = OrganizationTable(all_orgs_filtered.qs,
                                        template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                       order_by_field='so',
-                                       )  # so = sort organizations
+                                       order_by_field='so',  # so = sort organizations
+                                       user=user,)
     all_orgs_table.filter = all_orgs_filtered
     RequestConfig(request).configure(all_orgs_table)
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems

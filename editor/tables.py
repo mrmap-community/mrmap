@@ -1,9 +1,28 @@
 import django_tables2 as tables
 from django.utils.html import format_html
 from django.urls import reverse
+
 from service.models import Layer, FeatureType
 from MapSkinner.consts import *
 from MapSkinner.utils import get_theme, get_ok_nok_icon
+
+
+def _get_edit_button(url, user):
+    return format_html(URL_BTN_PATTERN,
+                       BTN_CLASS,
+                       BTN_SM_CLASS,
+                       get_theme(user)["TABLE"]["BTN_WARNING_COLOR"],
+                       url,
+                       format_html(get_theme(user)["ICONS"]['EDIT']),)
+
+
+def _get_undo_button(url, user):
+    return format_html(URL_BTN_PATTERN,
+                       BTN_CLASS,
+                       BTN_SM_CLASS,
+                       get_theme(user)["TABLE"]["BTN_DANGER_COLOR"],
+                       url,
+                       format_html(get_theme(user)["ICONS"]['UNDO']),)
 
 
 class ExtendedTable(tables.Table):
@@ -23,24 +42,25 @@ class WmsServiceTable(ExtendedTable):
     wms_edit_access = tables.Column(verbose_name='Access', empty_values=[])
     wms_reset = tables.Column(verbose_name='Reset', empty_values=[])
 
-    @staticmethod
-    def render_wms_title(value, record):
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    def render_wms_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wms_active(value):
         return get_ok_nok_icon(value)
 
-    @staticmethod
-    def render_wms_data_provider(value, record):
+    def render_wms_data_provider(self, value, record):
         url = reverse('structure:detail-organization', args=(record.contact.id,))
-        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
-    @staticmethod
-    def render_wms_registered_by_group(value, record):
+    def render_wms_registered_by_group(self, value, record):
         url = reverse('structure:detail-group', args=(record.service.created_by.id,))
-        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wms_original_metadata(record):
@@ -54,20 +74,17 @@ class WmsServiceTable(ExtendedTable):
     def render_wms_secured_access(value):
         return get_ok_nok_icon(value)
 
-    @staticmethod
-    def render_wms_edit_metadata(record):
+    def render_wms_edit_metadata(self, record):
         url = reverse('editor:edit', args=(record.id,))
-        return format_html(URL_PATTERN_BTN_WARNING, url, format_html(get_theme()["ICONS"]['EDIT']), )
+        return _get_edit_button(url, self.user)
 
-    @staticmethod
-    def render_wms_edit_access(record):
+    def render_wms_edit_access(self, record):
         url = reverse('editor:edit_access', args=(record.id,))
-        return format_html(URL_PATTERN_BTN_WARNING, url, format_html(get_theme()["ICONS"]['EDIT']), )
+        return _get_edit_button(url, self.user)
 
-    @staticmethod
-    def render_wms_reset(record):
+    def render_wms_reset(self, record):
         url = reverse('editor:restore', args=(record.id,))
-        return format_html(URL_PATTERN_BTN_DANGER, url, format_html(get_theme()["ICONS"]['UNDO']), )
+        return _get_undo_button(url, self.user)
 
 
 class WfsServiceTable(ExtendedTable):
@@ -82,24 +99,25 @@ class WfsServiceTable(ExtendedTable):
     wfs_edit_access = tables.Column(verbose_name='Access', empty_values=[])
     wfs_reset = tables.Column(verbose_name='Reset', empty_values=[])
 
-    @staticmethod
-    def render_wfs_title(value, record):
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    def render_wfs_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wfs_active(value):
         return get_ok_nok_icon(value)
 
-    @staticmethod
-    def render_wfs_data_provider(value, record):
+    def render_wfs_data_provider(self, value, record):
         url = reverse('structure:detail-organization', args=(record.contact.id,))
-        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
-    @staticmethod
-    def render_wfs_registered_by_group(value, record):
+    def render_wfs_registered_by_group(self, value, record):
         url = reverse('structure:detail-group', args=(record.service.created_by.id,))
-        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wfs_original_metadata(record):
@@ -113,17 +131,14 @@ class WfsServiceTable(ExtendedTable):
     def render_wfs_secured_access(value):
         return get_ok_nok_icon(value)
 
-    @staticmethod
-    def render_wfs_edit_metadata(record):
+    def render_wfs_edit_metadata(self, record):
         url = reverse('editor:edit', args=(record.id,))
-        return format_html(URL_PATTERN_BTN_WARNING, url, format_html(get_theme()["ICONS"]['EDIT']), )
+        return _get_edit_button(url, self.user)
 
-    @staticmethod
-    def render_wfs_edit_access(record):
+    def render_wfs_edit_access(self, record):
         url = reverse('editor:edit_access', args=(record.id,))
-        return format_html(URL_PATTERN_BTN_WARNING, url, format_html(get_theme()["ICONS"]['EDIT']), )
+        return _get_edit_button(url, self.user)
 
-    @staticmethod
-    def render_wfs_reset(record):
+    def render_wfs_reset(self, record):
         url = reverse('editor:restore', args=(record.id,))
-        return format_html(URL_PATTERN_BTN_DANGER, url, format_html(get_theme()["ICONS"]['UNDO']), )
+        return _get_undo_button(url, self.user)

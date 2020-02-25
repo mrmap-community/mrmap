@@ -34,6 +34,7 @@ FONT_AWESOME_ICONS = {
     'UPLOAD': format_html(ICON_PATTERN, 'fas', 'fa-upload', ),
     'DOWNLOAD': format_html(ICON_PATTERN, 'fas', 'fa-download', ),
     'SEND_EMAIL': format_html(ICON_PATTERN, 'fas', 'fa-envelope-open-text', ),
+    'WINDOW_CLOSE': format_html(ICON_PATTERN, 'fas', 'fa-window-close', ),
 }
 
 # dark theme settings

@@ -14,6 +14,9 @@ class OrganizationAdmin(admin.ModelAdmin):
     list_display = ['organization_name', 'is_auto_generated', 'country', 'city', 'postal_code']
 
 
+class ThemeAdmin(admin.ModelAdmin):
+    list_display = ['id', 'name']
+
 class GroupAdmin(admin.ModelAdmin):
     list_display = [p.name for p in Group._meta.fields]
 
@@ -25,7 +28,7 @@ class PermissionAdmin(admin.ModelAdmin):
 
 
 class UserAdmin(admin.ModelAdmin):
-    list_display = ['id', 'person_name', 'username', 'last_login']
+    list_display = ['id', 'person_name', 'username', 'last_login', 'theme']
 
 
 class UserActivationAdmin(admin.ModelAdmin):
@@ -38,6 +41,8 @@ class PendingRequestAdmin(admin.ModelAdmin):
 admin.site.register(PendingTask, PendingTaskAdmin)
 admin.site.register(Role, RoleAdmin)
 admin.site.register(Organization, OrganizationAdmin)
+
+admin.site.register(Theme, ThemeAdmin)
 
 admin.site.register(User, UserAdmin)
 admin.site.register(UserActivation, UserActivationAdmin)

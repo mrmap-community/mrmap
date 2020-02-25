@@ -29,7 +29,7 @@ class DefaultContext:
             "user": user,
             "VERSION": VERSION,
             "GIT_REPO_URI": GIT_REPO_URI,
-            "THEME": get_theme(),
+            "THEME": get_theme(user),
         }
         self.add_context(context)
 

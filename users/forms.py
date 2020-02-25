@@ -9,7 +9,7 @@ from django import forms
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import User
+from structure.models import User, Theme
 
 
 class PasswordResetForm(forms.Form):
@@ -63,7 +63,9 @@ class UserForm(forms.ModelForm):
                                            message='Special or non printable characters are not allowed',
                                            code='invalid_username',
                                            inverse_match=True),
-    ])
+                                           ])
+
+    theme = forms.ModelChoiceField(queryset=Theme.objects.all(), to_field_name='name', empty_label=None,)
 
     class Meta:
         model = User

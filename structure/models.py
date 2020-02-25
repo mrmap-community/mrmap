@@ -115,6 +115,13 @@ class Group(models.Model):
         return self.name
 
 
+class Theme(models.Model):
+    name = models.CharField(max_length=10, unique=True)
+
+    def __str__(self):
+        return self.name
+
+
 class User(Contact):
     username = models.CharField(max_length=50)
     logged_in = models.BooleanField(default=False)
@@ -128,6 +135,7 @@ class User(Contact):
     confirmed_survey = models.BooleanField(default=False)
     confirmed_dsgvo = models.DateTimeField(null=True, blank=True) # ToDo: For production this is not supposed to be nullable!!!
     is_active = models.BooleanField(default=False)
+    theme = models.ForeignKey('Theme', related_name='user_theme', on_delete=models.DO_NOTHING, null=True, blank=True)
 
     def __str__(self):
         return self.username

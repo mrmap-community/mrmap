@@ -17,7 +17,7 @@ from requests.exceptions import MissingSchema
 
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK, SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, \
     SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
-from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
+from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
 
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
@@ -39,20 +39,20 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
     Returns:
          nothing
     """
-    ns_keyword_prefix = ""
     ns_prefix = ""
     keyword_container_tag = "KeywordList"
     keyword_prefix = ""
+
     if _type == 'wfs':
         ns_keyword_prefix_s = "ows"
-        ns_keyword_prefix = "{}:".format(ns_keyword_prefix_s)
         ns_prefix = "wfs:"
         if metadata.is_root():
             # for the <ows:ServiceIdentification> element we need the prefix "ows:"
             ns_prefix = "ows:"
         keyword_container_tag = "Keywords"
         keyword_prefix = "{" + XML_NAMESPACES[ns_keyword_prefix_s] + "}"
-    xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml("./{}{}".format(ns_keyword_prefix, keyword_container_tag), xml_obj)
+
+    xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format(keyword_container_tag), xml_obj)
     if xml_keywords_list_obj is None:
         # there are no keywords in this capabilities for this element yet
         # we need to add an element first!
@@ -61,11 +61,16 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
         except TypeError as e:
             # there seems to be no <Abstract> element. We add simply after <Title> and also create a new Abstract element
             xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Title".format(ns_prefix))
-            xml_helper.create_subelement(xml_obj, "{}".format("Abstract"),
-                                         after="{}Title".format(ns_prefix))
+            xml_helper.create_subelement(
+                xml_obj,
+                "{}".format("Abstract"),
+                after="{}Title".format(ns_prefix)
+            )
 
-
-    xml_keywords_objs = xml_helper.try_get_element_from_xml("./{}Keyword".format(ns_keyword_prefix), xml_keywords_list_obj) or []
+    xml_keywords_objs = xml_helper.try_get_element_from_xml(
+        "./" + GENERIC_NAMESPACE_TEMPLATE.format("Keyword"),
+        xml_keywords_list_obj
+    ) or []
 
     # first remove all persisted keywords
     for kw in xml_keywords_objs:
@@ -141,7 +146,9 @@ def overwrite_capabilities_document(metadata: Metadata):
             element_selector = "//Layer/Name"
         elif _type == OGCServiceEnum.WFS.value:
             element_selector = "//wfs:FeatureType/wfs:Name"
-    xml_obj = xml_helper.try_get_single_element_from_xml("{}[text()='{}']/parent::*".format(element_selector, identifier), xml_obj_root)
+    xml_obj = xml_helper.find_element_where_text(xml_obj_root, txt=identifier)
+    if len(xml_obj) > 0:
+        xml_obj = xml_obj[0]
 
     # handle keywords
     _overwrite_capabilities_keywords(xml_obj, metadata, _type)

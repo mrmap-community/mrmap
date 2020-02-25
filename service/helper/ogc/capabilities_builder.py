@@ -18,7 +18,8 @@ from service.helper import xml_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, MetadataEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Service, Metadata, Layer, Document, FeatureType
-from service.settings import SERVICE_OPERATION_URI_TEMPLATE, MD_RELATION_TYPE_DESCRIBED_BY, SERVICE_DATASET_URI_TEMPLATE
+from service.settings import SERVICE_OPERATION_URI_TEMPLATE, MD_RELATION_TYPE_DESCRIBED_BY, \
+    SERVICE_DATASET_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE
 
 from structure.models import Contact
 
@@ -160,7 +161,7 @@ class CapabilityXMLBuilder:
                 original_service_elem
             )
 
-    def _generate_vendor_specific_capabilities_xml(self, upper_elem: Element):
+    def _generate_vendor_specific_capabilities_xml(self, upper_elem: Element, ns: str=None):
         """ Generate the 'VendorSpecificCapabilities' subelement of a xml service object
 
         Args:
@@ -183,16 +184,29 @@ class CapabilityXMLBuilder:
                 upper_elem,
                 "VendorSpecificCapabilities"
             )
-            elem = xml_helper.create_subelement(
-                elem,
-                "{}ExtendedCapabilities".format(self.inspire_vs_ns)
-            )
+            self._generate_extended_capabilities_xml(elem, ns)
 
-            self._generate_vendor_specific_capabilities_metadata_url_xml(elem)
-            self._generate_vendor_specific_capabilities_supported_language_xml(elem)
-            self._generate_vendor_specific_capabilities_response_language_xml(elem)
+    def _generate_extended_capabilities_xml(self, upper_elem: Element, ns: str = None):
+        """ Generate the 'ExtendedCapabilities' subelement of a xml service object
 
-    def _generate_vendor_specific_capabilities_metadata_url_xml(self, upper_elem: Element):
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        if ns is None:
+            ns = self.inspire_vs_ns
+
+        elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}ExtendedCapabilities".format(ns)
+        )
+
+        self._generate_extended_capabilities_metadata_url_xml(elem)
+        self._generate_extended_capabilities_supported_language_xml(elem)
+        self._generate_extended_capabilities_response_language_xml(elem)
+
+    def _generate_extended_capabilities_metadata_url_xml(self, upper_elem: Element):
         """ Generate the 'MetadataUrl' subelement of a xml VendorSpecificCapabilities object
 
         Args:
@@ -215,7 +229,7 @@ class CapabilityXMLBuilder:
         )
         xml_helper.write_text_to_element(
             url_elem,
-            txt=""
+            txt=SERVICE_METADATA_URI_TEMPLATE.format(self.metadata.id)
         )
 
         # MediaType
@@ -228,7 +242,7 @@ class CapabilityXMLBuilder:
             txt=self.inspire_media_type
         )
 
-    def _generate_vendor_specific_capabilities_supported_language_xml(self, upper_elem: Element):
+    def _generate_extended_capabilities_supported_language_xml(self, upper_elem: Element):
         """ Generate the 'SupportedLanguages' subelement of a xml VendorSpecificCapabilities object
 
         Args:
@@ -269,7 +283,7 @@ class CapabilityXMLBuilder:
             txt=self.inspire_supported_language_code
         )
 
-    def _generate_vendor_specific_capabilities_response_language_xml(self, upper_elem: Element):
+    def _generate_extended_capabilities_response_language_xml(self, upper_elem: Element):
         """ Generate the 'ResponseLanguage' subelement of a xml VendorSpecificCapabilities object
 
         Args:
@@ -500,6 +514,8 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         self._generate_capability_exception_xml(capability_elem)
 
         self._generate_capability_layer_xml(capability_elem, md)
+
+        self._generate_vendor_specific_capabilities_xml(capability_elem, self.inspire_vs_ns)
 
     def _generate_capability_exception_xml(self, capability_elem: Element):
         """ Generate the 'Exception' subelement of a xml capability object
@@ -1537,6 +1553,17 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             SERVICE_OPERATION_URI_TEMPLATE.format(self.metadata.id)
         )
 
+        operations_metadata_elem = xml_helper.try_get_single_element_from_xml(
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("OperationsMetadata"),
+            upper_elem
+        )
+
+        extended_capabilities_elem = xml_helper.create_subelement(
+            operations_metadata_elem,
+            "{}ExtendedCapabilities".format(self.default_ns)
+        )
+        self._generate_extended_capabilities_xml(extended_capabilities_elem, self.inspire_dls_ns)
+
     def _generate_feature_type_list_xml(self, upper_elem: Element):
         """ Generate the 'FeatureTypeList' subelement of a xml service object
 
@@ -1866,7 +1893,7 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         self._generate_capability_request_xml(capability_elem)
 
         # VendorSpecificCapabilities
-        self._generate_vendor_specific_capabilities_xml(capability_elem)
+        self._generate_vendor_specific_capabilities_xml(capability_elem, ns=self.inspire_dls_ns)
 
     def _generate_capability_request_xml(self, upper_elem: Element):
         """ Generate the 'Request' subelement of a xml capability object

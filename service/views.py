@@ -16,7 +16,7 @@ from requests import ReadTimeout
 from MapSkinner import utils
 from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
-    SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
+    SERVICE_REMOVED, SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
@@ -25,8 +25,8 @@ from service import tasks
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper, xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, MetadataEnum, OGCOperationEnum, OGCServiceVersionEnum
-from service.helper.iso.metadata_generator import MetadataGenerator
+from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum
+
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.tasks import async_increase_hits
@@ -175,38 +175,12 @@ def get_service_metadata(request: HttpRequest, id: int):
     Returns:
          A HttpResponse containing the xml file
     """
-    docs = []
-    doc = None
     metadata = Metadata.objects.get(id=id)
 
-    # check if the metadata record already has a service metadata document linked
-    md_relations = MetadataRelation.objects.filter(
-        metadata_from=metadata,
-        metadata__is_active=True,
-        metadata_to__metadata_type__type=MetadataEnum.SERVICE.value
-    )
-    for rel in md_relations:
-        md_to = rel.metadata_to
-        tmp_docs = Document.objects.filter(
-            related_metadata=md_to,
-        ).exclude(
-            service_metadata_document=None
-        )
-        docs.extend(tmp_docs)
+    doc = metadata.get_service_metadata_xml()
 
-    if len(docs) > 1:
-        # Something is odd, there are multiple service metadata documents for this metadata record
-        messages.error(request, MULTIPLE_SERVICE_METADATA_FOUND)
-        return redirect("service:detail", id)
-    elif len(docs) == 1:
-        # Everything is fine, we get the service metadata document
-        doc = docs.pop().service_metadata_document
-    else:
-        if not metadata.is_active:
-            return HttpResponse(content=SERVICE_DISABLED, status=423)
-        # There is no service metadata document in the database, we need to create it during runtime
-        generator = MetadataGenerator(id, MetadataEnum.SERVICE)
-        doc = generator.generate_service_metadata()
+    if not metadata.is_active:
+        return HttpResponse(content=SERVICE_DISABLED, status=423)
 
     return HttpResponse(doc, content_type='application/xml')
 
@@ -729,20 +703,20 @@ def detail(request: HttpRequest, id, user:User):
     Returns:
     """
     template = "detail/service_detail.html"
-    service_md = get_object_or_404(Metadata, id=id)
+    metadata = get_object_or_404(Metadata, id=id)
 
-    if service_md.service.is_root:
-        service = service_md.service
+    if metadata.is_root():
+        service = metadata.service
     else:
         service = Layer.objects.get(
-            metadata=service_md
+            metadata=metadata
         )
-    layers = Layer.objects.filter(parent_service=service_md.service)
+    layers = Layer.objects.filter(parent_service=metadata.service)
     layers_md_list = layers.filter(parent_layer=None)
 
     try:
         related_md = MetadataRelation.objects.get(
-            metadata_from=service_md,
+            metadata_from=metadata,
             metadata_to__metadata_type__type='dataset',
         )
         document = Document.objects.get(
@@ -754,7 +728,7 @@ def detail(request: HttpRequest, id, user:User):
 
     params = {
         "has_dataset_metadata": has_dataset_metadata,
-        "root_metadata": service_md,
+        "root_metadata": metadata,
         "root_service": service,
         "layers": layers_md_list,
     }

@@ -108,7 +108,7 @@ def edit(request: HttpRequest, id: int, user: User):
                     related_metadata=metadata
                 )
                 for doc in related_docs:
-                    doc.clear_current_capability_document()
+                    doc.clear_generated_documents()
 
             editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
             editor_helper.overwrite_metadata(metadata, custom_md, editor_form)

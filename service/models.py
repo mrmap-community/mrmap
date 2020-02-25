@@ -15,6 +15,7 @@ from MapSkinner import utils
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.crypto_handler import CryptoHandler
+from service.helper.iso.service_metadata_builder import ServiceMetadataBuilder
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE
 from structure.models import Group, Organization
@@ -286,6 +287,38 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    def get_service_metadata_xml(self):
+        """ Getter for the service metadata.
+
+        If no service metadata is persisted in the database, we generate one.
+
+        Returns:
+            service_metadata_document (str): The xml document
+        """
+        cap_doc = None
+        try:
+            # Try to fetch an existing Document record from the db
+            cap_doc = Document.objects.get(related_metadata=self)
+
+            if cap_doc.service_metadata_document is None:
+                # Well, there is one but no service_metadata_document is found inside
+                raise ObjectDoesNotExist
+        except ObjectDoesNotExist as e:
+            # There is no service metadata document in the database, we need to create it during runtime
+            builder = ServiceMetadataBuilder(self.id, MetadataEnum.SERVICE)
+            doc_xml = builder.generate_service_metadata()
+            if cap_doc is None:
+                cap_doc = Document(
+                    related_metadata=self,
+                    service_metadata_document=doc_xml,
+                )
+            else:
+                cap_doc.service_metadata_document = doc_xml
+            cap_doc.save()
+
+        return cap_doc.service_metadata_document
+
+
     def get_current_capability_xml(self, version_param: str):
         """ Getter for the capability xml of the current status of this metadata object.
 
@@ -295,7 +328,7 @@ class Metadata(Resource):
         Args:
             version_param (str): The version parameter for which the capabilities shall be built
         Returns:
-
+            current_capability_document (str): The xml document
         """
         from service.helper import service_helper
         cap_doc = None
@@ -325,7 +358,7 @@ class Metadata(Resource):
                 version_param_enum = service_helper.resolve_version_enum(version=version_param)
                 cap_doc.set_proxy(use_proxy=True, force_version=version_param_enum, auto_save=False)
 
-            # cap_doc.save() #ToDo: Comment back in!
+            cap_doc.save()
         return cap_doc.current_capability_document
 
     def _create_capability_xml(self, force_version: str = None):
@@ -737,7 +770,7 @@ class Metadata(Resource):
                 related_metadata=self
             )
             for doc in related_docs:
-                doc.clear_current_capability_document()
+                doc.clear_generated_documents()
 
     def get_related_metadata_uris(self):
         """ Generates a list of all related metadata online links and returns them
@@ -839,7 +872,7 @@ class Metadata(Resource):
                 related_metadata=subelement_md
             )
             for doc in docs:
-                doc.clear_current_capability_document()
+                doc.clear_generated_documents()
         self.save()
 
     def set_secured(self, is_secured: bool):
@@ -1486,7 +1519,26 @@ class Document(Resource):
         self.current_capability_document = xml_helper.xml_to_string(cap_doc_curr_obj)
         self.save()
 
-    def clear_current_capability_document(self):
+    def clear_generated_documents(self):
+        """ Sets the content of all possibly auto-generated documents to None
+
+        Returns:
+
+        """
+        self._clear_current_capability_document()
+        self._clear_service_metadata_document()
+
+
+    def _clear_service_metadata_document(self):
+        """ Sets the service_metadata_document content to None
+
+        Returns:
+
+        """
+        self.service_metadata_document = None
+        self.save()
+
+    def _clear_current_capability_document(self):
         """ Sets the current_capability_document content to None
 
         Returns:

@@ -1,14 +1,11 @@
 {% extends 'base.html' %}
 {% load static %}
+
 {% block head %}
     <script type="text/javascript" src="{% static '/editor/js/editor.js' %}"></script>
     <link rel="stylesheet" type="text/css" href="{% static '/editor/css/editor.css' %}" media="all" />
-     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.5.1/dist/leaflet.css"
-   integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
-   crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.5.1/dist/leaflet.js"
-      integrity="sha512-GffPMF3RvMeYyc1LWMHtK8EbPv0iNZ8/oTtHPx9/cc2ILxQ+u905qIwdpULaqDkyBKgOaB57QTMg7ztg8Jm2Og=="
-      crossorigin=""></script>
+    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/leaflet.css' %}" media="all"/>
+    <script type="text/javascript" src="{% static '/structure/js/leaflet.js' %}"></script>
 <!--
     <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css" />
     <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>

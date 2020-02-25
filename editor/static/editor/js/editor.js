@@ -290,10 +290,12 @@ $(document).ready(function(){
             type: 'get',
             dataType: 'json'
         }).done(function(data){
-            var html = data["html"];
-            $( "#id_leaflet_client_div" ).html( html );
+            $( "#id_modal_leaflet_modal").modal('show');
 
-            $( "#id_modal_leaflet_modal").modal('show')
+            $('#id_modal_leaflet_modal').on('shown.bs.modal', function (e) {
+                var html = data["html"];
+                $( "#id_leaflet_client_div" ).html( html );
+            })
 
             //toggleOverlay(html);
 

@@ -47,7 +47,7 @@ def _return_account_view(request: HttpRequest, user: User, params):
 
 
 def _prepare_account_view_params(user: User):
-    edit_account_form = UserForm(instance=user)
+    edit_account_form = UserForm(instance=user, initial={'theme': user.theme})
     edit_account_form.action_url = reverse('account-edit', )
 
     password_change_form = PasswordChangeForm()

@@ -10,15 +10,17 @@ class GroupTable(tables.Table):
     groups_description = tables.Column(accessor='description', verbose_name='Description', )
     groups_organization = tables.Column(accessor='organization', verbose_name='Organization', )
 
-    @staticmethod
-    def render_groups_name(value, record):
-        url = reverse('structure:detail-group', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
 
-    @staticmethod
-    def render_groups_organization(value, record):
+    def render_groups_name(self, value, record):
+        url = reverse('structure:detail-group', args=(record.id,))
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+
+    def render_groups_organization(self, value, record):
         url = reverse('structure:detail-organization', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
 class OrganizationTable(tables.Table):
@@ -27,10 +29,13 @@ class OrganizationTable(tables.Table):
     orgs_is_auto_generated = tables.Column(accessor='is_auto_generated', verbose_name='Real organization', )
     orgs_parent = tables.Column(accessor='parent', verbose_name='Parent',)
 
-    @staticmethod
-    def render_orgs_organization_name(value, record):
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    def render_orgs_organization_name(self, value, record):
         url = reverse('structure:detail-organization', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_orgs_is_auto_generated(value):

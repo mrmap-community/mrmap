@@ -8,10 +8,13 @@ Created on: 17.04.19
 import urllib
 import django_tables2
 from django.http import HttpRequest
+
+from MapSkinner.consts import URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
 from MapSkinner.settings import THEME
 from MapSkinner.themes import DARK_THEME, LIGHT_THEME
 from MapSkinner.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from django.utils.html import format_html
+from structure.models import User
 
 
 def execute_threads(thread_list):
@@ -132,8 +135,8 @@ def prepare_list_pagination_settings(request: HttpRequest, l: list, param_lead: 
     return pagination
 
 
-def get_theme():
-    if THEME == 'DARK':
+def get_theme(user: User):
+    if user.theme.name == 'DARK':
         return DARK_THEME
     else:
         return LIGHT_THEME

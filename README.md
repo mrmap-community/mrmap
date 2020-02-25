@@ -51,13 +51,20 @@ The system provides the following functionalities:
 
 ## Install:
 
+We use Docker to run postgis and redis, so make sure Docker is installed on your system.
+From within the project directory run
+
+```shell script
+docker-compose up
+```
+
+to install and start the services. Then, run following commands:
+
 ```shell
 apt update  
-apt install postgis postgresql postgresql-server-dev-all redis-server libgdal-dev virtualenv python3-pip curl libgnutls28-dev cgi-mapserver
+apt install postgresql-server-dev-all libgdal-dev virtualenv python3-pip curl libgnutls28-dev cgi-mapserver
 
-su - postgres -c "psql -q -c 'CREATE DATABASE mapskinner'"  
-
-virtualenv -ppython3 /opt/env  
+virtualenv -p python3 /opt/env
 source /opt/env/bin/activate  
 cd /opt/  
 git clone https://git.osgeo.org/gitea/hollsandre/MapSkinner  
@@ -72,6 +79,7 @@ python manage.py migrate
 ## Initial setup:
 1. Make sure the `HTTP_PROXY` variable in `MapSkinner/settings.py` is set correctly for your system
 1. Call the setup command and follow the prompt instructions to generate the system's superuser and load default elements
+
 ```shell
 python manage.py setup
 ```
@@ -83,3 +91,28 @@ Since the registration, deletion and perspectively a lot of other functionalitie
 celery -A MapSkinner worker -l info
 ```
 If a task didn't finish due to reasons, you can delete the related **Pending task** record from the table.
+
+## Dev Setup
+
+After initialising the project, the development setup can be started as follows.
+From within the project directory, run:
+
+```shell script
+docker-compose up
+celery -A MapSkinner worker -l info
+python manage.py runserver_plus
+```
+
+## Production setup
+
+**Note:** Before running the production setup, make sure you changed all default usernames and passwords,
+disabled debugging, and verified the list of allowed hosts.
+
+After initialising the project, the production setup can be started as follows.
+From within the project directory, run:
+
+```shell script
+docker-compose up
+celery -A MapSkinner worker -l info
+python manage.py runserver
+```

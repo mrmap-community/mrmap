@@ -4,29 +4,12 @@ from django.urls import reverse
 import json
 from MapSkinner.celery_app import app
 from celery.result import AsyncResult
-from MapSkinner.settings import THEME, DARK_THEME, LIGHT_THEME
-
-URL_PATTERN = "<a class={} href='{}'>{}</a>"
-URL_PATTERN_BTN_DANGER = "<a class='btn btn-sm btn-danger' href='{}'>{}</a>"
-
-
-# TODO: refactor this; this function should be global
-def _get_theme():
-    if THEME == 'DARK':
-        return DARK_THEME
-    else:
-        return LIGHT_THEME
-
-
-def _get_icon(self):
-    if self:
-        return format_html("<i class='fas fa-check text-success'></i>")
-    else:
-        return format_html("<i class='fas fa-times text-danger'></i>")
+from MapSkinner.utils import get_theme, get_ok_nok_icon
+from MapSkinner.consts import URL_PATTERN
 
 
 class ServiceTable(tables.Table):
-    wms_title = tables.Column(accessor='title', verbose_name='Title', )
+    wms_title = tables.Column(accessor='title', verbose_name='Title', empty_values=[])
     wms_active = tables.Column(accessor='is_active', verbose_name='Active', )
     wms_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', )
     wms_secured_externally = tables.Column(accessor='has_external_authentication', verbose_name='Secured externally', )
@@ -36,38 +19,38 @@ class ServiceTable(tables.Table):
     wms_registered_for = tables.Column(accessor='service.published_for', verbose_name='Registered for', )
     wms_created_on = tables.Column(accessor='created', verbose_name='Created on', )
 
-    @staticmethod
-    def render_wms_title(value, record):
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    def render_wms_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))
-        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wms_active(value):
-        return _get_icon(value)
+        return get_ok_nok_icon(value)
 
     @staticmethod
     def render_wms_secured_access(value):
-        return _get_icon(value)
+        return get_ok_nok_icon(value)
 
     @staticmethod
     def render_wms_secured_externally(value):
-        return _get_icon(value)
+        return get_ok_nok_icon(value)
 
-    @staticmethod
-    def render_wms_data_provider(value, record):
+    def render_wms_data_provider(self, value, record):
         url = reverse('structure:detail-organization', args=(record.contact.id,))
-        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
-    @staticmethod
-    def render_wms_registered_by_group(value, record):
+    def render_wms_registered_by_group(self, value, record):
         url = reverse('structure:detail-group', args=(record.service.created_by.id,))
-        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
-    @staticmethod
-    def render_wms_registered_for(value, record):
+    def render_wms_registered_for(self, value, record):
         if record.service.published_for is not None:
             url = reverse('structure:detail-organization', args=(record.service.published_for.id,))
-            return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+            return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
         else:
             return value
 
@@ -90,10 +73,9 @@ class WmsLayerTable(ServiceTable):
     class Meta:
         sequence = ("wms_title", "wms_parent_service", "...")
 
-    @staticmethod
-    def render_wms_parent_service(record):
+    def render_wms_parent_service(self, record):
         url = reverse('service:detail', args=(record.service.parent_service.metadata.id,))
-        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, record.service.parent_service.metadata.title)
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, record.service.parent_service.metadata.title)
 
 
 class WfsServiceTable(tables.Table):
@@ -108,10 +90,13 @@ class WfsServiceTable(tables.Table):
     wfs_registered_for = tables.Column(accessor='service.published_for', verbose_name='Registered for', )
     wfs_created_on = tables.Column(accessor='created', verbose_name='Created on', )
 
-    @staticmethod
-    def render_wfs_title(value, record):
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    def render_wfs_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))
-        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
     @staticmethod
     def render_wfs_featuretypes(record):
@@ -120,35 +105,32 @@ class WfsServiceTable(tables.Table):
 
     @staticmethod
     def render_wfs_active(value):
-        return _get_icon(value)
+        return get_ok_nok_icon(value)
 
     @staticmethod
     def render_wfs_active(value):
-        return _get_icon(value)
+        return get_ok_nok_icon(value)
 
     @staticmethod
     def render_wfs_secured_access(value):
-        return _get_icon(value)
+        return get_ok_nok_icon(value)
 
     @staticmethod
     def render_wfs_secured_externally(value):
-        return _get_icon(value)
+        return get_ok_nok_icon(value)
 
-    @staticmethod
-    def render_wfs_data_provider(value, record):
+    def render_wfs_data_provider(self, value, record):
         url = reverse('structure:detail-organization', args=(record.contact.id,))
-        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
-    @staticmethod
-    def render_wfs_registered_by_group(value, record):
+    def render_wfs_registered_by_group(self, value, record):
         url = reverse('structure:detail-group', args=(record.service.created_by.id,))
-        return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
-    @staticmethod
-    def render_wfs_registered_for(value, record):
+    def render_wfs_registered_for(self, value, record):
         if record.service.published_for is not None:
             url = reverse('structure:detail-organization', args=(record.service.published_for.id,))
-            return format_html(URL_PATTERN, _get_theme()["TABLE"]["LINK_COLOR"], url, value, )
+            return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
         else:
             return value
 
@@ -160,11 +142,10 @@ class PendingTasksTable(tables.Table):
     pt_phase = tables.Column(verbose_name='Phase', empty_values=[], )
     pt_progress = tables.Column(verbose_name='Progress', empty_values=[], )
 
-    @staticmethod
-    def render_pt_cancle(record):
+    def render_pt_cancle(self, record):
         url = reverse('structure:remove-task', args=(record.task_id,))
-        value = format_html('<i class="fas fa-window-close"></i>')
-        return format_html(URL_PATTERN_BTN_DANGER, url, value, )
+        classes = 'btn btn-sm ' + get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"]
+        return format_html(URL_PATTERN, classes, url, format_html(get_theme(self.user)["ICONS"]['WINDOW_CLOSE']), )
 
     @staticmethod
     def render_pt_status():

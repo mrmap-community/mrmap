@@ -25,7 +25,7 @@
         <th>{% trans 'Keywords' %}</th>
         <td class="listable-container">
             {% for kw in service.metadata.keywords.all %}
-                    <span class="badge {{THEME.PILL_BADGE_INFO_COLOR}}">{{ kw }}</span>
+                    <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ kw }}</span>
             {% empty %}
                 {% trans 'No keywords provided' %}
             {% endfor %}
@@ -81,14 +81,14 @@
     <tr>
         <th>{% trans 'Default reference system:' %}</th>
         <td>
-            <span class="badge {{THEME.PILL_BADGE_INFO_COLOR}}">{{ service.default_srs.prefix }}{{ service.default_srs.code }}</span>
+            <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ service.default_srs.prefix }}{{ service.default_srs.code }}</span>
         </td>
     </tr>
     <tr>
         <th>{% trans 'Additional reference systems:' %}</th>
         <td class="listable-container">
             {% for rs in service.metadata.reference_system.all %}
-                <span class="badge {{THEME.PILL_BADGE_INFO_COLOR}}">{{ rs.prefix }}{{ rs.code }}</span>
+                <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ rs.prefix }}{{ rs.code }}</span>
             {% empty %}
                 {% trans 'No additional reference systems provided' %}
             {% endfor %}

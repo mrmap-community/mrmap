@@ -21,7 +21,7 @@
                             <form action="{{ action_url }}" method="post">
                                 {% csrf_token %}
                                 {% bootstrap_form form %}
-                                <button type="submit" class="btn {{THEME.BTN_COLOR}}">
+                                <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">
                                     {% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}
                                 </button>
                             </form>

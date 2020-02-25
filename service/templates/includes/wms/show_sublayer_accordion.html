@@ -3,7 +3,7 @@
 {% load static i18n %}
 {% if layers|length > 0 %}
 {% block accordion-button-title %}
-<i class="fa" aria-hidden="true"></i> {% trans 'Show sublayers' %} <span class="badge {{THEME.PILL_BADGE_INFO_COLOR}}">{{ layers|length }}</span>
+<i class="fa" aria-hidden="true"></i> {% trans 'Show sublayers' %} <span class="badge {{THEME.ACCORDION.PILL_BADGE_INFO_COLOR}}">{{ layers|length }}</span>
 {% endblock %}
 
 {% block accordion-body %}

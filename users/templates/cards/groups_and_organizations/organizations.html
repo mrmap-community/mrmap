@@ -6,7 +6,7 @@
 {% block card-body %}
 <h6 class="card-subtitle mb-2 text-muted">
     {% trans 'count' %}
-    <span class="badge badge-pill {{THEME.BADGE_COLOR}}">
+    <span class="badge badge-pill {{THEME.CARD.BADGE_COLOR}}">
         <!--TODO: count orgas-->
         0
     </span>
@@ -15,7 +15,7 @@
     of the
     card's
     content.</p>
-<a class="btn {{THEME.BTN_COLOR}}" href="{% url 'structure:organizations-index' %}" role="button">
+<a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'structure:organizations-index' %}" role="button">
     {% trans 'Show'%}
 </a>
 {% endblock %}

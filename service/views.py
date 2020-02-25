@@ -63,11 +63,13 @@ def _prepare_wms_table(request: HttpRequest, user: User, ):
     if display_service_type is None or display_service_type == 's':
         wms_table = WmsServiceTable(wms_table_filtered.qs,
                                     template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                    order_by_field='swms')  # swms = sort wms
+                                    order_by_field='swms',  # swms = sort wms
+                                    user=user,)
     else:
         wms_table = WmsLayerTable(wms_table_filtered.qs,
                                   template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                  order_by_field='swms')  # swms = sort wms
+                                  order_by_field='swms',  # swms = sort wms
+                                  user=user,)
 
     wms_table.filter = wms_table_filtered
     RequestConfig(request).configure(wms_table)
@@ -95,7 +97,8 @@ def _prepare_wfs_table(request: HttpRequest, user: User, ):
     wfs_table_filtered = WfsFilter(request.GET, queryset=md_list_wfs)
     wfs_table = WfsServiceTable(wfs_table_filtered.qs,
                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                order_by_field='swfs')  # swms = sort wms
+                                order_by_field='swfs',  # swms = sort wms
+                                user=user,)
 
     wfs_table.filter = wfs_table_filtered
     RequestConfig(request).configure(wfs_table)

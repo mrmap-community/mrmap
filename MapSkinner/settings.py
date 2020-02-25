@@ -14,6 +14,7 @@ import os
 
 import sys
 from django.utils.translation import gettext_lazy as _
+from django.contrib.messages import constants as messages
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
@@ -264,7 +265,6 @@ STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR + "/static/"
 
 # define the message tags for bootstrap4
-from django.contrib.messages import constants as messages
 MESSAGE_TAGS = {
     messages.DEBUG: 'alert-info',
     messages.INFO: 'alert-info',
@@ -273,167 +273,4 @@ MESSAGE_TAGS = {
     messages.ERROR: 'alert-danger',
 }
 
-
-THEME = 'DARK'
-
-# dark theme settings
-DARK_THEME = {
-    'BACKGROUND': 'bg-secondary',
-    'BG_COLOR': 'bg-dark',
-    'BTN_COLOR': 'btn-outline-info',
-    'BTN_INFO_COLOR': 'btn-info',
-    'BTN_INFO_OUT_COLOR': 'btn-info',
-    'BTN_DANGER_COLOR': 'btn-danger',
-    'BTN_DANGER_OUT_COLOR': 'btn-outline-danger',
-    'BTN_WARNING_COLOR': 'btn-warning',
-    'BTN_WARNING_OUT_COLOR': 'btn-outline-warning',
-    'BTN_SECONDARY_COLOR': 'btn-secondary',
-    'BTN_SECONDARY_OUT_COLOR': 'btn-secondary',
-    'BTN_SUCCESS_COLOR': 'btn-success',
-    'BTN_SUCCESS_OUT_COLOR': 'btn-outline-success',
-    'BTN_DANGER_COLOR': 'btn-danger',
-    'BTN_DANGER_OUT_COLOR': 'btn-outline-danger',
-    'LINK_COLOR': 'text-info',
-    'TXT_COLOR': 'text-dark',
-    'TXT_DEF_COLOR': 'text-white',
-    'TXT_SEC_COLOR': 'text-secondary',
-    'BADGE_COLOR': 'badge-info',
-    'LIST_GRP_ITEM_COLOR': 'list-group-item-dark',
-
-    'PILL_BADGE_PRIMARY_COLOR': 'badge-pill badge-primary',
-    'PILL_BADGE_INFO_COLOR': 'badge-pill badge-info',
-    'PILL_BADGE_SECONDARY_COLOR': 'badge-pill badge-secondary',
-    'PILL_BADGE_DANGER_COLOR': 'badge-pill badge-danger',
-    'PILL_BADGE_WARNING_COLOR': 'badge-pill badge-warning',
-    'PILL_BADGE_LIGHT_COLOR': 'badge-pill badge-light',
-    'PILL_BADGE_DARK_COLOR': 'badge-pill badge-dark',
-
-    'TABLE': {
-        'HOVER': 'table-hover',
-        'STRIPED': 'table-striped',
-        'BG': 'table-dark',
-        'BOARDER': 'border border-white rounded',
-        'LINK_COLOR': 'text-info',
-        'LINK_COLOR_SUCCESS': 'text-success',
-        'BORDERED': 'table-bordered',
-    },
-
-    'CARD': {
-        'BG': 'bg-dark',
-        'TXT_COLOR': 'text-white',
-        'BOARDER': 'border border-white rounded',
-        'LINK_COLOR': 'text-info',
-    },
-
-    'NAV': {
-        'ITEM_COLOR': 'navbar-dark',
-        'BG_COLOR': 'bg-dark',
-        'TXT_COLOR': 'text-white',
-    },
-
-    'MODAL': {
-        'BG_COLOR': 'bg-dark',
-        'TXT_COLOR': 'text-white',
-    },
-
-    'ICONS': {
-        'DASHBOARD': '<i class=\'fas fa-tachometer-alt\'></i>',
-        'WMS': '<i class=\'far fa-map\'></i>',
-        'WFS': '<i class=\'fas fa-draw-polygon\'></i>',
-        'LAYER': '<i class=\'fas fa-layer-group\'></i>',
-        'PENDINGTASK': '<i class=\'fas fa-tasks\'></i>',
-        'USER': '<i class=\'fas fa-user\'></i>',
-        'PASSWORD': '<i class=\'fas fa-lock\'></i>',
-        'GROUP': '<i class=\'fas fa-users\'></i>',
-        'ORGANIZATION': '<i class=\'fas fa-building\'></i>',
-        'UPDATE': '<i class=\'fas fa-spinner\'></i>',
-        'REMOVE': '<i class=\'fas fa-trash\'></i>',
-        'SEARCH': '<i class=\'fas fa-search\'></i>',
-        'RETURN': '<i class=\'fas fa-arrow-circle-left\'></i>',
-        'ADD': '<i class=\'fas fa-plus-circle\'></i>',
-        'OK': '<i class=\'fas fa-check\'></i>',
-        'NOK': '<i class=\'fas fa-times\'></i>',
-        'EDIT': '<i class=\'fas fa-edit\'></i>',
-        'SIGNOUT': '<i class=\'fas fa-sign-out-alt\'></i>',
-        'SIGNIN': '<i class=\'fas fa-sign-in-alt\'></i>',
-        'SIGNUP': '<i class=\'fas fa-user-plus\'></i>',
-        'UNDO': '<i class=\'fas fa-undo\'></i>',
-        'CAPABILITIES': '<i class=\'fas fa-file-code \'></i>',
-        'METADATA': '<i class=\'fas fa-file-alt \'></i>',
-        'ACCESS': '<i class=\'fas fa-key \'></i>',
-        'SORT_ALPHA_UP': '<i class=\'fas fa-sort-alpha-up \'></i>',
-        'SORT_ALPHA_DOWN': '<i class=\'fas fa-sort-alpha-up \'></i>',
-        'ACTIVITY': '<i class=\'fas fa-snowboarding \'></i>',
-        'SERVICE': '<i class=\'fas fa-concierge-bell \'></i>',
-        'SAVE': '<i class=\'fas fa-save \'></i>',
-        'UPLOAD': '<i class=\'fas fa-upload \'></i>',
-        'DOWNLOAD': '<i class=\'fas fa-download \'></i>',
-        'SEND_EMAIL': '<i class=\'fas fa-envelope-open-text \'></i>',
-    }
-}
-
-LIGHT_THEME = {
-    'BACKGROUND': 'background-image: url("/static/structure/images/background.png"); background-repeat: repeat;',
-    'BG_COLOR': 'bg-light',
-    'BTN_COLOR': 'btn-outline-info',
-    'BTN_INFO_COLOR': 'btn-info',
-    'BTN_INFO_OUT_COLOR': 'btn-outline-info',
-    'BTN_DANGER_COLOR': 'btn-danger',
-    'BTN_DANGER_OUT_COLOR': 'btn-outline-danger',
-    'BTN_WARNING_COLOR': 'btn-warning',
-    'BTN_WARNING_OUT_COLOR': 'btn-outline-warning',
-    'BTN_SECONDARY_COLOR': 'btn-secondary',
-    'BTN_SECONDARY_OUT_COLOR': 'btn-outline-secondary',
-    'BTN_SUCCESS_COLOR': 'btn-success',
-    'BTN_SUCCESS_OUT_COLOR': 'btn-outline-success',
-    'BTN_DANGER_COLOR': 'btn-danger',
-    'BTN_DANGER_OUT_COLOR': 'btn-outline-danger',
-    'LINK_COLOR': 'text-primary',
-    'TXT_COLOR': 'text-dark',
-    'TXT_SEC_COLOR': 'text-secondary',
-    'BADGE_COLOR': 'badge-info',
-    'PILL_BADGE_PRIMARY_COLOR': 'badge-pill badge-primary',
-    'PILL_BADGE_INFO_COLOR': 'badge-pill badge-info',
-    'PILL_BADGE_SECONDARY_COLOR': 'badge-pill badge-secondary',
-    'PILL_BADGE_DANGER_COLOR': 'badge-pill badge-danger',
-    'PILL_BADGE_WARNING_COLOR': 'badge-pill badge-warning',
-    'PILL_BADGE_LIGHT_COLOR': 'badge-pill badge-light',
-    'PILL_BADGE_DARK_COLOR': 'badge-pill badge-dark',
-    'LIST_GRP_ITEM_COLOR': '',
-    'TBL_COLOR': '',
-
-    'NAV': {
-        'ITEM_COLOR': 'navbar-dark',
-        'BG_COLOR': 'bg-dark',
-    },
-
-    'ICONS': {
-        'DASHBOARD': '<i class=\'fas fa-tachometer-alt\'></i>',
-        'WMS': '<i class=\'far fa-map\'></i>',
-        'WFS': '<i class=\'fas fa-draw-polygon\'></i>',
-        'PENDINGTASK': '<i class=\'fas fa-tasks\'></i>',
-        'USER': '<i class=\'fas fa-user\'></i>',
-        'PASSWORD': '<i class=\'fas fa-lock\'></i>',
-        'GROUP': '<i class=\'fas fa-users\'></i>',
-        'ORGANIZATION': '<i class=\'fas fa-building\'></i>',
-        'UPDATE': '<i class=\'fas fa-spinner\'></i>',
-        'REMOVE': '<i class=\'fas fa-trash\'></i>',
-        'SEARCH': '<i class=\'fas fa-search\'></i>',
-        'RETURN': '<i class=\'fas fa-arrow-circle-left\'></i>',
-        'ADD': '<i class=\'fas fa-plus-circle\'></i>',
-        'OK': '<i class=\'fas fa-check\'></i>',
-        'NOK': '<i class=\'fas fa-times\'></i>',
-        'EDIT': '<i class=\'fas fa-edit\'></i>',
-        'SIGNOUT': '<i class=\'fas fa-sign-out-alt\'></i>',
-        'SIGNIN': '<i class=\'fas fa-sign-in-alt\'></i>',
-        'SIGNUP': '<i class=\'fas fa-user-plus\'></i>',
-        'UNDO': '<i class=\'fas fa-undo\'></i>',
-        'CAPABILITIES': '<i class=\'fas fa-file-code \'></i>',
-        'METADATA': '<i class=\'fas fa-file-alt \'></i>',
-        'ACCESS': '<i class=\'fas fa-key \'></i>',
-        'SORT_ALPHA_UP': '<i class=\'fas fa-sort-alpha-up \'></i>',
-        'SORT_ALPHA_DOWN': '<i class=\'fas fa-sort-alpha-up \'></i>',
-        'ACTIVITY': '<i class=\'fas fa-snowboarding \'></i>',
-        'SERVICE': '<i class=\'fas fa-concierge-bell \'></i>'
-    }
-}
+THEME = 'LIGHT'

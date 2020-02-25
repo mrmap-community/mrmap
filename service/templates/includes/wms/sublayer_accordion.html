@@ -1,7 +1,7 @@
 {% extends 'sceletons/accordion.html' %}
 {% load static i18n %}
 {% block accordion-button-title %}
-<i class="fa" aria-hidden="true"></i> {{ layer.metadata.title }} <span class="badge {{THEME.PILL_BADGE_INFO_COLOR}}">{{ layer.child_layer.all|length }}</span>
+<i class="fa" aria-hidden="true"></i> {{ layer.metadata.title }} <span class="badge {{THEME.ACCORDION.PILL_BADGE_INFO_COLOR}}">{{ layer.child_layer.all|length }}</span>
 {% endblock %}
 
 {% block accordion-body %}

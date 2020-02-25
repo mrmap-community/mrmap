@@ -10,7 +10,7 @@
 
 {% block card-header-title-right %}
     {% if 'can_create_organization' in user_permissions %}
-        <button type="button" class="btn {{THEME.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_organization_modal">
+        <button type="button" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_organization_modal">
                     {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New organization' %}
         </button>
         {% with form=new_organization_form %}

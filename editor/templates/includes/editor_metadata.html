@@ -37,7 +37,7 @@
 
 <div class="row">
    <div class="col">
-       <a class="btn {{THEME.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service_metadata.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
+       <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service_metadata.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
    </div>
 </div>
 
@@ -53,7 +53,7 @@
             <div class="row">
                 <div class="col">
                     <div class="float-right">
-                        <button type="submit" class="btn {{THEME.BTN_SUCCESS_COLOR}}">{% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save'%}</button>
+                        <button type="submit" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}">{% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save'%}</button>
                     </div>
                 </div>
             </div>

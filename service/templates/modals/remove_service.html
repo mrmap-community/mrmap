@@ -7,8 +7,8 @@
 {% endblock %}
 
 {% block modal-footer %}
-<button type="button" class="btn {{ THEME.BTN_SECONDARY_COLOR }}" data-dismiss="modal">{% trans 'Cancle' %}</button>
-<button type="button submit" class="btn {{ THEME.BTN_DANGER_COLOR }}">
+<button type="button" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" data-dismiss="modal">{% trans 'Cancle' %}</button>
+<button type="button submit" class="btn {{ THEME.MODAL.BTN_DANGER_COLOR }}">
     {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Remove' %}
 </button>
 {% endblock %}

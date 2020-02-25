@@ -11,7 +11,7 @@
 
 {% block card-header-title-right %}
     {% if 'can_create_group' in user_permissions %}
-        <button type="button" class="btn {{THEME.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_group_modal">
+        <button type="button" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_group_modal">
             {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New group' %}
         </button>
         {% with form=new_group_form %}

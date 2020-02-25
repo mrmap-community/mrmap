@@ -17,10 +17,12 @@ SERVICE_DETAIL = "service:detail"
 STRUCTURE_DETAIL_GROUP = "structure:detail-group"
 STRUCTURE_INDEX_GROUP = "structure:groups-index"
 
-
 APP_XML = "application/xml"
 
 URL_PATTERN = "<a class={} href='{}'>{}</a>"
-URL_PATTERN_BTN_DANGER = "<a class='btn btn-sm btn-danger' href='{}'>{}</a>"
-URL_PATTERN_BTN_INFO = "<a class='btn btn-sm btn-info' href='{}'>{}</a>"
-URL_PATTERN_BTN_WARNING = "<a class='btn btn-sm btn-warning' href='{}'>{}</a>"
+URL_BTN_PATTERN = "<a class='{} {} {}' href='{}'>{}</a>"
+
+BTN_CLASS = "btn"
+BTN_SM_CLASS = "btn-sm"
+
+

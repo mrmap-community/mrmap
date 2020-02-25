@@ -21,11 +21,11 @@
     <div class="col-sm mb-2 text-center">
             {% if 'can_activate_service' in user_permissions %}
                     {% if service_md.is_active %}
-                        <a href="{% url 'service:activate' service.id %}" class="btn {{THEME.BTN_WARNING_COLOR}}" role="button">
+                        <a href="{% url 'service:activate' service.id %}" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" role="button">
                             {% autoescape off %}{{THEME.ICONS.NOK}}{% endautoescape %} {% trans 'Deactivate' %}
                         </a>
                     {% else %}
-                        <a href="{% url 'service:activate' service.id %}" class="btn {{THEME.BTN_SUCCESS_COLOR}}" role="button">
+                        <a href="{% url 'service:activate' service.id %}" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" role="button">
                             {% autoescape off %}{{THEME.ICONS.OK}}{% endautoescape %} {% trans 'Activate' %}
                         </a>
                 {% endif %}
@@ -34,7 +34,7 @@
     <div class="col-sm mb-2 text-center">
             {% if 'can_update_service' in user_permissions %}
                 <!--TODO: implement logic for this buttons-->
-                <button type="button" class="btn {{THEME.BTN_INFO_OUT_COLOR}}" data-toggle="modal" data-target="#edit_group">
+                <button type="button" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" data-toggle="modal" data-target="#edit_group">
                     {% autoescape off %}{{THEME.ICONS.UPDATE}}{% endautoescape %} {% trans 'Update service' %}
                 </button>
                 <!--TODO: Modal necessary?-->
@@ -43,7 +43,7 @@
             {% if 'can_edit_metadata_service' in user_permissions %}
     <div class="col-sm mb-2 text-center">
             <div class="dropdown">
-                  <button class="btn {{THEME.BTN_SECONDARY_OUT_COLOR}} dropdown-toggle" type="button" id="id_edit_service_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="id_edit_service_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit service' %}
                   </button>
                   <div class="dropdown-menu" aria-labelledby="id_edit_service_dropdown">
@@ -56,7 +56,7 @@
 
     <div class="col-sm mb-2 text-center">
             <div class="dropdown">
-              <button class="btn {{THEME.BTN_SECONDARY_OUT_COLOR}} dropdown-toggle" type="button" id="id_caps_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="id_caps_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 {% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'Capabilities' %}
               </button>
               <div class="dropdown-menu" aria-labelledby="id_caps_dropdown">
@@ -67,7 +67,7 @@
     </div>
     <div class="col-sm mb-2 text-center">
         <div class="dropdown">
-          <button class="btn {{THEME.BTN_SECONDARY_OUT_COLOR}} dropdown-toggle" type="button" id="id_metadata_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="id_metadata_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}
           </button>
           <div class="dropdown-menu" aria-labelledby="id_metadata_dropdown">
@@ -78,7 +78,7 @@
     </div>
             {% if 'can_remove_service' in user_permissions %}
     <div class="col-sm mb-2 text-center">
-        <button type="button" class="btn {{THEME.BTN_DANGER_COLOR}}" data-toggle="modal" data-target="#id_modal_remove_service">
+        <button type="button" class="btn {{THEME.CARD.BTN_DANGER_COLOR}}" data-toggle="modal" data-target="#id_modal_remove_service">
             {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Remove' %}
         </button>
         {% with form=remove_service_form %}

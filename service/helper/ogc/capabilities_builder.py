@@ -1192,6 +1192,8 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         self.default_ns = "{" + XML_NAMESPACES["ows"] + "}"
         self.wfs_ns = "{" + XML_NAMESPACES["wfs"] + "}"
 
+        self.rs_declaration = "SRS"
+
         self.feature_type = FeatureType.objects.get(
             metadata=metadata,
         )
@@ -1464,7 +1466,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         # DefaultSRS
         elem = xml_helper.create_subelement(
             upper_elem,
-            "{}DefaultSRS".format(self.wfs_ns)
+            "{}Default{}".format(self.wfs_ns, self.rs_declaration)
         )
         xml_helper.write_text_to_element(
             elem,
@@ -1474,7 +1476,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             # OtherSRS
             elem = xml_helper.create_subelement(
                 upper_elem,
-                "{}OtherSRS".format(self.wfs_ns)
+                "{}Other{}".format(self.wfs_ns, self.rs_declaration)
             )
             xml_helper.write_text_to_element(
                 elem,
@@ -1910,13 +1912,149 @@ class CapabilityWFS110Builder(CapabilityWFSBuilder):
         super().__init__(metadata=metadata, force_version=force_version)
         self.schema_location = "http://schemas.opengis.net/wfs/1.1.0/wfs.xsd"
 
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+        """ Generate the 'MetadataURL' subelement of a xml feature type list object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        dataset_mds = self.metadata.related_metadata.filter(
+            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+        )
+        for dataset_md in dataset_mds:
+            try:
+                metadata_url_elem = xml_helper.create_subelement(
+                    upper_elem,
+                    "{}MetadataURL".format(self.default_ns),
+                    attrib=OrderedDict({
+                        "type": "TC211",
+                        "format": "text/xml",
+                    })
+                )
+                xml_helper.write_text_to_element(
+                    metadata_url_elem,
+                    txt=dataset_md.metadata_to.metadata_url
+                )
+            except ObjectDoesNotExist:
+                continue
 
 class CapabilityWFS200Builder(CapabilityWFSBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):
         super().__init__(metadata=metadata, force_version=force_version)
+
+        self.namespaces[None] = "http://www.opengis.net/wfs/2.0"
+        self.namespaces["ows"] = "http://www.opengis.net/ows/1.1"
+        self.namespaces["fes"] = "http://www.opengis.net/fes/2.0"
+
+        self.default_ns = "{" + self.namespaces["ows"] + "}"
+        self.wfs_ns = "{" + self.namespaces[None] + "}"
+
         self.schema_location = "http://schemas.opengis.net/wfs/2.0/wfs.xsd"
+
+        self.rs_declaration = "CRS"
+
+    def _generate_service_type(self, upper_elem: Element):
+        """ Generate the 'ServiceType' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        service_type_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}ServiceType".format(self.default_ns),
+            attrib={
+                "codeSpace": "OGC"
+            }
+        )
+        xml_helper.write_text_to_element(
+            service_type_elem,
+            txt="WFS"
+        )
+
+
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+        """ Generate the 'MetadataURL' subelement of a xml feature type list object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        dataset_mds = self.metadata.related_metadata.filter(
+            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+        )
+        for dataset_md in dataset_mds:
+            try:
+                metadata_url_elem = xml_helper.create_subelement(
+                    upper_elem,
+                    "{}MetadataURL".format(self.default_ns),
+                    attrib=OrderedDict({
+                        "{}href".format(self.xlink_ns): dataset_md.metadata_to.metadata_url,
+                    })
+                )
+            except ObjectDoesNotExist:
+                continue
+
 
 class CapabilityWFS202Builder(CapabilityWFSBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):
         super().__init__(metadata=metadata, force_version=force_version)
+
+        self.namespaces[None] = "http://www.opengis.net/wfs/2.0"
+        self.namespaces["ows"] = "http://www.opengis.net/ows/1.1"
+        self.namespaces["fes"] = "http://www.opengis.net/fes/2.0"
+
+        self.default_ns = "{" + self.namespaces["ows"] + "}"
+        self.wfs_ns = "{" + self.namespaces[None] + "}"
+
         self.schema_location = "http://schemas.opengis.net/wfs/2.0/wfs.xsd"
+
+        self.rs_declaration = "CRS"
+
+    def _generate_service_type(self, upper_elem: Element):
+        """ Generate the 'ServiceType' subelement of a xml service object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        service_type_elem = xml_helper.create_subelement(
+            upper_elem,
+            "{}ServiceType".format(self.default_ns),
+            attrib={
+                "codeSpace": "OGC"
+            }
+        )
+        xml_helper.write_text_to_element(
+            service_type_elem,
+            txt="WFS"
+        )
+
+
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+        """ Generate the 'MetadataURL' subelement of a xml feature type list object
+
+        Args:
+            upper_elem (_Element): The upper xml element
+        Returns:
+            nothing
+        """
+        dataset_mds = self.metadata.related_metadata.filter(
+            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+        )
+        for dataset_md in dataset_mds:
+            try:
+                metadata_url_elem = xml_helper.create_subelement(
+                    upper_elem,
+                    "{}MetadataURL".format(self.default_ns),
+                    attrib=OrderedDict({
+                        "{}href".format(self.xlink_ns): dataset_md.metadata_to.metadata_url,
+                    })
+                )
+            except ObjectDoesNotExist:
+                continue

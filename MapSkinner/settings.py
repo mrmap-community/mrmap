@@ -195,6 +195,20 @@ DATABASES = {
     }
 }
 
+# Cache
+# Use local redis installation as cache
+# The "regular" redis cache will be set to work in redis table 1 (see LOCATION)
+# The default table (0) is preserved for celery task management
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://localhost:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+        }
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/2.1/ref/settings/#auth-password-validators

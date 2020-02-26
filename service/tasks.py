@@ -16,9 +16,10 @@ from requests.exceptions import InvalidURL
 from MapSkinner import utils
 from MapSkinner.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
+from MapSkinner.utils import print_debug_mode
 from service.helper.enums import MetadataEnum, OGCServiceEnum, OGCOperationEnum
 from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
-    MetadataRelation
+    MetadataRelation, Document
 from structure.models import User, Group, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
@@ -59,6 +60,8 @@ def async_activate_service(service_id: int, user_id: int):
     service.is_active = new_status
     service.save(update_last_modified=False)
 
+    service.metadata.set_documents_active_status(new_status)
+
     # get root_layer of service and start changing of all statuses
     # also check all related metadata and activate them too
     if service.servicetype.name == OGCServiceEnum.WMS.value:
@@ -72,6 +75,7 @@ def async_activate_service(service_id: int, user_id: int):
 
         for featuretype in featuretypes:
             ft_metadata = featuretype.metadata
+            ft_metadata.set_documents_active_status(new_status)
             ft_metadata.is_active = new_status
 
             # activate related metadata (if it exists)
@@ -80,6 +84,7 @@ def async_activate_service(service_id: int, user_id: int):
             )
             for relation in md_relations:
                 related_md = relation.metadata_to
+                related_md.set_documents_active_status(new_status)
                 related_md.is_active = new_status
                 related_md.save()
             ft_metadata.save()
@@ -241,7 +246,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         if external_auth is not None:
             service.metadata.set_proxy(True)
 
-        print(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
+        print_debug_mode(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
         user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
 
         if curr_task_id is not None:

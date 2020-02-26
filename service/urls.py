@@ -11,12 +11,11 @@ urlpatterns = [
     path('metadata/dataset/<int:id>', get_dataset_metadata, name='get-dataset-metadata'),
     path('metadata/dataset/check/<int:id>', get_dataset_metadata_button, name='get-dataset-metadata-button'),
 
-    #path('proxy/metadata/<int:id>', metadata_proxy, name='metadata-proxy'),  # this route seems not to be used - remove by time
-    path('metadata/<int:id>/operation', get_metadata_operation, name='metadata-proxy-operation'),
+    path('metadata/<int:id>/operation', get_operation_result, name='metadata-proxy-operation'),
     path('metadata/<int:id>/legend/<int:style_id>', get_metadata_legend, name='metadata-proxy-legend'),
 
-    path('capabilities/<int:id>', get_capabilities, name='get-capabilities'),
-    path('capabilities/<int:id>/original', get_capabilities_original, name='get-capabilities-original'),
+    #path('capabilities/<int:id>', get_capabilities, name='get-capabilities'),
+    #path('capabilities/<int:id>/original', get_capabilities_original, name='get-capabilities-original'),
 
     # TODO: if we need separated paths... we have to refactor this by using _new_service_wizard function
     #path('new/register-form', register_form, name='register-form'),

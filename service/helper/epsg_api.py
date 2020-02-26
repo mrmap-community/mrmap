@@ -5,16 +5,23 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 29.04.19
 
 """
+import json
+
 import requests
 
+from MapSkinner.cacher import EPSGCacher
 from MapSkinner.settings import PROXIES, XML_NAMESPACES
-from service.helper import service_helper, xml_helper
+from service.helper import xml_helper
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum
 
 
 class EpsgApi:
     def __init__(self):
         self.registry_uri = "http://www.epsg-registry.org/export.htm?gml="
         self.id_prefix = "urn:ogc:def:crs:EPSG::"
+
+        # Cacher
+        self.cacher = EPSGCacher()
 
     def get_subelements(self, identifier: str):
         """ Returns both, id and prefix in a dict
@@ -52,7 +59,7 @@ class EpsgApi:
                 pass
         return identifier_num
 
-    def get_axis_order(self, identifier: str):
+    def _get_axis_order(self, identifier: str):
         """ Returns the axis order for a given spatial result system
 
         Args:
@@ -61,6 +68,11 @@ class EpsgApi:
 
         """
         id = self.get_real_identifier(identifier)
+
+        axis_order = self.cacher.get(str(id))
+        if axis_order is not None:
+            axis_order = json.loads(axis_order)
+            return axis_order
 
         XML_NAMESPACES["gml"] = "http://www.opengis.net/gml/3.2"
 
@@ -88,9 +100,13 @@ class EpsgApi:
             "first_axis": order[0],
             "second_axis": order[1],
         }
+
+        # Write this to cache, so it can be used on another request!
+        self.cacher.set(str(id), json.dumps(order))
+
         return order
 
-    def switch_axis_order(self, service_type: str, srs_identifier: str):
+    def switch_axis_order(self, service_type: str, service_version: str, srs_identifier: str):
         """ Checks whether the axis have to be switched, regarding the given service type (like 'wms_1.3.0')
         and spatial reference system identifier
 
@@ -100,17 +116,28 @@ class EpsgApi:
         Returns:
              ret_val (bool): Whether the axis have to be switched or not
         """
-        service_types_to_be_checked = [
-            "wms_1.3.0",
-            "wfs_1.1.0",
-            "wfs_2.0.0",
-            "wfs_2.0.2",
-            "gml_3.2.0"
-        ]
+        service_type = service_type.lower()
+        service_version = service_version.lower()
 
-        if service_type not in service_types_to_be_checked:
+        service_types_to_be_checked = {
+            OGCServiceEnum.WMS.value: {
+                OGCServiceVersionEnum.V_1_3_0.value: True
+            },
+            OGCServiceEnum.WFS.value: {
+                OGCServiceVersionEnum.V_1_1_1.value: True,
+                OGCServiceVersionEnum.V_2_0_0.value: True,
+                OGCServiceVersionEnum.V_2_0_2.value: True,
+            },
+            "GML": {
+                "3.2.0": True
+            }
+        }
+
+        found = service_types_to_be_checked.get(service_type, {}).get(service_version, False)
+
+        if not found:
             return False
 
-        order = self.get_axis_order(srs_identifier)
-        ret_val = not (order["first_axis"] == "north" and order["second_axis"] == "east")
+        order = self._get_axis_order(srs_identifier)
+        ret_val = (order["first_axis"] == "north" and order["second_axis"] == "east")
         return ret_val

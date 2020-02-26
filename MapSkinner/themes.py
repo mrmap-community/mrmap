@@ -6,7 +6,7 @@ FONT_AWESOME_ICONS = {
     'WMS': format_html(ICON_PATTERN, 'far', 'fa-map', ),
     'WFS': format_html(ICON_PATTERN, 'fas', 'fa-draw-polygon', ),
     'LAYER': format_html(ICON_PATTERN, 'fas', 'fa-layer-group', ),
-    'PENDINGTASK': format_html(ICON_PATTERN, 'fas', 'fa-tasks', ),
+    'PENDINGTASKS': format_html(ICON_PATTERN, 'fas', 'fa-tasks', ),
     'USER': format_html(ICON_PATTERN, 'fas', 'fa-user', ),
     'PASSWORD': format_html(ICON_PATTERN, 'fas', 'fa-lock', ),
     'GROUP': format_html(ICON_PATTERN, 'fas', 'fa-users', ),

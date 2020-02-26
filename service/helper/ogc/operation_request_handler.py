@@ -8,6 +8,7 @@ Created on: 05.12.19
 import urllib
 import io
 from collections import OrderedDict
+from copy import copy
 
 from queue import Queue
 from threading import Thread
@@ -32,8 +33,9 @@ from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
+from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.request_builder import OGCRequestPOSTBuilder
-from service.models import Metadata, FeatureType, Layer, MimeType
+from service.models import Metadata, FeatureType, Layer, MimeType, Service
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
@@ -82,6 +84,7 @@ class OGCOperationRequestHandler:
         self.layers_param = None  # refers to param 'LAYERS'
         self.x_y_param = [None, None]  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)
         self.bbox_param = None  # refers to param 'BBOX'
+        self.axis_corrected_bbox_param = None  # contains an axis corrected version of the bbox_param. Only differs in case of WMS 1.3.0
         self.srs_param = None  # refers to param 'SRS'|'SRSNAME' (WMS 1.0.0 - 1.1.1) and 'CRS' (WMS 1.3.0)
         self.srs_code = None  # only the srsid as int
         self.format_param = None  # refers to param 'FORMAT'
@@ -101,13 +104,15 @@ class OGCOperationRequestHandler:
 
         if self.request_is_GET:
             self.original_params_dict = request.GET.dict()
+            if len(self.original_params_dict) == 0:
+                # There are no parameters and therefore no operations to handle...
+                return
         else:
             self.original_params_dict = request.POST.dict()
-
-        if len(self.original_params_dict) == 0:
-            # Possible, if no GET query parameter or no x-www-form-urlencoded POST values have been given
-            # In this case, all the information can be found inside a xml document in the POST body, that has to be parsed now.
-            self._parse_post_xml_body(request.body)
+            if len(self.original_params_dict) == 0:
+                # Possible, if no GET query parameter or no x-www-form-urlencoded POST values have been given
+                # In this case, all the information can be found inside a xml document in the POST body, that has to be parsed now.
+                self._parse_post_xml_body(request.body)
 
         # fill new_params_dict with upper case keys from original_params_dict
         for key, val in self.original_params_dict.items():
@@ -130,7 +135,11 @@ class OGCOperationRequestHandler:
         # Only work on the requested param objects, if the metadata is secured.
         # Otherwise we can pass this, since it's too expensive for a basic, non secured request
         if metadata.is_secured:
-            self._filter_not_allowed_subelements(metadata)
+            # Prevent a subelement from being used for further handling
+            md = metadata
+            if not metadata.is_root():
+                md = metadata.service.parent_service.metadata
+            self._filter_not_allowed_subelements(md)
 
     def _parse_GET_params(self):
         """ Parses the GET parameters into all member variables, which can be found in new_params_dict.
@@ -418,15 +427,20 @@ class OGCOperationRequestHandler:
         """
 
         # identify requested operation and resolve the uri
-        if metadata.service.servicetype.name == OGCServiceEnum.WFS.value:
+        if metadata.get_service_type() == OGCServiceEnum.WFS.value and not metadata.is_root():
+            feature_type = FeatureType.objects.get(
+                metadata=metadata
+            )
+            service = feature_type.parent_service
+            metadata = service.metadata
             secured_operation_uris = {
                 "GETFEATURE": {
-                    "get": metadata.service.get_feature_info_uri_GET,
-                    "post": metadata.service.get_feature_info_uri_POST,
+                    "get": service.get_feature_info_uri_GET,
+                    "post": service.get_feature_info_uri_POST,
                 },  # get_feature_info_uri_GET is reused in WFS for get_feature_uri
                 "TRANSACTION": {
-                    "get": metadata.service.transaction_uri_GET,
-                    "post": metadata.service.transaction_uri_POST,
+                    "get": service.transaction_uri_GET,
+                    "post": service.transaction_uri_POST,
                 },
             }
         else:
@@ -842,7 +856,7 @@ class OGCOperationRequestHandler:
         """ Creates a polygon from the given string bounding box
 
         Args:
-
+            switch_axis (bool): Whether to switch the axis of the bounding box param or not
         Returns:
             Nothing, performs method directly on object
         """
@@ -850,28 +864,32 @@ class OGCOperationRequestHandler:
             "geom": None,
             "bbox_param": None
         }
+
         if self.bbox_param is None:
             return ret_dict
-        # epsg_api = EpsgApi()
 
-        # create Polygon object from raw BBOX parameter
         tmp_bbox = self.bbox_param.split(",")
-
         if len(tmp_bbox) == 5:
-            # this might happen, if the 5th element is a SRS identifier instead of a BBOX coordinate - could happen...
+            # This might happen, if the 5th element is a SRS identifier instead of a BBOX coordinate
+            # Possible according to OGC standard
             del tmp_bbox[-1]
 
+        # Check whether the axis of the bbox have to be switched
+        tmp_backup = copy(tmp_bbox)
+        epsg_api = EpsgApi()
+        switch_axis = epsg_api.switch_axis_order(self.service_type_param, self.version_param, self.srs_param)
+        if switch_axis:
+           for i in range(0, len(tmp_bbox)-1, 2):
+               tmp = tmp_bbox[i]
+               tmp_bbox[i] = tmp_bbox[i+1]
+               tmp_bbox[i+1] = tmp
+
+        # Create Polygon from (possibly axis-switched bbox)
         bbox_param_geom = GEOSGeometry(Polygon.from_bbox(tmp_bbox), srid=self.srs_code)
+        self.axis_corrected_bbox_param = ",".join(tmp_bbox)
 
-        # check whether the axis of the bbox extent vertices have to be switched
-        # switch_axis = epsg_api.switch_axis_order(service_type, srs_param)
-
-        # if switch_axis:
-        #    for i in range(0, len(tmp_bbox)-1, 2):
-        #        tmp = tmp_bbox[i]
-        #        tmp_bbox[i] = tmp_bbox[i+1]
-        #        tmp_bbox[i+1] = tmp
-
+        # Restore (possibly axis-switched bbox) with original parameter, so it can be used for sending the request later
+        tmp_bbox = tmp_backup
         ret_dict["geom"] = bbox_param_geom
         ret_dict["bbox_param"] = ",".join(tmp_bbox)
 
@@ -1159,7 +1177,7 @@ class OGCOperationRequestHandler:
                 "format": "image/png",
                 "layers": "mask",
                 "srs": self.srs_param,
-                "bbox": self.bbox_param.get("bbox_param"),
+                "bbox": self.axis_corrected_bbox_param,
                 "width": width,
                 "height": height,
                 "keys": op.id,

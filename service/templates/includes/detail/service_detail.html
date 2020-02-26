@@ -61,7 +61,7 @@
               </button>
               <div class="dropdown-menu" aria-labelledby="id_caps_dropdown">
                 <a class="dropdown-item" href="{{ service_md.capabilities_original_uri }}">{% trans 'Original' %}</a>
-                <a class="dropdown-item" href="{% url 'service:get-capabilities' service_md.id %}">{% trans 'Current' %}</a>
+                <a class="dropdown-item" href="{% url 'service:metadata-proxy-operation' service_md.id %}?request=GetCapabilities">{% trans 'Current' %}</a>
               </div>
             </div>
     </div>

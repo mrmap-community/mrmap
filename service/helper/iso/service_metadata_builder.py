@@ -9,9 +9,8 @@ import json
 
 from django.core.exceptions import ObjectDoesNotExist
 
-from service.settings import INSPIRE_LEGISLATION_FILE
-from service.helper.enums import MetadataEnum
-from service.models import Metadata
+from service.settings import INSPIRE_LEGISLATION_FILE, SERVICE_OPERATION_URI_TEMPLATE
+from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.helper import xml_helper
 from lxml.etree import Element
 from collections import OrderedDict
@@ -19,13 +18,25 @@ from lxml import etree
 
 from django.utils import timezone
 
-from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
+from MapSkinner.settings import XML_NAMESPACES
 
 
-class MetadataGenerator:
+class ServiceMetadataBuilder:
 
     def __init__(self, md_id: int, metadata_type: MetadataEnum, use_legislation_amendment=False):
+        from service.models import Metadata, FeatureType
         self.metadata = Metadata.objects.get(id=md_id)
+
+        self.service_version = self.metadata.get_service_version()
+        self.service_type = self.metadata.get_service_type()
+        if self.service_type == OGCServiceEnum.WFS.value:
+            self.service = FeatureType.objects.get(
+                metadata=self.metadata
+            ).parent_service
+        elif self.service_type == OGCServiceEnum.WMS.value:
+            self.service = self.metadata.service
+
+
         self.organization = self.metadata.contact
         
         self.reduced_nsmap = {
@@ -99,7 +110,7 @@ class MetadataGenerator:
             sub_element_content = func
             xml_helper.add_subelement(sub_element, sub_element_content)
 
-        doc = etree.tostring(root, xml_declaration=True, encoding="utf-8")
+        doc = etree.tostring(root, xml_declaration=True, encoding="utf-8", pretty_print=True)
 
         return doc
 
@@ -176,9 +187,7 @@ class MetadataGenerator:
         Returns:
              ret_elem (_Element): The requested xml element
         """
-        service_type = self.metadata.service.servicetype.name
-
-        name = self.hierarchy_names[service_type]["de"]  # ToDo: Find international solution for this
+        name = self.hierarchy_names[self.service_type]["de"]  # ToDo: Find international solution for this
 
         ret_elem = Element(
             self.gco + "CharacterString"
@@ -420,7 +429,7 @@ class MetadataGenerator:
             self.gmd + "URL"
         )
         if self.metadata.use_proxy_uri:
-            tmp_elem.text = HTTP_OR_SSL + HOST_NAME + "/service/capabilities/" + str(self.metadata.id)
+            tmp_elem.text = SERVICE_OPERATION_URI_TEMPLATE.format(self.metadata.id)
         else:
             tmp_elem.text = self.metadata.capabilities_original_uri
         ci_resource_elem.append(linkage_elem)
@@ -652,14 +661,13 @@ class MetadataGenerator:
             self.gco + "LocalName"
         )
         # resolve service type according to best practice
-        service_type = self.metadata.service.servicetype.name
-        if service_type == 'wms':
+        if self.service_type == 'wms':
             service_type = "WebMapService"
-        elif service_type == 'wfs':
+        elif self.service_type == 'wfs':
             service_type = "WebFeatureService"
         else:
             service_type = "unknown"
-        service_type_version = self.metadata.service.servicetype.version
+        service_type_version = self.service_version
         locale_name_elem.text = "urn:ogc:serviceType:{}:{}".format(service_type, service_type_version)
         service_type_elem.append(locale_name_elem)
         ret_elem.append(service_type_elem)
@@ -671,7 +679,7 @@ class MetadataGenerator:
         char_str_elem = Element(
             self.gco + "CharacterString"
         )
-        char_str_elem.text = service_type_version
+        char_str_elem.text = service_type_version.value
         service_version_elem.append(char_str_elem)
         ret_elem.append(service_version_elem)
 
@@ -1334,10 +1342,9 @@ class MetadataGenerator:
         for legislation in self.regislations["inspire_rules"]:
             if legislation["group"] in legislation_groups \
                     and self.metadata_type in legislation["subject"]:
-                if not self.use_legislation_amendment:
+                if not self.use_legislation_amendment and '_amendment' in legislation["type"]:
                     # skip amendments if not desired
-                    if '_amendment' in legislation["type"]:
-                        continue
+                    continue
                 report_elem = Element(
                     self.gmd + "report"
                 )

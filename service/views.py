@@ -14,10 +14,11 @@ from django_tables2 import RequestConfig
 from requests import ReadTimeout
 
 from MapSkinner import utils
+from MapSkinner.cacher import DocumentCacher
 from MapSkinner.consts import *
 from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
-    SERVICE_REMOVED, SERVICE_UPDATED, MULTIPLE_SERVICE_METADATA_FOUND, \
+    SERVICE_REMOVED, SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
@@ -31,8 +32,8 @@ from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, RemoveService
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, MetadataEnum, OGCOperationEnum, OGCServiceVersionEnum
-from service.helper.iso.metadata_generator import MetadataGenerator
+from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum
+
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable
@@ -269,7 +270,7 @@ def index(request: HttpRequest, user: User):
     pt = PendingTask.objects.filter(created_by__in=user.groups.all())
     pt_table = PendingTasksTable(pt,
                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                 orderable=False, )
+                                 orderable=False, user=user,)
 
     params = {
         "pt_table": pt_table,
@@ -312,7 +313,7 @@ def pending_tasks(request: HttpRequest, user: User):
 
     pt_table = PendingTasksTable(pt,
                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                 orderable=False, )
+                                 orderable=False, user=user,)
 
     params = {
         "pt_table": pt_table,
@@ -404,38 +405,16 @@ def get_service_metadata(request: HttpRequest, id: int):
     Returns:
          A HttpResponse containing the xml file
     """
-    docs = []
-    doc = None
     metadata = Metadata.objects.get(id=id)
 
-    # check if the metadata record already has a service metadata document linked
-    md_relations = MetadataRelation.objects.filter(
-        metadata_from=metadata,
-        metadata__is_active=True,
-        metadata_to__metadata_type__type=MetadataEnum.SERVICE.value
-    )
-    for rel in md_relations:
-        md_to = rel.metadata_to
-        tmp_docs = Document.objects.filter(
-            related_metadata=md_to,
-        ).exclude(
-            service_metadata_document=None
-        )
-        docs.extend(tmp_docs)
+    cacher = DocumentCacher(title="SERVICE_METADATA", version="0")
+    doc = cacher.get(str(metadata.id))
+    if doc is None:
+        doc = metadata.get_service_metadata_xml()
+        cacher.set(str(metadata.id), doc)
 
-    if len(docs) > 1:
-        # Something is odd, there are multiple service metadata documents for this metadata record
-        messages.error(request, MULTIPLE_SERVICE_METADATA_FOUND)
-        return redirect(SERVICE_DETAIL, id)
-    elif len(docs) == 1:
-        # Everything is fine, we get the service metadata document
-        doc = docs.pop().service_metadata_document
-    else:
-        if not metadata.is_active:
-            return HttpResponse(content=SERVICE_DISABLED, status=423)
-        # There is no service metadata document in the database, we need to create it during runtime
-        generator = MetadataGenerator(id, MetadataEnum.SERVICE)
-        doc = generator.generate_service_metadata()
+    if not metadata.is_active:
+        return HttpResponse(content=SERVICE_DISABLED, status=423)
 
     return HttpResponse(doc, content_type=APP_XML)
 
@@ -453,11 +432,9 @@ def get_dataset_metadata(request: HttpRequest, id: int):
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
     try:
-        if md.metadata_type.type != 'dataset':
+        if md.metadata_type.type != OGCServiceEnum.DATASET.value:
             # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
-            md = MetadataRelation.objects.get(
-                metadata_from=md,
-            ).metadata_to
+            md = md.get_related_dataset_metadata()
             return redirect("service:get-dataset-metadata", id=md.id)
         document = Document.objects.get(related_metadata=md)
         document = document.dataset_metadata_document
@@ -500,9 +477,6 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
 
     return BackendAjaxResponse(html="", has_dataset_doc=has_dataset_doc).get_response()
 
-
-@csrf_exempt
-@log_proxy
 def get_capabilities(request: HttpRequest, id: int):
     """ Returns the current capabilities xml file
 
@@ -554,11 +528,14 @@ def get_capabilities(request: HttpRequest, id: int):
     else:
         pass
 
-    if stored_version == version_param or use_fallback is True:
-        # we can deliver the document from the database
-        cap_doc = Document.objects.get(related_metadata=md)
-        doc = cap_doc.current_capability_document
+    if stored_version == version_param or use_fallback is True or not md.is_root():
+        # This is the case if
+        # 1) a version is requested, which we have in our database
+        # 2) the fallback parameter is set explicitly
+        # 3) a subelement is requested, which normally do not have capability documents
 
+        # We can check the cache for this document or we need to generate it!
+        doc = md.get_current_capability_xml(version_param)
     else:
         # we have to fetch the remote document
         try:
@@ -570,7 +547,7 @@ def get_capabilities(request: HttpRequest, id: int):
                 raise ValueError("No xml document was retrieved. Content was :'{}'".format(xml))
 
             # we fake the persisted service version, so the document setters will change the correct elements in the xml
-            md.service.servicetype.version = version_param
+            #md.service.servicetype.version = version_param
             doc = Document(
                 original_capability_document=xml,
                 current_capability_document=xml,
@@ -578,9 +555,7 @@ def get_capabilities(request: HttpRequest, id: int):
             )
             doc.set_capabilities_secured(auto_save=False)
             if md.use_proxy_uri:
-                doc.set_dataset_metadata_secured(True, auto_save=False)
-                doc.set_operations_secured(True, auto_save=False)
-                doc.set_legend_url_secured(True, auto_save=False)
+                doc.set_proxy(True, auto_save=False, force_version=version_param)
             doc = doc.current_capability_document
         except (ReadTimeout, TimeoutError, ConnectionError) as e:
             # the remote server does not respond - we must deliver our stored capabilities document, which is not the requested version
@@ -646,7 +621,7 @@ def wms_index(request: HttpRequest, user: User):
     pt = PendingTask.objects.filter(created_by__in=user.groups.all())
     pt_table = PendingTasksTable(pt,
                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                 orderable=False, )
+                                 orderable=False, user=user,)
 
     params = {
         "pt_table": pt_table,
@@ -764,7 +739,6 @@ def update_service(request: HttpRequest, user: User, id: int):
             "new_service": new_service,
             "page_indicator_list": [False, True],
         }
-        # request.session["update_confirmed"] = True
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
 
@@ -869,7 +843,7 @@ def wfs_index(request: HttpRequest, user: User):
     pending_tasks = PendingTask.objects.filter(created_by__in=user.groups.all())
     pt_table = PendingTasksTable(pending_tasks,
                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                 orderable=False, )
+                                 orderable=False, user=user,)
 
     params = {
         "pt_table": pt_table,
@@ -981,11 +955,11 @@ def detail_child(request: HttpRequest, id, user: User):
     Returns:
          A rendered view for ajax insertion
     """
-    elementType = request.GET.get("serviceType")
-    if elementType == "wms":
+    element_type = request.GET.get("serviceType")
+    if element_type == "wms":
         template = "detail/service_detail_child_wms.html"
         element = Layer.objects.get(id=id)
-    elif elementType == "wfs":
+    elif element_type == "wfs":
         template = "detail/service_detail_child_wfs.html"
         element = FeatureType.objects.get(id=id)
     else:
@@ -1018,7 +992,7 @@ def metadata_proxy(request: HttpRequest, id: int):
 
 @csrf_exempt
 @log_proxy
-def get_metadata_operation(request: HttpRequest, id: int):
+def get_operation_result(request: HttpRequest, id: int):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
 
     Decides which operation will be handled by resolving a given 'request=' query parameter.
@@ -1046,18 +1020,14 @@ def get_metadata_operation(request: HttpRequest, id: int):
         elif operation_handler.request_param is None:
             return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
 
+        elif operation_handler.request_param.upper() == OGCOperationEnum.GET_CAPABILITIES.value.upper():
+            return get_capabilities(request=request, id=id)
+
         elif not metadata.is_root():
             # we do not allow the direct call of operations on child elements, such as layers!
             # if the request tries that, we directly redirect it to the parent service!
-            redirect_uri = "/service/metadata/{}/operation?{}".format(
-                metadata.service.parent_service.metadata.id,
-                get_query_string
-            )
-            return redirect(redirect_uri)
-
-        elif operation_handler.request_param.upper() == OGCOperationEnum.GET_CAPABILITIES.value.upper():
-            cap_doc = Document.objects.get(related_metadata=metadata)
-            return HttpResponse(cap_doc.current_capability_document, content_type="application/xml")
+            parent_md = metadata.service.parent_service.metadata
+            return get_operation_result(request=request, id=parent_md.id)
 
         # We need to check if one of the requested layers is secured. If so, we need to check the
         md_secured = metadata.is_secured

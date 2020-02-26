@@ -170,7 +170,7 @@ class CatalogueMetadataSerializer(serializers.Serializer):
     bounding_geometry = serializers.CharField()  # ToDo: Use gis module to serialize the models.PolygonField()
     #online_resource = serializers.CharField()
     capabilities_uri = serializers.CharField()
-    service_metadata_original_uri = serializers.CharField()
+    service_metadata_uri = serializers.CharField()
     fees = serializers.CharField()
     access_constraints = serializers.CharField()
     terms_of_use = serializers.PrimaryKeyRelatedField(read_only=True)

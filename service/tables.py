@@ -5,7 +5,16 @@ import json
 from MapSkinner.celery_app import app
 from celery.result import AsyncResult
 from MapSkinner.utils import get_theme, get_ok_nok_icon
-from MapSkinner.consts import URL_PATTERN
+from MapSkinner.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
+
+
+def _get_close_button(url, user):
+    return format_html(URL_BTN_PATTERN,
+                       BTN_CLASS,
+                       BTN_SM_CLASS,
+                       get_theme(user)["TABLE"]["BTN_DANGER_COLOR"],
+                       url,
+                       format_html(get_theme(user)["ICONS"]['WINDOW_CLOSE']),)
 
 
 class ServiceTable(tables.Table):
@@ -142,10 +151,13 @@ class PendingTasksTable(tables.Table):
     pt_phase = tables.Column(verbose_name='Phase', empty_values=[], )
     pt_progress = tables.Column(verbose_name='Progress', empty_values=[], )
 
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
     def render_pt_cancle(self, record):
         url = reverse('structure:remove-task', args=(record.task_id,))
-        classes = 'btn btn-sm ' + get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"]
-        return format_html(URL_PATTERN, classes, url, format_html(get_theme(self.user)["ICONS"]['WINDOW_CLOSE']), )
+        return _get_close_button(url, self.user)
 
     @staticmethod
     def render_pt_status():

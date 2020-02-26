@@ -18,6 +18,7 @@ Werkzeug==0.16.1
 pysxm
 celery==4.3.0
 redis
+django_redis
 
 djangorestframework
 markdown

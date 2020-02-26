@@ -8,6 +8,8 @@ from celery.result import AsyncResult
 from MapSkinner.utils import get_theme, get_ok_nok_icon
 from MapSkinner.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
 from django.db.models import Count
+
+
 def _get_close_button(url, user):
     return format_html(URL_BTN_PATTERN,
                        BTN_CLASS,
@@ -21,7 +23,7 @@ class ServiceTable(tables.Table):
     wms_title = tables.Column(accessor='title', verbose_name='Title', empty_values=[])
     wms_active = tables.Column(accessor='is_active', verbose_name='Active', )
     wms_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', )
-    wms_secured_externally = tables.Column(accessor='has_external_authentication', verbose_name='Secured externally', )
+    wms_secured_externally = tables.Column(accessor='external_authentication', verbose_name='Secured externally', empty_values=[], )
     wms_version = tables.Column(accessor='service.servicetype.version', verbose_name='Version', )
     wms_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', )
     wms_registered_by_group = tables.Column(accessor='service.created_by', verbose_name='Registered by group', )
@@ -99,7 +101,7 @@ class WfsServiceTable(tables.Table):
     wfs_featuretypes = tables.Column(verbose_name='Featuretypes', empty_values=[], )
     wfs_active = tables.Column(accessor='is_active', verbose_name='Active', )
     wfs_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', )
-    wfs_secured_externally = tables.Column(accessor='has_external_authentication', verbose_name='Secured externally', )
+    wfs_secured_externally = tables.Column(accessor='external_authentication', verbose_name='Secured externally', empty_values=[], )
     wfs_version = tables.Column(accessor='service.servicetype.version', verbose_name='Version', )
     wfs_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', )
     wfs_registered_by_group = tables.Column(accessor='service.created_by', verbose_name='Registered by group', )

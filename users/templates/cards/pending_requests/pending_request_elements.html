@@ -1,0 +1,6 @@
+{% extends 'sceletons/well.html' %}
+{% load i18n %}
+{% block card-body %}
+<h5 class="mb-1 mr-3"><b>{{ request.group }} ({{ request.type }})</b></h5>
+<small class="text-muted">{{ request.created_on|date:"d.m.Y, H:i" }}</small>
+{% endblock %}

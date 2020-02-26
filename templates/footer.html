@@ -1,22 +1,45 @@
 {% load i18n static %}
-
-<footer>
-    <div class="container-left">
-    </div>
-    <div class="container-center">
-        <div id="current-lang">
-            <span>{{ LANGUAGE_CODE|upper }}</span>
+<footer class="footer {{THEME.FOOTER.BG_COLOR}} {{THEME.FOOTER.TXT_COLOR}} fixed-bottom ">
+    <div class="container-fluid">
+    <div class="row align-items-center mt-1">
+        <div class="col text-left"></div>
+        <div class="col text-center">
+                <div class="dropdown">
+                    <div class="btn-group dropup">
+                        <button type="button"
+                                class="btn {{THEME.FOOTER.BTN_PRIMARY_COLOR}} dropdown-toggle"
+                                data-toggle="dropdown"
+                                aria-haspopup="true"
+                                aria-expanded="false"
+                                title="{% trans 'Change language' %}">
+                            {{ LANGUAGE_CODE|upper }}
+                        </button>
+                        <div class="dropdown-menu" name="language">
+                            {% get_current_language as LANGUAGE_CODE %}
+                            {% get_available_languages as LANGUAGES %}
+                            {% get_language_info_list for LANGUAGES as languages %}
+                            {% for language in languages %}
+                            <form class="form-group d-none" id="form_{{ language.code }}"
+                                  action="{% url 'set_language' %}"
+                                  method="post">
+                                {% csrf_token %}
+                                <input name="next" value="{{ redirect_to }}" />
+                                <input name="language" value="{{ language.code }}" />
+                            </form>
+                            <button class="dropdown-item" type="submit" form="form_{{ language.code }}"
+                                    value="Submit"
+                                    title="{{ language.name_local }}">
+                                {{ language.code|upper }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
         </div>
-        <div id="lang-selector" class="hide">
-            <div class="lang-item" data-value="en" title="{% trans 'English' %}">EN</div>
-            <div class="lang-item" data-value="de" title="{% trans 'Deutsch' %}">DE</div>
-        </div>
-    </div>
-    <div class="container-right">
-        <div>
+        <div class="col text-right">
             <div id="ee-trggr">Mr. Map</div>
-            <a href="{{ GIT_REPO_URI }}" target="_blank">v{{ VERSION }}</a>
+            <a href="{{ GIT_REPO_URI }}" target="_blank" class="{{THEME.FOOTER.LINK_COLOR}}">v{{ VERSION }}</a>
         </div>
-
+    </div>
     </div>
 </footer>

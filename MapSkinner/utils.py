@@ -6,6 +6,15 @@ Created on: 17.04.19
 
 """
 import urllib
+import django_tables2
+from django.http import HttpRequest
+
+from MapSkinner.consts import URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
+from MapSkinner.settings import THEME
+from MapSkinner.themes import DARK_THEME, LIGHT_THEME
+from MapSkinner.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
+from django.utils.html import format_html
+from structure.models import User
 
 from MapSkinner.settings import DEBUG
 
@@ -110,3 +119,46 @@ def set_uri_GET_param(uri: str, param: str, val):
     uri = urllib.parse.urlunsplit(base_uri)
 
     return uri
+
+
+def prepare_table_pagination_settings(request: HttpRequest, table: django_tables2, param_lead: str):
+    return prepare_list_pagination_settings(request, list(table.rows), param_lead)
+
+
+def prepare_list_pagination_settings(request: HttpRequest, l: list, param_lead: str):
+    page_size_options = list(filter(lambda item: item <= len(l), PAGE_SIZE_OPTIONS))
+
+    if not page_size_options.__contains__(len(l)):
+        page_size_options.append(len(l))
+
+    page_size_options = list(filter(lambda item: item <= PAGE_SIZE_MAX, page_size_options))
+
+    pagination = {'page_size_param': param_lead + '-size',
+                  'page_size_options': page_size_options,
+                  'page_name': param_lead + '-page'
+                  }
+
+    if PAGE_SIZE_DEFAULT <= page_size_options[-1]:
+        page_size = PAGE_SIZE_DEFAULT
+    else:
+        page_size = page_size_options[-1]
+
+    pagination.update({'page_size': request.GET.get(pagination.get('page_size_param'), page_size)})
+
+    return pagination
+
+
+def get_theme(user: User):
+    if user is None:
+        return LIGHT_THEME
+    elif user.theme.name == 'DARK':
+        return DARK_THEME
+    else:
+        return LIGHT_THEME
+
+
+def get_ok_nok_icon(value):
+    if value:
+        return format_html("<i class='fas fa-check text-success'></i>")
+    else:
+        return format_html("<i class='fas fa-times text-danger'></i>")

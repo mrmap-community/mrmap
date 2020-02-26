@@ -1,0 +1,11 @@
+{% extends 'sceletons/modal-form.html' %}
+{% load i18n %}
+
+{% block modal-title %}
+{% trans 'Edit' %} <strong>{{ account.name }}</strong> {% trans 'account' %}
+{% endblock %}
+
+{% block modal-footer %}
+<button type="button" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" data-dismiss="modal">{% trans 'Close' %}</button>
+<button type="button submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">{% trans 'Save' %}</button>
+{% endblock %}

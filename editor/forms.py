@@ -5,13 +5,16 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 09.07.19
 
 """
-from django.forms import ModelForm, CheckboxInput
+from django.forms import ModelForm, CheckboxInput, CheckboxSelectMultiple
 from django.utils.translation import gettext_lazy as _
+from django import forms
 
 from service.models import Metadata
 
 
 class MetadataEditorForm(ModelForm):
+    action_url = None
+
     class Meta:
         model = Metadata
         fields = [
@@ -29,8 +32,19 @@ class MetadataEditorForm(ModelForm):
         #     "use_proxy_uri": _("Use proxy"),
         # }
         widgets = {
-            "use_proxy_uri": CheckboxInput(attrs={"class": "checkbox-input"}),
+            "use_proxy_uri": CheckboxInput(),
+            "categories": CheckboxSelectMultiple(),
+            "keywords": CheckboxSelectMultiple(),
         }
+
+    def __init__(self, *args, **kwargs):
+        # first call parent's constructor
+        super(MetadataEditorForm, self).__init__(*args, **kwargs)
+
+        # there's a `fields` property now
+        self.fields['terms_of_use'].required = False
+        #self.fields['categories'].required = False
+        #self.fields['keywords'].required = False
 
 
 class FeatureTypeEditorForm(ModelForm):

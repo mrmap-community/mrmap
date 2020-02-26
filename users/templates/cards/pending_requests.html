@@ -1,0 +1,16 @@
+<!--TODO: this element should only have 50% of current viewport height-->
+{% extends 'sceletons/card-dash.html' %}
+{% load i18n %}
+{% block card-header %}
+
+<div class="text-center">
+<h3>{% autoescape off %}{{THEME.ICONS.PENDINGTASK}}{% endautoescape %} {% trans 'Pending requests' %}</h3>
+</div>
+{% endblock %}
+{% block card-body %}
+    {% for request in requests %}
+        {% include 'cards/pending_requests/pending_request_elements.html' %}
+    {% empty %}
+        {% include 'cards/pending_requests/empty.html' %}
+    {% endfor %}
+{% endblock %}

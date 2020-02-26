@@ -24,6 +24,7 @@ from structure.models import User, Group, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
 from users.helper import user_helper
+from django.contrib import messages
 
 
 @shared_task(name="async_increase_hits")

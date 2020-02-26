@@ -1,0 +1,34 @@
+{% load i18n static %}
+{% load bootstrap4 %}
+<div class="container">
+    <div class="card {{THEME.CARD.TXT_COLOR}} {{THEME.CARD.BG}} mt-3 {{THEME.CARD.BOARDER}}">
+        <div class="card-header">
+            <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {{ registration_title }}</h4>
+        </div>
+        <div class="card-body">
+            <div class="media">
+                <img class="align-self-start w-25 mr-3" src="{% static '/structure/images/mr_map.png' %}" alt="mr. map">
+                <div class="media-body w-75">
+                    <div class="row">
+                        <div class="col">
+                            <article>
+                                {{ registration_article }}
+                            </article>
+                        </div>
+                    </div>
+                    <div class="row mt-5">
+                        <div class="col">
+                            <form action="{{ action_url }}" method="post">
+                                {% csrf_token %}
+                                {% bootstrap_form form %}
+                                <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">
+                                    {% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

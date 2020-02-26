@@ -1,0 +1,12 @@
+{% load static %}
+
+{% block head %}
+<link rel="stylesheet" type="text/css" href="{% static '/structure/css/leaflet.css' %}" media="all"/>
+<script type="text/javascript" src="{% static '/structure/js/leaflet.js' %}"></script>
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    {% include 'includes/wms/sublayer_detail.html' %}
+</div>
+{% endblock %}

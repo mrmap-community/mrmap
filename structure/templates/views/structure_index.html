@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block body %}
+    <div class="container">
+        {% include 'includes/index/groups.html' %}
+    </div>
+    <div class="container">
+        {% include 'includes/index/organizations.html' %}
+    </div>
+{% endblock %}

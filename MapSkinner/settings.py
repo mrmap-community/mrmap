@@ -14,6 +14,7 @@ import os
 
 import sys
 from django.utils.translation import gettext_lazy as _
+from django.contrib.messages import constants as messages
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
@@ -43,6 +44,10 @@ ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
 EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
 
+PAGE_SIZE_OPTIONS = [1, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100, 200, 500]
+PAGE_SIZE_DEFAULT = 5
+PAGE_SIZE_MAX = 100
+PAGE_DEFAULT = 1
 
 CATEGORIES = {
     "inspire": "https://www.eionet.europa.eu/gemet/getTopmostConcepts?thesaurus_uri=http://inspire.ec.europa.eu/theme/&language={}",
@@ -120,7 +125,15 @@ INSTALLED_APPS = [
     'captcha',
     'rest_framework',
     'api',
+    'bootstrap4',
+    'fontawesome_5',
+    'django_tables2',
+    'query_parameters',
 ]
+
+TEMPLATE_LOADERS = (
+    'django.template.loaders.structure.django_tables2_extras.py',
+)
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -162,6 +175,8 @@ TEMPLATES = [
         },
     },
 ]
+
+
 
 WSGI_APPLICATION = 'MapSkinner.wsgi.application'
 
@@ -262,3 +277,14 @@ PROGRESS_STATUS_AFTER_PARSING = 90  # indicates at how much % status we are afte
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR + "/static/"
+
+# define the message tags for bootstrap4
+MESSAGE_TAGS = {
+    messages.DEBUG: 'alert-info',
+    messages.INFO: 'alert-info',
+    messages.SUCCESS: 'alert-success',
+    messages.WARNING: 'alert-warning',
+    messages.ERROR: 'alert-danger',
+}
+
+THEME = 'LIGHT'

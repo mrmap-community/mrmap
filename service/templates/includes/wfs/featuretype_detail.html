@@ -1,0 +1,53 @@
+{% extends 'sceletons/card.html' %}
+{% load i18n %}
+
+{% block card-header-title-left %}
+<h4 class="mb-1 mr-3">
+    {% autoescape off %}{{THEME.ICONS.LAYER}}{% endautoescape %}
+    <b>{{ service.metadata.title }}</b>
+</h4>
+{% endblock %}
+{% block card-header-title-right %}
+    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'service:index' %}">
+        <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Overview' %}</span>
+    </a>
+{% endblock %}
+
+{% load i18n %}
+{% block card-body %}
+    <div class="row mb-2 ">
+        <div class="col-sm mb-2 text-center">
+            {% if 'can_edit_metadata_service' in user_permissions %}
+                <div class="dropdown">
+                  <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="id_edit_service_{{service.id}}_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit layer' %}
+                  </button>
+                  <div class="dropdown-menu" aria-labelledby="id_edit_service_{{service.id}}_dropdown">
+                    <a class="dropdown-item" href="{% url 'editor:edit' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}</a>
+                    <a class="dropdown-item" href="{% url 'editor:edit_access' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.ACCESS}}{% endautoescape %} {% trans 'Access' %}</a>
+                  </div>
+                </div>
+            {% endif %}
+            </div><!--</col>-->
+            <div class="col-sm mb-2 text-center">
+                <!--TODO: Hide?-->
+                <a class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}" href="{% url 'service:get-dataset-metadata' service.metadata.id %}">{% trans 'Dataset Metadata' %}</a>
+            </div><!--</col>-->
+            <div class="col-sm mb-2 text-center">
+            {% if 'can_edit_metadata_service' in user_permissions %}
+                <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
+            {% endif %}
+            </div><!--</col>-->
+        </div><!--</row>-->
+        <div class="row mb-2 ">
+        <div class="col">
+
+
+        {% include 'includes/wfs/featuretype_detail_table.html' %}
+        {% with service as featuretype %}
+            {% include 'includes/wfs/show_featuretype_elements_accordion.html' %}
+        {% endwith %}
+
+        </div><!--</col>-->
+</div><!--</row>-->
+{% endblock %}

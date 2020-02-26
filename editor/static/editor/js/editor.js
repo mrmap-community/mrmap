@@ -33,7 +33,7 @@ function initializeSecuredFormStatus(){
     var isSecured = $("#id_is_secured").is(":checked");
     var securedSelectors = $(".secured-selector");
     var selectorParentRows = securedSelectors.closest("tr");
-    var addGeometryButtons = selectorParentRows.find(".add-geometry");
+    var addGeometryButtons = selectorParentRows.find(".add-geometry_");
 
     if(isSecured){
         securedSelectors.removeAttr("disabled")
@@ -51,7 +51,7 @@ function toggleSecuredCheckbox(){
     var checked = elem.is(":checked");
     var rows = $(".operation-row");
     var inputs = rows.find("input")
-    var addGeometryButtons = rows.find(".add-geometry")
+    var addGeometryButtons = rows.find(".add-geometry_")
     if(checked){
         rows.removeClass("disabled");
         inputs.removeAttr("disabled");
@@ -263,7 +263,7 @@ $(document).ready(function(){
         return true;
     });
 
-    $(".add-geometry").click(function(){
+    $(".add-geometry_").click(function(){
         var elem = $(this);
         var serviceMetadataId = elem.attr("data-id")
         var operation = elem.siblings("input").attr("data-operation");
@@ -277,6 +277,7 @@ $(document).ready(function(){
         }
 
         $.ajax({
+            // TODO: use url dispatcher....
             url: rootUrl + "/editor/edit/access/" + serviceMetadataId + "/geometry-form/",
             headers: {
                 "X-CSRFToken": getCookie("csrftoken")
@@ -289,8 +290,14 @@ $(document).ready(function(){
             type: 'get',
             dataType: 'json'
         }).done(function(data){
-            var html = data["html"];
-            toggleOverlay(html);
+            $( "#id_modal_leaflet_modal").modal('show');
+
+            $('#id_modal_leaflet_modal').on('shown.bs.modal', function (e) {
+                var html = data["html"];
+                $( "#id_leaflet_client_div" ).html( html );
+            })
+
+            //toggleOverlay(html);
 
         }).always(function(data){
             checkRedirect(data);

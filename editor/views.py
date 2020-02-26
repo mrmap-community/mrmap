@@ -6,61 +6,73 @@ from django.shortcuts import render, redirect
 
 # Create your views here.
 from django.template.loader import render_to_string
+from django_tables2 import RequestConfig
 
 from MapSkinner import utils
+from MapSkinner.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
     METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED, SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
-from MapSkinner.settings import ROOT_URL, HTTP_OR_SSL, HOST_NAME
+from MapSkinner.settings import ROOT_URL, HTTP_OR_SSL, HOST_NAME, PAGE_DEFAULT, PAGE_SIZE_DEFAULT
+from MapSkinner.utils import prepare_table_pagination_settings
 from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper.enums import OGCServiceEnum, MetadataEnum
 from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation, Document
 from django.utils.translation import gettext_lazy as _
-
 from structure.models import User, Permission, Group
 from users.helper import user_helper
 from editor.helper import editor_helper
-
+from editor.tables import *
+from editor.filters import *
 
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))
-def index(request: HttpRequest, user:User):
+def index(request: HttpRequest, user: User,):
     """ The index view of the editor app.
 
     Lists all services with information of custom set metadata.
 
     Args:
         request: The incoming request
+        user:
     Returns:
     """
     # get all services that are registered by the user
-    template = "editor_index.html"
 
-    wms_services = user.get_services(OGCServiceEnum.WMS)
-    wms_list = []
-    for wms in wms_services:
-        child_layers = Layer.objects.filter(parent_service__metadata=wms, metadata__is_custom=True)
-        tmp = {
-            "root_metadata": wms,
-            "custom_subelement_metadata": child_layers,
-        }
-        wms_list.append(tmp)
+    template = "views/editor_service_table_index.html"
 
-    wfs_services = user.get_services(OGCServiceEnum.WFS)
-    wfs_list = []
-    for wfs in wfs_services:
-        custom_children = FeatureType.objects.filter(parent_service__metadata=wfs, metadata__is_custom=True)
-        tmp = {
-            "root_metadata": wfs,
-            "custom_subelement_metadata": custom_children,
-        }
-        wfs_list.append(tmp)
+    wms_services = user.get_services_as_qs(OGCServiceEnum.WMS)
+    wms_table_filtered = WmsServiceFilter(request.GET, queryset=wms_services)
+    wms_table = WmsServiceTable(wms_table_filtered.qs,
+                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, user=user,)
+    wms_table.filter = wms_table_filtered
+    RequestConfig(request).configure(wms_table)
+    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    # TODO: move pagination as function to ExtendedTable
+    wms_table.pagination = prepare_table_pagination_settings(request, wms_table, 'wms-t')
+    wms_table.page_field = wms_table.pagination.get('page_name')
+    wms_table.paginate(page=request.GET.get(wms_table.pagination.get('page_name'), PAGE_DEFAULT),
+                       per_page=request.GET.get(wms_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+
+    wfs_services = user.get_services_as_qs(OGCServiceEnum.WFS)
+    wfs_table_filtered = WfsServiceFilter(request.GET, queryset=wfs_services)
+    wfs_table = WfsServiceTable(wfs_table_filtered.qs,
+                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, user=user,)
+    wfs_table.filter = wfs_table_filtered
+    RequestConfig(request).configure(wfs_table)
+    # TODO: # since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    # TODO: move pagination as function to ExtendedTable
+    wfs_table.pagination = prepare_table_pagination_settings(request, wfs_table, 'wfs-t')
+    wfs_table.page_field = wfs_table.pagination.get('page_name')
+    wfs_table.paginate(page=request.GET.get(wfs_table.pagination.get('page_name'), PAGE_DEFAULT),
+                       per_page=request.GET.get(wfs_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+
     params = {
-        "wfs": wfs_list,
-        "wms": wms_list,
+        "wms_table": wms_table,
+        "wfs_table": wfs_table,
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
@@ -88,7 +100,6 @@ def edit(request: HttpRequest, id: int, user: User):
         return redirect("editor:index")
 
     editor_form = MetadataEditorForm(request.POST or None)
-    editor_form.fields["terms_of_use"].required = False
 
     if request.method == 'POST':
 
@@ -129,28 +140,17 @@ def edit(request: HttpRequest, id: int, user: User):
             messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
             return redirect("editor:edit", id)
     else:
-        addable_values_list = [
-            {
-                "title": _("Keywords"),
-                "name": "keywords",
-                "values": metadata.keywords.all(),
-                "all_values": Keyword.objects.all().order_by("keyword"),
-            },
-            {
-                "title": _("Categories"),
-                "name": "categories",
-                "values": metadata.categories.all(),
-                "all_values": Category.objects.all().order_by("title_EN"),
-            },
-        ]
-        template = "editor_edit.html"
+
+        template = "views/editor_metadata_index.html"
         editor_form = MetadataEditorForm(instance=metadata)
-        editor_form.fields["terms_of_use"].required = False
+        editor_form.action_url = reverse("editor:edit", args=(id,))
+
+        if not metadata.is_root():
+            del editor_form.fields["use_proxy_uri"]
+
         params = {
             "service_metadata": metadata,
-            "addable_values_list": addable_values_list,
             "form": editor_form,
-            "action_url": "{}/editor/edit/{}".format(ROOT_URL, id),
         }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
@@ -220,7 +220,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
     """
     md = Metadata.objects.get(id=id)
     md_type = md.metadata_type.type
-    template = "editor_edit_access.html"
+    template = "views/editor_edit_access_index.html"
     post_params = request.POST
 
     if request.method == "POST":
@@ -278,9 +278,10 @@ def edit_access(request: HttpRequest, id: int, user: User):
     context = DefaultContext(request, params, user).get_context()
     return render(request, template, context)
 
+
 @check_session
 def access_geometry_form(request: HttpRequest, id: int, user: User):
-    template = "access_geometry_form.html"
+    template = "views/access_geometry_form.html"
 
     GET_params = request.GET
     operation = GET_params.get("operation", None)
@@ -299,7 +300,6 @@ def access_geometry_form(request: HttpRequest, id: int, user: User):
     service_bounding_geometry = md.find_max_bounding_box()
 
     params = {
-        "article": _("Add a geometry, which defines the area where this group can access the operation on this service."),
         "action_url": "{}{}/editor/edit/access/{}/geometry-form/".format(HTTP_OR_SSL, HOST_NAME, md.id),
         "bbox": service_bounding_geometry,
         "group_id": group_id,

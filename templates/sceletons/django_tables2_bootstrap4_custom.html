@@ -1,0 +1,157 @@
+{% load django_tables2 %}
+{% load i18n %}
+{% load fontawesome_5 %}
+{% block table-wrapper %}
+{% load bootstrap4 %}
+{% load query_parameters %}
+{% load django_tables2_extras %}
+<div class="row"><!--filter and pagesize-->
+    {% if table.filter.form %}
+    <div class="col-md-7 col-lg-9 col-xl-10"><!--filter-->
+        <form action="" method="get" class="form form-inline">
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        {% bootstrap_form table.filter.form layout='inline' %}
+                    </div>
+                </div>
+                <div class="col">
+                    <button type="submit" class="btn {{table.context.THEME.TABLE.BTN_PRIMARY_COLOR}}">{% autoescape off %}{{table.context.THEME.ICONS.SEARCH}}{% endautoescape %} {% trans 'Search'%}</button>
+                </div>
+            </div>
+        </form>
+    </div><!--</filter-->
+    {% endif %}
+    {% if table.pagination %}
+    <div class="col-md-5 col-lg-3 col-xl-2"><!--pagesize-->
+        {% if table.pagination.page_size %}
+            <div class="dropdown d-inline-block">
+                {% trans 'Show' %}
+                <button class="btn {{table.context.THEME.TABLE.BTN_PRIMARY_COLOR}} dropdown-toggle" type="button" id="wmsPagingButton"
+                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ table.pagination.page_size }}
+                </button>
+                {% trans 'entries' %}
+                <div class="dropdown-menu" aria-labelledby="wmsPagingButton">
+                    {% for page_size in table.pagination.page_size_options %}
+                    <a class="dropdown-item" href="?{{table.pagination.page_size_param}}={{page_size}}">{{ page_size }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    </div><!--</pagesize-->
+    {% endif %}
+</div>
+<div class="mt-3">
+    <div class="row"><!--django-table2-->
+    <div class="col">
+        <div class="overflow-auto">
+        <div class="table-container">
+            {% block table %}
+                <table class="table {{table.context.THEME.TABLE.HOVER}} {{table.context.THEME.TABLE.STRIPED}} {{table.context.THEME.TABLE.BG}} {{table.context.THEME.TABLE.BORDER}} {{table.context.THEME.TABLE.BORDERED}}" {% render_attrs table.attrs %}>
+                    {% block table.thead %}
+                    {% if table.show_header %}
+                        <thead {{ table.attrs.thead.as_html }}>
+                        <tr>
+                        {% for column in table.columns %}
+                            <th {{ column.attrs.th.as_html }}>
+                                {% if column.orderable %}
+                                    {{ column.header }}<div class="float-right">
+                                    {% if '-' in column.order_by_alias.next and request.GET|get_order_by_alias_from_request:table.order_by_field is not None %}
+                                    <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
+                                    class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else%} {{table.context.THEME.TABLE.LINK_COLOR}}  {% endif %}">
+                                        {% autoescape off %}{{table.context.THEME.ICONS.SORT_ALPHA_UP}}{% endautoescape %} {{THEME}}
+                                    </a>
+                                    {% else %}
+                                    <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next%}"
+                                    class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else %} {{table.context.THEME.TABLE.LINK_COLOR}} {% endif %}">
+                                        {% autoescape off %}{{table.context.THEME.ICONS.SORT_ALPHA_DOWN}}{% endautoescape %} {{THEME}}
+                                    </a>
+                                    {% endif %}
+                                    </div>
+                                {% else %}
+                                    {{ column.header }}
+                                {% endif %}
+                            </th>
+                        {% endfor %}
+                        </tr>
+                        </thead>
+                    {% endif %}
+                    {% endblock table.thead %}
+                    {% block table.tbody %}
+                        <tbody {{ table.attrs.tbody.as_html }}>
+                        {% for row in table.paginated_rows %}
+                            {% block table.tbody.row %}
+                            <tr {{ row.attrs.as_html }}>
+                                {% for column, cell in row.items %}
+                                    <td {{ column.attrs.td.as_html }}>{% if column.localize == None %}{{ cell }}{% else %}{% if column.localize %}{{ cell|localize }}{% else %}{{ cell|unlocalize }}{% endif %}{% endif %}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endblock table.tbody.row %}
+                        {% empty %}
+                            {% if table.empty_text %}
+                            {% block table.tbody.empty_text %}
+                                <tr><td colspan="{{ table.columns|length }}">{{ table.empty_text }}</td></tr>
+                            {% endblock table.tbody.empty_text %}
+                            {% endif %}
+                        {% endfor %}
+                        </tbody>
+                    {% endblock table.tbody %}
+                    {% block table.tfoot %}
+                    {% if table.has_footer %}
+                    <tfoot {{ table.attrs.tfoot.as_html }}>
+                        <tr>
+                        {% for column in table.columns %}
+                            <td {{ column.attrs.tf.as_html }}>{{ column.footer }}</td>
+                        {% endfor %}
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                    {% endblock table.tfoot %}
+                </table>
+            {% endblock table %}
+
+            {% block pagination %}
+                {% if table.page and table.paginator.num_pages > 1 %}
+                <nav aria-label="Table navigation">
+                    <ul class="pagination justify-content-center">
+                    {% if table.page.has_previous %}
+                        {% block pagination.previous %}
+                        <li class="previous page-item">
+                            <a href="{% querystring table.prefixed_page_field=table.page.previous_page_number %}" class="page-link">
+                                <span aria-hidden="true">&laquo;</span>
+                                {% trans 'previous' %}
+                            </a>
+                        </li>
+                        {% endblock pagination.previous %}
+                    {% endif %}
+                    {% if table.page.has_previous or table.page.has_next %}
+                    {% block pagination.range %}
+                    {% for p in table.page|table_page_range:table.paginator %}
+                        <li class="page-item{% if table.page.number == p %} active{% endif %} ">
+                            <a class="page-link" {% if p != '...' %}href="{% querystring table.prefixed_page_field=p %}"{% endif %}>
+                                {{ p }}
+                            </a>
+                        </li>
+                    {% endfor %}
+                    {% endblock pagination.range %}
+                    {% endif %}
+                    {% if table.page.has_next %}
+                        {% block pagination.next %}
+                        <li class="next page-item">
+                            <a href="{% querystring table.prefixed_page_field=table.page.next_page_number %}" class="page-link">
+                                {% trans 'next' %}
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        {% endblock pagination.next %}
+                    {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% endblock pagination %}
+        </div>
+    </div>
+    </div>
+</div><!--</django-table2-->
+</div>
+{% endblock table-wrapper %}

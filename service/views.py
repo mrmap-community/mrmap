@@ -3,7 +3,6 @@ from io import BytesIO
 
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.paginator import Paginator
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
@@ -11,152 +10,378 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
+from django_tables2 import RequestConfig
 from requests import ReadTimeout
 
 from MapSkinner import utils
 from MapSkinner.cacher import DocumentCacher
+from MapSkinner.consts import *
 from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-from MapSkinner.settings import ROOT_URL
+from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
+from MapSkinner.utils import prepare_table_pagination_settings
 from service import tasks
 from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper, xml_helper
+from service.filters import WmsFilter, WfsFilter
+from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
+    RegisterNewServiceWizardPage2, RemoveService
+from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum
 
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
+from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style
 from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
+from django.urls import reverse
+
+
+def _prepare_wms_table(request: HttpRequest, user: User, ):
+    # whether whole services or single layers should be displayed
+    display_service_type = request.GET.get("q", None)  # s = services, l=layers
+    is_root = True
+    if display_service_type is not None:
+        is_root = display_service_type != "l"
+
+    md_list_wms = Metadata.objects.filter(
+        service__servicetype__name="wms",
+        service__is_root=is_root,
+        created_by__in=user.groups.all(),
+        service__is_deleted=False,
+    ).order_by("title")
+
+    wms_table_filtered = WmsFilter(request.GET, queryset=md_list_wms)
+
+    if display_service_type is None or display_service_type == 's':
+        wms_table = WmsServiceTable(wms_table_filtered.qs,
+                                    template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+                                    order_by_field='swms',  # swms = sort wms
+                                    user=user,)
+    else:
+        wms_table = WmsLayerTable(wms_table_filtered.qs,
+                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+                                  order_by_field='swms',  # swms = sort wms
+                                  user=user,)
+
+    wms_table.filter = wms_table_filtered
+    RequestConfig(request).configure(wms_table)
+    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    # TODO: move pagination as function to ExtendedTable
+    wms_table.pagination = prepare_table_pagination_settings(request, wms_table, 'wms-t')
+    wms_table.page_field = wms_table.pagination.get('page_name')
+    wms_table.paginate(page=request.GET.get(wms_table.pagination.get('page_name'), PAGE_DEFAULT),
+                       per_page=request.GET.get(wms_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+
+    params = {
+        "wms_table": wms_table,
+    }
+
+    return params
+
+
+def _prepare_wfs_table(request: HttpRequest, user: User, ):
+    md_list_wfs = Metadata.objects.filter(
+        service__servicetype__name="wfs",
+        created_by__in=user.groups.all(),
+        service__is_deleted=False,
+    ).order_by("title")
+
+    wfs_table_filtered = WfsFilter(request.GET, queryset=md_list_wfs)
+    wfs_table = WfsServiceTable(wfs_table_filtered.qs,
+                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+                                order_by_field='swfs',  # swms = sort wms
+                                user=user,)
+
+    wfs_table.filter = wfs_table_filtered
+    RequestConfig(request).configure(wfs_table)
+    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    # TODO: move pagination as function to ExtendedTable
+    wfs_table.pagination = prepare_table_pagination_settings(request, wfs_table, 'wfs-t')
+    wfs_table.page_field = wfs_table.pagination.get('page_name')
+    wfs_table.paginate(page=request.GET.get(wfs_table.pagination.get('page_name'), PAGE_DEFAULT),
+                       per_page=request.GET.get(wfs_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+
+    params = {
+        "wfs_table": wfs_table,
+    }
+
+    return params
+
+
+def _new_service_wizard(request, user):
+    params = {}
+    page = int(request.POST.get("page"))
+
+    if page is 1:
+        # Page One is posted --> validate it
+        form = RegisterNewServiceWizardPage1(request.POST)
+        if form.is_valid():
+            # Form is valid --> response with page 2
+            url_dict = service_helper.split_service_uri(form.cleaned_data['get_request_uri'])
+            init_data = {'ogc_request': url_dict["request"],
+                         'ogc_service': url_dict["service"].value,
+                         'ogc_version': url_dict["version"].value,
+                         'uri': url_dict["base_uri"],
+                         'service_needs_authentication': False,
+                         }
+            params.update({
+                "new_service_form": RegisterNewServiceWizardPage2(initial=init_data,
+                                                                  user=user,
+                                                                  selected_group=user.groups.first(),
+                                                                  service_needs_authentication='off'),
+                "action_url": reverse(SERVICE_INDEX, ),
+                "show_modal": True,
+            })
+        else:
+            # Form is not valid --> response with page 1 and show errors
+            params.update({
+                "new_service_form": form,
+                "action_url": reverse(SERVICE_INDEX, ),
+                "show_modal": True,
+            })
+
+    elif page is 2:
+        # Page two is posted --> collect all data from post and initial the form
+        selected_group = user.groups.all().get(id=int(request.POST.get("registering_with_group")))
+        is_auth_needed = False
+        if request.POST.get("service_needs_authentication") == 'on':
+            is_auth_needed = True
+
+        init_data = {'ogc_request': request.POST.get("ogc_request"),
+                     'ogc_service': request.POST.get("ogc_service"),
+                     'ogc_version': request.POST.get("ogc_version"),
+                     'uri': request.POST.get("uri"),
+                     'registering_with_group': request.POST.get("registering_with_group"),
+                     'service_needs_authentication': is_auth_needed,
+                     }
+
+        form = RegisterNewServiceWizardPage2(initial=init_data,
+                                             user=user,
+                                             selected_group=selected_group,
+                                             service_needs_authentication=request.POST.get(
+                                                 "service_needs_authentication"))
+
+        # first check if it's just a update of the form
+        if request.POST.get("is_form_update") == 'True':
+            # it's just a updated form state. return the new state as view
+            params.update({
+                "new_service_form": form,
+                "action_url": reverse(SERVICE_INDEX, ),
+                "show_modal": True,
+            })
+            return params
+        else:
+            # it's not a update. we have to validate the fields now
+            # and if all is fine generate a new pending task object
+
+            # get bounded form with parameter request.POST
+            form = RegisterNewServiceWizardPage2(request.POST, initial=init_data,
+                                                 user=user,
+                                                 selected_group=selected_group,
+                                                 service_needs_authentication=request.POST.get(
+                                                     "service_needs_authentication"))
+
+            if form.is_valid():
+                # TODO: # Form is valid --> register new service --> redirect to service index
+                # run creation async!
+                external_auth = None
+                if form.cleaned_data['service_needs_authentication'] == 'on':
+                    external_auth = {"username": form.cleaned_data['username'],
+                                     "password": form.cleaned_data['password'],
+                                     "auth_type": form.cleaned_data['authentication_type']}
+
+                register_for_other_org = 'None'
+                if form.cleaned_data['registering_for_other_organization'] is not None:
+                    register_for_other_org = form.cleaned_data['registering_for_other_organization'].id
+
+                uri_dict = {
+                    "base_uri": form.cleaned_data["uri"],
+                    "version": form.cleaned_data["ogc_version"],
+                    "service": form.cleaned_data["ogc_service"],
+                    "request": form.cleaned_data["ogc_request"],
+                }
+
+                try:
+                    pending_task = tasks.async_new_service.delay(uri_dict,
+                                                                 user.id,
+                                                                 form.cleaned_data['registering_with_group'].id,
+                                                                 register_for_other_org,
+                                                                 external_auth)
+
+                    # create db object, so we know which pending task is still ongoing
+                    pending_task_db = PendingTask()
+                    pending_task_db.created_by = Group.objects.get(id=form.cleaned_data['registering_with_group'].id)
+                    pending_task_db.task_id = pending_task.task_id
+                    pending_task_db.description = json.dumps({
+                        "service": form.cleaned_data['uri'],
+                        "phase": "Parsing",
+                    })
+
+                    pending_task_db.save()
+
+
+
+
+                except Exception as e:
+                    # Form is not valid --> response with page 2 and show errors
+                    form.add_error(None, e)
+                    params.update({
+                        "new_service_form": form,
+                        "action_url": reverse(SERVICE_INDEX, ),
+                        "show_modal": True,
+                    })
+
+                return {'wizard_finished': True}
+
+            else:
+                # Form is not valid --> response with page 2 and show errors
+                params.update({
+                    "new_service_form": form,
+                    "action_url": reverse(SERVICE_INDEX, ),
+                    "show_modal": True,
+                })
+
+    return params
 
 
 @check_session
-def index(request: HttpRequest, user: User, service_type=None):
+def index(request: HttpRequest, user: User):
     """ Renders an overview of all wms and wfs
 
     Args:
         request (HttpRequest): The incoming request
         user (User): The session user
-        service_type: Indicates if only a special service type shall be displayed
     Returns:
          A view
     """
-    template = "service_index.html"
-    GET_params = request.GET
-
-    # possible results per page values
-    rpp_select = [5, 10, 15, 20, 50, 100, 200, 500, 1000]
-    try:
-        wms_page = int(GET_params.get("wmsp", 1))
-        wfs_page = int(GET_params.get("wfsp", 1))
-        results_per_page = int(GET_params.get("rpp", 5))
-        if wms_page < 1 or wfs_page < 1 or results_per_page < 1:
-            raise ValueError
-        if results_per_page not in rpp_select:
-            results_per_page = 5
-    except ValueError as e:
-        # since parameters could be changed directly in the uri, we need to make sure to avoid problems
-        return redirect("service:index")
-
-    # whether whole services or single layers should be displayed
-    display_service_type = GET_params.get("q", None)  # possible contents of 'q' are s=services or l=layers
-    is_root = True
-    if display_service_type is not None:
-        is_root = display_service_type != "l"
-
-    # get services
-    paginator_wms = None
-    paginator_wfs = None
-    if service_type is None or service_type == OGCServiceEnum.WMS.value:
-        md_list_wms = Metadata.objects.filter(
-            service__servicetype__name="wms",
-            service__is_root=is_root,
-            created_by__in=user.groups.all(),
-            service__is_deleted=False,
-        ).order_by("title")
-        paginator_wms = Paginator(md_list_wms, results_per_page).get_page(wms_page)
-    if service_type is None or service_type == OGCServiceEnum.WFS.value:
-        md_list_wfs = Metadata.objects.filter(
-            service__servicetype__name="wfs",
-            created_by__in=user.groups.all(),
-            service__is_deleted=False,
-        ).order_by("title")
-        paginator_wfs = Paginator(md_list_wfs, results_per_page).get_page(wfs_page)
+    # Default content
+    template = "views/index.html"
 
     # get pending tasks
-    pending_tasks = PendingTask.objects.filter(created_by__in=user.groups.all())
-    for task in pending_tasks:
-        task.description = json.loads(task.description)
+    pt = PendingTask.objects.filter(created_by__in=user.groups.all())
+    pt_table = PendingTasksTable(pt,
+                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+                                 orderable=False, user=user,)
+
     params = {
-        "metadata_list_wms": paginator_wms,
-        "metadata_list_wfs": paginator_wfs,
-        "select_default": display_service_type,
-        "only_type": service_type,
+        "pt_table": pt_table,
+        "new_service_form": RegisterNewServiceWizardPage1(),
+        "action_url": reverse(SERVICE_INDEX, ),
         "user": user,
-        "rpp_select_options": rpp_select,
-        "rpp": results_per_page,
-        "pending_tasks": pending_tasks,
+        "wizard_finished": False
     }
+
+    params.update(_prepare_wms_table(request, user, ))
+    params.update(_prepare_wfs_table(request, user, ))
+
+    # special content for new service wizard
+    if request.method == 'POST':
+        params.update(_new_service_wizard(request, user))
+
+    if params['wizard_finished'] is True:
+        # we have to redirect to service:index, to prevent new post of the form after pressing f5
+        return redirect(reverse(SERVICE_INDEX, ))
+
+    context = DefaultContext(request, params, user)
+    return render(request=request, template_name=template, context=context.get_context())
+
+
+@check_session
+def pending_tasks(request: HttpRequest, user: User):
+    """ Renders a table of all pending tasks
+
+    Args:
+        request (HttpRequest): The incoming request
+        user (User): The session user
+    Returns:
+         A view
+    """
+    # Default content
+    template = "includes/pending_tasks.html"
+
+    # get pending tasks
+    pt = PendingTask.objects.filter(created_by__in=user.groups.all())
+
+    pt_table = PendingTasksTable(pt,
+                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+                                 orderable=False, user=user,)
+
+    params = {
+        "pt_table": pt_table,
+        "user": user,
+    }
+
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 
 
 @check_session
 @check_permission(Permission(can_remove_service=True))
-def remove(request: HttpRequest, user: User):
+def remove(request: HttpRequest, id:int, user: User):
     """ Renders the remove form for a service
 
     Args:
         request(HttpRequest): The used request
         user (User): The performing user
     Returns:
-        A rendered view
+        Redirect to service:index
     """
-    template = "overlay/remove_service_confirmation.html"
-    service_id = request.GET.dict().get("id")
-    confirmed = request.GET.dict().get("confirmed")
-    service = get_object_or_404(Service, id=service_id)
-    service_type = service.servicetype
-    sub_elements = None
-    if service_type.name == OGCServiceEnum.WMS.value:
-        sub_elements = Layer.objects.filter(parent_service=service)
-    elif service_type.name == OGCServiceEnum.WFS.value:
-        sub_elements = service.featuretypes.all()
-    metadata = get_object_or_404(Metadata, service=service)
-    if confirmed == 'false':
-        params = {
-            "service": service,
-            "metadata": metadata,
-            "sub_elements": sub_elements,
-        }
-        html = render_to_string(template_name=template, context=params, request=request)
-        return BackendAjaxResponse(html=html).get_response()
+
+    remove_form = RemoveService(request.POST)
+    if remove_form.is_valid():
+        service = get_object_or_404(Service, id=id)
+        service_type = service.servicetype
+        sub_elements = None
+        if service_type.name == OGCServiceEnum.WMS.value:
+            sub_elements = Layer.objects.filter(parent_service=service)
+        elif service_type.name == OGCServiceEnum.WFS.value:
+            sub_elements = service.featuretypes.all()
+        metadata = get_object_or_404(Metadata, service=service)
+        if remove_form.cleaned_data['is_confirmed'] == 'off':
+            # TODO: redirect to service:detail; show modal by default with error message
+            params = {
+                "service": service,
+                "metadata": metadata,
+                "sub_elements": sub_elements,
+            }
+            return redirect("service:detail", id)
+        else:
+            # remove service and all of the related content
+            user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
+
+            # set service as deleted, so it won't be listed anymore in the index view until completely removed
+            service.is_deleted = True
+            service.save()
+
+            # call removing as async task
+            async_remove_service_task.delay(id)
+            # TODO: we dont know this at this time; refactor this; async_remove function should add messages
+            messages.success(request, 'Service %s successfully deleted.' % id)
+
+            return redirect(SERVICE_INDEX)
     else:
-        # remove service and all of the related content
-        user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
+        # TODO: redirect to service:detail; show modal by default with error message
+        return redirect("service:detail", id)
 
-        # set service as deleted, so it won't be listed anymore in the index view until completely removed
-        service.is_deleted = True
-        service.save()
 
-        # call removing as async task
-        async_remove_service_task.delay(service_id)
-
-        return BackendAjaxResponse(html="", redirect=ROOT_URL + "/service").get_response()
-
+# TODO: update function documentation
 @check_session
 @check_permission(Permission(can_activate_service=True))
-def activate(request: HttpRequest, id: int, user:User):
+def activate(request: HttpRequest, id: int, user: User):
     """ (De-)Activates a service and all of its layers
 
     Args:
+        user:
+        id:
         request:
     Returns:
          An Ajax response
@@ -164,7 +389,11 @@ def activate(request: HttpRequest, id: int, user:User):
     # run activation async!
     tasks.async_activate_service.delay(id, user.id)
 
+    # TODO: we dont know this at this time; refactor this; async_remove function should add messages
+    messages.success(request, 'Service %s successfully (de-)activated.' % id)
+
     return redirect("service:index")
+
 
 @log_proxy
 def get_service_metadata(request: HttpRequest, id: int):
@@ -187,7 +416,7 @@ def get_service_metadata(request: HttpRequest, id: int):
     if not metadata.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
 
-    return HttpResponse(doc, content_type='application/xml')
+    return HttpResponse(doc, content_type=APP_XML)
 
 
 def get_dataset_metadata(request: HttpRequest, id: int):
@@ -334,6 +563,7 @@ def get_capabilities(request: HttpRequest, id: int):
 
     return HttpResponse(doc, content_type='application/xml')
 
+
 @log_proxy
 def get_capabilities_original(request: HttpRequest, id: int):
     """ Returns the current capabilities xml file
@@ -358,7 +588,7 @@ def get_capabilities_original(request: HttpRequest, id: int):
 
 
 @check_session
-def set_session(request: HttpRequest, user:User):
+def set_session(request: HttpRequest, user: User):
     """ Can set a value to the django session
 
     Args:
@@ -374,140 +604,45 @@ def set_session(request: HttpRequest, user:User):
         request.session[_session_key] = _session_val
     return BackendAjaxResponse(html="").get_response()
 
+
 @check_session
-def wms(request:HttpRequest, user:User):
+def wms_index(request: HttpRequest, user: User):
     """ Renders an overview of all wms
 
-    Args:
+    Args:t
         request (HttpRequest): The incoming request
     Returns:
          A view
     """
-    return redirect("service:index", OGCServiceEnum.WMS.value)
+    # Default content
+    template = "views/wms_index.html"
 
-
-@check_session
-@check_permission(Permission(can_register_service=True))
-def register_form(request: HttpRequest, user: User):
-    """ Returns the form for providing a capabilities URI
-
-    Args:
-        request:
-    Returns:
-        BackendAjaxResponse
-    """
-    template = "overlay/service_url_form.html"
-    POST_params = request.POST.dict()
-    if POST_params.get("uri", None) is not None:
-
-        error = False
-        cap_url = POST_params.get("uri", "")
-        url_dict = service_helper.split_service_uri(cap_url)
-
-        if url_dict["request"].lower() != OGCOperationEnum.GET_CAPABILITIES.value.lower():
-            # not allowed!
-            error = True
-
-        try:
-            # create group->publishable organizations dict
-            group_orgs = {}
-            for group in user.groups.all():
-                group_orgs[group.id] = list(group.publish_for_organizations.all().values_list("id", flat=True))
-            params = {
-                "error": error,
-                "uri": url_dict["base_uri"],
-                "version": url_dict["version"].value,
-                "service_type": url_dict["service"].value,
-                "request_action": url_dict["request"],
-                "full_uri": cap_url,
-                "user": user,
-                "group_publishable_orgs": json.dumps(group_orgs),
-                "page_indicator_list": [False, True, False],
-            }
-        except AttributeError as e:
-            params = {
-                "error": e,
-            }
-
-        template = "overlay/register_new_service.html"
-    else:
-        uri_form = ServiceURIForm()
-        params = {
-            "form": uri_form,
-            "action_url": ROOT_URL + "/service/new/register-form",
-            "button_text": "Next",
-            "page_indicator_list": [True, False, False],
-        }
-    html = render_to_string(request=request, template_name=template, context=params)
-    return BackendAjaxResponse(html).get_response()
-
-
-@check_session
-@check_permission(Permission(can_register_service=True))
-def new_service(request: HttpRequest, user: User):
-    """ Register a new service
-
-    Args:
-        request:
-    Returns:
-
-    """
-    POST_params = request.POST.dict()
-
-    cap_url = POST_params.get("uri", "")
-    cap_url = cap_url.replace("&amp;", "&")
-
-    register_group = POST_params.get("registerGroup")
-    register_for_organization = POST_params.get("registerForOrg")
-
-    external_username = POST_params.get("username", "")
-    external_password = POST_params.get("password", "")
-    external_auth_type = POST_params.get("authType", "")
-    external_auth = None
-    if len(external_username) > 0 and len(external_password) > 0:
-        external_auth = {
-            "username": external_username,
-            "password": external_password,
-            "auth_type": external_auth_type
-        }
-
-    url_dict = service_helper.split_service_uri(cap_url)
-    url_dict["service"] = url_dict["service"].value
-    url_dict["version"] = url_dict["version"].value
-
-    # run creation async!
-    try:
-        pending_task = tasks.async_new_service.delay(url_dict, user.id, register_group, register_for_organization, external_auth)
-        #pending_task = tasks.async_new_service(url_dict, user.id, register_group, register_for_organization, external_auth)
-    except Exception as e:
-        template = "overlay/error.html"
-        params = {
-            "error_code": e.args[0],
-            "page_indicator_list": [False, False, True],
-        }
-        html = render_to_string(template_name=template, request=request, context=params)
-        return BackendAjaxResponse(html).get_response()
-
-    # create db object, so we know which pending task is still ongoing
-    pending_task_db = PendingTask()
-    pending_task_db.created_by = Group.objects.get(id=register_group)
-    pending_task_db.task_id = pending_task.task_id
-    pending_task_db.description = json.dumps({
-        "service": cap_url,
-        "phase": "Parsing",
-    })
-
-    pending_task_db.save()
+    # get pending tasks
+    pt = PendingTask.objects.filter(created_by__in=user.groups.all())
+    pt_table = PendingTasksTable(pt,
+                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+                                 orderable=False, user=user,)
 
     params = {
-        "pending_task": pending_task,
-        "url_dict": url_dict,
-        "page_indicator_list": [False, False, True],
+        "pt_table": pt_table,
+        "new_service_form": RegisterNewServiceWizardPage1(),
+        "action_url": reverse(SERVICE_INDEX, ),
+        "user": user,
+        "wizard_finished": False
     }
 
-    template = "overlay/new_service_progress.html"
-    html = render_to_string(template_name=template, request=request, context=params)
-    return BackendAjaxResponse(html=html).get_response()
+    params.update(_prepare_wms_table(request, user, ))
+
+    # special content for new service wizard
+    if request.method == 'POST':
+        params.update(_new_service_wizard(request, user))
+
+    if params['wizard_finished'] is True:
+        # we have to redirect to service:index, to prevent new post of the form after pressing f5
+        return redirect(reverse(SERVICE_INDEX, ))
+
+    context = DefaultContext(request, params, user)
+    return render(request=request, template_name=template, context=context.get_context())
 
 
 @check_session
@@ -536,14 +671,16 @@ def update_service(request: HttpRequest, user: User, id: int):
     request.session["keep-metadata"] = keep_custom_metadata
     keep_custom_metadata = keep_custom_metadata == "on"
 
-
     # get info which layers/featuretypes are linked (old->new)
     links = json.loads(request.POST.get("storage", '{}'))
     update_confirmed = utils.resolve_boolean_attribute_val(request.POST.get("confirmed", 'false'))
 
     # parse new capabilities into db model
     registrating_group = old_service.created_by
-    new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user, register_group=registrating_group)
+    new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"),
+                                                            version=url_dict.get("version"),
+                                                            base_uri=url_dict.get("base_uri"), user=user,
+                                                            register_group=registrating_group)
     xml = new_service["raw_data"].service_capabilities_xml
     new_service = new_service["service"]
 
@@ -556,7 +693,8 @@ def update_service(request: HttpRequest, user: User, id: int):
         if old_service.servicetype.name != new_service_type.value:
             # cross update attempt -> forbidden!
             messages.add_message(request, messages.ERROR, SERVICE_UPDATE_WRONG_TYPE)
-            return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(old_service.metadata.id))).get_response()
+            return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(
+                old_service.metadata.id))).get_response()
         # check if new capabilities is even different from existing
         # if not we do not need to spend time and money on performing it!
         # if not service_helper.capabilities_are_different(update_params["full_uri"], old_service.metadata.capabilities_original_uri):
@@ -589,8 +727,10 @@ def update_service(request: HttpRequest, user: User, id: int):
         old_service.save()
         del request.session["keep-metadata"]
         del request.session["update"]
-        user_helper.create_group_activity(old_service.metadata.created_by, user, SERVICE_UPDATED, old_service.metadata.title)
-        return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL,str(old_service.metadata.id))).get_response()
+        user_helper.create_group_activity(old_service.metadata.created_by, user, SERVICE_UPDATED,
+                                          old_service.metadata.title)
+        return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(
+            old_service.metadata.id))).get_response()
     else:
         # otherwise
         params = {
@@ -620,7 +760,7 @@ def discard_update(request: HttpRequest, user: User):
 
 @check_session
 @check_permission(Permission(can_update_service=True))
-def update_service_form(request: HttpRequest, user:User, id: int):
+def update_service_form(request: HttpRequest, user: User, id: int):
     """ Creates the form for updating a service
 
     Args:
@@ -686,8 +826,9 @@ def update_service_form(request: HttpRequest, user:User, id: int):
     return BackendAjaxResponse(html=html).get_response()
 
 
+#TODO: refactor this method
 @check_session
-def wfs(request:HttpRequest, user:User):
+def wfs_index(request: HttpRequest, user: User):
     """ Renders an overview of all wfs
 
     Args:
@@ -695,14 +836,39 @@ def wfs(request:HttpRequest, user:User):
     Returns:
          A view
     """
+    # Default content
+    template = "views/wfs_index.html"
+
+    # get pending tasks
+    pending_tasks = PendingTask.objects.filter(created_by__in=user.groups.all())
+    pt_table = PendingTasksTable(pending_tasks,
+                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+                                 orderable=False, user=user,)
+
     params = {
-        "only": OGCServiceEnum.WFS
+        "pt_table": pt_table,
+        "new_service_form": RegisterNewServiceWizardPage1(),
+        "action_url": reverse(SERVICE_INDEX, ),
+        "user": user,
+        "wizard_finished": False
     }
-    return redirect("service:index", OGCServiceEnum.WFS.value)
+
+    params.update(_prepare_wfs_table(request, user, ))
+
+    # special content for new service wizard
+    if request.method == 'POST':
+        params.update(_new_service_wizard(request, user))
+
+    if params['wizard_finished'] is True:
+        # we have to redirect to service:index, to prevent new post of the form after pressing f5
+        return redirect(reverse(SERVICE_INDEX, ))
+
+    context = DefaultContext(request, params, user)
+    return render(request=request, template_name=template, context=context.get_context())
 
 
 @check_session
-def detail(request: HttpRequest, id, user:User):
+def detail(request: HttpRequest, id, user: User):
     """ Renders a detail view of the selected service
 
     Args:
@@ -710,21 +876,39 @@ def detail(request: HttpRequest, id, user:User):
         id: The id of the selected metadata
     Returns:
     """
-    template = "detail/service_detail.html"
-    metadata = get_object_or_404(Metadata, id=id)
+    template = "views/detail.html"
+    service_md = get_object_or_404(Metadata, id=id)
 
-    if metadata.is_root():
-        service = metadata.service
+    # catch featuretype
+    if service_md.metadata_type.type == 'featuretype':
+        if 'no-base' in request.GET:
+            template = "views/featuretype_detail_no_base.html"
+        else:
+            template = "views/featuretype_detail.html"
+        service = service_md.featuretype
+        layers_md_list = {}
     else:
-        service = Layer.objects.get(
-            metadata=metadata
-        )
-    layers = Layer.objects.filter(parent_service=metadata.service)
-    layers_md_list = layers.filter(parent_layer=None)
+
+        if service_md.service.is_root:
+            service = service_md.service
+            layers = Layer.objects.filter(parent_service=service_md.service)
+            layers_md_list = layers.filter(parent_layer=None)
+        else:
+            if 'no-base' in request.GET:
+                template = "views/sublayer_detail_no_base.html"
+            else:
+                template = "views/sublayer_detail.html"
+            service = Layer.objects.get(
+                metadata=service_md
+            )
+            # get sublayers
+            layers_md_list = Layer.objects.filter(
+                parent_layer=service_md.service
+            )
 
     try:
         related_md = MetadataRelation.objects.get(
-            metadata_from=metadata,
+            metadata_from=service_md,
             metadata_to__metadata_type__type='dataset',
         )
         document = Document.objects.get(
@@ -734,11 +918,28 @@ def detail(request: HttpRequest, id, user:User):
     except ObjectDoesNotExist:
         has_dataset_metadata = False
 
+    mime_types = {}
+    for mime in service.formats.all():
+        op = mime_types.get(mime.operation)
+        if op is None:
+            op = []
+        op.append(mime.mime_type)
+        mi = {mime.operation: op}
+        mime_types.update(mi)
+
+    remove_service_form = RemoveService(initial={'service_id': service.id,
+                                                 'service_needs_authentication': False,
+                                                 })
+    remove_service_form.action_url = reverse('service:remove', args=[id])
+
     params = {
         "has_dataset_metadata": has_dataset_metadata,
-        "root_metadata": metadata,
-        "root_service": service,
+        "service_md": service_md,
+        "service": service,
         "layers": layers_md_list,
+        "mime_types": mime_types,
+        "remove_service_form": remove_service_form,
+        "leaflet_add_bbox": True,
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())

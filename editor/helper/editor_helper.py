@@ -287,24 +287,27 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     original_md.terms_of_use = custom_md.terms_of_use
     # get db objects from values
     # keywords are provided as usual text
-    keywords = editor_form.data.get("keywords").split(",")
+    keywords = editor_form.cleaned_data["keywords"]
     if len(keywords) == 1 and keywords[0] == '':
         keywords = []
     # categories are provided as id's to prevent language related conflicts
-    category_ids = editor_form.data.get("categories").split(",")
-    if len(category_ids) == 1 and category_ids[0] == '':
-        category_ids = []
+    categories = editor_form.cleaned_data["categories"]
+    if len(categories) == 1 and categories[0] == '':
+        categories = []
     original_md.keywords.clear()
     for kw in keywords:
         keyword = Keyword.objects.get_or_create(keyword=kw)[0]
         original_md.keywords.add(keyword)
-    for id in category_ids:
-        category = Category.objects.get(id=id)
+    for category in categories:
+        category = Category.objects.get(id=category.id)
         original_md.categories.add(category)
 
     # change capabilities document so that all sensitive elements (links) are proxied
     if original_md.use_proxy_uri != custom_md.use_proxy_uri:
-        original_md.set_proxy(custom_md.use_proxy_uri)
+        if custom_md.use_proxy_uri == 'on':
+            original_md.set_proxy(True)
+        else:
+            original_md.set_proxy(False)
 
     # save metadata
     original_md.is_custom = True

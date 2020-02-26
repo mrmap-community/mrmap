@@ -15,7 +15,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import Group, Role, Permission, Organization, User
+from structure.models import Group, Role, Permission, Organization, User, Theme
 
 
 class Command(BaseCommand):
@@ -24,13 +24,19 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         pass
 
-    @transaction.atomic
     def handle(self, *args, **options):
-        # first run the main setup
-        self._run_superuser_default_setup()
-        # then load the default categories
-        call_command('load_categories')
+        # first create themes
+        self._create_themes()
 
+        with transaction.atomic():
+            # first run the main setup
+            self._run_superuser_default_setup()
+            # then load the default categories
+            call_command('load_categories')
+
+    def _create_themes(self):
+        Theme.objects.get_or_create(name='DARK')
+        Theme.objects.get_or_create(name='LIGHT')
 
     def _run_superuser_default_setup(self):
         """ Encapsules the main setup for creating all default objects and the superuser
@@ -58,6 +64,7 @@ class Command(BaseCommand):
         superuser.password = make_password(password, salt=superuser.salt)
         superuser.confirmed_dsgvo = timezone.now()
         superuser.is_active = True
+        superuser.theme = Theme.objects.get(name='LIGHT')
         superuser.save()
         msg = "Superuser '" + name + "' was created successfully!"
         self.stdout.write(self.style.SUCCESS(str(msg)))

@@ -11,13 +11,13 @@ from django.db import transaction
 from lxml.etree import _Element
 
 from service.helper.crypto_handler import CryptoHandler
-from service.settings import DEFAULT_SRS
+from service.settings import DEFAULT_SRS, SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE
 from service.settings import MD_RELATION_TYPE_VISUALIZES, \
     EXTERNAL_AUTHENTICATION_FILEPATH
 from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner.messages import SERVICE_GENERIC_ERROR
-from MapSkinner.utils import execute_threads
+from MapSkinner.utils import execute_threads, print_debug_mode
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.enums import MetadataEnum
 from service.helper.epsg_api import EpsgApi
@@ -109,6 +109,7 @@ class OGCWebFeatureService(OGCWebService):
         }
 
         self.feature_type_list = {}
+        self.service_mime_type_list = []
 
         # for wfs we need to overwrite the default namespace with 'wfs'
         XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs", "")
@@ -133,7 +134,7 @@ class OGCWebFeatureService(OGCWebService):
         # check possible operations on this service
         start_time = time.time()
         self.get_service_operations(xml_obj)
-        print(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
+        print_debug_mode(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
 
         # check if 'real' linked service metadata exist
         service_metadata_uri = xml_helper.try_get_text_from_xml_element(
@@ -149,7 +150,7 @@ class OGCWebFeatureService(OGCWebService):
         if not metadata_only:
             start_time = time.time()
             self.get_feature_type_metadata(xml_obj=xml_obj, async_task=async_task, external_auth=external_auth)
-            print(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
+            print_debug_mode(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
 
         # always execute version specific tasks AFTER multithreading
         # Otherwise we might face race conditions which lead to loss of data!
@@ -289,35 +290,6 @@ class OGCWebFeatureService(OGCWebService):
             operation_metadata = operation_metadata[0]
         else:
             return
-        actions = ["GetCapabilities", "DescribeFeatureType", "GetFeature",
-                   "Transaction", "LockFeature", "GetFeatureWithLock",
-                   "GetGmlObject", "ListStoredQueries", "DescribeStoredQueries",
-                   "GetPropertyValue"
-                   ]
-        get = {}
-        post = {}
-
-        for action in actions:
-            xpath_str = './ows:Operation[@name="' + action + '"]'
-            operation = xml_helper.try_get_single_element_from_xml(xml_elem=operation_metadata, elem=xpath_str)
-
-            if operation is None:
-                continue
-
-            get_elem = xml_helper.try_get_single_element_from_xml(
-                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
-                xml_elem=operation
-            )
-            _get = xml_helper.get_href_attribute(xml_elem=get_elem)
-
-            post_elem = xml_helper.try_get_single_element_from_xml(
-                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
-                xml_elem=operation
-            )
-            _post = xml_helper.get_href_attribute(xml_elem=post_elem)
-
-            get[action] = _get
-            post[action] = _post
 
         # Shorten the usage of our operation enums
         get_cap = OGCOperationEnum.GET_CAPABILITIES.value
@@ -330,6 +302,61 @@ class OGCWebFeatureService(OGCWebService):
         list_stored_queries = OGCOperationEnum.LIST_STORED_QUERIES.value
         descr_stored_queries = OGCOperationEnum.DESCRIBE_STORED_QUERIES.value
         get_prop_val = OGCOperationEnum.GET_PROPERTY_VALUE.value
+
+        actions = [
+            get_cap,
+            descr_feat,
+            get_feat,
+            trans,
+            lock_feat,
+            get_feat_lock,
+            get_gml,
+            list_stored_queries,
+            descr_stored_queries,
+            get_prop_val,
+        ]
+        get = {}
+        post = {}
+
+        for action in actions:
+            xpath_str = './' + GENERIC_NAMESPACE_TEMPLATE.format('Operation') + '[@name="' + action + '"]'
+            operation_elem = xml_helper.try_get_single_element_from_xml(xml_elem=operation_metadata, elem=xpath_str)
+
+            if operation_elem is None:
+                continue
+
+            get_uri_elem = xml_helper.try_get_single_element_from_xml(
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
+                xml_elem=operation_elem
+            )
+            _get = xml_helper.get_href_attribute(xml_elem=get_uri_elem)
+
+            post_uri_elem = xml_helper.try_get_single_element_from_xml(
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
+                xml_elem=operation_elem
+            )
+            _post = xml_helper.get_href_attribute(xml_elem=post_uri_elem)
+
+            get[action] = _get
+            post[action] = _post
+
+            # Parse the possible outputFormats for every operation object
+            output_format_element = xml_helper.try_get_single_element_from_xml(
+                './/' +  GENERIC_NAMESPACE_TEMPLATE.format('Parameter') + '[@name="outputFormat"]',
+                operation_elem
+            )
+            if output_format_element is not None:
+                output_format_value_elements = xml_helper.try_get_element_from_xml(
+                    "./" + GENERIC_NAMESPACE_TEMPLATE.format("Value"),
+                    output_format_element
+                )
+                for value_elem in output_format_value_elements:
+                    format_value = xml_helper.try_get_text_from_xml_element(value_elem)
+                    mime_type = MimeType.objects.get_or_create(
+                        operation=action,
+                        mime_type=format_value
+                    )[0]
+                    self.service_mime_type_list.append(mime_type)
 
         self.get_capabilities_uri["get"] = get.get(get_cap, None)
         self.get_capabilities_uri["post"] = post.get(get_cap, None)
@@ -455,6 +482,7 @@ class OGCWebFeatureService(OGCWebService):
                 (float(min_x), float(min_y)),
             )
         )
+        f_t.metadata.bounding_geometry = bbox
         f_t.bbox_lat_lon = bbox
 
         # Output formats
@@ -464,7 +492,10 @@ class OGCWebFeatureService(OGCWebService):
         )
         format_list = []
         for _format in formats:
+            # Due to missing semantic interpretation in the standard of WFS, we assume the outputFormats of featureTypes
+            # to define the GetFeature operation
             m_t = MimeType.objects.get_or_create(
+                operation=OGCOperationEnum.GET_FEATURE.value,
                 mime_type=xml_helper.try_get_text_from_xml_element(
                     xml_elem=_format
                 )
@@ -472,7 +503,7 @@ class OGCWebFeatureService(OGCWebService):
             format_list.append(m_t)
 
         # Dataset (ISO) Metadata parsing
-        self._parse_iso_md(f_t, feature_type)
+        self._parse_dataset_md(f_t, feature_type)
 
         # Feature type elements
         # Feature type namespaces
@@ -686,6 +717,8 @@ class OGCWebFeatureService(OGCWebService):
         service.get_gml_objct_uri_GET = self.get_gml_object_uri.get("get", None)
         service.get_gml_objct_uri_POST = self.get_gml_object_uri.get("post", None)
 
+        service.formats_list = self.service_mime_type_list
+
         service.availability = 0.0
         service.is_available = False
         service.is_root = True
@@ -732,6 +765,7 @@ class OGCWebFeatureService(OGCWebService):
         # save metadata
         md = service.metadata
         md.save()
+
         if external_auth is not None:
             external_auth.metadata = md
             crypt_handler = CryptoHandler()
@@ -752,6 +786,8 @@ class OGCWebFeatureService(OGCWebService):
             md_relation.save()
             md.related_metadata.add(md_relation)
 
+        md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
+        md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
         # save again, due to added related metadata
         md.save()
 
@@ -763,10 +799,18 @@ class OGCWebFeatureService(OGCWebService):
         for kw in service.metadata.keywords_list:
             service.metadata.keywords.add(kw)
 
+        # MimeTypes
+        for mime_type in service.formats_list:
+            service.formats.add(mime_type)
+
         # feature types
         for f_t in service.feature_type_list:
             f_t.parent_service = service
             md = f_t.metadata
+            md.save()
+            md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(
+                OGCOperationEnum.GET_CAPABILITIES.value)
+            md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
             md.save()
             f_t.metadata = md
             f_t.save()
@@ -808,27 +852,35 @@ class OGCWebFeatureService(OGCWebService):
             for ns in f_t.namespaces_list:
                 f_t.namespaces.add(ns)
 
-    ### ISO METADATA ###
-    def _parse_iso_md(self, feature_type, xml_feature_type_obj: _Element, link_in_attrib: str=None):
-        # check for possible ISO metadata
-        if self.has_iso_metadata(xml_feature_type_obj):
+    ### DATASET METADATA ###
+    def _parse_dataset_md(self, feature_type, xml_feature_type_obj: _Element):
+        """ Parses the dataset metadata from the element.
+
+        Creates new ISOMetadata elements, if parsing is successful.
+
+        Args:
+            feature_type: The feature type object
+            xml_feature_type_obj: The xml feature type object, that holds the dataset link information
+        Returns:
+
+        """
+        # check for possible dataset metadata
+        if self.has_dataset_metadata(xml_feature_type_obj):
             iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(
                 xml_elem=xml_feature_type_obj,
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL")
             )
             for iso_xml in iso_metadata_xml_elements:
-                iso_uri = xml_helper.try_get_text_from_xml_element(xml_elem=iso_xml)
+                # Depending on the service version, the uris can live inside a href attribute or inside the xml element as text
+                iso_uri = xml_helper.try_get_text_from_xml_element(xml_elem=iso_xml) or xml_helper.get_href_attribute(iso_xml)
                 if iso_uri is None:
-                    # iso uris could live inside a href attribute as well
-                    iso_uri = xml_helper.get_href_attribute(iso_xml)
+                    continue
                 try:
                     iso_metadata = ISOMetadata(uri=iso_uri, origin="capabilities")
                 except Exception as e:
                     # there are iso metadatas that have been filled wrongly -> if so we will drop them
                     continue
                 feature_type.dataset_md_list.append(iso_metadata.to_db_model())
-
-
 
     def get_feature_type_by_identifier(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Extract a single feature type by its identifier and parse it into a FeatureType object
@@ -859,7 +911,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             service_type=OGCServiceEnum.WFS,
             external_auth=external_auth
         )
-        XML_NAMESPACES["schemaLocation"] = "http://geodatenlb1.rlp:80/geoserver/schemas/wfs/1.0.0/WFS-capabilities.xsd"
+        XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wfs/1.0.0/WFS-capabilities.xsd"
         XML_NAMESPACES["xsi"] = "http://www.w3.org/2001/XMLSchema-instance"
         XML_NAMESPACES["lvermgeo"] = "http://www.lvermgeo.rlp.de/lvermgeo"
         XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs")
@@ -1137,7 +1189,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             elements_namespaces = self._get_featuretype_elements_namespaces(feature_type, service_type_version, external_auth)
 
             # check for possible ISO metadata
-            self._parse_iso_md(feature_type, node)
+            self._parse_dataset_md(feature_type, node)
 
             # put the feature types objects with keywords and reference systems into the dict for the persisting process
             self.feature_type_list[feature_type.metadata.identifier] = {
@@ -1166,6 +1218,7 @@ class OGCWebFeatureService_1_1_0(OGCWebFeatureService):
             service_type=OGCServiceEnum.WFS,
             external_auth=external_auth
         )
+        XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wfs/1.1.0/wfs.xsd"
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs"
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows"
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes"
@@ -1200,6 +1253,7 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
             service_type=OGCServiceEnum.WFS,
             external_auth=external_auth
         )
+        XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wfs/2.0/wfs.xsd"
         XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
         XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
         XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
@@ -1291,13 +1345,6 @@ class OGCWebFeatureService_2_0_0(OGCWebFeatureService):
                 crs_list.append(srs_other)
             self.feature_type_list[name]["srs_list"] = crs_list
 
-            # Dataset metadata
-            # Since version 2.0.0 the uris are not present in the text field of an xml element anymore,
-            # but can be found in the href:xlink attribute
-            feature_type = self.feature_type_list[name]["feature_type"]
-            self._parse_iso_md(feature_type, feature_type_xml_elem, "{" + XML_NAMESPACES["xlink"] + "}href")
-            self.feature_type_list[name]["dataset_md_list"] = feature_type.dataset_md_list
-
 
 class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
     """
@@ -1387,12 +1434,5 @@ class OGCWebFeatureService_2_0_2(OGCWebFeatureService):
                 srs_other = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
                 crs_list.append(srs_other)
             self.feature_type_list[name]["srs_list"] = crs_list
-
-            # Dataset metadata
-            # Since version 2.0.0 the uris are not present in the text field of an xml element anymore,
-            # but can be found in the href:xlink attribute
-            feature_type = self.feature_type_list[name]["feature_type"]
-            self._parse_iso_md(feature_type, feature_type_xml_elem, "{" + XML_NAMESPACES["xlink"] + "}href")
-            self.feature_type_list[name]["dataset_md_list"] = feature_type.dataset_md_list
 
 

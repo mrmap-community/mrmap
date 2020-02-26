@@ -10,7 +10,7 @@ import os
 
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 
-from MapSkinner.settings import BASE_DIR
+from MapSkinner.settings import BASE_DIR, HTTP_OR_SSL, HOST_NAME
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
 
 # Some special things
@@ -20,6 +20,11 @@ DEFAULT_SERVICE_VERSION = OGCServiceVersionEnum.V_1_1_1
 # semantic relation types
 MD_RELATION_TYPE_VISUALIZES = "visualizes"
 MD_RELATION_TYPE_DESCRIBED_BY = "describedBy"
+
+SERVICE_OPERATION_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}" + "/operation?"
+SERVICE_DATASET_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "dataset/{}"
+SERVICE_METADATA_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}"
+SERVICE_LEGEND_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}" + "/legend/" + "{}"
 
 REQUEST_TIMEOUT = 100  # seconds
 

@@ -126,19 +126,19 @@ class OGCWebService:
     def check_ogc_exception(self):
         pass
 
-    def has_iso_metadata(self, xml):
-        """ Checks whether the xml element has an iso 19115 metadata record or not
+    def has_dataset_metadata(self, xml):
+        """ Checks whether the xml element has an iso 19115 dataset metadata record or not
 
         Args:
             xml: The xml etree object
         Returns:
-             True if element has iso metadata, false otherwise
+             True if element has dataset metadata, false otherwise
         """
-        iso_metadata = xml_helper.try_get_element_from_xml(xml_elem=xml, elem="./MetadataURL")
-        if len(iso_metadata) == 0:
-            iso_metadata = xml_helper.try_get_element_from_xml(xml_elem=xml, elem="./wfs:MetadataURL")
+        iso_metadata = xml_helper.try_get_element_from_xml(
+            xml_elem=xml,
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL")
+        )
         return len(iso_metadata) != 0
-
 
     """
     Methods that have to be implemented in the sub classes

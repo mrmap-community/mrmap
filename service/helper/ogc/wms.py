@@ -17,11 +17,12 @@ from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
+from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH, SERVICE_OPERATION_URI_TEMPLATE, \
+    SERVICE_METADATA_URI_TEMPLATE
 from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
     PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
-from MapSkinner.utils import execute_threads
+from MapSkinner.utils import execute_threads, print_debug_mode
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.epsg_api import EpsgApi
@@ -109,29 +110,29 @@ class OGCWebMapService(OGCWebService):
         if service_metadata_uri is not None:
             self.get_service_metadata(uri=service_metadata_uri, async_task=async_task)
 
-        print(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
+        print_debug_mode(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
 
         # check possible operations on this service
         start_time = time.time()
         self.get_service_operations(xml_obj)
-        print(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
+        print_debug_mode(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
 
         # parse possible linked dataset metadata
         start_time = time.time()
         self.get_service_dataset_metadata(xml_obj=xml_obj)
-        print(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
+        print_debug_mode(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
 
         self.get_version_specific_metadata(xml_obj=xml_obj)
 
         if not metadata_only:
             start_time = time.time()
             self.get_layers(xml_obj=xml_obj, async_task=async_task)
-            print(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
+            print_debug_mode(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
 
-    ### ISO METADATA ###
-    def parse_iso_md(self, layer, layer_obj):
-        # check for possible ISO metadata
-        if self.has_iso_metadata(layer):
+    ### DATASET METADATA ###
+    def parse_dataset_md(self, layer, layer_obj):
+        # check for possible dataset metadata
+        if self.has_dataset_metadata(layer):
             iso_metadata_xml_elements = xml_helper.try_get_element_from_xml(
                 xml_elem=layer,
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL") +
@@ -227,12 +228,6 @@ class OGCWebMapService(OGCWebService):
     def parse_bounding_box(self, layer, layer_obj):
         # switch depending on service version
         elem_name = "SRS"
-        if self.service_version is OGCServiceVersionEnum.V_1_0_0:
-            pass
-        if self.service_version is OGCServiceVersionEnum.V_1_1_0:
-            pass
-        if self.service_version is OGCServiceVersionEnum.V_1_1_1:
-            pass
         if self.service_version is OGCServiceVersionEnum.V_1_3_0:
             elem_name = "CRS"
         self.parse_bounding_box_generic(layer=layer, layer_obj=layer_obj, elem_name=elem_name)
@@ -453,7 +448,7 @@ class OGCWebMapService(OGCWebService):
             self.parse_dimension,
             self.parse_style,
             self.parse_identifier,
-            self.parse_iso_md,
+            self.parse_dataset_md,
         ]
         for func in parse_functions:
             func(layer=layer_xml, layer_obj=layer_obj)
@@ -548,7 +543,7 @@ class OGCWebMapService(OGCWebService):
             # No division by zero!
             len_layers = 1
         step_size = float(PROGRESS_STATUS_AFTER_PARSING / len_layers)
-        print("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
+        print_debug_mode("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
 
         self.get_layers_recursive(layers, step_size=step_size, async_task=async_task)
 
@@ -961,6 +956,7 @@ class OGCWebMapService(OGCWebService):
         # save metadata
         md = service.metadata
         md.save()
+
         if external_auth is not None:
             external_auth.metadata = md
             crypt_handler = CryptoHandler()
@@ -981,8 +977,8 @@ class OGCWebMapService(OGCWebService):
             md_relation.save()
             md.related_metadata.add(md_relation)
 
-        internal_capabilities_uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, md.id)
-        md.capabilities_uri = internal_capabilities_uri
+        md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
+        md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
         # save again, due to added related metadata
         md.save()
 
@@ -1016,8 +1012,10 @@ class OGCWebMapService(OGCWebService):
             md_type = MetadataType.objects.get_or_create(type=md_type.type)[0]
             md.metadata_type = md_type
             md.save()
-            internal_capabilities_uri = "{}{}/service/capabilities/{}".format(HTTP_OR_SSL, HOST_NAME, md.id)
-            md.capabilities_uri = internal_capabilities_uri
+
+            md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(
+                OGCOperationEnum.GET_CAPABILITIES.value)
+            md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
             md.save()
             for iso_md in layer.iso_metadata:
                 iso_md = iso_md.to_db_model()
@@ -1081,6 +1079,7 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
     def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(service_connect_url=service_connect_url, external_auth=external_auth)
         self.service_version = OGCServiceVersionEnum.V_1_0_0
+        XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.0.0/capabilities_1_0_0.xml"
 
     def __parse_formats(self, layer, layer_obj):
         actions = ["Map", "Capabilities", "FeatureInfo"]
@@ -1136,6 +1135,7 @@ class OGCWebMapService_1_1_0(OGCWebMapService):
     def __init__(self, service_connect_url, external_auth: ExternalAuthentication):
         super().__init__(service_connect_url=service_connect_url, external_auth=external_auth)
         self.service_version = OGCServiceVersionEnum.V_1_1_0
+        XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.1.0/capabilities_1_1_0.xml"
 
     def get_version_specific_metadata(self, xml_obj):
         pass
@@ -1149,6 +1149,7 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
         super().__init__(service_connect_url=service_connect_url, external_auth=external_auth)
         self.service_version = OGCServiceVersionEnum.V_1_1_1
         XML_NAMESPACES["default"] = XML_NAMESPACES["wms"]
+        XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.1.1/capabilities_1_1_1.xml"
 
     def get_version_specific_metadata(self, xml_obj):
         pass
@@ -1167,6 +1168,7 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         self.max_width = None
         self.max_height = None
 
+        XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.3.0/capabilities_1_3_0.xsd"
         XML_NAMESPACES["default"] = XML_NAMESPACES["wms"]
 
     def parse_lat_lon_bounding_box(self, layer, layer_obj):

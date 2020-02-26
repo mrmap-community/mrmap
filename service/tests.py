@@ -14,6 +14,7 @@ from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, OGCOperationEnum
 from service.models import Service, Layer, Document, Metadata
+from service.settings import SERVICE_OPERATION_URI_TEMPLATE
 from structure.models import User, Group, Role, Permission
 
 
@@ -549,7 +550,7 @@ class ServiceTestCase(TestCase):
 
 
         if service_type == OGCServiceEnum.WMS.value:
-            uri = "{}{}/service/metadata/{}/operation".format(HTTP_OR_SSL, HOST_NAME, metadata.id)
+            uri = SERVICE_OPERATION_URI_TEMPLATE.format(metadata.id)
             params = {
                 "request": OGCOperationEnum.GET_MAP.value,
                 "version": OGCServiceVersionEnum.V_1_1_1.value,
@@ -615,14 +616,15 @@ class ServiceTestCase(TestCase):
         # This means we need to fire some requests and check if the documents and links of this service are available
         self.assertFalse(self.service.is_active)
 
-        ## case 0.0: Service is deactivated -> Original capabilities uri not reachable
-        uri = "/service/capabilities/{}/original".format(self.service.metadata.id)
-        response = self._run_request({}, uri, 'get')
-        self.assertEqual(response.status_code, 423)  # 423 means the resource is currently locked (https://tools.ietf.org/html/rfc4918#section-11.3)
-
         ## case 0.1: Service is deactivated -> Current capabilities uri not reachable
-        uri = "/service/capabilities/{}".format(self.service.metadata.id)
-        response = self._run_request({}, uri, 'get')
+        uri = "/service/metadata/{}/operation?".format(self.service.metadata.id)
+        response = self._run_request(
+            {
+                "request": "GetCapabilities",
+            },
+            uri,
+            'get'
+        )
         self.assertEqual(response.status_code, 423)  # 423 means the resource is currently locked
 
         ## case 0.2: Service is deactivated -> Current metadata uri not reachable
@@ -640,14 +642,15 @@ class ServiceTestCase(TestCase):
         tasks.async_activate_service(self.service.id, self.user.id)
         self.service.refresh_from_db()
 
-        ## case 1.0: Service is activated -> Original capabilities uri is reachable
-        uri = "/service/capabilities/{}/original".format(self.service.metadata.id)
-        response = self._run_request({}, uri, 'get')
-        self.assertEqual(response.status_code, 200)
-
         ## case 1.1: Service is deactivated -> Current capabilities uri not reachable
-        uri = "/service/capabilities/{}".format(self.service.metadata.id)
-        response = self._run_request({}, uri, 'get')
+        uri = "/service/metadata/{}/operation?".format(self.service.metadata.id)
+        response = self._run_request(
+            {
+                "request": "GetCapabilities"
+            },
+            uri,
+            'get'
+        )
         self.assertEqual(response.status_code, 200)
 
         ## case 1.2: Service is deactivated -> Current metadata uri not reachable

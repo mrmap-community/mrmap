@@ -74,7 +74,7 @@
                 <a target="_blank" href="{{ root_metadata.capabilities_original_uri }}" title="{% trans 'Get the original document' %}">
                     <div class="button-wrapper button">{% trans 'Original' %}</div>
                 </a>
-                <a target="_blank" href="{% url 'service:get-capabilities' root_metadata.id %}" title="{% trans 'Get the current, maybe edited, document' %}">
+                <a target="_blank" href="{% url 'service:metadata-proxy-operation' root_metadata.id %}?request=GetCapabilities" title="{% trans 'Get the current, maybe edited, document' %}">
                     <div class="button-wrapper button">{% trans 'Current' %}</div>
                 </a>
             </div>

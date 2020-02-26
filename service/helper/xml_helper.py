@@ -41,7 +41,7 @@ def parse_xml(xml: str, encoding=None):
     return xml_obj
 
 
-def xml_to_string(xml_obj):
+def xml_to_string(xml_obj, pretty_print: bool = False):
     """ Creates a string representation of a xml element
 
     Args:
@@ -51,7 +51,7 @@ def xml_to_string(xml_obj):
     """
     enc = "UTF-8"
     try:
-        _str = etree.tostring(xml_obj, encoding=enc, method="xml").decode()
+        _str = etree.tostring(xml_obj, encoding=enc, method="xml", pretty_print=pretty_print).decode()
     except TypeError:
         _str = None
     return _str

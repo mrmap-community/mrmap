@@ -136,7 +136,9 @@ def prepare_list_pagination_settings(request: HttpRequest, l: list, param_lead: 
 
 
 def get_theme(user: User):
-    if user.theme.name == 'DARK':
+    if user is None:
+        return LIGHT_THEME
+    elif user.theme.name == 'DARK':
         return DARK_THEME
     else:
         return LIGHT_THEME

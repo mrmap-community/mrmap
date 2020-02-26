@@ -300,7 +300,6 @@ def access_geometry_form(request: HttpRequest, id: int, user: User):
     service_bounding_geometry = md.find_max_bounding_box()
 
     params = {
-        "article": _("Add a geometry, which defines the area where this group can access the operation on this service."),
         "action_url": "{}{}/editor/edit/access/{}/geometry-form/".format(HTTP_OR_SSL, HOST_NAME, md.id),
         "bbox": service_bounding_geometry,
         "group_id": group_id,

@@ -86,11 +86,19 @@ python manage.py setup
 
 
 ## Important
+### Background worker
 Since the registration, deletion and perspectively a lot of other functionalities use an asynchronous worker approach, so the user won't have to wait until the last action finishes, the server always should have run this command before the usage:
 ```shell
 celery -A MapSkinner worker -l info
 ```
 If a task didn't finish due to reasons, you can delete the related **Pending task** record from the table.
+
+### Dockerfile changes
+If you are going to change the **database** settings, which are set in `docker-compose.yml`, you have to change the 
+settings for the variable `CONNECTION` in `/service/mapserver/security_mask.map` as well. 
+```
+CONNECTION "host=localhost dbname=mapskinner user=postgres password=postgres port=5555"
+```
 
 ## Dev Setup
 

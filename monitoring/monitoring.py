@@ -18,7 +18,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.common_connector import CommonConnector
 from service.helper.xml_helper import parse_xml
 from service.models import Metadata, Document, Service, MetadataRelation
-from service.helper.enums import ServiceEnum, MetadataEnum, VersionEnum
+from service.helper.enums import OGCServiceEnum, MetadataEnum, OGCServiceVersionEnum
 
 
 class Monitoring:
@@ -67,17 +67,17 @@ class Monitoring:
 
             if metadata_type == MetadataEnum.SERVICE.value.lower():
                 service_type = service.servicetype.name.lower()
-                if service_type == ServiceEnum.WMS.value.lower():
+                if service_type == OGCServiceEnum.WMS.value.lower():
                     self.check_wms(service, True)
-                elif service_type == ServiceEnum.WFS.value.lower():
+                elif service_type == OGCServiceEnum.WFS.value.lower():
                     self.check_wfs(service)
 
             elif metadata_type == MetadataEnum.LAYER.value.lower():
 
                 service_type = service.servicetype.name.lower()
-                if service_type == ServiceEnum.WMS.value.lower():
+                if service_type == OGCServiceEnum.WMS.value.lower():
                     self.check_wms(service)
-                elif service_type == ServiceEnum.WFS.value.lower():
+                elif service_type == OGCServiceEnum.WFS.value.lower():
                     self.check_wfs(service)
 
             elif metadata_type == MetadataEnum.FEATURETYPE.value.lower():
@@ -118,7 +118,7 @@ class Monitoring:
         if wfs_helper.get_capabilities_url is not None:
             self.check_get_capabilities(wfs_helper.get_capabilities_url)
 
-            if version == VersionEnum.V_2_0_0.value:
+            if version == OGCServiceVersionEnum.V_2_0_0.value:
                 wfs_helper.set_2_0_0_urls()
                 if wfs_helper.list_stored_queries is not None:
                     self.check_service(wfs_helper.list_stored_queries)

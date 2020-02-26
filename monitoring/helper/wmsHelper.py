@@ -1,5 +1,5 @@
 from service.models import Service
-from service.helper.enums import ServiceOperationEnum, VersionEnum, ServiceEnum
+from service.helper.enums import OGCOperationEnum, OGCServiceVersionEnum, OGCServiceEnum
 from monitoring.helper.urlHelper import UrlHelper
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -36,13 +36,13 @@ class WmsHelper:
         uri = self.service.get_styles_uri_GET
         if uri is None:
             return
-        service_version = VersionEnum.V_1_1_1.value
-        service_type = ServiceEnum.WMS.value
+        service_version = OGCServiceVersionEnum.V_1_1_1.value
+        service_type = OGCServiceEnum.WMS.value
         try:
             layers = self.service.layer.identifier
         except ObjectDoesNotExist:
             layers = ''
-        request_type = ServiceOperationEnum.GET_STYLES.value
+        request_type = OGCOperationEnum.GET_STYLES.value
 
         queries = [
             ('SERVICE', service_type), ('REQUEST', request_type), ('VERSION', service_version), ('LAYERS', layers)
@@ -59,7 +59,7 @@ class WmsHelper:
         uri = self.service.get_legend_graphic_uri_GET
         if uri is None:
             return
-        request_type = ServiceOperationEnum.GET_LEGEND_GRAPHIC.value
+        request_type = OGCOperationEnum.GET_LEGEND_GRAPHIC.value
         try:
             layer = self.service.layer.identifier
         except ObjectDoesNotExist:
@@ -69,7 +69,7 @@ class WmsHelper:
             service_format = 'image/png'
 
         queries = [
-            ('REQUEST', request_type), ('LAYERS', layer), ('FORMAT', service_format)
+            ('REQUEST', request_type), ('LAYER', layer), ('FORMAT', service_format)
         ]
         url = UrlHelper.build(uri, queries)
         return url
@@ -83,10 +83,10 @@ class WmsHelper:
         uri = self.service.describe_layer_uri_GET
         if uri is None:
             return
-        request_type = ServiceOperationEnum.DESCRIBE_LAYER.value
+        request_type = OGCOperationEnum.DESCRIBE_LAYER.value
         # make sure that version is describeLayer specific version 1.1.1 and not wms version 1.3.0
-        service_version = VersionEnum.V_1_1_1.value
-        service_type = ServiceEnum.WMS.value
+        service_version = OGCServiceVersionEnum.V_1_1_1.value
+        service_type = OGCServiceEnum.WMS.value
         try:
             layers = self.service.layer.identifier
         except ObjectDoesNotExist:
@@ -106,9 +106,9 @@ class WmsHelper:
         uri = self.service.get_feature_info_uri_GET
         if uri is None:
             return
-        request_type = ServiceOperationEnum.GET_FEATURE_INFO.value
+        request_type = OGCOperationEnum.GET_FEATURE_INFO.value
         service_version = self.service.servicetype.version
-        service_type = ServiceEnum.WMS.value
+        service_type = OGCServiceEnum.WMS.value
         try:
             layers = self.service.layer.identifier
             crs = f'EPSG:{self.service.layer.bbox_lat_lon.crs.srid}'
@@ -129,7 +129,7 @@ class WmsHelper:
             ('CRS', crs), ('BBOX', bbox), ('STYLES', styles), ('WIDTH', width), ('HEIGHT', height),
             ('QUERY_LAYERS', query_layers)
         ]
-        if service_version.lower() == VersionEnum.V_1_3_0.value.lower():
+        if service_version.lower() == OGCServiceVersionEnum.V_1_3_0.value.lower():
             queries = queries + [('I', x), ('J', y)]
         else:
             queries = queries + [('X', x), ('Y', y)]
@@ -145,9 +145,9 @@ class WmsHelper:
         uri = self.service.get_map_uri_GET
         if uri is None:
             return
-        request_type = ServiceOperationEnum.GET_MAP.value
+        request_type = OGCOperationEnum.GET_MAP.value
         service_version = self.service.servicetype.version
-        service_type = ServiceEnum.WMS.value
+        service_type = OGCServiceEnum.WMS.value
         try:
             layers = self.service.layer.identifier
             crs = f'EPSG:{self.service.layer.bbox_lat_lon.crs.srid}'
@@ -181,9 +181,9 @@ class WmsHelper:
         if uri is None:
             # Return None if uri is not defined so that service check fails
             return
-        request_type = ServiceOperationEnum.GET_CAPABILITIES.value
+        request_type = OGCOperationEnum.GET_CAPABILITIES.value
         service_version = self.service.servicetype.version
-        service_type = ServiceEnum.WMS.value
+        service_type = OGCServiceEnum.WMS.value
 
         queries = [('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type)]
         url = UrlHelper.build(uri, queries)

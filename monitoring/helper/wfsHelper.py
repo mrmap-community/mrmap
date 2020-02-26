@@ -1,5 +1,5 @@
 from service.models import Service
-from service.helper.enums import ServiceOperationEnum, ServiceEnum
+from service.helper.enums import OGCOperationEnum, OGCServiceEnum
 from monitoring.helper.urlHelper import UrlHelper
 
 
@@ -27,9 +27,9 @@ class WfsHelper:
         uri = self.service.get_capabilities_uri_GET
         if uri is None:
             return
-        request_type = ServiceOperationEnum.GET_CAPABILITIES.value
+        request_type = OGCOperationEnum.GET_CAPABILITIES.value
         service_version = self.service.servicetype.version
-        service_type = ServiceEnum.WFS.value
+        service_type = OGCServiceEnum.WFS.value
 
         queries = [('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type)]
         url = UrlHelper.build(uri, queries)
@@ -44,9 +44,9 @@ class WfsHelper:
         uri = self.service.list_stored_queries_uri_GET
         if uri is None:
             return
-        request_type = ServiceOperationEnum.LIST_STORED_QUERIES.value
+        request_type = OGCOperationEnum.LIST_STORED_QUERIES.value
         service_version = self.service.servicetype.version
-        service_type = ServiceEnum.WFS.value
+        service_type = OGCServiceEnum.WFS.value
 
         queries = [('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type)]
         url = UrlHelper.build(uri, queries)

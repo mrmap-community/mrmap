@@ -1,4 +1,5 @@
 import django_tables2 as tables
+from django.db.models import F
 from django.utils.html import format_html
 from django.urls import reverse
 import json
@@ -6,8 +7,7 @@ from MapSkinner.celery_app import app
 from celery.result import AsyncResult
 from MapSkinner.utils import get_theme, get_ok_nok_icon
 from MapSkinner.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
-
-
+from django.db.models import Count
 def _get_close_button(url, user):
     return format_html(URL_BTN_PATTERN,
                        BTN_CLASS,
@@ -72,8 +72,15 @@ class WmsServiceTable(ServiceTable):
 
     @staticmethod
     def render_wms_layers(record):
-        count = len(record.service.child_service.all())
+        count = record.service.child_service.count()
         return str(count)
+
+    @staticmethod
+    def order_wms_layers(queryset, is_descending):
+        queryset = queryset.annotate(
+            count=Count("service__child_service")
+        ).order_by(("-" if is_descending else "") + "count")
+        return queryset, True
 
 
 class WmsLayerTable(ServiceTable):
@@ -109,7 +116,7 @@ class WfsServiceTable(tables.Table):
 
     @staticmethod
     def render_wfs_featuretypes(record):
-        count = len(record.service.featuretypes.all())
+        count = record.service.featuretypes.count()
         return str(count)
 
     @staticmethod
@@ -142,6 +149,13 @@ class WfsServiceTable(tables.Table):
             return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
         else:
             return value
+
+    @staticmethod
+    def order_wfs_featuretypes(queryset, is_descending):
+        queryset = queryset.annotate(
+            count=Count("service__featuretypes")
+        ).order_by(("-" if is_descending else "") + "count")
+        return queryset, True
 
 
 class PendingTasksTable(tables.Table):

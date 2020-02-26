@@ -1,10 +1,12 @@
 import os
+from datetime import timedelta
 
 from django.contrib.auth.hashers import make_password
 from django.test import TestCase, Client
 from django.utils import timezone
 
 from MapSkinner.settings import HOST_NAME, HTTP_OR_SSL
+from monitoring.models import MonitoringSetting
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
 from service.helper import service_helper
 from structure.models import Permission, Role, User, Group
@@ -74,7 +76,10 @@ class EditorTestCase(TestCase):
         self.raw_data_wms = service.get("raw_data", None)
         self.service_wms = service.get("service", None)
 
-        service_helper.persist_service_model_instance(self.service_wms)
+        monitoring_setting = MonitoringSetting(interval=timedelta(microseconds=1000), timeout=1000)
+        monitoring_setting.save()
+
+        service_helper.persist_service_model_instance(self.service_wms, external_auth=None)
         self.service_wms.persist_capabilities_doc(self.raw_data_wms.service_capabilities_xml)
 
     def _get_logged_in_client(self, user: User):

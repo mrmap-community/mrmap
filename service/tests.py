@@ -1,6 +1,8 @@
 import os
 
 from copy import copy
+from datetime import timedelta
+
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
@@ -9,6 +11,7 @@ from django.utils import timezone
 
 from MapSkinner.messages import SECURITY_PROXY_NOT_ALLOWED
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, HOST_NAME, HTTP_OR_SSL
+from monitoring.models import MonitoringSetting
 from service import tasks
 from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
@@ -94,6 +97,9 @@ class ServiceTestCase(TestCase):
         )
         self.raw_data = service.get("raw_data", None)
         self.service = service.get("service", None)
+
+        monitoring_setting = MonitoringSetting(interval=timedelta(microseconds=1000), timeout=1000)
+        monitoring_setting.save()
 
         # run process without an external authentication - since the service does not require an authentication
         service_helper.persist_service_model_instance(self.service, external_auth=None)

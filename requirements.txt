@@ -14,7 +14,7 @@ sqlparse==0.3.0
 urllib3==1.24.3
 
 argon2-cffi
-Werkzeug
+Werkzeug==0.16.1
 pysxm
 celery==4.3.0
 redis

@@ -1,14 +1,15 @@
 {% extends 'sceletons/card.html' %}
 {% load i18n %}
-{% block card-header-title-left %}
 
-<h5 class="card-title">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %} {% trans 'Web map service' %}</h5>
+{% block card-header-title-left %}
+<h5 class="card-title">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %} {% trans 'WMS' %}</h5>
 {% endblock %}
+
+{% block card-header-title-right %}
+<h5><span class="badge badge-pill {{THEME.CARD.BADGE_LIGHT}}">{{ wms_count }}</span></h5>
+{% endblock %}
+
 {% block card-body %}
-<h6 class="card-subtitle mb-2 text-muted">
-    {% trans 'count' %} <span
-        class="badge badge-pill {{THEME.CARD.BADGE_COLOR}}">{{ wms_count }}</span>
-</h6>
 <p class="card-text">Some quick example text to build on the card title and make up the bulk
     of the
     card's

@@ -29,6 +29,7 @@ FONT_AWESOME_ICONS = {
     'SORT_ALPHA_UP': format_html(ICON_PATTERN, 'fas', 'fa-sort-alpha-up', ),
     'SORT_ALPHA_DOWN': format_html(ICON_PATTERN, 'fas', 'fa-sort-alpha-down', ),
     'ACTIVITY': format_html(ICON_PATTERN, 'fas', 'fa-snowboarding', ),
+    'HISTORY': format_html(ICON_PATTERN, 'fas', 'fa-history', ),
     'SERVICE': format_html(ICON_PATTERN, 'fas', 'fa-concierge-bell', ),
     'SAVE': format_html(ICON_PATTERN, 'fas', 'fa-save', ),
     'UPLOAD': format_html(ICON_PATTERN, 'fas', 'fa-upload', ),
@@ -74,6 +75,7 @@ DARK_THEME = {
         'BTN_WARNING_COLOR': 'btn-outline-warning',
         'BTN_INFO_COLOR': 'btn-outline-primary',
         'BADGE_COLOR': 'badge-info',
+        'BADGE_LIGHT': 'badge-light',
     },
 
     'NAV': {
@@ -156,6 +158,7 @@ LIGHT_THEME = {
         'BTN_WARNING_COLOR': 'btn-warning',
         'BTN_INFO_COLOR': 'btn-info',
         'BADGE_COLOR': 'badge-primary',
+        'BADGE_LIGHT': 'badge-light',
     },
 
     'NAV': {

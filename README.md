@@ -73,6 +73,7 @@ pip install -r requirements.txt
 
 python manage.py makemigrations service
 python manage.py makemigrations structure
+python manage.py makemigrations monitoring
 python manage.py migrate  
 ```
 

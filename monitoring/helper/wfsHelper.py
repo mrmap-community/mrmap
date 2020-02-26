@@ -1,3 +1,11 @@
+"""
+Author: Jan Suleiman
+Organization: terrestris GmbH & Co. KG, Bonn, Germany
+Contact: suleiman@terrestris.de
+Created on: 26.02.2020
+
+"""
+
 from service.models import Service
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum
 from monitoring.helper.urlHelper import UrlHelper

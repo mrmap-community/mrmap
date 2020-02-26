@@ -5,6 +5,7 @@ Contact: suleiman@terrestris.de
 Created on: 09.12.2019
 
 """
+
 from datetime import timedelta
 import difflib
 from typing import Union

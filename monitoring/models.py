@@ -1,3 +1,11 @@
+"""
+Author: Jan Suleiman
+Organization: terrestris GmbH & Co. KG, Bonn, Germany
+Contact: suleiman@terrestris.de
+Created on: 26.02.2020
+
+"""
+
 from django.contrib.gis.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver

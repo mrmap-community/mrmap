@@ -1,0 +1,23 @@
+{% load l10n %}
+{% localize off %}
+<script type="text/javascript">
+var map_{{ id_map }} = L.map('{{ id_map }}_map', {
+    center: [{{ bbox.centroid.y }}, {{ bbox.centroid.x }}],
+    zoom: {{ bbox.area }},
+    layers: [
+        new L.TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        })
+    ],
+}).fitBounds(
+    [
+        [{{ bbox.boundary.extent.1 }}, {{ bbox.boundary.extent.0 }}],
+        [{{ bbox.boundary.extent.3 }}, {{ bbox.boundary.extent.2 }}],
+    ]
+    );
+
+{% if leaflet_add_bbox %}
+    map_{{ id_map }}.addLayer(new L.geoJSON({{ bbox.geojson|safe }}));
+{% endif %}
+</script>
+{% endlocalize %}

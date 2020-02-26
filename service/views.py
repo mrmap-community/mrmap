@@ -939,6 +939,7 @@ def detail(request: HttpRequest, id, user: User):
         "layers": layers_md_list,
         "mime_types": mime_types,
         "remove_service_form": remove_service_form,
+        "leaflet_add_bbox": True,
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())

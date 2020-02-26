@@ -176,7 +176,7 @@ class CapabilityXMLBuilder:
         # Check if the content exists
         elem = xml_helper.try_get_single_element_from_xml(
             upper_elem,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("VendorSpecificCapabilities")
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("VendorSpecificCapabilities")
         )
         if elem is None:
             # Nothing was found, we must create our own service metadata!
@@ -303,7 +303,6 @@ class CapabilityXMLBuilder:
             lang_elem,
             txt=self.inspire_response_language_code
         )
-
 
 
 class CapabilityWMSBuilder(CapabilityXMLBuilder):
@@ -1258,7 +1257,6 @@ class CapabilityWMS130Builder(CapabilityWMSBuilder):
         # Layers are not included in this contents dict, since they will be appended separately at the end
         contents = OrderedDict({
             "{}Request": "",
-            "{}ExtendedCapabilities": "",
         })
         self._generate_simple_elements_from_dict(capability_elem, contents)
 
@@ -1272,6 +1270,8 @@ class CapabilityWMS130Builder(CapabilityWMSBuilder):
         self._generate_capability_exception_xml(capability_elem)
 
         self._generate_capability_layer_xml(capability_elem, md)
+
+        self._generate_vendor_specific_capabilities_xml(capability_elem, self.inspire_vs_ns)
 
     def _generate_capability_layer_bounding_box_xml(self, layer_elem, layer: Layer):
         """ Generate the 'LatLonBoundingBox' subelement of a layer xml object

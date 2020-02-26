@@ -11,7 +11,7 @@
 /* Footer
 -------------------------------------------------- */
 .footer {
-    background-color: var(--primary-color) !important;
+    border-top: 1px solid lightgray;
 }
 
 /* Card

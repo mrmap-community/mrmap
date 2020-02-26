@@ -16,6 +16,10 @@ function changeOverlayContent(html){
 
 $(document).on("click", "#eeImg", function(){
     toggleOverlay("");
+    // restore rotation
+    var elem = $("#ee-trggr");
+    elem.css({"transform": "rotate(0deg)"});
+
 });
 
 $(document).ready(function(){
@@ -28,7 +32,6 @@ $(document).ready(function(){
         eeRotation += 2;
         element.css({"transform": "rotate(" + eeRotation +"deg)"});
         if(eeRotation == 360){
-            var overlay = $("#overlay");
             var eeSound = $("#ee-audio")[0];
             var img = $("<img/>").attr("src", "/static/structure/images/mr_map.png")
             .attr("class", "rotating-image")

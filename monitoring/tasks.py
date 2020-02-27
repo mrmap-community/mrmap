@@ -11,6 +11,7 @@ import datetime
 
 from celery import shared_task
 from celery.signals import beat_init
+from django.core.exceptions import ObjectDoesNotExist
 from django_celery_beat.models import PeriodicTask, IntervalSchedule
 
 from monitoring.models import MonitoringSetting, MonitoringRun
@@ -24,9 +25,14 @@ def setup_periodic_tasks(sender, **kwargs):
     monitoring_setting = MonitoringSetting.objects.first()
     interval = monitoring_setting.interval.total_seconds()
     schedule, created = IntervalSchedule.objects.get_or_create(every=interval, period=IntervalSchedule.SECONDS)
-    PeriodicTask.objects.get_or_create(
-        interval=schedule, name='run monitoring', task='run_service_monitoring'
-    )
+    periodic_task_name = 'run monitoring'
+    # check if task with name already exists, if not, create it
+    try:
+        PeriodicTask.objects.get(name=periodic_task_name)
+    except ObjectDoesNotExist:
+        PeriodicTask.objects.create(
+            interval=schedule, name='run monitoring', task='run_service_monitoring'
+        )
 
 
 @shared_task(name='run_service_monitoring')

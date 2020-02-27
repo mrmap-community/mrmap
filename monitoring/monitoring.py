@@ -10,6 +10,7 @@ from datetime import timedelta
 import difflib
 from typing import Union
 
+from celery.contrib import rdb
 from django.core.exceptions import ObjectDoesNotExist
 
 from monitoring.models import Monitoring as MonitoringResult, MonitoringCapability, MonitoringRun
@@ -98,7 +99,7 @@ class Monitoring:
 
     def check_linked_metadata(self):
         for metadata_relation in self.linked_metadata:
-            monitoring = Monitoring(metadata_relation.metadata_to)
+            monitoring = Monitoring(metadata_relation.metadata_to, self.monitoring_run)
             monitoring.run_checks()
 
     def check_wfs(self, service: Service):
@@ -194,7 +195,7 @@ class Monitoring:
             return Monitoring.ServiceStatus(url, success, response_text, connector.status_code, duration)
 
         duration = timedelta(seconds=connector.run_time)
-        response_text = connector.text
+        response_text = connector.content
         if connector.status_code == 200:
             success = True
             try:
@@ -258,7 +259,7 @@ class Monitoring:
         document = Document.objects.get(related_metadata=self.metadata)
         original_document = document.original_capability_document
         crypto_handler = CryptoHandler()
-        new_capabilities_hash = crypto_handler.sha256(new_capabilities)
+        new_capabilities_hash = crypto_handler.sha256(new_capabilities.decode('UTF-8'))
         original_document_hash = crypto_handler.sha256(original_document)
         if new_capabilities_hash == original_document_hash:
             return

@@ -43,25 +43,30 @@ from service.tasks import async_remove_service_task
 from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
 from django.urls import reverse
+from django import forms
 
 
 def _prepare_wms_table(request: HttpRequest, user: User, ):
     # whether whole services or single layers should be displayed
-    display_service_type = request.GET.get("q", None)  # s = services, l=layers
-    is_root = True
-    if display_service_type is not None:
-        is_root = display_service_type != "l"
+
+    if 'show_layers' in request.GET:
+        if request.GET.get("show_layers").lower() == 'on':
+            show_service = False
+        else:
+            show_service = True
+    else:
+        show_service = True
 
     md_list_wms = Metadata.objects.filter(
         service__servicetype__name="wms",
-        service__is_root=is_root,
+        service__is_root=show_service,
         created_by__in=user.groups.all(),
         service__is_deleted=False,
     ).order_by("title")
 
     wms_table_filtered = WmsFilter(request.GET, queryset=md_list_wms)
 
-    if display_service_type is None or display_service_type == 's':
+    if show_service:
         wms_table = WmsServiceTable(wms_table_filtered.qs,
                                     template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                     order_by_field='swms',  # swms = sort wms
@@ -71,6 +76,11 @@ def _prepare_wms_table(request: HttpRequest, user: User, ):
                                   template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                   order_by_field='swms',  # swms = sort wms
                                   user=user,)
+
+    # add boolean field to filter.form; this is needed, cause the search form sends it if show layer dropdown is set
+    # add it after table is created; otherwise we get a KeyError
+    show_layers_ = forms.BooleanField(required=False, initial=False)
+    wms_table_filtered.form.fields.update({'show_layers': show_layers_})
 
     wms_table.filter = wms_table_filtered
     RequestConfig(request).configure(wms_table)
@@ -645,6 +655,7 @@ def wms_index(request: HttpRequest, user: User):
     return render(request=request, template_name=template, context=context.get_context())
 
 
+# TODO: refactor this function and template by using bootstrap4
 @check_session
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic

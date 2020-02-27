@@ -203,7 +203,7 @@ LIGHT_THEME = {
 
     'ACCORDION': {
         'BTN_COLOR': 'btn-secondary',
-        'PILL_BADGE_INFO_COLOR': 'badge-pill badge-primary',
+        'PILL_BADGE_INFO_COLOR': 'badge-pill badge-info',
     },
 
     'ICONS': FONT_AWESOME_ICONS,

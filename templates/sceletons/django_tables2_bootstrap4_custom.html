@@ -11,9 +11,14 @@
         <form action="" method="get" class="form form-inline">
             <div class="col">
                 <div class="row">
-                    <div class="form-group">
-                        {% bootstrap_form table.filter.form layout='inline' %}
-                        <button type="submit" class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}">{% autoescape off %}{{table.context.THEME.ICONS.SEARCH}}{% endautoescape %}</button>
+                    <div class="d-flex align-top">
+                        <div class="">
+                            {% bootstrap_form table.filter.form layout='inline' %}
+                        </div>
+                        <div class="">
+                            <button type="submit" class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}">{% autoescape off %}{{table.context.THEME.ICONS.SEARCH}}{% endautoescape %}</button>
+                        </div>
+
                     </div>
                 </div>
             </div>

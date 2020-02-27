@@ -53,22 +53,27 @@
                         {% for column in table.columns %}
                             <th {{ column.attrs.th.as_html }}>
                                 {% if column.orderable %}
-                                    {{ column.header }}<div class="float-right">
-                                    {% if '-' in column.order_by_alias.next and request.GET|get_order_by_alias_from_request:table.order_by_field is not None %}
-                                    <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
-                                    class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else%} {{table.context.THEME.TABLE.LINK_COLOR}}  {% endif %}">
-                                        {% autoescape off %}{{table.context.THEME.ICONS.SORT_ALPHA_UP}}{% endautoescape %} {{THEME}}
-                                    </a>
-                                    {% else %}
-                                    <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next%}"
-                                    class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else %} {{table.context.THEME.TABLE.LINK_COLOR}} {% endif %}">
-                                        {% autoescape off %}{{table.context.THEME.ICONS.SORT_ALPHA_DOWN}}{% endautoescape %} {{THEME}}
-                                    </a>
-                                    {% endif %}
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="">
+                                        {{ column.header }}
+                                    </div>
+                                    <div class="">
+                                        {% if '-' in column.order_by_alias.next and request.GET|get_order_by_alias_from_request:table.order_by_field is not None %}
+                                        <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
+                                        class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else%} {{table.context.THEME.TABLE.LINK_COLOR}}  {% endif %}">
+                                            {% autoescape off %}{{table.context.THEME.ICONS.SORT_ALPHA_UP}}{% endautoescape %} {{THEME}}
+                                        </a>
+                                        {% else %}
+                                        <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next%}"
+                                        class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else %} {{table.context.THEME.TABLE.LINK_COLOR}} {% endif %}">
+                                            {% autoescape off %}{{table.context.THEME.ICONS.SORT_ALPHA_DOWN}}{% endautoescape %} {{THEME}}
+                                        </a>
+                                        {% endif %}
                                     </div>
                                 {% else %}
                                     {{ column.header }}
                                 {% endif %}
+                                </div>
                             </th>
                         {% endfor %}
                         </tr>

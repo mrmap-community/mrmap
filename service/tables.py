@@ -18,15 +18,20 @@ def _get_close_button(url, user):
 
 
 class ServiceTable(tables.Table):
-    wms_title = tables.Column(accessor='title', verbose_name='Title', empty_values=[])
-    wms_active = tables.Column(accessor='is_active', verbose_name='Active', )
-    wms_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', )
-    wms_secured_externally = tables.Column(accessor='has_external_authentication', verbose_name='Secured externally', )
-    wms_version = tables.Column(accessor='service.servicetype.version', verbose_name='Version', )
-    wms_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', )
-    wms_registered_by_group = tables.Column(accessor='service.created_by', verbose_name='Registered by group', )
-    wms_registered_for = tables.Column(accessor='service.published_for', verbose_name='Registered for', )
-    wms_created_on = tables.Column(accessor='created', verbose_name='Created on', )
+    attrs = {
+        "th":{
+            "class": "align-middle",
+        }
+    }
+    wms_title = tables.Column(accessor='title', verbose_name='Title', empty_values=[], attrs=attrs)
+    wms_active = tables.Column(accessor='is_active', verbose_name='Active', attrs=attrs)
+    wms_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', attrs=attrs)
+    wms_secured_externally = tables.Column(accessor='has_external_authentication', verbose_name='Secured externally', attrs=attrs)
+    wms_version = tables.Column(accessor='service.servicetype.version', verbose_name='Version', attrs=attrs)
+    wms_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', attrs=attrs)
+    wms_registered_by_group = tables.Column(accessor='service.created_by', verbose_name='Registered by group', attrs=attrs)
+    wms_registered_for = tables.Column(accessor='service.published_for', verbose_name='Registered for', attrs=attrs)
+    wms_created_on = tables.Column(accessor='created', verbose_name='Created on', attrs=attrs)
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
@@ -65,10 +70,18 @@ class ServiceTable(tables.Table):
 
 
 class WmsServiceTable(ServiceTable):
-    wms_layers = tables.Column(verbose_name='Layers', empty_values=[], )
+    attrs = {
+        "th":{
+            "class": "align-middle",
+        }
+    }
+    wms_layers = tables.Column(verbose_name='Layers', empty_values=[], attrs=attrs)
 
     class Meta:
         sequence = ("wms_title", "wms_layers", "...")
+        row_attrs = {
+            "class": "text-center"
+        }
 
     @staticmethod
     def render_wms_layers(record):
@@ -81,6 +94,9 @@ class WmsLayerTable(ServiceTable):
 
     class Meta:
         sequence = ("wms_title", "wms_parent_service", "...")
+        row_attrs = {
+            "class": "text-center"
+        }
 
     def render_wms_parent_service(self, record):
         url = reverse('service:detail', args=(record.service.parent_service.metadata.id,))
@@ -88,6 +104,11 @@ class WmsLayerTable(ServiceTable):
 
 
 class WfsServiceTable(tables.Table):
+    class Meta:
+        row_attrs = {
+            "class": "text-center"
+        }
+
     wfs_title = tables.Column(accessor='title', verbose_name='Title', )
     wfs_featuretypes = tables.Column(verbose_name='Featuretypes', empty_values=[], )
     wfs_active = tables.Column(accessor='is_active', verbose_name='Active', )

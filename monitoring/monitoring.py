@@ -10,7 +10,6 @@ from datetime import timedelta
 import difflib
 from typing import Union
 
-from celery.contrib import rdb
 from django.core.exceptions import ObjectDoesNotExist
 
 from monitoring.models import Monitoring as MonitoringResult, MonitoringCapability, MonitoringRun
@@ -259,7 +258,12 @@ class Monitoring:
         document = Document.objects.get(related_metadata=self.metadata)
         original_document = document.original_capability_document
         crypto_handler = CryptoHandler()
-        new_capabilities_hash = crypto_handler.sha256(new_capabilities.decode('UTF-8'))
+        try:
+            # check if new_capabilities is bytestring and decode it if so
+            new_capabilities = new_capabilities.decode('UTF-8')
+        except AttributeError:
+            pass
+        new_capabilities_hash = crypto_handler.sha256(new_capabilities)
         original_document_hash = crypto_handler.sha256(original_document)
         if new_capabilities_hash == original_document_hash:
             return

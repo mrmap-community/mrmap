@@ -12,6 +12,10 @@
 -------------------------------------------------- */
 .footer {
     border-top: 1px solid lightgray;
+    position: absolute;
+    right: 0px;
+    left: 0px;
+    width: 100vw;
 }
 
 /* Card

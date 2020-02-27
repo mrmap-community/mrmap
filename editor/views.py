@@ -145,8 +145,8 @@ def edit(request: HttpRequest, id: int, user: User):
         editor_form = MetadataEditorForm(instance=metadata)
         editor_form.action_url = reverse("editor:edit", args=(id,))
 
-        if not metadata.is_root():
-            del editor_form.fields["use_proxy_uri"]
+        #if not metadata.is_root():
+            #del editor_form.fields["use_proxy_uri"]
 
         params = {
             "service_metadata": metadata,
@@ -155,53 +155,6 @@ def edit(request: HttpRequest, id: int, user: User):
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
 
-# ToDo:Remove this function by time, if we can be sure it is safe without!
-@check_session
-@check_permission(Permission(can_edit_metadata_service=True))
-def edit_featuretype(request: HttpRequest, id: int, user: User):
-    """ The edit view for FeatureTypes
-
-    Since FeatureTypes do not have describing Metadata, we need to handle them separately
-
-    Args:
-        request: The incoming request
-        id: The featuretype id
-        user: The performing user
-    Returns:
-         A rendered view
-    """
-    template = "editor_edit.html"
-    feature_type = FeatureType.objects.get(id=id)
-    feature_type_editor_form = FeatureTypeEditorForm(request.POST or None)
-    feature_type_editor_form.fields["abstract"].required = False
-    if request.method == 'POST':
-        # save new values to feature type
-        if feature_type_editor_form.is_valid():
-            custom_ft = feature_type_editor_form.save(False)
-            editor_helper.overwrite_featuretype(feature_type, custom_ft, feature_type_editor_form)
-            messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
-            return redirect("editor:index")
-        else:
-            messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
-            return redirect(request.META.get("HTTP_REFERER"))
-    else:
-        feature_type_editor_form = FeatureTypeEditorForm(instance=feature_type)
-        feature_type_editor_form.fields["abstract"].required = False
-        addable_values_list = [
-            {
-                "title": _("Keywords"),
-                "name": "keywords",
-                "values": feature_type.metadata.keywords.all(),
-                "all_values": Keyword.objects.all().order_by("keyword"),
-            }
-        ]
-        params = {
-                "service_metadata": feature_type,
-                "addable_values_list": addable_values_list,
-                "form": feature_type_editor_form,
-                "action_url": "{}/editor/edit/featuretype/{}".format(ROOT_URL, id),}
-    context = DefaultContext(request, params, user).get_context()
-    return render(request, template, context)
 
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))

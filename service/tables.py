@@ -1,4 +1,5 @@
 import django_tables2 as tables
+from django.db.models import F
 from django.utils.html import format_html
 from django.urls import reverse
 import json
@@ -6,6 +7,7 @@ from MapSkinner.celery_app import app
 from celery.result import AsyncResult
 from MapSkinner.utils import get_theme, get_ok_nok_icon
 from MapSkinner.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
+from django.db.models import Count
 
 
 def _get_close_button(url, user):
@@ -85,8 +87,15 @@ class WmsServiceTable(ServiceTable):
 
     @staticmethod
     def render_wms_layers(record):
-        count = len(record.service.child_service.all())
+        count = record.service.child_service.count()
         return str(count)
+
+    @staticmethod
+    def order_wms_layers(queryset, is_descending):
+        queryset = queryset.annotate(
+            count=Count("service__child_service")
+        ).order_by(("-" if is_descending else "") + "count")
+        return queryset, True
 
 
 class WmsLayerTable(ServiceTable):
@@ -113,7 +122,7 @@ class WfsServiceTable(tables.Table):
     wfs_featuretypes = tables.Column(verbose_name='Featuretypes', empty_values=[], )
     wfs_active = tables.Column(accessor='is_active', verbose_name='Active', )
     wfs_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', )
-    wfs_secured_externally = tables.Column(accessor='has_external_authentication', verbose_name='Secured externally', )
+    wfs_secured_externally = tables.Column(accessor='external_authentication', verbose_name='Secured externally', empty_values=[], )
     wfs_version = tables.Column(accessor='service.servicetype.version', verbose_name='Version', )
     wfs_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', )
     wfs_registered_by_group = tables.Column(accessor='service.created_by', verbose_name='Registered by group', )
@@ -130,7 +139,7 @@ class WfsServiceTable(tables.Table):
 
     @staticmethod
     def render_wfs_featuretypes(record):
-        count = len(record.service.featuretypes.all())
+        count = record.service.featuretypes.count()
         return str(count)
 
     @staticmethod
@@ -163,6 +172,13 @@ class WfsServiceTable(tables.Table):
             return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
         else:
             return value
+
+    @staticmethod
+    def order_wfs_featuretypes(queryset, is_descending):
+        queryset = queryset.annotate(
+            count=Count("service__featuretypes")
+        ).order_by(("-" if is_descending else "") + "count")
+        return queryset, True
 
 
 class PendingTasksTable(tables.Table):

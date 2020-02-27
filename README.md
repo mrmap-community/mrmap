@@ -1,4 +1,4 @@
-<img src="https://git.osgeo.org/gitea/hollsandre/MapSkinner/raw/branch/pre_master/structure/static/structure/images/mr_map.png" width="200">
+<img src="https://git.osgeo.org/gitea/hollsandre/MapSkinner/raw/branch/pre_master/MapSkinner/static/images/mr_map.png" width="200">
 
 ## About
 Mr. Map is a service registry for web map services ([WMS](https://www.opengeospatial.org/standards/wms)) 
@@ -54,8 +54,8 @@ The system provides the following functionalities:
 We use Docker to run postgis and redis, so make sure Docker is installed on your system.
 From within the project directory run
 
-```shell script
-docker-compose up
+```shell
+docker-compose -f docker/docker-compose.yml up
 ```
 
 to install and start the services. Then, run following commands:
@@ -97,11 +97,39 @@ If a task didn't finish due to reasons, you can delete the related **Pending tas
 After initialising the project, the development setup can be started as follows.
 From within the project directory, run:
 
-```shell script
-docker-compose up
+```shell
+docker-compose -f docker/docker-compose.yml up
 celery -A MapSkinner worker -l info
 python manage.py runserver_plus
 ```
+
+### Dev Setup With GeoServer/MapServer
+
+It is also possible to start the application with a containerized GeoServer or MapServer.
+To do so, instead of 
+
+```shell
+docker-compose -f docker/docker-compose.yml up
+```
+
+Run
+
+```shell
+docker-compose -f docker/docker-compose-dev-geoserver.yml up
+```
+
+for including GeoServer (reachable at `localhost:8090/geoserver`), and
+
+```shell
+docker-compose -f docker/docker-compose-dev-mapserver.yml up
+```
+
+for including MapServer (reachable at `localhost:8091`).
+
+GeoServer data will be mounted to `geoserver/geoserver_data`.
+
+Mapfiles should be placed in `mapserver/mapfiles` and related data files in `mapserver/mapdata`.
+Maps can then be accessed via `http://localhost:8091/?map=/etc/mapserver/MAPFILE.map` (replace `MAPFILE` with actual mapfile name).
 
 ## Production setup
 
@@ -111,8 +139,8 @@ disabled debugging, and verified the list of allowed hosts.
 After initialising the project, the production setup can be started as follows.
 From within the project directory, run:
 
-```shell script
-docker-compose up
+```shell
+docker-compose -f docker/docker-compose.yml up 
 celery -A MapSkinner worker -l info
 python manage.py runserver
 ```

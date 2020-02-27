@@ -8,11 +8,11 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - ./postgis/initdata/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql
-      - ./postgis/postgresql_data:/var/lib/postgresql/data:Z
+      - ../postgis/initdata/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql
+      - ../postgis/postgresql_data:/var/lib/postgresql/data:Z
   mapskinner-redis:
     image: library/redis:5.0.7-alpine
     ports:
       - 6379:6379
     volumes:
-      - ./redis/redis_data:/data
+      - ../redis/redis_data:/data

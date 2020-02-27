@@ -9,14 +9,12 @@
     {% if table.filter.form %}
     <div class="col-md-7 col-lg-9 col-xl-10"><!--filter-->
         <form action="" method="get" class="form form-inline">
-            <div class="row">
-                <div class="col">
+            <div class="col">
+                <div class="row">
                     <div class="form-group">
                         {% bootstrap_form table.filter.form layout='inline' %}
+                        <button type="submit" class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}">{% autoescape off %}{{table.context.THEME.ICONS.SEARCH}}{% endautoescape %}</button>
                     </div>
-                </div>
-                <div class="col">
-                    <button type="submit" class="btn {{table.context.THEME.TABLE.BTN_PRIMARY_COLOR}}">{% autoescape off %}{{table.context.THEME.ICONS.SEARCH}}{% endautoescape %} {% trans 'Search'%}</button>
                 </div>
             </div>
         </form>
@@ -27,7 +25,7 @@
         {% if table.pagination.page_size %}
             <div class="dropdown d-inline-block">
                 {% trans 'Show' %}
-                <button class="btn {{table.context.THEME.TABLE.BTN_PRIMARY_COLOR}} dropdown-toggle" type="button" id="wmsPagingButton"
+                <button class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="wmsPagingButton"
                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ table.pagination.page_size }}
                 </button>
                 {% trans 'entries' %}

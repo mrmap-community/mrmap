@@ -37,6 +37,7 @@ FONT_AWESOME_ICONS = {
     'SEND_EMAIL': format_html(ICON_PATTERN, 'fas', 'fa-envelope-open-text', ),
     'WINDOW_CLOSE': format_html(ICON_PATTERN, 'fas', 'fa-window-close', ),
     'HIERARCHY': format_html(ICON_PATTERN, 'fas', 'fa-sitemap', ),
+    'GLOBE': format_html(ICON_PATTERN, 'fas', 'fa-globe', ),
 }
 
 # dark theme settings

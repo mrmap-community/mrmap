@@ -36,6 +36,16 @@
     animation: animate-rotate 4.5s infinite;
 }
 
+.message{
+    position: absolute;
+    z-index: 3;
+    width: 100vw;
+}
+.message:hover{
+    cursor: default;
+    opacity: 0.5;
+}
+
 /* Sticky footer styles
 -------------------------------------------------- */
 body {

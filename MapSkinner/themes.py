@@ -36,6 +36,7 @@ FONT_AWESOME_ICONS = {
     'DOWNLOAD': format_html(ICON_PATTERN, 'fas', 'fa-download', ),
     'SEND_EMAIL': format_html(ICON_PATTERN, 'fas', 'fa-envelope-open-text', ),
     'WINDOW_CLOSE': format_html(ICON_PATTERN, 'fas', 'fa-window-close', ),
+    'HIERARCHY': format_html(ICON_PATTERN, 'fas', 'fa-sitemap', ),
 }
 
 # dark theme settings
@@ -171,6 +172,7 @@ LIGHT_THEME = {
         'BTN_DANGER_COLOR': 'btn-danger',
         'BTN_WARNING_COLOR': 'btn-warning',
         'BTN_INFO_COLOR': 'btn-info',
+        'BTN_LIGHT': 'btn-outline-light',
     },
 
     'FOOTER': {

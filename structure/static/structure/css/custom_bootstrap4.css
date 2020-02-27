@@ -17,7 +17,7 @@
 /* Card
 -------------------------------------------------- */
 .card-header {
-    background-color: var(--primary-color) !important;
+    background-color: var(--primary-color-light) !important;
 }
 
 /* Modal

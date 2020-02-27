@@ -15,7 +15,7 @@
 
 {% load i18n %}
 {% block card-body %}
-    <div class="row mb-2 ">
+    <div class="row">
         <div class="col-sm mb-2 text-center">
             {% if 'can_edit_metadata_service' in user_permissions %}
                 <div class="dropdown">
@@ -28,28 +28,25 @@
                   </div>
                 </div>
             {% endif %}
-            </div><!--</col>-->
-            <div class="col-sm mb-2 text-center">
-                <!--TODO: Hide?-->
-                <a class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}" href="{% url 'service:get-dataset-metadata' service.metadata.id %}">{% trans 'Dataset Metadata' %}</a>
-            </div><!--</col>-->
-            <div class="col-sm mb-2 text-center">
+        </div><!--</col>-->
+        <div class="col-sm mb-2 text-center">
+            <!--TODO: Hide?-->
+            <a class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}" href="{% url 'service:get-dataset-metadata' service.metadata.id %}">{% trans 'Dataset Metadata' %}</a>
+        </div><!--</col>-->
+        <div class="col-sm mb-2 text-center">
             {% if 'can_edit_metadata_service' in user_permissions %}
                 <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
             {% endif %}
-            </div><!--</col>-->
-        </div><!--</row>-->
-        <div class="row mb-2 ">
+        </div><!--</col>-->
+    </div><!--</row>-->
+    <div class="row">
         <div class="col">
-
-
-    {% include 'includes/wms/child_layer_detail_table.html' %}
-
-    {% for layer in layers %}
-    {% with layer.metadata.id as id_accordion %}
-    {% include 'includes/wms/sublayer_detail_accordion.html' %}
-    {% endwith %}
-    {% endfor %}
-            </div><!--</col>-->
-</div><!--</row>-->
+            {% include 'includes/wms/child_layer_detail_table.html' %}
+            {% for layer in layers %}
+                {% with layer.metadata.id as id_accordion %}
+                    {% include 'includes/wms/sublayer_detail_accordion.html' %}
+                {% endwith %}
+            {% endfor %}
+        </div><!--</col>-->
+    </div><!--</row>-->
 {% endblock %}

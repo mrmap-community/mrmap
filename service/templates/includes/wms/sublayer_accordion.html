@@ -6,7 +6,10 @@
 {% endblock %}
 
 {% block accordion-body %}
-    <div id="id_content_service_{{layer.metadata.id}}"></div>
+    <div id="id_content_service_{{layer.metadata.id}}">
+        {% include 'includes/loading_spinner.html' %}
+    </div>
+
     <script type="text/javascript">
         $('#id_accordion_btn_{{id_accordion}}_{{id_accordion_combined}}').click(function() {
             console.log('clicked');

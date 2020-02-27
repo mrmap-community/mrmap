@@ -11,13 +11,17 @@
 /* Footer
 -------------------------------------------------- */
 .footer {
-    background-color: var(--primary-color) !important;
+    border-top: 1px solid lightgray;
+    position: absolute;
+    right: 0px;
+    left: 0px;
+    width: 100vw;
 }
 
 /* Card
 -------------------------------------------------- */
 .card-header {
-    background-color: var(--primary-color) !important;
+    background-color: var(--primary-color-light) !important;
 }
 
 /* Modal
@@ -36,7 +40,11 @@
 .table-striped tbody tr:nth-of-type(2n+1) {
     background-color: var(--primary-color-light) !important;
 }
-.table-hover tbody tr:hover {
-    background-color: var(--primary-color) !important;
 
+.table-hover tbody tr:hover {
+
+}
+
+.table td{
+    vertical-align: middle;
 }

@@ -35,9 +35,9 @@
         <th>{% trans 'Is searchable' %}</th>
         <td>
             {% if service.searchable %}
-            <i class='fas fa-check text-success'></i>
+            <em class='fas fa-check text-success'></em>
             {% else %}
-            <i class='fas fa-times text-danger'></i>
+            <em class='fas fa-times text-danger'></em>
             {% endif %}
         </td>
     </tr>
@@ -45,9 +45,9 @@
         <th>{% trans 'Access secured' %}</th>
         <td>
             {% if service.metadata.is_secured %}
-            <i class='fas fa-check text-success'></i>
+            <em class='fas fa-check text-success'></em>
             {% else %}
-            <i class='fas fa-times text-danger'></i>
+            <em class='fas fa-times text-danger'></em>
             {% endif %}
         </td>
     </tr>
@@ -86,7 +86,7 @@
         <td>
             {% with service.id as id_accordion %}
                 {% for key, values in mime_types.items %}
-                    {% with key as id_accordion_combined and 'btn-link' as button_type and 'Show' as key %}
+                    {% with key as id_accordion_combined and 'btn-link' as button_type %}
                         {% include 'includes/wms/sublayer_mime_type_table.html' %}
                     {% endwith %}
                 {% endfor %}

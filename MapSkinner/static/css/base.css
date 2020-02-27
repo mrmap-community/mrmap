@@ -14,7 +14,7 @@ body{
     min-height: 100vh;
 }
 .background{
-    background-image: url("/static/structure/images/background.png");
+    background-image: url("/static/MapSkinner/images/background.png");
     background-repeat: repeat;
 }
 

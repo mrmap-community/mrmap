@@ -33,7 +33,7 @@ $(document).ready(function(){
         element.css({"transform": "rotate(" + eeRotation +"deg)"});
         if(eeRotation == 360){
             var eeSound = $("#ee-audio")[0];
-            var img = $("<img/>").attr("src", "/static/structure/images/mr_map.png")
+            var img = $("<img/>").attr("src", "/static/MapSkinner/images/mr_map.png")
             .attr("class", "rotating-image")
             .attr("style", "object-fit: contain;")
             .attr("id", "eeImg");

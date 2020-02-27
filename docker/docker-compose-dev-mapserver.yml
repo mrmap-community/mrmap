@@ -1,0 +1,27 @@
+version: '3.5'
+services:
+  mapskinner-postgis:
+    image: mdillon/postgis:11-alpine
+    ports:
+      - 5555:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ../postgis/initdata/initdb.sql:/docker-entrypoint-initdb.d/initdb.sql
+      - ../postgis/postgresql_data:/var/lib/postgresql/data:Z
+  mapskinner-redis:
+    image: library/redis:5.0.7-alpine
+    ports:
+      - 6379:6379
+    volumes:
+      - ../redis/redis_data:/data
+  mapskinner-mapserver:
+    image: camptocamp/mapserver:7.4
+    ports:
+      - 8091:80
+    volumes:
+      - ../mapserver/mapfiles/:/etc/mapserver/
+      - ../mapserver/mapdata/:/mapdata/
+    depends_on:
+      - mapskinner-postgis

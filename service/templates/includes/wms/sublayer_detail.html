@@ -4,7 +4,7 @@
 {% block card-header-title-left %}
 <h4 class="mb-1 mr-3">
     {% autoescape off %}{{THEME.ICONS.LAYER}}{% endautoescape %}
-    <b>{{ service.metadata.title }}</b>
+    <strong>{{ service.metadata.title }}</strong>
 </h4>
 {% endblock %}
 {% block card-header-title-right %}
@@ -30,7 +30,7 @@
             {% endif %}
         </div><!--</col>-->
         <div class="col-sm mb-2 text-center">
-            <!--TODO: Hide?-->
+            {% comment %} TODO: Hide? {% endcomment %}
             <a class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}" href="{% url 'service:get-dataset-metadata' service.metadata.id %}">{% trans 'Dataset Metadata' %}</a>
         </div><!--</col>-->
         <div class="col-sm mb-2 text-center">
@@ -39,14 +39,27 @@
             {% endif %}
         </div><!--</col>-->
     </div><!--</row>-->
+
     <div class="row">
         <div class="col">
             {% include 'includes/wms/child_layer_detail_table.html' %}
-            {% for layer in layers %}
-                {% with layer.metadata.id as id_accordion %}
-                    {% include 'includes/wms/sublayer_detail_accordion.html' %}
-                {% endwith %}
-            {% endfor %}
+            {% if layers|length > 0 %}
+                {% if service.servicetype.name == 'wms' %}
+                    {% comment "we need to pass a unique id for accordion button" %}{% endcomment %}
+                    {% with service_md.id as id_accordion %}
+                        {% include 'includes/wms/show_sublayer_accordion.html' %}
+                    {% endwith %}
+                {% elif service.servicetype.name == 'wfs' %}
+                    {% with service.featuretypes.all as featuretypes %}
+                        {% include 'includes/wfs/show_featuretypes_accordion.html' %}
+                    {% endwith %}
+                {% endif %}
+            {% endif %}
         </div><!--</col>-->
     </div><!--</row>-->
+
+    <div class="row mb-2 ">
+        <div class="col">
+        </div><!--</col-->
+    </div><!--</row-->
 {% endblock %}

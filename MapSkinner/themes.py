@@ -63,6 +63,7 @@ DARK_THEME = {
         'BTN_WARNING_COLOR': 'btn-outline-warning',
         'BTN_INFO_COLOR': 'btn-outline-primary',
         'PILL_BADGE_INFO_COLOR': 'badge-pill badge-info',
+        'PILL_BADGE_LIGHT_COLOR': 'badge-pill badge-light',
     },
 
     'CARD': {
@@ -146,7 +147,8 @@ LIGHT_THEME = {
         'BTN_DANGER_COLOR': 'btn-danger',
         'BTN_WARNING_COLOR': 'btn-warning',
         'BTN_INFO_COLOR': 'btn-info',
-        'PILL_BADGE_INFO_COLOR': 'badge-pill badge-primary',
+        'PILL_BADGE_INFO_COLOR': 'badge-pill badge-info',
+        'PILL_BADGE_LIGHT_COLOR': 'badge-pill badge-light',
     },
 
     'CARD': {

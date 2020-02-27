@@ -145,8 +145,8 @@ def edit(request: HttpRequest, id: int, user: User):
         editor_form = MetadataEditorForm(instance=metadata)
         editor_form.action_url = reverse("editor:edit", args=(id,))
 
-        if not metadata.is_root():
-            del editor_form.fields["use_proxy_uri"]
+        #if not metadata.is_root():
+            #del editor_form.fields["use_proxy_uri"]
 
         params = {
             "service_metadata": metadata,

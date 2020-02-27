@@ -9,8 +9,8 @@
         <div class="col">
             <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %} {% trans 'WMS' %}</h4>
         </div>
-        <div class="col">
-            <div class="dropdown">
+        <div class="col"><!--col-->
+            <!--<div class="dropdown">
               <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   {% if request.GET.q == 'l' %}
                     Show layers
@@ -22,8 +22,8 @@
                 <a class="dropdown-item" href="?q=s">Show services</a>
                 <a class="dropdown-item" href="?q=l">Show layers</a>
               </div>
-            </div>
-        </div>
+            </div>-->
+        </div><!--</col-->
     </div>
 {% endblock %}
 {% block card-header-title-right %}

@@ -193,7 +193,7 @@ $(document).ready(function(){
         if(eeRotation == 360){
             var overlay = $("#overlay");
             var eeSound = $("#ee-audio")[0];
-            var img = $("<img/>").attr("src", "/static/structure/images/mr_map.png")
+            var img = $("<img/>").attr("src", "/static/images/mr_map.png")
             .attr("class", "rotating-image")
             .attr("style", "object-fit: contain;")
             .attr("id", "eeImg");

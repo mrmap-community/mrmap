@@ -12,7 +12,7 @@
         <div class="col">
             <div class="dropdown">
               <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  {% if select_default == 'l' %}
+                  {% if request.GET.q == 'l' %}
                     Show layers
                   {% else %}
                     Show services

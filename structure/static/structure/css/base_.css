@@ -43,7 +43,7 @@
 }
 .message:hover{
     cursor: default;
-    opacity: 0.5;
+    opacity: 0.75;
 }
 
 /* Sticky footer styles

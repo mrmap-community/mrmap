@@ -89,6 +89,7 @@ DARK_THEME = {
         'BTN_DANGER_COLOR': 'btn-outline-danger',
         'BTN_WARNING_COLOR': 'btn-outline-warning',
         'BTN_INFO_COLOR': 'btn-outline-primary',
+        'BTN_LIGHT': 'btn-outline-light',
     },
 
     'FOOTER': {
@@ -101,7 +102,7 @@ DARK_THEME = {
         'BTN_DANGER_COLOR': 'btn-outline-danger',
         'BTN_WARNING_COLOR': 'btn-outline-warning',
         'BTN_INFO_COLOR': 'btn-outline-primary',
-        'BTN_LIGHT_COLOR': 'btn-light',
+        'BTN_LANGUAGE': 'btn-dark',
     },
 
     'MODAL': {
@@ -185,7 +186,7 @@ LIGHT_THEME = {
         'BTN_DANGER_COLOR': 'btn-danger',
         'BTN_WARNING_COLOR': 'btn-warning',
         'BTN_INFO_COLOR': 'btn-primary',
-        'BTN_LIGHT_COLOR': 'btn-light',
+        'BTN_LANGUAGE': 'btn-light',
     },
 
     'MODAL': {

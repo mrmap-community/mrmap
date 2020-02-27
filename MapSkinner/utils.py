@@ -10,7 +10,6 @@ import django_tables2
 from django.http import HttpRequest
 
 from MapSkinner.consts import URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
-from MapSkinner.settings import THEME
 from MapSkinner.themes import DARK_THEME, LIGHT_THEME
 from MapSkinner.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from django.utils.html import format_html

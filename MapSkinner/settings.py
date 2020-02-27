@@ -277,6 +277,9 @@ PROGRESS_STATUS_AFTER_PARSING = 90  # indicates at how much % status we are afte
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR + "/static/"
+STATICFILES_DIRS = [
+            BASE_DIR + '/MapSkinner/static',
+]
 
 # define the message tags for bootstrap4
 MESSAGE_TAGS = {
@@ -287,4 +290,4 @@ MESSAGE_TAGS = {
     messages.ERROR: 'alert-danger',
 }
 
-THEME = 'LIGHT'
+

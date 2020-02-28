@@ -39,8 +39,8 @@
     <div class="col-sm mb-2 text-center">
             {% if 'can_update_service' in user_permissions %}
                 {% comment %} TODO: implement logic for this buttons {% endcomment %}
-                <button type="button" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" data-toggle="modal" data-target="#edit_group">
-                    {% autoescape off %}{{THEME.ICONS.UPDATE}}{% endautoescape %} {% trans 'Update service' %}
+                <button type="button" class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}" data-toggle="modal" data-target="#edit_group">
+                    {% autoescape off %}{{THEME.ICONS.UPDATE}}{% endautoescape %} {% trans 'Update' %}
                 </button>
                 {% comment %} TODO: Modal necessary? {% endcomment %}
             {% endif %}
@@ -49,7 +49,7 @@
     <div class="col-sm mb-2 text-center">
             <div class="dropdown">
                   <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="id_edit_service_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit service' %}
+                    {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit' %}
                   </button>
                   <div class="dropdown-menu" aria-labelledby="id_edit_service_dropdown">
                     <a class="dropdown-item" href="{% url 'editor:edit' service_md.id %}">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}</a>
@@ -61,7 +61,7 @@
 
     <div class="col-sm mb-2 text-center">
             <div class="dropdown">
-              <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="id_caps_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="id_caps_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 {% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'Capabilities' %}
               </button>
               <div class="dropdown-menu" aria-labelledby="id_caps_dropdown">
@@ -72,7 +72,7 @@
     </div>
     <div class="col-sm mb-2 text-center">
         <div class="dropdown">
-          <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="id_metadata_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+          <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="id_metadata_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}
           </button>
           <div class="dropdown-menu" aria-labelledby="id_metadata_dropdown">

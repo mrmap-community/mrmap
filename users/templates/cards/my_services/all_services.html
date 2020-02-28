@@ -14,10 +14,9 @@
 {% endblock %}
 
 {% block card-body %}
-<p class="card-text">Some quick example text to build on the card title and make up the bulk
-    of the
-    card's
-    content.</p>
+<p class="card-text">
+    {% trans 'All registered Web Map and Web Feature Services.' %}
+</p>
 <a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'service:index' %}" role="button">
     {% trans 'Show'%}
 </a>

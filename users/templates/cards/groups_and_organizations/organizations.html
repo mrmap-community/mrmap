@@ -14,10 +14,9 @@
 {% endblock %}
 
 {% block card-body %}
-<p class="card-text">Some quick example text to build on the card title and make up the bulk
-    of the
-    card's
-    content.</p>
+<p class="card-text">
+    {% trans 'All known organizations, which provide the registered services.' %}
+</p>
 <a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'structure:organizations-index' %}" role="button">
     {% trans 'Show'%}
 </a>

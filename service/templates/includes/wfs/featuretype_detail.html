@@ -30,8 +30,7 @@
             {% endif %}
             </div><!--</col>-->
             <div class="col-sm mb-2 text-center">
-                <!--TODO: Hide?-->
-                <a class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}" href="{% url 'service:get-dataset-metadata' service.metadata.id %}">{% trans 'Dataset Metadata' %}</a>
+                <a id="dataset-metadata-button-{{ service.metadata.id }}" target="_blank" class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} invisible" href="{% url 'service:get-dataset-metadata' service.metadata.id %}">{% trans 'Dataset Metadata' %}</a>
             </div><!--</col>-->
             <div class="col-sm mb-2 text-center">
             {% if 'can_edit_metadata_service' in user_permissions %}

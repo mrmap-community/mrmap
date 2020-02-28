@@ -99,8 +99,9 @@ ENV/
 ./idea
 .idea/
 
+.idea/
+
+redis/
+
 # Sonar
 .scannerwork/
-
-
-redis/redis_data/dump.rdb

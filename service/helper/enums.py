@@ -10,7 +10,7 @@ class ConnectionEnum(Enum):
     URLLIB = "urllib"
 
 
-class VersionEnum(Enum):
+class OGCServiceVersionEnum(Enum):
     """ Defines all supported versions
 
     """
@@ -24,7 +24,7 @@ class VersionEnum(Enum):
     V_2_0_2 = "2.0.2"
 
 
-class ServiceEnum(Enum):
+class OGCServiceEnum(Enum):
     """ Defines all supported service types
 
     """
@@ -35,7 +35,7 @@ class ServiceEnum(Enum):
     DATASET = "dataset"
 
 
-class ServiceOperationEnum(Enum):
+class OGCOperationEnum(Enum):
     """ Defines all known operation names
 
     """
@@ -55,6 +55,11 @@ class ServiceOperationEnum(Enum):
     TRANSACTION = "Transaction"
     LOCK_FEATURE = "LockFeature"
     DESCRIBE_FEATURE_TYPE = "DescribeFeatureType"
+    GET_FEATURE_WITH_LOCK = "GetFeatureWithLock"
+    GET_GML_OBJECT = "GetGmlObject"
+    LIST_STORED_QUERIES = "ListStoredQueries"
+    GET_PROPERTY_VALUE = "GetPropertyValue"
+    DESCRIBE_STORED_QUERIES = "DescribeStoredQueries"
 
 
 class MetadataEnum(Enum):

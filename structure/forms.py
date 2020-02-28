@@ -12,6 +12,11 @@ class LoginForm(forms.Form):
 
 
 class GroupForm(ModelForm):
+    # this action_url must fill after this object is created,
+    # cause the action_url containing the id of the group, which is not present on building time;
+    # maybe we could fill it by the constructor
+    action_url = ''
+
     description = forms.CharField(
         widget=forms.Textarea(),
         required=False,
@@ -22,7 +27,8 @@ class GroupForm(ModelForm):
         fields = '__all__'
         exclude = [
             "created_by",
-            "publish_for_organizations"
+            "publish_for_organizations",
+            "role"
         ]
 
 
@@ -38,6 +44,11 @@ class PublisherForOrganization(forms.Form):
 
 
 class OrganizationForm(ModelForm):
+    # this action_url must fill after this object is created,
+    # cause the action_url containing the id of the group, which is not present on building time;
+    # maybe we could fill it by the constructor
+    action_url = ''
+
     description = forms.CharField(
         widget=forms.Textarea(),
         required=False,
@@ -52,7 +63,18 @@ class OrganizationForm(ModelForm):
         exclude = ["created_by", "address_type", "is_auto_generated"]
 
 
+class RemoveGroupForm(forms.Form):
+    action_url = ''
+    is_confirmed = forms.BooleanField(label='Do you really want to remove this group?')
+
+
+class RemoveOrganizationForm(forms.Form):
+    action_url = ''
+    is_confirmed = forms.BooleanField(label='Do you really want to remove this organization?')
+
+
 class RegistrationForm(forms.Form):
+    # TODO: implement validators for this fields; see UserForm in users/forms.py
     username = forms.CharField(max_length=255, label=_("Username"), label_suffix=" ", required=True)
     password = forms.CharField(max_length=255, label=_("Password"), label_suffix=" ", widget=forms.PasswordInput, required=True)
     password_check = forms.CharField(max_length=255, label=_("Password again"), label_suffix=" ", widget=forms.PasswordInput, required=True)

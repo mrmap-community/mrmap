@@ -14,9 +14,10 @@ import os
 
 import sys
 from django.utils.translation import gettext_lazy as _
+from django.contrib.messages import constants as messages
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-from service.helper.enums import ConnectionEnum, VersionEnum
+from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -43,6 +44,10 @@ ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
 EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
 
+PAGE_SIZE_OPTIONS = [1, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100, 200, 500]
+PAGE_SIZE_DEFAULT = 5
+PAGE_SIZE_MAX = 100
+PAGE_DEFAULT = 1
 
 CATEGORIES = {
     "inspire": "https://www.eionet.europa.eu/gemet/getTopmostConcepts?thesaurus_uri=http://inspire.ec.europa.eu/theme/&language={}",
@@ -71,6 +76,7 @@ XML_NAMESPACES = {
     "inspire_dls": "http://inspire.ec.europa.eu/schemas/inspire_dls/1.0",
     "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset",
     "ms": "http://mapserver.gis.umn.edu/mapserver",
+    "se": "http://www.opengis.net/se",
     "xsd": "http://www.w3.org/2001/XMLSchema",
     "sld": "http://www.opengis.net/sld",
     "fes": "http://www.opengis.net/fes/2.0",
@@ -125,13 +131,19 @@ INSTALLED_APPS = [
     'query_parameters',
 ]
 
+TEMPLATE_LOADERS = (
+    'django.template.loaders.structure.django_tables2_extras.py',
+)
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.gzip.GZipMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.auth.middleware.RemoteUserMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -164,6 +176,8 @@ TEMPLATES = [
     },
 ]
 
+
+
 WSGI_APPLICATION = 'MapSkinner.wsgi.application'
 
 # Database
@@ -174,13 +188,27 @@ DATABASES = {
         #'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': 'mapskinner',
-        'USER':'postgres',
-        'PASSWORD':'',
-        'HOST' : '127.0.0.1',
-        'PORT' : ''
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': '127.0.0.1',
+        'PORT': '5555'
     }
 }
 
+# Cache
+# Use local redis installation as cache
+# The "regular" redis cache will be set to work in redis table 1 (see LOCATION)
+# The default table (0) is preserved for celery task management
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://localhost:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+        }
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/2.1/ref/settings/#auth-password-validators
@@ -249,3 +277,17 @@ PROGRESS_STATUS_AFTER_PARSING = 90  # indicates at how much % status we are afte
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR + "/static/"
+STATICFILES_DIRS = [
+            BASE_DIR + '/MapSkinner/static',
+]
+
+# define the message tags for bootstrap4
+MESSAGE_TAGS = {
+    messages.DEBUG: 'alert-info',
+    messages.INFO: 'alert-info',
+    messages.SUCCESS: 'alert-success',
+    messages.WARNING: 'alert-warning',
+    messages.ERROR: 'alert-danger',
+}
+
+

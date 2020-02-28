@@ -1,14 +1,7 @@
-
 {% load static i18n %}
-
-{% block head %}
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/publish_requests.css' %}" media="all" />
-    <script type="text/javascript" src="{% static '/structure/js/publish_requests.js' %}"></script>
-{% endblock %}
-
-{% block body %}
+<!--TODO: refactor with bootstrap 4 and sceletons-->
+<!--TODO: info: this is used in /templates/includes/detail/*_publishes_for_accordion.html-->
 {% if pub_requests.count > 0 %}
-
     {% if user in members %}
     <h2>{% trans 'Publishing Requests' %}</h2>
     <table class="overview-table">
@@ -52,38 +45,37 @@
 {% endif %}
 
 {% if show_registering_for %}
-<table class="overview-table">
-    <tr>
-        <th class="table-header">{% trans 'Organization' %}</th>
-        <th class="table-header">{% trans 'Action' %}</th>
-    </tr>
-    {% for org in group.publish_for_organizations.all %}
-        <tr>
-            <td class="table-cell">
-                <a href="{% url 'structure:detail-organization' org.id %}">{{ org }}</a>
-            </td>
-            <td class="table-cell">
-                {% if 'can_toggle_publish_requests' in user_permissions and user in group.users.all %}
-                <button class="button delete-container" data-id="{{ org.id }}" data-parent="{{ group.id }}" title="{% trans 'Stop being publisher' %}">
-                    <img src="{% static 'service/images/icn_minus.png' %}">
-                    <span>{% trans 'Stop being publisher' %}</span>
-                </button>
-                {% else %}
-                {% trans 'You have no permission to change this!' %}
-                {% endif %}
-            </td>
-        </tr>
-    {% endfor %}
-</table>
-
+        <table class="table table-hover">
+            <tr>
+                <th>{% trans 'Organization' %}</th>
+                <th>{% trans 'Action' %}</th>
+            </tr>
+            {% for org in group.publish_for_organizations.all %}
+                <tr>
+                    <td>
+                        <a href="{% url 'structure:detail-organization' org.id %}">{{ org }}</a>
+                    </td>
+                    <td>
+                        {% if 'can_toggle_publish_requests' in user_permissions and user in group.users.all %}
+                        <button class="button delete-container" data-id="{{ org.id }}" data-parent="{{ group.id }}" title="{% trans 'Stop being publisher' %}">
+                            <img src="{% static 'service/images/icn_minus.png' %}">
+                            <span>{% trans 'Stop being publisher' %}</span>
+                        </button>
+                        {% else %}
+                        {% trans 'You have no permission to change this!' %}
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </table>
 {% else %}
 <h2>{{ organization.organization_name }}</h2>
 <h2>{% trans 'Publishers' %}</h2>
-<table class="overview-table">
+<table class="table table-hover">
     <tr>
-        <th class="table-header">{% trans 'Group' %}</th>
-        <th class="table-header">{% trans 'Group organization' %}</th>
-        <th class="table-header">{% trans 'Action' %}</th>
+        <th>{% trans 'Group' %}</th>
+        <th>{% trans 'Group organization' %}</th>
+        <th>{% trans 'Action' %}</th>
     </tr>
     {% for publisher in all_publisher %}
         <tr>
@@ -112,4 +104,3 @@
 </table>
 
 {% endif %}
-{% endblock %}

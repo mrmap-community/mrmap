@@ -8,10 +8,11 @@ from django.contrib.gis.geos import Polygon
 from django.db import transaction
 from requests import ReadTimeout
 
-from MapSkinner.messages import SERVICE_REGISTRATION_TIMEOUT
+from MapSkinner.messages import CONNECTION_TIMEOUT
+from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ConnectionEnum, VersionEnum, ServiceEnum
+from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, OGCServiceEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import RequestOperation, ExternalAuthentication
 from structure.models import User
@@ -21,7 +22,7 @@ class OGCWebService:
     """ The base class for all derived web services
 
     """
-    def __init__(self, service_connect_url=None, service_type=ServiceEnum.WMS, service_version=VersionEnum.V_1_1_1, service_capabilities_xml=None, external_auth: ExternalAuthentication=None):
+    def __init__(self, service_connect_url=None, service_type=OGCServiceEnum.WMS, service_version=OGCServiceVersionEnum.V_1_1_1, service_capabilities_xml=None, external_auth: ExternalAuthentication=None):
         self.service_connect_url = service_connect_url
         self.service_type = service_type  # wms, wfs, wcs, ...
         self.service_version = service_version  # 1.0.0, 1.1.0, ...
@@ -109,60 +110,58 @@ class OGCWebService:
             if ows_connector.status_code != 200:
                 raise ConnectionError(ows_connector.status_code)
         except ReadTimeout:
-            raise ConnectionError(SERVICE_REGISTRATION_TIMEOUT.format(self.service_connect_url))
-        if ows_connector.encoding is not None:
-            tmp = ows_connector.content.decode(ows_connector.encoding)
-            # check if tmp really contains an xml file
-            xml = xml_helper.parse_xml(tmp)
-            if xml is None:
-                raise Exception(tmp)
-            self.service_capabilities_xml = tmp
-        else:
-            self.service_capabilities_xml = ows_connector.text
-            
+            raise ConnectionError(CONNECTION_TIMEOUT.format(self.service_connect_url))
+
+        tmp = ows_connector.content.decode("UTF-8")
+        # check if tmp really contains an xml file
+        xml = xml_helper.parse_xml(tmp)
+
+        if xml is None:
+            raise Exception(tmp)
+
+        self.service_capabilities_xml = tmp
         self.connect_duration = ows_connector.run_time
         self.descriptive_document_encoding = ows_connector.encoding
     
     def check_ogc_exception(self):
         pass
 
-    def has_iso_metadata(self, xml):
-        """ Checks whether the xml element has an iso 19115 metadata record or not
+    def has_dataset_metadata(self, xml):
+        """ Checks whether the xml element has an iso 19115 dataset metadata record or not
 
         Args:
             xml: The xml etree object
         Returns:
-             True if element has iso metadata, false otherwise
+             True if element has dataset metadata, false otherwise
         """
-        iso_metadata = xml_helper.try_get_element_from_xml(xml_elem=xml, elem="./MetadataURL")
-        if len(iso_metadata) == 0:
-            iso_metadata = xml_helper.try_get_element_from_xml(xml_elem=xml, elem="./wfs:MetadataURL")
+        iso_metadata = xml_helper.try_get_element_from_xml(
+            xml_elem=xml,
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL")
+        )
         return len(iso_metadata) != 0
-
 
     """
     Methods that have to be implemented in the sub classes
     """
     @abstractmethod
-    def get_service_operations(self, xml_obj, prefix: str):
+    def get_service_operations(self, xml_obj):
         """ Creates table records from <Capability><Request></Request></Capability contents
 
         Args:
             xml_obj: The xml document object
-            prefix: The prefix for the service type ('wms'/'wfs')
         Returns:
 
         """
-        cap_request = xml_helper.try_get_single_element_from_xml("//{}Capability/{}Request".format(prefix, prefix), xml_obj)
+        cap_request = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request"),
+            xml_obj
+        )
         operations = cap_request.getchildren()
         for operation in operations:
             RequestOperation.objects.get_or_create(
                 operation_name=operation.tag,
             )
-
-    @abstractmethod
-    def get_parser_prefix(self):
-        pass
 
     @abstractmethod
     def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):
@@ -203,7 +202,7 @@ class OGCWebService:
         """
         # Must parse metadata document and merge metadata into this metadata object
         elem = "//inspire_common:URL"  # for wms by default
-        if self.service_type is ServiceEnum.WFS:
+        if self.service_type is OGCServiceEnum.WFS:
             elem = "//wfs:MetadataURL"
         service_md_link = xml_helper.try_get_text_from_xml_element(elem=elem, xml_elem=xml_obj)
         # get iso metadata xml object

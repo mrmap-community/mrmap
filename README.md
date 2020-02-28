@@ -1,4 +1,4 @@
-<img src="https://git.osgeo.org/gitea/hollsandre/MapSkinner/raw/branch/pre_master/structure/static/structure/images/mr_map.png" width="200">
+<img src="https://git.osgeo.org/gitea/hollsandre/MapSkinner/raw/branch/pre_master/MapSkinner/static/images/mr_map.png" width="200">
 
 ## About
 Mr. Map is a service registry for web map services ([WMS](https://www.opengeospatial.org/standards/wms)) 
@@ -51,33 +51,104 @@ The system provides the following functionalities:
 
 ## Install:
 
+We use Docker to run postgis and redis, so make sure Docker is installed on your system.
+From within the project directory run
+
+```shell
+docker-compose -f docker/docker-compose.yml up
+```
+
+to install and start the services. Then, run following commands:
+
 ```shell
 apt update  
-apt install postgis postgresql postgresql-server-dev-all redis-server libgdal-dev virtualenv python3-pip curl libgnutls28-dev cgi-mapserver
+apt install postgresql-server-dev-all libgdal-dev virtualenv python3-pip curl libgnutls28-dev cgi-mapserver
 
-su - postgres -c "psql -q -c 'CREATE DATABASE mapskinner'"  
-
-virtualenv -ppython3 /opt/env  
+virtualenv -p python3 /opt/env
 source /opt/env/bin/activate  
 cd /opt/  
 git clone https://git.osgeo.org/gitea/hollsandre/MapSkinner  
 cd /opt/MapSkinner 
 pip install -r requirements.txt  
 
-python manage.py makemigrations
+python manage.py makemigrations service
+python manage.py makemigrations structure
 python manage.py migrate  
 ```
 
 ## Initial setup:
-Call the setup command and follow the prompt instructions to generate the system's superuser and load default elements
+1. Make sure the `HTTP_PROXY` variable in `MapSkinner/settings.py` is set correctly for your system
+1. Call the setup command and follow the prompt instructions to generate the system's superuser and load default elements
+
 ```shell
 python manage.py setup
 ```
 
 
 ## Important
+### Background worker
 Since the registration, deletion and perspectively a lot of other functionalities use an asynchronous worker approach, so the user won't have to wait until the last action finishes, the server always should have run this command before the usage:
 ```shell
 celery -A MapSkinner worker -l info
 ```
 If a task didn't finish due to reasons, you can delete the related **Pending task** record from the table.
+
+### Dockerfile changes
+If you are going to change the **database** settings, which are set in `docker-compose.yml`, you have to change the 
+settings for the variable `CONNECTION` in `/service/mapserver/security_mask.map` as well. 
+```
+CONNECTION "host=localhost dbname=mapskinner user=postgres password=postgres port=5555"
+```
+
+## Dev Setup
+
+After initialising the project, the development setup can be started as follows.
+From within the project directory, run:
+
+```shell
+docker-compose -f docker/docker-compose.yml up
+celery -A MapSkinner worker -l info
+python manage.py runserver_plus
+```
+
+### Dev Setup With GeoServer/MapServer
+
+It is also possible to start the application with a containerized GeoServer or MapServer.
+To do so, instead of 
+
+```shell
+docker-compose -f docker/docker-compose.yml up
+```
+
+Run
+
+```shell
+docker-compose -f docker/docker-compose-dev-geoserver.yml up
+```
+
+for including GeoServer (reachable at `localhost:8090/geoserver`), and
+
+```shell
+docker-compose -f docker/docker-compose-dev-mapserver.yml up
+```
+
+for including MapServer (reachable at `localhost:8091`).
+
+GeoServer data will be mounted to `geoserver/geoserver_data`.
+
+Mapfiles should be placed in `mapserver/mapfiles` and related data files in `mapserver/mapdata`.
+Maps can then be accessed via `http://localhost:8091/?map=/etc/mapserver/MAPFILE.map` (replace `MAPFILE` with actual mapfile name).
+
+## Production setup
+
+**Note:** Before running the production setup, make sure you changed all default usernames and passwords,
+disabled debugging, and verified the list of allowed hosts.
+
+After initialising the project, the production setup can be started as follows.
+From within the project directory, run:
+
+```shell
+docker-compose -f docker/docker-compose.yml up 
+celery -A MapSkinner worker -l info
+python manage.py runserver
+```

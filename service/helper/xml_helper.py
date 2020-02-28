@@ -11,6 +11,7 @@ from requests.exceptions import ProxyError
 
 from MapSkinner.settings import XML_NAMESPACES
 from service.helper.common_connector import CommonConnector
+from service.helper.enums import OGCServiceVersionEnum
 
 
 def parse_xml(xml: str, encoding=None):
@@ -40,7 +41,7 @@ def parse_xml(xml: str, encoding=None):
     return xml_obj
 
 
-def xml_to_string(xml_obj):
+def xml_to_string(xml_obj, pretty_print: bool = False):
     """ Creates a string representation of a xml element
 
     Args:
@@ -50,20 +51,36 @@ def xml_to_string(xml_obj):
     """
     enc = "UTF-8"
     try:
-        _str = etree.tostring(xml_obj, encoding=enc, method="xml").decode()
+        _str = etree.tostring(xml_obj, encoding=enc, method="xml", pretty_print=pretty_print).decode()
     except TypeError:
         _str = None
     return _str
 
 
-def get_feature_type_elements_xml(title, service_type_version, service_type, uri):
-    connector = CommonConnector(url=uri)
+def get_feature_type_elements_xml(title, service_type_version, service_type, uri, external_auth):
+    """ Requests a DescribeFeatureType document
+
+    Args:
+        title (str):
+        service_type_version (str):
+        service_type (str):
+        uri (str):
+        external_auth (ExternalAuthentication):
+    Returns:
+         None | str
+    """
+    connector = CommonConnector(url=uri, external_auth=external_auth)
+    type_name = "typeName"
+    if service_type_version == OGCServiceVersionEnum.V_2_0_0 or service_type_version == OGCServiceVersionEnum.V_2_0_2:
+        type_name = "typeNames"
+
     params = {
         "service": service_type,
         "version": service_type_version,
         "request": "DescribeFeatureType",
-        "typeNames": title
+        type_name: title
     }
+
     try:
         connector.load(params=params)
         response = connector.content
@@ -155,6 +172,22 @@ def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str = Non
     except (IndexError, AttributeError) as e:
         return None
 
+def get_children_with_attribute(xml_elem, attribute: str, nearest_only: bool=False):
+    """ Returns the next or all children which hold a specific attribute name
+
+    Args:
+        xml_elem: The xml element
+        attribute: The requested attribute name
+        nearest_only: Whether to return only the next children or all found
+    Returns:
+         children (list|_Element): The child or a list of children
+    """
+    children = xml_elem.xpath(".//*[@" + attribute + "]")
+
+    if nearest_only and len(children) > 0:
+        return children[0]
+    else:
+        return children
 
 def set_attribute(xml_elem, attribute: str, value: str):
     """ Set an attribute for a xml element

@@ -4,20 +4,20 @@
 <head>
     <meta charset="UTF-8">
     <title>MapSkinner - 500</title>
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base.css' %}" media="all" />
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/frame.css' %}" media="all" />
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/form.css' %}" media="all" />
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/server_error.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/css/base.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/css/frame.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/css/form.css' %}" media="all" />
+    <link rel="stylesheet" type="text/css" href="{% static '/css/server_error.css' %}" media="all" />
         <script>
             var rootUrl = '{{ ROOT_URL }}'
         </script>
-    <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
-    <script type="text/javascript" src="{% static '/structure/js/base.js' %}"></script>
+    <script type="text/javascript" src="{% static '/js/jquery-3.3.1.min.js' %}"></script>
+    <script type="text/javascript" src="{% static '/js/base.js' %}"></script>
 </head>
 <body class="background">
 
     <audio id="ee-audio">
-        <source src="{% static 'structure/audio/ee_audio.mp3' %}" type="audio/mpeg">
+        <source src="{% static 'audio/ee_audio.mp3' %}" type="audio/mpeg">
     </audio>
     <div id="overlay">
     </div>
@@ -25,7 +25,7 @@
     <div class="server-error-content">
         <h1 class="server-error-title">500</h1>
         <div class="server-error-article">
-            <img class="server-error-img" src="{% static 'structure/images/mr_map_500.png' %}" title="{% trans 'Mr. Map seems to be ill!' %}">
+            <img class="server-error-img" src="{% static 'MapSkinner/images/mr_map_500.png' %}" title="{% trans 'Mr. Map seems to be ill!' %}">
             <article class="article-txt">
                 <h1>{% trans 'Oh dear!' %}</h1>
                 <div>{% trans 'Mr. Map seems to be ill and can`t work at the moment.' %}</div>

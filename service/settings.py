@@ -10,18 +10,23 @@ import os
 
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 
-from MapSkinner.settings import BASE_DIR
-from service.helper.enums import ConnectionEnum, VersionEnum
+from MapSkinner.settings import BASE_DIR, HTTP_OR_SSL, HOST_NAME
+from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
 
 # Some special things
 DEFAULT_CONNECTION_TYPE = ConnectionEnum.REQUESTS
-DEFAULT_SERVICE_VERSION = VersionEnum.V_1_1_1
+DEFAULT_SERVICE_VERSION = OGCServiceVersionEnum.V_1_1_1
 
 # semantic relation types
 MD_RELATION_TYPE_VISUALIZES = "visualizes"
 MD_RELATION_TYPE_DESCRIBED_BY = "describedBy"
 
-REQUEST_TIMEOUT = 10  # seconds
+SERVICE_OPERATION_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}" + "/operation?"
+SERVICE_DATASET_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "dataset/{}"
+SERVICE_METADATA_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}"
+SERVICE_LEGEND_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}" + "/legend/" + "{}"
+
+REQUEST_TIMEOUT = 100  # seconds
 
 # security proxy settings
 MAPSERVER_LOCAL_PATH = "http://127.0.0.1/cgi-bin/mapserv"
@@ -112,4 +117,4 @@ INSPIRE_LEGISLATION_FILE = BASE_DIR + "/inspire_legislation.json"
 MIN_FONT_SIZE = 14  # The minimum font size for text on images
 MAX_FONT_SIZE = 20  # The maximum font size for text on images
 FONT_IMG_RATIO = 1/20  # Font to image ratio
-RENDER_TEXT_ON_IMG = True  # Whether to render 'Access denied for xy' on GetMap responses or not
+RENDER_TEXT_ON_IMG = False  # Whether to render 'Access denied for xy' on GetMap responses or not

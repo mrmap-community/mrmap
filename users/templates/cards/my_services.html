@@ -1,0 +1,21 @@
+{% extends 'sceletons/card-dash.html' %}
+{% load i18n %}
+{% block card-header %}
+
+<div class="text-center">
+    <h4 class="card-title">{% trans 'Services' %}</h4>
+</div>
+{% endblock %}
+{% block card-body %}
+<div class="row">
+    <div class="col-sm">
+        {% include 'cards/my_services/wms.html' %}
+    </div>
+    <div class="col-sm">
+        {% include 'cards/my_services/wfs.html' %}
+    </div>
+    <div class="col-sm">
+        {% include 'cards/my_services/all_services.html' %}
+    </div>
+</div>
+{% endblock %}

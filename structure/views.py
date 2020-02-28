@@ -4,28 +4,83 @@ import json
 from celery.result import AsyncResult
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
+from django.forms import formset_factory
 from django.http import HttpRequest
-from django.shortcuts import render, get_object_or_404, redirect, render_to_response
+from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django_tables2 import RequestConfig
 
 from MapSkinner import utils
 from MapSkinner.celery_app import app
+from MapSkinner.consts import *
 from MapSkinner.decorator import check_session, check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_SENT, \
     PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, GROUP_FORM_INVALID, \
     PUBLISH_PERMISSION_REMOVED, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_IS_OTHERS_PROPERTY, \
-    GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED
+    GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED, \
+    GROUP_SUCCESSFULLY_DELETED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-from MapSkinner.settings import ROOT_URL
+from MapSkinner.settings import ROOT_URL, PAGE_SIZE_OPTIONS, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
+from MapSkinner.utils import prepare_table_pagination_settings, prepare_list_pagination_settings
 from service.models import Service
+from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
-from structure.forms import GroupForm, OrganizationForm, PublisherForOrganization
+from structure.forms import GroupForm, OrganizationForm, PublisherForOrganization, RemoveGroupForm, RemoveOrganizationForm
 from structure.models import Group, Role, Permission, Organization, PendingRequest, PendingTask
 from structure.models import User
-from users.helper import user_helper
+from structure.tables import GroupTable, OrganizationTable
+from django.urls import reverse
+
+
+def _prepare_group_table(request: HttpRequest, user: User, ):
+    user_groups = user.groups.all()
+    user_groups_filtered = GroupFilter(request.GET, queryset=user_groups)
+
+    groups = []
+    for user_group in user_groups_filtered.qs:
+        groups.append(user_group)
+        groups.extend(Group.objects.filter(
+            parent=user_group
+        ))
+
+    groups_table = GroupTable(groups,
+                              template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+                              order_by_field='sg',  # sg = sort groups
+                              user=user, )
+    groups_table.filter = user_groups_filtered
+    RequestConfig(request).configure(groups_table)
+    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    # TODO: move pagination as function to ExtendedTable
+    groups_table.pagination = prepare_table_pagination_settings(request, groups_table, 'groups-t')
+    groups_table.page_field = groups_table.pagination.get('page_name')
+    groups_table.paginate(page=request.GET.get(groups_table.pagination.get('page_name'), PAGE_DEFAULT),
+                          per_page=request.GET.get(groups_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+
+    return {"groups": groups_table, }
+
+
+def _prepare_orgs_table(request: HttpRequest, user: User, ):
+    all_orgs = Organization.objects.all()
+
+    all_orgs_filtered = OrganizationFilter(request.GET, queryset=all_orgs)
+
+    all_orgs_table = OrganizationTable(all_orgs_filtered.qs,
+                                       template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+                                       order_by_field='so',  # so = sort organizations
+                                       user=user, )
+    all_orgs_table.filter = all_orgs_filtered
+    RequestConfig(request).configure(all_orgs_table)
+    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    # TODO: move pagination as function to ExtendedTable
+    all_orgs_table.pagination = prepare_table_pagination_settings(request, all_orgs_table, 'orgs-t')
+    all_orgs_table.page_field = all_orgs_table.pagination.get('page_name')
+    all_orgs_table.paginate(page=request.GET.get(all_orgs_table.pagination.get('page_name'), PAGE_DEFAULT),
+                            per_page=request.GET.get(all_orgs_table.pagination.get('page_size_param'),
+                                                     PAGE_SIZE_DEFAULT))
+    return {"organizations": all_orgs_table, }
 
 
 @check_session
@@ -38,28 +93,27 @@ def index(request: HttpRequest, user: User):
     Returns:
          A view
     """
-    template = "index_structure.html"
-    user_groups = user.groups.all()
-    all_orgs = Organization.objects.all().order_by('organization_name')
-    user_orgs = {
-        "primary": user.organization,
-    }
-    groups = []
-    for user_group in user_groups:
-        groups.append(user_group)
-        groups.extend(Group.objects.filter(
-            parent=user_group
-        ))
+    template = "views/structure_index.html"
+
     # check for notifications like publishing requests
     # publish requests
     pub_requests_count = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=user.organization).count()
 
+    group_form = GroupForm()
+    group_form.action_url = reverse('structure:new-group')
+
+    organization_form = OrganizationForm()
+    organization_form.action_url = reverse('structure:new-organization')
+
     params = {
-        "groups": groups,
-        "all_organizations": all_orgs,
-        "user_organizations": user_orgs,
         "pub_requests_count": pub_requests_count,
+        "new_group_form": group_form,
+        "new_organization_form": organization_form,
     }
+
+    params.update(_prepare_group_table(request, user))
+    params.update(_prepare_orgs_table(request, user))
+
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 
@@ -114,7 +168,6 @@ def task(request: HttpRequest, id: str):
             "service": "",
             "phase": "finished",
         })
-        pass
     return BackendAjaxResponse(html="", task=params).get_response()
 
 
@@ -138,7 +191,7 @@ def remove_task(request: HttpRequest, id: str):
 
 
 @check_session
-def groups(request: HttpRequest, user: User):
+def groups_index(request: HttpRequest, user: User):
     """ Renders an overview of all groups
 
     Args:
@@ -147,23 +200,22 @@ def groups(request: HttpRequest, user: User):
     Returns:
          A view
     """
-    template = "index_groups_extends.html"
-    user_groups = user.groups.all()
-    groups = []
-    for user_group in user_groups:
-        groups.append(user_group)
-        groups.extend(Group.objects.filter(
-            parent=user_group
-        ))
+    template = "views/groups_index.html"
+
+    group_form = GroupForm()
+    group_form.action_url = reverse('structure:new-group')
+
     params = {
-        "groups": groups,
+        "new_group_form": group_form,
     }
+    params.update(_prepare_group_table(request, user))
+
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 
 
 @check_session
-def organizations(request: HttpRequest, user: User):
+def organizations_index(request: HttpRequest, user: User):
     """ Renders an overview of all organizations
 
     Args:
@@ -172,21 +224,18 @@ def organizations(request: HttpRequest, user: User):
     Returns:
          A view
     """
-    template = "index_organizations_extended.html"
-    all_orgs = Organization.objects.all()
-    # check for notifications like publishing requests
-    # publish requests
-    pub_requests_count = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=user.organization).count()
-    orgs = {
-        "primary": user.organization,
-    }
+    template = "views/organizations_index.html"
+
+    organization_form = OrganizationForm()
+    organization_form.action_url = reverse('structure:new-organization')
     params = {
-        "user_organizations": orgs,
-        "all_organizations": all_orgs,
-        "pub_requests_count": pub_requests_count,
+        "new_organization_form": organization_form,
     }
+    params.update(_prepare_orgs_table(request, user))
+
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
+
 
 @check_session
 def detail_organizations(request:HttpRequest, id: int, user:User):
@@ -203,12 +252,18 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
     members = User.objects.filter(organization=org)
     sub_orgs = Organization.objects.filter(parent=org)
     services = Service.objects.filter(metadata__contact=org, is_root=True)
-    template = "organization_detail.html"
+    template = "views/organizations_detail.html"
 
     # list publishers
     pub_requests = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=id)
     all_publishing_groups = Group.objects.filter(publish_for_organizations__id=id)
     pub_requests_count = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=user.organization).count()
+
+    edit_form = OrganizationForm(instance=org)
+    edit_form.action_url = reverse('structure:edit-organization', args=[id])
+
+    delete_form = RemoveOrganizationForm()
+    delete_form.action_url = reverse('structure:delete-organization', args=[id])
 
     params = {
         "organization": org,
@@ -218,11 +273,15 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
         "pub_requests": pub_requests,
         "all_publisher": all_publishing_groups,
         "pub_requests_count": pub_requests_count,
+        "edit_organization_form": edit_form,
+        "delete_organization_form": delete_form,
     }
+
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 
 
+# TODO: update function documentation
 @check_session
 @check_permission(Permission(can_edit_organization=True))
 def edit_org(request: HttpRequest, id: int, user: User):
@@ -235,9 +294,9 @@ def edit_org(request: HttpRequest, id: int, user: User):
     Returns:
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
-    template = "form.html"
     org = Organization.objects.get(id=id)
     if org.created_by != user:
+        # TODO: this message should be presented in the form errors ==> see form.add_error()
         messages.error(request, message=ORGANIZATION_IS_OTHERS_PROPERTY)
         return redirect("structure:detail-organization", org.id)
     form = OrganizationForm(request.POST or None, instance=org)
@@ -246,25 +305,20 @@ def edit_org(request: HttpRequest, id: int, user: User):
             # save changes of group
             org = form.save(commit=False)
             if org.parent == org:
+                # TODO: this message should be presented in the form errors ==> see form.add_error()
                 messages.add_message(request=request, level=messages.ERROR, message=ORGANIZATION_CAN_NOT_BE_OWN_PARENT)
             else:
                 org.save()
         return redirect("structure:detail-organization", org.id)
 
     else:
-        params = {
-            "organization": org,
-            "form": form,
-            "article": _("You are editing the organization") + " " + org.organization_name,
-            "action_url": ROOT_URL + "/structure/organizations/edit/" + str(org.id)
-        }
-        html = render_to_string(template_name=template, request=request, context=params)
-        return BackendAjaxResponse(html=html).get_response()
+        return redirect("structure:detail-organization", org.id)
 
 
+# TODO: update function documentation
 @check_session
 @check_permission(Permission(can_delete_organization=True))
-def remove_org(request: HttpRequest, user: User):
+def remove_org(request: HttpRequest, id: int , user: User):
     """ Renders the remove form for an organization
 
     Args:
@@ -272,25 +326,19 @@ def remove_org(request: HttpRequest, user: User):
     Returns:
         A rendered view
     """
-    template = "remove_organization_confirmation.html"
-    _id = request.GET.dict().get("id")
-    confirmed = utils.resolve_boolean_attribute_val(request.GET.dict().get("confirmed"))
-    org = get_object_or_404(Organization, id=_id)
+    org = get_object_or_404(Organization, id=id)
     if org.created_by != user:
+        # TODO: this message should be presented in the form errors ==> see form.add_error()
         messages.error(request, message=ORGANIZATION_IS_OTHERS_PROPERTY)
         return redirect("structure:detail-organization", org.id)
-    if not confirmed:
-        params = {
-            "organization": org,
-        }
-        html = render_to_string(template_name=template, context=params, request=request)
-        return BackendAjaxResponse(html=html).get_response()
     else:
         # remove group and all of the related content
         org.delete()
-        return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure").get_response()
+        messages.success(request, message='Organization ' + org.organization_name + ' successfully deleted.')
+        return redirect("structure:organizations-index")
 
 
+# TODO: update function documentation
 @check_session
 @check_permission(Permission(can_create_organization=True))
 def new_org(request: HttpRequest, user: User):
@@ -302,37 +350,28 @@ def new_org(request: HttpRequest, user: User):
     Returns:
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
-    if not user.has_permission(permission_needed=Permission(can_create_organization=True)):
-        messages.add_message(request, messages.ERROR, NO_PERMISSION)
-        return redirect("structure:index")
-
     orgs = list(Organization.objects.values_list("organization_name", flat=True))
     if None in orgs:
         orgs.pop(orgs.index(None))
-    template = "form.html"
     form = OrganizationForm(request.POST or None)
     if request.method == "POST":
         if form.is_valid():
             # save changes of group
             org = form.save(commit=False)
             if org.parent == org:
+                # TODO: this message should be presented in the form errors ==> see form.add_error()
                 messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
             else:
                 org.created_by = user
                 org.is_auto_generated = False  # when the user creates an organization per form, it is not auto generated!
                 org.save()
         else:
+            # TODO: this is not necessary; redirect to the redirect("structure:index") by example and show the modal with the errors
             messages.error(request, message=GROUP_FORM_INVALID)
         return redirect("structure:index")
     else:
-        params = {
-            "organizations": orgs,
-            "form": form,
-            "article": _("You are creating a new organization. Please make sure the organization does not exist yet to avoid duplicates! You can see if a similar named organization already exists by typing the organization name in the related field."),
-            "action_url": ROOT_URL + "/structure/organizations/new/register-form/"
-        }
-        html = render_to_string(template_name=template, request=request, context=params)
-        return BackendAjaxResponse(html=html).get_response()
+        # TODO: we should redirect to redirect("structure:index") by example and show the modal by default
+        return redirect("structure:index")
 
 
 @check_session
@@ -469,19 +508,27 @@ def detail_group(request: HttpRequest, id: int, user: User):
     """
     group = Group.objects.get(id=id)
     members = group.users.all()
-    template = "group_detail.html"
-    t = user in members
+    template = "views/groups_detail.html"
+
+    edit_form = GroupForm(instance=group)
+    edit_form.action_url = reverse('structure:edit-group', args=[id])
+
+    delete_form = RemoveGroupForm()
+    delete_form.action_url = reverse('structure:delete-group', args=[id])
+
     params = {
         "group": group,
-        "permissions": user.get_permissions(),  # user_helper.get_permissions(user=user),
         "group_permissions": user.get_permissions(group),  # user_helper.get_permissions(group=group),
         "members": members,
         "show_registering_for": True,
+        "edit_group_form": edit_form,
+        "delete_group_form": delete_form,
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 
 
+# TODO: update function documentation
 @check_session
 @check_permission(Permission(can_create_group=True))
 def new_group(request: HttpRequest, user: User):
@@ -493,17 +540,13 @@ def new_group(request: HttpRequest, user: User):
     Returns:
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
-    if not user.has_permission(permission_needed=Permission(can_create_group=True)):
-        messages.add_message(request, messages.ERROR, NO_PERMISSION)
-        return redirect("structure:index")
-
-    template = "form.html"
     form = GroupForm(request.POST or None)
     if request.method == "POST":
         if form.is_valid():
             # save changes of group
             group = form.save(commit=False)
             if group.parent == group:
+                # TODO: this message should be presented in the form errors ==> see form.add_error()
                 messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
             else:
                 group.created_by = user
@@ -513,16 +556,12 @@ def new_group(request: HttpRequest, user: User):
                 user.groups.add(group)
             return redirect("structure:index")
         else:
+            # TODO: this is not necessary; redirect to the redirect("structure:index") by example and show the modal with the errors
             messages.error(request, message=GROUP_FORM_INVALID)
             return redirect("structure:index")
     else:
-        params = {
-            "form": form,
-            "article": _("You are creating a new group."),
-            "action_url": ROOT_URL + "/structure/groups/new/register-form/"
-        }
-        html = render_to_string(template_name=template, request=request, context=params)
-        return BackendAjaxResponse(html=html).get_response()
+        # TODO: we should redirect to redirect("structure:index") by example and show the modal by default
+        redirect("structure:index")
 
 
 @check_session
@@ -547,9 +586,10 @@ def list_publisher_group(request: HttpRequest, id: int, user: User):
     return render(request, template, context)
 
 
+# TODO: update function documentation
 @check_session
 @check_permission(Permission(can_delete_group=True))
-def remove_group(request: HttpRequest, user: User):
+def remove_group(request: HttpRequest, id: int, user: User):
     """ Renders the remove form for a group
 
     Args:
@@ -557,34 +597,30 @@ def remove_group(request: HttpRequest, user: User):
     Returns:
         A rendered view
     """
-    template = "remove_group_confirmation.html"
-    group_id = request.GET.dict().get("id")
-    confirmed = request.GET.dict().get("confirmed")
-    group = get_object_or_404(Group, id=group_id)
-    if group.created_by != user:
-        messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)
-        return redirect("structure:detail-organization", group.id)
-    permission = group.role.permission
-    if confirmed == 'false':
-        params = {
-            "group": group,
-            "permissions": permission,
-        }
-        html = render_to_string(template_name=template, context=params, request=request)
-        return BackendAjaxResponse(html=html).get_response()
-    else:
+    remove_form = RemoveGroup(request.POST)
+    if remove_form.is_valid():
+        group = get_object_or_404(Group, id=id)
 
-        # clean subgroups from parent
-        sub_groups = Group.objects.filter(
-            parent=group
-        )
-        for sub in sub_groups:
-            sub.parent = None
-            sub.save()
+        if group.created_by != user:
+            # TODO: this message should be presented in the form errors ==> see form.add_error()
+            messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)
+            return redirect(STRUCTURE_DETAIL_GROUP, group.id)
+        elif remove_form.cleaned_data['is_confirmed'] == 'off':
+            # TODO: redirect to service:detail; show modal by default with error message
+            return redirect(STRUCTURE_DETAIL_GROUP, group.id)
+        else:
+            # clean subgroups from parent
+            sub_groups = Group.objects.filter(
+                parent=group
+            )
+            for sub in sub_groups:
+                sub.parent = None
+                sub.save()
 
-        # remove group and all of the related content
-        group.delete()
-        return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure").get_response()
+            # remove group and all of the related content
+            group.delete()
+            messages.success(request, message='Group ' + group.name + ' successfully deleted.')
+            return redirect(STRUCTURE_INDEX_GROUP)
 
 
 @check_session
@@ -602,41 +638,31 @@ def edit_group(request: HttpRequest, user: User, id: int):
     template = "form.html"
     group = Group.objects.get(id=id)
     if group.created_by != user:
+        # TODO: this message should be presented in the form errors ==> see form.add_error()
         messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)
         return redirect("structure:detail-organization", group.id)
     form = GroupForm(request.POST or None, instance=group)
     if request.method == "POST":
-        form.fields.get('role').disabled = True
         if form.is_valid():
             # save changes of group
             group = form.save(commit=False)
             if group.parent == group:
+                # TODO: this message should be presented in the form errors ==> see form.add_error()
                 messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
             else:
                 group.save()
         return redirect("structure:detail-group", group.id)
 
     else:
-        user_perm = user.get_permissions()  # user_helper.get_permissions(user=user)
-        if not 'can_change_group_role' in user_perm and form.fields.get('role', None) is not None:
-            form.fields.get('role').disabled = True
-        params = {
-            "group": group,
-            "form": form,
-            "article": _("You are editing the group") + " " + group.name,
-            "action_url": ROOT_URL + "/structure/groups/edit/" + str(group.id)
-        }
-        html = render_to_string(template_name=template, request=request, context=params)
-        return BackendAjaxResponse(html=html).get_response()
+        return redirect("structure:detail-group", group.id)
 
 
-def handler404(request: HttpRequest, exception, template_name="404.html"):
+def handler404(request: HttpRequest, exception=None):
     """ Handles a general 404 (Page not found) error and renders a custom response page
 
     Args:
         request: The incoming request
         exception: An exception, if one occured
-        template_name: The template name
     Returns:
          A rendered 404 response
     """
@@ -644,18 +670,17 @@ def handler404(request: HttpRequest, exception, template_name="404.html"):
 
     }
     context = DefaultContext(request, params)
-    response = render_to_response("404.html", context=context.get_context())
+    response = render("404.html", context=context.get_context())
     response.status_code = 404
     return response
 
 
-def handler500(request: HttpRequest, exception, template_name="500.html"):
+def handler500(request: HttpRequest, exception=None):
     """ Handles a general 500 (Internal Server Error) error and renders a custom response page
 
     Args:
         request: The incoming request
         exception: An exception, if one occured
-        template_name: The template name
     Returns:
          A rendered 500 response
     """
@@ -663,6 +688,6 @@ def handler500(request: HttpRequest, exception, template_name="500.html"):
 
     }
     context = DefaultContext(request, params)
-    response = render_to_response("500.html", context=context.get_context())
+    response = render("500.html", context=context.get_context())
     response.status_code = 500
     return response

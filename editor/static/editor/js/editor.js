@@ -8,7 +8,6 @@ $(document).on("click", ".selected-value", function(){
 });
 
 $(document).on("input.metadata-url", "input", function(){
-    var elem = $(this);
     var inputs = $("input.metadata-url");
     var lastInput = inputs.last();
     var allFull = true;
@@ -34,7 +33,7 @@ function initializeSecuredFormStatus(){
     var isSecured = $("#id_is_secured").is(":checked");
     var securedSelectors = $(".secured-selector");
     var selectorParentRows = securedSelectors.closest("tr");
-    var addGeometryButtons = selectorParentRows.find(".add-geometry");
+    var addGeometryButtons = selectorParentRows.find(".add-geometry_");
 
     if(isSecured){
         securedSelectors.removeAttr("disabled")
@@ -52,7 +51,7 @@ function toggleSecuredCheckbox(){
     var checked = elem.is(":checked");
     var rows = $(".operation-row");
     var inputs = rows.find("input")
-    var addGeometryButtons = rows.find(".add-geometry")
+    var addGeometryButtons = rows.find(".add-geometry_")
     if(checked){
         rows.removeClass("disabled");
         inputs.removeAttr("disabled");
@@ -91,11 +90,11 @@ $(document).ready(function(){
                 getMapCheckbox.click();
             }
         }
-        if(operation == "GetMap"){
+        else if(operation == "GetMap"){
             // make sure that 'GetMap' is selected as well -> useless without!
-            var getMapCheckbox = $(".group-permission[data-operation='GetFeatureInfo'][data-group=" + group + "]")
-            if(getMapCheckbox.is(":checked") && !isElementChecked){
-                getMapCheckbox.click();
+            var getFeatureInfoCheckbox = $(".group-permission[data-operation='GetFeatureInfo'][data-group=" + group + "]")
+            if(getFeatureInfoCheckbox.is(":checked") && !isElementChecked){
+                getFeatureInfoCheckbox.click();
             }
         }
 
@@ -120,12 +119,16 @@ $(document).ready(function(){
         var elem = $(this);
         // deactivate log proxy if use proxy is deactivated
         var logProxyElem = $("#checkbox-log-proxy")
+        var securedElem = $("#checkbox-restrict-access")
         if(!elem.is(":checked") && logProxyElem.is(":checked")){
             logProxyElem.click();
         }
+        if(!elem.is(":checked") && securedElem.is(":checked")){
+            securedElem.click();
+        }
     });
 
-    $("#checkbox-log-proxy").change(function(){
+    $("#checkbox-log-proxy, #checkbox-restrict-access").change(function(){
         var elem = $(this);
         // activate use proxy if log proxy is activated
         var useProxyElem = $("#checkbox-use-proxy")
@@ -143,20 +146,19 @@ $(document).ready(function(){
         operations.each(function(i, elem){
             elem = $(elem);
             var checkedElements = elem.find("input[id*='checkbox-sec-']:checked,input[id*='checkbox-sec-'][data-remove='true']");
-            tmp = {
+            var tmp = {
                 "operation": elem.attr("data-operation"),
                 "groups": [],
             }
             checkedElements.each(function(j, checkedElement){
                 checkedElement = $(checkedElement);
                 var dataSecId = checkedElement.attr("data-sec-id");
-                var remove = checkedElement.attr("data-remove");
                 if(dataSecId == ""){
                     dataSecId = -1;
                 }
 
                 // add groups and polygons
-                tmpItem = {
+                var tmpItem = {
                     "groupId": checkedElement.attr("data-group"),
                     "polygons": checkedElement.attr("data-polygons"),
                     "securedOperation": dataSecId,
@@ -167,6 +169,7 @@ $(document).ready(function(){
             });
             txtArr.push(tmp);
         });
+
         hiddenInput.val(JSON.stringify(txtArr));
     });
 
@@ -194,19 +197,6 @@ $(document).ready(function(){
         var datalistOptions = elem.siblings("datalist").find("option");
         if(input.includes(",")){
             input = input.replace(",", "");
-            var type = elem.parents("tr").attr("id");
-            // if type != 'keywords' -> user is not allowed to add custom values
-            if(type != 'keywords'){
-                // check if the input is a word from the datalist
-                var optionsArr = []
-                datalistOptions.each(function(i, option){
-                    optionsArr.push($(option).text())
-                });
-                if(!optionsArr.includes(input)){
-                    alert("Please use only predefined values!");
-                    return;
-                }
-            }
             elem.val("");
             var dataId = "-1"
             // find correct dataId of element, if it is a value from the datalist
@@ -273,7 +263,7 @@ $(document).ready(function(){
         return true;
     });
 
-    $(".add-geometry").click(function(){
+    $(".add-geometry_").click(function(){
         var elem = $(this);
         var serviceMetadataId = elem.attr("data-id")
         var operation = elem.siblings("input").attr("data-operation");
@@ -287,6 +277,7 @@ $(document).ready(function(){
         }
 
         $.ajax({
+            // TODO: use url dispatcher....
             url: rootUrl + "/editor/edit/access/" + serviceMetadataId + "/geometry-form/",
             headers: {
                 "X-CSRFToken": getCookie("csrftoken")
@@ -299,8 +290,14 @@ $(document).ready(function(){
             type: 'get',
             dataType: 'json'
         }).done(function(data){
-            var html = data["html"];
-            toggleOverlay(html);
+            $( "#id_modal_leaflet_modal").modal('show');
+
+            $('#id_modal_leaflet_modal').on('shown.bs.modal', function (e) {
+                var html = data["html"];
+                $( "#id_leaflet_client_div" ).html( html );
+            })
+
+            //toggleOverlay(html);
 
         }).always(function(data){
             checkRedirect(data);

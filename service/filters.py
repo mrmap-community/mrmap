@@ -1,22 +1,38 @@
 import django_filters
-from .models import Layer, FeatureType
+from service.models import Metadata
 
 
-class ChildLayerFilter(django_filters.FilterSet):
-    child_layer_title = django_filters.CharFilter(field_name='metadata',
-                                                  lookup_expr='title__icontains',
-                                                  label='Layer title contains')
+class WmsFilter(django_filters.FilterSet):
+    wms_search = django_filters.CharFilter(method='filter_search_over_all',
+                                           label='Search')
+
+    @staticmethod
+    def filter_search_over_all(queryset, name, value):  # parameter name is needed cause 3 values are expected
+
+        return queryset.filter(title__icontains=value) | \
+               queryset.filter(contact__organization_name__icontains=value) | \
+               queryset.filter(service__created_by__name__icontains=value) | \
+               queryset.filter(service__published_for__organization_name__icontains=value) | \
+               queryset.filter(created__icontains=value)
 
     class Meta:
-        model = Layer
+        model = Metadata
         fields = []
 
 
-class FeatureTypeFilter(django_filters.FilterSet):
-    child_layer_title = django_filters.CharFilter(field_name='metadata',
-                                                  lookup_expr='title__icontains',
-                                                  label='Featuretype tile contains')
+class WfsFilter(django_filters.FilterSet):
+    wfs_search = django_filters.CharFilter(method='filter_search_over_all',
+                                           label='Search')
+
+    @staticmethod
+    def filter_search_over_all(queryset, name, value):  # parameter name is needed cause 3 values are expected
+
+        return queryset.filter(title__icontains=value) | \
+               queryset.filter(contact__organization_name__icontains=value) | \
+               queryset.filter(service__created_by__name__icontains=value) | \
+               queryset.filter(service__published_for__organization_name__icontains=value) | \
+               queryset.filter(created__icontains=value)
 
     class Meta:
-        model = FeatureType
+        model = Metadata
         fields = []

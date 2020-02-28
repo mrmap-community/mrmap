@@ -1,8 +1,11 @@
-{% load static i18n %}
+{% load i18n %}
 {% if messages %}
-<div class="messages" title="{% trans 'Click to hide' %}">
     {% for message in messages %}
-    <div{% if message.tags %} class="message {{ message.tags }}"{% endif %}>{{ message }}</div>
+        <div class="alert {{ message.tags }} alert-dismissible fade show message" role="alert">
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            {{ message }}
+        </div>
     {% endfor %}
-</div>
 {% endif %}

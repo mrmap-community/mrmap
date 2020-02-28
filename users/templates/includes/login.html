@@ -1,0 +1,63 @@
+{% load i18n static %}
+<div class="container">
+    <div class="row">
+        <div class="col-md mt-5 {{THEME.TXT_DEF_COLOR}}">
+            <h1>{{ login_article_title }}</h1>
+            <article class="login-article">{{ login_article }}</article>
+        </div>
+        <div class="col-md mt-5 mb-5">
+            <div class="card {{THEME.CARD.TXT_COLOR}} {{THEME.CARD.BG}} mt-3 {{THEME.CARD.BOARDER}}">
+                <div class="card-body">
+                    <h4 class="card-title text-center">Sign in</h4>
+                    <hr>
+                    <div class="media">
+                        <img class="align-self-start w-25 mr-3" src="{% static '/images/mr_map.png' %}" alt="mr. map">
+                        <div class="media-body w-75">
+                            {% if form.non_field_errors %}
+                            <ul class='form-errors list-group'>
+                                {% for error in form.non_field_errors %}
+                                <li class="list-group-item list-group-item-danger">{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                            <hr>
+                            {% endif %}
+
+                            <form method="post" action="{% url 'login' %}">
+                                {% csrf_token %}
+                                {% for field in login_form %}
+                                <label class="sr-only" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                <div class="form-group input-group">
+
+                                    {% if 'Username' in field.label %}
+                                    <div class="input-group-prepend">
+                                        <div class="input-group-text">{% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %}</div>
+                                    </div>
+                                    {% elif 'Password' in field.label %}
+                                    <div class="input-group-prepend">
+                                        <div class="input-group-text">{% autoescape off %}{{THEME.ICONS.PASSWORD}}{% endautoescape %}</div>
+                                    </div>
+                                    {% endif %}
+
+                                    <input type="{{ field.field.widget.input_type }}" name="{{ field.name }}"
+                                           class="form-control" id="{{ field.id_for_label }}"
+                                           placeholder="{{ field.label }}" required="{{ field.field.is_required }}">
+                                </div>
+                                {% endfor %}
+                                <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">
+                                    {% autoescape off %}{{THEME.ICONS.SIGNIN}}{% endautoescape %} {% trans 'Sign in' %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-center">
+                        <span>{% trans 'Don\'t have an account?' %} </span>
+                        <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'register' %}">{% autoescape off %}{{THEME.ICONS.SIGNUP}}{% endautoescape %} {% trans 'Sign up' %}</a><br>
+                        <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'password-reset' %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Forgot your password?' %}</a>
+                    </div>
+                </div>
+
+            </div> <!-- card.// -->
+        </div>
+    </div>
+</div>

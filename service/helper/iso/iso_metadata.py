@@ -75,7 +75,20 @@ class ISOMetadata:
         self.responsible_party = None
         self.contact_email = None
         self.update_frequency = None
-        self.valid_update_frequencies = ['continual', 'daily', 'weekly', 'fortnightly', 'monthly', 'quarterly', 'biannually', 'annually', 'asNeeded', 'irregular', 'notPlanned', 'unknown']
+        self.valid_update_frequencies = [
+            'continual',
+            'daily',
+            'weekly',
+            'fortnightly',
+            'monthly',
+            'quarterly',
+            'biannually',
+            'annually',
+            'asNeeded',
+            'irregular',
+            'notPlanned',
+            'unknown'
+        ]
 
         self.inspire_interoperability = True
         self.interoperability_list = []
@@ -91,23 +104,20 @@ class ISOMetadata:
         XML_NAMESPACES["xsi"] = "http://www.w3.org/2001/XMLSchema-instance"
         XML_NAMESPACES["inspire_common"] = "http://inspire.ec.europa.eu/schemas/common/1.0"
         XML_NAMESPACES["inspire_vs"] = "http://inspire.ec.europa.eu/schemas/inspire_vs/1.0"
-        # XML_NAMESPACES["default"] = ""
 
         # load uri and start parsing
         self.get_metadata()
         self.parse_xml()
 
+        # check for validity
+        # we expect that at least title and file_identifier exist
         MIN_REQUIRED_ISO_MD = [
             self.file_identifier,
             self.title,
-            self.responsible_party,
         ]
-        # check for validity
-        # we expect that at least title and file_identifier exist
         for attr in MIN_REQUIRED_ISO_MD:
             if attr is None:
                 self.is_broken = True
-                #raise Exception("INVALID ISO METADATA FOUND")
 
     def get_metadata(self):
         """ Start a network call to retrieve the original capabilities xml document.
@@ -118,19 +128,17 @@ class ISOMetadata:
         Returns:
              nothing
         """
-        ows_connector = CommonConnector(url=self.uri,
-                                        external_auth=None,
-                                        connection_type=ConnectionEnum.REQUESTS)
+        ows_connector = CommonConnector(
+            url=self.uri,
+            external_auth=None,
+            connection_type=ConnectionEnum.REQUESTS
+        )
         ows_connector.http_method = 'GET'
         ows_connector.load()
         if ows_connector.status_code != 200:
             raise ConnectionError(ows_connector.status_code)
 
-        if ows_connector.encoding is not None:
-            # self.raw_metadata = ows_connector.content.decode(ows_connector.encoding)  # Has to use utf-8 hardcoded because provided encodings didn't work properly
-            self.raw_metadata = ows_connector.content.decode("UTF-8")
-        else:
-            self.raw_metadata = ows_connector.text
+        self.raw_metadata = ows_connector.content.decode("UTF-8")
 
     def _parse_xml_dataset_id(self, xml_obj: _Element, xpath_type: str):
         """ Parse the dataset id and it's code space from the metadata xml
@@ -170,7 +178,6 @@ class ISOMetadata:
                 self.dataset_id = code
                 self.dataset_id_code_space = code_space
             else:
-                #raise Exception(MISSING_DATASET_ID_IN_METADATA)
                 self.is_broken = True
 
     def _parse_xml_polygons(self, xml_obj: _Element, xpath_type: str):
@@ -185,10 +192,8 @@ class ISOMetadata:
         polygons = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:MultiSurface'.format(xpath_type))
         if len(polygons) > 0:
             surface_elements = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:MultiSurface/gml:surfaceMember".format(xpath_type))
-            i = 0
             for element in surface_elements:
                 self.polygonal_extent_exterior.append(self.parse_polygon(element))
-                i += 1
         else:
             polygons = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:extent/gmd:EX_Extent/gmd:geographicElement/gmd:EX_BoundingPolygon/gmd:polygon/gml:Polygon'.format(xpath_type))
             if polygons is not None:
@@ -214,7 +219,7 @@ class ISOMetadata:
         # try to transform the last_change_date into a datetime object
         try:
             self.last_change_date = parse(self.last_change_date)
-        except (ValueError, OverflowError) as e:
+        except (ValueError, OverflowError, TypeError) as e:
             # if this is not possible due to wrong input, just use the current time...
             self.last_change_date = timezone.now()
 
@@ -321,13 +326,22 @@ class ISOMetadata:
             self.interoperability_list.append(reg)
 
     def parse_bbox(self, bbox: dict):
+        """ Creates a Polygon object from a bbox
+
+        Args:
+            bbox (dict): The bbox as dict
+        Returns:
+             polygon (Polygon): The polygon object
+        """
         polygon = Polygon()
         if bbox is not None:
-            bounding_points = ((bbox["min_x"], bbox["min_y"]),
-                               (bbox["min_x"], bbox["max_y"]),
-                               (bbox["max_x"], bbox["max_y"]),
-                               (bbox["max_x"], bbox["min_y"]),
-                               (bbox["min_x"], bbox["min_y"]))
+            bounding_points = (
+                (bbox["min_x"], bbox["min_y"]),
+                (bbox["min_x"], bbox["max_y"]),
+                (bbox["max_x"], bbox["max_y"]),
+                (bbox["max_x"], bbox["min_y"]),
+                (bbox["min_x"], bbox["min_y"])
+            )
             polygon = Polygon(bounding_points)
         return polygon
 

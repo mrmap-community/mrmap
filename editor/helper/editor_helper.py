@@ -16,11 +16,11 @@ from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK, SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, \
-    SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING
-from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL
+    SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
+from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
 
-from service.helper.enums import VersionEnum, ServiceEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
     MetadataOrigin, SecuredOperation, RequestOperation, Layer, Style
@@ -39,20 +39,20 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
     Returns:
          nothing
     """
-    ns_keyword_prefix = ""
     ns_prefix = ""
     keyword_container_tag = "KeywordList"
     keyword_prefix = ""
+
     if _type == 'wfs':
         ns_keyword_prefix_s = "ows"
-        ns_keyword_prefix = "{}:".format(ns_keyword_prefix_s)
         ns_prefix = "wfs:"
         if metadata.is_root():
             # for the <ows:ServiceIdentification> element we need the prefix "ows:"
             ns_prefix = "ows:"
         keyword_container_tag = "Keywords"
         keyword_prefix = "{" + XML_NAMESPACES[ns_keyword_prefix_s] + "}"
-    xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml("./{}{}".format(ns_keyword_prefix, keyword_container_tag), xml_obj)
+
+    xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format(keyword_container_tag), xml_obj)
     if xml_keywords_list_obj is None:
         # there are no keywords in this capabilities for this element yet
         # we need to add an element first!
@@ -61,11 +61,16 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
         except TypeError as e:
             # there seems to be no <Abstract> element. We add simply after <Title> and also create a new Abstract element
             xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Title".format(ns_prefix))
-            xml_helper.create_subelement(xml_obj, "{}".format("Abstract"),
-                                         after="{}Title".format(ns_prefix))
+            xml_helper.create_subelement(
+                xml_obj,
+                "{}".format("Abstract"),
+                after="{}Title".format(ns_prefix)
+            )
 
-
-    xml_keywords_objs = xml_helper.try_get_element_from_xml("./{}Keyword".format(ns_keyword_prefix), xml_keywords_list_obj) or []
+    xml_keywords_objs = xml_helper.try_get_element_from_xml(
+        "./" + GENERIC_NAMESPACE_TEMPLATE.format("Keyword"),
+        xml_keywords_list_obj
+    ) or []
 
     # first remove all persisted keywords
     for kw in xml_keywords_objs:
@@ -124,24 +129,19 @@ def overwrite_capabilities_document(metadata: Metadata):
     # find matching xml element in xml doc
     _type = metadata.get_service_type()
     _version = metadata.get_service_version()
-    element_selector = ""
+
     if is_root:
-        if _type == ServiceEnum.WMS.value:
-            element_selector = "//Service/Name"
-        elif _type == ServiceEnum.WFS.value:
-            if _version is VersionEnum.V_2_0_0 or _version is VersionEnum.V_2_0_2:
+        if _type == OGCServiceEnum.WFS.value:
+            if _version is OGCServiceVersionEnum.V_2_0_0 or _version is OGCServiceVersionEnum.V_2_0_2:
                 XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
                 XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
                 XML_NAMESPACES["fes"] = "http://www.opengis.net/fes/2.0"
                 XML_NAMESPACES["default"] = XML_NAMESPACES["wfs"]
-            element_selector = "//ows:ServiceIdentification/ows:Title"
             identifier = metadata.title
-    else:
-        if _type == ServiceEnum.WMS.value:
-            element_selector = "//Layer/Name"
-        elif _type == ServiceEnum.WFS.value:
-            element_selector = "//wfs:FeatureType/wfs:Name"
-    xml_obj = xml_helper.try_get_single_element_from_xml("{}[text()='{}']/parent::*".format(element_selector, identifier), xml_obj_root)
+
+    xml_obj = xml_helper.find_element_where_text(xml_obj_root, txt=identifier)
+    if len(xml_obj) > 0:
+        xml_obj = xml_obj[0]
 
     # handle keywords
     _overwrite_capabilities_keywords(xml_obj, metadata, _type)
@@ -287,24 +287,27 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     original_md.terms_of_use = custom_md.terms_of_use
     # get db objects from values
     # keywords are provided as usual text
-    keywords = editor_form.data.get("keywords").split(",")
+    keywords = editor_form.cleaned_data["keywords"]
     if len(keywords) == 1 and keywords[0] == '':
         keywords = []
     # categories are provided as id's to prevent language related conflicts
-    category_ids = editor_form.data.get("categories").split(",")
-    if len(category_ids) == 1 and category_ids[0] == '':
-        category_ids = []
+    categories = editor_form.cleaned_data["categories"]
+    if len(categories) == 1 and categories[0] == '':
+        categories = []
     original_md.keywords.clear()
     for kw in keywords:
         keyword = Keyword.objects.get_or_create(keyword=kw)[0]
         original_md.keywords.add(keyword)
-    for id in category_ids:
-        category = Category.objects.get(id=id)
+    for category in categories:
+        category = Category.objects.get(id=category.id)
         original_md.categories.add(category)
 
     # change capabilities document so that all sensitive elements (links) are proxied
     if original_md.use_proxy_uri != custom_md.use_proxy_uri:
-        original_md.set_proxy(custom_md.use_proxy_uri)
+        if custom_md.use_proxy_uri == 'on':
+            original_md.set_proxy(True)
+        else:
+            original_md.set_proxy(False)
 
     # save metadata
     original_md.is_custom = True
@@ -410,15 +413,18 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
          nothing - directly changes the database
     """
     # process form input
-    sec_operations_groups = json.loads(post_params.get("secured-operation-groups"), "{}")
+    sec_operations_groups = json.loads(post_params.get("secured-operation-groups", {}))
 
     is_secured = post_params.get("is_secured", "")
     is_secured = is_secured == "on"  # resolve True|False
 
-    use_proxy = post_params.get("use_proxy", None)
-    # use_proxy could be None in case of subelements, which are not able to toggle the proxy option
-    if use_proxy is not None:
+    # only root metadata can toggle the use_proxy setting
+    if md.is_root():
+        use_proxy = post_params.get("use_proxy", "")
+        # use_proxy could be None in case of subelements, which are not able to toggle the proxy option
         use_proxy = use_proxy == "on"  # resolve True|False
+    else:
+        use_proxy = None
 
     log_proxy = post_params.get("log_proxy", "")
     log_proxy = log_proxy == "on"  # resolve True|False
@@ -430,19 +436,23 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
 
     # use_proxy=False and log_proxy=True is not allowed!
     # use_proxy=False and metadata.log_proxy_access is not allowed either!
-    if not use_proxy and log_proxy or not use_proxy and md.log_proxy_access:
+    if not use_proxy and log_proxy:
         raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING)
 
-    if log_proxy != md.log_proxy_access:
-        md.log_proxy_access = log_proxy
+    # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
+    if md.has_external_authentication() and not use_proxy:
+        raise Exception(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
 
-    # set new metadata proxy value and iterate over all children
-    if use_proxy is not None and use_proxy != md.use_proxy_uri:
-        md.set_proxy(use_proxy)
+    if log_proxy != md.log_proxy_access:
+        md.set_logging(log_proxy)
 
     # set new secured value and iterate over all children
     if is_secured != md.is_secured:
         md.set_secured(is_secured)
+
+    # set new metadata proxy value and iterate over all children
+    if use_proxy is not None and use_proxy != md.use_proxy_uri:
+        md.set_proxy(use_proxy)
 
     if not is_secured:
         # remove all secured settings

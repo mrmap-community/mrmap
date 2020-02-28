@@ -25,12 +25,41 @@ from MapSkinner.messages import FORM_INPUT_INVALID, ACCOUNT_UPDATE_SUCCESS, USER
     LOGOUT_SUCCESS, PASSWORD_SENT, EMAIL_INVALID, ACTIVATION_LINK_SENT
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import SESSION_EXPIRATION, ROOT_URL, LAST_ACTIVITY_DATE_RANGE
+from MapSkinner.utils import print_debug_mode
 from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
 from structure.forms import LoginForm, RegistrationForm
-from structure.models import User, UserActivation, PendingRequest, GroupActivity
+from structure.models import User, UserActivation, PendingRequest, GroupActivity, Organization
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm
 from users.helper import user_helper
+from django.urls import reverse
+
+
+def _return_account_view(request: HttpRequest, user: User, params):
+    template = "views/account.html"
+    render_params = {}
+    if params is None:
+        render_params = _prepare_account_view_params(user)
+    else:
+        render_params.update(params)
+
+    context = DefaultContext(request, render_params, user)
+    return render(request, template, context.get_context())
+
+
+def _prepare_account_view_params(user: User):
+    edit_account_form = UserForm(instance=user, initial={'theme': user.theme})
+    edit_account_form.action_url = reverse('account-edit', )
+
+    password_change_form = PasswordChangeForm()
+    password_change_form.action_url = reverse('password-change', )
+
+    params = {
+        "user": user,
+        "edit_account_form": edit_account_form,
+        "password_change_form": password_change_form,
+    }
+    return params
 
 
 def login(request: HttpRequest):
@@ -41,7 +70,7 @@ def login(request: HttpRequest):
     Returns:
          A view
     """
-    template = "login.html"
+    template = "views/login.html"
     login_form = LoginForm(request.POST)
 
     # check if user is still logged in!
@@ -114,14 +143,18 @@ def home_view(request: HttpRequest, user: User):
             created_by__in=user.groups.all(),
             service__is_deleted=False,
         ).count()
+
     activities_since = timezone.now() - datetime.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
     group_activities = GroupActivity.objects.filter(group__in=user.groups.all(), created_on__gte=activities_since).order_by("-created_on")
     pending_requests = PendingRequest.objects.filter(organization=user.organization)
     params = {
         "wms_count": user_services_wms,
         "wfs_count": user_services_wfs,
+        "all_count": user_services_wms + user_services_wfs,
         "requests": pending_requests,
         "group_activities": group_activities,
+        "groups": user.groups.all(),
+        "organizations": Organization.objects.filter(is_auto_generated=False)
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
@@ -137,14 +170,8 @@ def account(request: HttpRequest, user: User):
     Returns:
          A rendered view
     """
-    template = "account.html"
-    form = UserForm(instance=user)
-    params = {
-        "user": user,
-        "form": form,
-    }
-    context = DefaultContext(request, params, user)
-    return render(request, template, context.get_context())
+    return _return_account_view(request, user, None)
+
 
 @check_session
 def password_change(request: HttpRequest, user: User):
@@ -156,31 +183,21 @@ def password_change(request: HttpRequest, user: User):
     Returns:
         A view
     """
-    template = "change_password.html"
-    form = PasswordChangeForm()
     if request.method == 'POST':
         form = PasswordChangeForm(request.POST)
         if form.is_valid():
-            password = form.data.get("password")
-            password_again = form.data.get("password_again")
-            if password != password_again:
-                messages.add_message(request, messages.ERROR, PASSWORD_CHANGE_NO_MATCH)
-            else:
-                user.password = make_password(password, user.salt)
-                user.save()
-                messages.add_message(request, messages.SUCCESS, PASSWORD_CHANGE_SUCCESS)
+            password = form.cleaned_data["password"]
+            user.password = make_password(password, user.salt)
+            user.save()
+            messages.add_message(request, messages.SUCCESS, PASSWORD_CHANGE_SUCCESS)
         else:
-            messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
-        return redirect("account")
+            return _return_account_view(request, user, {
+                "password_change_form": form,
+                "show_password_change_form": True
+            })
     else:
-        params = {
-            "form": form,
-            "article": _("Please insert your new password. You have to fulfill the password constraints."),
-            "action_url": ROOT_URL + "/users/password/edit/"
-        }
-        context = DefaultContext(request, params, user)
-        html = render_to_string(request=request, template_name=template, context=context.get_context())
-        return BackendAjaxResponse(html=html).get_response()
+        return redirect("account")
+
 
 @check_session
 def account_edit(request: HttpRequest, user: User):
@@ -192,7 +209,6 @@ def account_edit(request: HttpRequest, user: User):
     Returns:
         A view
     """
-    template = "users_form.html"
     form = UserForm(request.POST or None, instance=user)
     if request.method == 'POST':
         if form.is_valid():
@@ -201,17 +217,12 @@ def account_edit(request: HttpRequest, user: User):
             user.save()
             messages.add_message(request, messages.SUCCESS, ACCOUNT_UPDATE_SUCCESS)
         else:
-            messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
-        return redirect("account")
-    else:
-        params = {
-            "form": form,
-            "article": _("You can update your account information using this form."),
-            "action_url": ROOT_URL + "/users/edit/"
-        }
-        context = DefaultContext(request, params, user)
-        html = render_to_string(request=request, template_name=template, context=context.get_context())
-        return BackendAjaxResponse(html=html).get_response()
+            return _return_account_view(request, user, {
+                "edit_account_form": form,
+                "show_edit_account_form": True
+            })
+
+    return redirect("account")
 
 
 def activate_user(request: HttpRequest, activation_hash: str):
@@ -223,7 +234,7 @@ def activate_user(request: HttpRequest, activation_hash: str):
     Returns:
          A rendered view
     """
-    template = "user_activation.html"
+    template = "views/user_activation.html"
 
     try:
         user_activation = UserActivation.objects.get(activation_hash=activation_hash)
@@ -253,6 +264,7 @@ def logout(request: HttpRequest, user: User):
     """ Logs the structure out and redirects to login view
 
     Args:
+        user:
         request (HttpRequest): The incoming request
     Returns:
          A view
@@ -284,7 +296,7 @@ def password_reset(request: HttpRequest):
     Returns:
          A view
     """
-    template = "password_reset.html"
+    template = "views/password_reset.html"
     form = PasswordResetForm()
     if request.method == 'POST':
         form = PasswordResetForm(request.POST)
@@ -298,7 +310,7 @@ def password_reset(request: HttpRequest):
             # ToDo: Do sending via email!
             sec_handler = CryptoHandler()
             gen_pw = sec_handler.sha256(user.salt + str(timezone.now()))[:7].upper()
-            print(gen_pw)
+            print_debug_mode(gen_pw)
             user.password = make_password(gen_pw, user.salt)
             user.save()
             messages.add_message(request, messages.INFO, PASSWORD_SENT)
@@ -323,7 +335,7 @@ def register(request: HttpRequest):
     Returns:
          A view
     """
-    template = "user_registration.html"
+    template = "views/register.html"
     form = RegistrationForm()
     params = {
         "form": form,

@@ -1,79 +1,30 @@
 {% extends 'base.html' %}
 {% load i18n static %}
-
-{% block head %}
-    <link rel="stylesheet" type="text/css" href="{% static '/users/css/dashboard.css' %}" media="all" />
-
-{% endblock %}
+{% load fontawesome_5 %}
 
 {% block body %}
-
-<div class="dashboard">
-    <div class="sidebar left background">
-        <h3 class="headline">{% trans 'Pending requests' %}</h3>
-        <div class="pending-requests">
-            {% for request in requests %}
-                <a class="sidebar-entry unread" href="{% url 'structure:detail-organization' request.organization.id %}#publish-wrapper">
-                    <span class="bold">
-                    {{ request.group }} ({{ request.type }})
-                    </span>
-                    <br>
-                    {{ request.created_on|date:"d.m.Y, H:i" }}
-                </a>
-            {% empty %}
-                <span class="sidebar-entry">{% trans 'No requests' %}</span>
-            {% endfor %}
-
+<div class="container-fluid px-5">
+    <div class="row">
+        <div class="col-md-4">
+                <div class="row mt-2">
+                    <div class="col">
+                    {% include 'cards/pending_requests.html' %}
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col">
+                    {% include 'cards/last_activities.html' %}
+                        </div>
+                </div>
         </div>
-        <h3 class="headline">{% trans 'Last activities' %}</h3>
-        <div class="activities-history">
-            {% for group_activity in group_activities %}
-                <span class="sidebar-entry">
-                    <span class="bold">{{ group_activity.metadata }}</span>
-                    <br>
-                    <span>{% trans group_activity.description %} {% trans 'by' %}</span>
-                    <span class="bold">{{ group_activity.user }}</span>
-                    <br>
-                    {{ group_activity.created_on|date:"d.m.Y, H:i" }}
-                </span>
-            {% empty %}
-                <span class="sidebar-entry">{% trans 'No activities' %}</span>
-            {% endfor %}
-        </div>
-    </div>
-    <div class="content-wrapper background">
-        <div class="content-tile">
-            <h2 class="headline">{% trans 'My services' %}</h2>
-            <div class="tiles-wrapper">
-                <a class="tile" href="{% url 'service:wms' %}">
-                    <span>{% trans 'WMS' %}<span class="badge">{{ wms_count }}</span></span>
-                    <img class="tile-bg-img" src="{% static 'structure/images/icn_wms.png' %}">
-                </a>
-                <a class="tile" href="{% url 'service:wfs' %}">
-                    <span>{% trans 'WFS' %}<span class="badge">{{ wfs_count }}</span></span>
-                    <img class="tile-bg-img" src="{% static 'structure/images/icn_wfs.png' %}">
-                </a>
-                <a class="tile" href="{% url 'service:index' %}">
-                    <span>{% trans 'All' %}</span>
-                </a>
-            </div>
-
-        </div>
-        <div class="content-tile">
-            <h2 class="headline">{% trans 'Groups and organizations' %}</h2>
-            <div class="tiles-wrapper">
-                <a class="tile" href="{% url 'structure:groups' %}">
-                    <span>{% trans 'Groups' %}</span>
-                    <img class="tile-bg-img" src="{% static 'structure/images/icn_group.png' %}">
-                </a>
-                <a class="tile" href="{% url 'structure:organizations' %}">
-                    <span>{% trans 'Organizations' %}</span>
-                    <img class="tile-bg-img" src="{% static 'structure/images/icn_organization.png' %}">
-                </a>
-            </div>
-
+        <div class="col-md-8">
+                <div class="row">
+                    {% include 'cards/my_services.html' %}
+                </div>
+                <div class="row mt-2">
+                    {% include 'cards/groups_and_organizations.html' %}
+                </div>
         </div>
     </div>
 </div>
-
 {% endblock %}

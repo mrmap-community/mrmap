@@ -1,0 +1,72 @@
+
+{% load static i18n %}
+{% if featuretypes|length > 0 %}
+<div class="sublayer-container">
+    <div class="sublayer-headline">
+        <img src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+        {% trans 'Show featuretypes' %} ({{ featuretypes|length }})
+    </div>
+    <div class="sublayer hidden">
+        {% for featuretype in featuretypes %}
+        <div class="collapsible-table">
+            <h3 class="layer-title" title="{% trans 'Click to expand' %}" data-id="{{ featuretype.id }}" data-type="wfs">
+                <img class="collapse-img" src="{% static 'service/images/icn_plus.png' %}" data-toggle="{% static 'service/images/icn_minus.png' %}">
+                <span class="{% if featuretype.metadata.is_custom %}custom-metadata-headline{% endif %}">
+                    {{ featuretype.metadata.title }}
+                    {% if featuretype.metadata.is_custom %}
+                    <img class="invert"  src="{% static 'structure/images/icn_edit.png' %}" title="{% trans 'Custom Metadata' %}">
+                    {% endif %}
+                </span>
+            </h3>
+            <div class="subelements hidden">
+                <div class="container-row">
+                <div class="container-left">
+                    {% if 'can_edit_metadata_service' in user_permissions %}
+                        <div class="collapsible-container">
+                            <div class="collapsible-toggler button button-wrapper" title="{% trans 'Edit featuretype' %}">
+                                <span>{% trans 'Edit featuretype' %}</span>
+                            </div>
+                            <div class="hide collapsible-list">
+                                <a target="_blank" href="{% url 'editor:edit' featuretype.metadata.id %}" title="{% trans 'Edit featuretype metadata' %}">
+                                    <div class="button-wrapper button">{% trans 'Metadata' %}</div>
+                                </a>
+                                <a target="_blank" href="{% url 'editor:edit_access' featuretype.metadata.id %}" title="{% trans 'Edit featuretype access' %}">
+                                    <div class="button-wrapper button">{% trans 'Access' %}</div>
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="container-center">
+                    <a data-id="{{ featuretype.id }}" class="hide" href="{% url 'service:get-dataset-metadata' featuretype.metadata.id %}" title="{% trans 'Get dataset metadata' %}" target="_blank">
+                        <div class="button-wrapper">
+                            <span>{% trans 'Dataset metadata' %}</span>
+                        </div>
+                    </a>
+
+                </div>
+                <div class="container-right">
+                    {% if 'can_edit_metadata_service' in user_permissions %}
+                        <a href="{% url 'editor:restore' featuretype.metadata.id %}">
+                            <div class="button-wrapper">
+                                <span class="reset-icon large">&#8635;</span>
+                                <span>{% trans 'Restore metadata' %}</span>
+                            </div>
+                        </a>
+                    {% endif %}
+                </div>
+
+                </div>
+                <div class="content">
+                    <div class="loading-spinner">
+                        <i class="fas fa-circle-notch fa-spin primary-color"></i>
+                        <span id="submit-text">{% trans 'Loading...' %}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

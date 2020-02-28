@@ -1,0 +1,25 @@
+{% extends 'sceletons/card.html' %}
+{% load i18n %}
+
+{% block card-header-title-left %}
+<h5 class="card-title">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %}</h5>
+{% endblock %}
+
+{% block card-header-title-center %}
+<h5 class="card-title">{% trans 'Groups' %}</h5>
+{% endblock%}
+
+{% block card-header-title-right %}
+<h5><span class="badge badge-pill {{THEME.CARD.BADGE_LIGHT}}">{{ groups.count }}</span></h5>
+{% endblock %}
+
+{% block card-body %}
+<p class="card-text">Some quick example text to build on the card title and make up the bulk
+    of the
+    card's
+    content.</p>
+<a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'structure:groups-index' %}" role="button">
+
+    {% trans 'Show'%}
+</a>
+{% endblock %}

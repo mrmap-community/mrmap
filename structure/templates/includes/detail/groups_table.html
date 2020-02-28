@@ -1,0 +1,32 @@
+{% extends 'sceletons/table.html' %}
+{% load i18n %}
+{% block table %}
+<tr>
+    <th>{% trans 'Organization' %}</th>
+    <td>{{ group.organization }}</td>
+</tr>
+<tr>
+    <th>{% trans 'Description' %}</th>
+    <td>{{ group.description }}</td>
+</tr>
+<tr>
+    <th>{% trans 'Members' %}</th>
+    <td>
+        {% for member in members %}
+            {{ member.username }}<br>
+        {% endfor %}
+    </td>
+</tr>
+<tr>
+    <th>{% trans 'Parent' %}</th>
+    <td>{{ group.parent }}</td>
+</tr>
+<tr>
+    <th>{% trans 'Permissions' %}</th>
+    <td>
+        {% for perm in group_permissions %}
+            {{ perm }} <br>
+        {% endfor %}
+    </td>
+</tr>
+{% endblock %}

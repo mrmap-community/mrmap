@@ -1,0 +1,40 @@
+{% extends 'sceletons/table.html' %}
+{% load i18n %}
+{% block table %}
+<tr>
+    <th>{% trans 'Person' %}</th>
+    <td>{{ organization.person_name }}</td>
+</tr>
+<tr>
+    <th>{% trans 'E-Mail' %}</th>
+    <td>{{ organization.email }}</td>
+</tr>
+<tr>
+    <th>{% trans 'Phone' %}</th>
+    <td>{{ organization.phone }}</td>
+</tr>
+<tr>
+    <th>{% trans 'Facsimile' %}</th>
+    <td>{{ organization.facsimile }}</td>
+</tr>
+<tr>
+    <th>{% trans 'Address' %}</th>
+    <td>{{ organization.address }}</td>
+</tr>
+<tr>
+    <th>{% trans 'Postal code' %}</th>
+    <td>{{ organization.postal_code }}</td>
+</tr>
+<tr>
+    <th>{% trans 'City' %}</th>
+    <td>{{ organization.city }}</td>
+</tr>
+<tr>
+    <th>{% trans 'State or province' %}</th>
+    <td>{{ organization.state_or_province }}</td>
+</tr>
+<tr>
+    <th>{% trans 'Country' %}</th>
+    <td>{{ organization.country }}</td>
+</tr>
+{% endblock %}

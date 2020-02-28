@@ -2,6 +2,7 @@ import urllib
 import uuid
 
 import os
+from collections import OrderedDict
 
 from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
@@ -966,11 +967,15 @@ class Document(Resource):
         """ Parses the persisted dataset_metadata_document into a dict
 
         Parses only values which are important for the HTML representation rendering.
+        Useful resource: https://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml
 
         Returns:
              ret_dict (dict): The dict
         """
         ret_dict = {}
+
+        if self.dataset_metadata_document is None:
+            return ret_dict
 
         xml = xml_helper.parse_xml(self.dataset_metadata_document)
 
@@ -1045,16 +1050,21 @@ class Document(Resource):
         del temporal_elem
 
         # Date of creation|revision|publication
-        identifiers = {
+        date_additionals = OrderedDict({
             "creation": [],
             "revision": [],
             "publication": [],
-        }
-        date_elems = xml_helper.try_get_element_from_xml(
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Date"),
+        })
+        md_elem = xml_helper.try_get_single_element_from_xml(
+            ".//"  + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("citation"),
             xml
         )
-        for identifier, _list in identifiers.items():
+        date_elems = xml_helper.try_get_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Date"),
+            md_elem
+        )
+        for identifier, _list in date_additionals.items():
             for elem in date_elems:
                 date_type_elem = xml_helper.try_get_single_element_from_xml(
                     ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_DateTypeCode"),
@@ -1069,7 +1079,24 @@ class Document(Resource):
                 if identifier in date_type_txt or identifier in date_type_attr:
                     # Found one!
                     _list.append(date_txt)
+        ret_dict["dates_additional"] = date_additionals
+        del elem
+        del _list
+        del md_elem
+        del date_txt
+        del date_elems
+        del identifier
+        del date_type_txt
+        del date_type_attr
+        del date_type_elem
+        del date_additionals
 
+        # Encoding
+        ret_dict["encoding"] = xml_helper.try_get_attribute_from_xml_element(
+            xml,
+            "codeListValue",
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_CharacterSetCode")
+        )
 
         return ret_dict
 

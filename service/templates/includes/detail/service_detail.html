@@ -109,7 +109,9 @@
         {% endwith %}
     {% elif service.servicetype.name == 'wfs' %}
         {% with service.featuretypes.all as featuretypes %}
-            {% include 'includes/wfs/show_featuretypes_accordion.html' %}
+            {% with id_accordion='root' %}
+                {% include 'includes/wfs/show_featuretypes_accordion.html' %}
+            {% endwith %}
         {% endwith %}
     {% endif %}
     </div><!--</col-->

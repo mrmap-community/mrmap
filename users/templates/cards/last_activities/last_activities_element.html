@@ -1,12 +1,13 @@
 {% extends 'sceletons/well.html' %}
 {% load i18n %}
 {% block card-body %}
-<div class="d-flex w-100 justify-content-between">
-    <h5 class="mb-1 mr-3"><b>{% trans group_activity.description %}</b></h5>
-    <small class="text-muted">{{ group_activity.created_on|date:"d.m.Y, H:i" }}</small>
-</div>
+<h5 class="mb-1 mr-3">
+    <strong>{% trans group_activity.description %}</strong>
+</h5>
 <p class="mb-1">{{ group_activity.metadata }}</p>
 <small class="text-muted">
-    {% trans 'Activity performed by' %} <b>{{ group_activity.user}}</b>
+    {% trans 'Activity performed by' %}
+    <strong>{{ group_activity.user}}</strong>
+    {{ group_activity.created_on|date:"d.m.Y, H:i" }}
 </small>
 {% endblock %}

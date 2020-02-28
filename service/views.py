@@ -549,13 +549,18 @@ def get_service_metadata_preview(request: HttpRequest, id: int):
     bbox = md.find_max_bounding_box()
     bbox = str(bbox.extent).replace("(", "").replace(")", "")  # this is a little dumb, you may choose something better
 
+    # Fetch a supported version of png
+    png_format = md.service.get_supported_formats().filter(
+        mime_type__icontains="image/"
+    ).first()
+
     data = {
         "request": OGCOperationEnum.GET_MAP.value,
         "version": OGCServiceVersionEnum.V_1_1_1.value,
         "layers": layer,
         "srs": DEFAULT_SRS_STRING,
         "bbox": bbox,
-        "format": "png",
+        "format": png_format.mime_type,
         "width": 200,
         "height": 200,
     }

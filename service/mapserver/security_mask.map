@@ -30,7 +30,7 @@ MAP
         END
 
         CONNECTIONTYPE POSTGIS
-        CONNECTION "host=localhost dbname=mapskinner user=postgres port=5432"
+        CONNECTION "host=localhost dbname=mapskinner user=postgres password=postgres port=5555"
 
         DATA "geom FROM (SELECT %key_column%, ST_UnaryUnion(%geom_column%) geom FROM %table% WHERE %key_column% in (%keys%) GROUP BY %key_column%) foo USING unique %key_column% USING SRID=4326"
 

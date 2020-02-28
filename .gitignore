@@ -102,3 +102,5 @@ ENV/
 # Sonar
 .scannerwork/
 
+
+redis/redis_data/dump.rdb

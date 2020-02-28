@@ -3,7 +3,7 @@
 {% load static i18n %}
 {% if featuretypes|length > 0 %}
     {% block accordion-button-title %}
-        <i class="fa" aria-hidden="true"></i> {% trans 'Show featuretypes' %} <span class="badge {{THEME.ACCORDION.PILL_BADGE_INFO_COLOR}}">{{ featuretypes|length }}</span>
+        <i class="fa" aria-hidden="true"></i> {% trans 'Show featuretypes' %} <span class="badge {{THEME.ACCORDION.PILL_BADGE_LIGHT_COLOR}}">{{ featuretypes|length }}</span>
     {% endblock %}
 
     {% block accordion-body %}

@@ -9,7 +9,7 @@ urlpatterns = [
 
     path('metadata/<int:id>', get_service_metadata, name='get-service-metadata'),
     path('metadata/dataset/<int:id>', get_dataset_metadata, name='get-dataset-metadata'),
-    path('metadata/dataset/check/<int:id>', get_dataset_metadata_button, name='get-dataset-metadata-button'),
+    path('metadata/dataset/check/<int:id>', check_for_dataset_metadata, name='check-for-dataset-metadata'),
 
     path('metadata/<int:id>/operation', get_operation_result, name='metadata-proxy-operation'),
     path('metadata/<int:id>/legend/<int:style_id>', get_metadata_legend, name='metadata-proxy-legend'),

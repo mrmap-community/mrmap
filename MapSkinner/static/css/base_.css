@@ -49,8 +49,8 @@
 /* Sticky footer styles
 -------------------------------------------------- */
 #body-content {
-  margin-top: 4rem; /* Margin top by navbar height */
-  margin-bottom: 4rem; /* Margin bottom by footer height */
+  margin-top: 6rem; /* Margin top by navbar height */
+  margin-bottom: 6rem; /* Margin bottom by footer height */
 }
 
 

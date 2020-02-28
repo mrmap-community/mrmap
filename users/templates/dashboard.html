@@ -4,9 +4,9 @@
 
 {% block body %}
 <div class="container-fluid px-5">
-    <div class="row">
-        <div class="col-md-4">
-                <div class="row mt-2">
+    <div class="row w-100">
+        <div class="col-md-3">
+                <div class="row">
                     <div class="col">
                     {% include 'cards/pending_requests.html' %}
                     </div>
@@ -17,7 +17,7 @@
                         </div>
                 </div>
         </div>
-        <div class="col-md-8">
+        <div class="col w-100">
                 <div class="row">
                     {% include 'cards/my_services.html' %}
                 </div>

@@ -30,9 +30,22 @@
             {% endif %}
             </div><!--</col>-->
             <div class="col-sm mb-2 text-center">
-                <!--TODO: Hide?-->
-                <a class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}" href="{% url 'service:get-dataset-metadata' service.metadata.id %}">{% trans 'Dataset Metadata' %}</a>
+                <a id="dataset-metadata-button-{{ service.metadata.id }}" target="_blank" class="btn {{THEME.CARD.BTN_INFO_COLOR}} invisible" href="{% url 'service:get-dataset-metadata' service.metadata.id %}">
+                    {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Dataset Metadata' %}
+                </a>
             </div><!--</col>-->
+
+            <div class="col-sm mb-2 text-center">
+                <div class="dropdown">
+                  <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="id_metadata_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Service Metadata' %}
+                  </button>
+                  <div class="dropdown-menu" aria-labelledby="id_metadata_dropdown">
+                      <a class="dropdown-item" target="_blank" href="">{% trans 'HTML' %}</a>
+                      <a class="dropdown-item" target="_blank" href="{% url 'service:get-service-metadata' service_md.id %}">{% trans 'XML' %}</a>
+                  </div>
+                </div>
+            </div>
             <div class="col-sm mb-2 text-center">
             {% if 'can_edit_metadata_service' in user_permissions %}
                 <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>

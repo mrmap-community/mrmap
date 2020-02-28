@@ -7,7 +7,7 @@
         <div id="id_pending_tasks_div">
             {% include 'includes/pending_tasks.html' %}
         </div>
-        <script type="text/javascript">
+        <script type="application/javascript">
             interval = setInterval(function(){
                 $.get( '{% url 'service:pending-tasks' %}', function( data ) {
 

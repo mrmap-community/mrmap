@@ -51,6 +51,14 @@ from django import forms
 
 
 def _prepare_wms_table(request: HttpRequest, user: User, ):
+    """ Collects all wms service data and prepares parameter for rendering
+
+    Args:
+        request (HttpRequest): The incoming request
+        user (User): The performing user
+    Returns:
+         params (dict): The rendering parameter
+    """
     # whether whole services or single layers should be displayed
 
     if 'show_layers' in request.GET:
@@ -65,7 +73,7 @@ def _prepare_wms_table(request: HttpRequest, user: User, ):
         service__servicetype__name="wms",
         service__is_root=show_service,
         created_by__in=user.groups.all(),
-        service__is_deleted=False,
+        is_deleted=False,
     ).order_by("title")
 
     wms_table_filtered = WmsFilter(request.GET, queryset=md_list_wms)
@@ -103,10 +111,18 @@ def _prepare_wms_table(request: HttpRequest, user: User, ):
 
 
 def _prepare_wfs_table(request: HttpRequest, user: User, ):
+    """ Collects all wfs service data and prepares parameter for rendering
+
+    Args:
+        request (HttpRequest): The incoming request
+        user (User): The performing user
+    Returns:
+         params (dict): The rendering parameter
+    """
     md_list_wfs = Metadata.objects.filter(
         service__servicetype__name="wfs",
         created_by__in=user.groups.all(),
-        service__is_deleted=False,
+        is_deleted=False,
     ).order_by("title")
 
     wfs_table_filtered = WfsFilter(request.GET, queryset=md_list_wfs)
@@ -131,7 +147,15 @@ def _prepare_wfs_table(request: HttpRequest, user: User, ):
     return params
 
 
-def _new_service_wizard(request, user):
+def _new_service_wizard(request: HttpRequest, user: User):
+    """ Renders wizard page configuration for service registration
+
+    Args:
+        request (HttpRequest): The incoming request
+        user (User): The performing user
+    Returns:
+         params (dict): The rendering parameter
+    """
     params = {}
     page = int(request.POST.get("page"))
 
@@ -141,12 +165,13 @@ def _new_service_wizard(request, user):
         if form.is_valid():
             # Form is valid --> response with page 2
             url_dict = service_helper.split_service_uri(form.cleaned_data['get_request_uri'])
-            init_data = {'ogc_request': url_dict["request"],
-                         'ogc_service': url_dict["service"].value,
-                         'ogc_version': url_dict["version"].value,
-                         'uri': url_dict["base_uri"],
-                         'service_needs_authentication': False,
-                         }
+            init_data = {
+                'ogc_request': url_dict["request"],
+                'ogc_service': url_dict["service"].value,
+                'ogc_version': url_dict["version"].value,
+                'uri': url_dict["base_uri"],
+                'service_needs_authentication': False,
+            }
             params.update({
                 "new_service_form": RegisterNewServiceWizardPage2(initial=init_data,
                                                                   user=user,
@@ -176,6 +201,8 @@ def _new_service_wizard(request, user):
                      'uri': request.POST.get("uri"),
                      'registering_with_group': request.POST.get("registering_with_group"),
                      'service_needs_authentication': is_auth_needed,
+                     'username': request.POST.get("username", None),
+                     'password': request.POST.get("password", None),
                      }
 
         form = RegisterNewServiceWizardPage2(initial=init_data,
@@ -208,10 +235,12 @@ def _new_service_wizard(request, user):
                 # TODO: # Form is valid --> register new service --> redirect to service index
                 # run creation async!
                 external_auth = None
-                if form.cleaned_data['service_needs_authentication'] == 'on':
-                    external_auth = {"username": form.cleaned_data['username'],
-                                     "password": form.cleaned_data['password'],
-                                     "auth_type": form.cleaned_data['authentication_type']}
+                if form.cleaned_data['service_needs_authentication']:
+                    external_auth = {
+                        "username": form.cleaned_data['username'],
+                        "password": form.cleaned_data['password'],
+                        "auth_type": form.cleaned_data['authentication_type']
+                    }
 
                 register_for_other_org = 'None'
                 if form.cleaned_data['registering_for_other_organization'] is not None:
@@ -352,36 +381,38 @@ def remove(request: HttpRequest, id:int, user: User):
 
     remove_form = RemoveService(request.POST)
     if remove_form.is_valid():
-        service = get_object_or_404(Service, id=id)
-        service_type = service.servicetype
+        metadata = get_object_or_404(Metadata, id=id)
+        service_type = metadata.get_service_type()
         sub_elements = None
-        if service_type.name == OGCServiceEnum.WMS.value:
-            sub_elements = Layer.objects.filter(parent_service=service)
-        elif service_type.name == OGCServiceEnum.WFS.value:
-            sub_elements = service.featuretypes.all()
-        metadata = get_object_or_404(Metadata, service=service)
-        if remove_form.cleaned_data['is_confirmed'] == 'off':
-            # TODO: redirect to service:detail; show modal by default with error message
-            params = {
-                "service": service,
-                "metadata": metadata,
-                "sub_elements": sub_elements,
-            }
-            return redirect("service:detail", id)
-        else:
+
+        if service_type == OGCServiceEnum.WMS.value:
+            sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
+        elif service_type == OGCServiceEnum.WFS.value:
+            sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
+
+        if remove_form.cleaned_data['is_confirmed']:
             # remove service and all of the related content
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
 
             # set service as deleted, so it won't be listed anymore in the index view until completely removed
-            service.is_deleted = True
-            service.save()
+            metadata.is_deleted = True
+            metadata.save()
+
+            # TODO: we dont know this at this time; refactor this; async_remove function should add messages
+            messages.success(request, 'Service "{}" successfully deleted.'.format(metadata.title))
 
             # call removing as async task
-            async_remove_service_task.delay(id)
-            # TODO: we dont know this at this time; refactor this; async_remove function should add messages
-            messages.success(request, 'Service %s successfully deleted.' % id)
+            async_remove_service_task.delay(metadata.service.id)
 
             return redirect(SERVICE_INDEX)
+        else:
+            # TODO: redirect to service:detail; show modal by default with error message
+            params = {
+                "service": metadata,
+                "metadata": metadata,
+                "sub_elements": sub_elements,
+            }
+            return redirect("service:detail", id)
     else:
         # TODO: redirect to service:detail; show modal by default with error message
         return redirect("service:detail", id)
@@ -666,7 +697,10 @@ def get_metadata_html(request: HttpRequest, id: int):
     if md.metadata_type.type == MetadataEnum.DATASET.value:
         base_template = 'metadata/base/dataset/dataset_metadata_as_html.html'
         params['contact'] = collect_contact_data(md.contact)
-        # TODO: implement the logic to collect all data for a dataset
+        dataset_doc = Document.objects.get(
+            related_metadata=md
+        )
+        params['dataset_metadata'] = dataset_doc.get_dataset_metadata_as_dict()
 
     elif md.metadata_type.type == MetadataEnum.FEATURETYPE.value:
         base_template = 'metadata/base/wfs/featuretype_metadata_as_html.html'

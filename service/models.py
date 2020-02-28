@@ -962,6 +962,18 @@ class Document(Resource):
     def __str__(self):
         return self.related_metadata.title
 
+    def get_dataset_metadata_as_dict(self):
+        """ Parses the persisted dataset_metadata_document into a dict
+
+        Parses only values which are important for the HTML representation rendering.
+
+        Returns:
+             ret_dict (dict): The dict
+        """
+        ret_dict = {}
+
+        return ret_dict
+
     def set_proxy(self, use_proxy: bool, force_version: OGCServiceVersionEnum=None, auto_save: bool=True):
         """ Sets different elements inside the document on a secured level
 

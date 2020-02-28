@@ -1756,6 +1756,21 @@ class Service(Resource):
     def __str__(self):
         return str(self.id)
 
+
+    def get_supported_formats(self):
+        """ Returns a list of supported formats.
+
+        If this is called for a top-level-service record, which does not provide a list of formats, the call will be
+        reached to the next child.
+
+        Returns:
+             formats (QuerySet): A query set of available formats
+        """
+        if self.metadata.is_root() and self.formats.all().count() == 0:
+            child = self.child_service.first()
+            return child.get_supported_formats()
+        return self.formats.all()
+
     def perform_single_element_securing(self, element, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation):
         """ Secures a single element
 

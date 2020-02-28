@@ -11,7 +11,7 @@ urlpatterns = [
     path('metadata/<int:id>', get_service_metadata, name='get-service-metadata'),
     path('metadata/dataset/<int:id>', get_dataset_metadata, name='get-dataset-metadata'),
     path('metadata/dataset/check/<int:id>', get_dataset_metadata_button, name='get-dataset-metadata-button'),
-    #path('metadata/preview/<int:id>', get_service_metadata_preview, name='get-service-metadata-preview'),
+    path('metadata/preview/<int:id>', get_service_metadata_preview, name='get-service-metadata-preview'),
     path('metadata/html/<int:id>', get_metadata_html, name='get-metadata-html'),
 
     path('metadata/<int:id>/operation', get_operation_result, name='metadata-proxy-operation'),

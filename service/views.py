@@ -5,7 +5,7 @@ from io import BytesIO
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -33,14 +33,17 @@ from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, RemoveService
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum
+from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
 
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
+from service.settings import DEFAULT_SRS_STRING
 from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style
 from service.tasks import async_remove_service_task
+from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
+    collect_layer_data, collect_wms_root_data, collect_wfs_root_data
 from structure.models import User, Permission, PendingTask, Group, Organization, Contact
 from users.helper import user_helper
 from django.urls import reverse
@@ -488,6 +491,58 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
 
     return BackendAjaxResponse(html="", has_dataset_doc=has_dataset_doc).get_response()
 
+
+@log_proxy
+# TODO: currently the preview is not pretty. Refactor this method to get a pretty preview img by consider the right scale of the layers
+def get_service_metadata_preview(request: HttpRequest, id: int):
+    """ Returns the service metadata previe als png for a given metadata id
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The metadata id
+    Returns:
+         A HttpResponse containing the png preview
+    """
+    md = Metadata.objects.get(id=id)
+
+    if md.service.servicetype.name == OGCServiceEnum.WMS.value and md.service.is_root:
+        layer = Layer.objects.get(
+            parent_service=Service.objects.get(id=md.service.id),
+            parent_layer=None,
+        )
+
+    elif md.service.servicetype.name == OGCServiceEnum.WMS.value and not md.service.is_root:
+        layer = md.service.layer
+
+    layer = layer.identifier
+    bbox = md.find_max_bounding_box()
+    bbox = str(bbox.extent).replace("(", "").replace(")", "")  # this is a little dumb, you may choose something better
+
+    data = {
+        "request": OGCOperationEnum.GET_MAP.value,
+        "version": OGCServiceVersionEnum.V_1_1_1.value,
+        "layers": layer,
+        "srs": DEFAULT_SRS_STRING,
+        "bbox": bbox,
+        "format": "png",
+        "width": 200,
+        "height": 200,
+    }
+
+    query_data = QueryDict('', mutable=True)
+    query_data.update(data)
+
+    request_post = request.POST
+    request.POST._mutable = True
+    request.POST = query_data
+    request.method = 'POST'
+
+    operation_request_handler = OGCOperationRequestHandler(request=request, metadata=md)
+    img = operation_request_handler.get_operation_response(post_data=data)  # img is returned as a byte code
+
+    return HttpResponse(img, content_type='image/png')
+
+
 def get_capabilities(request: HttpRequest, id: int):
     """ Returns the current capabilities xml file
 
@@ -617,17 +672,17 @@ def get_metadata_html(request: HttpRequest, id: int):
         base_template = 'metadata/base/wms/layer_metadata_as_html.html'
         params.update(collect_layer_data(md, request))
 
-    elif md.service.servicetype.name == ServiceEnum.WMS.value:
+    elif md.service.servicetype.name == OGCServiceEnum.WMS.value:
         # wms root object
         base_template = 'metadata/base/wms/root_metadata_as_html.html'
         params.update(collect_wms_root_data(md))
 
-    elif md.service.servicetype.name == ServiceEnum.WFS.value:
+    elif md.service.servicetype.name == OGCServiceEnum.WFS.value:
         # wfs root object
         base_template = 'metadata/base/wfs/root_metadata_as_html.html'
         params.update(collect_wfs_root_data(md, request))
 
-    elif md.service.servicetype.name == ServiceEnum.WMC.value:
+    elif md.service.servicetype.name == OGCServiceEnum.WMC.value:
         base_template = 'metadata/base/wmc/root_metadata_as_html.html'
         # TODO: implement the logic to collect all data
         None

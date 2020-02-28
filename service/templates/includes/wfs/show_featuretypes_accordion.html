@@ -9,7 +9,9 @@
     {% block accordion-body %}
         {% for featuretype in featuretypes %}
             {% with featuretype.id as id_accordion %}
-                {% include 'includes/wfs/featuretype_accordion.html' %}
+
+                    {% include 'includes/wfs/featuretype_accordion.html' %}
+
             {% endwith %}
         {% endfor %}
     {% endblock %}

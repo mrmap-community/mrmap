@@ -45,7 +45,11 @@
 
         {% include 'includes/wfs/featuretype_detail_table.html' %}
         {% with service as featuretype %}
-            {% include 'includes/wfs/show_featuretype_elements_accordion.html' %}
+            {% with service.id as id_accordion  %}
+                {% with id_accordion_combined='elements' %}
+                    {% include 'includes/wfs/show_featuretype_elements_accordion.html' %}
+                {% endwith %}
+            {% endwith %}
         {% endwith %}
 
         </div><!--</col>-->

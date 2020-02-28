@@ -972,6 +972,105 @@ class Document(Resource):
         """
         ret_dict = {}
 
+        xml = xml_helper.parse_xml(self.dataset_metadata_document)
+
+        # Date
+        date_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp"), xml)
+        ret_dict["date"] = xml_helper.try_get_text_from_xml_element(date_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Date"))
+        del date_elem
+
+        # Organization
+        org_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("organisationName"), xml)
+        ret_dict["organization_name"] = xml_helper.try_get_text_from_xml_element(org_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"))
+        del org_elem
+
+        # Language
+        ret_dict["language"] = xml_helper.try_get_text_from_xml_element(xml, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode"))
+
+        # Topic category
+        ret_dict["topic_category"] = xml_helper.try_get_text_from_xml_element(xml, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_TopicCategoryCode"))
+
+        # Keywords
+        keyword_elems = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("keyword"), xml)
+        keywords = [xml_helper.try_get_text_from_xml_element(elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")) for elem in keyword_elems]
+        ret_dict["keywords"] = keywords
+        del keyword_elems
+        del keywords
+
+        # Spatial reference systems
+        srs_elems = xml_helper.try_get_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("RS_Identifier"),
+            xml
+        )
+        reference_systems = [xml_helper.try_get_text_from_xml_element(
+            elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("code") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        ) for elem in srs_elems]
+        ret_dict["reference_systems"] = reference_systems
+        del srs_elems
+        del reference_systems
+
+        # Extent coordinates
+        extent_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("EX_GeographicBoundingBox"),
+            xml
+        )
+        extent_coords = [xml_helper.try_get_text_from_xml_element(
+            elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+        ) for elem in extent_elem.getchildren()]
+        # Switch coords[1] and coords[2] to match the common order of minx,miny,maxx,maxy
+        tmp = extent_coords[1]
+        extent_coords[1] = extent_coords[2]
+        extent_coords[2] = tmp
+        ret_dict["extent_coords"] = extent_coords
+        del extent_elem
+        del extent_coords
+        del tmp
+
+        # Temporal extent
+        temporal_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("EX_TemporalExtent"),
+            xml
+        )
+        ret_dict["temporal_extent_begin"] =  xml_helper.try_get_text_from_xml_element(
+            temporal_elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("beginPosition")
+        )
+        ret_dict["temporal_extent_end"] =  xml_helper.try_get_text_from_xml_element(
+            temporal_elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("endPosition")
+        )
+        del temporal_elem
+
+        # Date of creation|revision|publication
+        identifiers = {
+            "creation": [],
+            "revision": [],
+            "publication": [],
+        }
+        date_elems = xml_helper.try_get_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Date"),
+            xml
+        )
+        for identifier, _list in identifiers.items():
+            for elem in date_elems:
+                date_type_elem = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_DateTypeCode"),
+                    elem
+                )
+                date_txt = xml_helper.try_get_text_from_xml_element(
+                    elem,
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Date"),
+                )
+                date_type_txt = xml_helper.try_get_text_from_xml_element(date_type_elem) or ""
+                date_type_attr = xml_helper.try_get_attribute_from_xml_element(date_type_elem, "codeListValue") or ""
+                if identifier in date_type_txt or identifier in date_type_attr:
+                    # Found one!
+                    _list.append(date_txt)
+
+
         return ret_dict
 
     def set_proxy(self, use_proxy: bool, force_version: OGCServiceVersionEnum=None, auto_save: bool=True):

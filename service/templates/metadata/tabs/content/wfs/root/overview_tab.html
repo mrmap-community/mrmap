@@ -3,7 +3,7 @@
 {% load bootstrap4 %}
 {% load django_tables2 %}
 {% load render_table from django_tables2 %}
-<table class="table d-flex">
+<table class="table">
     <tbody>
     <tr>
         <th scope="row">{% trans 'Title' %}</th>
@@ -20,18 +20,6 @@
     <tr>
         <th scope="row">{% trans 'Featuretypes' %}</th>
         <td>
-            {% if featuretypes_filter %}
-                <form action="" method="get" class="form form-inline">
-                    <div class="row">
-                        <div class="form-group col-auto">
-                            {% bootstrap_form featuretypes_filter.form layout='inline' %}
-                        </div>
-                        <div class="col-auto">
-                            <button type="submit" class="btn btn-primary">{% fa5_icon 'search' 'fas' %} Search</button>
-                        </div>
-                    </div>
-                </form>
-            {% endif %}
             {% if featuretypes %}
                 {% render_table featuretypes %}
             {% endif%}

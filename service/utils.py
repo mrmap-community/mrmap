@@ -9,12 +9,12 @@ Created on: 21.01.20
 from django.http import HttpRequest
 from django_tables2 import RequestConfig
 
+from MapSkinner.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
 from service.helper.enums import MetadataEnum
 from service.models import Metadata, Organization, Layer, FeatureType, MetadataRelation, Service
 from service.filters import ChildLayerFilter, FeatureTypeFilter
 from service.tables import ChildLayerTable, FeatureTypeTable, CoupledMetadataTable
 
-django_tables2_template = 'tables/django_tables2_bootstrap4_custom.html'
 per_page = 5
 default_page = 1
 
@@ -102,7 +102,7 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
                              'title': child.metadata.title,
                              'sublayers_count': child_child_layers.count()}, )
 
-        child_layer_table = ChildLayerTable(children, template_name=django_tables2_template,
+        child_layer_table = ChildLayerTable(children, template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                             order_by='title')
         RequestConfig(request).configure(child_layer_table)
         child_layer_table.paginate(page=request.GET.get("page", default_page), per_page=per_page)
@@ -137,7 +137,7 @@ def collect_wms_root_data(md: Metadata):
                   'title': layer.metadata.title,
                   'sublayers_count': child_child_layers.count()}]
 
-    sub_layer_table = ChildLayerTable(sub_layer, template_name=django_tables2_template,
+    sub_layer_table = ChildLayerTable(sub_layer, template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                       orderable=False, show_header=False)
 
     params['children'] = sub_layer_table
@@ -172,10 +172,12 @@ def collect_wfs_root_data(md: Metadata, request: HttpRequest):
                              'title': child.metadata.title,
                              })
 
-    featuretype_table = FeatureTypeTable(featuretypes, template_name=django_tables2_template,
+    featuretype_table = FeatureTypeTable(featuretypes, template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                          order_by='title')
     RequestConfig(request).configure(featuretype_table)
     featuretype_table.paginate(page=request.GET.get("page", default_page), per_page=per_page)
+    featuretype_table.filter = featuretypes_filtered
+
 
     params['featuretypes'] = featuretype_table
 
@@ -207,7 +209,7 @@ def collect_metadata_related_objects(md: Metadata, request: HttpRequest):
         # build django tables2 table
         related_metadata_table = CoupledMetadataTable(
             metadatas_dict_array,
-            template_name=django_tables2_template,
+            template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
             order_by='title',
             show_header=show_header)
 

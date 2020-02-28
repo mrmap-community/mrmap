@@ -29,11 +29,12 @@ class ServiceMetadataBuilder:
 
         self.service_version = self.metadata.get_service_version()
         self.service_type = self.metadata.get_service_type()
-        if self.service_type == OGCServiceEnum.WFS.value:
+        if self.service_type == OGCServiceEnum.WFS.value and not self.metadata.is_root():
+            # Only WFS FeatureType metadata needs a special workaround
             self.service = FeatureType.objects.get(
                 metadata=self.metadata
             ).parent_service
-        elif self.service_type == OGCServiceEnum.WMS.value:
+        else:
             self.service = self.metadata.service
 
 

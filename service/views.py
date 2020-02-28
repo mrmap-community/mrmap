@@ -417,14 +417,10 @@ def get_service_metadata(request: HttpRequest, id: int):
     """
     metadata = Metadata.objects.get(id=id)
 
-    cacher = DocumentCacher(title="SERVICE_METADATA", version="0")
-    doc = cacher.get(str(metadata.id))
-    if doc is None:
-        doc = metadata.get_service_metadata_xml()
-        cacher.set(str(metadata.id), doc)
-
     if not metadata.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
+
+    doc = metadata.get_service_metadata_xml()
 
     return HttpResponse(doc, content_type=APP_XML)
 

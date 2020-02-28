@@ -536,11 +536,15 @@ def get_service_metadata_preview(request: HttpRequest, id: int):
     request.POST._mutable = True
     request.POST = query_data
     request.method = 'POST'
+    request.POST._mutable = False
 
     operation_request_handler = OGCOperationRequestHandler(request=request, metadata=md)
     img = operation_request_handler.get_operation_response(post_data=data)  # img is returned as a byte code
 
-    return HttpResponse(img, content_type='image/png')
+    response = img.get("response", None)
+    content_type = img.get("response_type", "")
+
+    return HttpResponse(response, content_type=content_type)
 
 
 def get_capabilities(request: HttpRequest, id: int):

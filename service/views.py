@@ -730,7 +730,8 @@ def get_metadata_html(request: HttpRequest, id: int):
         # TODO: implement the logic to collect all data
         None
 
-    return render(request, base_template, params, )
+    context = DefaultContext(request, params, None)
+    return render(request=request, template_name=base_template, context=context.get_context())
 
 
 @log_proxy

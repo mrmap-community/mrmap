@@ -1,11 +1,15 @@
 {% extends 'sceletons/accordion.html' %}
 {% load static i18n %}
+
 {% block accordion-button-title %}
-<i class="fa" aria-hidden="true"></i> {{ layer.metadata.title }} <span class="badge {{THEME.ACCORDION.PILL_BADGE_INFO_COLOR}}">{{ layer.child_layer.all|length }}</span>
+<i class="fa" aria-hidden="true"></i> {{ layer.metadata.title }} <span class="badge {{THEME.ACCORDION.PILL_BADGE_LIGHT_COLOR}}"></span>
 {% endblock %}
 
 {% block accordion-body %}
-    <div id="id_content_service_{{layer.metadata.id}}"></div>
+    <div id="id_content_service_{{layer.metadata.id}}">
+        {% include 'includes/loading_spinner.html' %}
+    </div>
+
     <script type="text/javascript">
         $('#id_accordion_btn_{{id_accordion}}_{{id_accordion_combined}}').click(function() {
             console.log('clicked');

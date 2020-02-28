@@ -29,12 +29,15 @@ FONT_AWESOME_ICONS = {
     'SORT_ALPHA_UP': format_html(ICON_PATTERN, 'fas', 'fa-sort-alpha-up', ),
     'SORT_ALPHA_DOWN': format_html(ICON_PATTERN, 'fas', 'fa-sort-alpha-down', ),
     'ACTIVITY': format_html(ICON_PATTERN, 'fas', 'fa-snowboarding', ),
+    'HISTORY': format_html(ICON_PATTERN, 'fas', 'fa-history', ),
     'SERVICE': format_html(ICON_PATTERN, 'fas', 'fa-concierge-bell', ),
     'SAVE': format_html(ICON_PATTERN, 'fas', 'fa-save', ),
     'UPLOAD': format_html(ICON_PATTERN, 'fas', 'fa-upload', ),
     'DOWNLOAD': format_html(ICON_PATTERN, 'fas', 'fa-download', ),
     'SEND_EMAIL': format_html(ICON_PATTERN, 'fas', 'fa-envelope-open-text', ),
     'WINDOW_CLOSE': format_html(ICON_PATTERN, 'fas', 'fa-window-close', ),
+    'HIERARCHY': format_html(ICON_PATTERN, 'fas', 'fa-sitemap', ),
+    'GLOBE': format_html(ICON_PATTERN, 'fas', 'fa-globe', ),
 }
 
 # dark theme settings
@@ -60,6 +63,7 @@ DARK_THEME = {
         'BTN_WARNING_COLOR': 'btn-outline-warning',
         'BTN_INFO_COLOR': 'btn-outline-primary',
         'PILL_BADGE_INFO_COLOR': 'badge-pill badge-info',
+        'PILL_BADGE_LIGHT_COLOR': 'badge-pill badge-light',
     },
 
     'CARD': {
@@ -74,6 +78,7 @@ DARK_THEME = {
         'BTN_WARNING_COLOR': 'btn-outline-warning',
         'BTN_INFO_COLOR': 'btn-outline-primary',
         'BADGE_COLOR': 'badge-info',
+        'BADGE_LIGHT': 'badge-light',
     },
 
     'NAV': {
@@ -86,6 +91,7 @@ DARK_THEME = {
         'BTN_DANGER_COLOR': 'btn-outline-danger',
         'BTN_WARNING_COLOR': 'btn-outline-warning',
         'BTN_INFO_COLOR': 'btn-outline-primary',
+        'BTN_LIGHT': 'btn-outline-light',
     },
 
     'FOOTER': {
@@ -98,6 +104,7 @@ DARK_THEME = {
         'BTN_DANGER_COLOR': 'btn-outline-danger',
         'BTN_WARNING_COLOR': 'btn-outline-warning',
         'BTN_INFO_COLOR': 'btn-outline-primary',
+        'BTN_LANGUAGE': 'btn-dark',
     },
 
     'MODAL': {
@@ -140,7 +147,8 @@ LIGHT_THEME = {
         'BTN_DANGER_COLOR': 'btn-danger',
         'BTN_WARNING_COLOR': 'btn-warning',
         'BTN_INFO_COLOR': 'btn-info',
-        'PILL_BADGE_INFO_COLOR': 'badge-pill badge-primary',
+        'PILL_BADGE_INFO_COLOR': 'badge-pill badge-info',
+        'PILL_BADGE_LIGHT_COLOR': 'badge-pill badge-light',
     },
 
     'CARD': {
@@ -155,6 +163,7 @@ LIGHT_THEME = {
         'BTN_WARNING_COLOR': 'btn-warning',
         'BTN_INFO_COLOR': 'btn-info',
         'BADGE_COLOR': 'badge-primary',
+        'BADGE_LIGHT': 'badge-light',
     },
 
     'NAV': {
@@ -167,6 +176,7 @@ LIGHT_THEME = {
         'BTN_DANGER_COLOR': 'btn-danger',
         'BTN_WARNING_COLOR': 'btn-warning',
         'BTN_INFO_COLOR': 'btn-info',
+        'BTN_LIGHT': 'btn-outline-light',
     },
 
     'FOOTER': {
@@ -179,6 +189,7 @@ LIGHT_THEME = {
         'BTN_DANGER_COLOR': 'btn-danger',
         'BTN_WARNING_COLOR': 'btn-warning',
         'BTN_INFO_COLOR': 'btn-primary',
+        'BTN_LANGUAGE': 'btn-light',
     },
 
     'MODAL': {
@@ -193,8 +204,9 @@ LIGHT_THEME = {
     },
 
     'ACCORDION': {
-        'BTN_COLOR': 'btn-secondary',
-        'PILL_BADGE_INFO_COLOR': 'badge-pill badge-primary',
+        'BTN_COLOR': 'btn-info',
+        'PILL_BADGE_INFO_COLOR': 'badge-pill badge-info',
+        'PILL_BADGE_LIGHT_COLOR': 'badge-pill badge-light',
     },
 
     'ICONS': FONT_AWESOME_ICONS,

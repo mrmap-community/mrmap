@@ -29,7 +29,7 @@ from MapSkinner.utils import print_debug_mode
 from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
 from structure.forms import LoginForm, RegistrationForm
-from structure.models import User, UserActivation, PendingRequest, GroupActivity
+from structure.models import User, UserActivation, PendingRequest, GroupActivity, Organization
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm
 from users.helper import user_helper
 from django.urls import reverse
@@ -154,6 +154,7 @@ def home_view(request: HttpRequest, user: User):
         "requests": pending_requests,
         "group_activities": group_activities,
         "groups": user.groups.all(),
+        "organizations": Organization.objects.filter(is_auto_generated=False)
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())

@@ -9,14 +9,17 @@
     {% if table.filter.form %}
     <div class="col-md-7 col-lg-9 col-xl-10"><!--filter-->
         <form action="" method="get" class="form form-inline">
-            <div class="row">
-                <div class="col">
-                    <div class="form-group">
-                        {% bootstrap_form table.filter.form layout='inline' %}
+            <div class="col">
+                <div class="row">
+                    <div class="d-flex align-top">
+                        <div class="">
+                            {% bootstrap_form table.filter.form layout='inline' %}
+                        </div>
+                        <div class="">
+                            <button type="submit" class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}">{% autoescape off %}{{table.context.THEME.ICONS.SEARCH}}{% endautoescape %}</button>
+                        </div>
+
                     </div>
-                </div>
-                <div class="col">
-                    <button type="submit" class="btn {{table.context.THEME.TABLE.BTN_PRIMARY_COLOR}}">{% autoescape off %}{{table.context.THEME.ICONS.SEARCH}}{% endautoescape %} {% trans 'Search'%}</button>
                 </div>
             </div>
         </form>
@@ -27,7 +30,7 @@
         {% if table.pagination.page_size %}
             <div class="dropdown d-inline-block">
                 {% trans 'Show' %}
-                <button class="btn {{table.context.THEME.TABLE.BTN_PRIMARY_COLOR}} dropdown-toggle" type="button" id="wmsPagingButton"
+                <button class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="wmsPagingButton"
                         data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ table.pagination.page_size }}
                 </button>
                 {% trans 'entries' %}
@@ -47,7 +50,7 @@
         <div class="overflow-auto">
         <div class="table-container">
             {% block table %}
-                <table class="table {{table.context.THEME.TABLE.HOVER}} {{table.context.THEME.TABLE.STRIPED}} {{table.context.THEME.TABLE.BG}} {{table.context.THEME.TABLE.BORDER}} {{table.context.THEME.TABLE.BORDERED}}" {% render_attrs table.attrs %}>
+                <table class="table {{table.context.THEME.TABLE.STRIPED}} {{table.context.THEME.TABLE.BG}} {{table.context.THEME.TABLE.BORDER}} {{table.context.THEME.TABLE.BORDERED}}" {% render_attrs table.attrs %}>
                     {% block table.thead %}
                     {% if table.show_header %}
                         <thead {{ table.attrs.thead.as_html }}>
@@ -55,22 +58,27 @@
                         {% for column in table.columns %}
                             <th {{ column.attrs.th.as_html }}>
                                 {% if column.orderable %}
-                                    {{ column.header }}<div class="float-right">
-                                    {% if '-' in column.order_by_alias.next and request.GET|get_order_by_alias_from_request:table.order_by_field is not None %}
-                                    <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
-                                    class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else%} {{table.context.THEME.TABLE.LINK_COLOR}}  {% endif %}">
-                                        {% autoescape off %}{{table.context.THEME.ICONS.SORT_ALPHA_UP}}{% endautoescape %} {{THEME}}
-                                    </a>
-                                    {% else %}
-                                    <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next%}"
-                                    class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else %} {{table.context.THEME.TABLE.LINK_COLOR}} {% endif %}">
-                                        {% autoescape off %}{{table.context.THEME.ICONS.SORT_ALPHA_DOWN}}{% endautoescape %} {{THEME}}
-                                    </a>
-                                    {% endif %}
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="">
+                                        {{ column.header }}
+                                    </div>
+                                    <div class="">
+                                        {% if '-' in column.order_by_alias.next and request.GET|get_order_by_alias_from_request:table.order_by_field is not None %}
+                                        <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
+                                        class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else%} {{table.context.THEME.TABLE.LINK_COLOR}}  {% endif %}">
+                                            {% autoescape off %}{{table.context.THEME.ICONS.SORT_ALPHA_UP}}{% endautoescape %} {{THEME}}
+                                        </a>
+                                        {% else %}
+                                        <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next%}"
+                                        class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else %} {{table.context.THEME.TABLE.LINK_COLOR}} {% endif %}">
+                                            {% autoescape off %}{{table.context.THEME.ICONS.SORT_ALPHA_DOWN}}{% endautoescape %} {{THEME}}
+                                        </a>
+                                        {% endif %}
                                     </div>
                                 {% else %}
                                     {{ column.header }}
                                 {% endif %}
+                                </div>
                             </th>
                         {% endfor %}
                         </tr>

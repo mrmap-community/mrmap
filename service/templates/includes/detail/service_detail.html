@@ -1,21 +1,26 @@
 {% extends 'sceletons/card.html' %}
-{% load i18n %}
+{% load i18n static %}
 {% load fontawesome_5 %}
+
+
+
 {% block card-header-title-left %}
     <h4 class="mb-1 mr-3">
-        <!--TODO: this will always show logo for root_service; if child is presented this is the wrong logo-->
+        {% comment %} TODO: this will always show logo for root_service; if child is presented this is the wrong logo{% endcomment %}
         {% if service.servicetype.name == 'wms' %}
             {% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}
         {% else %}
             {% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %}
-        {% endif %} <b>{{ service_md.title }}</b>
+        {% endif %} <strong>{{ service_md.title }}</strong>
     </h4>
 {% endblock %}
+
 {% block card-header-title-right %}
     <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'service:index' %}">
         <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Overview' %}</span>
     </a>
 {% endblock %}
+
 {% block card-body %}
 <div class="row mb-2 ">
     <div class="col-sm mb-2 text-center">
@@ -33,11 +38,11 @@
     </div>
     <div class="col-sm mb-2 text-center">
             {% if 'can_update_service' in user_permissions %}
-                <!--TODO: implement logic for this buttons-->
+                {% comment %} TODO: implement logic for this buttons {% endcomment %}
                 <button type="button" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" data-toggle="modal" data-target="#edit_group">
                     {% autoescape off %}{{THEME.ICONS.UPDATE}}{% endautoescape %} {% trans 'Update service' %}
                 </button>
-                <!--TODO: Modal necessary?-->
+                {% comment %} TODO: Modal necessary? {% endcomment %}
             {% endif %}
     </div>
             {% if 'can_edit_metadata_service' in user_permissions %}
@@ -90,7 +95,7 @@
             {% endif %}
     </div>
 </div>
-<div class="container">
+<div class="container-fluid">
     {% include 'includes/detail/service_detail/root_service_detail_table.html' %}
 </div>
 

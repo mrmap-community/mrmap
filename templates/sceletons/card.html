@@ -2,8 +2,16 @@
     <div class="card-header">
         <div class="row">
             <div class="col-sm">
+                <div class="float-left">
                 {% block card-header-title-left %}
                 {% endblock %}
+                </div>
+            </div>
+            <div class="col-sm">
+                <div class="mx-auto text-center">
+                {% block card-header-title-center %}
+                {% endblock %}
+                </div>
             </div>
             <div class="col-sm">
                 <div class="float-right">

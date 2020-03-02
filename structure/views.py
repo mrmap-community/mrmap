@@ -31,7 +31,7 @@ from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_R
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, RemoveOrganizationForm
 from structure.models import Group, Role, Permission, Organization, PendingRequest, PendingTask
 from structure.models import User
-from structure.tables import GroupTable, OrganizationTable
+from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable
 from django.urls import reverse
 
 
@@ -254,10 +254,19 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
     services = Service.objects.filter(metadata__contact=org, is_root=True)
     template = "views/organizations_detail.html"
 
-    # list publishers
+    # list publishers and requests
     pub_requests = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=id)
-    all_publishing_groups = Group.objects.filter(publish_for_organizations__id=id)
     pub_requests_count = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=user.organization).count()
+    pub_requests_table = PublisherRequestTable(
+        pub_requests,
+        template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+    )
+
+    all_publishing_groups = Group.objects.filter(publish_for_organizations__id=id)
+    publisher_table = PublisherTable(
+        all_publishing_groups,
+        template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+    )
 
     edit_form = OrganizationForm(instance=org)
     edit_form.action_url = reverse('structure:edit-organization', args=[id])
@@ -276,7 +285,9 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
         "sub_organizations": sub_orgs,
         "services": services,
         "pub_requests": pub_requests,
+        "pub_requests_table": pub_requests_table,
         "all_publisher": all_publishing_groups,
+        "all_publisher_table": publisher_table,
         "pub_requests_count": pub_requests_count,
         "edit_organization_form": edit_form,
         "delete_organization_form": delete_form,

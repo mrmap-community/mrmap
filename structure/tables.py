@@ -4,6 +4,23 @@ from django.urls import reverse
 from MapSkinner.utils import get_theme, get_ok_nok_icon
 from MapSkinner.consts import URL_PATTERN
 
+class PublisherTable(tables.Table):
+    publisher_group = tables.Column(accessor='group', verbose_name='Group')
+    publisher_org = tables.Column(accessor='organization', verbose_name='Group organization')
+    publisher_action = tables.Column(verbose_name='Action')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+class PublisherRequestTable(tables.Table):
+    publisher_group = tables.Column(accessor='group', verbose_name='Requesting group')
+    publisher_org = tables.Column(accessor='group.organization', verbose_name='Group organization')
+    message = tables.Column(accessor='message', verbose_name='Message')
+    activation_until = tables.Column(accessor='activation_until', verbose_name='Activation until')
+    publisher_action = tables.Column(verbose_name='Action')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 class GroupTable(tables.Table):
     groups_name = tables.Column(accessor='name', verbose_name='Name', )

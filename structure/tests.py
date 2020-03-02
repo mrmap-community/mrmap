@@ -4,6 +4,7 @@ from copy import copy
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase, Client
+from django.urls import reverse
 from django.utils import timezone
 
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME
@@ -535,13 +536,9 @@ class StructureTestCase(TestCase):
         Returns:
 
         """
-        params = {
-            "user": user,
-            "id": organization.id,
-            "confirmed": True,
-        }
         # Use the HTTP_REFERER here! This is needed to cover the redirect, forced by the permission check decorator
-        client.get("/structure/organizations/remove/", data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
+        uri = reverse("structure:delete-organization", args=(organization.id))
+        client.get(uri, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
 
     def test_organization_creation(self):
         """ Tests the organization creation functionality
@@ -653,7 +650,8 @@ class StructureTestCase(TestCase):
             "description": new_descr,
         }
 
-        client.post("/structure/organizations/edit/{}".format(org_of_A.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
+        uri = reverse("structure:edit-organization", args=org_of_A.id)
+        client.post(uri, data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
         org_of_A.refresh_from_db()
 
         self.assertNotEqual(org_of_A.organization_name, new_o_name, msg="Organization name was edited, but user is logged out!")
@@ -668,7 +666,7 @@ class StructureTestCase(TestCase):
             "description": new_descr,
         }
 
-        client.post("/structure/organizations/edit/{}".format(org_of_A.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
+        client.post(uri, data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
         org_of_A.refresh_from_db()
 
         self.assertNotEqual(org_of_A.organization_name, new_o_name, msg="Organization name was edited, but user is logged out!")
@@ -678,7 +676,7 @@ class StructureTestCase(TestCase):
         ## case 1: User logged in -> normal editing of own group
         client = self._get_logged_in_client(user_A)
 
-        client.post("/structure/organizations/edit/{}".format(org_of_A.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
+        client.post(uri, data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
         org_of_A.refresh_from_db()
 
         self.assertEqual(org_of_A.organization_name, new_o_name, msg="Organization name could not be edited!")
@@ -688,7 +686,7 @@ class StructureTestCase(TestCase):
         ## case 2.1.1: User logged in but uses organization as it's own parent -> fail!
         params["parent"] = org_of_A.id
 
-        client.post("/structure/organizations/edit/{}".format(org_of_A.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
+        client.post(uri, data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
         org_of_A.refresh_from_db()
 
         self.assertEqual(org_of_A.parent, None, msg="Organization can be it's own parent!")
@@ -696,7 +694,7 @@ class StructureTestCase(TestCase):
 
         ## case 2.1.2: User logged in but uses empty organization name -> fail!
         params["organization_name"] = ""
-        client.post("/structure/organizations/edit/{}".format(org_of_A.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
+        client.post(uri, data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
         org_of_A.refresh_from_db()
 
         self.assertEqual(org_of_A.organization_name, new_o_name, msg="Empty organization name was accepted for editing!")
@@ -704,7 +702,7 @@ class StructureTestCase(TestCase):
 
         ## case 2.1.3: User logged in but uses empty person name -> fail!
         params["person_name"] = ""
-        client.post("/structure/organizations/edit/{}".format(org_of_A.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
+        client.post(uri, data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
         org_of_A.refresh_from_db()
 
         self.assertEqual(org_of_A.person_name, new_p_name, msg="Empty person name was accepted for editing!")
@@ -714,7 +712,7 @@ class StructureTestCase(TestCase):
         params["user"] = user_B
         params["person_name"] = old_p_name
         params["organization_name"] = old_o_name
-        client.post("/structure/organizations/edit/{}".format(org_of_A.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
+        client.post(uri, data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
         org_of_A.refresh_from_db()
 
         self.assertNotEqual(org_of_A.organization_name, old_o_name, msg="Organization could be edited by another user!")
@@ -724,7 +722,7 @@ class StructureTestCase(TestCase):
         ## case 2.3: User logged in but has no permission to edit an organization -> fail!
         # manipulate permissions
         self._set_permission('can_edit_organization', False)
-        client.post("/structure/organizations/edit/{}".format(org_of_A.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
+        client.post(uri, data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
         org_of_A.refresh_from_db()
 
         self.assertNotEqual(org_of_A.organization_name, old_o_name, msg="Organization could be edited by another user!")
@@ -828,12 +826,12 @@ class StructureTestCase(TestCase):
             "request_msg": "Test msg"
         }
 
-        client.post("/structure/organizations/publish-request/{}".format(organization.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
+        client.post("/structure/publish-request/{}".format(organization.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
 
     def _toggle_publish_request(self, client: Client, user: User, organization: Organization, pub_request: PendingRequest, accept: bool):
         """ Helping function
 
-        Calls the toggle-publish-request route
+        Calls the accept-publish-request route
 
         Args:
             client (Client): The logged in client
@@ -849,7 +847,8 @@ class StructureTestCase(TestCase):
             "accept": accept,
             "requestId": pub_request.id,
         }
-        client.post("/structure/organizations/toggle-publish-request/{}".format(organization.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
+        uri = reverse("structure:accept-publish-request", args=(organization.id,))
+        client.post(uri, data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
 
     def _remove_publish_permission(self, client: Client, user: User, organization: Organization, group: Group):
         """ Helping function
@@ -868,7 +867,8 @@ class StructureTestCase(TestCase):
             "user": user,
             "publishingGroupId": group.id,
         }
-        client.post("/structure/organizations/remove-publisher/{}".format(organization.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
+        uri = reverse("structure:delete-organization", args=(organization.id,))
+        client.post(uri, data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
 
     def test_organization_publish_request_creating(self):
         """ Tests the organization request publish permission functionality

@@ -1,13 +1,18 @@
 import django_tables2 as tables
+from django.template.loader import render_to_string
 from django.utils.html import format_html
 from django.urls import reverse
 from MapSkinner.utils import get_theme, get_ok_nok_icon
 from MapSkinner.consts import URL_PATTERN
 
 class PublisherTable(tables.Table):
-    publisher_group = tables.Column(accessor='group', verbose_name='Group')
-    publisher_org = tables.Column(accessor='group.organization', verbose_name='Group organization')
-    publisher_action = tables.Column(verbose_name='Action', orderable=False)
+    publisher_group = tables.Column(accessor='name', verbose_name='Group')
+    publisher_org = tables.Column(accessor='organization', verbose_name='Group organization')
+    publisher_action = tables.TemplateColumn(
+        template_name="includes/detail/accept_reject_publisher_buttons.html",
+        verbose_name='Action',
+        orderable=False,
+    )
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
@@ -37,16 +42,52 @@ class PublisherTable(tables.Table):
         url = reverse('structure:detail-organization', args=(record.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
-class PublisherRequestTable(PublisherTable):
-    class Meta:
-        sequence = ("...", "publisher_action")
 
+class PublisherRequestTable(PublisherTable):
+    publisher_group = tables.Column(accessor='group', verbose_name='Group')
+    publisher_org = tables.Column(accessor='group.organization', verbose_name='Group organization')
+    publisher_action = tables.TemplateColumn(
+        template_name="includes/detail/accept_reject_publisher_buttons.html",
+        verbose_name='Action',
+        orderable=False,
+    )
     message = tables.Column(accessor='message', verbose_name='Message')
     activation_until = tables.Column(accessor='activation_until', verbose_name='Activation until')
-    publisher_action = tables.Column(verbose_name='Action', orderable=False)
+    publisher_action = tables.TemplateColumn(
+        template_name="includes/detail/accept_reject_publisher_buttons.html",
+        verbose_name='Action',
+        orderable=False,
+        extra_context={
+            "enable_accept": True,
+        }
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+    def render_publisher_group(self, value, record):
+        """ Renders publisher_group as link to detail view of group
+
+        Args:
+            value:
+            record:
+        Returns:
+
+        """
+        url = reverse('structure:detail-group', args=(record.id,))
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+
+    def render_publisher_org(self, value, record):
+        """ Renders publisher_org as link to detail view of organization
+
+        Args:
+            value:
+            record:
+        Returns:
+
+        """
+        url = reverse('structure:detail-organization', args=(record.id,))
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 class GroupTable(tables.Table):
     groups_name = tables.Column(accessor='name', verbose_name='Name', )

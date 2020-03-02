@@ -238,24 +238,24 @@ def organizations_index(request: HttpRequest, user: User):
 
 
 @check_session
-def detail_organizations(request:HttpRequest, id: int, user:User):
+def detail_organizations(request:HttpRequest, org_id: int, user:User):
     """ Renders an overview of a group's details.
 
     Args:
         request: The incoming request
-        id: The id of the requested group
+        org_id: The id of the requested group
         user: The user object
     Returns:
          A rendered view
     """
-    org = Organization.objects.get(id=id)
+    org = Organization.objects.get(id=org_id)
     members = User.objects.filter(organization=org)
     sub_orgs = Organization.objects.filter(parent=org)
     services = Service.objects.filter(metadata__contact=org, is_root=True)
     template = "views/organizations_detail.html"
 
     # list publishers and requests
-    pub_requests = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=id)
+    pub_requests = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=org_id)
     pub_requests_count = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=user.organization).count()
     pub_requests_table = PublisherRequestTable(
         pub_requests,
@@ -263,7 +263,8 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
         user=user,
     )
 
-    all_publishing_groups = Group.objects.filter(publish_for_organizations__id=id)
+    all_publishing_groups = Group.objects.filter(publish_for_organizations__id=org_id)
+    d = list(all_publishing_groups)
     publisher_table = PublisherTable(
         all_publishing_groups,
         template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
@@ -271,15 +272,15 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
     )
 
     edit_form = OrganizationForm(instance=org)
-    edit_form.action_url = reverse('structure:edit-organization', args=[id])
+    edit_form.action_url = reverse('structure:edit-organization', args=[org_id])
 
     delete_form = RemoveOrganizationForm()
-    delete_form.action_url = reverse('structure:delete-organization', args=[id])
+    delete_form.action_url = reverse('structure:delete-organization', args=[org_id])
 
     publisher_form = PublisherForOrganizationForm()
     publisher_form.fields["organization_name"].initial = org.organization_name
     publisher_form.fields["group"].choices = user.groups.all().values_list('id', 'name')
-    publisher_form.action_url = reverse('structure:publish-request', args=[id])
+    publisher_form.action_url = reverse('structure:publish-request', args=[org_id])
 
     params = {
         "organization": org,
@@ -303,17 +304,17 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
 # TODO: update function documentation
 @check_session
 @check_permission(Permission(can_edit_organization=True))
-def edit_org(request: HttpRequest, id: int, user: User):
+def edit_org(request: HttpRequest, org_id: int, user: User):
     """ The edit view for changing organization values
 
     Args:
         request:
-        id:
+        org_id:
         user:
     Returns:
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
-    org = Organization.objects.get(id=id)
+    org = Organization.objects.get(id=org_id)
     if org.created_by != user:
         # TODO: this message should be presented in the form errors ==> see form.add_error()
         messages.error(request, message=ORGANIZATION_IS_OTHERS_PROPERTY)
@@ -337,7 +338,7 @@ def edit_org(request: HttpRequest, id: int, user: User):
 # TODO: update function documentation
 @check_session
 @check_permission(Permission(can_delete_organization=True))
-def remove_org(request: HttpRequest, id: int , user: User):
+def remove_org(request: HttpRequest, org_id: int, user: User):
     """ Renders the remove form for an organization
 
     Args:
@@ -345,7 +346,7 @@ def remove_org(request: HttpRequest, id: int , user: User):
     Returns:
         A rendered view
     """
-    org = get_object_or_404(Organization, id=id)
+    org = get_object_or_404(Organization, id=org_id)
     if org.created_by != user:
         # TODO: this message should be presented in the form errors ==> see form.add_error()
         messages.error(request, message=ORGANIZATION_IS_OTHERS_PROPERTY)
@@ -395,14 +396,14 @@ def new_org(request: HttpRequest, user: User):
 
 @check_session
 @check_permission(Permission(can_toggle_publish_requests=True))
-def toggle_publish_request(request: HttpRequest, id: int, user: User):
+def toggle_publish_request(request: HttpRequest, request_id: int, user: User):
     """ Activate or decline the publishing request.
 
     If the request is too old, the publishing will not be accepted.
 
     Args:
         request (HttpRequest): The incoming request
-        id (int): The organization's id
+        request_id (int): The group id
         user (User): The current user object
     Returns:
          A BackendAjaxResponse since it is an Ajax request
@@ -410,8 +411,8 @@ def toggle_publish_request(request: HttpRequest, id: int, user: User):
     # activate or remove publish request/ publisher
     post_params = request.POST
     is_accepted = utils.resolve_boolean_attribute_val(post_params.get("accept"))
-    organization = Organization.objects.get(id=id)
-    pub_request = PendingRequest.objects.get(type=PENDING_REQUEST_TYPE_PUBLISHING, id=post_params.get("requestId"))
+    pub_request = PendingRequest.objects.get(type=PENDING_REQUEST_TYPE_PUBLISHING, id=request_id)
+    organization = pub_request.organization
     now = timezone.now()
     if is_accepted and pub_request.activation_until >= now:
         # add organization to group_publisher
@@ -422,49 +423,49 @@ def toggle_publish_request(request: HttpRequest, id: int, user: User):
     elif pub_request.activation_until < now:
         messages.add_message(request, messages.ERROR, REQUEST_ACTIVATION_TIMEOVER)
     pub_request.delete()
-    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/organizations/detail/" + str(organization.id)).get_response()
+    return redirect("structure:detail-organization", organization.id)
 
 
 @check_session
 @check_permission(Permission(can_remove_publisher=True))
-def remove_publisher(request: HttpRequest, id: int, user: User):
+def remove_publisher(request: HttpRequest, org_id: int, group_id: int, user: User):
     """ Removes a publisher for an organization
 
     Args:
         request (HttpRequest): The incoming request
-        id (int): The organization's id
+        org_id (int): The organization id
+        group_id (int): The group id (publisher)
         user (User): The current user object
     Returns:
          A BackendAjaxResponse since it is an Ajax request
     """
     post_params = request.POST
     group_id = int(post_params.get("publishingGroupId"))
-    org = Organization.objects.get(id=id)
+    org = Organization.objects.get(id=group_id)
     group = Group.objects.get(id=group_id, publish_for_organizations=org)
 
     # only allow removing if the user is part of the organization or the group!
     if group not in user.groups.all() and user.organization != org:
         messages.error(request, message=PUBLISH_PERMISSION_REMOVING_DENIED)
-        return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/").get_response()
-    group.publish_for_organizations.remove(org)
-    messages.success(request, message=PUBLISH_PERMISSION_REMOVED.format(group.name, org.organization_name))
-
-    return BackendAjaxResponse(html="", redirect=ROOT_URL + "/structure/").get_response()
+    else:
+        group.publish_for_organizations.remove(org)
+        messages.success(request, message=PUBLISH_PERMISSION_REMOVED.format(group.name, org.organization_name))
+    return redirect("structure:detail-organization", org.id)
 
 @check_session
 @check_permission(Permission(can_request_to_become_publisher=True))
-def publish_request(request: HttpRequest, id: int, user: User):
+def publish_request(request: HttpRequest, org_id: int, user: User):
     """ Performs creation of a publishing request between a user/group and an organization
 
     Args:
         request (HttpRequest): The incoming HttpRequest
-        id (int): The organization id
+        org_id (int): The organization id
         user (User): The performing user object
     Returns:
          A rendered view
     """
     template = "request_publish_permission.html"
-    org = Organization.objects.get(id=id)
+    org = Organization.objects.get(id=org_id)
 
     request_form = PublisherForOrganizationForm(request.POST or None)
     request_form.fields["organization_name"].initial = org.organization_name
@@ -485,7 +486,7 @@ def publish_request(request: HttpRequest, id: int, user: User):
                     messages.add_message(request, messages.INFO, PUBLISH_REQUEST_ABORTED_OWN_ORG)
                 else:
                     messages.add_message(request, messages.INFO, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER)
-                return redirect("structure:detail-organization", str(id))
+                return redirect("structure:detail-organization", str(org_id))
 
             publish_request_obj = PendingRequest()
             publish_request_obj.type = PENDING_REQUEST_TYPE_PUBLISHING
@@ -498,7 +499,7 @@ def publish_request(request: HttpRequest, id: int, user: User):
             messages.add_message(request, messages.SUCCESS, PUBLISH_REQUEST_SENT)
         else:
             messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
-        return redirect("structure:detail-organization", id)
+        return redirect("structure:detail-organization", org_id)
 
     else:
         params = {
@@ -507,7 +508,7 @@ def publish_request(request: HttpRequest, id: int, user: User):
             "user": user,
             "button_text": _("Send"),
             "article": _("You need to ask for permission to become a publisher. Please select your group for which you want to have publishing permissions and explain why you need them."),
-            "action_url": ROOT_URL + "/structure/organizations/publish-request/" + str(id),
+            "action_url": ROOT_URL + "/structure/publish-request/" + str(org_id),
         }
 
     html = render_to_string(template_name=template, context=params, request=request)

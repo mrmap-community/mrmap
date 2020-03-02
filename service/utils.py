@@ -12,6 +12,7 @@ from django_tables2 import RequestConfig
 from MapSkinner.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
 from service.helper.enums import MetadataEnum
 from service.models import Metadata, Organization, Layer, FeatureType, MetadataRelation, Service
+from structure.models import User
 from service.filters import ChildLayerFilter, FeatureTypeFilter
 from service.tables import ChildLayerTable, FeatureTypeTable, CoupledMetadataTable
 
@@ -184,7 +185,7 @@ def collect_wfs_root_data(md: Metadata, request: HttpRequest):
     return params
 
 
-def collect_metadata_related_objects(md: Metadata, request: HttpRequest):
+def collect_metadata_related_objects(md: Metadata, request: HttpRequest,):
     params = {}
 
     # get all related Metadata objects
@@ -211,7 +212,7 @@ def collect_metadata_related_objects(md: Metadata, request: HttpRequest):
             metadatas_dict_array,
             template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
             order_by='title',
-            show_header=show_header)
+            show_header=show_header,)
 
         RequestConfig(request).configure(related_metadata_table)
         related_metadata_table.paginate(page=request.GET.get("page", default_page), per_page=per_page)

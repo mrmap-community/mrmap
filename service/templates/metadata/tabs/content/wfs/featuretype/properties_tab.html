@@ -57,7 +57,7 @@
     </tr>
     {% if related_metadata %}
     <tr>
-        <th scope="row">{% trans 'Coupled Metadata' %}</th>
+        <th scope="row">{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} {% trans 'Coupled dataset metadata' %}</th>
         <td>
             {% render_table related_metadata %}
         </td>

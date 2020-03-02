@@ -18,7 +18,7 @@
     </tr>
     <tr>
         <th scope="row">{% trans 'Metadata date' %}</th>
-        <td>{{ metadata_date }}</td>
+        <td>{{ dataset_metadata.date }}</td>
     </tr>
     <tr>
         <th scope="row">{% trans 'Organization' %}</th>
@@ -36,9 +36,17 @@
     <tr>
         <th scope="row">{% trans 'Spatial extent' %}</th>
         <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
-            <!-- TODO: insert here a dynamic generated preview of the spatial extent -->
             {% if layer.bbox_lat_lon.area > 0.0 %}
-                TODO
+                <div id="id_map" style="height: 50vh; min-height: 200px;"></div>
+                {% with id_map='id' bbox=layer.bbox_lat_lon leaflet_add_bbox=True  %}
+                    {% include 'leaflet/leaflet-client.html' %}
+                {% endwith %}
+
+                <script type="text/javascript">
+                    $('#properties-tab').on('shown.bs.tab', function (e) {
+                      initializeLeafletClient();
+                    })
+                </script>
             {% else %}
                 {% trans 'No spatial data provided!' %}
             {% endif %}

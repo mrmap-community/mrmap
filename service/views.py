@@ -670,7 +670,7 @@ def get_capabilities(request: HttpRequest, id: int):
 
 
 @log_proxy
-def get_metadata_html(request: HttpRequest, id: int):
+def get_metadata_html(request: HttpRequest, id: int, ):
     """ Returns the metadata as html rendered view
         Args:
             request (HttpRequest): The incoming request
@@ -694,7 +694,7 @@ def get_metadata_html(request: HttpRequest, id: int):
               'contact': collect_contact_data(md.contact)
               }
 
-    params.update(collect_metadata_related_objects(md, request))
+    params.update(collect_metadata_related_objects(md, request,))
 
     # build the single view cases: wms root, wms layer, wfs root, wfs featuretype, wcs, metadata
     if md.metadata_type.type == MetadataEnum.DATASET.value:
@@ -704,6 +704,7 @@ def get_metadata_html(request: HttpRequest, id: int):
             related_metadata=md
         )
         params['dataset_metadata'] = dataset_doc.get_dataset_metadata_as_dict()
+        params.update({'capabilities_uri': reverse('service:get-dataset-metadata', args=(md.id,))})
 
     elif md.metadata_type.type == MetadataEnum.FEATURETYPE.value:
         base_template = 'metadata/base/wfs/featuretype_metadata_as_html.html'

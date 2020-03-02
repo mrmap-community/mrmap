@@ -35,6 +35,11 @@ class Command(BaseCommand):
             call_command('load_categories')
 
     def _create_themes(self):
+        """ Adds default dark and light theme for frontend
+
+        Returns:
+
+        """
         Theme.objects.get_or_create(name='DARK')
         Theme.objects.get_or_create(name='LIGHT')
 

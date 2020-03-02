@@ -38,6 +38,7 @@ FONT_AWESOME_ICONS = {
     'WINDOW_CLOSE': format_html(ICON_PATTERN, 'fas', 'fa-window-close', ),
     'HIERARCHY': format_html(ICON_PATTERN, 'fas', 'fa-sitemap', ),
     'GLOBE': format_html(ICON_PATTERN, 'fas', 'fa-globe', ),
+    'PUBLISHER': format_html(ICON_PATTERN, 'fas', 'fa-address-card', ),
 }
 
 # dark theme settings

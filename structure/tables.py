@@ -39,4 +39,14 @@ class OrganizationTable(tables.Table):
 
     @staticmethod
     def render_orgs_is_auto_generated(value):
-        return get_ok_nok_icon(value)
+        """ Preprocessing for rendering of is_auto_generated value.
+
+        Due to semantic reasons, we invert this value.
+
+        Args:
+            value: The value
+        Returns:
+
+        """
+        val = not value
+        return get_ok_nok_icon(val)

@@ -30,10 +30,10 @@
     {% endblock %}
 
     {% include 'navbar.html' %}
-    {% include 'messages.html' %}
 </header>
 
 <body class="{{THEME.BACKGROUND}}">
+    {% include 'messages.html' %}
     <div id="body-content">
         <audio id="ee-audio">
             <source src="{% static 'audio/ee_audio.mp3' %}" type="audio/mpeg">

@@ -32,7 +32,8 @@ class GroupForm(ModelForm):
         ]
 
 
-class PublisherForOrganization(forms.Form):
+class PublisherForOrganizationForm(forms.Form):
+    action_url = ''
     organization_name = forms.CharField(max_length=500, label_suffix=" ", label=_("Organization"), disabled=True)
     group = forms.ChoiceField(widget=forms.Select)
     request_msg = forms.CharField(

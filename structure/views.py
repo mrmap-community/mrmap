@@ -28,7 +28,7 @@ from MapSkinner.utils import prepare_table_pagination_settings, prepare_list_pag
 from service.models import Service
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
-from structure.forms import GroupForm, OrganizationForm, PublisherForOrganization, RemoveGroupForm, RemoveOrganizationForm
+from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, RemoveOrganizationForm
 from structure.models import Group, Role, Permission, Organization, PendingRequest, PendingTask
 from structure.models import User
 from structure.tables import GroupTable, OrganizationTable
@@ -265,6 +265,11 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
     delete_form = RemoveOrganizationForm()
     delete_form.action_url = reverse('structure:delete-organization', args=[id])
 
+    publisher_form = PublisherForOrganizationForm()
+    publisher_form.fields["organization_name"].initial = org.organization_name
+    publisher_form.fields["group"].choices = user.groups.all().values_list('id', 'name')
+    publisher_form.action_url = reverse('structure:publish-request', args=[id])
+
     params = {
         "organization": org,
         "members": members,
@@ -275,6 +280,7 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
         "pub_requests_count": pub_requests_count,
         "edit_organization_form": edit_form,
         "delete_organization_form": delete_form,
+        "publisher_form": publisher_form,
     }
 
     context = DefaultContext(request, params, user)
@@ -447,7 +453,7 @@ def publish_request(request: HttpRequest, id: int, user: User):
     template = "request_publish_permission.html"
     org = Organization.objects.get(id=id)
 
-    request_form = PublisherForOrganization(request.POST or None)
+    request_form = PublisherForOrganizationForm(request.POST or None)
     request_form.fields["organization_name"].initial = org.organization_name
     groups = user.groups.all().values_list('id', 'name')
     request_form.fields["group"].choices = groups
@@ -597,7 +603,7 @@ def remove_group(request: HttpRequest, id: int, user: User):
     Returns:
         A rendered view
     """
-    remove_form = RemoveGroup(request.POST)
+    remove_form = RemoveGroupForm(request.POST)
     if remove_form.is_valid():
         group = get_object_or_404(Group, id=id)
 

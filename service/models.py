@@ -2,6 +2,7 @@ import urllib
 import uuid
 
 import os
+from collections import OrderedDict
 
 from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
@@ -962,6 +963,143 @@ class Document(Resource):
     def __str__(self):
         return self.related_metadata.title
 
+    def get_dataset_metadata_as_dict(self):
+        """ Parses the persisted dataset_metadata_document into a dict
+
+        Parses only values which are important for the HTML representation rendering.
+        Useful resource: https://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml
+
+        Returns:
+             ret_dict (dict): The dict
+        """
+        ret_dict = {}
+
+        if self.dataset_metadata_document is None:
+            return ret_dict
+
+        xml = xml_helper.parse_xml(self.dataset_metadata_document)
+
+        # Date
+        date_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp"), xml)
+        ret_dict["date"] = xml_helper.try_get_text_from_xml_element(date_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Date"))
+        del date_elem
+
+        # Organization
+        org_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("organisationName"), xml)
+        ret_dict["organization_name"] = xml_helper.try_get_text_from_xml_element(org_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"))
+        del org_elem
+
+        # Language
+        ret_dict["language"] = xml_helper.try_get_text_from_xml_element(xml, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode"))
+
+        # Topic category
+        ret_dict["topic_category"] = xml_helper.try_get_text_from_xml_element(xml, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_TopicCategoryCode"))
+
+        # Keywords
+        keyword_elems = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("keyword"), xml)
+        keywords = [xml_helper.try_get_text_from_xml_element(elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")) for elem in keyword_elems]
+        ret_dict["keywords"] = keywords
+        del keyword_elems
+        del keywords
+
+        # Spatial reference systems
+        srs_elems = xml_helper.try_get_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("RS_Identifier"),
+            xml
+        )
+        reference_systems = [xml_helper.try_get_text_from_xml_element(
+            elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("code") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        ) for elem in srs_elems]
+        ret_dict["reference_systems"] = reference_systems
+        del srs_elems
+        del reference_systems
+
+        # Extent coordinates
+        extent_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("EX_GeographicBoundingBox"),
+            xml
+        )
+        extent_coords = [xml_helper.try_get_text_from_xml_element(
+            elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+        ) for elem in extent_elem.getchildren()]
+        # Switch coords[1] and coords[2] to match the common order of minx,miny,maxx,maxy
+        tmp = extent_coords[1]
+        extent_coords[1] = extent_coords[2]
+        extent_coords[2] = tmp
+        ret_dict["extent_coords"] = extent_coords
+        del extent_elem
+        del extent_coords
+        del tmp
+
+        # Temporal extent
+        temporal_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("EX_TemporalExtent"),
+            xml
+        )
+        ret_dict["temporal_extent_begin"] =  xml_helper.try_get_text_from_xml_element(
+            temporal_elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("beginPosition")
+        )
+        ret_dict["temporal_extent_end"] =  xml_helper.try_get_text_from_xml_element(
+            temporal_elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("endPosition")
+        )
+        del temporal_elem
+
+        # Date of creation|revision|publication
+        date_additionals = OrderedDict({
+            "creation": [],
+            "revision": [],
+            "publication": [],
+        })
+        md_elem = xml_helper.try_get_single_element_from_xml(
+            ".//"  + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("citation"),
+            xml
+        )
+        date_elems = xml_helper.try_get_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Date"),
+            md_elem
+        )
+        for identifier, _list in date_additionals.items():
+            for elem in date_elems:
+                date_type_elem = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_DateTypeCode"),
+                    elem
+                )
+                date_txt = xml_helper.try_get_text_from_xml_element(
+                    elem,
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Date"),
+                )
+                date_type_txt = xml_helper.try_get_text_from_xml_element(date_type_elem) or ""
+                date_type_attr = xml_helper.try_get_attribute_from_xml_element(date_type_elem, "codeListValue") or ""
+                if identifier in date_type_txt or identifier in date_type_attr:
+                    # Found one!
+                    _list.append(date_txt)
+        ret_dict["dates_additional"] = date_additionals
+        del elem
+        del _list
+        del md_elem
+        del date_txt
+        del date_elems
+        del identifier
+        del date_type_txt
+        del date_type_attr
+        del date_type_elem
+        del date_additionals
+
+        # Encoding
+        ret_dict["encoding"] = xml_helper.try_get_attribute_from_xml_element(
+            xml,
+            "codeListValue",
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_CharacterSetCode")
+        )
+
+        return ret_dict
+
     def set_proxy(self, use_proxy: bool, force_version: OGCServiceVersionEnum=None, auto_save: bool=True):
         """ Sets different elements inside the document on a secured level
 
@@ -1644,6 +1782,21 @@ class Service(Resource):
 
     def __str__(self):
         return str(self.id)
+
+
+    def get_supported_formats(self):
+        """ Returns a list of supported formats.
+
+        If this is called for a top-level-service record, which does not provide a list of formats, the call will be
+        reached to the next child.
+
+        Returns:
+             formats (QuerySet): A query set of available formats
+        """
+        if self.metadata.is_root() and self.formats.all().count() == 0:
+            child = self.child_service.first()
+            return child.get_supported_formats()
+        return self.formats.all()
 
     def perform_single_element_securing(self, element, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation):
         """ Secures a single element

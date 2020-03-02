@@ -100,6 +100,9 @@
             <div id="{{ service.id }}_map" class="map-view" style="height: 50vh; min-height: 200px;"></div>
                 {% with id_map=service.id bbox=service.bbox_lat_lon  %}
                     {% include 'leaflet/leaflet-client.html' %}
+                    <script type="text/javascript">
+                          initializeLeafletClient();
+                    </script>
                 {% endwith %}
             {% else %}
                 {% trans 'No spatial data provided!' %}

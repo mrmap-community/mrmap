@@ -97,7 +97,11 @@ ENV/
 
 # Pycharm
 ./idea
+.idea/
 
 .idea/
 
 redis/
+
+# Sonar
+.scannerwork/

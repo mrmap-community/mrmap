@@ -1,0 +1,56 @@
+{% load i18n %}
+{% load fontawesome_5 %}
+{% load django_tables2 %}
+{% load render_table from django_tables2 %}
+<table class="table">
+    <tbody>
+    <tr>
+        <th scope="row">{% trans 'Title' %}</th>
+        <td itemprop="about headline">
+            {{ title }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Kind of resource' %}</th>
+        <td>
+            {% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} - Dataset
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Metadata date' %}</th>
+        <td>{{ dataset_metadata.date }}</td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Organization' %}</th>
+        <td>
+            <!-- TODO: Mapbender presents here a logo-->
+            {{ contact.organization_name }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Abstract' %}</th>
+        <td itemprop="abstract">
+            {{ abstract }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Spatial extent' %}</th>
+        <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
+            {% if layer.bbox_lat_lon.area > 0.0 %}
+                <div id="id_map" style="height: 50vh; min-height: 200px;"></div>
+                {% with id_map='id' bbox=layer.bbox_lat_lon leaflet_add_bbox=True  %}
+                    {% include 'leaflet/leaflet-client.html' %}
+                {% endwith %}
+
+                <script type="text/javascript">
+                    $('#properties-tab').on('shown.bs.tab', function (e) {
+                      initializeLeafletClient();
+                    })
+                </script>
+            {% else %}
+                {% trans 'No spatial data provided!' %}
+            {% endif %}
+        </td>
+    </tr>
+    </tbody>
+</table>

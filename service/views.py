@@ -1,10 +1,11 @@
 import json
 from io import BytesIO
 
+
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -32,21 +33,32 @@ from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, RemoveService
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum
+from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
 
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
+from service.settings import DEFAULT_SRS_STRING
 from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style
 from service.tasks import async_remove_service_task
-from structure.models import User, Permission, PendingTask, Group
+from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
+    collect_layer_data, collect_wms_root_data, collect_wfs_root_data
+from structure.models import User, Permission, PendingTask, Group, Organization, Contact
 from users.helper import user_helper
 from django.urls import reverse
 from django import forms
 
 
 def _prepare_wms_table(request: HttpRequest, user: User, ):
+    """ Collects all wms service data and prepares parameter for rendering
+
+    Args:
+        request (HttpRequest): The incoming request
+        user (User): The performing user
+    Returns:
+         params (dict): The rendering parameter
+    """
     # whether whole services or single layers should be displayed
 
     if 'show_layers' in request.GET:
@@ -61,7 +73,7 @@ def _prepare_wms_table(request: HttpRequest, user: User, ):
         service__servicetype__name="wms",
         service__is_root=show_service,
         created_by__in=user.groups.all(),
-        service__is_deleted=False,
+        is_deleted=False,
     ).order_by("title")
 
     wms_table_filtered = WmsFilter(request.GET, queryset=md_list_wms)
@@ -99,10 +111,18 @@ def _prepare_wms_table(request: HttpRequest, user: User, ):
 
 
 def _prepare_wfs_table(request: HttpRequest, user: User, ):
+    """ Collects all wfs service data and prepares parameter for rendering
+
+    Args:
+        request (HttpRequest): The incoming request
+        user (User): The performing user
+    Returns:
+         params (dict): The rendering parameter
+    """
     md_list_wfs = Metadata.objects.filter(
         service__servicetype__name="wfs",
         created_by__in=user.groups.all(),
-        service__is_deleted=False,
+        is_deleted=False,
     ).order_by("title")
 
     wfs_table_filtered = WfsFilter(request.GET, queryset=md_list_wfs)
@@ -127,7 +147,15 @@ def _prepare_wfs_table(request: HttpRequest, user: User, ):
     return params
 
 
-def _new_service_wizard(request, user):
+def _new_service_wizard(request: HttpRequest, user: User):
+    """ Renders wizard page configuration for service registration
+
+    Args:
+        request (HttpRequest): The incoming request
+        user (User): The performing user
+    Returns:
+         params (dict): The rendering parameter
+    """
     params = {}
     page = int(request.POST.get("page"))
 
@@ -137,12 +165,13 @@ def _new_service_wizard(request, user):
         if form.is_valid():
             # Form is valid --> response with page 2
             url_dict = service_helper.split_service_uri(form.cleaned_data['get_request_uri'])
-            init_data = {'ogc_request': url_dict["request"],
-                         'ogc_service': url_dict["service"].value,
-                         'ogc_version': url_dict["version"].value,
-                         'uri': url_dict["base_uri"],
-                         'service_needs_authentication': False,
-                         }
+            init_data = {
+                'ogc_request': url_dict["request"],
+                'ogc_service': url_dict["service"].value,
+                'ogc_version': url_dict["version"].value,
+                'uri': url_dict["base_uri"],
+                'service_needs_authentication': False,
+            }
             params.update({
                 "new_service_form": RegisterNewServiceWizardPage2(initial=init_data,
                                                                   user=user,
@@ -172,6 +201,8 @@ def _new_service_wizard(request, user):
                      'uri': request.POST.get("uri"),
                      'registering_with_group': request.POST.get("registering_with_group"),
                      'service_needs_authentication': is_auth_needed,
+                     'username': request.POST.get("username", None),
+                     'password': request.POST.get("password", None),
                      }
 
         form = RegisterNewServiceWizardPage2(initial=init_data,
@@ -204,10 +235,12 @@ def _new_service_wizard(request, user):
                 # TODO: # Form is valid --> register new service --> redirect to service index
                 # run creation async!
                 external_auth = None
-                if form.cleaned_data['service_needs_authentication'] == 'on':
-                    external_auth = {"username": form.cleaned_data['username'],
-                                     "password": form.cleaned_data['password'],
-                                     "auth_type": form.cleaned_data['authentication_type']}
+                if form.cleaned_data['service_needs_authentication']:
+                    external_auth = {
+                        "username": form.cleaned_data['username'],
+                        "password": form.cleaned_data['password'],
+                        "auth_type": form.cleaned_data['authentication_type']
+                    }
 
                 register_for_other_org = 'None'
                 if form.cleaned_data['registering_for_other_organization'] is not None:
@@ -348,36 +381,38 @@ def remove(request: HttpRequest, id:int, user: User):
 
     remove_form = RemoveService(request.POST)
     if remove_form.is_valid():
-        service = get_object_or_404(Service, id=id)
-        service_type = service.servicetype
+        metadata = get_object_or_404(Metadata, id=id)
+        service_type = metadata.get_service_type()
         sub_elements = None
-        if service_type.name == OGCServiceEnum.WMS.value:
-            sub_elements = Layer.objects.filter(parent_service=service)
-        elif service_type.name == OGCServiceEnum.WFS.value:
-            sub_elements = service.featuretypes.all()
-        metadata = get_object_or_404(Metadata, service=service)
-        if remove_form.cleaned_data['is_confirmed'] == 'off':
-            # TODO: redirect to service:detail; show modal by default with error message
-            params = {
-                "service": service,
-                "metadata": metadata,
-                "sub_elements": sub_elements,
-            }
-            return redirect("service:detail", id)
-        else:
+
+        if service_type == OGCServiceEnum.WMS.value:
+            sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
+        elif service_type == OGCServiceEnum.WFS.value:
+            sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
+
+        if remove_form.cleaned_data['is_confirmed']:
             # remove service and all of the related content
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
 
             # set service as deleted, so it won't be listed anymore in the index view until completely removed
-            service.is_deleted = True
-            service.save()
+            metadata.is_deleted = True
+            metadata.save()
+
+            # TODO: we dont know this at this time; refactor this; async_remove function should add messages
+            messages.success(request, 'Service "{}" successfully deleted.'.format(metadata.title))
 
             # call removing as async task
-            async_remove_service_task.delay(id)
-            # TODO: we dont know this at this time; refactor this; async_remove function should add messages
-            messages.success(request, 'Service %s successfully deleted.' % id)
+            async_remove_service_task.delay(metadata.service.id)
 
             return redirect(SERVICE_INDEX)
+        else:
+            # TODO: redirect to service:detail; show modal by default with error message
+            params = {
+                "service": metadata,
+                "metadata": metadata,
+                "sub_elements": sub_elements,
+            }
+            return redirect("service:detail", id)
     else:
         # TODO: redirect to service:detail; show modal by default with error message
         return redirect("service:detail", id)
@@ -485,6 +520,67 @@ def check_for_dataset_metadata(request: HttpRequest, id: int):
 
     return BackendAjaxResponse(html="", has_dataset_doc=has_dataset_doc).get_response()
 
+
+@log_proxy
+# TODO: currently the preview is not pretty. Refactor this method to get a pretty preview img by consider the right scale of the layers
+def get_service_metadata_preview(request: HttpRequest, id: int):
+    """ Returns the service metadata previe als png for a given metadata id
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (int): The metadata id
+    Returns:
+         A HttpResponse containing the png preview
+    """
+    md = Metadata.objects.get(id=id)
+
+    if md.service.servicetype.name == OGCServiceEnum.WMS.value and md.service.is_root:
+        layer = Layer.objects.get(
+            parent_service=Service.objects.get(id=md.service.id),
+            parent_layer=None,
+        )
+
+    elif md.service.servicetype.name == OGCServiceEnum.WMS.value and not md.service.is_root:
+        layer = md.service.layer
+
+    layer = layer.identifier
+    bbox = md.find_max_bounding_box()
+    bbox = str(bbox.extent).replace("(", "").replace(")", "")  # this is a little dumb, you may choose something better
+
+    # Fetch a supported version of png
+    png_format = md.service.get_supported_formats().filter(
+        mime_type__icontains="image/"
+    ).first()
+
+    data = {
+        "request": OGCOperationEnum.GET_MAP.value,
+        "version": OGCServiceVersionEnum.V_1_1_1.value,
+        "layers": layer,
+        "srs": DEFAULT_SRS_STRING,
+        "bbox": bbox,
+        "format": png_format.mime_type,
+        "width": 200,
+        "height": 200,
+    }
+
+    query_data = QueryDict('', mutable=True)
+    query_data.update(data)
+
+    request_post = request.POST
+    request.POST._mutable = True
+    request.POST = query_data
+    request.method = 'POST'
+    request.POST._mutable = False
+
+    operation_request_handler = OGCOperationRequestHandler(request=request, metadata=md)
+    img = operation_request_handler.get_operation_response(post_data=data)  # img is returned as a byte code
+
+    response = img.get("response", None)
+    content_type = img.get("response_type", "")
+
+    return HttpResponse(response, content_type=content_type)
+
+
 def get_capabilities(request: HttpRequest, id: int):
     """ Returns the current capabilities xml file
 
@@ -494,6 +590,7 @@ def get_capabilities(request: HttpRequest, id: int):
     Returns:
          A HttpResponse containing the xml file
     """
+
     md = Metadata.objects.get(id=id)
     stored_version = md.get_service_version().value
     # move increasing hits to background process to speed up response time!
@@ -570,6 +667,70 @@ def get_capabilities(request: HttpRequest, id: int):
             return HttpResponse(content=SERVICE_CAPABILITIES_UNAVAILABLE)
 
     return HttpResponse(doc, content_type='application/xml')
+
+
+@log_proxy
+def get_metadata_html(request: HttpRequest, id: int, ):
+    """ Returns the metadata as html rendered view
+        Args:
+            request (HttpRequest): The incoming request
+            id (int): The metadata id
+        Returns:
+             A HttpResponse containing the html formated metadata
+    """
+    # ---- constant values
+    base_template = '404.html'
+    # ----
+
+    md = Metadata.objects.get(id=id)
+
+    # collect global data for all cases
+    params = {'md_id': md.id,
+              'title': md.title,
+              'abstract': md.abstract,
+              'access_constraints': md.access_constraints,
+              'capabilities_original_uri': md.capabilities_original_uri,
+              'capabilities_uri': reverse('service:metadata-proxy-operation', args=(md.id,)) + '?request=GetCapabilities',
+              'contact': collect_contact_data(md.contact)
+              }
+
+    params.update(collect_metadata_related_objects(md, request,))
+
+    # build the single view cases: wms root, wms layer, wfs root, wfs featuretype, wcs, metadata
+    if md.metadata_type.type == MetadataEnum.DATASET.value:
+        base_template = 'metadata/base/dataset/dataset_metadata_as_html.html'
+        params['contact'] = collect_contact_data(md.contact)
+        dataset_doc = Document.objects.get(
+            related_metadata=md
+        )
+        params['dataset_metadata'] = dataset_doc.get_dataset_metadata_as_dict()
+        params.update({'capabilities_uri': reverse('service:get-dataset-metadata', args=(md.id,))})
+
+    elif md.metadata_type.type == MetadataEnum.FEATURETYPE.value:
+        base_template = 'metadata/base/wfs/featuretype_metadata_as_html.html'
+        params.update(collect_featuretype_data(md))
+
+    elif md.metadata_type.type == MetadataEnum.LAYER.value:
+        base_template = 'metadata/base/wms/layer_metadata_as_html.html'
+        params.update(collect_layer_data(md, request))
+
+    elif md.service.servicetype.name == OGCServiceEnum.WMS.value:
+        # wms root object
+        base_template = 'metadata/base/wms/root_metadata_as_html.html'
+        params.update(collect_wms_root_data(md))
+
+    elif md.service.servicetype.name == OGCServiceEnum.WFS.value:
+        # wfs root object
+        base_template = 'metadata/base/wfs/root_metadata_as_html.html'
+        params.update(collect_wfs_root_data(md, request))
+
+    elif md.service.servicetype.name == OGCServiceEnum.WMC.value:
+        base_template = 'metadata/base/wmc/root_metadata_as_html.html'
+        # TODO: implement the logic to collect all data
+        None
+
+    context = DefaultContext(request, params, None)
+    return render(request=request, template_name=base_template, context=context.get_context())
 
 
 @log_proxy

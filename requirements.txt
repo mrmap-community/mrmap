@@ -25,3 +25,8 @@ markdown
 django-filter
 Pillow
 cryptography
+
+django-bootstrap4
+django-fontawesome-5
+django-tables2
+django-query-parameters

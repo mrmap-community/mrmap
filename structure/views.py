@@ -29,10 +29,12 @@ from service.models import Service
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, RemoveOrganizationForm
-from structure.models import Group, Role, Permission, Organization, PendingRequest, PendingTask
+from structure.models import Group, Role, Permission, Organization, PendingRequest, PendingTask, GroupActivity
 from structure.models import User
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable
 from django.urls import reverse
+
+from users.helper.user_helper import create_group_activity
 
 
 def _prepare_group_table(request: HttpRequest, user: User, ):
@@ -417,8 +419,21 @@ def accept_publish_request(request: HttpRequest, request_id: int, user: User):
     if is_accepted and pub_request.activation_until >= now:
         # add organization to group_publisher
         pub_request.group.publish_for_organizations.add(organization)
+
+        create_group_activity(
+            group=pub_request.group,
+            user=user,
+            msg=_("Publisher changed"),
+            metadata_title=_("Group '{}' has been accepted as publisher for '{}'".format(pub_request.group, pub_request.organization)),
+        )
         messages.add_message(request, messages.SUCCESS, PUBLISH_REQUEST_ACCEPTED.format(pub_request.group.name))
     elif not is_accepted:
+        create_group_activity(
+            group=pub_request.group,
+            user=user,
+            msg=_("Publisher changed"),
+            metadata_title=_("Group '{}' has been rejected as publisher for '{}'".format(pub_request.group, pub_request.organization)),
+        )
         messages.info(request, PUBLISH_REQUEST_DENIED.format(pub_request.group.name))
     elif pub_request.activation_until < now:
         messages.error(request, REQUEST_ACTIVATION_TIMEOVER)
@@ -447,6 +462,12 @@ def remove_publisher(request: HttpRequest, org_id: int, group_id: int, user: Use
         messages.error(request, message=PUBLISH_PERMISSION_REMOVING_DENIED)
     else:
         group.publish_for_organizations.remove(org)
+        create_group_activity(
+            group=group,
+            user=user,
+            msg=_("Publisher changed"),
+            metadata_title=_("Group '{}' has been removed as publisher for '{}'.".format(group, org)),
+        )
         messages.success(request, message=PUBLISH_PERMISSION_REMOVED.format(group.name, org.organization_name))
     return redirect("structure:detail-organization", org.id)
 

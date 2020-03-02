@@ -31,7 +31,7 @@ from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_R
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, RemoveOrganizationForm
 from structure.models import Group, Role, Permission, Organization, PendingRequest, PendingTask, GroupActivity
 from structure.models import User
-from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable
+from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable, PublishesForTable
 from django.urls import reverse
 
 from users.helper.user_helper import create_group_activity
@@ -555,7 +555,7 @@ def detail_group(request: HttpRequest, id: int, user: User):
     delete_form.action_url = reverse('structure:delete-group', args=[id])
 
     publisher_for = group.publish_for_organizations.all()
-    all_publisher_table = PublisherTable(
+    all_publisher_table = PublishesForTable(
         publisher_for,
         template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
         user=user,

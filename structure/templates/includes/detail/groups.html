@@ -48,6 +48,7 @@
     </div>
 </div>
 
+{% if user in members %}
 <div class="row mb-2 ">
     <div class="col">
         {% with group.id as id_accordion %}
@@ -55,5 +56,6 @@
         {% endwith %}
     </div>
 </div>
+{% endif %}
 
 {% endblock %}

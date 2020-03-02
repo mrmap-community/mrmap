@@ -13,7 +13,7 @@ class PublisherTable(tables.Table):
     publisher_group = tables.Column(accessor='name', verbose_name='Group')
     publisher_org = tables.Column(accessor='organization', verbose_name='Group organization')
     publisher_action = tables.TemplateColumn(
-        template_name="includes/detail/accept_reject_publisher_buttons.html",
+        template_name="includes/detail/publisher_requests_accept_reject.html",
         verbose_name='Action',
         orderable=False,
         extra_context={
@@ -50,6 +50,39 @@ class PublisherTable(tables.Table):
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
+class PublishesForTable(tables.Table):
+    class Meta:
+        row_attrs = {
+            "class": "text-center"
+        }
+    publisher_org = tables.Column(accessor='organization_name', verbose_name='Organization')
+    publisher_action = tables.TemplateColumn(
+        template_name="includes/detail/publisher_requests_accept_reject.html",
+        verbose_name='Action',
+        orderable=False,
+        extra_context={
+            "remove_publisher": True,
+            "publishes_for": True,
+        }
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    def render_publisher_org(self, value, record):
+        """ Renders publisher_org as link to detail view of organization
+
+        Args:
+            value:
+            record:
+        Returns:
+
+        """
+        url = reverse('structure:detail-organization', args=(record.id,))
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+
+
 class PublisherRequestTable(tables.Table):
     class Meta:
         row_attrs = {
@@ -60,7 +93,7 @@ class PublisherRequestTable(tables.Table):
     message = tables.Column(accessor='message', verbose_name='Message')
     activation_until = tables.Column(accessor='activation_until', verbose_name='Activation until')
     publisher_action = tables.TemplateColumn(
-        template_name="includes/detail/accept_reject_publisher_buttons.html",
+        template_name="includes/detail/publisher_requests_accept_reject.html",
         verbose_name='Action',
         orderable=False,
         extra_context={

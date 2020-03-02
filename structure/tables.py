@@ -6,18 +6,44 @@ from MapSkinner.consts import URL_PATTERN
 
 class PublisherTable(tables.Table):
     publisher_group = tables.Column(accessor='group', verbose_name='Group')
-    publisher_org = tables.Column(accessor='organization', verbose_name='Group organization')
-    publisher_action = tables.Column(verbose_name='Action')
+    publisher_org = tables.Column(accessor='group.organization', verbose_name='Group organization')
+    publisher_action = tables.Column(verbose_name='Action', orderable=False)
 
     def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
         super().__init__(*args, **kwargs)
 
-class PublisherRequestTable(tables.Table):
-    publisher_group = tables.Column(accessor='group', verbose_name='Requesting group')
-    publisher_org = tables.Column(accessor='group.organization', verbose_name='Group organization')
+    def render_publisher_group(self, value, record):
+        """ Renders publisher_group as link to detail view of group
+
+        Args:
+            value:
+            record:
+        Returns:
+
+        """
+        url = reverse('structure:detail-group', args=(record.id,))
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+
+    def render_publisher_org(self, value, record):
+        """ Renders publisher_org as link to detail view of organization
+
+        Args:
+            value:
+            record:
+        Returns:
+
+        """
+        url = reverse('structure:detail-organization', args=(record.id,))
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+
+class PublisherRequestTable(PublisherTable):
+    class Meta:
+        sequence = ("...", "publisher_action")
+
     message = tables.Column(accessor='message', verbose_name='Message')
     activation_until = tables.Column(accessor='activation_until', verbose_name='Activation until')
-    publisher_action = tables.Column(verbose_name='Action')
+    publisher_action = tables.Column(verbose_name='Action', orderable=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

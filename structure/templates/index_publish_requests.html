@@ -1,8 +1,6 @@
 {% load static i18n %}
 {% load django_tables2 %}
 
-<!--TODO: refactor with bootstrap 4 and sceletons-->
-<!--TODO: info: this is used in /templates/includes/detail/*_publishes_for_accordion.html-->
 {% if user in members %}
     {% if pub_requests|length > 0 %}
         <h3>{% trans 'Publisher Requests' %}</h3>

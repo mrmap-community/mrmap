@@ -260,12 +260,14 @@ def detail_organizations(request:HttpRequest, id: int, user:User):
     pub_requests_table = PublisherRequestTable(
         pub_requests,
         template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+        user=user,
     )
 
     all_publishing_groups = Group.objects.filter(publish_for_organizations__id=id)
     publisher_table = PublisherTable(
         all_publishing_groups,
         template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+        user=user,
     )
 
     edit_form = OrganizationForm(instance=org)

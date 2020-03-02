@@ -5,6 +5,46 @@
 <table class="table">
     <tbody>
     <tr>
+        <th>{% trans 'Is available' %}</th>
+        <td>
+            {% if layer.is_available %}
+                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% else %}
+                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Is opaque' %}</th>
+        <td>
+            {% if layer.is_opaque %}
+                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% else %}
+                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Is cascaded' %}</th>
+        <td>
+            {% if layer.is_cascaded %}
+                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% else %}
+                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th>{% trans 'Access secured' %}</th>
+        <td>
+            {% if layer.metadata.is_secured %}
+                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% else %}
+                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
         <th scope="row">{% trans 'is Queryable' %}</th>
         <td>
             {% if layer.is_queryable %}
@@ -14,6 +54,7 @@
             {% endif %}
         </td>
     </tr>
+
     <tr>
         <th scope="row">{% trans 'Coordinate Reference System' %}</th>
         <td>

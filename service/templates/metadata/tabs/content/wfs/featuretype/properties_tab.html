@@ -5,6 +5,26 @@
 <table class="table">
     <tbody>
     <tr>
+        <th scope="row">{% trans 'is searchable' %}</th>
+        <td>
+            {% if featuretype.is_searchable %}
+                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% else %}
+                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'is access secured' %}</th>
+        <td>
+            {% if featuretype.metadata.is_secured %}
+                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% else %}
+                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
         <th scope="row">{% trans 'Coordinate Reference System' %}</th>
         <td>
             <!-- TODO: is reference_system.all right? check it -->

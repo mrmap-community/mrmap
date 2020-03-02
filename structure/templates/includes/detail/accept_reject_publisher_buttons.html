@@ -1,7 +1,10 @@
 {% load i18n %}
 
-
+{% if remove_publisher %}
+<form action="{% url 'structure:remove-publisher' organization.id record.id %}" method="post" >
+{% else %}
 <form action="{% url 'structure:accept-publish-request' record.id %}" method="post" >
+{% endif %}
     {% csrf_token %}
     <div class="row text-center">
             {% if enable_accept %}

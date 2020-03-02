@@ -396,7 +396,7 @@ def new_org(request: HttpRequest, user: User):
 
 @check_session
 @check_permission(Permission(can_toggle_publish_requests=True))
-def toggle_publish_request(request: HttpRequest, request_id: int, user: User):
+def accept_publish_request(request: HttpRequest, request_id: int, user: User):
     """ Activate or decline the publishing request.
 
     If the request is too old, the publishing will not be accepted.
@@ -419,9 +419,9 @@ def toggle_publish_request(request: HttpRequest, request_id: int, user: User):
         pub_request.group.publish_for_organizations.add(organization)
         messages.add_message(request, messages.SUCCESS, PUBLISH_REQUEST_ACCEPTED.format(pub_request.group.name))
     elif not is_accepted:
-        messages.add_message(request, messages.SUCCESS, PUBLISH_REQUEST_DENIED.format(pub_request.group.name))
+        messages.info(request, PUBLISH_REQUEST_DENIED.format(pub_request.group.name))
     elif pub_request.activation_until < now:
-        messages.add_message(request, messages.ERROR, REQUEST_ACTIVATION_TIMEOVER)
+        messages.error(request, REQUEST_ACTIVATION_TIMEOVER)
     pub_request.delete()
     return redirect("structure:detail-organization", organization.id)
 
@@ -439,9 +439,7 @@ def remove_publisher(request: HttpRequest, org_id: int, group_id: int, user: Use
     Returns:
          A BackendAjaxResponse since it is an Ajax request
     """
-    post_params = request.POST
-    group_id = int(post_params.get("publishingGroupId"))
-    org = Organization.objects.get(id=group_id)
+    org = Organization.objects.get(id=org_id)
     group = Group.objects.get(id=group_id, publish_for_organizations=org)
 
     # only allow removing if the user is part of the organization or the group!

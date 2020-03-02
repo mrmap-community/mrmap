@@ -6,12 +6,19 @@ from MapSkinner.utils import get_theme, get_ok_nok_icon
 from MapSkinner.consts import URL_PATTERN
 
 class PublisherTable(tables.Table):
+    class Meta:
+        row_attrs = {
+            "class": "text-center"
+        }
     publisher_group = tables.Column(accessor='name', verbose_name='Group')
     publisher_org = tables.Column(accessor='organization', verbose_name='Group organization')
     publisher_action = tables.TemplateColumn(
         template_name="includes/detail/accept_reject_publisher_buttons.html",
         verbose_name='Action',
         orderable=False,
+        extra_context={
+            "remove_publisher": True,
+        }
     )
 
     def __init__(self, *args, **kwargs):
@@ -43,14 +50,13 @@ class PublisherTable(tables.Table):
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
-class PublisherRequestTable(PublisherTable):
+class PublisherRequestTable(tables.Table):
+    class Meta:
+        row_attrs = {
+            "class": "text-center"
+        }
     publisher_group = tables.Column(accessor='group', verbose_name='Group')
     publisher_org = tables.Column(accessor='group.organization', verbose_name='Group organization')
-    publisher_action = tables.TemplateColumn(
-        template_name="includes/detail/accept_reject_publisher_buttons.html",
-        verbose_name='Action',
-        orderable=False,
-    )
     message = tables.Column(accessor='message', verbose_name='Message')
     activation_until = tables.Column(accessor='activation_until', verbose_name='Activation until')
     publisher_action = tables.TemplateColumn(
@@ -63,6 +69,7 @@ class PublisherRequestTable(PublisherTable):
     )
 
     def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
         super().__init__(*args, **kwargs)
 
     def render_publisher_group(self, value, record):

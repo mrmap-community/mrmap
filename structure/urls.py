@@ -15,7 +15,7 @@ urlpatterns = [
     path('groups/new/register-form/', new_group, name='new-group'),
     path('groups/publisher/<id>', list_publisher_group, name='publisher-group'),
 
-    path('publish-request/<request_id>/accept/', toggle_publish_request, name='accept-publish-request'),
+    path('publish-request/<request_id>/accept/', accept_publish_request, name='accept-publish-request'),
 
     path('organizations/', organizations_index, name='organizations-index'),
     path('organizations/<org_id>/detail/', detail_organizations, name='detail-organization'),

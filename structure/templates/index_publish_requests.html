@@ -6,45 +6,6 @@
         <h3>{% trans 'Publisher Requests' %}</h3>
         {% render_table pub_requests_table %}
     {% endif %}
-<!--
-       <table class="overview-table">
-           <tr>
-               <th class="table-header">{% trans 'Requesting group' %}</th>
-               <th class="table-header">{% trans 'Group organization' %}</th>
-               <th class="table-header">{% trans 'Message' %}</th>
-               <th class="table-header">{% trans 'Activation until' %}</th>
-               <th class="table-header">{% trans 'Action' %}</th>
-           </tr>
-           {% for request in pub_requests %}
-               <tr data-id="{{ request.id }}" data-parent="{{ organization.id }}">
-                   <td class="table-cell">
-                       <a href="{% url 'structure:detail-organization' request.group.id %}">{{ request.group }}</a>
-                   </td>
-                   <td class="table-cell">
-                       {% if request.group.organization is not None %}
-                           <a href="{% url 'structure:detail-organization' request.group.organization.id %}">{{ request.group.organization }}</a>
-                       {% else %}
-                           {{ request.group.organization }}
-                       {% endif %}
-                   </td>
-                   <td class="table-cell message-cell">
-                       {{ request.message }}
-                   </td>
-                   <td class="table-cell">
-                       {{ request.activation_until }}
-                   </td>
-                   <td class="table-cell action-cell">
-                       {% if 'can_toggle_publish_requests' in user_permissions and user in members %}
-                           <img class="img-interactive" src="{% static 'service/images/icn_true.png' %}" title="{% trans 'Accept' %}" id="accept-request">
-                           <img class="img-interactive" src="{% static 'service/images/icn_false.png' %}" title="{% trans 'Decline' %}" id="decline-request">
-                       {% else %}
-                           {% trans 'You have no permission to change this!' %}
-                       {% endif %}
-                   </td>
-               </tr>
-           {% endfor %}
-       </table>
-       -->
-<h3>{% trans 'Publishers' %}</h3>
-{% render_table all_publisher_table %}
+    <h3>{% trans 'Publishers' %}</h3>
+    {% render_table all_publisher_table %}
 {% endif %}

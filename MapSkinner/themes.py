@@ -20,6 +20,8 @@ FONT_AWESOME_ICONS = {
     'ADD': format_html(ICON_PATTERN, 'fas', 'fa-plus-circle', ),
     'OK': format_html(ICON_PATTERN, 'fas', 'fa-check', ),
     'NOK': format_html(ICON_PATTERN, 'fas', 'fa-times', ),
+    'OK_CIRCLE': format_html(ICON_PATTERN, 'far', 'fa-check-circle', ),
+    'NOK_CIRCLE': format_html(ICON_PATTERN, 'far', 'fa-times-circle', ),
     'EDIT': format_html(ICON_PATTERN, 'fas', 'fa-edit', ),
     'SIGNOUT': format_html(ICON_PATTERN, 'fas', 'fa-sign-out-alt', ),
     'SIGNIN': format_html(ICON_PATTERN, 'fas', 'fa-sign-in-alt', ),
@@ -42,6 +44,7 @@ FONT_AWESOME_ICONS = {
     'GLOBE': format_html(ICON_PATTERN, 'fas', 'fa-globe', ),
     'LINK': format_html(ICON_PATTERN, 'fas', 'fa-link', ),
     'EXTERNAL_LINK': format_html(ICON_PATTERN, 'fas', 'fa-external-link-alt', ),
+
 }
 
 # dark theme settings

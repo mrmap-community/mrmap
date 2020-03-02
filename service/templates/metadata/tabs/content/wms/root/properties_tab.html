@@ -6,35 +6,24 @@
         <th scope="row">{% trans 'is Queryable' %}</th>
         <td>
             {% if layer.is_queryable %}
-            <h3>
-                                <span class="badge badge-success" data-toggle="tooltip" data-placement="top"
-                                      title="Layer is queryable">
-                                    {% fa5_icon 'check-circle' 'far' %}
-                                </span>
-            </h3>
+                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
             {% else %}
-            <h3>
-                                <span class="badge badge-danger" data-toggle="tooltip" data-placement="top"
-                                      title="Layer not queryable">
-                                    {% fa5_icon 'times-circle' 'far' %}
-                                </span>
-            </h3>
+                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
             {% endif %}
         </td>
     </tr>
     <tr>
         <th scope="row">{% trans 'Coordinate Reference System' %}</th>
         <td>
-            <!-- TODO: is reference_system.all right? check it -->
             {% for rs in layer.metadata.reference_system.all %}
-            <span class="listable">{{ rs.prefix }}{{ rs.code }}</span>
+            <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ rs.prefix }}{{ rs.code }}</span>
             {% empty %}
             {% trans 'No additional reference systems provided' %}
             {% endfor %}
         </td>
     </tr>
     <tr itemprop="spatialCoverage" itemscope itemtype="https://schema.org/Place">
-        <th scope="row">{% trans 'Corner in geographic Coordinates' %}</th>
+        <th scope="row">{% trans 'Extend in geographic Coordinates' %}</th>
         <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
             <!-- TODO: test the box that the google testtool will find ==> https://search.google.com/structured-data/testing-tool -->
             <p itemprop="box">{{layer.bbox_lat_lon.boundary.extent.0}}

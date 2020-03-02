@@ -24,6 +24,14 @@
 
 {% with id_map='id' bbox=bbox  %}
     {% include 'leaflet/leaflet-client.html' %}
+    <script type="text/javascript">
+        // TODO: since initialization function is implemented, we can use fading and after fading of modal is finished, we can run the initialization function.
+        // example
+        //$('#myModal').on('shown.bs.modal', function (e) {
+        //        initializeLeafletClient();
+        //})
+        initializeLeafletClient();
+    </script>
 {% endwith %}
 {% with id_map='id'  %}
     {% include 'leaflet-extentions/controls.html' %}

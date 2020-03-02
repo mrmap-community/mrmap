@@ -156,6 +156,10 @@ def get_theme(user: User):
         return LIGHT_THEME
 
 
+def get_default_theme():
+    return LIGHT_THEME
+
+
 def get_ok_nok_icon(value):
     if value:
         return format_html("<i class='fas fa-check text-success'></i>")

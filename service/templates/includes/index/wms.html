@@ -9,19 +9,6 @@
 {% endblock %}
 
 {% block card-header-title-center%}
-    <div class="dropdown">
-        <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            {% if select_default == 'l' %}
-            Show layers
-            {% else %}
-            Show services
-            {% endif %}
-        </button>
-        <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-            <a class="dropdown-item" href="?q=s">Show services</a>
-            <a class="dropdown-item" href="?q=l">Show layers</a>
-        </div>
-    </div>
 {% endblock %}
 
 {% block card-header-title-right %}

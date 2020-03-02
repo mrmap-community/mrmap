@@ -79,7 +79,7 @@ class OGCOperationRequestHandler:
         self.original_params_dict = OrderedDict()  # contains the original, unedited parameters
         self.new_params_dict = OrderedDict()  # contains the parameters, which could be still original or might have changed during method processing
 
-        self.service_type_param = None  # refers to param 'SERVICE'
+        self.service_type_param = metadata.get_service_type()  # refers to param 'SERVICE', default is set to regular metadata service type (in case no SERVICE param was given)
         self.request_param = None  # refers to param 'REQUEST'
         self.layers_param = None  # refers to param 'LAYERS'
         self.x_y_param = [None, None]  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)
@@ -1454,11 +1454,11 @@ class OGCOperationRequestHandler:
         # WFS - 'Transaction'
         elif self.request_param.upper() == OGCOperationEnum.TRANSACTION.value.upper():
             self._filter_transaction_geometries(sec_ops)
-            response = self.get_operation_response(post_body=self.POST_raw_body)
+            response = self.get_operation_response(post_xml_body=self.POST_raw_body)
 
         return response
 
-    def get_operation_response(self, uri: str = None, post_data: dict = None, post_body: str = None):
+    def get_operation_response(self, uri: str = None, post_data: dict = None, post_xml_body: str = None):
         """ Performs the request.
 
         This may be called after the security checks have passed or otherwise if no security checks had to be done.
@@ -1491,8 +1491,8 @@ class OGCOperationRequestHandler:
             c = CommonConnector(url=self.post_uri, external_auth=self.external_auth)
 
             # If a post_body xml is given, we always prefer this over post_data
-            if post_body is not None:
-                post_content = post_body
+            if post_xml_body is not None:
+                post_content = post_xml_body
 
             # ... so we do not have any xml post body content. If no other post_data content was provided as variable
             # we will construct our own post_data!
@@ -1501,7 +1501,7 @@ class OGCOperationRequestHandler:
 
             # Fallback - this would only happen if absolutely no parameters were given to this function
             else:
-                post_content = ""
+                post_content = post_data
 
             # There are two ways to post data to a server in the OGC service world:
             # 1)    Using x-www-form-urlencoded (mostly used in todays world)

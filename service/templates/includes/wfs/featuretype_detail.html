@@ -41,7 +41,7 @@
                     {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Service Metadata' %}
                   </button>
                   <div class="dropdown-menu" aria-labelledby="id_metadata_dropdown">
-                      <a class="dropdown-item" target="_blank" href="">{% trans 'HTML' %}</a>
+                      <a class="dropdown-item" target="_blank" href="{% url 'service:get-metadata-html' service_md.id %}">{% trans 'HTML' %}</a>
                       <a class="dropdown-item" target="_blank" href="{% url 'service:get-service-metadata' service_md.id %}">{% trans 'XML' %}</a>
                   </div>
                 </div>

@@ -1,0 +1,57 @@
+{% load i18n %}
+{% load fontawesome_5 %}
+<table class="table">
+    <tbody>
+    <tr>
+        <th scope="row">{% trans 'is Queryable' %}</th>
+        <td>
+            {% if layer.is_queryable %}
+                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% else %}
+                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Coordinate Reference System' %}</th>
+        <td>
+            {% for rs in layer.metadata.reference_system.all %}
+            <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ rs.prefix }}{{ rs.code }}</span>
+            {% empty %}
+            {% trans 'No additional reference systems provided' %}
+            {% endfor %}
+        </td>
+    </tr>
+    <tr itemprop="spatialCoverage" itemscope itemtype="https://schema.org/Place">
+        <th scope="row">{% trans 'Extend in geographic Coordinates' %}</th>
+        <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
+            <!-- TODO: test the box that the google testtool will find ==> https://search.google.com/structured-data/testing-tool -->
+            <p itemprop="box">{{layer.bbox_lat_lon.boundary.extent.0}}
+                {{layer.bbox_lat_lon.boundary.extent.1}}
+                {{layer.bbox_lat_lon.boundary.extent.2}}
+                {{layer.bbox_lat_lon.boundary.extent.3}}</p>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Spatial extent' %}</th>
+        <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
+            {% if layer.bbox_lat_lon.area > 0.0 %}
+
+                <div id="id_map" style="height: 50vh; min-height: 200px;"></div>
+                {% with id_map='id' bbox=layer.bbox_lat_lon leaflet_add_bbox=True  %}
+                    {% include 'leaflet/leaflet-client.html' %}
+                {% endwith %}
+
+                <script type="text/javascript">
+                    $('#properties-tab').on('shown.bs.tab', function (e) {
+                      initializeLeafletClient();
+                    })
+                </script>
+
+            {% else %}
+                {% trans 'No spatial data provided!' %}
+            {% endif %}
+        </td>
+    </tr>
+    </tbody>
+</table>

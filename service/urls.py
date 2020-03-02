@@ -1,4 +1,5 @@
 from django.urls import path
+
 from service.views import *
 
 app_name = 'service'
@@ -10,6 +11,8 @@ urlpatterns = [
     path('metadata/<int:id>', get_service_metadata, name='get-service-metadata'),
     path('metadata/dataset/<int:id>', get_dataset_metadata, name='get-dataset-metadata'),
     path('metadata/dataset/check/<int:id>', check_for_dataset_metadata, name='check-for-dataset-metadata'),
+    path('metadata/preview/<int:id>', get_service_metadata_preview, name='get-service-metadata-preview'),
+    path('metadata/html/<int:id>', get_metadata_html, name='get-metadata-html'),
 
     path('metadata/<int:id>/operation', get_operation_result, name='metadata-proxy-operation'),
     path('metadata/<int:id>/legend/<int:style_id>', get_metadata_legend, name='metadata-proxy-legend'),

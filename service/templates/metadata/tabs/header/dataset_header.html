@@ -1,0 +1,24 @@
+{% load i18n %}
+{% block tab_header %}
+<li class="nav-item">
+    <a class="nav-link active" id="overview-tab" data-toggle="tab" href="#overview" role="tab"
+       aria-controls="home"
+       aria-selected="true">{% trans 'Overview' %}</a>
+</li>
+<li class="nav-item">
+    <a class="nav-link" id="properties-tab" data-toggle="tab" href="#properties" role="tab"
+       aria-controls="properties" aria-selected="false">{% trans 'Properties' %}</a>
+</li>
+<li class="nav-item">
+    <a class="nav-link" id="contact-tab" data-toggle="tab" href="#contact" role="tab"
+       aria-controls="contact" aria-selected="false">{% trans 'Contact' %}</a>
+</li>
+<li class="nav-item">
+    <a class="nav-link" id="terms-of-use-tab" data-toggle="tab" href="#terms-of-use" role="tab"
+       aria-controls="terms-of-use" aria-selected="false">{% trans 'Terms Of Use' %}</a>
+</li>
+<li class="nav-item">
+    <a class="nav-link" id="interfaces-tab" data-toggle="tab" href="#interfaces" role="tab"
+       aria-controls="interfaces" aria-selected="false">{% trans 'Interfaces' %}</a>
+</li>
+{% endblock %}

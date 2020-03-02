@@ -266,7 +266,6 @@ def detail_organizations(request:HttpRequest, org_id: int, user:User):
     )
 
     all_publishing_groups = Group.objects.filter(publish_for_organizations__id=org_id)
-    d = list(all_publishing_groups)
     publisher_table = PublisherTable(
         all_publishing_groups,
         template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
@@ -555,13 +554,21 @@ def detail_group(request: HttpRequest, id: int, user: User):
     delete_form = RemoveGroupForm()
     delete_form.action_url = reverse('structure:delete-group', args=[id])
 
+    publisher_for = group.publish_for_organizations.all()
+    all_publisher_table = PublisherTable(
+        publisher_for,
+        template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
+        user=user,
+    )
+
     params = {
         "group": group,
-        "group_permissions": user.get_permissions(group),  # user_helper.get_permissions(group=group),
+        "group_permissions": user.get_permissions(group),
         "members": members,
         "show_registering_for": True,
         "edit_group_form": edit_form,
         "delete_group_form": delete_form,
+        "all_publisher_table": all_publisher_table,
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())

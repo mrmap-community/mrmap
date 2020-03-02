@@ -64,7 +64,6 @@ class PublisherRequestTable(tables.Table):
         verbose_name='Action',
         orderable=False,
         extra_context={
-            "enable_accept": True,
         }
     )
 

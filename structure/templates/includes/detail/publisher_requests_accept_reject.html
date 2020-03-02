@@ -1,0 +1,28 @@
+{% load i18n %}
+
+{% if remove_publisher %}
+    {% if publishes_for %}
+    <form action="{% url 'structure:remove-publisher' record.id group.id %}" method="post" >
+    {% else %}
+    <form action="{% url 'structure:remove-publisher' organization.id record.id %}" method="post" >
+    {% endif %}
+{% else %}
+<form action="{% url 'structure:accept-publish-request' record.id %}" method="post" >
+{% endif %}
+
+    {% csrf_token %}
+    <div class="row text-center">
+            {% if not remove_publisher %}
+            <div class="col-sm p-0">
+                <button class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" type="submit" title="{% trans 'Accept' %}" name="accept" value="{{ True }}" role="button">
+                    {% autoescape off %}{{THEME.ICONS.OK}}{% endautoescape %}
+                </button>
+            </div>
+            {% endif %}
+            <div class="col-sm p-0">
+                <button class="btn {{THEME.CARD.BTN_DANGER_COLOR}}" type="submit" title="{% trans 'Remove' %}" name="accept" value="{{ False }}" role="button">
+                    {% autoescape off %}{{THEME.ICONS.NOK}}{% endautoescape %}
+                </button>
+            </div>
+    </div>
+</form>

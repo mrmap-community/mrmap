@@ -15,15 +15,15 @@ urlpatterns = [
     path('groups/new/register-form/', new_group, name='new-group'),
     path('groups/publisher/<id>', list_publisher_group, name='publisher-group'),
 
+    path('publish-request/<request_id>/accept/', accept_publish_request, name='accept-publish-request'),
+
     path('organizations/', organizations_index, name='organizations-index'),
-    path('organizations/detail/<id>', detail_organizations, name='detail-organization'),
-    path('organizations/edit/<id>', edit_org, name='edit-organization'),
-    path('organizations/delete/<id>', remove_org, name='delete-organization'),
+    path('organizations/<org_id>/detail/', detail_organizations, name='detail-organization'),
+    path('organizations/<org_id>/edit/', edit_org, name='edit-organization'),
+    path('organizations/<org_id>/delete/', remove_org, name='delete-organization'),
+    path('organizations/<org_id>/create-publish-request/', publish_request, name='publish-request'),
+    path('organizations/<org_id>/remove-publisher/<group_id>/', remove_publisher, name='remove-publisher'),
     path('organizations/new/register-form/', new_org, name='new-organization'),
-    #path('organizations/list-publish-request/<id>', list_publish_request, name='index-publish-request'),
-    path('organizations/publish-request/<id>', publish_request, name='publish-request'),
-    path('organizations/toggle-publish-request/<id>', toggle_publish_request, name='toggle-publish-request'),
-    path('organizations/remove-publisher/<id>', remove_publisher, name='remove-publisher'),
 
 ]
 

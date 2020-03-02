@@ -1,9 +1,132 @@
 import django_tables2 as tables
+from django.template.loader import render_to_string
 from django.utils.html import format_html
 from django.urls import reverse
 from MapSkinner.utils import get_theme, get_ok_nok_icon
 from MapSkinner.consts import URL_PATTERN
 
+class PublisherTable(tables.Table):
+    class Meta:
+        row_attrs = {
+            "class": "text-center"
+        }
+    publisher_group = tables.Column(accessor='name', verbose_name='Group')
+    publisher_org = tables.Column(accessor='organization', verbose_name='Group organization')
+    publisher_action = tables.TemplateColumn(
+        template_name="includes/detail/publisher_requests_accept_reject.html",
+        verbose_name='Action',
+        orderable=False,
+        extra_context={
+            "remove_publisher": True,
+        }
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    def render_publisher_group(self, value, record):
+        """ Renders publisher_group as link to detail view of group
+
+        Args:
+            value:
+            record:
+        Returns:
+
+        """
+        url = reverse('structure:detail-group', args=(record.id,))
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+
+    def render_publisher_org(self, value, record):
+        """ Renders publisher_org as link to detail view of organization
+
+        Args:
+            value:
+            record:
+        Returns:
+
+        """
+        url = reverse('structure:detail-organization', args=(record.id,))
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+
+
+class PublishesForTable(tables.Table):
+    class Meta:
+        row_attrs = {
+            "class": "text-center"
+        }
+    publisher_org = tables.Column(accessor='organization_name', verbose_name='Organization')
+    publisher_action = tables.TemplateColumn(
+        template_name="includes/detail/publisher_requests_accept_reject.html",
+        verbose_name='Action',
+        orderable=False,
+        extra_context={
+            "remove_publisher": True,
+            "publishes_for": True,
+        }
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    def render_publisher_org(self, value, record):
+        """ Renders publisher_org as link to detail view of organization
+
+        Args:
+            value:
+            record:
+        Returns:
+
+        """
+        url = reverse('structure:detail-organization', args=(record.id,))
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+
+
+class PublisherRequestTable(tables.Table):
+    class Meta:
+        row_attrs = {
+            "class": "text-center"
+        }
+    publisher_group = tables.Column(accessor='group', verbose_name='Group')
+    publisher_org = tables.Column(accessor='group.organization', verbose_name='Group organization')
+    message = tables.Column(accessor='message', verbose_name='Message')
+    activation_until = tables.Column(accessor='activation_until', verbose_name='Activation until')
+    publisher_action = tables.TemplateColumn(
+        template_name="includes/detail/publisher_requests_accept_reject.html",
+        verbose_name='Action',
+        orderable=False,
+        extra_context={
+        }
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    def render_publisher_group(self, value, record):
+        """ Renders publisher_group as link to detail view of group
+
+        Args:
+            value:
+            record:
+        Returns:
+
+        """
+        url = reverse('structure:detail-group', args=(record.id,))
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+
+    def render_publisher_org(self, value, record):
+        """ Renders publisher_org as link to detail view of organization
+
+        Args:
+            value:
+            record:
+        Returns:
+
+        """
+        url = reverse('structure:detail-organization', args=(record.id,))
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 class GroupTable(tables.Table):
     groups_name = tables.Column(accessor='name', verbose_name='Name', )
@@ -39,4 +162,14 @@ class OrganizationTable(tables.Table):
 
     @staticmethod
     def render_orgs_is_auto_generated(value):
-        return get_ok_nok_icon(value)
+        """ Preprocessing for rendering of is_auto_generated value.
+
+        Due to semantic reasons, we invert this value.
+
+        Args:
+            value: The value
+        Returns:
+
+        """
+        val = not value
+        return get_ok_nok_icon(val)

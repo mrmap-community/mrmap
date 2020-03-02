@@ -3,7 +3,7 @@
 {% load fontawesome_5 %}
 
 {% block card-header-title-left %}
-    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} <b>{{ group.name }}</b></h4>
+    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} <strong>{{ group.name }}</strong></h4>
 {% endblock %}
 {% block card-header-title-right %}
 <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'structure:index' %}">
@@ -41,16 +41,21 @@
         </div>
     </div>
 </div>
+
 <div class="row mb-2 ">
     <div class="col">
         {% include 'includes/detail/groups_table.html' %}
     </div>
-</div><!--row-->
+</div>
+
+{% if user in members %}
 <div class="row mb-2 ">
     <div class="col">
         {% with group.id as id_accordion %}
-        {% include 'includes/detail/groups_publishes_for_accordion.html' %}
+            {% include 'includes/detail/groups_publishes_for_accordion.html' %}
         {% endwith %}
-    </div><!--col-->
-</div><!--row-->
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}

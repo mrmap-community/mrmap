@@ -44,7 +44,7 @@ FONT_AWESOME_ICONS = {
     'GLOBE': format_html(ICON_PATTERN, 'fas', 'fa-globe', ),
     'LINK': format_html(ICON_PATTERN, 'fas', 'fa-link', ),
     'EXTERNAL_LINK': format_html(ICON_PATTERN, 'fas', 'fa-external-link-alt', ),
-
+    'PUBLISHER': format_html(ICON_PATTERN, 'fas', 'fa-address-card', ),
 }
 
 # dark theme settings

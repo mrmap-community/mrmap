@@ -13,7 +13,7 @@
     <tr>
         <th scope="row">{% trans 'Kind of resource' %}</th>
         <td>
-            {% fa5_icon 'clipboard-list' 'fas' %} - Dataset
+            {% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} - Dataset
         </td>
     </tr>
     <tr>

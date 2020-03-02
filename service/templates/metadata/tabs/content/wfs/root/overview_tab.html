@@ -14,7 +14,7 @@
     <tr>
         <th scope="row">{% trans 'Kind of resource' %}</th>
         <td>
-            {% fa5_icon 'info' 'fas' %} - Web Feature Service
+            {% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} - Web Feature Service
         </td>
     </tr>
     <tr>

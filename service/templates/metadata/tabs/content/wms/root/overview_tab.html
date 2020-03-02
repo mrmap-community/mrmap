@@ -13,7 +13,7 @@
     <tr>
         <th scope="row">{% trans 'Kind of resource' %}</th>
         <td>
-            {% fa5_icon 'map' 'far' %} - Web Map Service
+            {% autoescape off %}{{THEME.ICONS.WMS_SOLID}}{% endautoescape %} - Web Map Service
         </td>
     </tr>
     <tr>
@@ -55,5 +55,3 @@
     </tr>
     </tbody>
 </table>
-<!-- TODO: implement the functionality of this button-->
-<button type="button" class="btn btn-primary">{% trans 'Show map' %}</button>

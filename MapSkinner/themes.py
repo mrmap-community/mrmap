@@ -4,8 +4,10 @@ ICON_PATTERN = "<i class=\'{} {}\'></i>"
 FONT_AWESOME_ICONS = {
     'DASHBOARD': format_html(ICON_PATTERN, 'fas', 'fa-tachometer-alt', ),
     'WMS': format_html(ICON_PATTERN, 'far', 'fa-map', ),
+    'WMS_SOLID': format_html(ICON_PATTERN, 'fas', 'fa-map', ),
     'WFS': format_html(ICON_PATTERN, 'fas', 'fa-draw-polygon', ),
     'LAYER': format_html(ICON_PATTERN, 'fas', 'fa-layer-group', ),
+    'DATASET': format_html(ICON_PATTERN, 'fas', 'fa-clipboard-list', ),
     'PENDINGTASKS': format_html(ICON_PATTERN, 'fas', 'fa-tasks', ),
     'USER': format_html(ICON_PATTERN, 'fas', 'fa-user', ),
     'PASSWORD': format_html(ICON_PATTERN, 'fas', 'fa-lock', ),
@@ -38,6 +40,8 @@ FONT_AWESOME_ICONS = {
     'WINDOW_CLOSE': format_html(ICON_PATTERN, 'fas', 'fa-window-close', ),
     'HIERARCHY': format_html(ICON_PATTERN, 'fas', 'fa-sitemap', ),
     'GLOBE': format_html(ICON_PATTERN, 'fas', 'fa-globe', ),
+    'LINK': format_html(ICON_PATTERN, 'fas', 'fa-link', ),
+    'EXTERNAL_LINK': format_html(ICON_PATTERN, 'fas', 'fa-external-link-alt', ),
 }
 
 # dark theme settings

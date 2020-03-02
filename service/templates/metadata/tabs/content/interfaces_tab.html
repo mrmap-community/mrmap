@@ -7,14 +7,14 @@
         <td>
             <p>
                 <a itemprop="url" class="btn btn-info" href="{{ capabilities_uri }}">
-                    {% fa5_icon 'file-alt' 'fas' %} {% trans 'Show document' %}
+                    {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Show document' %}
                 </a>
             </p>
 
             <p>
                 <a class="btn btn-info" data-toggle="collapse" href="#collapseCapsLink" role="button"
                    aria-expanded="false" aria-controls="collapseCapsLink">
-                    {% fa5_icon 'external-link-alt' 'fas' %} {% trans 'Show link' %}
+                    {% autoescape off %}{{THEME.ICONS.EXTERNAL_LINK}}{% endautoescape %} {% trans 'Show link' %}
                 </a>
             </p>
             <div class="collapse" id="collapseCapsLink">
@@ -29,7 +29,7 @@
         <td>
             <p>
                 <a itemprop="url" class="btn btn-info" href="{{ capabilities_original_uri }}">
-                    {% fa5_icon 'file-alt' 'fas' %} {% trans 'Show document' %}
+                    {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Show document' %}
                 </a>
             </p>
 
@@ -37,7 +37,7 @@
                 <a class="btn btn-info" data-toggle="collapse" href="#collapseCapsOriginalLink"
                    role="button"
                    aria-expanded="false" aria-controls="collapseCapsOriginalLink">
-                    {% fa5_icon 'external-link-alt' 'fas' %} {% trans 'Show link' %}
+                    {% autoescape off %}{{THEME.ICONS.EXTERNAL_LINK}}{% endautoescape %} {% trans 'Show link' %}
                 </a>
             </p>
             <div class="collapse" id="collapseCapsOriginalLink">

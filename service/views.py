@@ -452,14 +452,10 @@ def get_service_metadata(request: HttpRequest, id: int):
     """
     metadata = Metadata.objects.get(id=id)
 
-    cacher = DocumentCacher(title="SERVICE_METADATA", version="0")
-    doc = cacher.get(str(metadata.id))
-    if doc is None:
-        doc = metadata.get_service_metadata_xml()
-        cacher.set(str(metadata.id), doc)
-
     if not metadata.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
+
+    doc = metadata.get_service_metadata_xml()
 
     return HttpResponse(doc, content_type=APP_XML)
 
@@ -480,6 +476,8 @@ def get_dataset_metadata(request: HttpRequest, id: int):
         if md.metadata_type.type != OGCServiceEnum.DATASET.value:
             # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
             md = md.get_related_dataset_metadata()
+            if md is None:
+                raise ObjectDoesNotExist
             return redirect("service:get-dataset-metadata", id=md.id)
         document = Document.objects.get(related_metadata=md)
         document = document.dataset_metadata_document
@@ -490,7 +488,7 @@ def get_dataset_metadata(request: HttpRequest, id: int):
     return HttpResponse(document, content_type='application/xml')
 
 
-def get_dataset_metadata_button(request: HttpRequest, id: int):
+def check_for_dataset_metadata(request: HttpRequest, id: int):
     """ Checks whether an element (layer or featuretype) has a dataset metadata record.
 
     This function is used for ajax calls from the client, to check dynamically on an opened subelement if there
@@ -504,15 +502,15 @@ def get_dataset_metadata_button(request: HttpRequest, id: int):
     """
     element_type = request.GET.get("serviceType")
     if element_type == OGCServiceEnum.WMS.value:
-        element = Layer.objects.get(id=id)
+        element = Layer.objects.get(metadata__id=id)
     elif element_type == OGCServiceEnum.WFS.value:
-        element = FeatureType.objects.get(id=id)
+        element = FeatureType.objects.get(metadata__id=id)
+    else:
+        return
     md = element.metadata
     try:
         # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
-        md_2 = MetadataRelation.objects.get(
-            metadata_from=md,
-        ).metadata_to
+        md_2 = md.get_related_dataset_metadata()
         doc = Document.objects.get(
             related_metadata=md_2
         )

@@ -35,16 +35,13 @@
 
 <body class="{{THEME.BACKGROUND}}">
     <div id="body-content">
-
-                <audio id="ee-audio">
-                    <source src="{% static 'audio/ee_audio.mp3' %}" type="audio/mpeg">
-                </audio>
-                <div id="overlay">
-                </div>
-                {% block body %}
-
-                {% endblock %}
-
+        <audio id="ee-audio">
+            <source src="{% static 'audio/ee_audio.mp3' %}" type="audio/mpeg">
+        </audio>
+        <div id="overlay">
+        </div>
+        {% block body %}
+        {% endblock %}
     </div>
 </body>
 

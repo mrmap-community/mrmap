@@ -9,11 +9,10 @@
 {% block card-header-title-left %}
     <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata editor' %}</h4>
 {% endblock %}
+
 {% block card-header-title-right %}
-    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'editor:index' %}">
-        <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Overview' %}</span>
-    </a>
 {% endblock %}
+
 {% block card-header-subtitle-left %}
     <h5 class="text-muted">
         {% if service_metadata.is_root %}

@@ -11,6 +11,7 @@ from MapSkinner.settings import ROOT_URL, VERSION, GIT_REPO_URI
 from structure.models import User
 from MapSkinner.utils import get_theme
 
+
 class DefaultContext:
     """ Contains the default values that have to be set on every rendering process!
 
@@ -21,6 +22,29 @@ class DefaultContext:
             permissions = user.get_permissions()
         else:
             permissions = []
+
+        breadcrumb = []
+        breadcrumb_items = request.path.split("/")
+        breadcrumb_items.pop(0)   # pop the first / item
+
+        index = 0
+        while index < len(breadcrumb_items):
+            item = {'item': breadcrumb_items[index]}
+            if index != 0:
+                path = breadcrumb[index-1]["path"] + '/' + breadcrumb_items[index]
+                item.update({'path': path})
+            else:
+                item.update({'path': breadcrumb_items[index]})
+
+            if index == len(breadcrumb_items)-1:
+                item.update({'is_last': True})
+
+            if index == len(breadcrumb_items)-2:
+                item.update({'is_penultimate': True})
+
+            breadcrumb.append(item)
+            index += 1
+
         self.context = {
             "ROOT_URL": ROOT_URL,
             "PATH": request.path.split("/")[1],
@@ -30,6 +54,7 @@ class DefaultContext:
             "VERSION": VERSION,
             "GIT_REPO_URI": GIT_REPO_URI,
             "THEME": get_theme(user),
+            "BREADCRUMB": breadcrumb,
         }
         self.add_context(context)
 

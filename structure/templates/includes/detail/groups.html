@@ -6,9 +6,7 @@
     <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} <strong>{{ group.name }}</strong></h4>
 {% endblock %}
 {% block card-header-title-right %}
-<a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'structure:index' %}">
-    <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Overview' %}</span>
-</a>
+
 {% endblock %}
 {% block card-body %}
 <div class="row mb-2 ">

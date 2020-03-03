@@ -305,7 +305,7 @@ def access_geometry_form(request: HttpRequest, id: int, user: User):
 
     params = {
         #"action_url": "{}{}/editor/edit/access/{}/geometry-form/".format(HTTP_OR_SSL, HOST_NAME, md.id),
-        "action_url": reverse('access_geometry_form', args=(md.id, )),
+        "action_url": reverse('editor:access_geometry_form', args=(md.id, )),
         "bbox": service_bounding_geometry,
         "group_id": group_id,
         "operation": operation,

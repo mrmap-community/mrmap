@@ -15,20 +15,14 @@
             </div>
             <div class="modal-footer justify-content-between">
                 <div class="">
-                    <button type="submit" id="id_submit_modal" class="btn {{THEME.MODAL.BTN_PRIMARY_COLOR}} submit-button">
+                    <button type="submit" id="id_submit_modal" class="btn {{THEME.MODAL.BTN_PRIMARY_COLOR}} submit-button" onclick="submitGeometry()">
                         {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
                     </button>
                 </div>
                 <div class="">
-                    <button type="button" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" data-dismiss="modal">{% trans 'Cancel' %}</button>
+                    <button type="button" id="id_dismiss_modal" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" data-dismiss="modal">{% trans 'Cancel' %}</button>
                 </div>
             </div>
         </div>
     </div>
 </div>
-<script>
-    $('#id_modal_{{id_modal}}').on('hide.bs.modal', function (e) {
-        // remove session stored polygon data
-        removeSessionKeysLike("polygon_");
-    })
-</script>

@@ -1,6 +1,5 @@
 {% load i18n static %}
 <link rel="stylesheet" href="{% static 'css/leaflet-geoman.css' %}" />
-<script type="application/javascript" src="{% static 'js/leaflet-geoman.min.js' %}"></script>
 
 <div class="row">
     <div class="col">
@@ -26,6 +25,7 @@
 
 {% with id_map='id' bbox=bbox  %}
     {% include 'leaflet/leaflet-client.html' %}
+    <script type="application/javascript" src="{% static 'js/leaflet-geoman.min.js' %}"></script>
     <script type="text/javascript">
         // TODO: since initialization function is implemented, we can use fading and after fading of modal is finished, we can run the initialization function.
         // example

@@ -24,14 +24,14 @@
         var layerGeoJson = JSON.stringify(tmpLayer.toGeoJSON());
         layerGeoJson = JSON.stringify(JSON.parse(layerGeoJson).features[0]);
 
-        setSessionValue("polygon_" + layerId ,layerGeoJson);
+        setSessionValue("polygon_{{ operation }}_{{ group_id }}_" + layerId ,layerGeoJson);
 
         // create listener for each layer, that writes the edited polygon back into the session storage
         tmpLayer.on("pm:edit", function(e){
             layerId = e.target._leaflet_id;
             layerGeoJson = JSON.stringify(e.sourceTarget.toGeoJSON());
 
-            setSessionValue("polygon_" + layerId ,layerGeoJson);
+            setSessionValue("polygon_{{ operation }}_{{ group_id }}_" + layerId ,layerGeoJson);
         });
     {% endfor %}
 
@@ -41,13 +41,13 @@
         var layerId = e.layer._leaflet_id;
         var layerGeoJson = JSON.stringify(e.layer.toGeoJSON());
 
-        setSessionValue("polygon_" + layerId ,layerGeoJson);
+        setSessionValue("polygon_{{ operation }}_{{ group_id }}_" + layerId ,layerGeoJson);
 
         // create a listener which is triggered when the polygon is edited
         e.layer.on('pm:edit', e => {
             layerId = e.sourceTarget._leaflet_id;
             layerGeoJson = JSON.stringify(e.sourceTarget.toGeoJSON());
-            setSessionValue("polygon_" + layerId ,layerGeoJson);
+            setSessionValue("polygon_{{ operation }}_{{ group_id }}_" + layerId ,layerGeoJson);
         });
 
    });
@@ -70,7 +70,7 @@
             layer = e.layer;
         }
         layerId = layer._leaflet_id;
-        getSessionValue("polygon_" + layerId ,true);
+        getSessionValue("polygon_{{ operation }}_{{ group_id }}_" + layerId ,true);
    });
 
    $(".geometry-download").click(function(){
@@ -79,7 +79,7 @@
                 "type": "FeatureCollection",
                 "features": []
             };
-            vals = findSessionValuesLike("polygon_");
+            vals = findSessionValuesLike("polygon_{{ operation }}_{{ group_id }}_");
             for(val in vals){
                 data["features"].push(JSON.parse(vals[val]));
             }
@@ -127,13 +127,13 @@
                         // write layer directly back to session
                         layerId = layer._leaflet_id;
                         var layerGeoJson = JSON.stringify(layer.toGeoJSON());
-                        setSessionValue("polygon_" + layerId ,layerGeoJson);
+                        setSessionValue("polygon_{{ operation }}_{{ group_id }}_" + layerId ,layerGeoJson);
 
                         // create listener for each layer, that writes the edited polygon back into the session storage
                         layer.on("pm:edit", function(e){
                             layerId = e.target._leaflet_id;
                             layerGeoJson = JSON.stringify(e.sourceTarget.toGeoJSON());
-                            setSessionValue("polygon_" + layerId ,layerGeoJson);
+                            setSessionValue("polygon_{{ operation }}_{{ group_id }}_" + layerId ,layerGeoJson);
                         });
 
                     }
@@ -170,13 +170,13 @@
                         // write layer directly back to session
                         layerId = layer._leaflet_id;
                         var layerGeoJson = JSON.stringify(layer.toGeoJSON());
-                        setSessionValue("polygon_" + layerId ,layerGeoJson);
+                        setSessionValue("polygon_{{ operation }}_{{ group_id }}_" + layerId ,layerGeoJson);
 
                         // create listener for each layer, that writes the edited polygon back into the session storage
                         layer.on("pm:edit", function(e){
                             layerId = e.target._leaflet_id;
                             layerGeoJson = JSON.stringify(e.sourceTarget.toGeoJSON());
-                            setSessionValue("polygon_" + layerId ,layerGeoJson);
+                            setSessionValue("polygon_{{ operation }}_{{ group_id }}_" + layerId ,layerGeoJson);
                         });
                     }
 
@@ -187,9 +187,23 @@
 
         });
 
+        $("#id_dismiss_modal").click(function(event){
+            // directly unbind event listener to avoid conflicts with modal reloading
+            $(this).unbind();
+            $("#id_submit_modal").unbind();
+
+            $( "#id_modal_leaflet_modal").modal('hide')
+            $("#id_leaflet_client_div" ).html('');
+
+        });
+
         $("#id_submit_modal").click(function(event){
+            // directly unbind event listener to avoid conflicts with modal reloading
+            $(this).unbind();
+            $("#id_dismiss_modal").unbind();
+
             // get session stored polygon data
-            values = findSessionKeysLike("polygon_");
+            values = findSessionKeysLike("polygon_{{ operation }}_{{ group_id }}_");
 
             // write current polygons to session
             var polygons = [];
@@ -197,14 +211,14 @@
                 polygons.push(JSON.parse(getSessionValue(values[i], true)));
             }
 
-            // find element where the polygons will be stored
+            // Find element where the polygons will be stored
+            // Dear future dev, please do not think that the following line is stupid. We need to
             //var operationGroupPolygonElement = $("input[data-operation={{ operation }}][data-group={{ group_id }}]")
             var operationGroupPolygonElement = $("input[data-group={{ group_id }}]")
 
             // show 'listable' element, which indicates that polygons have been set
+            var statusElem = $(".access-status");
             if(polygons.length > 0){
-                operationGroupPolygonElement.siblings(".listable").show();
-
                 // set data to element
                 operationGroupPolygonElement.attr("data-polygons", JSON.stringify(polygons));
 
@@ -216,11 +230,11 @@
                     }
                 });
             }else{
-                operationGroupPolygonElement.removeAttr("data-polygons");
-                operationGroupPolygonElement.siblings(".listable").hide();
+                operationGroupPolygonElement.attr("data-polygons", "None");
             }
 
             $( "#id_modal_leaflet_modal").modal('hide')
+            $("#id_leaflet_client_div" ).html('');
 
         });
 </script>

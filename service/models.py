@@ -1619,15 +1619,14 @@ class Document(Resource):
             uri = None
 
             if is_secured and not legend_uri.startswith(ROOT_URL):
-                layer_identifier = dict(urllib.parse.parse_qsl(legend_uri)).get("layer", None)
                 parent_md = self.related_metadata
 
                 if not self.related_metadata.is_root():
                     parent_md = self.related_metadata.service.parent_service.metadata
 
                 style_id = Style.objects.get(
+                    legend_uri=legend_uri,
                     layer__parent_service__metadata=parent_md,
-                    layer__identifier=layer_identifier
                 ).id
                 uri = SERVICE_LEGEND_URI_TEMPLATE.format(self.related_metadata.id, style_id)
 

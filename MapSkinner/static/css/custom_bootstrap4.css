@@ -30,6 +30,11 @@
     background-color: var(--primary-color-light) !important;
 }
 
+.modal-lg {
+    max-width: 1200px;
+    width: 60vw;
+}
+
 
 /* Table
 --------------------------------------------------*/

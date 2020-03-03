@@ -3,6 +3,7 @@
 
 {% block body %}
 <div class="container-fluid px-5">
+    {% include 'sceletons/breadcrumb.html'%}
     {% if pt_table.rows %}
         <div id="id_pending_tasks_div">
             {% include 'includes/pending_tasks.html' %}

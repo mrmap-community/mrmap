@@ -278,7 +278,8 @@ $(document).ready(function(){
 
         $.ajax({
             // TODO: use url dispatcher....
-            url: rootUrl + "/editor/edit/access/" + serviceMetadataId + "/geometry-form/",
+            //url: rootUrl + "/editor/edit/access/" + serviceMetadataId + "/geometry-form/",
+            url : {% url 'access_geometry_form' serviceMetadataId %}
             headers: {
                 "X-CSRFToken": getCookie("csrftoken")
             },

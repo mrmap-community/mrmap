@@ -28,22 +28,9 @@ from editor.helper import editor_helper
 from editor.tables import *
 from editor.filters import *
 
-@check_session
-@check_permission(Permission(can_edit_metadata_service=True))
-def index(request: HttpRequest, user: User,):
-    """ The index view of the editor app.
 
-    Lists all services with information of custom set metadata.
-
-    Args:
-        request: The incoming request
-        user:
-    Returns:
-    """
+def _prepare_wms_table(request: HttpRequest, user: User,):
     # get all services that are registered by the user
-
-    template = "views/editor_service_table_index.html"
-
     wms_services = user.get_services_as_qs(OGCServiceEnum.WMS)
     wms_table_filtered = WmsServiceFilter(request.GET, queryset=wms_services)
     wms_table = WmsServiceTable(wms_table_filtered.qs,
@@ -57,10 +44,14 @@ def index(request: HttpRequest, user: User,):
     wms_table.paginate(page=request.GET.get(wms_table.pagination.get('page_name'), PAGE_DEFAULT),
                        per_page=request.GET.get(wms_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
+    return wms_table
+
+
+def _prepare_wfs_table(request: HttpRequest, user: User, ):
     wfs_services = user.get_services_as_qs(OGCServiceEnum.WFS)
     wfs_table_filtered = WfsServiceFilter(request.GET, queryset=wfs_services)
     wfs_table = WfsServiceTable(wfs_table_filtered.qs,
-                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, user=user,)
+                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, user=user, )
     wfs_table.filter = wfs_table_filtered
     RequestConfig(request).configure(wfs_table)
     # TODO: # since parameters could be changed directly in the uri, we need to make sure to avoid problems
@@ -70,9 +61,68 @@ def index(request: HttpRequest, user: User,):
     wfs_table.paginate(page=request.GET.get(wfs_table.pagination.get('page_name'), PAGE_DEFAULT),
                        per_page=request.GET.get(wfs_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
+    return wfs_table
+
+
+@check_session
+@check_permission(Permission(can_edit_metadata_service=True))
+def index(request: HttpRequest, user: User,):
+    """ The index view of the editor app.
+
+    Lists all services with information of custom set metadata.
+
+    Args:
+        request: The incoming request
+        user:
+    Returns:
+    """
+    template = "views/editor_service_table_index.html"
+
     params = {
-        "wms_table": wms_table,
-        "wfs_table": wfs_table,
+        "wms_table": _prepare_wms_table(request, user),
+        "wfs_table": _prepare_wfs_table(request, user),
+    }
+    context = DefaultContext(request, params, user)
+    return render(request, template, context.get_context())
+
+
+@check_session
+@check_permission(Permission(can_edit_metadata_service=True))
+def index_wms(request: HttpRequest, user: User,):
+    """ The index view of the editor app.
+
+    Lists all services with information of custom set metadata.
+
+    Args:
+        request: The incoming request
+        user:
+    Returns:
+    """
+    template = "views/editor_service_table_index_wms.html"
+
+    params = {
+        "wms_table": _prepare_wms_table(request, user),
+    }
+    context = DefaultContext(request, params, user)
+    return render(request, template, context.get_context())
+
+
+@check_session
+@check_permission(Permission(can_edit_metadata_service=True))
+def index_wfs(request: HttpRequest, user: User,):
+    """ The index view of the editor app.
+
+    Lists all services with information of custom set metadata.
+
+    Args:
+        request: The incoming request
+        user:
+    Returns:
+    """
+    template = "views/editor_service_table_index_wfs.html"
+
+    params = {
+        "wfs_table": _prepare_wfs_table(request, user),
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
@@ -249,11 +299,13 @@ def access_geometry_form(request: HttpRequest, id: int, user: User):
     md = Metadata.objects.get(id=id)
     if not md.is_root():
         messages.info(request, message=SECURITY_PROXY_WARNING_ONLY_FOR_ROOT)
-        return BackendAjaxResponse(html="", redirect="/editor/edit/access/{}".format(md.id)).get_response()
+        #return BackendAjaxResponse(html="", redirect="/editor/edit/access/{}".format(md.id)).get_response()
+        return BackendAjaxResponse(html="", redirect=reverse('edit_access',  args=(md.id,))).get_response()
     service_bounding_geometry = md.find_max_bounding_box()
 
     params = {
-        "action_url": "{}{}/editor/edit/access/{}/geometry-form/".format(HTTP_OR_SSL, HOST_NAME, md.id),
+        #"action_url": "{}{}/editor/edit/access/{}/geometry-form/".format(HTTP_OR_SSL, HOST_NAME, md.id),
+        "action_url": reverse('access_geometry_form', args=(md.id, )),
         "bbox": service_bounding_geometry,
         "group_id": group_id,
         "operation": operation,

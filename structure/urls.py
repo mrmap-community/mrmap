@@ -18,10 +18,10 @@ urlpatterns = [
     path('publish-request/<request_id>/accept/', accept_publish_request, name='accept-publish-request'),
 
     path('organizations/', organizations_index, name='organizations-index'),
-    path('organizations/<org_id>/detail/', detail_organizations, name='detail-organization'),
-    path('organizations/<org_id>/edit/', edit_org, name='edit-organization'),
-    path('organizations/<org_id>/delete/', remove_org, name='delete-organization'),
-    path('organizations/<org_id>/create-publish-request/', publish_request, name='publish-request'),
+    path('organizations/detail/<org_id>', detail_organizations, name='detail-organization'),
+    path('organizations/edit/<org_id>', edit_org, name='edit-organization'),
+    path('organizations/delete/<org_id>', remove_org, name='delete-organization'),
+    path('organizations/create-publish-request/<org_id>/', publish_request, name='publish-request'),
     path('organizations/<org_id>/remove-publisher/<group_id>/', remove_publisher, name='remove-publisher'),
     path('organizations/new/register-form/', new_org, name='new-organization'),
 

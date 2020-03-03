@@ -195,7 +195,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
     url_dict["version"] = service_helper.resolve_version_enum(url_dict["version"])
 
     register_group = Group.objects.get(id=register_group_id)
-    if utils.resolve_none_string(register_for_organization_id) is not None:
+    if utils.resolve_none_string(str(register_for_organization_id)) is not None:
         register_for_organization = Organization.objects.get(id=register_for_organization_id)
     else:
         register_for_organization = None

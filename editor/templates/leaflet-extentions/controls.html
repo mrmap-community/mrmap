@@ -211,9 +211,10 @@
                 polygons.push(JSON.parse(getSessionValue(values[i], true)));
             }
 
-            // find element where the polygons will be stored
-            var operationGroupPolygonElement = $("input[data-operation={{ operation }}][data-group={{ group_id }}]")
-            //var operationGroupPolygonElement = $("input[data-group={{ group_id }}]")
+            // Find element where the polygons will be stored
+            // Dear future dev, please do not think that the following line is stupid. We need to
+            //var operationGroupPolygonElement = $("input[data-operation={{ operation }}][data-group={{ group_id }}]")
+            var operationGroupPolygonElement = $("input[data-group={{ group_id }}]")
 
             // show 'listable' element, which indicates that polygons have been set
             var statusElem = $(".access-status");

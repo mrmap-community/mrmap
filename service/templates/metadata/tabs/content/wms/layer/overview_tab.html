@@ -30,6 +30,37 @@
         </td>
     </tr>
     {% endif %}
+    <tr>
+        <th scope="row">{% trans 'Name of the resource' %}</th>
+        <td>{{ name_of_the_resource }}</td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Preview' %}</th>
+        <td>
+            <div>
+                {% comment %} TODO: show "no preview" if no preview is available {% endcomment %}
+                <a itemprop="exampleOfWork" itemtype="https://schema.org/CreativeWork"
+                   href="{% url 'service:get-service-metadata-preview' md_id %}">
+                    <img itemprop="thumbnailUrl"
+                         src="{% url 'service:get-service-metadata-preview' md_id %}" alt="preview"
+                         class="img-thumbnail">
+                </a>
+            </div>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Organization' %}</th>
+        <td>
+            {% comment %} TODO: Mapbender presents here a logo {% endcomment %}
+            {{ contact.organization_name }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Abstract' %}</th>
+        <td itemprop="abstract">
+            {{ abstract }}
+        </td>
+    </tr>
     {% if children %}
     <tr>
         <th scope="row">{% trans 'Child Layers' %}</th>
@@ -50,36 +81,5 @@
         </td>
     </tr>
     {% endif%}
-    <tr>
-        <th scope="row">{% trans 'Name of the resource' %}</th>
-        <td>{{ name_of_the_resource }}</td>
-    </tr>
-    <tr>
-        <th scope="row">{% trans 'Preview' %}</th>
-        <td>
-            <div>
-                <!-- TODO: show "no preview" if no preview is available -->
-                <a itemprop="exampleOfWork" itemtype="https://schema.org/CreativeWork"
-                   href="{% url 'service:get-service-metadata-preview' md_id %}">
-                    <img itemprop="thumbnailUrl"
-                         src="{% url 'service:get-service-metadata-preview' md_id %}" alt="preview"
-                         class="img-thumbnail">
-                </a>
-            </div>
-        </td>
-    </tr>
-    <tr>
-        <th scope="row">{% trans 'Organization' %}</th>
-        <td>
-            <!-- TODO: Mapbender presents here a logo-->
-            {{ contact.organization_name }}
-        </td>
-    </tr>
-    <tr>
-        <th scope="row">{% trans 'Abstract' %}</th>
-        <td itemprop="abstract">
-            {{ abstract }}
-        </td>
-    </tr>
     </tbody>
 </table>

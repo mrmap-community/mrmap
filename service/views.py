@@ -685,14 +685,15 @@ def get_metadata_html(request: HttpRequest, id: int, ):
     md = Metadata.objects.get(id=id)
 
     # collect global data for all cases
-    params = {'md_id': md.id,
-              'title': md.title,
-              'abstract': md.abstract,
-              'access_constraints': md.access_constraints,
-              'capabilities_original_uri': md.capabilities_original_uri,
-              'capabilities_uri': reverse('service:metadata-proxy-operation', args=(md.id,)) + '?request=GetCapabilities',
-              'contact': collect_contact_data(md.contact)
-              }
+    params = {
+        'md_id': md.id,
+        'title': md.title,
+        'abstract': md.abstract,
+        'access_constraints': md.access_constraints,
+        'capabilities_original_uri': md.capabilities_original_uri,
+        'capabilities_uri': reverse('service:metadata-proxy-operation', args=(md.id,)) + '?request=GetCapabilities',
+        'contact': collect_contact_data(md.contact)
+    }
 
     params.update(collect_metadata_related_objects(md, request,))
 

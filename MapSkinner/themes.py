@@ -52,6 +52,7 @@ DARK_THEME = {
     'NAME': 'dark',
 
     'BACKGROUND': 'bg-secondary',
+    'BACKGROUND_IMG': 'bg-img dark-theme',
 
     'TXT_DEF_COLOR': 'text-white',
 
@@ -137,6 +138,7 @@ DARK_THEME = {
 LIGHT_THEME = {
     'NAME': 'light',
     'BACKGROUND': 'bg-light',
+    'BACKGROUND_IMG': 'bg-img',
 
     'TXT_DEF_COLOR': 'text-dark',
 

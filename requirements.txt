@@ -26,3 +26,4 @@ markdown
 django-filter
 Pillow
 cryptography
+django_celery_beat==1.6.0

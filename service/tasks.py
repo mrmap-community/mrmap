@@ -17,14 +17,13 @@ from MapSkinner import utils
 from MapSkinner.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
 from MapSkinner.utils import print_debug_mode
-from service.helper.enums import MetadataEnum, OGCServiceEnum, OGCOperationEnum
+from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
-    MetadataRelation, Document
+    MetadataRelation, ProxyLog
 from structure.models import User, Group, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
 from users.helper import user_helper
-from django.contrib import messages
 
 
 @shared_task(name="async_increase_hits")

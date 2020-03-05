@@ -1,10 +1,10 @@
-import urllib
 import uuid
 
 import os, io
 from collections import OrderedDict
 
-from PIL import Image, ImageStat
+import time
+from PIL import Image
 from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
@@ -13,14 +13,15 @@ from django.utils import timezone
 
 from MapSkinner.cacher import DocumentCacher
 from MapSkinner.messages import PARAMETER_ERROR
-from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, XML_NAMESPACES
+from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MapSkinner import utils
+from MapSkinner.utils import print_debug_mode
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.iso.service_metadata_builder import ServiceMetadataBuilder
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
-    SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_TRANSPARENT_PIXELS
+    SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY
 from structure.models import Group, Organization
 from service.helper import xml_helper
 
@@ -78,6 +79,7 @@ class ProxyLog(models.Model):
         """
         service_type = self.metadata.get_service_type()
 
+        start_time = time.time()
         if service_type == OGCServiceEnum.WFS.value:
             self._log_wfs_response(response)
         elif service_type == OGCServiceEnum.WMS.value:
@@ -85,6 +87,8 @@ class ProxyLog(models.Model):
         else:
             # For future implementation
             pass
+
+        print_debug_mode(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
 
     def _log_wfs_response(self, xml: str):
         """ Evaluate the wfs response.
@@ -108,25 +112,35 @@ class ProxyLog(models.Model):
         if isinstance(img, bytes):
             img = Image.open(io.BytesIO(img))
 
-        if COUNT_TRANSPARENT_PIXELS:
-            pixels = img.width * img.width
+        if COUNT_DATA_PIXELS_ONLY:
+            pixels = self._count_data_pixels_only(img)
         else:
-            pixels = self._count_non_alpha_pixels(img)
+            h = img.height
+            w = img.width
+            pixels = h * w
 
         # Calculation of megapixels, round up to 2 digits
         # megapixels = width*height / 1,000,000
         self.response_wms_megapixel = round(pixels / 1000000, 4)
+
         self.save()
 
+    def _count_data_pixels_only(self, img: Image):
+        """ Counts all pixels, besides the pure-alpha-pixels
 
-    def _count_non_alpha_pixels(self, img: Image):
-        pixels = 0
+        Args:
+            img (Image): The image
+        Returns:
+             pixels (int): Amount of non-alpha pixels
+        """
+        # Get alpha channel pixel values as list
+        all_pixel_vals = list(img.getdata(3))
 
-        for i in range(0, img.width):
-            for j in range(0, img.height):
-                p = img.getpixel((i,j))
-                if p[3] > 0:
-                    pixels += 1
+        # Count all alpha pixel (value == 0)
+        num_alpha_pixels = all_pixel_vals.count(0)
+
+        # Compute difference
+        pixels = len(all_pixel_vals) - num_alpha_pixels
 
         return pixels
 

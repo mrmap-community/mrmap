@@ -120,4 +120,4 @@ FONT_IMG_RATIO = 1/20  # Font to image ratio
 RENDER_TEXT_ON_IMG = False  # Whether to render 'Access denied for xy' on GetMap responses or not
 
 # PROXY LOG
-COUNT_TRANSPARENT_PIXELS = False  # If True, the image size will be calculated by simple width*height. Otherwise only non-alpha pixels will be counted (CAUTION: MORE CALCULATION!!!)
+COUNT_DATA_PIXELS_ONLY = True  # If True, the response megapixel will be computed without transparent (alpha) pixel.

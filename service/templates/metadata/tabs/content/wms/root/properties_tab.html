@@ -25,7 +25,7 @@
     <tr itemprop="spatialCoverage" itemscope itemtype="https://schema.org/Place">
         <th scope="row">{% trans 'Extend in geographic Coordinates' %}</th>
         <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
-            <!-- TODO: test the box that the google testtool will find ==> https://search.google.com/structured-data/testing-tool -->
+            {% comment %} TODO: test the box that the google testtool will find ==> https://search.google.com/structured-data/testing-tool  {% endcomment %}
             <p itemprop="box">{{layer.bbox_lat_lon.boundary.extent.0}}
                 {{layer.bbox_lat_lon.boundary.extent.1}}
                 {{layer.bbox_lat_lon.boundary.extent.2}}

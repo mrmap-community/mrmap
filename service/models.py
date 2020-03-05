@@ -1,9 +1,10 @@
 import urllib
 import uuid
 
-import os
+import os, io
 from collections import OrderedDict
 
+from PIL import Image, ImageStat
 from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
@@ -19,7 +20,7 @@ from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, Metadata
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.iso.service_metadata_builder import ServiceMetadataBuilder
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
-    SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE
+    SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_TRANSPARENT_PIXELS
 from structure.models import Group, Organization
 from service.helper import xml_helper
 
@@ -58,6 +59,76 @@ class ProxyLog(models.Model):
     uri = models.CharField(max_length=1000, null=True, blank=True)
     post_body = models.TextField(null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
+    response_wfs_num_features = models.IntegerField(null=True, blank=True)
+    response_wms_megapixel = models.FloatField(null=True, blank=True)
+
+    def __str__(self):
+        return str(self.id)
+
+    def log_response(self, response):
+        """ Evaluate the response.
+
+        In case of a WFS response, the number of returned features will be counted.
+        In case of a WMS response, the megapixel will be computed.
+
+        Args:
+            response: The response, could be xml or bytes
+        Returns:
+             nothing
+        """
+        service_type = self.metadata.get_service_type()
+
+        if service_type == OGCServiceEnum.WFS.value:
+            self._log_wfs_response(response)
+        elif service_type == OGCServiceEnum.WMS.value:
+            self._log_wms_response(response)
+        else:
+            # For future implementation
+            pass
+
+    def _log_wfs_response(self, xml: str):
+        """ Evaluate the wfs response.
+
+        Args:
+            xml: The response xml
+        Returns:
+             nothing
+        """
+        pass
+
+    def _log_wms_response(self, img):
+        """ Evaluate the wms response.
+
+        Args:
+            img: The response image (probably masked)
+        Returns:
+             nothing
+        """
+        # Catch case where image might be bytes
+        if isinstance(img, bytes):
+            img = Image.open(io.BytesIO(img))
+
+        if COUNT_TRANSPARENT_PIXELS:
+            pixels = img.width * img.width
+        else:
+            pixels = self._count_non_alpha_pixels(img)
+
+        # Calculation of megapixels, round up to 2 digits
+        # megapixels = width*height / 1,000,000
+        self.response_wms_megapixel = round(pixels / 1000000, 4)
+        self.save()
+
+
+    def _count_non_alpha_pixels(self, img: Image):
+        pixels = 0
+
+        for i in range(0, img.width):
+            for j in range(0, img.height):
+                p = img.getpixel((i,j))
+                if p[3] > 0:
+                    pixels += 1
+
+        return pixels
 
 
 class RequestOperation(models.Model):

@@ -48,9 +48,9 @@
     <tr>
         <th scope="row">{% trans 'Spatial extent' %}</th>
         <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
-            {% if layer.bbox_lat_lon.area > 0.0 %}
+            {% if featuretype.bbox_lat_lon.area > 0.0 %}
                 <div id="id_map" style="height: 50vh; min-height: 200px;"></div>
-                {% with id_map='id' bbox=layer.bbox_lat_lon leaflet_add_bbox=True  %}
+                {% with id_map='id' bbox=featuretype.bbox_lat_lon leaflet_add_bbox=True  %}
                     {% include 'leaflet/leaflet-client.html' %}
                 {% endwith %}
                 <script type="text/javascript">

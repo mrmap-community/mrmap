@@ -30,26 +30,6 @@
         </td>
     </tr>
     {% endif %}
-    {% if children %}
-    <tr>
-        <th scope="row">{% trans 'Child Layers' %}</th>
-        <td>
-                {% if layer_filter %}
-                    <form action="" method="get" class="form form-inline">
-                        <div class="row">
-                            <div class="form-group col-auto">
-                                {% bootstrap_form layer_filter.form layout='inline' %}
-                            </div>
-                            <div class="col-auto">
-                                <button type="submit" class="btn btn-primary">{% autoescape off %}{{THEME.ICONS.SEARCH}}{% endautoescape %} Search</button>
-                            </div>
-                        </div>
-                    </form>
-                {% endif %}
-                {% render_table children %}
-        </td>
-    </tr>
-    {% endif%}
     <tr>
         <th scope="row">{% trans 'Name of the resource' %}</th>
         <td>{{ name_of_the_resource }}</td>
@@ -81,5 +61,25 @@
             {{ abstract }}
         </td>
     </tr>
+    {% if children %}
+    <tr>
+        <th scope="row">{% trans 'Child Layers' %}</th>
+        <td>
+                {% if layer_filter %}
+                    <form action="" method="get" class="form form-inline">
+                        <div class="row">
+                            <div class="form-group col-auto">
+                                {% bootstrap_form layer_filter.form layout='inline' %}
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-primary">{% autoescape off %}{{THEME.ICONS.SEARCH}}{% endautoescape %} Search</button>
+                            </div>
+                        </div>
+                    </form>
+                {% endif %}
+                {% render_table children %}
+        </td>
+    </tr>
+    {% endif%}
     </tbody>
 </table>

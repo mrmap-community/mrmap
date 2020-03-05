@@ -18,14 +18,6 @@
         </td>
     </tr>
     <tr>
-        <th scope="row">{% trans 'Featuretypes' %}</th>
-        <td>
-            {% if featuretypes %}
-                {% render_table featuretypes %}
-            {% endif%}
-        </td>
-    </tr>
-    <tr>
         <th scope="row">{% trans 'Organization' %}</th>
         <td>
             <!-- TODO: Mapbender presents here a logo-->
@@ -36,6 +28,14 @@
         <th scope="row">{% trans 'Abstract' %}</th>
         <td itemprop="abstract">
             {{ abstract }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Featuretypes' %}</th>
+        <td>
+            {% if featuretypes %}
+                {% render_table featuretypes %}
+            {% endif%}
         </td>
     </tr>
     </tbody>

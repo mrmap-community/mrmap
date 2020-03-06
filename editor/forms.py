@@ -5,9 +5,8 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 09.07.19
 
 """
-from django.forms import ModelForm, CheckboxInput, CheckboxSelectMultiple
+from django.forms import ModelForm, TextInput
 from django.utils.translation import gettext_lazy as _
-from django import forms
 
 from service.models import Metadata
 
@@ -22,19 +21,12 @@ class MetadataEditorForm(ModelForm):
             "abstract",
             "access_constraints",
             "terms_of_use",
-            # "use_proxy_uri",
-            # "metadata_url",
-            # "keywords",
-            # "categories",
-            # "reference_system",
+            "keywords",
+            "categories",
         ]
-        # labels = {
-        #     "use_proxy_uri": _("Use proxy"),
-        # }
         widgets = {
-            "use_proxy_uri": CheckboxInput(),
-            "categories": CheckboxSelectMultiple(),
-            "keywords": CheckboxSelectMultiple(),
+            "categories": TextInput(),
+            "keywords": TextInput(),
         }
 
     def __init__(self, *args, **kwargs):
@@ -43,8 +35,9 @@ class MetadataEditorForm(ModelForm):
 
         # there's a `fields` property now
         self.fields['terms_of_use'].required = False
-        #self.fields['categories'].required = False
-        #self.fields['keywords'].required = False
+        if kwargs.get("instance", None) is not None:
+            self.initial["keywords"] = ",".join([k.keyword for k in self.instance.keywords.all()])
+
 
 
 class FeatureTypeEditorForm(ModelForm):

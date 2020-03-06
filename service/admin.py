@@ -89,7 +89,7 @@ class NamespaceAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'uri', 'version')
 
 class ProxyLogAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'user', 'timestamp')
+    list_display = ('id', 'metadata', 'user', 'timestamp', 'response_wms_megapixel', 'response_wfs_num_features')
 
 class ExternalAuthenticationAdmin(admin.ModelAdmin):
     list_display = ('id', 'metadata', 'auth_type')

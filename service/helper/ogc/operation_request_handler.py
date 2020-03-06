@@ -35,7 +35,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.request_builder import OGCRequestPOSTBuilder
-from service.models import Metadata, FeatureType, Layer, MimeType, Service
+from service.models import Metadata, FeatureType, Layer, ProxyLog
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
@@ -1207,12 +1207,14 @@ class OGCOperationRequestHandler:
         background.paste(mask, mask=mask)
         return background
 
-    def _create_masked_image(self, img: bytes, mask: bytes, as_bytes: bool = False):
+    def _create_masked_image(self, img: bytes, mask: bytes, as_bytes: bool = False, proxy_log: ProxyLog = None):
         """ Creates a masked image from two image byte object
 
         Args:
             img (byte): The bytes of the image
             mask (byte): The bytes of the mask
+            as_bytes (bool): Whether the image should be returned as Image object or as bytes
+            proxy_log (ProxyLog): The logging object
         Returns:
              img (Image): The masked image
         """
@@ -1244,6 +1246,9 @@ class OGCOperationRequestHandler:
         img_format = img.format
         img = Image.composite(alpha_layer, img, mask)
         img.format = img_format
+
+        if proxy_log is not None:
+            proxy_log.log_response(img)
 
         # add access_denied_img image (contains info about which layers are restricted for the requesting user)
         if self.access_denied_img is not None:
@@ -1366,12 +1371,13 @@ class OGCOperationRequestHandler:
             self.filter_param = _filter
             self.new_params_dict["FILTER"] = self.filter_param
 
-    def get_secured_operation_response(self, request: HttpRequest, metadata: Metadata):
+    def get_secured_operation_response(self, request: HttpRequest, metadata: Metadata, proxy_log: ProxyLog):
         """ Calls the operation of a service if it is secured.
 
         Args:
-            request (HttpRequest):
-            metadata (Metadata):
+            request (HttpRequest): The incoming request
+            metadata (Metadata): The metadata object
+            proxy_log (ProxyLog): The logging object
         Returns:
 
         """
@@ -1434,8 +1440,9 @@ class OGCOperationRequestHandler:
             img = response.get("response", "")
             img_format = response.get("response_type", "")
 
-            response["response"] = self._create_masked_image(img, mask, as_bytes=True)
+            response["response"] = self._create_masked_image(img, mask, as_bytes=True, proxy_log=proxy_log)
             response["response_type"] = img_format
+
 
         # WMS - 'Legend image'
         elif self.request_param.upper() == OGCOperationEnum.GET_LEGEND_GRAPHIC.value.upper():
@@ -1446,6 +1453,8 @@ class OGCOperationRequestHandler:
             self._bbox_to_filter()
             self._extend_filter_by_spatial_restriction(sec_ops)
             response = self.get_operation_response()
+            if proxy_log is not None:
+                proxy_log.log_response(response["response"])
 
         # WFS - 'DescribeFeatureType'
         elif self.request_param.upper() == OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value.upper():
@@ -1458,14 +1467,16 @@ class OGCOperationRequestHandler:
 
         return response
 
-    def get_operation_response(self, uri: str = None, post_data: dict = None, post_xml_body: str = None):
+    def get_operation_response(self, uri: str = None, post_data: dict = None, proxy_log:ProxyLog = None, post_xml_body: str = None):
         """ Performs the request.
 
         This may be called after the security checks have passed or otherwise if no security checks had to be done.
 
         Args:
             uri (str): The operation uri
+            proxy_log (ProxyLog): The logging object
             post_data(dict): A key-value dict of the POST data
+            post_xml_body (str): A post xml body
         Returns:
              The xml response
         """

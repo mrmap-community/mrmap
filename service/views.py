@@ -40,7 +40,7 @@ from service.helper.service_comparator import ServiceComparator
 from service.settings import DEFAULT_SRS_STRING
 from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable
 from service.tasks import async_increase_hits
-from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style
+from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style, ProxyLog
 from service.tasks import async_remove_service_task
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
@@ -441,11 +441,12 @@ def activate(request: HttpRequest, id: int, user: User):
 
 
 @log_proxy
-def get_service_metadata(request: HttpRequest, id: int):
+def get_service_metadata(request: HttpRequest, proxy_log: ProxyLog, id: int):
     """ Returns the service metadata xml file for a given metadata id
 
     Args:
         request (HttpRequest): The incoming request
+        proxy_log (ProxyLog): The logging object
         id (int): The metadata id
     Returns:
          A HttpResponse containing the xml file
@@ -523,11 +524,12 @@ def check_for_dataset_metadata(request: HttpRequest, id: int):
 
 @log_proxy
 # TODO: currently the preview is not pretty. Refactor this method to get a pretty preview img by consider the right scale of the layers
-def get_service_metadata_preview(request: HttpRequest, id: int):
+def get_service_metadata_preview(request: HttpRequest, proxy_log: ProxyLog, id: int):
     """ Returns the service metadata previe als png for a given metadata id
 
     Args:
         request (HttpRequest): The incoming request
+        proxy_log (ProxyLog): The logging object
         id (int): The metadata id
     Returns:
          A HttpResponse containing the png preview
@@ -670,10 +672,11 @@ def get_capabilities(request: HttpRequest, id: int):
 
 
 @log_proxy
-def get_metadata_html(request: HttpRequest, id: int, ):
+def get_metadata_html(request: HttpRequest, proxy_log: ProxyLog, id: int):
     """ Returns the metadata as html rendered view
         Args:
             request (HttpRequest): The incoming request
+            proxy_log (ProxyLog): The logging object
             id (int): The metadata id
         Returns:
              A HttpResponse containing the html formated metadata
@@ -735,11 +738,12 @@ def get_metadata_html(request: HttpRequest, id: int, ):
 
 
 @log_proxy
-def get_capabilities_original(request: HttpRequest, id: int):
+def get_capabilities_original(request: HttpRequest, proxy_log: ProxyLog, id: int):
     """ Returns the current capabilities xml file
 
     Args:
         request (HttpRequest): The incoming request
+        proxy_log (ProxyLog): The logging object
         id (int): The metadata id
     Returns:
          A HttpResponse containing the xml file
@@ -1164,7 +1168,7 @@ def metadata_proxy(request: HttpRequest, id: int):
 
 @csrf_exempt
 @log_proxy
-def get_operation_result(request: HttpRequest, id: int):
+def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
 
     Decides which operation will be handled by resolving a given 'request=' query parameter.
@@ -1173,6 +1177,7 @@ def get_operation_result(request: HttpRequest, id: int):
 
     Args:
         request (HttpRequest): The incoming request
+        proxy_log (ProxyLog): The logging object
         id (int): The metadata id
         user (User): The performing user
     Returns:
@@ -1216,9 +1221,9 @@ def get_operation_result(request: HttpRequest, id: int):
                 return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
 
         if md_secured:
-            response_dict = operation_handler.get_secured_operation_response(request, metadata)
+            response_dict = operation_handler.get_secured_operation_response(request, metadata, proxy_log=proxy_log)
         else:
-            response_dict = operation_handler.get_operation_response()
+            response_dict = operation_handler.get_operation_response(proxy_log=proxy_log)
 
         response = response_dict.get("response", None)
         content_type = response_dict.get("response_type", "")

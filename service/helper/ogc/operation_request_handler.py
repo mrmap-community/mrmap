@@ -1453,6 +1453,8 @@ class OGCOperationRequestHandler:
             self._bbox_to_filter()
             self._extend_filter_by_spatial_restriction(sec_ops)
             response = self.get_operation_response()
+            if proxy_log is not None:
+                proxy_log.log_response(response["response"])
 
         # WFS - 'DescribeFeatureType'
         elif self.request_param.upper() == OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value.upper():

@@ -98,7 +98,15 @@ class ProxyLog(models.Model):
         Returns:
              nothing
         """
-        pass
+        xml = xml_helper.parse_xml(xml)
+        root = xml.getroot()
+        feature_elems = xml_helper.try_get_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("featureMember"),
+            root
+        )
+        num_features = len(feature_elems)
+        self.response_wfs_num_features = num_features
+        self.save()
 
     def _log_wms_response(self, img):
         """ Evaluate the wms response.

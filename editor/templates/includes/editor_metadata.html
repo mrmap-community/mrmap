@@ -5,11 +5,6 @@
 {% load query_parameters %}
 {% load bootstrap4 %}
 
-{% block head %}
-
-<script type="text/javascript" src="{% static '/js/jquery-3.3.1.min.js' %}"></script>
-
-{% endblock %}
 
 {% block card-header-title-left %}
     <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata editor' %}</h4>

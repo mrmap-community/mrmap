@@ -1,10 +1,15 @@
-<!--wfs_index.html -->
 {% extends 'sceletons/card.html' %}
 {% load i18n static tz %}
 {% load django_tables2 %}
 {% load fontawesome_5 %}
 {% load query_parameters %}
 {% load bootstrap4 %}
+
+{% block head %}
+
+<script type="text/javascript" src="{% static '/js/jquery-3.3.1.min.js' %}"></script>
+
+{% endblock %}
 
 {% block card-header-title-left %}
     <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata editor' %}</h4>
@@ -47,13 +52,12 @@
            <div class="row">
                 <div class="col">
                     {% bootstrap_form form %}
+                    {% include 'includes/editor_metadata_autocompletes.html' %}
                 </div>
             </div>
             <div class="row">
                 <div class="col">
-                    <div class="float-right">
-                        <button type="submit" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}">{% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save'%}</button>
-                    </div>
+                    <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">{% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save'%}</button>
                 </div>
             </div>
        </form>

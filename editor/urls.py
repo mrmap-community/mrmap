@@ -7,11 +7,13 @@ Created on: 09.07.19
 """
 from django.urls import path
 
+from editor.autocompletes import KeywordAutocomplete
 from editor.views import *
 
 app_name = 'editor'
 urlpatterns = [
     path('', index, name='index'),
+    path('keyword-autocomplete/', KeywordAutocomplete.as_view(), name="keyword-autocomplete"),
     path('wms/', index_wms, name='wms-index'),
     path('wfs/', index_wfs, name='wfs-index'),
     path('metadata/<id>', edit, name='edit'),

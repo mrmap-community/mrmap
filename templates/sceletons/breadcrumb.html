@@ -10,7 +10,7 @@ Use this sceleton only on detail views. The two last items of the breadcrum are 
             {% if crumb.is_last or crumb.is_penultimate %}
                 {{crumb.item}}
             {% else %}
-                <a href="{% if request.is_secure %}HTTPS{% else %}HTTP{% endif %}://{{ request.META.HTTP_HOST }}/{{crumb.path}}">
+                <a href="{{ROOT_URL}}/{{crumb.path}}">
                     {{crumb.item}}
                 </a>
             {% endif %}

@@ -6,8 +6,10 @@ Created on: 09.03.20
 
 """
 from dal import autocomplete
+from django.http import HttpRequest
 
 from service.models import Keyword, Category
+from structure.models import Permission
 from users.helper.user_helper import get_user
 
 
@@ -33,6 +35,22 @@ class KeywordAutocomplete(autocomplete.Select2QuerySetView):
         records = records.filter(keyword__icontains=query)
 
         return records
+
+    def has_add_permission(self, request: HttpRequest):
+        """ Checks whether the user is allowed to add new keywords
+
+        Args:
+            request (HttpRequest): THe incoming request
+        Returns:
+            True|False
+        """
+        user = get_user(request)
+
+        perm = Permission(
+            can_edit_metadata_service=True
+        )
+        is_editor = user.has_permission(perm)
+        return user is not None and is_editor
 
 
 class CategoryAutocomplete(autocomplete.Select2QuerySetView):

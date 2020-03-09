@@ -30,7 +30,7 @@ class KeywordAutocomplete(autocomplete.Select2QuerySetView):
         if self.q:
             # There are filtering parameters!
             query = self.q
-        records = records.filter(keyword__istartswith=query)
+        records = records.filter(keyword__icontains=query)
 
         return records
 
@@ -55,6 +55,6 @@ class CategoryAutocomplete(autocomplete.Select2QuerySetView):
             # There are filtering parameters!
             query = self.q
         # ToDo: Find dynamic way to resolve user input language to correct variable
-        records = records.filter(title_locale_1__istartswith=query)
+        records = records.filter(title_locale_1__icontains=query)
 
         return records

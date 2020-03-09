@@ -4,4 +4,5 @@
 
 .select2-selection{
     min-height: 3em !important;
+    height: auto;
 }

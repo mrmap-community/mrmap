@@ -105,3 +105,6 @@ redis/
 
 # Sonar
 .scannerwork/
+
+# postgis
+postgis/postgresql_data/

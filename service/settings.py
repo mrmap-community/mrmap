@@ -118,3 +118,7 @@ MIN_FONT_SIZE = 14  # The minimum font size for text on images
 MAX_FONT_SIZE = 20  # The maximum font size for text on images
 FONT_IMG_RATIO = 1/20  # Font to image ratio
 RENDER_TEXT_ON_IMG = False  # Whether to render 'Access denied for xy' on GetMap responses or not
+PREVIEW_MIME_TYPE_DEFAULT = "png"   # Specify a preferred default mime type (without "image/..." prefix) for rendering preview images (e.g. HTML metadata view)
+
+# PROXY LOG
+COUNT_DATA_PIXELS_ONLY = True  # If True, the response megapixel will be computed without transparent (alpha) pixel.

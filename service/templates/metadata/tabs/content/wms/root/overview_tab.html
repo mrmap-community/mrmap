@@ -30,7 +30,7 @@
         <th scope="row">{% trans 'Preview' %}</th>
         <td>
             <div>
-                <!-- TODO: show "no preview" if no preview is available -->
+                {% comment %} TODO: show "no preview" if no preview is available {% endcomment %}
                 <a itemprop="exampleOfWork" itemtype="https://schema.org/CreativeWork"
                    href="{% url 'service:get-service-metadata-preview' md_id %}">
                     <img itemprop="thumbnailUrl"
@@ -43,7 +43,8 @@
     <tr>
         <th scope="row">{% trans 'Organization' %}</th>
         <td>
-            <!-- TODO: Mapbender presents here a logo-->
+            {% comment %} TODO: Mapbender presents here a logo {% endcomment %}
+            <!-- -->
             {{ contact.organization_name }}
         </td>
     </tr>

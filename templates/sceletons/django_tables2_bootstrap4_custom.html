@@ -5,7 +5,7 @@
 {% load bootstrap4 %}
 {% load query_parameters %}
 {% load django_tables2_extras %}
-<div class="row"><!--filter and pagesize-->
+<div class="row">
     {% if table.filter.form %}
     <div class="col-md-7 col-lg-9 col-xl-10"><!--filter-->
         <form action="" method="get" class="form form-inline">
@@ -25,7 +25,7 @@
     </div><!--</filter-->
     {% endif %}
     {% if table.pagination %}
-    <div class="col-md-5 col-lg-3 col-xl-2"><!--pagesize-->
+    <div class="col-md-5 col-lg-3 col-xl-2"><!--pagination-->
         {% if table.pagination.page_size %}
             <div class="dropdown d-inline-block">
                 {% trans 'Show' %}
@@ -35,21 +35,21 @@
                 {% trans 'entries' %}
                 <div class="dropdown-menu" aria-labelledby="wmsPagingButton">
                     {% for page_size in table.pagination.page_size_options %}
-                    <a class="dropdown-item" href="?{{table.pagination.page_size_param}}={{page_size}}">{{ page_size }}</a>
+                    <a class="dropdown-item" href="{% querystring table.pagination.page_size_param=page_size %}">{{ page_size }}</a>
                     {% endfor %}
                 </div>
             </div>
         {% endif %}
-    </div><!--</pagesize-->
+    </div><!--</pagination-->
     {% endif %}
 </div>
 <div class="mt-3">
-    <div class="row"><!--django-table2-->
+    <div class="row">
     <div class="col">
         <div class="overflow-auto">
         <div class="table-container">
             {% block table %}
-                <table class="table {{table.context.THEME.TABLE.STRIPED}} {{table.context.THEME.TABLE.BG}} {{table.context.THEME.TABLE.BORDER}} {{table.context.THEME.TABLE.BORDERED}}" {% render_attrs table.attrs %}>
+                <table class="table {{table.context.THEME.TABLE.HOVER}} {{table.context.THEME.TABLE.BG}} {{table.context.THEME.TABLE.BORDER}} {{table.context.THEME.TABLE.BORDERED}}" {% render_attrs table.attrs %}>
                     {% block table.thead %}
                     {% if table.show_header %}
                         <thead {{ table.attrs.thead.as_html }}>
@@ -159,6 +159,6 @@
         </div>
     </div>
     </div>
-</div><!--</django-table2-->
+</div>
 </div>
 {% endblock table-wrapper %}

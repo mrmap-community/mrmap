@@ -1,7 +1,8 @@
+import io
 import json
 from io import BytesIO
 
-
+from PIL import Image
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
@@ -15,7 +16,7 @@ from django_tables2 import RequestConfig
 from requests import ReadTimeout
 
 from MapSkinner import utils
-from MapSkinner.cacher import DocumentCacher
+from MapSkinner.cacher import DocumentCacher, PreviewImageCacher
 from MapSkinner.consts import *
 from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
@@ -33,14 +34,15 @@ from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, RemoveService
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
+from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
 
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
-from service.settings import DEFAULT_SRS_STRING
+from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT
 from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable
 from service.tasks import async_increase_hits
-from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style
+from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style, ProxyLog
 from service.tasks import async_remove_service_task
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
@@ -441,11 +443,12 @@ def activate(request: HttpRequest, id: int, user: User):
 
 
 @log_proxy
-def get_service_metadata(request: HttpRequest, id: int):
+def get_service_metadata(request: HttpRequest, proxy_log: ProxyLog, id: int):
     """ Returns the service metadata xml file for a given metadata id
 
     Args:
         request (HttpRequest): The incoming request
+        proxy_log (ProxyLog): The logging object
         id (int): The metadata id
     Returns:
          A HttpResponse containing the xml file
@@ -523,11 +526,12 @@ def check_for_dataset_metadata(request: HttpRequest, id: int):
 
 @log_proxy
 # TODO: currently the preview is not pretty. Refactor this method to get a pretty preview img by consider the right scale of the layers
-def get_service_metadata_preview(request: HttpRequest, id: int):
+def get_service_metadata_preview(request: HttpRequest, proxy_log: ProxyLog, id: int):
     """ Returns the service metadata previe als png for a given metadata id
 
     Args:
         request (HttpRequest): The incoming request
+        proxy_log (ProxyLog): The logging object
         id (int): The metadata id
     Returns:
          A HttpResponse containing the png preview
@@ -561,6 +565,7 @@ def get_service_metadata_preview(request: HttpRequest, id: int):
         "format": png_format.mime_type,
         "width": 200,
         "height": 200,
+        "service": "wms",
     }
 
     query_data = QueryDict('', mutable=True)
@@ -572,11 +577,24 @@ def get_service_metadata_preview(request: HttpRequest, id: int):
     request.method = 'POST'
     request.POST._mutable = False
 
-    operation_request_handler = OGCOperationRequestHandler(request=request, metadata=md)
-    img = operation_request_handler.get_operation_response(post_data=data)  # img is returned as a byte code
+    # Check if this parameters already have been generated a preview image for this metadata record
+    cacher = PreviewImageCacher(metadata=md)
+    img = cacher.get(data)
+
+    if img is None:
+        # There is no cached image, so we create one and cache it!
+        operation_request_handler = OGCOperationRequestHandler(request=request, metadata=md)
+        img = operation_request_handler.get_operation_response(post_data=data)  # img is returned as a byte code
+        cacher.set(data, img)
 
     response = img.get("response", None)
     content_type = img.get("response_type", "")
+
+    # Make sure the image is returned as PREVIEW_MIME_TYPE_DEFAULT filetype
+    image_obj = Image.open(io.BytesIO(response))
+    out_bytes_stream = io.BytesIO()
+    image_obj.save(out_bytes_stream, PREVIEW_MIME_TYPE_DEFAULT, optimize=True, quality=80)
+    response = out_bytes_stream.getvalue()
 
     return HttpResponse(response, content_type=content_type)
 
@@ -670,10 +688,11 @@ def get_capabilities(request: HttpRequest, id: int):
 
 
 @log_proxy
-def get_metadata_html(request: HttpRequest, id: int, ):
+def get_metadata_html(request: HttpRequest, proxy_log: ProxyLog, id: int):
     """ Returns the metadata as html rendered view
         Args:
             request (HttpRequest): The incoming request
+            proxy_log (ProxyLog): The logging object
             id (int): The metadata id
         Returns:
              A HttpResponse containing the html formated metadata
@@ -685,14 +704,15 @@ def get_metadata_html(request: HttpRequest, id: int, ):
     md = Metadata.objects.get(id=id)
 
     # collect global data for all cases
-    params = {'md_id': md.id,
-              'title': md.title,
-              'abstract': md.abstract,
-              'access_constraints': md.access_constraints,
-              'capabilities_original_uri': md.capabilities_original_uri,
-              'capabilities_uri': reverse('service:metadata-proxy-operation', args=(md.id,)) + '?request=GetCapabilities',
-              'contact': collect_contact_data(md.contact)
-              }
+    params = {
+        'md_id': md.id,
+        'title': md.title,
+        'abstract': md.abstract,
+        'access_constraints': md.access_constraints,
+        'capabilities_original_uri': md.capabilities_original_uri,
+        'capabilities_uri': reverse('service:metadata-proxy-operation', args=(md.id,)) + '?request=GetCapabilities',
+        'contact': collect_contact_data(md.contact)
+    }
 
     params.update(collect_metadata_related_objects(md, request,))
 
@@ -734,11 +754,12 @@ def get_metadata_html(request: HttpRequest, id: int, ):
 
 
 @log_proxy
-def get_capabilities_original(request: HttpRequest, id: int):
+def get_capabilities_original(request: HttpRequest, proxy_log: ProxyLog, id: int):
     """ Returns the current capabilities xml file
 
     Args:
         request (HttpRequest): The incoming request
+        proxy_log (ProxyLog): The logging object
         id (int): The metadata id
     Returns:
          A HttpResponse containing the xml file
@@ -1163,7 +1184,7 @@ def metadata_proxy(request: HttpRequest, id: int):
 
 @csrf_exempt
 @log_proxy
-def get_operation_result(request: HttpRequest, id: int):
+def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
 
     Decides which operation will be handled by resolving a given 'request=' query parameter.
@@ -1172,6 +1193,7 @@ def get_operation_result(request: HttpRequest, id: int):
 
     Args:
         request (HttpRequest): The incoming request
+        proxy_log (ProxyLog): The logging object
         id (int): The metadata id
         user (User): The performing user
     Returns:
@@ -1215,9 +1237,9 @@ def get_operation_result(request: HttpRequest, id: int):
                 return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
 
         if md_secured:
-            response_dict = operation_handler.get_secured_operation_response(request, metadata)
+            response_dict = operation_handler.get_secured_operation_response(request, metadata, proxy_log=proxy_log)
         else:
-            response_dict = operation_handler.get_operation_response()
+            response_dict = operation_handler.get_operation_response(proxy_log=proxy_log)
 
         response = response_dict.get("response", None)
         content_type = response_dict.get("response_type", "")

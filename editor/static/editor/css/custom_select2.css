@@ -1,0 +1,8 @@
+.select2-container{
+    width: 100% !important;
+}
+
+.select2-selection{
+    min-height: 3em !important;
+    height: auto;
+}

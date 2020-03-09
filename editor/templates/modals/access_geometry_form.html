@@ -1,5 +1,4 @@
 {% load i18n %}
-<!-- Modal -->
 {% load bootstrap4 %}
 <div class="modal fade" id="id_modal_{{id_modal}}" data-backdrop="static" tabindex="-1" role="dialog"
      aria-labelledby="id_modal_title_{{id_modal}}" aria-hidden="true">
@@ -7,24 +6,23 @@
         <div class="modal-content {{THEME.MODAL.BG_COLOR}} {{THEME.MODAL.TXT_COLOR}}">
             <div class="modal-header">
                 <h5 class="modal-title" id="id_modal_title_{{id_modal}}">
-                    {% trans 'Add a geometry, which defines the area where this group can access the operation on this service.' %}
+                    {% trans 'Draw the area where this group can access the operation on this service.' %}
                 </h5>
-            </div><!--</modal-header-->
+            </div>
             <div class="modal-body">
                 <div id="id_leaflet_client_div"></div>
 
-            </div><!--</modal-body-->
-            <div class="modal-footer">
-                <button type="submit" id="id_submit_modal" class="btn {{THEME.MODAL.BTN_PRIMARY_COLOR}} submit-button">
-                    {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} Save
-                </button>
-            </div><!--</modal-footer-->
+            </div>
+            <div class="modal-footer justify-content-between">
+                <div class="">
+                    <button type="submit" id="id_submit_modal" class="btn {{THEME.MODAL.BTN_PRIMARY_COLOR}} submit-button" onclick="submitGeometry()">
+                        {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
+                    </button>
+                </div>
+                <div class="">
+                    <button type="button" id="id_dismiss_modal" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" data-dismiss="modal">{% trans 'Cancel' %}</button>
+                </div>
+            </div>
         </div>
     </div>
-</div><!--</modal-->
-<script>
-    $('#id_modal_{{id_modal}}').on('hide.bs.modal', function (e) {
-        // remove session stored polygon data
-        removeSessionKeysLike("polygon_");
-    })
-</script>
+</div>

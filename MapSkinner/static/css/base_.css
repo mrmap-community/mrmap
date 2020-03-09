@@ -1,7 +1,11 @@
 @import "colour_schema.css";
 
-.background{
+.bg-img{
     background-image: url("/static/images/background.png");
+    background-repeat: repeat;
+}
+.bg-img.dark-theme{
+    background-image: url("/static/images/background-dark.png");
     background-repeat: repeat;
 }
 

@@ -37,7 +37,7 @@
     <tr>
         <th scope="row">{% trans 'Extend in geographic Coordinates' %}</th>
         <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
-            <!-- TODO: test the box that the google testtool will find ==> https://search.google.com/structured-data/testing-tool -->
+            {% comment %} TODO: test the box that the google testtool will find ==> https://search.google.com/structured-data/testing-tool  {% endcomment %}
             <p itemprop="box">{{dataset_metadata.extent_coords.0}}
                 {{dataset_metadata.extent_coords.1}}
                 {{dataset_metadata.extent_coords.2}}

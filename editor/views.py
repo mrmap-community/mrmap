@@ -195,9 +195,6 @@ def edit(request: HttpRequest, id: int, user: User):
         editor_form = MetadataEditorForm(instance=metadata)
         editor_form.action_url = reverse("editor:edit", args=(id,))
 
-        #if not metadata.is_root():
-            #del editor_form.fields["use_proxy_uri"]
-
         params = {
             "service_metadata": metadata,
             "form": editor_form,
@@ -297,14 +294,14 @@ def access_geometry_form(request: HttpRequest, id: int, user: User):
             polygons = [polygons]
 
     md = Metadata.objects.get(id=id)
+
     if not md.is_root():
         messages.info(request, message=SECURITY_PROXY_WARNING_ONLY_FOR_ROOT)
-        #return BackendAjaxResponse(html="", redirect="/editor/edit/access/{}".format(md.id)).get_response()
         return BackendAjaxResponse(html="", redirect=reverse('edit_access',  args=(md.id,))).get_response()
+
     service_bounding_geometry = md.find_max_bounding_box()
 
     params = {
-        #"action_url": "{}{}/editor/edit/access/{}/geometry-form/".format(HTTP_OR_SSL, HOST_NAME, md.id),
         "action_url": reverse('editor:access_geometry_form', args=(md.id, )),
         "bbox": service_bounding_geometry,
         "group_id": group_id,

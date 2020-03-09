@@ -109,6 +109,7 @@ def log_proxy(function):
             uri += "?" + request.environ.get("QUERY_STRING")
         post_body = json.dumps(post_body)
 
+        proxy_log = None
         if md.use_proxy_uri and md.log_proxy_access:
             proxy_log = ProxyLog(
                 metadata=md,
@@ -117,7 +118,7 @@ def log_proxy(function):
                 user=user_id
             )
             proxy_log.save()
-        return function(request=request, *args, **kwargs)
+        return function(request=request, proxy_log=proxy_log, *args, **kwargs)
 
     wrap.__doc__ = function.__doc__
     wrap.__name__ = function.__name__

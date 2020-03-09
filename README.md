@@ -51,7 +51,110 @@ The system provides the following functionalities:
 
 ## Install:
 
+We use mapserver to produce the masks for spatial restrictions, so we have to install apache2 and mapserv:
+
+### Install apache2 with mapserver
+`1.` Install the packages
+
+```shell
+apt-get install apache2 apache2-bin apache2-utils cgi-mapserver \
+                     mapserver-bin mapserver-doc libmapscript-perl\
+                     python-mapscript ruby-mapscript
+```
+
+`2.` Enable cgi and fastcgi
+
+```shell
+a2enmod cgi fcgid
+```
+
+`3.` on Apache2 configuration file (e.g. /etc/apache2/sites-available/000-default.conf) add the following lines:
+
+```shell
+         ScriptAlias /cgi-bin/ /usr/lib/cgi-bin/
+         <Directory "/usr/lib/cgi-bin/">
+                 AllowOverride All
+                 Options +ExecCGI -MultiViews +FollowSymLinks
+                 AddHandler fcgid-script .fcgi
+                 Require all granted
+         </Directory>
+```
+
+`4.` restart apache2 daemon
+
+```shell
+service apache2 restart
+```
+
+`5.` check mapserver install
+
+* typing from terminal:
+
+```shell
+mapserv -v 
+```
+
+* on the browser for cgi script http://localhost/cgi-bin/mapserv?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities that normally return the following message:
+
+```shell
+msCGILoadMap(): Web application error. CGI variable "map" is not set.
+```
+
+### Docker
 We use Docker to run postgis and redis, so make sure Docker is installed on your system.
+>
+Install note for Debian 9: 
+##### Install docker
+* add apt-key:
+>
+```shell
+curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
+```
+>
+```shell
+apt-key fingerprint 0EBFCD88
+```
+>
+* add apt-repo: 
+>
+```shell
+add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian \ 
+$(lsb_release -cs) \ 
+stable"
+```
+>
+* run update: 
+>
+```shell
+apt-get update
+```
+>
+* install docker: 
+>
+```shell
+apt-get install docker-ce docker-ce-cli containerd.io
+```
+>
+* test docker daemon: 
+>
+```shell
+docker run hello-world
+```
+>
+##### Proxy settings (Only if you got one in your environment)
+* add new file */etc/systemd/system/docker.service.d/http-proxy.conf* with following content:
+>
+```vim
+[Service]
+Environment="HTTP_PROXY=http://user:password@proxy:port"
+Environment="HTTPS_PROXY=http://user:password@proxy:port"
+```
+>
+##### Install docker-compose
+* Install docker-compose from pip to get the version >1.25 
+* add your user to the group *docker* to get the right permissions to access docker daemon: usermod -aG docker *username*
+>
+
 From within the project directory run
 
 ```shell

@@ -131,6 +131,7 @@ INSTALLED_APPS = [
     'fontawesome_5',
     'django_tables2',
     'query_parameters',
+    'django_nose'
 ]
 
 TEMPLATE_LOADERS = (
@@ -269,6 +270,16 @@ from api.settings import REST_FRAMEWORK
 # Tests
 if 'test' in sys.argv:
     CAPTCHA_TEST_MODE = True
+
+TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
+NOSE_ARGS = [
+    '--with-xunit',
+    '--xunit-file=nosetests.xml',
+    '--with-coverage',
+    '--cover-erase',
+    '--cover-xml',
+    '--cover-xml-file=nosecover.xml',
+]
 
 
 # Progress bar

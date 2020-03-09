@@ -90,9 +90,9 @@ msCGILoadMap(): Web application error. CGI variable "map" is not set.
 
 ### Docker
 We use Docker to run postgis and redis, so make sure Docker is installed on your system.
->>> 
+>
 Install note for Debian 9: 
- ##### Install docker
+##### Install docker
  * add apt-key: 
 ```shell
 curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
@@ -128,7 +128,7 @@ Environment="HTTPS_PROXY=http://user:password@proxy:port"
 ##### Install docker-compose
 * Install docker-compose from pip to get the version >1.25 
 * add your user to the group *docker* to get the right permissions to access docker daemon: usermod -aG docker *username*
->>>
+>
 From within the project directory run
 
 ```shell

@@ -565,6 +565,7 @@ def get_service_metadata_preview(request: HttpRequest, proxy_log: ProxyLog, id: 
         "format": png_format.mime_type,
         "width": 200,
         "height": 200,
+        "service": "wms",
     }
 
     query_data = QueryDict('', mutable=True)

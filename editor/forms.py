@@ -72,16 +72,21 @@ class MetadataEditorForm(ModelForm):
             "categories": _("Select categories for this resource."),
         }
         widgets = {
-            "categories": CheckboxSelectMultiple(
+            "categories": autocomplete.ModelSelect2Multiple(
+                url='editor:category-autocomplete',
                 attrs={
-                    "class": "",
-                }
+                    "data-containercss": {
+                        "height": "3em",
+                        "width": "3em",
+                    },
+                },
             ),
             'keywords': autocomplete.ModelSelect2Multiple(
                 url='editor:keyword-autocomplete',
                 attrs={
-                    "containerCss": {
-                        "height": "3em"
+                    "data-containerCss": {
+                        "height": "3em",
+                        "width": "3em",
                     }
                 },
             ),

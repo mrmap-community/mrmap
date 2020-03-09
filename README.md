@@ -93,38 +93,51 @@ We use Docker to run postgis and redis, so make sure Docker is installed on your
 >
 Install note for Debian 9: 
 ##### Install docker
- * add apt-key: 
+* add apt-key:
+
 ```shell
 curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
 ```
+
 ```shell
 apt-key fingerprint 0EBFCD88
 ```
+
 * add apt-repo: 
+
 ```shell
 add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian \ 
 $(lsb_release -cs) \ 
 stable"
 ```
+
 * run update: 
+
 ```shell
 apt-get update
 ```
+
 * install docker: 
+
 ```shell
 apt-get install docker-ce docker-ce-cli containerd.io
 ```
+
 * test docker daemon: 
+
 ```shell
 docker run hello-world
 ```
+
 ##### Proxy settings (Only if you got one in your environment)
 * add new file */etc/systemd/system/docker.service.d/http-proxy.conf* with following content:
+
 ```vim
 [Service]
 Environment="HTTP_PROXY=http://user:password@proxy:port"
 Environment="HTTPS_PROXY=http://user:password@proxy:port"
 ```
+
 ##### Install docker-compose
 * Install docker-compose from pip to get the version >1.25 
 * add your user to the group *docker* to get the right permissions to access docker daemon: usermod -aG docker *username*

@@ -88,6 +88,30 @@ def split_service_uri(uri):
     ret_dict["base_uri"] += "&".join(additional_params)
     return ret_dict
 
+def prepare_original_uri_stump(uri: str):
+    """ Prepares an original uri of a service to end on '?' or '&'.
+
+    Some uris already contain a '?' since they have a query, others do not.
+
+    Args:
+        uri (str: The original uri
+    Returns:
+        uri (str): The prepared original uri
+    """
+    uri_parsed = urllib.parse.urlparse(uri)
+    query = dict(urllib.parse.parse_qsl(uri_parsed.query))
+
+    additional_char = ""
+    if len(query) > 0:
+        additional_char = "&"
+    else:
+        additional_char = "?"
+
+    # Only add an additional_char if it isn't there already
+    if uri[-1] != additional_char:
+        uri += additional_char
+    return uri
+
 
 def resolve_keywords_array_string(keywords: str):
     """ Transforms the incoming keywords string into its single keywords and returns them in a list

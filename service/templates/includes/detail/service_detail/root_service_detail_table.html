@@ -51,9 +51,9 @@
                 <th scope="row">{% trans 'Access secured' %}</th>
                 <td>
                     {% if service_md.is_secured %}
-                    <i class='fas fa-check text-success'></i>
+                    <i class='fas fa-check text-success' aria-hidden="true"/>
                     {% else %}
-                    <i class='fas fa-times text-danger'></i>
+                    <i class='fas fa-times text-danger' aria-hidden="true"/>
                     {% endif %}
                 </td>
             </tr>

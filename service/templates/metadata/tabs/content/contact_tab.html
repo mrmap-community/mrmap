@@ -6,6 +6,7 @@
     </div>
     <div class="card-body">
         <table class="table">
+            <caption class="d-none">{% trans 'Responsible organization for publishing for ' %}{{title}}</caption>
             <tbody itemprop="provider publisher" itemscope
                    itemtype="https://schema.org/Organization">
 
@@ -41,6 +42,7 @@
     </div>
     <div class="card-body">
         <table class="table">
+            <caption class="d-none">{% trans 'Responsible organization for service for ' %}{{title}}</caption>
             <tbody itemprop="accountablePerson" itemscope itemtype="https://schema.org/Person">
             <tr>
                 <th scope="row">{% trans 'Organization' %}</th>

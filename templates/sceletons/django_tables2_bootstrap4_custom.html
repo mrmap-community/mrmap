@@ -55,7 +55,7 @@
                         <thead {{ table.attrs.thead.as_html }}>
                         <tr>
                         {% for column in table.columns %}
-                            <th {{ column.attrs.th.as_html }}>
+                            <th scope="col" {{ column.attrs.th.as_html }}>
                                 {% if column.orderable %}
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="">

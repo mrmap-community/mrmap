@@ -2,15 +2,15 @@
 {% load i18n %}
 {% block table %}
 <tr>
-    <th>{% trans 'Organization' %}</th>
+    <th scope="row">{% trans 'Organization' %}</th>
     <td>{{ group.organization }}</td>
 </tr>
 <tr>
-    <th>{% trans 'Description' %}</th>
+    <th scope="row">{% trans 'Description' %}</th>
     <td>{{ group.description }}</td>
 </tr>
 <tr>
-    <th>{% trans 'Members' %}</th>
+    <th scope="row">{% trans 'Members' %}</th>
     <td>
         {% for member in members %}
             {{ member.username }}<br>
@@ -18,11 +18,11 @@
     </td>
 </tr>
 <tr>
-    <th>{% trans 'Parent' %}</th>
+    <th scope="row">{% trans 'Parent' %}</th>
     <td>{{ group.parent }}</td>
 </tr>
 <tr>
-    <th>{% trans 'Permissions' %}</th>
+    <th scope="row">{% trans 'Permissions' %}</th>
     <td>
         {% for perm in group_permissions %}
             {{ perm }} <br>

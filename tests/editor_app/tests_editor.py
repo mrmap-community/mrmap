@@ -74,7 +74,8 @@ class EditorTestCase(TestCase):
         self.raw_data_wms = service.get("raw_data", None)
         self.service_wms = service.get("service", None)
 
-        service_helper.persist_service_model_instance(self.service_wms)
+        # persist service without external_auth
+        service_helper.persist_service_model_instance(self.service_wms, None)
         self.service_wms.persist_capabilities_doc(self.raw_data_wms.service_capabilities_xml)
 
     def _get_logged_in_client(self, user: User):

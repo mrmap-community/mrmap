@@ -190,13 +190,14 @@ def password_change(request: HttpRequest, user: User):
             user.password = make_password(password, user.salt)
             user.save()
             messages.add_message(request, messages.SUCCESS, PASSWORD_CHANGE_SUCCESS)
+
         else:
             return _return_account_view(request, user, {
                 "password_change_form": form,
                 "show_password_change_form": True
             })
-    else:
-        return redirect("account")
+
+    return redirect("account")
 
 
 @check_session
@@ -376,10 +377,8 @@ def register(request: HttpRequest):
                 messages.add_message(request, messages.SUCCESS, ACTIVATION_LINK_SENT)
                 return redirect("login")
         else:
-            params["not_valid"] = True
+            #params["not_valid"] = True
             params["form"] = form
-            for error_key, error_val in form.errors.items():
-                for e in error_val.data:
-                    messages.add_message(request, messages.ERROR, e.message)
+
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())

@@ -57,7 +57,9 @@
                 {% if service.servicetype.name == 'wms' %}
                     {% comment "we need to pass a unique id for accordion button" %}{% endcomment %}
                     {% with service_md.id as id_accordion %}
-                        {% include 'includes/wms/show_sublayer_accordion.html' %}
+                        {% with "accordion_sub_element" as id_accordion_combined %}
+                            {% include 'includes/wms/show_sublayer_accordion.html' %}
+                        {% endwith %}
                     {% endwith %}
                 {% elif service.servicetype.name == 'wfs' %}
                     {% with service.featuretypes.all as featuretypes %}

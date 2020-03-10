@@ -295,7 +295,7 @@ $(document).ready(function(){
             timeout: 10000,
             error: function(jqXHR, textStatus, errorThrown){
                 if(textStatus === "timeout"){
-                    alert("A timeout occured.");
+                    console.log("A timeout occured.");
                 }
             }
         })

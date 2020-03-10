@@ -5,6 +5,7 @@ from django.urls import reverse
 from service.models import Layer, FeatureType
 from MapSkinner.consts import *
 from MapSkinner.utils import get_theme, get_ok_nok_icon
+from django.utils.translation import gettext_lazy as _
 
 
 def _get_edit_button(url, user):
@@ -31,6 +32,8 @@ class ExtendedTable(tables.Table):
 
 
 class WmsServiceTable(ExtendedTable):
+    caption = _("Shows all WMS which are configured in your Mr. Map environment. You can Edit them if you want.")
+
     wms_title = tables.Column(accessor='title', verbose_name='Title', )
     wms_active = tables.Column(accessor='is_active', verbose_name='Active', )
     wms_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', )
@@ -88,6 +91,8 @@ class WmsServiceTable(ExtendedTable):
 
 
 class WfsServiceTable(ExtendedTable):
+    caption = _("Shows all WFS which are configured in your Mr. Map environment. You can Edit them if you want.")
+
     wfs_title = tables.Column(accessor='title', verbose_name='Title', )
     wfs_active = tables.Column(accessor='is_active', verbose_name='Active', )
     wfs_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', )

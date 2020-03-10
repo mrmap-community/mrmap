@@ -1069,9 +1069,11 @@ def detail(request: HttpRequest, id, user: User):
     """
     template = "views/detail.html"
     service_md = get_object_or_404(Metadata, id=id)
+    params = {}
 
     # catch featuretype
     if service_md.metadata_type.type == 'featuretype':
+        params.update({'caption': _("Shows informations about the featuretype which you are selected.")})
         if 'no-base' in request.GET:
             template = "views/featuretype_detail_no_base.html"
         else:
@@ -1079,12 +1081,13 @@ def detail(request: HttpRequest, id, user: User):
         service = service_md.featuretype
         layers_md_list = {}
     else:
-
         if service_md.service.is_root:
+            params.update({'caption': _("Shows informations about the service which you are selected.")})
             service = service_md.service
             layers = Layer.objects.filter(parent_service=service_md.service)
             layers_md_list = layers.filter(parent_layer=None)
         else:
+            params.update({'caption': _("Shows informations about the sublayer which you are selected.")})
             if 'no-base' in request.GET:
                 template = "views/sublayer_detail_no_base.html"
             else:
@@ -1123,7 +1126,7 @@ def detail(request: HttpRequest, id, user: User):
                                                  })
     remove_service_form.action_url = reverse('service:remove', args=[id])
 
-    params = {
+    params.update({
         "has_dataset_metadata": has_dataset_metadata,
         "service_md": service_md,
         "service": service,
@@ -1131,7 +1134,7 @@ def detail(request: HttpRequest, id, user: User):
         "mime_types": mime_types,
         "remove_service_form": remove_service_form,
         "leaflet_add_bbox": True,
-    }
+    })
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 

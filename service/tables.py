@@ -1,5 +1,4 @@
 import django_tables2 as tables
-from django.db.models import F
 from django.utils.html import format_html
 from django.urls import reverse
 import json
@@ -8,6 +7,7 @@ from celery.result import AsyncResult
 from MapSkinner.utils import get_theme, get_ok_nok_icon
 from MapSkinner.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
 from django.db.models import Count
+from django.utils.translation import gettext_lazy as _
 
 
 def _get_close_button(url, user):
@@ -72,8 +72,10 @@ class ServiceTable(tables.Table):
 
 
 class WmsServiceTable(ServiceTable):
+    caption = _("Shows all WMS which are configured in your Mr. Map environment.")
+
     attrs = {
-        "th":{
+        "th": {
             "class": "align-middle",
         }
     }
@@ -101,6 +103,8 @@ class WmsServiceTable(ServiceTable):
 class WmsLayerTable(ServiceTable):
     wms_parent_service = tables.Column(verbose_name='Parent service', empty_values=[], )
 
+    caption = _("Shows all WMS sublayers which are configured in your Mr. Map environment.")
+
     class Meta:
         sequence = ("wms_title", "wms_parent_service", "...")
         row_attrs = {
@@ -113,6 +117,8 @@ class WmsLayerTable(ServiceTable):
 
 
 class WfsServiceTable(tables.Table):
+    caption = _("Shows all WFS which are configured in your Mr. Map environment.")
+
     class Meta:
         row_attrs = {
             "class": "text-center"
@@ -182,6 +188,8 @@ class WfsServiceTable(tables.Table):
 
 
 class PendingTasksTable(tables.Table):
+    caption = _("Shows all currently running pending tasks.")
+
     pt_cancle = tables.Column(verbose_name=' ', empty_values=[], )
     pt_status = tables.Column(verbose_name='Status', empty_values=[], )
     pt_service = tables.Column(verbose_name='Service', empty_values=[], )
@@ -245,6 +253,8 @@ class ChildLayerTable(tables.Table):
     title = tables.Column(visible=False)
     child_layer_title = tables.Column(empty_values=[], order_by='title', )
 
+    caption = _("Shows all child layer of current WMS.")
+
     @staticmethod
     def render_child_layer_title(record):
         url = reverse('service:get-metadata-html', args=(record['id'],))
@@ -265,6 +275,8 @@ class FeatureTypeTable(tables.Table):
     title = tables.Column(visible=False)
     featuretype_title = tables.Column(empty_values=[], order_by='title', )
 
+    caption = _("Shows all featuretypes of current WFS.")
+
     @staticmethod
     def render_featuretype_title(record):
         url = reverse('service:get-metadata-html', args=(record['id'],))
@@ -278,6 +290,8 @@ class CoupledMetadataTable(tables.Table):
     id = tables.Column(visible=False)
     title = tables.Column(visible=False)
     coupled_metadata_title = tables.Column(empty_values=[], order_by='title', )
+
+    caption = _("Shows all coupled metadata of current service.")
 
     @staticmethod
     def render_coupled_metadata_title(record):

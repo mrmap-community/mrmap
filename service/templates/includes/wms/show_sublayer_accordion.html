@@ -8,8 +8,10 @@
 
     {% block accordion-body %}
         {% for layer in layers %}
-            {% with layer.id as id_accordion %}
-                {% include 'includes/wms/sublayer_accordion.html' %}
+            {% with layer.metadata.id as id_accordion %}
+                {% with "element" as id_accordion_combined %}
+                    {% include 'includes/wms/sublayer_accordion.html' %}
+                {% endwith %}
             {% endwith %}
         {% endfor %}
     {% endblock %}

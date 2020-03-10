@@ -836,8 +836,10 @@ class OGCOperationRequestHandler:
 
             property_elem = xml_helper.create_subelement(within_elem, "{}{}".format(_filter_prefix, prop_tag))
             property_elem.text = self.geom_property_name
-            polygon_elem = xml_helper.create_subelement(within_elem, "{}Polygon".format(gml),
-                                                        attrib={"srsName": self.srs_param})
+            polygon_elem = xml_helper.create_subelement(
+                within_elem, "{}Polygon".format(gml),
+                attrib={"srsName": self.srs_param}
+            )
             outer_bound_elem = xml_helper.create_subelement(polygon_elem, "{}{}".format(gml, outer_bound_tag))
             linear_ring_elem = xml_helper.create_subelement(outer_bound_elem, "{}LinearRing".format(gml))
             pos_list_elem = xml_helper.create_subelement(linear_ring_elem, "{}posList".format(gml))

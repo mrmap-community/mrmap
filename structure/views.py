@@ -669,7 +669,8 @@ def remove_group(request: HttpRequest, id: int, user: User):
             group.delete()
             messages.success(request, message='Group ' + group.name + ' successfully deleted.')
             return redirect(STRUCTURE_INDEX_GROUP)
-
+    else:
+        return edit_group(request=request, id=id)
 
 @check_session
 @check_permission(Permission(can_edit_group=True))
@@ -683,13 +684,13 @@ def edit_group(request: HttpRequest, user: User, id: int):
     Returns:
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
-    template = "form.html"
+
     group = Group.objects.get(id=id)
     if group.created_by != user:
         # TODO: this message should be presented in the form errors ==> see form.add_error()
         messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)
         return redirect("structure:detail-organization", group.id)
-    form = GroupForm(request.POST or None, instance=group)
+    form = GroupForm(request.POST, instance=group)
     if request.method == "POST":
         if form.is_valid():
             # save changes of group

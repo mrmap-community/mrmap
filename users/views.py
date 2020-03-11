@@ -373,7 +373,6 @@ def register(request: HttpRequest):
                 messages.add_message(request, messages.SUCCESS, ACTIVATION_LINK_SENT)
                 return redirect("login")
         else:
-            #params["not_valid"] = True
             params["form"] = form
 
     context = DefaultContext(request, params)

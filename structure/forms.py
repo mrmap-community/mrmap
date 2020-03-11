@@ -2,7 +2,7 @@ from captcha.fields import CaptchaField
 from django import forms
 from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
-from MapSkinner.validators import PASSWORD_VALIDATORS
+from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from structure.models import Group, Organization
 
 
@@ -75,7 +75,11 @@ class RemoveOrganizationForm(forms.Form):
 
 
 class RegistrationForm(forms.Form):
-    username = forms.CharField(max_length=255, label=_("Username"), label_suffix=" ", required=True)
+    username = forms.CharField(min_length=5, max_length=255,
+                               validators=USERNAME_VALIDATORS,
+                               label=_("Username"),
+                               label_suffix=" ",
+                               required=True)
     password = forms.CharField(min_length=9, max_length=255,
                                label=_("Password"),
                                label_suffix=" ",

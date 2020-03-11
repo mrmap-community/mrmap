@@ -1,90 +1,138 @@
 from django.test import TestCase
 
 from structure.forms import RegistrationForm
+from tests.test_data import get_password_data, get_contact_data, get_username_data
 
 
-class StructureFormsTestCase(TestCase):
+class RegistrationFormTestCase(TestCase):
+    """
+        TODO: document the test case
+    """
 
     def setUp(self):
-        # default user data to perform tests with it. Values are all valid
-        self.username = "NewUser"
-        self.password = "MyStrongPassword1!"
-        self.person_name = "New User"
-        self.firstname = "New"
-        self.lastname = "User"
-        self.email = "newuser@example.com"
-        self.address = "Teststreet 2"
-        self.postal_code = "442211"
-        self.city = "Testcity"
-        self.phone = "02463341"
-        self.facsimile = "01234566"
-        self.newsletter = True
-        self.survey = True
-        self.dsgvo = True
+        self.contact_data = get_contact_data()
 
-        self.params = {
-            "username": self.username,
-            "password": self.password,
-            "password_check": self.password,
-            "first_name": self.firstname,
-            "last_name": self.lastname,
-            "facsimile": self.facsimile,
-            "phone": self.phone,
-            "email": self.email,
-            "city": self.city,
-            "address": self.address,
-            "postal_code": self.postal_code,
-            "newsletter": self.newsletter,
-            "survey": self.survey,
-            "dsgvo": self.dsgvo,
-            "captcha_0": "dummy",
-            "captcha_1": "PASSED",
-        }
+    def test_valid_data(self):
+        form = RegistrationForm(data=self.contact_data)
 
-    def test_password_validation_of_registration_form(self):
+        is_valid = form.is_valid()
+
+        if not is_valid:
+            self.logger.error(form.errors.as_data())
+
+        self.assertTrue(is_valid, msg="Valid contact data should be accepted.")
+
+    def test_invalid_password(self):
         """ Tests our password policy
 
           Checks if the password policy is correctly configured on the form field
 
         """
-        # Password must have at least one lowercase letter
-        # Password must have at least one Uppercase letter
-        # Password must have at least one digit
-        # Password must have at least nine characters
-        # contains in following mismatching passwords:
-        password_without_upper = "mystrongpassword1"
-        password_without_lower = "MYSTRONGPASSWORD1"
-        password_without_digit = "MyStrongP"
-        password_at_most_8 = "MyStron1"
+        password_data = get_password_data()
 
         # case: Error behaviour for password without upper character, user will not be created
-        self.params.update({
-            'password': password_without_upper,
-            'password_check': password_without_upper
+        self.contact_data.update({
+            'password': password_data.get('invalid_without_upper'),
+            'password_check': password_data.get('invalid_without_upper'),
         })
-        form = RegistrationForm(data=self.params)
+        form = RegistrationForm(data=self.contact_data)
         self.assertFalse(form.is_valid(), msg="Password without upper character are accepted.")
 
         # case: Error behaviour for password without lower character, user will not be created
-        self.params.update({
-            'password': password_without_lower,
-            'password_check': password_without_lower
+        self.contact_data.update({
+            'password': password_data.get('invalid_without_lower'),
+            'password_check': password_data.get('invalid_without_lower'),
         })
-        form = RegistrationForm(data=self.params)
+        form = RegistrationForm(data=self.contact_data)
         self.assertFalse(form.is_valid(), msg="Password without lower character are accepted.")
 
         # case: Error behaviour for password without digit character, user will not be created
-        self.params.update({
-            'password': password_without_digit,
-            'password_check': password_without_digit
+        self.contact_data.update({
+            'password': password_data.get('invalid_without_digit'),
+            'password_check': password_data.get('invalid_without_digit'),
         })
-        form = RegistrationForm(data=self.params)
+        form = RegistrationForm(data=self.contact_data)
         self.assertFalse(form.is_valid(), msg="Password without digit character are accepted.")
 
         # case: Error behaviour for password with less as 9 character, user will not be created
-        self.params.update({
-            'password': password_at_most_8,
-            'password_check': password_at_most_8
+        self.contact_data.update({
+            'password': password_data.get('invalid_at_most_8'),
+            'password_check': password_data.get('invalid_at_most_8'),
         })
-        form = RegistrationForm(data=self.params)
+        form = RegistrationForm(data=self.contact_data)
         self.assertFalse(form.is_valid(), msg="Password with less as 9 character are accepted.")
+
+        # case: Error behaviour for password with more than 255 character, user will not be created
+        self.contact_data.update({
+            'password': password_data.get('invalid_more_than_255'),
+            'password_again': password_data.get('invalid_more_than_255'),
+        })
+        form = RegistrationForm(data=self.contact_data)
+        self.assertFalse(form.is_valid(), msg="Password with more than 255 character are accepted.")
+
+    def test_invalid_username(self):
+        username_data = get_username_data()
+
+        self.contact_data.update({
+            'username': username_data.get('invalid_has_special'),
+        })
+        form = RegistrationForm(data=self.contact_data)
+        self.assertFalse(form.is_valid(), msg="Username with special character are accepted.")
+
+        self.contact_data.update({
+            'username': username_data.get('invalid_has_non_printable'),
+        })
+        form = RegistrationForm(data=self.contact_data)
+        self.assertFalse(form.is_valid(), msg="Username with non printable character are accepted.")
+
+        self.contact_data.update({
+            'username': username_data.get('invalid_more_than_255'),
+        })
+        form = RegistrationForm(data=self.contact_data)
+        self.assertFalse(form.is_valid(), msg="Username with more than 255 character are accepted.")
+
+    def test_required_fields_are_not_empty(self):
+        # username
+        self.contact_data.pop('username')
+        form = RegistrationForm(data=self.contact_data)
+        self.assertFalse(form.is_valid(), msg="Username field was empty but the form is valid.")
+
+        # email
+        self.contact_data.pop('email')
+        form = RegistrationForm(data=self.contact_data)
+        self.assertFalse(form.is_valid(), msg="Email field was empty but the form is valid.")
+
+        # first_name
+        self.contact_data.pop('first_name')
+        form = RegistrationForm(data=self.contact_data)
+        self.assertFalse(form.is_valid(), msg="First name field was empty but the form is valid.")
+
+        # last_name
+        self.contact_data.pop('last_name')
+        form = RegistrationForm(data=self.contact_data)
+        self.assertFalse(form.is_valid(), msg="Last name field was empty but the form is valid.")
+
+        # password
+        self.contact_data.pop('password')
+        form = RegistrationForm(data=self.contact_data)
+        self.assertFalse(form.is_valid(), msg="Password field was empty but the form is valid.")
+
+        # password_check
+        self.contact_data.pop('password_check')
+        form = RegistrationForm(data=self.contact_data)
+        self.assertFalse(form.is_valid(), msg="Password check field was empty but the form is valid.")
+
+        # dsgvo
+        self.contact_data.pop('dsgvo')
+        form = RegistrationForm(data=self.contact_data)
+        self.assertFalse(form.is_valid(), msg="DSGVO field was set to false but the form is valid.")
+
+        # captcha
+        self.contact_data.pop('captcha_0')
+        self.contact_data.pop('captcha_1')
+        form = RegistrationForm(data=self.contact_data)
+        self.assertFalse(form.is_valid(), msg="captcha field was empty but the form is valid.")
+
+    def test_max_lengths(self):
+        # TODO
+        pass

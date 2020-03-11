@@ -18,7 +18,8 @@ class PasswordResetForm(forms.Form):
 
 
 class PasswordChangeForm(forms.Form):
-    password = forms.CharField(max_length=255,
+    password = forms.CharField(min_length=9,
+                               max_length=255,
                                label=_("Password"),
                                label_suffix=" ",
                                widget=forms.PasswordInput,
@@ -37,8 +38,10 @@ class PasswordChangeForm(forms.Form):
 
 
 class UserForm(forms.ModelForm):
-    username = forms.CharField(validators=USERNAME_VALIDATORS)
-    theme = forms.ModelChoiceField(queryset=Theme.objects.all(), to_field_name='name', empty_label=None,)
+    username = forms.CharField(min_length=5,
+                               max_length=255,
+                               validators=USERNAME_VALIDATORS)
+    theme = forms.ModelChoiceField(queryset=Theme.objects.all(), to_field_name='name', empty_label=None, required=False)
 
     class Meta:
         model = User

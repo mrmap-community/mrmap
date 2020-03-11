@@ -19,7 +19,6 @@ class PasswordChangeFormTestCase(TestCase):
     def setUp(self):
         self.params = {}
 
-
     def test_valid_password(self):
         password_data = get_password_data()
 

@@ -13,7 +13,7 @@ from django.contrib import messages
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -37,14 +37,12 @@ from django.urls import reverse
 
 def _return_account_view(request: HttpRequest, user: User, params):
     template = "views/account.html"
-    render_params = {}
-    if params is None:
-        render_params = _prepare_account_view_params(user)
-    else:
+    render_params = _prepare_account_view_params(user)
+    if params:
         render_params.update(params)
 
     context = DefaultContext(request, render_params, user)
-    return render(request, template, context.get_context())
+    return render(request=request, template_name=template, context=context.get_context())
 
 
 def _prepare_account_view_params(user: User):
@@ -161,16 +159,17 @@ def home_view(request: HttpRequest, user: User):
 
 
 @check_session
-def account(request: HttpRequest, user: User):
+def account(request: HttpRequest, user: User, params={}):
     """ Renders an overview of the user's account information
 
     Args:
+        params:
         request (HttpRequest): The incoming request
         user (User): The user
     Returns:
          A rendered view
     """
-    return _return_account_view(request, user, None)
+    return _return_account_view(request, user, params)
 
 
 @check_session
@@ -190,14 +189,11 @@ def password_change(request: HttpRequest, user: User):
             user.password = make_password(password, user.salt)
             user.save()
             messages.add_message(request, messages.SUCCESS, PASSWORD_CHANGE_SUCCESS)
-
         else:
-            return _return_account_view(request, user, {
-                "password_change_form": form,
-                "show_password_change_form": True
-            })
+            return account(request=request, params={'password_change_form': form,
+                                                    'show_password_change_form': True})
 
-    return redirect("account")
+    return redirect(reverse("account"))
 
 
 @check_session

@@ -718,7 +718,7 @@ def handler404(request: HttpRequest, exception=None):
 
     }
     context = DefaultContext(request, params)
-    response = render("404.html", context=context.get_context())
+    response = render(request=request, template_name="404.html", context=context.get_context())
     response.status_code = 404
     return response
 
@@ -736,6 +736,6 @@ def handler500(request: HttpRequest, exception=None):
 
     }
     context = DefaultContext(request, params)
-    response = render("500.html", context=context.get_context())
+    response = render(request=request, template_name="500.html", context=context.get_context())
     response.status_code = 500
     return response

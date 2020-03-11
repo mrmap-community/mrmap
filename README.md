@@ -59,7 +59,7 @@ We use mapserver to produce the masks for spatial restrictions, so we have to in
 ```shell
 apt-get install apache2 apache2-bin apache2-utils cgi-mapserver \
                      mapserver-bin mapserver-doc libmapscript-perl\
-                     python-mapscript ruby-mapscript
+                     python-mapscript ruby-mapscript libcurl4-openssl-dev libssl-dev
 ```
 
 `2.` Enable cgi and fastcgi

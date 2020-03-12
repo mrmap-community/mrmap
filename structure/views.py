@@ -296,6 +296,7 @@ def detail_organizations(request:HttpRequest, org_id: int, user:User):
         "edit_organization_form": edit_form,
         "delete_organization_form": delete_form,
         "publisher_form": publisher_form,
+        'caption': _("Shows informations about the organization which you are selected."),
     }
 
     context = DefaultContext(request, params, user)
@@ -569,6 +570,7 @@ def detail_group(request: HttpRequest, id: int, user: User):
         "edit_group_form": edit_form,
         "delete_group_form": delete_form,
         "all_publisher_table": all_publisher_table,
+        'caption': _("Shows informations about the group which you are selected."),
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
@@ -667,7 +669,8 @@ def remove_group(request: HttpRequest, id: int, user: User):
             group.delete()
             messages.success(request, message='Group ' + group.name + ' successfully deleted.')
             return redirect(STRUCTURE_INDEX_GROUP)
-
+    else:
+        return edit_group(request=request, id=id)
 
 @check_session
 @check_permission(Permission(can_edit_group=True))
@@ -681,13 +684,13 @@ def edit_group(request: HttpRequest, user: User, id: int):
     Returns:
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
-    template = "form.html"
+
     group = Group.objects.get(id=id)
     if group.created_by != user:
         # TODO: this message should be presented in the form errors ==> see form.add_error()
         messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)
         return redirect("structure:detail-organization", group.id)
-    form = GroupForm(request.POST or None, instance=group)
+    form = GroupForm(request.POST, instance=group)
     if request.method == "POST":
         if form.is_valid():
             # save changes of group
@@ -716,7 +719,7 @@ def handler404(request: HttpRequest, exception=None):
 
     }
     context = DefaultContext(request, params)
-    response = render("404.html", context=context.get_context())
+    response = render(request=request, template_name="404.html", context=context.get_context())
     response.status_code = 404
     return response
 
@@ -734,6 +737,6 @@ def handler500(request: HttpRequest, exception=None):
 
     }
     context = DefaultContext(request, params)
-    response = render("500.html", context=context.get_context())
+    response = render(request=request, template_name="500.html", context=context.get_context())
     response.status_code = 500
     return response

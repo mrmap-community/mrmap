@@ -3,6 +3,7 @@
 {% load django_tables2 %}
 {% load render_table from django_tables2 %}
 <table class="table">
+    <caption class="d-none">{% trans 'Properties of the featuretype for ' %}{{ title }}</caption>
     <tbody>
     <tr>
         <th scope="row">{% trans 'is searchable' %}</th>

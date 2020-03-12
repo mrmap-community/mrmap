@@ -3,9 +3,10 @@
 {% load django_tables2 %}
 {% load render_table from django_tables2 %}
 <table class="table">
+    <caption class="d-none">{% trans 'Properties of the layer for ' %}{{ title }}</caption>
     <tbody>
     <tr>
-        <th>{% trans 'Is available' %}</th>
+        <th scope="row">{% trans 'Is available' %}</th>
         <td>
             {% if layer.is_available %}
                 <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
@@ -15,7 +16,7 @@
         </td>
     </tr>
     <tr>
-        <th>{% trans 'Is opaque' %}</th>
+        <th scope="row">{% trans 'Is opaque' %}</th>
         <td>
             {% if layer.is_opaque %}
                 <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
@@ -25,7 +26,7 @@
         </td>
     </tr>
     <tr>
-        <th>{% trans 'Is cascaded' %}</th>
+        <th scope="row">{% trans 'Is cascaded' %}</th>
         <td>
             {% if layer.is_cascaded %}
                 <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
@@ -35,7 +36,7 @@
         </td>
     </tr>
     <tr>
-        <th>{% trans 'Access secured' %}</th>
+        <th scope="row">{% trans 'Access secured' %}</th>
         <td>
             {% if layer.metadata.is_secured %}
                 <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>

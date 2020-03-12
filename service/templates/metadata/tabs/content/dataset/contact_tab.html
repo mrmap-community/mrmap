@@ -6,6 +6,7 @@
     </div>
     <div class="card-body">
         <table class="table">
+            <caption class="d-none">{% trans 'Data/Service provider of the dataset for ' %}{{ title }}</caption>
             <tbody itemprop="provider publisher" itemscope
                    itemtype="https://schema.org/Organization">
             <tr>
@@ -13,7 +14,7 @@
                 <td itemprop="legalName">{{ contact.organization_name }}</td>
             </tr>
             <tr>
-                <th>{% trans 'Email' %}</th>
+                <th scope="row">{% trans 'Email' %}</th>
                 <td itemprop="email">{{ contact.email }}</td>
             </tr>
             <tr itemprop="address" itemscope itemtype="https://schema.org/PostalAddress">
@@ -37,6 +38,7 @@
     </div>
     <div class="card-body">
         <table class="table">
+            <caption class="d-none">{% trans 'Metadata provider of the dataset for ' %}{{ title }}</caption>
             <tbody>
             <tr>
                 <th scope="row">{% trans 'Metadata point of contact name' %}</th>

@@ -42,7 +42,6 @@ class CryptoHandler:
         Returns:
              nothing
         """
-        self.crypt_message = self.crypt_message
         cipher_suite = Fernet(self.key)
         self.message = cipher_suite.decrypt(self.crypt_message)
         if isinstance(self.message, bytes):

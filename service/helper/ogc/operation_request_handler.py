@@ -1232,9 +1232,6 @@ class OGCOperationRequestHandler:
             else:
                 if isinstance(mask, bytes):
                     mask = Image.open(io.BytesIO(mask))
-                elif isinstance(mask, Image.Image):
-                    # This is not useful but improves the understanding
-                    mask = mask
                 else:
                     # Not supported!
                     raise OSError

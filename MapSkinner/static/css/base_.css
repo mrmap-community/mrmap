@@ -1,5 +1,7 @@
 @import "colour_schema.css";
 
+/* background image classes
+-------------------------------------------------- */
 .bg-img{
     background-image: url("/static/images/background.png");
     background-repeat: repeat;
@@ -9,6 +11,8 @@
     background-repeat: repeat;
 }
 
+/* easter egg
+-------------------------------------------------- */
 #overlay{
     z-index: 10;
     opacity: 0;
@@ -40,22 +44,11 @@
     animation: animate-rotate 4.5s infinite;
 }
 
-.message{
-    position: absolute;
-    z-index: 3;
-    width: 100vw;
-}
-.message:hover{
-    cursor: default;
-    opacity: 0.75;
-}
-
 /* Sticky footer styles
 -------------------------------------------------- */
 #body-content {
   margin-bottom: 6rem; /* Margin bottom by footer height */
 }
-
 
 /* Accordion collapse icon customization
 -------------------------------------------------- */

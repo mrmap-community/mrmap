@@ -198,6 +198,7 @@ def persist_service_model_instance(service: Service, external_auth: ExternalAuth
     """ Persists the service model instance
 
     Args:
+        external_auth: The external authentication instance
         service: The service model instance
     Returns:
          Nothing

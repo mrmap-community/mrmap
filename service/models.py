@@ -718,12 +718,11 @@ class Metadata(Resource):
         """
         return self.metadata_type.type == 'service'
 
-    def _restore_layer_md(self, service, identifier: str = None):
+    def _restore_layer_md(self, service,):
         """ Private function for retrieving single layer metadata
 
         Args:
             service (OGCWebMapService): An empty OGCWebMapService object to load and parse the metadata
-            identifier (str): The identifier string of the layer
         Returns:
              nothing, it changes the Metadata object itself
         """
@@ -754,12 +753,11 @@ class Metadata(Resource):
         cap_doc.restore_subelement(identifier)
         return
 
-    def _restore_feature_type_md(self, service, identifier: str = None, external_auth: ExternalAuthentication = None):
+    def _restore_feature_type_md(self, service, external_auth: ExternalAuthentication = None):
         """ Private function for retrieving single featuretype metadata
 
         Args:
             service (OGCWebMapService): An empty OGCWebMapService object to load and parse the metadata
-            identifier (str): The identifier string of the layer
         Returns:
              nothing, it changes the Metadata object itself
         """
@@ -791,7 +789,7 @@ class Metadata(Resource):
         cap_doc.restore_subelement(identifier)
         return
 
-    def _restore_wms(self, identifier: str = None, external_auth: ExternalAuthentication = None):
+    def _restore_wms(self, external_auth: ExternalAuthentication = None):
         """ Restore the metadata of a wms service
 
         Args;
@@ -810,7 +808,7 @@ class Metadata(Resource):
 
         # check if whole service shall be restored or single layer
         if not self.is_root():
-            return self._restore_layer_md(service, identifier)
+            return self._restore_layer_md(service)
 
         self.title = service.service_identification_title
         self.abstract = service.service_identification_abstract
@@ -856,7 +854,7 @@ class Metadata(Resource):
         service_tmp.create_from_capabilities(metadata_only=True)
         # check if whole service shall be restored or single layer
         if not self.is_root():
-            return self._restore_feature_type_md(service_tmp, identifier, external_auth=external_auth)
+            return self._restore_feature_type_md(service_tmp, external_auth=external_auth)
 
         self.title = service_tmp.service_identification_title
         self.abstract = service_tmp.service_identification_abstract
@@ -889,7 +887,7 @@ class Metadata(Resource):
         if service_type == OGCServiceEnum.WFS.value:
             self._restore_wfs(identifier, external_auth=external_auth)
         elif service_type == OGCServiceEnum.WMS.value:
-            self._restore_wms(identifier, external_auth=external_auth)
+            self._restore_wms(external_auth=external_auth)
 
         # Subelements like layers or featuretypes might have own capabilities documents. Delete them on restore!
         self.clear_cached_documents()

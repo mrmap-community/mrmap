@@ -4,6 +4,8 @@ from django.utils.html import format_html
 from django.urls import reverse
 from MapSkinner.utils import get_theme, get_ok_nok_icon
 from MapSkinner.consts import URL_PATTERN
+from django.utils.translation import gettext_lazy as _
+
 
 class PublisherTable(tables.Table):
     class Meta:
@@ -128,10 +130,13 @@ class PublisherRequestTable(tables.Table):
         url = reverse('structure:detail-organization', args=(record.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
+
 class GroupTable(tables.Table):
     groups_name = tables.Column(accessor='name', verbose_name='Name', )
     groups_description = tables.Column(accessor='description', verbose_name='Description', )
     groups_organization = tables.Column(accessor='organization', verbose_name='Organization', )
+
+    caption = _("Shows all groups which are configured in your Mr. Map environment.")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
@@ -151,6 +156,8 @@ class OrganizationTable(tables.Table):
     orgs_description = tables.Column(accessor='description', verbose_name='Description', )
     orgs_is_auto_generated = tables.Column(accessor='is_auto_generated', verbose_name='Real organization', )
     orgs_parent = tables.Column(accessor='parent', verbose_name='Parent',)
+
+    caption = _("Shows all organizations which are configured in your Mr. Map environment.")
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')

@@ -4,7 +4,7 @@ from django.contrib.auth.hashers import make_password
 from django.test import TestCase, Client
 from django.utils import timezone
 
-from MapSkinner.settings import HOST_NAME, HTTP_OR_SSL
+from MapSkinner.settings import HOST_NAME, HTTP_OR_SSL, ROOT_URL
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
 from service.helper import service_helper
 from structure.models import Permission, Role, User, Group
@@ -74,7 +74,8 @@ class EditorTestCase(TestCase):
         self.raw_data_wms = service.get("raw_data", None)
         self.service_wms = service.get("service", None)
 
-        service_helper.persist_service_model_instance(self.service_wms)
+        # persist service without external_auth
+        service_helper.persist_service_model_instance(self.service_wms, None)
         self.service_wms.persist_capabilities_doc(self.raw_data_wms.service_capabilities_xml)
 
     def _get_logged_in_client(self, user: User):
@@ -91,7 +92,7 @@ class EditorTestCase(TestCase):
         self.assertEqual(user.logged_in, False, msg="User already logged in")
         response = client.post("/", data={"username": user.username, "password": self.pw})
         user.refresh_from_db()
-        self.assertEqual(response.url, "/home", msg="Redirect wrong")
+        self.assertEqual(response.url, ROOT_URL + "/home", msg="Redirect wrong")
         self.assertEqual(user.logged_in, True, msg="User not logged in")
         return client
 

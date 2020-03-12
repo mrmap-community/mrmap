@@ -4,37 +4,37 @@
     <div class="col">
         {% block table %}
             <tr>
-                <th>{% trans 'Uuid' %}</th>
+                <th scope="row">{% trans 'Uuid' %}</th>
                 <td>{{ service_md.uuid }}</td>
             </tr>
             <tr>
-                <th>{% trans 'Service type' %}</th>
+                <th scope="row">{% trans 'Service type' %}</th>
                 <td>{{ service.servicetype }}</td>
             </tr>
             <tr>
-                <th>{% trans 'Service type version' %}</th>
+                <th scope="row">{% trans 'Service type version' %}</th>
                 <td>{{ service.servicetype.version }}</td>
             </tr>
             <tr>
-                <th>{% trans 'Last update on' %}</th>
+                <th scope="row">{% trans 'Last update on' %}</th>
                 <td>{{ service.metadata.last_modified }}</td>
             </tr>
             <tr>
-                <th>{% trans 'Hits' %}</th>
+                <th scope="row">{% trans 'Hits' %}</th>
                 <td>{{ service.metadata.hits }}</td>
             </tr>
             <tr>
-                <th>{% trans 'Abstract' %}</th>
+                <th scope="row">{% trans 'Abstract' %}</th>
                 <td>{{ service_md.abstract }}</td>
             </tr>
             <tr>
-                <th>{% trans 'Online resource' %}</th>
+                <th scope="row">{% trans 'Online resource' %}</th>
                 <td>
                     <a class="{{THEME.TABLE.LINK_COLOR}}" href="{{ service_md.online_resource }}" target="_blank">{{ service_md.online_resource }}</a>
                 </td>
             </tr>
             <tr>
-                <th>{% trans 'Keywords' %}</th>
+                <th scope="row">{% trans 'Keywords' %}</th>
                 <td>
                     {% for kw in service_md.keywords.all %}
                         <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ kw }}</span>
@@ -44,57 +44,57 @@
                 </td>
             </tr>
             <tr>
-                <th>{% trans 'Access Constraints' %}</th>
+                <th scope="row">{% trans 'Access Constraints' %}</th>
                 <td>{{ service_md.access_constraints }}</td>
             </tr>
             <tr>
-                <th>{% trans 'Access secured' %}</th>
+                <th scope="row">{% trans 'Access secured' %}</th>
                 <td>
                     {% if service_md.is_secured %}
-                    <i class='fas fa-check text-success'></i>
+                    <i class='fas fa-check text-success' aria-hidden="true"/>
                     {% else %}
-                    <i class='fas fa-times text-danger'></i>
+                    <i class='fas fa-times text-danger' aria-hidden="true"/>
                     {% endif %}
                 </td>
             </tr>
             <tr>
-                <th>{% trans 'Responsible Person' %}</th>
+                <th scope="row">{% trans 'Responsible Person' %}</th>
                 <td>{{ service_md.contact.person_name }}</td>
             </tr>
             <tr>
-                <th>{% trans 'Organization' %}</th>
+                <th scope="row">{% trans 'Organization' %}</th>
                 <td>{{ service_md.contact.organization_name }}</td>
             </tr>
             <tr>
-                <th>{% trans 'Phone' %}</th>
+                <th scope="row">{% trans 'Phone' %}</th>
                 <td>{{ service_md.contact.phone }}</td>
             </tr>
             <tr>
-                <th>{% trans 'Facsimile' %}</th>
+                <th scope="row">{% trans 'Facsimile' %}</th>
                 <td>{{ service_md.contact.facsimile }}</td>
             </tr>
             <tr>
-                <th>{% trans 'E-Mail' %}</th>
+                <th scope="row">{% trans 'E-Mail' %}</th>
                 <td>{{ service_md.contact.email }}</td>
             </tr>
             <tr>
-                <th>{% trans 'Address' %}</th>
+                <th scope="row">{% trans 'Address' %}</th>
                 <td>{{ service_md.contact.address }}</td>
             </tr>
             <tr>
-                <th>{% trans 'City' %}</th>
+                <th scope="row">{% trans 'City' %}</th>
                 <td>{{ service_md.contact.city }}</td>
             </tr>
             <tr>
-                <th>{% trans 'Post code' %}</th>
+                <th scope="row">{% trans 'Post code' %}</th>
                 <td>{{ service_md.contact.postal_code }}</td>
             </tr>
             <tr>
-                <th>{% trans 'State or province' %}</th>
+                <th scope="row">{% trans 'State or province' %}</th>
                 <td>{{ service_md.contact.state_or_province }}</td>
             </tr>
             <tr>
-                <th>{% trans 'Country' %}</th>
+                <th scope="row">{% trans 'Country' %}</th>
                 <td>{{ service_md.contact.country }}</td>
             </tr>
         {% endblock %}

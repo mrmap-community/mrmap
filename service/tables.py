@@ -1,4 +1,5 @@
 import django_tables2 as tables
+from django.db.models.functions import Length
 from django.utils.html import format_html
 from django.urls import reverse
 import json
@@ -115,6 +116,12 @@ class WmsLayerTable(ServiceTable):
         url = reverse('service:detail', args=(record.service.parent_service.metadata.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, record.service.parent_service.metadata.title)
 
+    #@staticmethod
+    #def order_wms_parent_service(queryset, is_descending):
+    #    queryset = queryset.annotate(
+    #        title_length=Length("service__parent_service__metadata__title")
+    #    ).order_by(("-" if is_descending else "") + "title_length")
+    #    return queryset, True
 
 class WfsServiceTable(tables.Table):
     caption = _("Shows all WFS which are configured in your Mr. Map environment.")

@@ -3,7 +3,6 @@ from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase, Client
 from django.urls import reverse
-
 from MapSkinner.settings import ROOT_URL
 from structure.models import User, UserActivation, Theme
 from tests.test_data import get_contact_data, get_password_data, get_username_data

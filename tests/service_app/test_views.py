@@ -4,7 +4,7 @@ from copy import copy
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
-from django.test import TestCase, Client
+from django.test import TestCase, Client, tag
 from django.utils import timezone
 
 from MapSkinner.messages import SECURITY_PROXY_NOT_ALLOWED
@@ -307,7 +307,9 @@ class ServiceTestCase(TestCase):
             for ref_system in layer_ref_systems:
                 self.assertTrue("{}{}".format(ref_system.prefix, ref_system.code) in xml_ref_systems_strings)
 
-    def test_new_service(self):
+    #  This is an integration test, cause this test performs register a real service.
+    # ToDo: move this test to integrations_test/test_views.py
+    def test_register_new_service(self):
         """ Tests the service registration functionality
 
         Returns:
@@ -496,6 +498,9 @@ class ServiceTestCase(TestCase):
             else:
                 pass
 
+    # We just set the state of 'set_proxy' and test whether the views.py is performing all cases right.
+    # So this is an unit test
+    # ToDo: refactor this test by using random db data by using baker package to test the behaviour of the view.
     def test_proxy_service(self):
         """ Tests the securing functionality for services
 
@@ -524,6 +529,8 @@ class ServiceTestCase(TestCase):
         # 2) operations can not be performed by anyone who has no permission
         self._test_proxy_is_set(metadata, cap_doc_unsecured, cap_doc_secured)
 
+    #  This is an integration test, cause this test performs operation on a real service.
+    # ToDo: move this test to integrations_test/test_views.py
     def test_secure_service(self):
         """ Tests the securing functionalities
 
@@ -603,6 +610,9 @@ class ServiceTestCase(TestCase):
             response = client.post(uri, params)
         return response
 
+    # We just set the state of 'is_active' and test whether  the views.py is performing all cases right.
+    # So this is an unit test
+    # ToDo: refactor this test by using random db data by using baker package to test the behaviour of the view.
     def test_activating_service(self):
         """ Tests if a service can be activated properly.
 
@@ -663,6 +673,7 @@ class ServiceTestCase(TestCase):
         response = self._run_request({}, uri, 'get')
         self.assertEqual(response.status_code, 404)
 
+    # ToDo: refactor this test by using random db data to test the behaviour
     def test_remove_service(self):
         """ Tests if a service can be removed with all its children
 

@@ -78,13 +78,12 @@ class ServiceTestCase(TestCase):
             "uri": "https://www.geoportal.rlp.de/mapbender/php/mod_showMetadata.php/../wfs.php?FEATURETYPE_ID=2672&PHPSESSID=7qiruaoul2pdcadcohs7doeu07",
         }
 
-
         # Since the registration of a service is performed async in an own process, the testing is pretty hard.
         # Therefore in here we won't perform the regular route testing, but rather run unit tests and check whether the
         # important components work as expected.
         # THIS MEANS WE CAN NOT CHECK PERMISSIONS IN HERE; SINCE WE TESTS ON THE LOWER LEVEL OF THE PROCESS
 
-        ## Creating a new service model instance
+        # Creating a new service model instance
         service = service_helper.get_service_model_instance(
             self.test_wms["type"],
             self.test_wms["version"],
@@ -307,38 +306,6 @@ class ServiceTestCase(TestCase):
             for ref_system in layer_ref_systems:
                 self.assertTrue("{}{}".format(ref_system.prefix, ref_system.code) in xml_ref_systems_strings)
 
-    #  This is an integration test, cause this test performs register a real service.
-    # ToDo: move this test to integrations_test/test_views.py
-    def test_register_new_service(self):
-        """ Tests the service registration functionality
-
-        Returns:
-
-        """
-
-        # since we have currently no chance to test using self-created test data, we need to work with the regular
-        # capabilities documents and their information. Therefore we assume, that the low level xml reading functions
-        # from xml_helper are (due to their low complexity) working correctly, and test if the information we can get
-        # from there, match to the ones we get after the service creation.
-
-        child_layers = Layer.objects.filter(
-            parent_service=self.service
-        )
-        cap_xml = xml_helper.parse_xml(self.raw_data.service_capabilities_xml)
-        checks = [
-            self._test_new_service_check_layer_num,
-            self._test_new_service_check_metadata_not_null,
-            self._test_new_service_check_capabilities_uri,
-            self._test_new_service_check_describing_attributes,
-            self._test_new_service_check_status,
-            self._test_new_service_check_register_dependencies,
-            self._test_new_service_check_version_and_type,
-            self._test_new_service_check_reference_systems,
-            #self.test_proxy_service,
-        ]
-        for check_func in checks:
-            check_func(self.service, child_layers, cap_xml)
-
     def _test_proxy_is_set(self, metadata: Metadata, doc_unsecured: str, doc_secured: str):
         """ Tests whether the proxy was set properly.
 
@@ -498,6 +465,26 @@ class ServiceTestCase(TestCase):
             else:
                 pass
 
+    def _run_request(self, params: dict, uri: str, request_type: str, client: Client = Client()):
+        """ Helping function which performs a request and returns the response
+
+        Args:
+            params (dict): The parameters
+            uri (str): The request path
+            request_type (str): 'post' or 'get', case insensitive
+            client (Client): The used client object. Creates a new one if no client is provided
+        Returns:
+             The response
+        """
+        request_type = request_type.lower()
+        response = None
+        if request_type == "get":
+            response = client.get(uri, params)
+        elif request_type == "post":
+            response = client.post(uri, params)
+        return response
+
+
     # We just set the state of 'set_proxy' and test whether the views.py is performing all cases right.
     # So this is an unit test
     # ToDo: refactor this test by using random db data by using baker package to test the behaviour of the view.
@@ -528,87 +515,6 @@ class ServiceTestCase(TestCase):
         # 1) all uris of the capabilities document have been changed to use the internal proxy
         # 2) operations can not be performed by anyone who has no permission
         self._test_proxy_is_set(metadata, cap_doc_unsecured, cap_doc_secured)
-
-    #  This is an integration test, cause this test performs operation on a real service.
-    # ToDo: move this test to integrations_test/test_views.py
-    def test_secure_service(self):
-        """ Tests the securing functionalities
-
-        1) Secure a service
-        2) Try to perform an operation -> must fail
-        3) Give performing user the permission (example call for WMS: GetMap, for WFS: GetFeature)
-        4) Try to perform an operation -> must not fail
-
-        Args:
-            service (Service):
-            child_layers:
-            cap_xml:
-        Returns:
-
-        """
-        # activate service
-        # since activating runs async as well, we need to call this function directly
-        tasks.async_activate_service(self.service.id, self.user.id)
-        self.service.refresh_from_db()
-
-        service = self.service
-        metadata = service.metadata
-        service_type = metadata.get_service_type()
-
-
-        if service_type == OGCServiceEnum.WMS.value:
-            uri = SERVICE_OPERATION_URI_TEMPLATE.format(metadata.id)
-            params = {
-                "request": OGCOperationEnum.GET_MAP.value,
-                "version": OGCServiceVersionEnum.V_1_1_1.value,
-                "layers": "atkis1",  # the root layer for test data
-                "bbox": "6.3635678506, 49.8043950464, 8.2910611844, 50.4544433675",
-                "srs": "EPSG:4326",
-                "format": "png",
-                "width": "100",
-                "height": "100",
-            }
-
-            # case 0: Service not secured -> Runs!
-            response = self._run_request(params, uri, "get")
-            self.assertEqual(response.status_code, 200)
-
-            # Proxy the service!
-            metadata.set_proxy(True)
-
-            # Secure the service!
-            metadata.set_secured(True)
-
-            # case 1: Service secured but no permission was given to any user, guest user tries to perform request    -> Fails!
-            response = self._run_request(params, uri, "get")
-            self.assertEqual(response.status_code, 401)
-            self.assertEqual(response.content.decode("utf-8"), SECURITY_PROXY_NOT_ALLOWED)
-
-            # case 2: Service secured but no permission was given to any user, logged in user performs request via logged in client     -> Fails!
-            client = self._get_logged_in_client(self.user)
-            response = self._run_request(params, uri, "get", client)
-            self.assertEqual(response.status_code, 401)
-            self.assertEqual(response.content.decode("utf-8"), SECURITY_PROXY_NOT_ALLOWED)
-
-
-    def _run_request(self, params: dict, uri: str, request_type: str, client: Client = Client()):
-        """ Helping function which performs a request and returns the response
-
-        Args:
-            params (dict): The parameters
-            uri (str): The request path
-            request_type (str): 'post' or 'get', case insensitive
-            client (Client): The used client object. Creates a new one if no client is provided
-        Returns:
-             The response
-        """
-        request_type = request_type.lower()
-        response = None
-        if request_type == "get":
-            response = client.get(uri, params)
-        elif request_type == "post":
-            response = client.post(uri, params)
-        return response
 
     # We just set the state of 'is_active' and test whether  the views.py is performing all cases right.
     # So this is an unit test

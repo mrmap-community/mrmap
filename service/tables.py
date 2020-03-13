@@ -1,4 +1,5 @@
 import django_tables2 as tables
+from django.db.models.functions import Length
 from django.utils.html import format_html
 from django.urls import reverse
 import json
@@ -21,14 +22,14 @@ def _get_close_button(url, user):
 
 class ServiceTable(tables.Table):
     attrs = {
-        "th":{
+        "th": {
             "class": "align-middle",
         }
     }
     wms_title = tables.Column(accessor='title', verbose_name='Title', empty_values=[], attrs=attrs)
     wms_active = tables.Column(accessor='is_active', verbose_name='Active', attrs=attrs)
     wms_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', attrs=attrs)
-    wms_secured_externally = tables.Column(accessor='has_external_authentication', verbose_name='Secured externally', attrs=attrs)
+    wms_secured_externally = tables.Column(accessor='external_authentication', verbose_name='Secured externally', empty_values=[False,], attrs=attrs)
     wms_version = tables.Column(accessor='service.servicetype.version', verbose_name='Version', attrs=attrs)
     wms_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', attrs=attrs)
     wms_registered_by_group = tables.Column(accessor='service.created_by', verbose_name='Registered by group', attrs=attrs)
@@ -115,6 +116,13 @@ class WmsLayerTable(ServiceTable):
         url = reverse('service:detail', args=(record.service.parent_service.metadata.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, record.service.parent_service.metadata.title)
 
+    @staticmethod
+    def order_wms_parent_service(queryset, is_descending):
+        queryset = queryset.annotate(
+            title_length=Length("service__parent_service__metadata__title")
+        ).order_by(("-" if is_descending else "") + "title_length")
+        return queryset, True
+
 
 class WfsServiceTable(tables.Table):
     caption = _("Shows all WFS which are configured in your Mr. Map environment.")
@@ -128,7 +136,7 @@ class WfsServiceTable(tables.Table):
     wfs_featuretypes = tables.Column(verbose_name='Featuretypes', empty_values=[], )
     wfs_active = tables.Column(accessor='is_active', verbose_name='Active', )
     wfs_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', )
-    wfs_secured_externally = tables.Column(accessor='external_authentication', verbose_name='Secured externally', empty_values=[], )
+    wfs_secured_externally = tables.Column(accessor='external_authentication', verbose_name='Secured externally', empty_values=[False,], )
     wfs_version = tables.Column(accessor='service.servicetype.version', verbose_name='Version', )
     wfs_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', )
     wfs_registered_by_group = tables.Column(accessor='service.created_by', verbose_name='Registered by group', )
@@ -190,11 +198,11 @@ class WfsServiceTable(tables.Table):
 class PendingTasksTable(tables.Table):
     caption = _("Shows all currently running pending tasks.")
 
-    pt_cancle = tables.Column(verbose_name=' ', empty_values=[], )
-    pt_status = tables.Column(verbose_name='Status', empty_values=[], )
-    pt_service = tables.Column(verbose_name='Service', empty_values=[], )
-    pt_phase = tables.Column(verbose_name='Phase', empty_values=[], )
-    pt_progress = tables.Column(verbose_name='Progress', empty_values=[], )
+    pt_cancle = tables.Column(verbose_name=' ', empty_values=[], orderable=False, )
+    pt_status = tables.Column(verbose_name='Status', empty_values=[], orderable=False, )
+    pt_service = tables.Column(verbose_name='Service', empty_values=[], orderable=False,)
+    pt_phase = tables.Column(verbose_name='Phase', empty_values=[], orderable=False,)
+    pt_progress = tables.Column(verbose_name='Progress', empty_values=[], orderable=False,)
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
@@ -255,6 +263,10 @@ class ChildLayerTable(tables.Table):
 
     caption = _("Shows all child layer of current WMS.")
 
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
     @staticmethod
     def render_child_layer_title(record):
         url = reverse('service:get-metadata-html', args=(record['id'],))
@@ -277,6 +289,10 @@ class FeatureTypeTable(tables.Table):
 
     caption = _("Shows all featuretypes of current WFS.")
 
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
     @staticmethod
     def render_featuretype_title(record):
         url = reverse('service:get-metadata-html', args=(record['id'],))
@@ -292,6 +308,10 @@ class CoupledMetadataTable(tables.Table):
     coupled_metadata_title = tables.Column(empty_values=[], order_by='title', )
 
     caption = _("Shows all coupled metadata of current service.")
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
 
     @staticmethod
     def render_coupled_metadata_title(record):

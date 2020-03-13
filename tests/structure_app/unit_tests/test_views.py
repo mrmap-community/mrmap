@@ -1,14 +1,11 @@
 import os
-
 from copy import copy
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
-from django.test import TestCase, Client
+from django.test import TestCase, Client, tag
 from django.urls import reverse
 from django.utils import timezone
-
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, ROOT_URL
-from structure.forms import GroupForm
 from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
 from structure.models import Group, User, Role, Permission, Organization, PendingRequest
 

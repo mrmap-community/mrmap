@@ -1,8 +1,6 @@
 import string
 import random
 
-from structure.models import Theme
-
 
 def _random_to_long_password():
     some_lower = ''.join(random.choice(string.ascii_lowercase) for i in range(100))
@@ -15,6 +13,17 @@ def _random_to_long_username():
     return ''.join(random.choice(string.ascii_lowercase) for i in range(256))
 
 
+def _x_chars(x: int = 1):
+    return ''.join(random.choice(string.ascii_letters) for i in range(x))
+
+
+def get_email_data():
+    return {
+        'valid': 'tester@example.com',
+        'invalid_to_long': _x_chars(256) + '@example.com'
+    }
+
+
 def get_password_data():
     # Password must have at least one lowercase letter
     # Password must have at least one Uppercase letter
@@ -23,6 +32,7 @@ def get_password_data():
     # contains in following mismatching passwords:
     return {
         'valid': "MySuperStrongPassword!123.",
+        'valid_2': "MySuperStrongPassword!123",
         'invalid_without_upper': "mystrongpassword1",
         'invalid_without_lower': "MYSTRONGPASSWORD1",
         'invalid_without_digit': "MyStrongP",

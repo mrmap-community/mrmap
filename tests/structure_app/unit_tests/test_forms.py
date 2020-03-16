@@ -1,10 +1,10 @@
-from django.test import TestCase
+from django.test import TestCase, tag
 
 from structure.forms import RegistrationForm
 from tests.test_data import get_password_data, get_contact_data, get_username_data
 
 
-class RegistrationFormTestCase(TestCase):
+class RegistrationFormTest(TestCase):
     """
         TODO: document the test case
     """
@@ -22,6 +22,8 @@ class RegistrationFormTestCase(TestCase):
 
         self.assertTrue(is_valid, msg="Valid contact data should be accepted.")
 
+    # ToDo: separate the assertFalse in single functions. If one assert fails, the function returns it.
+    #  All subordinated asserts wont get called.
     def test_invalid_password(self):
         """ Tests our password policy
 
@@ -70,6 +72,8 @@ class RegistrationFormTestCase(TestCase):
         form = RegistrationForm(data=self.contact_data)
         self.assertFalse(form.is_valid(), msg="Password with more than 255 character are accepted.")
 
+    # ToDo: separate the assertFalse in single functions. If one assert fails, the function returns it.
+    #  All subordinated asserts wont get called.
     def test_invalid_username(self):
         username_data = get_username_data()
 
@@ -91,6 +95,8 @@ class RegistrationFormTestCase(TestCase):
         form = RegistrationForm(data=self.contact_data)
         self.assertFalse(form.is_valid(), msg="Username with more than 255 character are accepted.")
 
+    # ToDo: separate the assertFalse in single functions. If one assert fails, the function returns it.
+    #  All subordinated asserts wont get called.
     def test_required_fields_are_not_empty(self):
         # username
         self.contact_data.pop('username')
@@ -132,7 +138,3 @@ class RegistrationFormTestCase(TestCase):
         self.contact_data.pop('captcha_1')
         form = RegistrationForm(data=self.contact_data)
         self.assertFalse(form.is_valid(), msg="captcha field was empty but the form is valid.")
-
-    def test_max_lengths(self):
-        # TODO
-        pass

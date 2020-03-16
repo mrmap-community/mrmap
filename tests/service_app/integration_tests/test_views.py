@@ -1,12 +1,8 @@
 import os
-
-from copy import copy
 from django.contrib.auth.hashers import make_password
-from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from django.test import TestCase, Client
 from django.utils import timezone
-
 from MapSkinner.messages import SECURITY_PROXY_NOT_ALLOWED
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, HOST_NAME, HTTP_OR_SSL
 from service import tasks
@@ -307,7 +303,8 @@ class ServiceTestCase(TestCase):
             for ref_system in layer_ref_systems:
                 self.assertTrue("{}{}".format(ref_system.prefix, ref_system.code) in xml_ref_systems_strings)
 
-    def test_new_service(self):
+    #  This is an integration test, cause this test performs register a real service.
+    def test_register_new_service(self):
         """ Tests the service registration functionality
 
         Returns:
@@ -496,34 +493,7 @@ class ServiceTestCase(TestCase):
             else:
                 pass
 
-    def test_proxy_service(self):
-        """ Tests the securing functionality for services
-
-        Returns:
-
-        """
-        metadata = self.service.metadata
-
-        cap_doc_secured = Document.objects.get(
-            related_metadata=metadata
-        )
-
-        # Create copy of 'cap_doc_secured' (which isn't secured yet) to avoid a simple reference between both variables
-        cap_doc_unsecured = copy(cap_doc_secured)
-        cap_doc_unsecured = cap_doc_unsecured.current_capability_document
-
-        # Proxy the service!
-        metadata.set_proxy(True)
-
-        # Fetch the secured status for 'cap_doc_secured' from the db
-        cap_doc_secured.refresh_from_db()
-        cap_doc_secured = cap_doc_secured.current_capability_document
-
-        # we expect that
-        # 1) all uris of the capabilities document have been changed to use the internal proxy
-        # 2) operations can not be performed by anyone who has no permission
-        self._test_proxy_is_set(metadata, cap_doc_unsecured, cap_doc_secured)
-
+    #  This is an integration test, cause this test performs operation on a real service.
     def test_secure_service(self):
         """ Tests the securing functionalities
 
@@ -583,7 +553,6 @@ class ServiceTestCase(TestCase):
             self.assertEqual(response.status_code, 401)
             self.assertEqual(response.content.decode("utf-8"), SECURITY_PROXY_NOT_ALLOWED)
 
-
     def _run_request(self, params: dict, uri: str, request_type: str, client: Client = Client()):
         """ Helping function which performs a request and returns the response
 
@@ -602,87 +571,3 @@ class ServiceTestCase(TestCase):
         elif request_type == "post":
             response = client.post(uri, params)
         return response
-
-    def test_activating_service(self):
-        """ Tests if a service can be activated properly.
-
-        Checks if access to resources will be restricted if deactivated.
-
-        Returns:
-
-        """
-
-        # A deactivated service is not reachable from outside
-        # This means we need to fire some requests and check if the documents and links of this service are available
-        self.assertFalse(self.service.is_active)
-
-        ## case 0.1: Service is deactivated -> Current capabilities uri not reachable
-        uri = "/service/metadata/{}/operation?".format(self.service.metadata.id)
-        response = self._run_request(
-            {
-                "request": "GetCapabilities",
-            },
-            uri,
-            'get'
-        )
-        self.assertEqual(response.status_code, 423)  # 423 means the resource is currently locked
-
-        ## case 0.2: Service is deactivated -> Current metadata uri not reachable
-        uri = "/service/metadata/{}".format(self.service.metadata.id)
-        response = self._run_request({}, uri, 'get')
-        self.assertEqual(response.status_code, 423)  # 423 means the resource is currently locked
-
-        # check for dataset metadata -> there should be no dataset metadata on a whole service
-        uri = "/service/metadata/dataset/{}".format(self.service.metadata.id)
-        response = self._run_request({}, uri, 'get')
-        self.assertEqual(response.status_code, 423)  # 423 means the resource is currently locked
-
-        # activate service
-        # since activating runs async as well, we need to call this function directly
-        tasks.async_activate_service(self.service.id, self.user.id)
-        self.service.refresh_from_db()
-
-        ## case 1.1: Service is deactivated -> Current capabilities uri not reachable
-        uri = "/service/metadata/{}/operation?".format(self.service.metadata.id)
-        response = self._run_request(
-            {
-                "request": "GetCapabilities"
-            },
-            uri,
-            'get'
-        )
-        self.assertEqual(response.status_code, 200)
-
-        ## case 1.2: Service is deactivated -> Current metadata uri not reachable
-        uri = "/service/metadata/{}".format(self.service.metadata.id)
-        response = self._run_request({}, uri, 'get')
-        self.assertEqual(response.status_code, 200)
-
-        # check for dataset metadata -> there should be no dataset metadata on a whole service
-        uri = "/service/metadata/dataset/{}".format(self.service.metadata.id)
-        response = self._run_request({}, uri, 'get')
-        self.assertEqual(response.status_code, 404)
-
-    def test_remove_service(self):
-        """ Tests if a service can be removed with all its children
-
-        Returns:
-
-        """
-        tasks.async_remove_service_task(self.service.id)
-        child_objects = Service.objects.filter(
-            parent_service=self.service
-        )
-        self.assertEqual(child_objects.count(), 0, msg="Not all child elements were removed!")
-        exists = True
-        try:
-            self.service.refresh_from_db()
-        except ObjectDoesNotExist:
-            exists = False
-        self.assertFalse(exists, msg="Service was not removed!")
-
-
-
-
-
-

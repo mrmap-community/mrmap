@@ -1,20 +1,21 @@
 from django.core.validators import RegexValidator
+from django.utils.translation import gettext_lazy as _
 
 password_has_lower_case_letter = RegexValidator(
     regex='[a-z]',
-    message='Password must have at least one lowercase letter',
+    message=_('Password must have at least one lowercase letter'),
     code='invalid_password'
 )
 
 password_has_upper_case_letter = RegexValidator(
     regex='[A-Z]',
-    message='Password must have at least one Uppercase letter',
+    message=_('Password must have at least one Uppercase letter'),
     code='invalid_password'
 )
 
 password_has_digit = RegexValidator(
     regex='\d',
-    message='Password must have at least one digit',
+    message=_('Password must have at least one digit'),
     code='invalid_password'
 )
 
@@ -37,7 +38,7 @@ PASSWORD_VALIDATORS = [password_validate_has_lower_case_letter,
 
 username_has_special_characters = RegexValidator(
     regex='[^A-Za-z0-9]',
-    message='Special or non printable characters are not allowed',
+    message=_('Special or non printable characters are not allowed'),
     code='invalid_username',
     inverse_match=True
 )

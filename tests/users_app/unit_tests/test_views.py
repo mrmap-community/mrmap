@@ -1,7 +1,7 @@
 import os
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
-from django.test import TestCase, Client
+from django.test import TestCase, Client, tag
 from django.urls import reverse
 from MapSkinner.settings import ROOT_URL
 from structure.models import User, UserActivation, Theme
@@ -50,6 +50,9 @@ class RegisterNewUserTestCase(TestCase):
         self.assertEqual(response.status_code, 302, msg="No redirect after posting user registration form.")
 
         # test all user attributes are correctly inserted
+        # ToDo: this is nothing we need to check...
+        #  we dont write a custom save function to save a user...
+        #  django will do it for us, so django has to test this functionality
         user = User.objects.get(
             username=self.contact_data.get('username'),
             email=self.contact_data.get('email'),
@@ -256,6 +259,8 @@ class RegisterNewUserTestCase(TestCase):
         user.refresh_from_db()
         self.assertEqual(user.username, new_name, msg="Username could not be changed")
 
+    # ToDo: Error messages are added from the Form it self after is_valid function is called.
+    #  So we can move this test to test_forms.py and test this behaviour without the Client()
     def test_error_messages_of_password_field(self):
         """ Tests if the validator fires the right error messages on all cases.
         """

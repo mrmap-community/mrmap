@@ -1,8 +1,7 @@
-from django.test import TestCase
+from django.test import TestCase, tag
 import logging
 from tests.test_data import get_password_data, get_username_data, get_account_data
 from users.forms import PasswordChangeForm, UserForm
-
 
 class PasswordChangeFormTestCase(TestCase):
     """
@@ -30,6 +29,8 @@ class PasswordChangeFormTestCase(TestCase):
         form = PasswordChangeForm(data=self.params)
         self.assertTrue(form.is_valid(), msg="Password should be accepted.")
 
+    # ToDo: separate the assertFalse in single functions. If one assert fails, the function returns it.
+    #  All subordinated asserts wont get called.
     def test_invalid_password(self):
         """ Tests our password policy
 
@@ -97,6 +98,8 @@ class UserFormTestCase(TestCase):
 
         self.assertTrue(is_valid, msg="Valid account data should be accepted.")
 
+    # ToDo: separate the assertFalse in single functions. If one assert fails, the function returns it.
+    #  All subordinated asserts wont get called.
     def test_invalid_username(self):
         username_data = get_username_data()
 

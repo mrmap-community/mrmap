@@ -417,6 +417,10 @@ class MonitoringViewSet(viewsets.ReadOnlyModelViewSet):
 
     def retrieve(self, request, pk=None, *args, **kwargs):
         tmp = Monitoring.objects.filter(metadata=pk).order_by('-timestamp')
+
+        if len(tmp) == 0:
+            return Response(status=404)
+
         last_monitoring = tmp[0]
         sum_response = 0
         sum_availability = 0

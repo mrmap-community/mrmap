@@ -1,3 +1,32 @@
+"""
+Author: Jan Suleiman
+Organization: terrestris GmbH & Co. KG, Bonn, Germany
+Contact: suleiman@terrestris.de
+Created on: 16.03.2020
+
+"""
 from django.contrib import admin
 
-# Register your models here.
+from monitoring.models import *
+
+
+class MonitoringSettingAdmin(admin.ModelAdmin):
+    list_display = ('id', 'interval', 'timeout')
+
+
+class MonitoringRunAdmin(admin.ModelAdmin):
+    list_display = ('id', 'start', 'end', 'duration')
+
+
+class MonitoringAdmin(admin.ModelAdmin):
+    list_display = ('id', 'metadata', 'timestamp', 'duration', 'status_code', 'error_msg', 'available', 'monitored_uri', 'monitoring_run')
+
+
+class MonitoringCapabilityAdmin(admin.ModelAdmin):
+    list_display = ('id', 'needs_update', 'diff')
+
+
+admin.site.register(MonitoringSetting, MonitoringSettingAdmin)
+admin.site.register(MonitoringRun, MonitoringRunAdmin)
+admin.site.register(Monitoring, MonitoringAdmin)
+admin.site.register(MonitoringCapability, MonitoringCapabilityAdmin)

@@ -6,15 +6,27 @@ Created on: 28.05.19
 
 """
 from django import forms
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
 
+from MapSkinner.messages import EMAIL_IS_UNKNOWN
 from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from structure.models import User, Theme
 
 
 class PasswordResetForm(forms.Form):
     email = forms.EmailField(max_length=255, required=True, label=_("E-Mail"), label_suffix="")
+
+    def clean(self):
+        cleaned_data = super(PasswordResetForm, self).clean()
+        email = cleaned_data.get("email")
+        try:
+            User.objects.get(email=email)
+        except ObjectDoesNotExist:
+            self.add_error("email", forms.ValidationError(EMAIL_IS_UNKNOWN))
+
+        return cleaned_data
 
 
 class PasswordChangeForm(forms.Form):

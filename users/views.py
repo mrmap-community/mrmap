@@ -294,33 +294,26 @@ def password_reset(request: HttpRequest):
          A view
     """
     template = "views/password_reset.html"
-    form = PasswordResetForm()
-    if request.method == 'POST':
-        form = PasswordResetForm(request.POST)
-        if form.is_valid:
-            # generate new password
-            try:
-                user = User.objects.get(email=form.data.get("email"))
-            except ObjectDoesNotExist:
-                messages.add_message(request, messages.ERROR, UNKNOWN_EMAIL)
-                return redirect('password-reset')
-            # ToDo: Do sending via email!
-            sec_handler = CryptoHandler()
-            gen_pw = sec_handler.sha256(user.salt + str(timezone.now()))[:7].upper()
-            print_debug_mode(gen_pw)
-            user.password = make_password(gen_pw, user.salt)
-            user.save()
-            messages.add_message(request, messages.INFO, PASSWORD_SENT)
-            return redirect('login')
-        else:
-            messages.add_message(request, messages.ERROR, EMAIL_INVALID)
-            return redirect('password-reset')
-    else:
-        params = {
-            "form": form,
-        }
-        context = DefaultContext(request, params)
-        return render(request, template, context=context.get_context())
+    form = PasswordResetForm(request.POST or None)
+    params = {
+        "form": form,
+    }
+    if request.method == 'POST' and form.is_valid():
+        # we dont need to check the email address here: see clean function of PasswordResetForm class
+        user = User.objects.get(email=form.cleaned_data.get("email"))
+
+        # generate new password
+        # ToDo: Do sending via email!
+        sec_handler = CryptoHandler()
+        gen_pw = sec_handler.sha256(user.salt + str(timezone.now()))[:7].upper()
+        print_debug_mode(gen_pw)
+        user.password = make_password(gen_pw, user.salt)
+        user.save()
+        messages.add_message(request, messages.INFO, PASSWORD_SENT)
+        return redirect('login')
+
+    context = DefaultContext(request, params)
+    return render(request, template, context=context.get_context())
 
 
 @transaction.atomic
@@ -333,47 +326,39 @@ def register(request: HttpRequest):
          A view
     """
     template = "views/register.html"
-    form = RegistrationForm()
+    form = RegistrationForm(request.POST or None)
     params = {
         "form": form,
         "registration_article": _("Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. "),
         "registration_title": _("Sign up"),
         "action_url": ROOT_URL + "/register/"
     }
-    if request.method == "POST":
-        form = RegistrationForm(request.POST)
-        if form.is_valid():
-            cleaned_data = form.cleaned_data
-            password = cleaned_data.get("password")
-            password_check = cleaned_data.get("password_check")
-            if password != password_check:
-                messages.add_message(request, messages.ERROR, PASSWORD_CHANGE_NO_MATCH)
-            else:
-                # create new user and send mail
-                user = User()
-                user.username = cleaned_data.get("username")
-                user.salt = str(os.urandom(25).hex())
-                user.password = make_password(password, salt=user.salt)
-                user.person_name = cleaned_data.get("first_name") + " " + cleaned_data.get("last_name")
-                user.facsimile = cleaned_data.get("facsimile")
-                user.phone = cleaned_data.get("phone")
-                user.email = cleaned_data.get("email")
-                user.city = cleaned_data.get("city")
-                user.address = cleaned_data.get("address")
-                user.postal_code = cleaned_data.get("postal_code")
-                user.confirmed_dsgvo = timezone.now()
-                user.confirmed_newsletter = cleaned_data.get("newsletter")
-                user.confirmed_survey = cleaned_data.get("survey")
-                user.is_active = False
-                user.save()
+    if request.method == "POST" and form.is_valid():
+        cleaned_data = form.cleaned_data
 
-                # create user_activation object to improve checking against activation link
-                user.create_activation()
+        # create new user and send mail
+        user = User()
+        user.username = cleaned_data.get("username")
+        user.salt = str(os.urandom(25).hex())
+        user.password = make_password(cleaned_data.get("password"), salt=user.salt)
+        user.person_name = cleaned_data.get("first_name") + " " + cleaned_data.get("last_name")
+        user.facsimile = cleaned_data.get("facsimile")
+        user.phone = cleaned_data.get("phone")
+        user.email = cleaned_data.get("email")
+        user.city = cleaned_data.get("city")
+        user.address = cleaned_data.get("address")
+        user.postal_code = cleaned_data.get("postal_code")
+        user.confirmed_dsgvo = timezone.now()
+        user.confirmed_newsletter = cleaned_data.get("newsletter")
+        user.confirmed_survey = cleaned_data.get("survey")
+        user.is_active = False
+        user.save()
 
-                messages.add_message(request, messages.SUCCESS, ACTIVATION_LINK_SENT)
-                return redirect("login")
-        else:
-            params["form"] = form
+        # create user_activation object to improve checking against activation link
+        user.create_activation()
+
+        messages.add_message(request, messages.SUCCESS, ACTIVATION_LINK_SENT)
+        return redirect("login")
 
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())

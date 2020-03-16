@@ -124,6 +124,7 @@ class Theme(models.Model):
 
 class User(Contact):
     username = models.CharField(max_length=50)
+    email = models.CharField(max_length=100, null=False, blank=False, unique=True)
     logged_in = models.BooleanField(default=False)
     salt = models.CharField(max_length=500)
     password = models.CharField(max_length=500)

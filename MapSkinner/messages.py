@@ -107,3 +107,5 @@ EDITOR_INVALID_ISO_LINK = _("'{}' was invalid.")
 EDITOR_ACCESS_RESTRICTED = _("Access for '{}' changed successfully.")
 
 TD_POINT_HAS_NOT_ENOUGH_VALUES = _("2D-Points must hold two values for x and y.")  # TD_ = 2D_, has to be renamed due to pep8
+
+EMAIL_IS_UNKNOWN = _("Inserted email address is unknown.")

@@ -1,5 +1,7 @@
 import logging
 from django.test import TestCase
+
+from tests.db_setup import create_active_user
 from tests.test_data import get_password_data, get_username_data, get_account_data, get_email_data
 from users.forms import PasswordChangeForm, UserForm, PasswordResetForm
 
@@ -15,11 +17,20 @@ class PasswordResetFormTestCase(TestCase):
         self.email = get_email_data()
 
     def test_valid_email(self):
+        create_active_user('testuser', 'testpassword', 'test@example.com')
+
+        self.params.update({
+            'email': 'test@example.com'
+        })
+        form = PasswordResetForm(data=self.params)
+        self.assertTrue(form.is_valid(), msg="E-Mail should be accepted.")
+
+    def test_valid_email_but_not_registered(self):
         self.params.update({
             'email': self.email.get('valid')
         })
         form = PasswordResetForm(data=self.params)
-        self.assertTrue(form.is_valid(), msg="E-Mail should be accepted.")
+        self.assertFalse(form.is_valid(), msg="E-Mail which is not known by the system is accepted.")
 
     def test_invalid_email_to_long(self):
         self.params.update({
@@ -27,6 +38,10 @@ class PasswordResetFormTestCase(TestCase):
         })
         form = PasswordResetForm(data=self.params)
         self.assertFalse(form.is_valid(), msg="E-Mail shouldn't be accepted.")
+
+    def test_empty_email(self):
+        form = PasswordResetForm(data=self.params)
+        self.assertFalse(form.is_valid(), msg="E-Mail was empty but was accepted.")
 
 
 class PasswordChangeFormTestCase(TestCase):
@@ -117,6 +132,22 @@ class PasswordChangeFormTestCase(TestCase):
         form = PasswordChangeForm(data=self.params)
         self.assertFalse(form.is_valid(), msg="Repeat password and password Field was accepted, but two different passwords where given.")
 
+    def test_empty_password(self):
+        self.params.update({
+            'password_again': self.password_data.get('valid_2')
+        })
+        form = PasswordChangeForm(data=self.params)
+        self.assertFalse(form.is_valid(),
+                         msg="Password was empty but form was accepted.")
+
+    def test_empty_password_again(self):
+        self.params.update({
+            'password': self.password_data.get('valid'),
+        })
+        form = PasswordChangeForm(data=self.params)
+        self.assertFalse(form.is_valid(),
+                         msg="Password was empty but form was accepted.")
+
 
 class UserFormTestCase(TestCase):
     """
@@ -157,3 +188,8 @@ class UserFormTestCase(TestCase):
         form = UserForm(data=self.account_data)
         self.assertFalse(form.is_valid(), msg="Username with non printable character are accepted.")
 
+    def test_empty_username(self):
+        self.account_data.pop('username')
+        form = UserForm(data=self.account_data)
+        self.assertFalse(form.is_valid(),
+                         msg="Username was empty but form was accepted.")

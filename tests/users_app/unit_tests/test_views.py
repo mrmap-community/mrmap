@@ -1,38 +1,49 @@
 import os
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
-from django.test import TestCase, Client, tag
+from django.test import TestCase, Client
 from django.urls import reverse
+
+from MapSkinner.messages import PASSWORD_SENT, EMAIL_IS_UNKNOWN
 from MapSkinner.settings import ROOT_URL
 from structure.models import User, UserActivation, Theme
+from tests.db_setup import create_active_user
 from tests.test_data import get_contact_data, get_password_data, get_username_data
 from django.utils import timezone
+
+
+class PasswordResetTestCase(TestCase):
+
+    def setUp(self):
+        self.active_user = create_active_user('testuser', 'testpassword', 'test@example.com')
+
+    def test_success_password_reset(self):
+        client = Client()
+        response = client.post(reverse('password-reset', ), data={"email": 'test@example.com'})
+        messages = list(response.context['messages'])
+        self.assertRedirects(response, reverse('login', ))
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(str(messages[0]), PASSWORD_SENT)
+
+    def test_failed_password_reset(self):
+        client = Client()
+        response = client.post(reverse('password-reset', ), data={"email": 'test1@example.com'})
+        self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
+        self.assertFormError(response, 'form', 'email', EMAIL_IS_UNKNOWN)
+
+    def test_get_password_reset_view(self):
+        client = Client()
+        response = client.get(reverse('password-reset', ))
+        self.assertEqual(response.status_code, 200, msg="We should get the view.")
 
 
 class RegisterNewUserTestCase(TestCase):
 
     def setUp(self):
         self.contact_data = get_contact_data()
-
-        # creates theme object
-        theme = Theme.objects.create(
-            name='LIGHT'
-        )
-
         # creates user object in db
-        self.username = "Testuser"
-        self.pw = "test"
-        salt = str(os.urandom(25).hex())
-        pw = self.pw
-        user = User.objects.create(
-            username=self.username,
-            salt=salt,
-            password=make_password(pw, salt=salt),
-            confirmed_dsgvo=timezone.now(),
-            is_active=True,
-            theme=theme
-        )
-        self.user_id = user.id
+        self.user_password = get_password_data().get('valid')
+        self.user = create_active_user("Testuser", self.user_password, "test@example.com")
 
     def test_success_user_register(self):
         """ Tests the register functionality
@@ -50,24 +61,21 @@ class RegisterNewUserTestCase(TestCase):
         self.assertEqual(response.status_code, 302, msg="No redirect after posting user registration form.")
 
         # test all user attributes are correctly inserted
-        # ToDo: this is nothing we need to check...
-        #  we dont write a custom save function to save a user...
-        #  django will do it for us, so django has to test this functionality
         user = User.objects.get(
             username=self.contact_data.get('username'),
             email=self.contact_data.get('email'),
         )
-        self.assertEqual(user.username, self.contact_data.get('username'), msg="Name is'nt incorrect")
-        self.assertEqual(user.person_name, self.contact_data.get('person_name'), msg="Person name is'nt incorrect")
-        self.assertEqual(user.password, make_password(self.contact_data.get('password'), user.salt), msg="Password is'nt incorrect")
-        self.assertEqual(user.facsimile, self.contact_data.get('facsimile'), msg="Facsimile is'nt incorrect")
-        self.assertEqual(user.phone, self.contact_data.get('phone'), msg="Phone is'nt incorrect")
-        self.assertEqual(user.email, self.contact_data.get('email'), msg="E-mail is'nt incorrect")
-        self.assertEqual(user.city, self.contact_data.get('city'), msg="City is'nt incorrect")
-        self.assertEqual(user.address, self.contact_data.get('address'), msg="Address is'nt incorrect")
-        self.assertEqual(user.postal_code, self.contact_data.get('postal_code'), msg="Postal code is'nt incorrect")
-        self.assertEqual(user.confirmed_newsletter, self.contact_data.get('newsletter'), msg="Newsletter is'nt incorrect")
-        self.assertEqual(user.confirmed_survey, self.contact_data.get('survey'), msg="Survey is'nt incorrect")
+        self.assertEqual(user.username, self.contact_data.get('username'), msg="Name is incorrect")
+        self.assertEqual(user.person_name, self.contact_data.get('person_name'), msg="Person name is incorrect")
+        self.assertEqual(user.password, make_password(self.contact_data.get('password'), user.salt), msg="Password is incorrect")
+        self.assertEqual(user.facsimile, self.contact_data.get('facsimile'), msg="Facsimile is incorrect")
+        self.assertEqual(user.phone, self.contact_data.get('phone'), msg="Phone is incorrect")
+        self.assertEqual(user.email, self.contact_data.get('email'), msg="E-mail is incorrect")
+        self.assertEqual(user.city, self.contact_data.get('city'), msg="City is incorrect")
+        self.assertEqual(user.address, self.contact_data.get('address'), msg="Address is incorrect")
+        self.assertEqual(user.postal_code, self.contact_data.get('postal_code'), msg="Postal code is incorrect")
+        self.assertEqual(user.confirmed_newsletter, self.contact_data.get('newsletter'), msg="Newsletter is incorrect")
+        self.assertEqual(user.confirmed_survey, self.contact_data.get('survey'), msg="Survey is incorrect")
 
         # test user activation object
         exists = True
@@ -79,6 +87,32 @@ class RegisterNewUserTestCase(TestCase):
             exists = False
         self.assertEqual(exists, True, msg="No user activation created")
         self.assertNotEqual(user_activation.activation_hash, None, msg="User activation hash does not exist")
+
+    def test_failed_user_register(self):
+        client = Client()
+        # case: Error behaviour, user will not be created
+        self.contact_data.update({'username': '!qwertzui123'})
+        response = client.post(reverse('register'), data=self.contact_data)
+
+        self.assertEqual(response.status_code, 200, msg="We doesn't get the rendered view.")
+        self.assertFormError(response, 'form', 'username', 'Special or non printable characters are not allowed')
+        user = None
+        try:
+            user = User.objects.get(
+                username=self.contact_data.get('!qwertzui123'),
+            )
+        except ObjectDoesNotExist as e:
+            pass
+
+        self.assertIsNone(user, msg="User is created.")
+
+    def test_get_user_register_view(self):
+        client = Client()
+        # case: Error behaviour, user will not be created
+        response = client.get(reverse('register'))
+
+        self.assertEqual(response.status_code, 200, msg="We doesn't get the rendered view.")
+        self.assertTemplateUsed(response, template_name='views/register.html')
 
     def test_user_activation(self):
         """ Tests the user activation process
@@ -92,16 +126,13 @@ class RegisterNewUserTestCase(TestCase):
         """
 
         client = Client()
-        user = User.objects.get(
-            id=self.user_id
-        )
 
         # simulate the situation, when the user is not activated, yet!
-        user.is_active = False
-        user.create_activation()
+        self.user.is_active = False
+        self.user.create_activation()
 
         user_activation = UserActivation.objects.get(
-            user=user
+            user=self.user
         )
 
         # assert activation is still valid
@@ -110,12 +141,12 @@ class RegisterNewUserTestCase(TestCase):
         # activate user
         # assert 200 status code, assert user is active, assert UserActivation object does not exist anymore
         client.get(reverse('activate-user', args=(user_activation.activation_hash,)))
-        user.refresh_from_db()
-        self.assertEqual(user.is_active, True, msg="User could not be activated")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.is_active, True, msg="User could not be activated")
         obj_found = True
         try:
             UserActivation.objects.get(
-                user=user
+                user=self.user
             )
         except ObjectDoesNotExist:
             obj_found = False
@@ -132,35 +163,32 @@ class RegisterNewUserTestCase(TestCase):
         """
         REDIRECT_WRONG = "Redirect wrong"
         client = Client()
-        user = User.objects.get(
-            id=self.user_id
-        )
 
         ## case 1: user activated -> user will be logged in
-        self.assertEqual(user.logged_in, False, msg="User already logged in")
-        response = client.post(reverse('login',), data={"username": user.username, "password": self.pw})
-        user.refresh_from_db()
+        self.assertEqual(self.user.logged_in, False, msg="User already logged in")
+        response = client.post(reverse('login',), data={"username": self.user.username, "password": self.user_password})
+        self.user.refresh_from_db()
         self.assertEqual(response.status_code, 302, msg="No redirect was processed.")
         self.assertEqual(response.url, ROOT_URL + reverse('home', ), msg=REDIRECT_WRONG)
-        self.assertEqual(user.logged_in, True, msg="User not logged in")
+        self.assertEqual(self.user.logged_in, True, msg="User not logged in")
 
         ## case 1.1: user logged in -> logout successful
-        response = client.get(reverse('logout',), data={"user": user})
-        user.refresh_from_db()
+        response = client.get(reverse('logout',), data={"user": self.user})
+        self.user.refresh_from_db()
         self.assertEqual(response.status_code, 302, msg="No redirect was processed.")
         self.assertEqual(response.url, reverse('login',), msg=REDIRECT_WRONG)
-        self.assertEqual(user.logged_in, False, msg="User already logged in")
+        self.assertEqual(self.user.logged_in, False, msg="User already logged in")
 
         ## case 2: user not activated -> user will not be logged in
         # make sure the user is not activated
-        user.is_active = False
-        user.save()
-        self.assertEqual(user.logged_in, False, msg="User already logged in")
-        response = client.post(reverse('login',), data={"username": user.username, "password": self.pw})
-        user.refresh_from_db()
+        self.user.is_active = False
+        self.user.save()
+        self.assertEqual(self.user.logged_in, False, msg="User already logged in")
+        response = client.post(reverse('login',), data={"username": self.user.username, "password": self.user_password})
+        self.user.refresh_from_db()
         self.assertEqual(response.status_code, 302, msg="No redirect was processed.")
         self.assertEqual(response.url, reverse('login',), msg=REDIRECT_WRONG)
-        self.assertEqual(user.logged_in, False, msg="User not logged in")
+        self.assertEqual(self.user.logged_in, False, msg="User not logged in")
 
     def test_user_password_change(self):
         """ Tests the password change functionality
@@ -172,45 +200,42 @@ class RegisterNewUserTestCase(TestCase):
         Returns:
         """
         PASSWORD_WRONG = "Password wrong"
-        user = User.objects.get(
-            id=self.user_id
-        )
-        self.assertEqual(user.password, make_password(self.pw, user.salt), msg=PASSWORD_WRONG)
+        self.assertEqual(self.user.password, make_password(self.user_password, self.user.salt), msg=PASSWORD_WRONG)
         new_pw = get_password_data().get('valid')
 
         client = Client()
 
         ## case 0: User is not logged in -> action has no effect
         # assert action has no effect
-        self.assertEqual(user.logged_in, False, msg="User already logged in")
+        self.assertEqual(self.user.logged_in, False, msg="User already logged in")
         client.post(
             reverse('password-change', ),
-            data={"password": new_pw, "password_again": new_pw, "user": user}
+            data={"password": new_pw, "password_again": new_pw, "user": self.user}
         )
-        user.refresh_from_db()
-        self.assertNotEqual(user.password, make_password(new_pw, user.salt), msg=PASSWORD_WRONG)
+        self.user.refresh_from_db()
+        self.assertNotEqual(self.user.password, make_password(new_pw, self.user.salt), msg=PASSWORD_WRONG)
 
         # login user to pass session checking
-        client.post(reverse('login', ), data={"username": user.username, "password": self.pw})
-        user.refresh_from_db()
+        client.post(reverse('login', ), data={"username": self.user.username, "password": self.user_password})
+        self.user.refresh_from_db()
 
         # case 1: Input passwords match
         # assert action has effect as expected
         client.post(
             reverse('password-change', ),
-            data={"password": new_pw, "password_again": new_pw, "user": user}
+            data={"password": new_pw, "password_again": new_pw, "user": self.user}
         )
-        user.refresh_from_db()
-        self.assertEqual(user.password, make_password(new_pw, user.salt), msg=PASSWORD_WRONG)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.password, make_password(new_pw, self.user.salt), msg=PASSWORD_WRONG)
 
         # case 2: Input passwords do not match
         # assert action has no effect
         client.post(
             reverse('password-change', ),
-            data={"password": new_pw, "password_again": new_pw[::-1], "user": user}
+            data={"password": new_pw, "password_again": new_pw[::-1], "user": self.user}
         )
-        user.refresh_from_db()
-        self.assertEqual(user.password, make_password(new_pw, user.salt), msg=PASSWORD_WRONG)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.password, make_password(new_pw, self.user.salt), msg=PASSWORD_WRONG)
 
     def test_user_profile_edit(self):
         """ Tests the profile edit functionality
@@ -222,33 +247,31 @@ class RegisterNewUserTestCase(TestCase):
         Returns:
 
         """
-        user = User.objects.get(
-            id=self.user_id
-        )
+
         client = Client()
         new_name = get_username_data().get('valid')
         params = {
-            "user": user,
+            "user": self.user,
             "username": new_name,
         }
 
         ## case 0: User not logged in -> no effect!
         # assert as expected
-        self.assertEqual(user.logged_in, False, msg="User already logged in")
+        self.assertEqual(self.user.logged_in, False, msg="User already logged in")
         client.post(
             reverse('password-change', ),
             data=params
         )
-        user.refresh_from_db()
-        self.assertNotEqual(user.username, new_name, msg="Username has been changed")
+        self.user.refresh_from_db()
+        self.assertNotEqual(self.user.username, new_name, msg="Username has been changed")
 
         # login user
         client.post(
             reverse('login', ),
-            data={"username": user.username, "password": self.pw},
+            data={"username": self.user.username, "password": self.user_password},
         )
-        user.refresh_from_db()
-        self.assertEqual(user.logged_in, True, msg="User not logged in")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.logged_in, True, msg="User not logged in")
 
         ## case 1: User logged in -> effect!
         # assert as expected
@@ -256,60 +279,62 @@ class RegisterNewUserTestCase(TestCase):
             reverse('account-edit', ),
             data=params
         )
-        user.refresh_from_db()
-        self.assertEqual(user.username, new_name, msg="Username could not be changed")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.username, new_name, msg="Username could not be changed")
 
-    # ToDo: Error messages are added from the Form it self after is_valid function is called.
-    #  So we can move this test to test_forms.py and test this behaviour without the Client()
-    def test_error_messages_of_password_field(self):
-        """ Tests if the validator fires the right error messages on all cases.
+    def test_error_messages_of_password_without_upper(self):
         """
-
-        password_data = get_password_data()
-
-        client = Client()
+            Tests if the validator fires the right error messages on all cases.
+        """
 
         # case:
         self.contact_data.update({
-            'password': password_data.get('invalid_without_upper'),
-            'password_check': password_data.get('invalid_without_upper')
+            'password': get_password_data().get('invalid_without_upper'),
+            'password_check': get_password_data().get('invalid_without_upper')
         })
-        response = client.post(reverse('register'), data=self.contact_data)
+        response = Client().post(reverse('register'), data=self.contact_data)
         self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
         self.assertFormError(response, 'form', 'password', 'Password must have at least one Uppercase letter')
 
+    def test_error_messages_of_password_without_lower(self):
+
         # case:
         self.contact_data.update({
-            'password': password_data.get('invalid_without_lower'),
-            'password_check': password_data.get('invalid_without_lower')
+            'password': get_password_data().get('invalid_without_lower'),
+            'password_check': get_password_data().get('invalid_without_lower')
         })
-        response = client.post(reverse('register'), data=self.contact_data)
+        response = Client().post(reverse('register'), data=self.contact_data)
         self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
         self.assertFormError(response, 'form', 'password', 'Password must have at least one lowercase letter')
 
+    def test_error_messages_of_password_without_digit(self):
+
         # case:
         self.contact_data.update({
-            'password': password_data.get('invalid_without_digit'),
-            'password_check': password_data.get('invalid_without_digit')
+            'password': get_password_data().get('invalid_without_digit'),
+            'password_check': get_password_data().get('invalid_without_digit')
         })
-        response = client.post(reverse('register'), data=self.contact_data)
+        response = Client().post(reverse('register'), data=self.contact_data)
         self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
         self.assertFormError(response, 'form', 'password', 'Password must have at least one digit')
 
+    def test_error_messages_of_password_at_most_8(self):
         # case:
         self.contact_data.update({
-            'password': password_data.get('invalid_at_most_8'),
-            'password_check': password_data.get('invalid_at_most_8')
+            'password': get_password_data().get('invalid_at_most_8'),
+            'password_check': get_password_data().get('invalid_at_most_8')
         })
-        response = client.post(reverse('register'), data=self.contact_data)
+        response = Client().post(reverse('register'), data=self.contact_data)
         self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
         self.assertFormError(response, 'form', 'password', 'Ensure this value has at least 9 characters (it has 8).')
 
+    def test_error_messages_of_password_more_than_255(self):
         # case:
         self.contact_data.update({
-            'password': password_data.get('invalid_more_than_255'),
-            'password_check': password_data.get('invalid_more_than_255')
+            'password': get_password_data().get('invalid_more_than_255'),
+            'password_check': get_password_data().get('invalid_more_than_255')
         })
-        response = client.post(reverse('register'), data=self.contact_data)
+        response = Client().post(reverse('register'), data=self.contact_data)
         self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
         self.assertFormError(response, 'form', 'password', 'Ensure this value has at most 255 characters (it has 300).')
+

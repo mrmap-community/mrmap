@@ -17,7 +17,6 @@ REDIRECT_WRONG = "Redirect wrong"
 
 
 class PasswordResetTestCase(TestCase):
-
     def setUp(self):
         self.user_password = 'testpassword'
         self.active_user = create_active_user('testuser', self.user_password, 'test@example.com')
@@ -49,7 +48,6 @@ class PasswordResetTestCase(TestCase):
 
 
 class RegisterNewUserTestCase(TestCase):
-
     def setUp(self):
         self.logger = logging.getLogger('RegisterNewUserTestCase')
         self.contact_data = get_contact_data()
@@ -126,6 +124,14 @@ class RegisterNewUserTestCase(TestCase):
         self.assertEqual(response.status_code, 200, msg="We doesn't get the rendered view.")
         self.assertTemplateUsed(response, template_name='views/register.html')
 
+
+class ActivateUserTestCase(TestCase):
+    def setUp(self):
+        self.logger = logging.getLogger('ActivateUserTestCase')
+        # creates user object in db
+        self.user_password = get_password_data().get('valid')
+        self.user = create_active_user("Testuser", self.user_password, "test@example.com")
+
     def test_user_activation(self):
         """ Tests the user activation process
 
@@ -164,6 +170,14 @@ class RegisterNewUserTestCase(TestCase):
             obj_found = False
         self.assertEqual(obj_found, False, msg="User activation object could not be removed")
 
+
+class LoginLogoutTestCase(TestCase):
+    def setUp(self):
+        self.logger = logging.getLogger('LoginLogoutTestCase')
+        # creates user object in db
+        self.user_password = get_password_data().get('valid')
+        self.user = create_active_user("Testuser", self.user_password, "test@example.com")
+
     def test_user_login_logout(self):
         """ Tests the login functionality
 
@@ -175,7 +189,7 @@ class RegisterNewUserTestCase(TestCase):
         """
         client = Client()
 
-        ## case 1: user activated -> user will be logged in
+        # case 1: user activated -> user will be logged in
         self.assertEqual(self.user.logged_in, False, msg="User already logged in")
         response = client.post(reverse('login',), data={"username": self.user.username, "password": self.user_password})
         self.user.refresh_from_db()
@@ -183,14 +197,14 @@ class RegisterNewUserTestCase(TestCase):
         self.assertEqual(response.url, ROOT_URL + reverse('home', ), msg=REDIRECT_WRONG)
         self.assertEqual(self.user.logged_in, True, msg="User not logged in")
 
-        ## case 1.1: user logged in -> logout successful
+        # case 1.1: user logged in -> logout successful
         response = client.get(reverse('logout',), data={"user": self.user})
         self.user.refresh_from_db()
         self.assertEqual(response.status_code, 302, msg="No redirect was processed.")
         self.assertEqual(response.url, reverse('login',), msg=REDIRECT_WRONG)
         self.assertEqual(self.user.logged_in, False, msg="User already logged in")
 
-        ## case 2: user not activated -> user will not be logged in
+        # case 2: user not activated -> user will not be logged in
         # make sure the user is not activated
         self.user.is_active = False
         self.user.save()
@@ -200,6 +214,14 @@ class RegisterNewUserTestCase(TestCase):
         self.assertEqual(response.status_code, 302, msg="No redirect was processed.")
         self.assertEqual(response.url, reverse('login',), msg=REDIRECT_WRONG)
         self.assertEqual(self.user.logged_in, False, msg="User not logged in")
+
+
+class PasswordChangeTestCase(TestCase):
+    def setUp(self):
+        self.logger = logging.getLogger('PasswordChangeTestCase')
+        # creates user object in db
+        self.user_password = get_password_data().get('valid')
+        self.user = create_active_user("Testuser", self.user_password, "test@example.com")
 
     def test_user_password_change_with_logged_out_user(self):
         """ Tests the password change functionality
@@ -247,6 +269,27 @@ class RegisterNewUserTestCase(TestCase):
         )
         self.user.refresh_from_db()
         self.assertEqual(self.user.password, make_password(new_pw, self.user.salt), msg=PASSWORD_WRONG)
+
+
+class AccountEditTestCase(TestCase):
+    def setUp(self):
+        self.logger = logging.getLogger('AccountEditTestCase')
+        # creates user object in db
+        self.user_password = get_password_data().get('valid')
+        self.user = create_active_user("Testuser", self.user_password, "test@example.com")
+
+    def test_get_account_edit_view(self):
+        client = _login(self.user.username, self.user_password, Client())
+
+        # case 1: User logged in -> effect!
+        # assert as expected
+        response = client.get(
+            reverse('account-edit', ),
+        )
+        self.logger.debug(response.__dict__)
+        self.assertEqual(response.status_code, 200, msg="We dosn't get the account edit view")
+        self.assertTemplateUsed("views/account.html")
+        self.assertEqual(response.url, ROOT_URL + reverse('account-edit'))
 
     def test_user_profile_edit_with_logged_out_user(self):
         """ Tests the profile edit functionality

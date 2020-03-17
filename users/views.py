@@ -69,26 +69,30 @@ def login(request: HttpRequest):
          A view
     """
     template = "views/login.html"
-    login_form = LoginForm(request.POST)
+    form = LoginForm(request.POST)
 
     # check if user is still logged in!
     user_id = request.session.get("user_id")
-    if login_form.is_valid() or user_id is not None:
-        if user_id is not None:
-            user = user_helper.get_user(user_id=user_id)
-        else:
-            username = login_form.cleaned_data.get("username")
-            password = login_form.cleaned_data.get("password")
-            user = user_helper.get_user(username=username)
-            if user is None or not user.is_password_valid(password):
-                messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
-                return redirect("login")
+
+    if request.method == 'POST' and form.is_valid() and user_id is None:
+        # trial to login the user
+        username = form.cleaned_data.get("username")
+        password = form.cleaned_data.get("password")
+        user = user_helper.get_user(username=username)
+        # does the user exist?
         if user is None:
             messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
             return redirect("login")
+        # is user active?
         if not user.is_active:
             messages.add_message(request, messages.INFO, ACCOUNT_NOT_ACTIVATED)
             return redirect("login")
+        # is password ok?
+        if not user.is_password_valid(password):
+            messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
+            return redirect("login")
+
+        # user successfully logged in. Update login session data
         user.last_login = timezone.now()
         user.logged_in = True
         user.save()
@@ -108,9 +112,9 @@ def login(request: HttpRequest):
                 # this should not be possible - however ...
                 pass
         return redirect(_next)
-    login_form = LoginForm()
+
     params = {
-        "login_form": login_form,
+        "login_form": LoginForm(),
         "login_article_title": _("Sign in for Mr. Map"),
         "login_article": _("Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. ")
     }
@@ -182,16 +186,15 @@ def password_change(request: HttpRequest, user: User):
     Returns:
         A view
     """
-    if request.method == 'POST':
-        form = PasswordChangeForm(request.POST)
-        if form.is_valid():
-            password = form.cleaned_data["password"]
-            user.password = make_password(password, user.salt)
-            user.save()
-            messages.add_message(request, messages.SUCCESS, PASSWORD_CHANGE_SUCCESS)
-        else:
-            return account(request=request, params={'password_change_form': form,
-                                                    'show_password_change_form': True})
+    form = PasswordChangeForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        password = form.cleaned_data["password"]
+        user.password = make_password(password, user.salt)
+        user.save()
+        messages.add_message(request, messages.SUCCESS, PASSWORD_CHANGE_SUCCESS)
+    else:
+        return account(request=request, params={'password_change_form': form,
+                                                'show_password_change_form': True})
 
     return redirect(reverse("account"))
 

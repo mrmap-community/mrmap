@@ -1,4 +1,4 @@
-import os
+import logging
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase, Client
@@ -6,33 +6,44 @@ from django.urls import reverse
 
 from MapSkinner.messages import PASSWORD_SENT, EMAIL_IS_UNKNOWN
 from MapSkinner.settings import ROOT_URL
-from structure.models import User, UserActivation, Theme
+from structure.models import User, UserActivation
 from tests.db_setup import create_active_user
-from tests.test_data import get_contact_data, get_password_data, get_username_data
+from tests.helper import _login
+from tests.test_data import get_contact_data, get_password_data, get_username_data, get_email_data
 from django.utils import timezone
+from django.contrib.messages import get_messages
+
+REDIRECT_WRONG = "Redirect wrong"
 
 
 class PasswordResetTestCase(TestCase):
 
     def setUp(self):
-        self.active_user = create_active_user('testuser', 'testpassword', 'test@example.com')
+        self.user_password = 'testpassword'
+        self.active_user = create_active_user('testuser', self.user_password, 'test@example.com')
+        self.logger = logging.getLogger('PasswordResetTestCase')
 
     def test_success_password_reset(self):
-        client = Client()
+        client = _login(self.active_user.username, self.user_password, Client())
         response = client.post(reverse('password-reset', ), data={"email": 'test@example.com'})
-        messages = list(response.context['messages'])
-        self.assertRedirects(response, reverse('login', ))
+        self.logger.debug(response.__dict__)
+
+        self.assertEqual(response.status_code, 302, msg="No Http-302 was returned.")
+        self.assertEqual(response.url, reverse('login', ), msg=REDIRECT_WRONG)
+
+        messages = list(get_messages(response.wsgi_request))
+        self.logger.debug(messages)
         self.assertEqual(len(messages), 1)
         self.assertEqual(str(messages[0]), PASSWORD_SENT)
 
     def test_failed_password_reset(self):
-        client = Client()
+        client = _login(self.active_user.username, self.user_password, Client())
         response = client.post(reverse('password-reset', ), data={"email": 'test1@example.com'})
         self.assertEqual(response.status_code, 200, msg="We don't stay on page to see the error messages.")
         self.assertFormError(response, 'form', 'email', EMAIL_IS_UNKNOWN)
 
     def test_get_password_reset_view(self):
-        client = Client()
+        client = _login(self.active_user.username, self.user_password, Client())
         response = client.get(reverse('password-reset', ))
         self.assertEqual(response.status_code, 200, msg="We should get the view.")
 
@@ -40,6 +51,7 @@ class PasswordResetTestCase(TestCase):
 class RegisterNewUserTestCase(TestCase):
 
     def setUp(self):
+        self.logger = logging.getLogger('RegisterNewUserTestCase')
         self.contact_data = get_contact_data()
         # creates user object in db
         self.user_password = get_password_data().get('valid')
@@ -161,7 +173,6 @@ class RegisterNewUserTestCase(TestCase):
         Returns:
 
         """
-        REDIRECT_WRONG = "Redirect wrong"
         client = Client()
 
         ## case 1: user activated -> user will be logged in
@@ -190,7 +201,7 @@ class RegisterNewUserTestCase(TestCase):
         self.assertEqual(response.url, reverse('login',), msg=REDIRECT_WRONG)
         self.assertEqual(self.user.logged_in, False, msg="User not logged in")
 
-    def test_user_password_change(self):
+    def test_user_password_change_with_logged_out_user(self):
         """ Tests the password change functionality
 
         Checks if the password can be changed as expected by providing the new password two times.
@@ -201,23 +212,23 @@ class RegisterNewUserTestCase(TestCase):
         """
         PASSWORD_WRONG = "Password wrong"
         self.assertEqual(self.user.password, make_password(self.user_password, self.user.salt), msg=PASSWORD_WRONG)
-        new_pw = get_password_data().get('valid')
-
-        client = Client()
+        new_pw = 'qwertzuiop!123M'
 
         ## case 0: User is not logged in -> action has no effect
         # assert action has no effect
         self.assertEqual(self.user.logged_in, False, msg="User already logged in")
-        client.post(
+        Client().post(
             reverse('password-change', ),
             data={"password": new_pw, "password_again": new_pw, "user": self.user}
         )
         self.user.refresh_from_db()
         self.assertNotEqual(self.user.password, make_password(new_pw, self.user.salt), msg=PASSWORD_WRONG)
 
-        # login user to pass session checking
-        client.post(reverse('login', ), data={"username": self.user.username, "password": self.user_password})
-        self.user.refresh_from_db()
+    def test_user_password_change_with_logged_in_user(self):
+        PASSWORD_WRONG = "Password wrong"
+        new_pw = get_password_data().get('valid')
+
+        client = _login(self.user.username, self.user_password, Client())
 
         # case 1: Input passwords match
         # assert action has effect as expected
@@ -237,7 +248,7 @@ class RegisterNewUserTestCase(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.password, make_password(new_pw, self.user.salt), msg=PASSWORD_WRONG)
 
-    def test_user_profile_edit(self):
+    def test_user_profile_edit_with_logged_out_user(self):
         """ Tests the profile edit functionality
 
         Due to multiple possible changes in the profile, this test simply checks whether the user can change it's
@@ -248,37 +259,41 @@ class RegisterNewUserTestCase(TestCase):
 
         """
 
-        client = Client()
         new_name = get_username_data().get('valid')
         params = {
             "user": self.user,
             "username": new_name,
         }
 
-        ## case 0: User not logged in -> no effect!
+        # case 0: User not logged in -> no effect!
         # assert as expected
         self.assertEqual(self.user.logged_in, False, msg="User already logged in")
-        client.post(
+        Client().post(
             reverse('password-change', ),
             data=params
         )
         self.user.refresh_from_db()
         self.assertNotEqual(self.user.username, new_name, msg="Username has been changed")
 
-        # login user
-        client.post(
-            reverse('login', ),
-            data={"username": self.user.username, "password": self.user_password},
-        )
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.logged_in, True, msg="User not logged in")
+    def test_user_profile_edit_with_logged_in_user(self):
+        client = _login(self.user.username, self.user_password, Client())
 
-        ## case 1: User logged in -> effect!
+        new_name = get_username_data().get('valid')
+        params = {
+            "user": self.user,
+            "username": new_name,
+            "email": get_email_data().get('valid'),
+            "theme": "LIGHT",
+        }
+
+        # case 1: User logged in -> effect!
         # assert as expected
-        client.post(
+        response = client.post(
             reverse('account-edit', ),
             data=params
         )
+        self.logger.debug(response.__dict__)
+
         self.user.refresh_from_db()
         self.assertEqual(self.user.username, new_name, msg="Username could not be changed")
 

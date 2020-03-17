@@ -207,19 +207,19 @@ def account_edit(request: HttpRequest, user: User):
         A view
     """
     form = UserForm(request.POST or None, instance=user)
-    if request.method == 'POST':
-        if form.is_valid():
-            # save changes
-            user = form.save()
-            user.save()
-            messages.add_message(request, messages.SUCCESS, ACCOUNT_UPDATE_SUCCESS)
-        else:
-            return _return_account_view(request, user, {
-                "edit_account_form": form,
-                "show_edit_account_form": True
-            })
+    if request.method == 'POST' and form.is_valid():
+        # save changes
+        user = form.save()
+        user.save()
+        messages.add_message(request, messages.SUCCESS, ACCOUNT_UPDATE_SUCCESS)
+        return redirect("account")
 
-    return redirect("account")
+    return _return_account_view(request, user, {
+        "edit_account_form": form,
+        "show_edit_account_form": True
+    })
+
+
 
 
 def activate_user(request: HttpRequest, activation_hash: str):

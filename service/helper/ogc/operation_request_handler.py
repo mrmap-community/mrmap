@@ -1232,9 +1232,6 @@ class OGCOperationRequestHandler:
             else:
                 if isinstance(mask, bytes):
                     mask = Image.open(io.BytesIO(mask))
-                else:
-                    # Not supported!
-                    raise OSError
 
         except OSError:
             raise Exception("Could not create image! Content was:\n {}".format(mask))
@@ -1245,9 +1242,6 @@ class OGCOperationRequestHandler:
         img_format = img.format
         img = Image.composite(alpha_layer, img, mask)
         img.format = img_format
-
-        if proxy_log is not None:
-            proxy_log.log_response(img)
 
         # add access_denied_img image (contains info about which layers are restricted for the requesting user)
         if self.access_denied_img is not None:
@@ -1442,7 +1436,6 @@ class OGCOperationRequestHandler:
             response["response"] = self._create_masked_image(img, mask, as_bytes=True, proxy_log=proxy_log)
             response["response_type"] = img_format
 
-
         # WMS - 'Legend image'
         elif self.request_param.upper() == OGCOperationEnum.GET_LEGEND_GRAPHIC.value.upper():
             response = self.get_operation_response()
@@ -1452,8 +1445,6 @@ class OGCOperationRequestHandler:
             self._bbox_to_filter()
             self._extend_filter_by_spatial_restriction(sec_ops)
             response = self.get_operation_response()
-            if proxy_log is not None:
-                proxy_log.log_response(response["response"])
 
         # WFS - 'DescribeFeatureType'
         elif self.request_param.upper() == OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value.upper():

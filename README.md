@@ -29,7 +29,6 @@ Please read [FUNCTIONALITY.md](FUNCTIONALITY.mc) for full list of Functions.
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
 ###Install dependencies
-* install dependencies on [debian 9](INSTALLDEB9.md)
 * install dependencies on [debian 10](INSTALLDEB10.md)
 * <del>install dependencies on [windows 10]()</del> currently we don't have a working manual for windows 
 
@@ -65,24 +64,21 @@ These instructions will get you a copy of the project up and running on your loc
         
 ###Start up everything we need
 > all following commands are from within the project root directory run.
-
-1. start up redis and postgresql with docker-compose:
-
-        docker-compose -f docker/docker-compose.yml up
-        
+       
 1. start up celery process (celery will do async jobs for us)
 
         celery -A MapSkinner worker -l info
-
-1. start up mapserver with docker-compose
-
-        docker-compose -f docker/docker-compose-dev-mapserver.yml up
         
 1. start up mr. map
 
         python manage.py runserver_plus
     > [runserver_plus](https://django-extensions.readthedocs.io/en/latest/runserver_plus.html) gives us more debug informations
 
+1. you should see the login page after opening http://127.0.0.1:8000:
+
+    ![login page](mrmap_loginpage.png)
+    
+You can now login with the user you configured in your python manage.py setup routine.
 
 ##Running the tests
 * See [UNITTESTING.md](UNITTESTING.md) for how to run the unit tests.

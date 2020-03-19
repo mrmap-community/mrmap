@@ -1,85 +1,108 @@
 #Installation instructions for debian 10
-> tested on Debian GNU/Linux 10 (buster) with 
+> tested on fresh Debian GNU/Linux 10 (buster) with 
 > * python 3.7.3 
 > * pip 20.0.2
-> * Docker version 19.03.8, build afacb8b7f0
-> * pip installed docker-compose version 1.25.4, build unknown
+> * MapServer version 7.2.2
 
-##Install dependencies:
+##Install dependencies for some pip packages:
 ```bash
-sudo apt install libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin virtualenv
+sudo apt install libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin
 ```
 
-##Install docker engine - community:
+##Install and configure virtualenv
+1. Install virtualenv
 
-###Add apt repo
-1. Install packages to allow apt to use a repository over HTTPS:
-
-       sudo apt-get install \
-           apt-transport-https \
-           ca-certificates \
-           curl \
-           gnupg2 \
-           software-properties-common
-
-1. Add Docker’s official GPG key:
-
-       curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
-
-   Verify that you now have the key with the fingerprint 9DC8 5822 9FC7 DD38 854A E2D8 8D81 803C 0EBF CD88, by searching for the last 8 characters of the fingerprint.
-
-       sudo apt-key fingerprint 0EBFCD88
-
-       pub   4096R/0EBFCD88 2017-02-22
-             Key fingerprint = 9DC8 5822 9FC7 DD38 854A  E2D8 8D81 803C 0EBF CD88
-       uid                  Docker Release (CE deb) <docker@docker.com>
-       sub   4096R/F273FCD8 2017-02-22
-
-1. Use the following command to set up the stable repository.
-
-       sudo add-apt-repository \
-          "deb [arch=amd64] https://download.docker.com/linux/debian \
-          $(lsb_release -cs) \
-          stable"
-
-
-### Install Docker Engine
-1. Update the apt package index.
-
-       sudo apt-get update
-
-1. Install the latest version of Docker Engine - Community and containerd, or go to the next step to install a specific version:
-
-       sudo apt-get install docker-ce docker-ce-cli containerd.io
-
-1. (Optional) Configure proxy
-      * add new file /etc/systemd/system/docker.service.d/http-proxy.conf with following content:
-   
-       [Service]
-       Environment="HTTP_PROXY=http://user:password@proxy:port"
-       Environment="HTTPS_PROXY=http://user:password@proxy:port"
-       
-1. Verify that Docker Engine
-
-       sudo docker run hello-world
-
-1. Add your user to group docker:
-
-       sudo usermod -aG docker {username}
-
-   > after this command your system needs a restart for the changes to take effect
-
-##Install docker-compose
-> run this commands in your python [virtual env](https://docs.python.org/3/tutorial/venv.html) which you has already configured for this project.
-
-1. install docker-compose with pip
-
-        pip install docker-compose
-
-1. check version:
-
-        docker-compose --version
+        sudo apt install virtualenv
         
-   result should be:
+1. create virtualenv
+
+        virtualenv -p python3 `PATH-TO-MAPSKINNER`/venv
+        
+> to use the virtualenv run: source `PATH-TO-MAPSKINNER`/venv/bin/activate
+
+##Install apache2 with mapserver
+> We use mapserver to produce the masks for spatial restrictions.
+1. Install all needed packages:
+
+        sudo apt install apache2 apache2-bin apache2-utils cgi-mapserver \
+                     mapserver-bin mapserver-doc libmapscript-perl\
+                     python-mapscript ruby-mapscript\
+                     libcurl4-openssl-dev libssl-dev\
+                     libapache2-mod-fcgid
+                     
+1. Enable cgi and fastcgi:
+
+        sudo a2enmod cgi fcgid
+        
+1. Configure mapserver on default page (`/etc/apache2/sites-available/000-default.conf`):
+
+        ScriptAlias /cgi-bin/ /usr/lib/cgi-bin/
+        <Directory "/usr/lib/cgi-bin/">
+            AllowOverride All
+            Options +ExecCGI -MultiViews +FollowSymLinks
+            AddHandler fcgid-script .fcgi
+            Require all granted
+        </Directory>
+         
+1. Restart apache2 daemon:
+
+        sudo systemctl restart apache2
+        
+1. Proof mapserver installation:
+    * type from terminal:
     
-        docker-compose version 1.25.4, build unknown
+          mapserv -v
+    * on the browser for cgi script http://localhost/cgi-bin/mapserv?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities that normally return the following message:
+    
+          msCGILoadMap(): Web application error. CGI variable "map" is not set.
+          
+##Install and setup postgresql
+1. install all dependencies:
+        
+        sudo apt install postgresql postgresql-client postgis
+        
+1. login as postgres
+
+        sudo su - postgres        
+      
+1. run postgres shell
+
+        pysql
+                
+1. create db for mr. map:
+
+        CREATE DATABASE "MrMap";
+
+1. exit postgres shell and logout from postgres user
+
+        exit
+        exit
+
+1. configure pg_hba.conf
+    1. open the file under `/etc/postgresql/11/main/pg_hba.conf` with your preferred editor.
+        
+            sudo vim /etc/postgresql/11/main/pg_hba.conf 
+    
+    1. change authentication method to trust for all:
+        ```vim
+        # Database administrative login by Unix domain socket
+        local   all             postgres                                trust
+        
+        # TYPE  DATABASE        USER            ADDRESS                 METHOD
+        
+        # "local" is for Unix domain socket connections only
+        local   all             all                                     trust
+        # IPv4 local connections:
+        host    all             all             127.0.0.1/32            trust
+        # IPv6 local connections:
+        host    all             all             ::1/128                 trust
+        # Allow replication connections from localhost, by a user with the
+        # replication privilege.
+        local   replication     all                                     trust
+        host    replication     all             127.0.0.1/32            trust
+        host    replication     all             ::1/128                 trust
+        ```     
+       
+1. restart postgres daemon
+
+        sudo systemclt restart postgresql

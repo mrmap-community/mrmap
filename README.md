@@ -22,15 +22,16 @@ Please read [FUNCTIONALITY.md](FUNCTIONALITY.mc) for full list of Functions.
   
   
 ##Links
-* [demo]() - user: demo, password: demo
-* [quality assurance server]()
+* [demo](https://mapskinner.geospatial-interoperability-solutions.eu/) - user: demo, password: demo
+<!--ToDo: * [quality assurance server]()-->
 
 ##Getting Started
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
 ###Install dependencies
 * install dependencies on [debian 10](INSTALLDEB10.md)
-* <del>install dependencies on [windows 10]()</del> currently we don't have a working manual for windows 
+* <del>install dependencies on windows 10</del> 
+> currently we don't have a working manual for windows. 
 
 ###Initial setup Mr. Map
 1. activate your configured virtualenv:
@@ -84,8 +85,10 @@ You can now login with the user you configured in your python manage.py setup ro
 * See [UNITTESTING.md](UNITTESTING.md) for how to run the unit tests.
 * See [INTEGRATIONTESTING.md](INTEGRATIONTESTING.md) for how to run the integration tests.
 
+<!--ToDo:
 ##Deployment
-TODO
+What to do here?
+-->
 
 ##Build with
 * [django](https://www.djangoproject.com/) - The web framework used

@@ -116,9 +116,12 @@ class ProxyLog(models.Model):
         Returns:
              nothing
         """
-        # Catch case where image might be bytes
+        # Catch case where image might be bytes and transform it into a RGBA image
         if isinstance(img, bytes):
             img = Image.open(io.BytesIO(img))
+            tmp = Image.new("RGBA", img.size, (255, 255, 255, 255))
+            tmp.paste(img)
+            img = tmp
 
         if COUNT_DATA_PIXELS_ONLY:
             pixels = self._count_data_pixels_only(img)

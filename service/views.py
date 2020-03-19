@@ -1251,6 +1251,10 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
             # metadata is secured but user is not allowed
             return HttpResponse(status=401, content=SECURITY_PROXY_NOT_ALLOWED)
 
+        # Log the response, if needed
+        if proxy_log is not None:
+            proxy_log.log_response(response)
+
         len_response = len(response)
 
         if len_response <= 50000:

@@ -55,8 +55,8 @@ class Keyword(models.Model):
 
 class ProxyLog(models.Model):
     from structure.models import User
-    metadata = models.ForeignKey('Metadata', on_delete=models.DO_NOTHING, null=True, blank=True)
-    user = models.ForeignKey(User, on_delete=models.DO_NOTHING, null=True, blank=True)
+    metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
     uri = models.CharField(max_length=1000, null=True, blank=True)
     post_body = models.TextField(null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -116,9 +116,12 @@ class ProxyLog(models.Model):
         Returns:
              nothing
         """
-        # Catch case where image might be bytes
+        # Catch case where image might be bytes and transform it into a RGBA image
         if isinstance(img, bytes):
             img = Image.open(io.BytesIO(img))
+            tmp = Image.new("RGBA", img.size, (255, 255, 255, 255))
+            tmp.paste(img)
+            img = tmp
 
         if COUNT_DATA_PIXELS_ONLY:
             pixels = self._count_data_pixels_only(img)
@@ -935,7 +938,6 @@ class Metadata(Resource):
             doc.is_active = is_active
             doc.save()
 
-
     def set_logging(self, logging: bool):
         """ Set the metadata logging flag to a new value
 
@@ -943,7 +945,8 @@ class Metadata(Resource):
             logging (bool): Whether the metadata shall be logged or not
         Returns:
         """
-        if self.use_proxy_uri:
+        # Only change if the proxy setting is activated or the logging shall be deactivated anyway
+        if self.use_proxy_uri or not logging:
             self.log_proxy_access = logging
 
             # If the metadata shall be logged, all of it's subelements shall be logged as well!
@@ -2049,6 +2052,8 @@ class Service(Resource):
             feature_types = self.featuretypes.all()
             for f_t in feature_types:
                 self.delete_child_data(f_t)
+
+        #
         self.metadata.delete()
         super().delete()
 

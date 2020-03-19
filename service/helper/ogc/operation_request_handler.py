@@ -1442,7 +1442,6 @@ class OGCOperationRequestHandler:
             response["response"] = self._create_masked_image(img, mask, as_bytes=True, proxy_log=proxy_log)
             response["response_type"] = img_format
 
-
         # WMS - 'Legend image'
         elif self.request_param.upper() == OGCOperationEnum.GET_LEGEND_GRAPHIC.value.upper():
             response = self.get_operation_response()

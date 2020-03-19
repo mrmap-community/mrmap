@@ -35,24 +35,24 @@ These instructions will get you a copy of the project up and running on your loc
 ###Initial setup Mr. Map
 1. activate your configured virtualenv:
         
-        source `PATH-TO-YOUR-VENV`/bin/activate
+        $ source `PATH-TO-YOUR-VENV`/bin/activate
 
 1. clone the project from the repo to your preferred install directory:
         
-        cd `INSTALL-DIR`
-        git clone https://git.osgeo.org/gitea/hollsandre/MapSkinner 
+        (venv) $ cd `INSTALL-DIR`
+        (venv) $ git clone https://git.osgeo.org/gitea/hollsandre/MapSkinner 
 
     > all following commands are from within the project root directory run.
 
 1. install all requirements:
 
-        pip install -r requirements.txt
+        (venv) $ pip install -r requirements.txt
         
 1. run django migrations:
 
-        python manage.py makemigrations service
-        python manage.py makemigrations structure
-        python manage.py migrate
+        (venv) $ python manage.py makemigrations service
+        (venv) $ python manage.py makemigrations structure
+        (venv) $ python manage.py migrate
 
 1. (Optional) Configure proxy:
     
@@ -60,18 +60,18 @@ These instructions will get you a copy of the project up and running on your loc
 
 1. run setup routine to get initialized db with admin user for mr. map:
         
-        python mangage.py setup
+        (venv) $ python mangage.py setup
         
 ###Start up everything we need
-> all following commands are from within the project root directory run.
+> all following commands are run within the project root directory run by using your virtual env.
        
 1. start up celery process (celery will do async jobs for us)
 
-        celery -A MapSkinner worker -l info
+        (venv) $ celery -A MapSkinner worker -l info
         
 1. start up mr. map
 
-        python manage.py runserver_plus
+        (venv) $ python manage.py runserver_plus
     > [runserver_plus](https://django-extensions.readthedocs.io/en/latest/runserver_plus.html) gives us more debug informations
 
 1. you should see the login page after opening http://127.0.0.1:8000:

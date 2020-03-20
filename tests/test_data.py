@@ -1,8 +1,6 @@
 import string
 import random
 
-from structure.models import Theme
-
 
 def _random_to_long_password():
     some_lower = ''.join(random.choice(string.ascii_lowercase) for i in range(100))
@@ -15,6 +13,17 @@ def _random_to_long_username():
     return ''.join(random.choice(string.ascii_lowercase) for i in range(256))
 
 
+def _x_chars(x: int = 1):
+    return ''.join(random.choice(string.ascii_letters) for i in range(x))
+
+
+def get_email_data():
+    return {
+        'valid': 'tester@example.com',
+        'invalid_to_long': _x_chars(256) + '@example.com'
+    }
+
+
 def get_password_data():
     # Password must have at least one lowercase letter
     # Password must have at least one Uppercase letter
@@ -23,6 +32,7 @@ def get_password_data():
     # contains in following mismatching passwords:
     return {
         'valid': "MySuperStrongPassword!123.",
+        'valid_2': "MySuperStrongPassword!123",
         'invalid_without_upper': "mystrongpassword1",
         'invalid_without_lower': "MYSTRONGPASSWORD1",
         'invalid_without_digit': "MyStrongP",
@@ -76,3 +86,23 @@ def get_account_data():
         "confirmed_survey": True,
     }
 
+
+def get_capabilitites_url():
+    # currently supported version for wms 1.3.0, 1.1.1, 1.1.0, 1.0.0
+    # currently supported version for wfs 2.0.2, 2.0.0, 1.1.3, 1.1.0, 1.0.0
+    return {
+        "valid": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
+        "valid_wms_version_130": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
+        "valid_wms_version_111": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+        "valid_wms_version_110": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.1.0&REQUEST=GetCapabilities",
+        "valid_wms_version_100": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.0.0&REQUEST=GetCapabilities",
+        "valid_wfs_version_202": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WFS&VERSION=2.0.2&REQUEST=GetCapabilities",
+        "valid_wfs_version_200": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
+        "valid_wfs_version_113": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WFS&VERSION=1.1.3&REQUEST=GetCapabilities",
+        "valid_wfs_version_110": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetCapabilities",
+        "valid_wfs_version_100": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WFS&VERSION=1.0.0&REQUEST=GetCapabilities",
+        "invalid_no_service": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?VERSION=1.3.0&REQUEST=GetCapabilities",
+        "invalid_no_version": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&REQUEST=GetCapabilities",
+        "invalid_no_request": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.3.0",
+        "invalid_version": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=9.4.0&REQUEST=GetCapabilities",
+    }

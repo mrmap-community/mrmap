@@ -6,35 +6,9 @@ Created on: 15.04.19
 
 """
 from django import forms
-from service.helper import service_helper
-from django.core.exceptions import ValidationError
+
+from MapSkinner.validators import validate_get_request_uri
 from django.utils.translation import gettext_lazy as _
-
-
-def validate_get_request_uri(value):
-
-    cap_url = value
-    url_dict = service_helper.split_service_uri(cap_url)
-
-    try:
-        if url_dict["request"].lower() != "getcapabilities":
-            # not allowed!
-            raise ValidationError(
-                _('requested method is not GetCapabilities '),
-            )
-
-        params = {
-            "uri": url_dict["base_uri"],
-            "version": url_dict["version"].value,
-            "service_type": url_dict["service"].value,
-            "request_action": url_dict["request"],
-            "full_uri": cap_url,
-        }
-    except AttributeError as value:
-        raise ValidationError(
-                    _('%(value)s'),
-                    params={'value': value},
-               )
 
 
 class ServiceURIForm(forms.Form):
@@ -94,4 +68,4 @@ class RegisterNewServiceWizardPage3(forms.Form):
 
 class RemoveService(forms.Form):
     action_url = ''
-    is_confirmed = forms.BooleanField(label='Do you really want to remove this service?')
+    is_confirmed = forms.BooleanField(label=_('Do you really want to remove this service?'))

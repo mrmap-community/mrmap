@@ -1,20 +1,16 @@
 import os
-
 from copy import copy
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
-from django.test import TestCase, Client, tag
+from django.test import TestCase, Client
 from django.utils import timezone
-
-from MapSkinner.messages import SECURITY_PROXY_NOT_ALLOWED
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, HOST_NAME, HTTP_OR_SSL
 from service import tasks
 from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, OGCOperationEnum
-from service.models import Service, Layer, Document, Metadata
-from service.settings import SERVICE_OPERATION_URI_TEMPLATE
+from service.models import Service, Document, Metadata
 from structure.models import User, Group, Role, Permission
 
 

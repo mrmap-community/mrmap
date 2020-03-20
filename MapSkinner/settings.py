@@ -93,7 +93,9 @@ LAST_ACTIVITY_DATE_RANGE = 7
 # Threshold which indicates when to use multithreading instead of iterative approaches
 MULTITHREADING_THRESHOLD = 2000
 
-HTTP_PROXY = "http://10.240.20.164:8080"
+# configure your proxy like "http://10.0.0.1:8080"
+# or with username and password: "http://username:password@10.0.0.1:8080"
+HTTP_PROXY = ""
 
 PROXIES = {
     "http": HTTP_PROXY,
@@ -188,13 +190,12 @@ WSGI_APPLICATION = 'MapSkinner.wsgi.application'
 
 DATABASES = {
     'default': {
-        #'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'mapskinner',
+        'NAME': 'MrMap',
         'USER': 'postgres',
         'PASSWORD': 'postgres',
         'HOST': '127.0.0.1',
-        'PORT': '5555'
+        'PORT': '5432'
     }
 }
 

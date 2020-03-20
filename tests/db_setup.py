@@ -1,6 +1,4 @@
 import os
-from pprint import pprint
-
 from django.contrib.auth.hashers import make_password
 from structure.models import Theme, User, Group
 from django.utils import timezone
@@ -15,11 +13,12 @@ def create_theme(name: str):
     return obj
 
 
-def create_user(username: str, password: str):
+def create_active_user(username: str, password: str, email: str):
     # creates user object in db
     salt = str(os.urandom(25).hex())
     obj, created = User.objects.get_or_create(
         username=username,
+        email=email,
         salt=salt,
         password=make_password(password, salt=salt),
         confirmed_dsgvo=timezone.now(),

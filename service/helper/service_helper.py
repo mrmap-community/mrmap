@@ -20,7 +20,7 @@ from service.models import Service, ExternalAuthentication
 from service.helper.crypto_handler import CryptoHandler
 
 
-def resolve_version_enum(version:str):
+def resolve_version_enum(version: str):
     """ Returns the matching Enum for a given version as string
 
     Args:
@@ -76,7 +76,7 @@ def split_service_uri(uri):
     cap_url_query = urllib.parse.urlsplit(uri).query
     ret_dict["service"] = resolve_service_enum(tmp.get("SERVICE", None))
     ret_dict["request"] = tmp.get("REQUEST", None)
-    ret_dict["version"] = resolve_version_enum(tmp.get("VERSION", DEFAULT_SERVICE_VERSION))
+    ret_dict["version"] = tmp.get("VERSION", None)
     ret_dict["base_uri"] = uri.replace(cap_url_query, "")
     additional_params = []
 

@@ -66,12 +66,12 @@ class OrganizationForm(ModelForm):
 
 class RemoveGroupForm(forms.Form):
     action_url = ''
-    is_confirmed = forms.BooleanField(label='Do you really want to remove this group?')
+    is_confirmed = forms.BooleanField(label=_('Do you really want to remove this group?'))
 
 
 class RemoveOrganizationForm(forms.Form):
     action_url = ''
-    is_confirmed = forms.BooleanField(label='Do you really want to remove this organization?')
+    is_confirmed = forms.BooleanField(label=_('Do you really want to remove this organization?'))
 
 
 class RegistrationForm(forms.Form):
@@ -104,3 +104,13 @@ class RegistrationForm(forms.Form):
         "I understand and accept that my data will be automatically processed and securely stored, as it is stated in the general data protection regulation (GDPR)."),
                                required=True)
     captcha = CaptchaField(label=_("I'm not a robot"), required=True)
+
+    def clean(self):
+        cleaned_data = super(RegistrationForm, self).clean()
+        password = cleaned_data.get("password")
+        password_check = cleaned_data.get("password_check")
+
+        if password != password_check:
+            self.add_error("password_check", forms.ValidationError(_("Password and confirmed password does not match")))
+
+        return cleaned_data

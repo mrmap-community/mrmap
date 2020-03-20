@@ -104,7 +104,7 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
                              'sublayers_count': child_child_layers.count()}, )
 
         child_layer_table = ChildLayerTable(children, template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                            order_by='title')
+                                            order_by='title', user=None,)
         RequestConfig(request).configure(child_layer_table)
         child_layer_table.paginate(page=request.GET.get("page", default_page), per_page=per_page)
 
@@ -139,7 +139,7 @@ def collect_wms_root_data(md: Metadata):
                   'sublayers_count': child_child_layers.count()}]
 
     sub_layer_table = ChildLayerTable(sub_layer, template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                      orderable=False, show_header=False)
+                                      orderable=False, show_header=False, user=None,)
 
     params['children'] = sub_layer_table
     params['fees'] = md.fees
@@ -174,7 +174,7 @@ def collect_wfs_root_data(md: Metadata, request: HttpRequest):
                              })
 
     featuretype_table = FeatureTypeTable(featuretypes, template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                         order_by='title')
+                                         order_by='title', user=None,)
     RequestConfig(request).configure(featuretype_table)
     featuretype_table.paginate(page=request.GET.get("page", default_page), per_page=per_page)
     featuretype_table.filter = featuretypes_filtered
@@ -212,7 +212,8 @@ def collect_metadata_related_objects(md: Metadata, request: HttpRequest,):
             metadatas_dict_array,
             template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
             order_by='title',
-            show_header=show_header,)
+            show_header=show_header,
+            user=None,)
 
         RequestConfig(request).configure(related_metadata_table)
         related_metadata_table.paginate(page=request.GET.get("page", default_page), per_page=per_page)

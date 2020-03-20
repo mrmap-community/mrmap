@@ -1,7 +1,6 @@
 import io
 import json
 from io import BytesIO
-
 from PIL import Image
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
@@ -14,7 +13,6 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django_tables2 import RequestConfig
 from requests import ReadTimeout
-
 from MapSkinner import utils
 from MapSkinner.cacher import DocumentCacher, PreviewImageCacher
 from MapSkinner.consts import *
@@ -36,7 +34,6 @@ from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
-
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT
@@ -170,7 +167,7 @@ def _new_service_wizard(request: HttpRequest, user: User):
             init_data = {
                 'ogc_request': url_dict["request"],
                 'ogc_service': url_dict["service"].value,
-                'ogc_version': url_dict["version"].value,
+                'ogc_version': url_dict["version"],
                 'uri': url_dict["base_uri"],
                 'service_needs_authentication': False,
             }

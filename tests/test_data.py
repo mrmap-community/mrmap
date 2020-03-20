@@ -86,3 +86,23 @@ def get_account_data():
         "confirmed_survey": True,
     }
 
+
+def get_capabilitites_url():
+    # currently supported version for wms 1.3.0, 1.1.1, 1.1.0, 1.0.0
+    # currently supported version for wfs 2.0.2, 2.0.0, 1.1.3, 1.1.0, 1.0.0
+    return {
+        "valid": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
+        "valid_wms_version_130": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
+        "valid_wms_version_111": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
+        "valid_wms_version_110": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.1.0&REQUEST=GetCapabilities",
+        "valid_wms_version_100": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.0.0&REQUEST=GetCapabilities",
+        "valid_wfs_version_202": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WFS&VERSION=2.0.2&REQUEST=GetCapabilities",
+        "valid_wfs_version_200": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities",
+        "valid_wfs_version_113": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WFS&VERSION=1.1.3&REQUEST=GetCapabilities",
+        "valid_wfs_version_110": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WFS&VERSION=1.1.0&REQUEST=GetCapabilities",
+        "valid_wfs_version_100": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WFS&VERSION=1.0.0&REQUEST=GetCapabilities",
+        "invalid_no_service": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?VERSION=1.3.0&REQUEST=GetCapabilities",
+        "invalid_no_version": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&REQUEST=GetCapabilities",
+        "invalid_no_request": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.3.0",
+        "invalid_version": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=9.4.0&REQUEST=GetCapabilities",
+    }

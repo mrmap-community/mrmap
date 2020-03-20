@@ -39,7 +39,7 @@ from service.models import Metadata, FeatureType, Layer, ProxyLog
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
-    RENDER_TEXT_ON_IMG, MAX_FONT_SIZE
+    RENDER_TEXT_ON_IMG, MAX_FONT_SIZE, ERROR_MASK_VAL, ERROR_MASK_TXT
 from users.helper import user_helper
 
 
@@ -349,6 +349,26 @@ class OGCOperationRequestHandler:
                     draw.text((0, y), "Access denied for '{}'".format(restricted_layer), (0, 0, 0), font=font)
                     y += font_size
                 self.access_denied_img = text_img
+
+    def _create_image_with_text(self, w: int, h: int, txt: str):
+        """ Renders text on an empty image
+
+        Args:
+            w (int): The image width
+            h (int): The image height
+            txt (str): text to be rendered
+        Returns:
+             text_img (Image): The image containing text
+        """
+
+        text_img = Image.new("RGBA", (int(self.width_param), int(h)), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(text_img)
+        font_size = int(h * FONT_IMG_RATIO)
+
+        font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", font_size)
+        draw.text((0, 0), txt, (0, 0, 0), font=font)
+
+        return text_img
 
     def _fill_new_params_dict(self):
         """ Fills all processed parameters into an internal dict
@@ -1168,74 +1188,93 @@ class OGCOperationRequestHandler:
         masks = []
         width = int(self.width_param)
         height = int(self.height_param)
-        for op in sec_ops:
-            if op.bounding_geometry.empty:
-                return None
-            request_dict = {
-                "map": MAPSERVER_SECURITY_MASK_FILE_PATH,
-                "version": "1.1.1",
-                "request": "GetMap",
-                "service": "WMS",
-                "format": "image/png",
-                "layers": "mask",
-                "srs": self.srs_param,
-                "bbox": self.axis_corrected_bbox_param,
-                "width": width,
-                "height": height,
-                "keys": op.id,
-                "table": MAPSERVER_SECURITY_MASK_TABLE,
-                "key_column": MAPSERVER_SECURITY_MASK_KEY_COLUMN,
-                "geom_column": MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
-            }
-            uri = "{}?{}".format(
-                MAPSERVER_LOCAL_PATH,
-                urllib.parse.urlencode(request_dict)
-            )
+        try:
+            for op in sec_ops:
+                if op.bounding_geometry.empty:
+                    return None
+                request_dict = {
+                    "map": MAPSERVER_SECURITY_MASK_FILE_PATH,
+                    "version": "1.1.1",
+                    "request": "GetMap",
+                    "service": "WMS",
+                    "format": "image/png",
+                    "layers": "mask",
+                    "srs": self.srs_param,
+                    "bbox": self.axis_corrected_bbox_param,
+                    "width": width,
+                    "height": height,
+                    "keys": op.id,
+                    "table": MAPSERVER_SECURITY_MASK_TABLE,
+                    "key_column": MAPSERVER_SECURITY_MASK_KEY_COLUMN,
+                    "geom_column": MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
+                }
+                uri = "{}?{}".format(
+                    MAPSERVER_LOCAL_PATH,
+                    urllib.parse.urlencode(request_dict)
+                )
 
-            c = CommonConnector(url=uri)
-            c.load()
-            mask = Image.open(io.BytesIO(c.content))
-            masks.append(mask)
+                c = CommonConnector(url=uri)
+                c.load()
+                mask = Image.open(io.BytesIO(c.content))
+                masks.append(mask)
 
-        # Create empty final mask object
-        mask = Image.new("RGBA", (width, height), (255, 0, 0, 0))
+            # Create empty final mask object
+            mask = Image.new("RGBA", (width, height), (255, 0, 0, 0))
 
-        # Combine all single masks into one!
-        for m in masks:
-            mask = Image.alpha_composite(m, mask)
+            # Combine all single masks into one!
+            for m in masks:
+                mask = Image.alpha_composite(m, mask)
 
-        # Put combined mask on white background
-        background = Image.new("RGB", (width, height), (255, 255, 255))
-        background.paste(mask, mask=mask)
+            # Put combined mask on white background
+            background = Image.new("RGB", (width, height), (255, 255, 255))
+            background.paste(mask, mask=mask)
+        except Exception:
+            # If anything occurs during the mask creation, we have to make sure the response won't contain any information at all.
+            # So create an error mask
+            background = Image.new("RGB", (width, height), (ERROR_MASK_VAL, ERROR_MASK_VAL, ERROR_MASK_VAL))
+
         return background
 
-    def _create_masked_image(self, img: bytes, mask: bytes, as_bytes: bool = False, proxy_log: ProxyLog = None):
+    def _create_masked_image(self, img: bytes, mask: bytes, as_bytes: bool = False):
         """ Creates a masked image from two image byte object
 
         Args:
             img (byte): The bytes of the image
             mask (byte): The bytes of the mask
             as_bytes (bool): Whether the image should be returned as Image object or as bytes
-            proxy_log (ProxyLog): The logging object
         Returns:
              img (Image): The masked image
         """
         try:
+            # Transform byte-image to PIL-image object
             img = Image.open(io.BytesIO(img))
         except OSError:
             raise Exception("Could not create image! Content was:\n {}".format(img))
         try:
+            # Create an alpha layer, which is needed for the compositing of image and mask
             alpha_layer = Image.new("RGBA", img.size, (255, 0, 0, 0))
+
+            # Make sure we have any kind of mask
             if mask is None:
-                # no bounding geometry for masking exist, just create a mask that does nothing
+                # No bounding geometry for masking exist, so we just create a mask that does not mask anything
                 mask = Image.new("RGB", img.size, (0, 0, 0))
             else:
+                # There is a mask ...
                 if isinstance(mask, bytes):
+                    # ... but it is in bytes, so we need to transform it to a PIL-image object as well
                     mask = Image.open(io.BytesIO(mask))
+
+                # Check if the mask is fine or indicates an error
+                is_error_mask = mask.getpixel((0, 0))[0] == ERROR_MASK_VAL
+                if is_error_mask:
+                    # Create full-masking mask and create an access_denied_img
+                    mask = Image.new("RGB", img.size, (255, 255, 255))
+                    self.access_denied_img = self._create_image_with_text(img.width, img.height, ERROR_MASK_TXT)
 
         except OSError:
             raise Exception("Could not create image! Content was:\n {}".format(mask))
 
+        # Make sure mask is in grayscale and has the exact same size as the requested image
         mask = mask.convert("L").resize(img.size)
 
         # save image format for restoring a few steps later
@@ -1243,7 +1282,8 @@ class OGCOperationRequestHandler:
         img = Image.composite(alpha_layer, img, mask)
         img.format = img_format
 
-        # add access_denied_img image (contains info about which layers are restricted for the requesting user)
+        # Add access_denied_img image
+        # (contains info about which layers are restricted or if there was an error during mask creation)
         if self.access_denied_img is not None:
             old_format = img.format
             img = Image.alpha_composite(img, self.access_denied_img)
@@ -1433,7 +1473,7 @@ class OGCOperationRequestHandler:
             img = response.get("response", "")
             img_format = response.get("response_type", "")
 
-            response["response"] = self._create_masked_image(img, mask, as_bytes=True, proxy_log=proxy_log)
+            response["response"] = self._create_masked_image(img, mask, as_bytes=True)
             response["response_type"] = img_format
 
         # WMS - 'Legend image'

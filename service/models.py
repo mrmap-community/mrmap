@@ -99,12 +99,25 @@ class ProxyLog(models.Model):
              nothing
         """
         xml = xml_helper.parse_xml(xml)
+
+        # Due to different versions of wfs, the member name changes. Since we do not know in which version the
+        # GetFeature request was performed, we simply check on both possibilites and continue with the one that
+        # delivers more features than 0. If no features are returned anyway, the value 0 will fit as well.
+        identifiers = [
+            "member",
+            "featureMember",
+        ]
         root = xml.getroot()
-        feature_elems = xml_helper.try_get_element_from_xml(
-            "//" + GENERIC_NAMESPACE_TEMPLATE.format("featureMember"),
-            root
-        )
-        num_features = len(feature_elems)
+
+        for identifier in identifiers:
+            feature_elems = xml_helper.try_get_element_from_xml(
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
+                root
+            )
+            num_features = len(feature_elems)
+            if num_features > 0:
+                break
+
         self.response_wfs_num_features = num_features
         self.save()
 

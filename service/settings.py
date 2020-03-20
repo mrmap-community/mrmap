@@ -113,6 +113,10 @@ ALLOWED_SRS_EXTENTS = {
 
 INSPIRE_LEGISLATION_FILE = BASE_DIR + "/inspire_legislation.json"
 
+# MASK CREATION
+ERROR_MASK_VAL = 1  # Indicates an error while creating the mask ("good" values are either 0 or 255)
+ERROR_MASK_TXT = "Error during mask creation! \nCheck the configuration of security_mask.map!"
+
 # IMAGE RENDERING
 MIN_FONT_SIZE = 14  # The minimum font size for text on images
 MAX_FONT_SIZE = 20  # The maximum font size for text on images

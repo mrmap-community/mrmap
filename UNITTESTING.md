@@ -1,10 +1,8 @@
->all commands are triggered the project root folder.
+>all commands are triggered at the project root folder.
 
 #Unit tests
-1. run docker-compose for redis and postgresql
+All unit tests are placed in the tests/unit_tests/ directory. To run only unit tests we can tell the nosetest runner where it has to look for tests.
 
-       (venv) $ docker-compose -f docker/docker-compose.yml up
+Run unit tests with following command:
 
-1. run unit tests
-
-       (venv) $ python manage.py test --include="unit_tests"
+    (venv) $  python manage.py test -s --where="tests/unit_tests/"

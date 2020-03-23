@@ -275,7 +275,7 @@ if 'test' in sys.argv:
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 NOSE_ARGS = [
     '--with-xunit',
-    '--xunit-file=nosetests.xml',
+    '--xunit-file=tests/nosetests.xml',
     '--with-coverage',
     '--cover-erase',
     '--cover-xml',

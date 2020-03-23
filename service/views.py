@@ -25,7 +25,6 @@ from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
 from MapSkinner.utils import prepare_table_pagination_settings
 from service import tasks
-from service.forms import ServiceURIForm
 from service.helper import service_helper, update_helper, xml_helper
 from service.filters import WmsFilter, WfsFilter
 from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
@@ -269,9 +268,6 @@ def _new_service_wizard(request: HttpRequest, user: User):
                     })
 
                     pending_task_db.save()
-
-
-
 
                 except Exception as e:
                     # Form is not valid --> response with page 2 and show errors

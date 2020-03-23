@@ -23,7 +23,7 @@ def create_active_user(username: str, password: str, email: str):
         password=make_password(password, salt=salt),
         confirmed_dsgvo=timezone.now(),
         is_active=True,
-        theme=create_theme('LIGHT')
+        theme=create_theme('LIGHT'),
     )
     return obj
 
@@ -35,6 +35,12 @@ def create_random_user():
 
 def create_random_users(how_much: int = 1):
     baker.make('structure.user',
+               _quantity=how_much,
+               make_m2m=True)
+
+
+def create_random_groups(how_much: int = 1):
+    baker.make('structure.group',
                _quantity=how_much,
                make_m2m=True)
 

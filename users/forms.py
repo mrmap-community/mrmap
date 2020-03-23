@@ -7,9 +7,7 @@ Created on: 28.05.19
 """
 from django import forms
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
-
 from MapSkinner.messages import EMAIL_IS_UNKNOWN
 from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from structure.models import User, Theme

@@ -223,7 +223,7 @@ class ISOMetadata:
             # if this is not possible due to wrong input, just use the current time...
             self.last_change_date = timezone.now()
 
-        self.hierarchy_level = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:hierarchyLevel/gmd:MD_ScopeCode")
+        self.hierarchy_level = xml_helper.try_get_attribute_from_xml_element(xml_obj, "codeListValue", "//gmd:MD_Metadata/gmd:hierarchyLevel/gmd:MD_ScopeCode")
         if self.hierarchy_level == "service":
             xpath_type = "srv:SV_ServiceIdentification"
         else:

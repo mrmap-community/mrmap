@@ -115,6 +115,7 @@ class EditorTestCase(TestCase):
             response = client.post(uri, params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
         return response
 
+    # ToDo: currently this is a integration test, but in my opinion this could be an unit test by using the baker module
     def test_edit(self):
         """ Tests the editing functionality
 

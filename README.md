@@ -82,6 +82,11 @@ These instructions will get you a copy of the project up and running on your loc
 You can now login with the user you configured in your python manage.py setup routine.
 
 ##Running the tests
+Before you start pull request processing, you should always run the tests.
+Run all tests with the following command:
+
+    (venv) $ python manage.py test -s --where="tests/unit_tests/"
+
 * See [UNITTESTING.md](UNITTESTING.md) for how to run the unit tests.
 * See [INTEGRATIONTESTING.md](INTEGRATIONTESTING.md) for how to run the integration tests.
 

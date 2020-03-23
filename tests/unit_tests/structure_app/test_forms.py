@@ -1,6 +1,13 @@
+"""
+Author: Jonas Kiefer
+Organization: Spatial data infrastructure Rhineland-Palatinate, Germany
+Contact: jonas.kiefer@vermkv.rlp.de
+Created on: 23.03.2020
+
+"""
 from django.test import TestCase
 from structure.forms import RegistrationForm
-from tests.test_data import get_password_data, get_contact_data, get_username_data
+from tests.test_data import get_password_data, get_contact_data
 
 
 class RegistrationFormTest(TestCase):

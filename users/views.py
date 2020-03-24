@@ -84,16 +84,20 @@ def login_view(request: HttpRequest):
         username = form.cleaned_data.get("username")
         password = form.cleaned_data.get("password")
         user = authenticate(request=request, username=username, password=password)
-        login(request, user)
-        # does the user exist?
-        if user is None:
-            messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
-            return redirect("login")
-        # is user active?
-        if not user.is_active:
-            messages.add_message(request, messages.INFO, ACCOUNT_NOT_ACTIVATED)
-            return redirect("login")
 
+        if user is None:
+            # Is user not activated yet?
+            try:
+                user = MrMapUser.objects.get_by_natural_key(username)
+                if not user.is_active:
+                    messages.add_message(request, messages.INFO, ACCOUNT_NOT_ACTIVATED)
+                    return redirect("login")
+            except ObjectDoesNotExist:
+                messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
+                return redirect("login")
+
+
+        login(request, user)
         _next = request.session.get("next", None)
 
         if _next is None:

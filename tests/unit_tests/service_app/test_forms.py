@@ -1,6 +1,13 @@
-from django.test import TestCase
+"""
+Author: Jonas Kiefer
+Organization: Spatial data infrastructure Rhineland-Palatinate, Germany
+Contact: jonas.kiefer@vermkv.rlp.de
+Created on: 23.03.2020
 
-from service.forms import RegisterNewServiceWizardPage1
+"""
+from django.test import TestCase
+from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2
+from tests.db_setup import create_active_user, create_random_user
 from tests.test_data import get_capabilitites_url
 
 
@@ -10,7 +17,6 @@ class RegisterNewServiceWizardPage1TestCase(TestCase):
         Current requirements are:
 
             valid getCapabilities URL is inserted
-
     """
     def setUp(self):
         self.params = {
@@ -102,4 +108,93 @@ class RegisterNewServiceWizardPage1TestCase(TestCase):
         form = RegisterNewServiceWizardPage1(data=self.params)
         self.assertFalse(form.is_valid(), msg="get request uri was accepted, but was invalid with not supported version.")
 
+
+class RegisterNewServiceWizardPage2TestCase(TestCase):
+    """
+        This testcase will proof the custom constructor of the RegisterNewServiceWizardPage2
+    """
+
+    def setUp(self):
+        self.user = create_random_user()
+
+    def test_construction_if_no_parameter_are_transfered(self):
+        try:
+            RegisterNewServiceWizardPage2()
+        except Exception:
+            self.fail(msg="Excaption raised while constructing RegisterNewServiceWizardPage2.")
+
+    def test_construction_if_service_needs_authentication_is_false(self):
+        """
+            Tests if the service_needs_authentication depending fields are deactivated.
+
+            following fields shouldn't be required:
+            service_needs_authentication
+            username
+            password
+            authentication_type
+
+            following fields should be disabled:
+            username
+            password
+            authentication_type
+
+            following fields shouldn't be disabled:
+            service_needs_authentication
+        """
+        form = RegisterNewServiceWizardPage2(service_needs_authentication=False)
+
+        self.assertFalse(form.fields["service_needs_authentication"].required)
+        self.assertFalse(form.fields["username"].required)
+        self.assertFalse(form.fields["password"].required)
+        self.assertFalse(form.fields["authentication_type"].required)
+
+        self.assertTrue(form.fields["username"].disabled)
+        self.assertTrue(form.fields["password"].disabled)
+        self.assertTrue(form.fields["authentication_type"].disabled)
+
+        self.assertFalse(form.fields["service_needs_authentication"].disabled)
+
+    def test_construction_if_service_needs_authentication_is_true(self):
+        """
+            Tests if the service_needs_authentication depending fields are activated.
+
+            following fields should be required:
+            service_needs_authentication
+            username
+            password
+            authentication_type
+
+            following fields shouldn't be disabled:
+            service_needs_authentication
+            username
+            password
+            authentication_type
+        """
+        form = RegisterNewServiceWizardPage2(service_needs_authentication=True)
+
+        self.assertTrue(form.fields["service_needs_authentication"].required)
+        self.assertTrue(form.fields["username"].required)
+        self.assertTrue(form.fields["password"].required)
+        self.assertTrue(form.fields["authentication_type"].required)
+
+        self.assertFalse(form.fields["service_needs_authentication"].disabled)
+        self.assertFalse(form.fields["username"].disabled)
+        self.assertFalse(form.fields["password"].disabled)
+        self.assertFalse(form.fields["authentication_type"].disabled)
+
+    def test_construction_with_given_user(self):
+        """
+            Tests if the correct queryset and initial value of the specific registering_with_group field
+        """
+        form = RegisterNewServiceWizardPage2(user=self.user)
+        self.assertEqual(list(form.fields["registering_with_group"].queryset), list(self.user.groups.all()))
+        self.assertQuerysetEqual(form.fields["registering_for_other_organization"].queryset, self.user.groups.first().publish_for_organizations.all())
+        self.assertEqual(form.fields["registering_with_group"].initial, self.user.groups.first())
+
+    def test_construction_with_given_selected_group(self):
+        """
+            Tests if the correct queryset of the specific registering_for_other_organization field
+        """
+        form = RegisterNewServiceWizardPage2(selected_group=self.user.groups.first())
+        self.assertQuerysetEqual(form.fields["registering_for_other_organization"].queryset, self.user.groups.first().publish_for_organizations.all())
 

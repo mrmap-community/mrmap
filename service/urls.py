@@ -17,13 +17,6 @@ urlpatterns = [
     path('metadata/<int:id>/operation', get_operation_result, name='metadata-proxy-operation'),
     path('metadata/<int:id>/legend/<int:style_id>', get_metadata_legend, name='metadata-proxy-legend'),
 
-    #path('capabilities/<int:id>', get_capabilities, name='get-capabilities'),
-    #path('capabilities/<int:id>/original', get_capabilities_original, name='get-capabilities-original'),
-
-    # TODO: if we need separated paths... we have to refactor this by using _new_service_wizard function
-    #path('new/register-form', register_form, name='register-form'),
-    #path('new/', new_service, name='new-service'),
-
     path('update/register-form/<id>', update_service_form, name='register-form'),
     path('update/<id>', update_service, name='update-service'),
     path('update/discard/', discard_update, name='update-discard'),

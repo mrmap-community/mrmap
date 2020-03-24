@@ -14,7 +14,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django_tables2 import RequestConfig
 from requests import ReadTimeout
 from MapSkinner import utils
-from MapSkinner.cacher import DocumentCacher, PreviewImageCacher
+from MapSkinner.cacher import PreviewImageCacher
 from MapSkinner.consts import *
 from MapSkinner.decorator import check_session, check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
@@ -25,13 +25,12 @@ from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
 from MapSkinner.utils import prepare_table_pagination_settings
 from service import tasks
-from service.helper import service_helper, update_helper, xml_helper
+from service.helper import xml_helper
 from service.filters import WmsFilter, WfsFilter
 from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, RemoveService
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
@@ -42,7 +41,7 @@ from service.models import Metadata, Layer, Service, FeatureType, Document, Meta
 from service.tasks import async_remove_service_task
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from structure.models import User, Permission, PendingTask, Group, Organization, Contact
+from structure.models import User, Permission, PendingTask, Group
 from users.helper import user_helper
 from django.urls import reverse
 from django import forms

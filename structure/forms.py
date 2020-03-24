@@ -2,6 +2,8 @@ from captcha.fields import CaptchaField
 from django import forms
 from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
+
+from MapSkinner.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
 from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from structure.models import MrMapGroup, Organization
 
@@ -75,20 +77,31 @@ class RemoveOrganizationForm(forms.Form):
 
 
 class RegistrationForm(forms.Form):
-    username = forms.CharField(min_length=5, max_length=255,
-                               validators=USERNAME_VALIDATORS,
-                               label=_("Username"),
-                               label_suffix=" ",
-                               required=True)
-    password = forms.CharField(min_length=9, max_length=255,
-                               label=_("Password"),
-                               label_suffix=" ",
-                               widget=forms.PasswordInput,
-                               required=True,
-                               validators=PASSWORD_VALIDATORS)
+    username = forms.CharField(
+        min_length=MIN_USERNAME_LENGTH,
+        max_length=255,
+        validators=USERNAME_VALIDATORS,
+        label=_("Username"),
+        label_suffix=" ",
+        required=True
+    )
+    password = forms.CharField(
+        min_length=MIN_PASSWORD_LENGTH,
+        max_length=255,
+        label=_("Password"),
+        label_suffix=" ",
+        widget=forms.PasswordInput,
+        required=True,
+        validators=PASSWORD_VALIDATORS
+    )
 
-    password_check = forms.CharField(max_length=255, label=_("Password again"), label_suffix=" ",
-                                     widget=forms.PasswordInput, required=True)
+    password_check = forms.CharField(
+        max_length=255,
+        label=_("Password again"),
+        label_suffix=" ",
+        widget=forms.PasswordInput,
+        required=True
+    )
 
     first_name = forms.CharField(max_length=200, label=_("First name"), label_suffix=" ", required=True)
     last_name = forms.CharField(max_length=200, label=_("Last name"), label_suffix=" ", required=True)
@@ -100,9 +113,11 @@ class RegistrationForm(forms.Form):
     facsimile = forms.CharField(max_length=100, label=_("Facsimile"), label_suffix=" ", required=False)
     newsletter = forms.BooleanField(label=_("I want to sign up for the newsletter"), required=False, initial=True)
     survey = forms.BooleanField(label=_("I want to participate in surveys"), required=False, initial=True)
-    dsgvo = forms.BooleanField(initial=False, label=_(
-        "I understand and accept that my data will be automatically processed and securely stored, as it is stated in the general data protection regulation (GDPR)."),
-                               required=True)
+    dsgvo = forms.BooleanField(
+        initial=False,
+        label=_("I understand and accept that my data will be automatically processed and securely stored, as it is stated in the general data protection regulation (GDPR)."),
+        required=True
+    )
     captcha = CaptchaField(label=_("I'm not a robot"), required=True)
 
     def clean(self):

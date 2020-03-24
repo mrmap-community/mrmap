@@ -10,6 +10,7 @@ import datetime
 import os
 
 from django.contrib import messages
+from django.contrib.auth import logout, authenticate, login
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
@@ -29,13 +30,13 @@ from MapSkinner.utils import print_debug_mode
 from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
 from structure.forms import LoginForm, RegistrationForm
-from structure.models import User, UserActivation, PendingRequest, GroupActivity, Organization
+from structure.models import MrMapUser, UserActivation, PendingRequest, GroupActivity, Organization
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm
 from users.helper import user_helper
 from django.urls import reverse
 
 
-def _return_account_view(request: HttpRequest, user: User, params):
+def _return_account_view(request: HttpRequest, user: MrMapUser, params):
     template = "views/account.html"
     render_params = _prepare_account_view_params(user)
     if params:
@@ -45,7 +46,7 @@ def _return_account_view(request: HttpRequest, user: User, params):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-def _prepare_account_view_params(user: User):
+def _prepare_account_view_params(user: MrMapUser):
     edit_account_form = UserForm(instance=user, initial={'theme': user.theme})
     edit_account_form.action_url = reverse('account-edit', )
 
@@ -60,7 +61,7 @@ def _prepare_account_view_params(user: User):
     return params
 
 
-def login(request: HttpRequest):
+def login_view(request: HttpRequest):
     """ Login landing page
 
     Args:
@@ -72,13 +73,19 @@ def login(request: HttpRequest):
     form = LoginForm(request.POST)
 
     # check if user is still logged in!
-    user_id = request.session.get("user_id")
+    user = request.user
 
-    if request.method == 'POST' and form.is_valid() and user_id is None:
+    if not user.is_anonymous and user.is_authenticated:
+        return redirect("home")
+
+    # Someone wants to login
+    if request.method == 'POST' and form.is_valid() and user.is_anonymous:
         # trial to login the user
         username = form.cleaned_data.get("username")
         password = form.cleaned_data.get("password")
-        user = user_helper.get_user(username=username)
+        #user = user_helper.get_user(username=username)
+        user = authenticate(request=request, username=username, password=password)
+        login(request, user)
         # does the user exist?
         if user is None:
             messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
@@ -87,17 +94,6 @@ def login(request: HttpRequest):
         if not user.is_active:
             messages.add_message(request, messages.INFO, ACCOUNT_NOT_ACTIVATED)
             return redirect("login")
-        # is password ok?
-        if not user.is_password_valid(password):
-            messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
-            return redirect("login")
-
-        # user successfully logged in. Update login session data
-        user.last_login = timezone.now()
-        user.logged_in = True
-        user.save()
-        request.session["user_id"] = user.id
-        request.session.set_expiry(SESSION_EXPIRATION)
 
         _next = request.session.get("next", None)
 
@@ -113,6 +109,7 @@ def login(request: HttpRequest):
                 pass
         return redirect(_next)
 
+
     params = {
         "login_form": LoginForm(),
         "login_article_title": _("Sign in for Mr. Map"),
@@ -122,8 +119,8 @@ def login(request: HttpRequest):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_session
-def home_view(request: HttpRequest, user: User):
+#@check_session
+def home_view(request: HttpRequest):
     """ Renders the dashboard / home view of the user
 
     Args:
@@ -132,6 +129,7 @@ def home_view(request: HttpRequest, user: User):
     Returns:
          A rendered view
     """
+    user = request.user
     template = "views/dashboard.html"
     user_services_wms = Metadata.objects.filter(
             service__servicetype__name="wms",
@@ -163,13 +161,13 @@ def home_view(request: HttpRequest, user: User):
 
 
 @check_session
-def account(request: HttpRequest, user: User, params={}):
+def account(request: HttpRequest, user: MrMapUser, params={}):
     """ Renders an overview of the user's account information
 
     Args:
         params:
         request (HttpRequest): The incoming request
-        user (User): The user
+        user (MrMapUser): The user
     Returns:
          A rendered view
     """
@@ -177,12 +175,12 @@ def account(request: HttpRequest, user: User, params={}):
 
 
 @check_session
-def password_change(request: HttpRequest, user: User):
+def password_change(request: HttpRequest, user: MrMapUser):
     """ Renders the form for password changing and validates the input afterwards
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The user
+        user (MrMapUser): The user
     Returns:
         A view
     """
@@ -200,12 +198,12 @@ def password_change(request: HttpRequest, user: User):
 
 
 @check_session
-def account_edit(request: HttpRequest, user: User):
+def account_edit(request: HttpRequest, user: MrMapUser):
     """ Renders a form for editing user account data
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The user
+        user (MrMapUser): The user
     Returns:
         A view
     """
@@ -259,8 +257,7 @@ def activate_user(request: HttpRequest, activation_hash: str):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_session
-def logout(request: HttpRequest, user: User):
+def logout_view(request: HttpRequest):
     """ Logs the structure out and redirects to login view
 
     Args:
@@ -269,8 +266,10 @@ def logout(request: HttpRequest, user: User):
     Returns:
          A view
     """
-    user.logged_in = False
-    user.save()
+    user = request.user
+    #user.logged_in = False
+    #user.save()
+    logout(request)
 
     # remove session related data
     del_keys = [
@@ -303,7 +302,7 @@ def password_reset(request: HttpRequest):
     }
     if request.method == 'POST' and form.is_valid():
         # we dont need to check the email address here: see clean function of PasswordResetForm class
-        user = User.objects.get(email=form.cleaned_data.get("email"))
+        user = MrMapUser.objects.get(email=form.cleaned_data.get("email"))
 
         # generate new password
         # ToDo: Do sending via email!
@@ -340,7 +339,7 @@ def register(request: HttpRequest):
         cleaned_data = form.cleaned_data
 
         # create new user and send mail
-        user = User()
+        user = MrMapUser()
         user.username = cleaned_data.get("username")
         user.salt = str(os.urandom(25).hex())
         user.password = make_password(cleaned_data.get("password"), salt=user.salt)

@@ -3,7 +3,7 @@ from django import forms
 from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
 from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
-from structure.models import Group, Organization
+from structure.models import MrMapGroup, Organization
 
 
 class LoginForm(forms.Form):
@@ -23,7 +23,7 @@ class GroupForm(ModelForm):
     )
 
     class Meta:
-        model = Group
+        model = MrMapGroup
         fields = '__all__'
         exclude = [
             "created_by",

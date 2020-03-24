@@ -22,14 +22,14 @@ from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper.enums import OGCServiceEnum, MetadataEnum
 from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation, Document
 from django.utils.translation import gettext_lazy as _
-from structure.models import User, Permission, Group
+from structure.models import MrMapUser, Permission, MrMapGroup
 from users.helper import user_helper
 from editor.helper import editor_helper
 from editor.tables import *
 from editor.filters import *
 
 
-def _prepare_wms_table(request: HttpRequest, user: User,):
+def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
     # get all services that are registered by the user
     wms_services = user.get_services_as_qs(OGCServiceEnum.WMS)
     wms_table_filtered = WmsServiceFilter(request.GET, queryset=wms_services)
@@ -47,7 +47,7 @@ def _prepare_wms_table(request: HttpRequest, user: User,):
     return wms_table
 
 
-def _prepare_wfs_table(request: HttpRequest, user: User, ):
+def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
     wfs_services = user.get_services_as_qs(OGCServiceEnum.WFS)
     wfs_table_filtered = WfsServiceFilter(request.GET, queryset=wfs_services)
     wfs_table = WfsServiceTable(wfs_table_filtered.qs,
@@ -66,7 +66,7 @@ def _prepare_wfs_table(request: HttpRequest, user: User, ):
 
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))
-def index(request: HttpRequest, user: User,):
+def index(request: HttpRequest, user: MrMapUser, ):
     """ The index view of the editor app.
 
     Lists all services with information of custom set metadata.
@@ -88,7 +88,7 @@ def index(request: HttpRequest, user: User,):
 
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))
-def index_wms(request: HttpRequest, user: User,):
+def index_wms(request: HttpRequest, user: MrMapUser, ):
     """ The index view of the editor app.
 
     Lists all services with information of custom set metadata.
@@ -109,7 +109,7 @@ def index_wms(request: HttpRequest, user: User,):
 
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))
-def index_wfs(request: HttpRequest, user: User,):
+def index_wfs(request: HttpRequest, user: MrMapUser, ):
     """ The index view of the editor app.
 
     Lists all services with information of custom set metadata.
@@ -130,7 +130,7 @@ def index_wfs(request: HttpRequest, user: User,):
 
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))
-def edit(request: HttpRequest, id: int, user: User):
+def edit(request: HttpRequest, id: int, user: MrMapUser):
     """ The edit view for metadata
 
     Provides editing functions for all elements which are described by Metadata objects
@@ -205,7 +205,7 @@ def edit(request: HttpRequest, id: int, user: User):
 
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))
-def edit_access(request: HttpRequest, id: int, user: User):
+def edit_access(request: HttpRequest, id: int, user: MrMapUser):
     """ The edit view for the operations access
 
     Provides a form to set the access permissions for a metadata-related object.
@@ -214,7 +214,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
     Args:
         request (HttpRequest): The incoming request
         id (int): The metadata id
-        user (User): The performing user
+        user (MrMapUser): The performing user
     Returns:
          A rendered view
     """
@@ -260,7 +260,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
         sec_ops = SecuredOperation.objects.filter(
             secured_metadata=md
         )
-        all_groups = Group.objects.all()
+        all_groups = MrMapGroup.objects.all()
         tmp = editor_helper.prepare_secured_operations_groups(operations, sec_ops, all_groups, md)
 
         spatial_restrictable_operations = [
@@ -280,7 +280,7 @@ def edit_access(request: HttpRequest, id: int, user: User):
 
 
 @check_session
-def access_geometry_form(request: HttpRequest, id: int, user: User):
+def access_geometry_form(request: HttpRequest, id: int, user: MrMapUser):
     template = "views/access_geometry_form.html"
 
     GET_params = request.GET
@@ -315,7 +315,7 @@ def access_geometry_form(request: HttpRequest, id: int, user: User):
 
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))
-def restore(request: HttpRequest, id: int, user: User):
+def restore(request: HttpRequest, id: int, user: MrMapUser):
     """ Drops custom metadata and load original metadata from capabilities and ISO metadata
 
     Args,
@@ -367,7 +367,7 @@ def restore(request: HttpRequest, id: int, user: User):
 
 @check_session
 @check_permission(Permission(can_edit_metadata_service=True))
-def restore_featuretype(request: HttpRequest, id: int, user: User):
+def restore_featuretype(request: HttpRequest, id: int, user: MrMapUser):
     """ Drops custom featuretype data and load original from capabilities and ISO metadata
 
     Args:

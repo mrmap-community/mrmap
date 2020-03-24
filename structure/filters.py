@@ -1,6 +1,6 @@
 import django_filters
 from django.forms import TextInput, CheckboxInput, ChoiceField, CharField, CheckboxSelectMultiple, BooleanField
-from structure.models import Group, Organization
+from structure.models import MrMapGroup, Organization
 
 
 class GroupFilter(django_filters.FilterSet):
@@ -15,7 +15,7 @@ class GroupFilter(django_filters.FilterSet):
                queryset.filter(organization__organization_name__icontains=value)
 
     class Meta:
-        model = Group
+        model = MrMapGroup
         fields = []
 
 

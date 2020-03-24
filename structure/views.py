@@ -29,22 +29,22 @@ from service.models import Service
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, RemoveOrganizationForm
-from structure.models import Group, Role, Permission, Organization, PendingRequest, PendingTask, GroupActivity
-from structure.models import User
+from structure.models import MrMapGroup, Role, Permission, Organization, PendingRequest, PendingTask, GroupActivity
+from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable, PublishesForTable
 from django.urls import reverse
 
 from users.helper.user_helper import create_group_activity
 
 
-def _prepare_group_table(request: HttpRequest, user: User, ):
+def _prepare_group_table(request: HttpRequest, user: MrMapUser, ):
     user_groups = user.groups.all()
     user_groups_filtered = GroupFilter(request.GET, queryset=user_groups)
 
     groups = []
     for user_group in user_groups_filtered.qs:
         groups.append(user_group)
-        groups.extend(Group.objects.filter(
+        groups.extend(MrMapGroup.objects.filter(
             parent=user_group
         ))
 
@@ -64,7 +64,7 @@ def _prepare_group_table(request: HttpRequest, user: User, ):
     return {"groups": groups_table, }
 
 
-def _prepare_orgs_table(request: HttpRequest, user: User, ):
+def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, ):
     all_orgs = Organization.objects.all()
 
     all_orgs_filtered = OrganizationFilter(request.GET, queryset=all_orgs)
@@ -86,12 +86,12 @@ def _prepare_orgs_table(request: HttpRequest, user: User, ):
 
 
 @check_session
-def index(request: HttpRequest, user: User):
+def index(request: HttpRequest, user: MrMapUser):
     """ Renders an overview of all groups and organizations
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The current user
+        user (MrMapUser): The current user
     Returns:
          A view
     """
@@ -193,12 +193,12 @@ def remove_task(request: HttpRequest, id: str):
 
 
 @check_session
-def groups_index(request: HttpRequest, user: User):
+def groups_index(request: HttpRequest, user: MrMapUser):
     """ Renders an overview of all groups
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The current user
+        user (MrMapUser): The current user
     Returns:
          A view
     """
@@ -217,12 +217,12 @@ def groups_index(request: HttpRequest, user: User):
 
 
 @check_session
-def organizations_index(request: HttpRequest, user: User):
+def organizations_index(request: HttpRequest, user: MrMapUser):
     """ Renders an overview of all organizations
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The current user
+        user (MrMapUser): The current user
     Returns:
          A view
     """
@@ -240,7 +240,7 @@ def organizations_index(request: HttpRequest, user: User):
 
 
 @check_session
-def detail_organizations(request:HttpRequest, org_id: int, user:User):
+def detail_organizations(request:HttpRequest, org_id: int, user:MrMapUser):
     """ Renders an overview of a group's details.
 
     Args:
@@ -251,7 +251,7 @@ def detail_organizations(request:HttpRequest, org_id: int, user:User):
          A rendered view
     """
     org = Organization.objects.get(id=org_id)
-    members = User.objects.filter(organization=org)
+    members = MrMapUser.objects.filter(organization=org)
     sub_orgs = Organization.objects.filter(parent=org)
     services = Service.objects.filter(metadata__contact=org, is_root=True)
     template = "views/organizations_detail.html"
@@ -265,7 +265,7 @@ def detail_organizations(request:HttpRequest, org_id: int, user:User):
         user=user,
     )
 
-    all_publishing_groups = Group.objects.filter(publish_for_organizations__id=org_id)
+    all_publishing_groups = MrMapGroup.objects.filter(publish_for_organizations__id=org_id)
     publisher_table = PublisherTable(
         all_publishing_groups,
         template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
@@ -306,7 +306,7 @@ def detail_organizations(request:HttpRequest, org_id: int, user:User):
 # TODO: update function documentation
 @check_session
 @check_permission(Permission(can_edit_organization=True))
-def edit_org(request: HttpRequest, org_id: int, user: User):
+def edit_org(request: HttpRequest, org_id: int, user: MrMapUser):
     """ The edit view for changing organization values
 
     Args:
@@ -340,7 +340,7 @@ def edit_org(request: HttpRequest, org_id: int, user: User):
 # TODO: update function documentation
 @check_session
 @check_permission(Permission(can_delete_organization=True))
-def remove_org(request: HttpRequest, org_id: int, user: User):
+def remove_org(request: HttpRequest, org_id: int, user: MrMapUser):
     """ Renders the remove form for an organization
 
     Args:
@@ -363,7 +363,7 @@ def remove_org(request: HttpRequest, org_id: int, user: User):
 # TODO: update function documentation
 @check_session
 @check_permission(Permission(can_create_organization=True))
-def new_org(request: HttpRequest, user: User):
+def new_org(request: HttpRequest, user: MrMapUser):
     """ Renders the new organization form and saves the input
 
     Args:
@@ -398,7 +398,7 @@ def new_org(request: HttpRequest, user: User):
 
 @check_session
 @check_permission(Permission(can_toggle_publish_requests=True))
-def accept_publish_request(request: HttpRequest, request_id: int, user: User):
+def accept_publish_request(request: HttpRequest, request_id: int, user: MrMapUser):
     """ Activate or decline the publishing request.
 
     If the request is too old, the publishing will not be accepted.
@@ -406,7 +406,7 @@ def accept_publish_request(request: HttpRequest, request_id: int, user: User):
     Args:
         request (HttpRequest): The incoming request
         request_id (int): The group id
-        user (User): The current user object
+        user (MrMapUser): The current user object
     Returns:
          A BackendAjaxResponse since it is an Ajax request
     """
@@ -443,19 +443,19 @@ def accept_publish_request(request: HttpRequest, request_id: int, user: User):
 
 @check_session
 @check_permission(Permission(can_remove_publisher=True))
-def remove_publisher(request: HttpRequest, org_id: int, group_id: int, user: User):
+def remove_publisher(request: HttpRequest, org_id: int, group_id: int, user: MrMapUser):
     """ Removes a publisher for an organization
 
     Args:
         request (HttpRequest): The incoming request
         org_id (int): The organization id
         group_id (int): The group id (publisher)
-        user (User): The current user object
+        user (MrMapUser): The current user object
     Returns:
          A BackendAjaxResponse since it is an Ajax request
     """
     org = Organization.objects.get(id=org_id)
-    group = Group.objects.get(id=group_id, publish_for_organizations=org)
+    group = MrMapGroup.objects.get(id=group_id, publish_for_organizations=org)
 
     # only allow removing if the user is part of the organization or the group!
     if group not in user.groups.all() and user.organization != org:
@@ -473,13 +473,13 @@ def remove_publisher(request: HttpRequest, org_id: int, group_id: int, user: Use
 
 @check_session
 @check_permission(Permission(can_request_to_become_publisher=True))
-def publish_request(request: HttpRequest, org_id: int, user: User):
+def publish_request(request: HttpRequest, org_id: int, user: MrMapUser):
     """ Performs creation of a publishing request between a user/group and an organization
 
     Args:
         request (HttpRequest): The incoming HttpRequest
         org_id (int): The organization id
-        user (User): The performing user object
+        user (MrMapUser): The performing user object
     Returns:
          A rendered view
     """
@@ -494,7 +494,7 @@ def publish_request(request: HttpRequest, org_id: int, user: User):
     if request.method == 'POST':
         if request_form.is_valid():
             msg = request_form.cleaned_data["request_msg"]
-            group = Group.objects.get(id=request_form.cleaned_data["group"])
+            group = MrMapGroup.objects.get(id=request_form.cleaned_data["group"])
 
             # check if user is already a publisher using this group or a request already has been created
             pub_request = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=org, group=group)
@@ -535,7 +535,7 @@ def publish_request(request: HttpRequest, org_id: int, user: User):
 
 
 @check_session
-def detail_group(request: HttpRequest, id: int, user: User):
+def detail_group(request: HttpRequest, id: int, user: MrMapUser):
     """ Renders an overview of a group's details.
 
     Args:
@@ -545,7 +545,7 @@ def detail_group(request: HttpRequest, id: int, user: User):
     Returns:
          A rendered view
     """
-    group = Group.objects.get(id=id)
+    group = MrMapGroup.objects.get(id=id)
     members = group.users.all()
     template = "views/groups_detail.html"
 
@@ -579,7 +579,7 @@ def detail_group(request: HttpRequest, id: int, user: User):
 # TODO: update function documentation
 @check_session
 @check_permission(Permission(can_create_group=True))
-def new_group(request: HttpRequest, user: User):
+def new_group(request: HttpRequest, user: MrMapUser):
     """ Renders the new group form and saves the input
 
     Args:
@@ -613,7 +613,7 @@ def new_group(request: HttpRequest, user: User):
 
 
 @check_session
-def list_publisher_group(request: HttpRequest, id: int, user: User):
+def list_publisher_group(request: HttpRequest, id: int, user: MrMapUser):
     """ List all organizations a group can publish for
 
     Args:
@@ -624,7 +624,7 @@ def list_publisher_group(request: HttpRequest, id: int, user: User):
         A rendered view
     """
     template = "index_publish_requests.html"
-    group = Group.objects.get(id=id)
+    group = MrMapGroup.objects.get(id=id)
 
     params = {
         "group": group,
@@ -637,7 +637,7 @@ def list_publisher_group(request: HttpRequest, id: int, user: User):
 # TODO: update function documentation
 @check_session
 @check_permission(Permission(can_delete_group=True))
-def remove_group(request: HttpRequest, id: int, user: User):
+def remove_group(request: HttpRequest, id: int, user: MrMapUser):
     """ Renders the remove form for a group
 
     Args:
@@ -647,7 +647,7 @@ def remove_group(request: HttpRequest, id: int, user: User):
     """
     remove_form = RemoveGroupForm(request.POST)
     if remove_form.is_valid():
-        group = get_object_or_404(Group, id=id)
+        group = get_object_or_404(MrMapGroup, id=id)
 
         if group.created_by != user:
             # TODO: this message should be presented in the form errors ==> see form.add_error()
@@ -658,7 +658,7 @@ def remove_group(request: HttpRequest, id: int, user: User):
             return redirect(STRUCTURE_DETAIL_GROUP, group.id)
         else:
             # clean subgroups from parent
-            sub_groups = Group.objects.filter(
+            sub_groups = MrMapGroup.objects.filter(
                 parent=group
             )
             for sub in sub_groups:
@@ -674,7 +674,7 @@ def remove_group(request: HttpRequest, id: int, user: User):
 
 @check_session
 @check_permission(Permission(can_edit_group=True))
-def edit_group(request: HttpRequest, user: User, id: int):
+def edit_group(request: HttpRequest, user: MrMapUser, id: int):
     """ The edit view for changing group values
 
     Args:
@@ -685,7 +685,7 @@ def edit_group(request: HttpRequest, user: User, id: int):
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
 
-    group = Group.objects.get(id=id)
+    group = MrMapGroup.objects.get(id=id)
     if group.created_by != user:
         # TODO: this message should be presented in the form errors ==> see form.add_error()
         messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)

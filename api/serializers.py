@@ -8,7 +8,7 @@ Created on: 15.08.19
 from rest_framework import serializers
 
 from service.models import ServiceType
-from structure.models import Group, Role, Permission
+from structure.models import MrMapGroup, Role, Permission
 
 
 class ServiceTypeSerializer(serializers.ModelSerializer):
@@ -47,7 +47,7 @@ class GroupSerializer(serializers.ModelSerializer):
 
     """
     class Meta:
-        model = Group
+        model = MrMapGroup
         fields = [
             "id",
             "name",

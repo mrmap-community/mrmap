@@ -15,7 +15,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import Group, Role, Permission, Organization, User, Theme
+from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
 
 
 class Command(BaseCommand):
@@ -51,10 +51,10 @@ class Command(BaseCommand):
         """
         # Check if superuser already exists
         name = input("Enter a username:")
-        superuser = User()
+        superuser = MrMapUser()
         superuser.username = name
 
-        if User.objects.filter(username=name).exists():
+        if MrMapUser.objects.filter(username=name).exists():
             self.stdout.write(self.style.NOTICE("User with that name already exists!"))
             return
         # check password
@@ -92,7 +92,7 @@ class Command(BaseCommand):
         msg = "Superuser '" + name + "' added to organization '" + orga.organization_name + "'!"
         self.stdout.write(self.style.SUCCESS(msg))
 
-    def _create_default_group(self, user: User):
+    def _create_default_group(self, user: MrMapUser):
         """ Creates default group, default role for group and default superuser permission for role
 
         Args:
@@ -100,7 +100,7 @@ class Command(BaseCommand):
         Returns:
              group (Group): The newly created group
         """
-        group = Group.objects.get_or_create(name="_root_", created_by=user)[0]
+        group = MrMapGroup.objects.get_or_create(name="_root_", created_by=user)[0]
         if group.role is None:
             role = Role.objects.get_or_create(name="_root_")[0]
             if role.permission is None:

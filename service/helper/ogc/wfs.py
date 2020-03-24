@@ -27,7 +27,7 @@ from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
     FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType, RequestOperation, ExternalAuthentication
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
-from structure.models import Organization, User
+from structure.models import Organization, MrMapUser
 
 
 class OGCWebFeatureServiceFactory:
@@ -634,13 +634,13 @@ class OGCWebFeatureService(OGCWebService):
             self._get_feature_type_metadata(feature_type, epsg_api, service_type_version, external_auth=external_auth)
 
     @abstractmethod
-    def create_service_model_instance(self, user: User, register_group, register_for_organization):
+    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization):
         """ Map all data from the WebFeatureService classes to their database models
 
         This does not persist the models to the database!
 
         Args:
-            user (User): The user which performs the action
+            user (MrMapUser): The user which performs the action
             register_group (Group): The group which is used to register this service
             register_for_organization (Organization): The organization for which this service is being registered
         Returns:

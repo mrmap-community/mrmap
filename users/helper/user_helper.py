@@ -11,7 +11,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 
 from MapSkinner.settings import SESSION_EXPIRATION
-from structure.models import Group, User, GroupActivity
+from structure.models import MrMapGroup, MrMapUser, GroupActivity
 
 
 def get_user(request: HttpRequest=None, username: str=None, user_id: int=None):
@@ -27,12 +27,12 @@ def get_user(request: HttpRequest=None, username: str=None, user_id: int=None):
     user = None
     try:
         if username is not None:
-            user = User.objects.get(username=username)
+            user = MrMapUser.objects.get(username=username)
         elif user_id is not None:
-            user = User.objects.get(id=user_id)
+            user = MrMapUser.objects.get(id=user_id)
         elif request is not None:
             try:
-                user = User.objects.get(id=request.session.get("user_id"))
+                user = request.user
             except ObjectDoesNotExist:
                 pass
             if user is None:
@@ -71,14 +71,14 @@ def is_session_expired(request: HttpRequest):
         return True
 
 
-def create_group_activity(group: Group, user: User, msg, metadata_title: str):
+def create_group_activity(group: MrMapGroup, user: MrMapUser, msg, metadata_title: str):
     """ Creates a group activity record for logging group actions.
 
     This covers basically changes on metadata aka services
 
     Args:
-        group (Group): The metadata related group
-        user (User): The performing user
+        group (MrMapGroup): The metadata related group
+        user (MrMapUser): The performing user
         msg (str): The description
         metadata_title (str): The related metadata's title
     Returns:

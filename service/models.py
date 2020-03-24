@@ -22,14 +22,14 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.iso.service_metadata_builder import ServiceMetadataBuilder
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY
-from structure.models import Group, Organization
+from structure.models import MrMapGroup, Organization
 from service.helper import xml_helper
 
 
 class Resource(models.Model):
     uuid = models.CharField(max_length=255, default=uuid.uuid4())
     created = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(Group, on_delete=models.DO_NOTHING, null=True, blank=True)
+    created_by = models.ForeignKey(MrMapGroup, on_delete=models.DO_NOTHING, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)
     is_deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
@@ -54,9 +54,9 @@ class Keyword(models.Model):
 
 
 class ProxyLog(models.Model):
-    from structure.models import User
+    from structure.models import MrMapUser
     metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, null=True, blank=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, null=True, blank=True)
     uri = models.CharField(max_length=1000, null=True, blank=True)
     post_body = models.TextField(null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -178,7 +178,7 @@ class RequestOperation(models.Model):
 
 class SecuredOperation(models.Model):
     operation = models.ForeignKey(RequestOperation, on_delete=models.CASCADE, null=True, blank=True)
-    allowed_group = models.ForeignKey(Group, related_name="allowed_operations", on_delete=models.CASCADE, null=True, blank=True)
+    allowed_group = models.ForeignKey(MrMapGroup, related_name="allowed_operations", on_delete=models.CASCADE, null=True, blank=True)
     bounding_geometry = models.GeometryCollectionField(blank=True, null=True)
     secured_metadata = models.ForeignKey('Metadata', related_name="secured_operations", on_delete=models.CASCADE, null=True, blank=True)
 
@@ -1904,13 +1904,13 @@ class Service(Resource):
             return child.get_supported_formats()
         return self.formats.all()
 
-    def perform_single_element_securing(self, element, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation):
+    def perform_single_element_securing(self, element, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation):
         """ Secures a single element
 
         Args:
             element: The element which shall be secured
             is_secured (bool): Whether to secure the element or not
-            group (Group): The group which is allowed to perform an operation
+            group (MrMapGroup): The group which is allowed to perform an operation
             operation (RequestOperation): The operation which can be performed by the groups
             group_polygons (dict): The polygons which restrict the access for the group
         Returns:
@@ -1946,12 +1946,12 @@ class Service(Resource):
         element.metadata.save()
         element.save()
 
-    def _recursive_secure_sub_layers(self, current, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+    def _recursive_secure_sub_layers(self, current, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Recursive implementation of securing all sub layers of a current layer
 
         Args:
             is_secured (bool): Whether the sublayers shall be secured or not
-            group (Group): The group which is allowed to run the operation
+            group (MrMapGroup): The group which is allowed to run the operation
             operation (RequestOperation): The operation that is allowed to be run
             group_polygons (dict): The polygons which restrict the access for the group
         Returns:
@@ -1962,12 +1962,12 @@ class Service(Resource):
         for layer in current.child_layer.all():
             self._recursive_secure_sub_layers(layer, is_secured, group, operation, group_polygons, secured_operation)
 
-    def _secure_sub_layers(self, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+    def _secure_sub_layers(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub layers of this layer
 
         Args:
             is_secured (bool): Whether the sublayers shall be secured or not
-            group (Group): The group which is allowed to run the operation
+            group (MrMapGroup): The group which is allowed to run the operation
             operation (RequestOperation): The operation that is allowed to be run
             group_polygons (dict): The polygons which restrict the access for the group
         Returns:
@@ -1986,12 +1986,12 @@ class Service(Resource):
             )
         self._recursive_secure_sub_layers(start_element, is_secured, group, operation, group_polygons, secured_operation)
 
-    def _secure_feature_types(self, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+    def _secure_feature_types(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub layers of this layer
 
         Args:
             is_secured (bool): Whether the sublayers shall be secured or not
-            group (Group): The group which is allowed to run the operation
+            group (MrMapGroup): The group which is allowed to run the operation
             operation (RequestOperation): The operation that is allowed to be run
             group_polygons (dict): The polygons which restrict the access for the group
         Returns:
@@ -2002,12 +2002,12 @@ class Service(Resource):
             for element in elements:
                 self.perform_single_element_securing(element, is_secured, group, operation, group_polygons, secured_operation)
 
-    def secure_sub_elements(self, is_secured: bool, group: Group, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+    def secure_sub_elements(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub elements of this layer
 
         Args:
             is_secured (bool): Whether the sublayers shall be secured or not
-            group (Group): The group which is allowed to run the operation
+            group (MrMapGroup): The group which is allowed to run the operation
             operation (RequestOperation): The operation that is allowed to be run
             group_polygons (dict): The polygons which restrict the access for the group
         Returns:

@@ -1,6 +1,8 @@
 from django.contrib import admin
 
 # Register your models here.
+from django.contrib.auth.admin import UserAdmin
+
 from structure.models import *
 
 class PendingTaskAdmin(admin.ModelAdmin):
@@ -18,7 +20,7 @@ class ThemeAdmin(admin.ModelAdmin):
     list_display = ['id', 'name']
 
 class GroupAdmin(admin.ModelAdmin):
-    list_display = [p.name for p in Group._meta.fields]
+    list_display = [p.name for p in MrMapGroup._meta.fields]
 
 class GroupActivityAdmin(admin.ModelAdmin):
     list_display = [p.name for p in GroupActivity._meta.fields]
@@ -27,8 +29,8 @@ class PermissionAdmin(admin.ModelAdmin):
     list_display = [p.name for p in Permission._meta.fields]
 
 
-class UserAdmin(admin.ModelAdmin):
-    list_display = ['id', 'person_name', 'username', 'last_login', 'theme']
+class UserAdmin(UserAdmin):
+    list_display = ['id', 'username', 'last_login', 'theme']
 
 
 class UserActivationAdmin(admin.ModelAdmin):
@@ -44,9 +46,9 @@ admin.site.register(Organization, OrganizationAdmin)
 
 admin.site.register(Theme, ThemeAdmin)
 
-admin.site.register(User, UserAdmin)
+admin.site.register(MrMapUser, UserAdmin)
 admin.site.register(UserActivation, UserActivationAdmin)
-admin.site.register(Group, GroupAdmin)
+admin.site.register(MrMapGroup, GroupAdmin)
 admin.site.register(GroupActivity, GroupActivityAdmin)
 admin.site.register(Permission, PermissionAdmin)
 admin.site.register(PendingRequest, PendingRequestAdmin)

@@ -298,16 +298,17 @@ def _new_service_wizard(request: HttpRequest, user: MrMapUser):
     return params
 
 
-@check_session
-def index(request: HttpRequest, user: MrMapUser):
+#@check_session
+def index(request: HttpRequest):
     """ Renders an overview of all wms and wfs
 
     Args:
         request (HttpRequest): The incoming request
-        user (MrMapUser): The session user
     Returns:
          A view
     """
+    user = user_helper.get_user(request)
+
     # Default content
     template = "views/index.html"
 
@@ -340,16 +341,17 @@ def index(request: HttpRequest, user: MrMapUser):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_session
-def pending_tasks(request: HttpRequest, user: MrMapUser):
+#@check_session
+def pending_tasks(request: HttpRequest):
     """ Renders a table of all pending tasks
 
     Args:
         request (HttpRequest): The incoming request
-        user (MrMapUser): The session user
     Returns:
          A view
     """
+    user = user_helper.get_user(request)
+
     # Default content
     template = "includes/pending_tasks.html"
 
@@ -369,17 +371,17 @@ def pending_tasks(request: HttpRequest, user: MrMapUser):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_session
+#@check_session
 @check_permission(Permission(can_remove_service=True))
-def remove(request: HttpRequest, id:int, user: MrMapUser):
+def remove(request: HttpRequest, id:int):
     """ Renders the remove form for a service
 
     Args:
         request(HttpRequest): The used request
-        user (MrMapUser): The performing user
     Returns:
         Redirect to service:index
     """
+    user = user_helper.get_user(request)
 
     remove_form = RemoveService(request.POST)
     if remove_form.is_valid():
@@ -421,18 +423,19 @@ def remove(request: HttpRequest, id:int, user: MrMapUser):
 
 
 # TODO: update function documentation
-@check_session
+#@check_session
 @check_permission(Permission(can_activate_service=True))
-def activate(request: HttpRequest, id: int, user: MrMapUser):
+def activate(request: HttpRequest, id: int):
     """ (De-)Activates a service and all of its layers
 
     Args:
-        user:
         id:
         request:
     Returns:
          An Ajax response
     """
+    user = user_helper.get_user(request)
+
     # run activation async!
     tasks.async_activate_service.delay(id, user.id)
 
@@ -777,8 +780,8 @@ def get_capabilities_original(request: HttpRequest, proxy_log: ProxyLog, id: int
     return HttpResponse(doc, content_type='application/xml')
 
 
-@check_session
-def set_session(request: HttpRequest, user: MrMapUser):
+#@check_session
+def set_session(request: HttpRequest):
     """ Can set a value to the django session
 
     Args:
@@ -795,8 +798,8 @@ def set_session(request: HttpRequest, user: MrMapUser):
     return BackendAjaxResponse(html="").get_response()
 
 
-@check_session
-def wms_index(request: HttpRequest, user: MrMapUser):
+#@check_session
+def wms_index(request: HttpRequest):
     """ Renders an overview of all wms
 
     Args:t
@@ -804,6 +807,8 @@ def wms_index(request: HttpRequest, user: MrMapUser):
     Returns:
          A view
     """
+    user = user_helper.get_user(request)
+
     # Default content
     template = "views/wms_index.html"
 
@@ -836,19 +841,20 @@ def wms_index(request: HttpRequest, user: MrMapUser):
 
 
 # TODO: refactor this function and template by using bootstrap4
-@check_session
+#@check_session
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic
-def update_service(request: HttpRequest, user: MrMapUser, id: int):
+def update_service(request: HttpRequest, id: int):
     """ Compare old service with new service and collect differences
 
     Args:
         request: The incoming request
-        user: The active user
         id: The service id
     Returns:
         A rendered view
     """
+    user = user_helper.get_user(request)
+
     template = "service_differences.html"
     update_params = request.session["update"]
     url_dict = service_helper.split_service_uri(update_params["full_uri"])
@@ -934,8 +940,8 @@ def update_service(request: HttpRequest, user: MrMapUser, id: int):
     return render(request, template, context.get_context())
 
 
-@check_session
-def discard_update(request: HttpRequest, user: MrMapUser):
+#@check_session
+def discard_update(request: HttpRequest):
     """ If the user does not want to proceed with the update,
     we need to go back and drop the session stored data about the update
 
@@ -949,9 +955,9 @@ def discard_update(request: HttpRequest, user: MrMapUser):
     return redirect("service:index")
 
 
-@check_session
+#@check_session
 @check_permission(Permission(can_update_service=True))
-def update_service_form(request: HttpRequest, user: MrMapUser, id: int):
+def update_service_form(request: HttpRequest, id: int):
     """ Creates the form for updating a service
 
     Args:
@@ -1018,8 +1024,8 @@ def update_service_form(request: HttpRequest, user: MrMapUser, id: int):
 
 
 #TODO: refactor this method
-@check_session
-def wfs_index(request: HttpRequest, user: MrMapUser):
+#@check_session
+def wfs_index(request: HttpRequest):
     """ Renders an overview of all wfs
 
     Args:
@@ -1027,6 +1033,8 @@ def wfs_index(request: HttpRequest, user: MrMapUser):
     Returns:
          A view
     """
+    user = user_helper.get_user(request)
+
     # Default content
     template = "views/wfs_index.html"
 
@@ -1058,8 +1066,8 @@ def wfs_index(request: HttpRequest, user: MrMapUser):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_session
-def detail(request: HttpRequest, id, user: MrMapUser):
+#@check_session
+def detail(request: HttpRequest, id):
     """ Renders a detail view of the selected service
 
     Args:
@@ -1067,6 +1075,8 @@ def detail(request: HttpRequest, id, user: MrMapUser):
         id: The id of the selected metadata
     Returns:
     """
+    user = user_helper.get_user(request)
+
     template = "views/detail.html"
     service_md = get_object_or_404(Metadata, id=id)
     params = {}
@@ -1139,17 +1149,18 @@ def detail(request: HttpRequest, id, user: MrMapUser):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_session
-def detail_child(request: HttpRequest, id, user: MrMapUser):
+#@check_session
+def detail_child(request: HttpRequest, id):
     """ Returns a rendered html overview of the element with the given id
 
     Args:
         request (HttpRequest): The incoming request
         id (int): The element id
-        user (MrMapUser): The performing user
     Returns:
          A rendered view for ajax insertion
     """
+    user = user_helper.get_user(request)
+
     element_type = request.GET.get("serviceType")
     if element_type == "wms":
         template = "detail/service_detail_child_wms.html"

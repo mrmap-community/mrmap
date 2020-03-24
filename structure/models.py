@@ -103,13 +103,14 @@ class Organization(Contact):
         return self.organization_name
 
 
-class MrMapGroup(Group):
+class MrMapGroup(models.Model):
+    name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    parent = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True, related_name="children")
-    organization = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, null=True, blank=True, related_name="groups")
-    #role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
+    parent_group = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True, related_name="children_groups")
+    organization = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, null=True, blank=True, related_name="organization_groups")
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
     publish_for_organizations = models.ManyToManyField('Organization', related_name='can_publish_for', blank=True)
-    #created_by = models.ForeignKey('MrMapUser', on_delete=models.DO_NOTHING)
+    created_by = models.ForeignKey('MrMapUser', on_delete=models.DO_NOTHING)
 
     def __str__(self):
         return self.name
@@ -157,8 +158,6 @@ class MrMapUser(AbstractUser):
         if type is not None:
             md_list = md_list.filter(service__servicetype__name=type.name.lower())
         return md_list
-
-
 
     def get_permissions(self, group: MrMapGroup = None):
         """ Overloaded function. Returns a list containing all permission identifiers as strings in a list.

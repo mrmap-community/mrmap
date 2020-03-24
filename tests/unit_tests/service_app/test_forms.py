@@ -187,17 +187,14 @@ class RegisterNewServiceWizardPage2TestCase(TestCase):
             Tests if the correct queryset and initial value of the specific registering_with_group field
         """
         form = RegisterNewServiceWizardPage2(user=self.user)
-        #ValueError: Trying to compare non-ordered queryset against more than one ordered values
-        #self.assertQuerysetEqual(form.fields["registering_with_group"].queryset, self.user.groups.all())
-
+        self.assertEqual(list(form.fields["registering_with_group"].queryset), list(self.user.groups.all()))
         self.assertQuerysetEqual(form.fields["registering_for_other_organization"].queryset, self.user.groups.first().publish_for_organizations.all())
         self.assertEqual(form.fields["registering_with_group"].initial, self.user.groups.first())
 
     def test_construction_with_given_selected_group(self):
         """
-            Tests if the correct queryset and initial value of the specific registering_with_group field
+            Tests if the correct queryset of the specific registering_for_other_organization field
         """
-        # TODO
-        return
         form = RegisterNewServiceWizardPage2(selected_group=self.user.groups.first())
         self.assertQuerysetEqual(form.fields["registering_for_other_organization"].queryset, self.user.groups.first().publish_for_organizations.all())
+

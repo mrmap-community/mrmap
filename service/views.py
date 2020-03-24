@@ -173,8 +173,7 @@ def _new_service_wizard(request: HttpRequest, user: User):
             params.update({
                 "new_service_form": RegisterNewServiceWizardPage2(initial=init_data,
                                                                   user=user,
-                                                                  selected_group=user.groups.first(),
-                                                                  service_needs_authentication='off'),
+                                                                  selected_group=user.groups.first()),
                 "action_url": reverse(SERVICE_INDEX, ),
                 "show_modal": True,
             })
@@ -203,11 +202,15 @@ def _new_service_wizard(request: HttpRequest, user: User):
                      'password': request.POST.get("password", None),
                      }
 
+        service_needs_authentication = False
+        if request.POST.get("service_needs_authentication") == 'on':
+            service_needs_authentication = True
+
         form = RegisterNewServiceWizardPage2(initial=init_data,
                                              user=user,
                                              selected_group=selected_group,
-                                             service_needs_authentication=request.POST.get(
-                                                 "service_needs_authentication"))
+                                             service_needs_authentication=service_needs_authentication
+                                             )
 
         # first check if it's just a update of the form
         if request.POST.get("is_form_update") == 'True':
@@ -223,11 +226,14 @@ def _new_service_wizard(request: HttpRequest, user: User):
             # and if all is fine generate a new pending task object
 
             # get bounded form with parameter request.POST
+            service_needs_authentication = False
+            if request.POST.get("service_needs_authentication") == 'on':
+                service_needs_authentication = True
+
             form = RegisterNewServiceWizardPage2(request.POST, initial=init_data,
                                                  user=user,
                                                  selected_group=selected_group,
-                                                 service_needs_authentication=request.POST.get(
-                                                     "service_needs_authentication"))
+                                                 service_needs_authentication=service_needs_authentication)
 
             if form.is_valid():
                 # TODO: # Form is valid --> register new service --> redirect to service index

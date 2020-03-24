@@ -34,7 +34,7 @@ class UserAdmin(UserAdmin):
 
 
 class UserActivationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'user']
+    list_display = ['id', 'user', 'activation_until']
 
 class PendingRequestAdmin(admin.ModelAdmin):
     list_display = ['type', 'group', 'organization', 'activation_until']

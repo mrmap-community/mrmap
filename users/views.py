@@ -23,7 +23,7 @@ from django.utils.translation import gettext_lazy as _
 from MapSkinner.decorator import check_session
 from MapSkinner.messages import FORM_INPUT_INVALID, ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
     ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, PASSWORD_CHANGE_NO_MATCH, UNKNOWN_EMAIL, \
-    LOGOUT_SUCCESS, PASSWORD_SENT, EMAIL_INVALID, ACTIVATION_LINK_SENT
+    LOGOUT_SUCCESS, PASSWORD_SENT, EMAIL_INVALID, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from MapSkinner.settings import SESSION_EXPIRATION, ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from MapSkinner.utils import print_debug_mode
@@ -242,8 +242,10 @@ def activate_user(request: HttpRequest, activation_hash: str):
 
     activation_until = user_activation.activation_until
     if activation_until < timezone.now():
-        # the activation was confirmed too late!
-        messages.add_message(request, messages.ERROR, ACTIVATION_LINK_INVALID)
+        # The activation was confirmed too late!
+        messages.add_message(request, messages.ERROR, ACTIVATION_LINK_EXPIRED)
+        # Remove the inactive user object
+        user_activation.user.delete()
         return redirect("login")
 
     user = user_activation.user

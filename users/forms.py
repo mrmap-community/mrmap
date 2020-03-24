@@ -58,6 +58,5 @@ class UserForm(forms.ModelForm):
             "email",
             "confirmed_newsletter",
             "confirmed_survey",
-            "confirmed_dsgvo",
             "theme",
         ]

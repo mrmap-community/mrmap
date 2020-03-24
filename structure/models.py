@@ -229,7 +229,7 @@ class MrMapUser(AbstractUser):
 
 
 class UserActivation(models.Model):
-    user = models.ForeignKey(MrMapUser, null=False, blank=False, on_delete=models.DO_NOTHING)
+    user = models.ForeignKey(MrMapUser, null=False, blank=False, on_delete=models.CASCADE)
     activation_until = models.DateTimeField(null=True)
     activation_hash = models.CharField(max_length=500, null=False, blank=False)
 

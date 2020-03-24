@@ -35,6 +35,7 @@ ACCOUNT_NOT_ACTIVATED = _("Your account is currently not activated")
 LOGOUT_FORCED = _("You have been logged out.")
 
 ACTIVATION_LINK_INVALID = _("Your activation link was invalid. Please contact an administrator.")
+ACTIVATION_LINK_EXPIRED = _("Your account was not activated in time. Please register again.")
 ACTIVATION_LINK_SENT = _("An activation link for your account was sent. Please check your e-mails!")
 
 UNKNOWN_EMAIL = _("This e-mail is not known")

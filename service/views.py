@@ -258,11 +258,13 @@ def _new_service_wizard(request: HttpRequest, user: User):
                 }
 
                 try:
-                    pending_task = tasks.async_new_service.delay(uri_dict,
-                                                                 user.id,
-                                                                 form.cleaned_data['registering_with_group'].id,
-                                                                 register_for_other_org,
-                                                                 external_auth)
+                    pending_task = tasks.async_new_service.delay(
+                        uri_dict,
+                        user.id,
+                        form.cleaned_data['registering_with_group'].id,
+                        register_for_other_org,
+                        external_auth
+                    )
 
                     # create db object, so we know which pending task is still ongoing
                     pending_task_db = PendingTask()
@@ -274,7 +276,6 @@ def _new_service_wizard(request: HttpRequest, user: User):
                     })
 
                     pending_task_db.save()
-
                 except Exception as e:
                     # Form is not valid --> response with page 2 and show errors
                     form.add_error(None, e)

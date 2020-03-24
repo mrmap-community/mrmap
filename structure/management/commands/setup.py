@@ -51,12 +51,11 @@ class Command(BaseCommand):
         """
         # Check if superuser already exists
         name = input("Enter a username:")
-        superuser = MrMapUser()
-        superuser.username = name
 
         if MrMapUser.objects.filter(username=name).exists():
             self.stdout.write(self.style.NOTICE("User with that name already exists!"))
             return
+
         # check password
         password = getpass("Enter a password: ")
         password_conf = getpass("Enter the password again: ")
@@ -65,8 +64,11 @@ class Command(BaseCommand):
             password = getpass("Enter the password: ")
             password_conf = getpass("Enter the password again: ")
 
-        superuser.salt = str(os.urandom(25).hex())
-        superuser.password = make_password(password, salt=superuser.salt)
+        superuser = MrMapUser.objects.create_superuser(
+            name,
+            "",
+            password
+        )
         superuser.confirmed_dsgvo = timezone.now()
         superuser.is_active = True
         superuser.theme = Theme.objects.get(name='LIGHT')

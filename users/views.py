@@ -75,7 +75,7 @@ def login_view(request: HttpRequest):
     # check if user is still logged in!
     user = request.user
 
-    if not user.is_anonymous and user.is_authenticated:
+    if user.is_authenticated:
         return redirect("home")
 
     # Someone wants to login

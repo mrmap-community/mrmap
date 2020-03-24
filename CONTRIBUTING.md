@@ -105,10 +105,9 @@ Please try not only to explain what you are doing (which is obvious in most case
 ```python
 
 
-@check_session
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic
-def update_service(request: HttpRequest, user: User, id: int):
+def update_service(request: HttpRequest, id: int):
     """ Compare old service with new service and collect differences
 
     Args:
@@ -118,6 +117,8 @@ def update_service(request: HttpRequest, user: User, id: int):
     Returns:
         A rendered view
     """
+    user = user_helper.get_user(request)
+
     template = "service_differences.html"
     update_params = request.session["update"]
     url_dict = service_helper.split_service_uri(update_params["full_uri"])

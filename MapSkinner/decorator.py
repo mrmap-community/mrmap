@@ -68,7 +68,7 @@ def check_permission(permission_needed: Permission):
     """
     def method_wrap(function):
         def wrap(request, *args, **kwargs):
-            user = user_helper.get_user(user_id=request.session.get("user_id"))
+            user = user_helper.get_user(request)
             user_permissions = user.get_permissions()
             perm_needed = permission_needed.get_permission_list()
             for perm in perm_needed:

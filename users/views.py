@@ -83,7 +83,6 @@ def login_view(request: HttpRequest):
         # trial to login the user
         username = form.cleaned_data.get("username")
         password = form.cleaned_data.get("password")
-        #user = user_helper.get_user(username=username)
         user = authenticate(request=request, username=username, password=password)
         login(request, user)
         # does the user exist?
@@ -119,7 +118,7 @@ def login_view(request: HttpRequest):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-#@check_session
+##@check_session
 def home_view(request: HttpRequest):
     """ Renders the dashboard / home view of the user
 
@@ -129,7 +128,7 @@ def home_view(request: HttpRequest):
     Returns:
          A rendered view
     """
-    user = request.user
+    user = user_helper.get_user(request)
     template = "views/dashboard.html"
     user_services_wms = Metadata.objects.filter(
             service__servicetype__name="wms",
@@ -160,8 +159,8 @@ def home_view(request: HttpRequest):
     return render(request, template, context.get_context())
 
 
-@check_session
-def account(request: HttpRequest, user: MrMapUser, params={}):
+#@check_session
+def account(request: HttpRequest, params={}):
     """ Renders an overview of the user's account information
 
     Args:
@@ -171,11 +170,12 @@ def account(request: HttpRequest, user: MrMapUser, params={}):
     Returns:
          A rendered view
     """
+    user = user_helper.get_user(request)
     return _return_account_view(request, user, params)
 
 
-@check_session
-def password_change(request: HttpRequest, user: MrMapUser):
+#@check_session
+def password_change(request: HttpRequest):
     """ Renders the form for password changing and validates the input afterwards
 
     Args:
@@ -184,6 +184,7 @@ def password_change(request: HttpRequest, user: MrMapUser):
     Returns:
         A view
     """
+    user = user_helper.get_user(request)
     form = PasswordChangeForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         password = form.cleaned_data["password"]
@@ -197,8 +198,8 @@ def password_change(request: HttpRequest, user: MrMapUser):
     return redirect(reverse("account"))
 
 
-@check_session
-def account_edit(request: HttpRequest, user: MrMapUser):
+#@check_session
+def account_edit(request: HttpRequest):
     """ Renders a form for editing user account data
 
     Args:
@@ -207,6 +208,7 @@ def account_edit(request: HttpRequest, user: MrMapUser):
     Returns:
         A view
     """
+    user = user_helper.get_user(request)
     form = UserForm(request.POST or None, instance=user)
     if request.method == 'POST' and form.is_valid():
         # save changes
@@ -219,8 +221,6 @@ def account_edit(request: HttpRequest, user: MrMapUser):
         "edit_account_form": form,
         "show_edit_account_form": True
     })
-
-
 
 
 def activate_user(request: HttpRequest, activation_hash: str):
@@ -266,9 +266,6 @@ def logout_view(request: HttpRequest):
     Returns:
          A view
     """
-    user = request.user
-    #user.logged_in = False
-    #user.save()
     logout(request)
 
     # remove session related data

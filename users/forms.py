@@ -48,28 +48,16 @@ class PasswordChangeForm(forms.Form):
 
 
 class UserForm(forms.ModelForm):
-    username = forms.CharField(min_length=5,
-                               max_length=255,
-                               validators=USERNAME_VALIDATORS)
     theme = forms.ModelChoiceField(queryset=Theme.objects.all(), to_field_name='name', empty_label=None, required=False)
 
     class Meta:
         model = MrMapUser
-        fields = '__all__'
-        field_order = [
-            'username',
-            'person_name',
-        ]
-        exclude = [
-            'logged_in',
-            'salt',
-            'last_login',
-            'created_on',
-            'groups',
-            'organization',
-            'organization',
-            'confirmed_dsgvo',
-            'is_active',
-            'password',
-            'address_type',
+        fields = [
+            "first_name",
+            "last_name",
+            "email",
+            "confirmed_newsletter",
+            "confirmed_survey",
+            "confirmed_dsgvo",
+            "theme",
         ]

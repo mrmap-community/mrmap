@@ -13,7 +13,7 @@ from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSeri
     MetadataSerializer, CatalogueMetadataSerializer
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS
 from service.models import Service, Layer, Metadata
-from structure.models import Organization, Group, Role
+from structure.models import Organization, MrMapGroup, Role
 
 
 class APIPagination(PageNumberPagination):
@@ -296,7 +296,7 @@ class GroupViewSet(viewsets.GenericViewSet):
         Returns:
              The queryset
         """
-        self.queryset = Group.objects.all()
+        self.queryset = MrMapGroup.objects.all()
 
         # filter by organization
         orgid = self.request.query_params.get("orgid", None)
@@ -319,7 +319,7 @@ class GroupViewSet(viewsets.GenericViewSet):
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME))
     def retrieve(self, request, pk=None):
-        tmp = Group.objects.get(id=pk)
+        tmp = MrMapGroup.objects.get(id=pk)
         return Response(ServiceSerializer(tmp).data)
 
     def update(self, request, pk=None):

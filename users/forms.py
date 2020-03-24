@@ -10,7 +10,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
 from MapSkinner.messages import EMAIL_IS_UNKNOWN
 from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
-from structure.models import User, Theme
+from structure.models import MrMapUser, Theme
 
 
 class PasswordResetForm(forms.Form):
@@ -20,7 +20,7 @@ class PasswordResetForm(forms.Form):
         cleaned_data = super(PasswordResetForm, self).clean()
         email = cleaned_data.get("email")
         try:
-            User.objects.get(email=email)
+            MrMapUser.objects.get(email=email)
         except ObjectDoesNotExist:
             self.add_error("email", forms.ValidationError(EMAIL_IS_UNKNOWN))
 
@@ -54,7 +54,7 @@ class UserForm(forms.ModelForm):
     theme = forms.ModelChoiceField(queryset=Theme.objects.all(), to_field_name='name', empty_label=None, required=False)
 
     class Meta:
-        model = User
+        model = MrMapUser
         fields = '__all__'
         field_order = [
             'username',

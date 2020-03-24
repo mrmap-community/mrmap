@@ -43,18 +43,18 @@ from service.models import Metadata, Layer, Service, FeatureType, Document, Meta
 from service.tasks import async_remove_service_task
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from structure.models import User, Permission, PendingTask, Group, Organization, Contact
+from structure.models import MrMapUser, Permission, PendingTask, MrMapGroup, Organization, Contact
 from users.helper import user_helper
 from django.urls import reverse
 from django import forms
 
 
-def _prepare_wms_table(request: HttpRequest, user: User, ):
+def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
     """ Collects all wms service data and prepares parameter for rendering
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The performing user
+        user (MrMapUser): The performing user
     Returns:
          params (dict): The rendering parameter
     """
@@ -109,12 +109,12 @@ def _prepare_wms_table(request: HttpRequest, user: User, ):
     return params
 
 
-def _prepare_wfs_table(request: HttpRequest, user: User, ):
+def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
     """ Collects all wfs service data and prepares parameter for rendering
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The performing user
+        user (MrMapUser): The performing user
     Returns:
          params (dict): The rendering parameter
     """
@@ -146,12 +146,12 @@ def _prepare_wfs_table(request: HttpRequest, user: User, ):
     return params
 
 
-def _new_service_wizard(request: HttpRequest, user: User):
+def _new_service_wizard(request: HttpRequest, user: MrMapUser):
     """ Renders wizard page configuration for service registration
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The performing user
+        user (MrMapUser): The performing user
     Returns:
          params (dict): The rendering parameter
     """
@@ -263,7 +263,7 @@ def _new_service_wizard(request: HttpRequest, user: User):
 
                     # create db object, so we know which pending task is still ongoing
                     pending_task_db = PendingTask()
-                    pending_task_db.created_by = Group.objects.get(id=form.cleaned_data['registering_with_group'].id)
+                    pending_task_db.created_by = MrMapGroup.objects.get(id=form.cleaned_data['registering_with_group'].id)
                     pending_task_db.task_id = pending_task.task_id
                     pending_task_db.description = json.dumps({
                         "service": form.cleaned_data['uri'],
@@ -294,12 +294,12 @@ def _new_service_wizard(request: HttpRequest, user: User):
 
 
 @check_session
-def index(request: HttpRequest, user: User):
+def index(request: HttpRequest, user: MrMapUser):
     """ Renders an overview of all wms and wfs
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The session user
+        user (MrMapUser): The session user
     Returns:
          A view
     """
@@ -336,12 +336,12 @@ def index(request: HttpRequest, user: User):
 
 
 @check_session
-def pending_tasks(request: HttpRequest, user: User):
+def pending_tasks(request: HttpRequest, user: MrMapUser):
     """ Renders a table of all pending tasks
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The session user
+        user (MrMapUser): The session user
     Returns:
          A view
     """
@@ -366,12 +366,12 @@ def pending_tasks(request: HttpRequest, user: User):
 
 @check_session
 @check_permission(Permission(can_remove_service=True))
-def remove(request: HttpRequest, id:int, user: User):
+def remove(request: HttpRequest, id:int, user: MrMapUser):
     """ Renders the remove form for a service
 
     Args:
         request(HttpRequest): The used request
-        user (User): The performing user
+        user (MrMapUser): The performing user
     Returns:
         Redirect to service:index
     """
@@ -418,7 +418,7 @@ def remove(request: HttpRequest, id:int, user: User):
 # TODO: update function documentation
 @check_session
 @check_permission(Permission(can_activate_service=True))
-def activate(request: HttpRequest, id: int, user: User):
+def activate(request: HttpRequest, id: int, user: MrMapUser):
     """ (De-)Activates a service and all of its layers
 
     Args:
@@ -773,7 +773,7 @@ def get_capabilities_original(request: HttpRequest, proxy_log: ProxyLog, id: int
 
 
 @check_session
-def set_session(request: HttpRequest, user: User):
+def set_session(request: HttpRequest, user: MrMapUser):
     """ Can set a value to the django session
 
     Args:
@@ -791,7 +791,7 @@ def set_session(request: HttpRequest, user: User):
 
 
 @check_session
-def wms_index(request: HttpRequest, user: User):
+def wms_index(request: HttpRequest, user: MrMapUser):
     """ Renders an overview of all wms
 
     Args:t
@@ -834,7 +834,7 @@ def wms_index(request: HttpRequest, user: User):
 @check_session
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic
-def update_service(request: HttpRequest, user: User, id: int):
+def update_service(request: HttpRequest, user: MrMapUser, id: int):
     """ Compare old service with new service and collect differences
 
     Args:
@@ -930,13 +930,13 @@ def update_service(request: HttpRequest, user: User, id: int):
 
 
 @check_session
-def discard_update(request: HttpRequest, user: User):
+def discard_update(request: HttpRequest, user: MrMapUser):
     """ If the user does not want to proceed with the update,
     we need to go back and drop the session stored data about the update
 
     Args:
         request (HttpRequest):
-        user (User):
+        user (MrMapUser):
     Returns:
          redirects
     """
@@ -946,7 +946,7 @@ def discard_update(request: HttpRequest, user: User):
 
 @check_session
 @check_permission(Permission(can_update_service=True))
-def update_service_form(request: HttpRequest, user: User, id: int):
+def update_service_form(request: HttpRequest, user: MrMapUser, id: int):
     """ Creates the form for updating a service
 
     Args:
@@ -1014,7 +1014,7 @@ def update_service_form(request: HttpRequest, user: User, id: int):
 
 #TODO: refactor this method
 @check_session
-def wfs_index(request: HttpRequest, user: User):
+def wfs_index(request: HttpRequest, user: MrMapUser):
     """ Renders an overview of all wfs
 
     Args:
@@ -1054,7 +1054,7 @@ def wfs_index(request: HttpRequest, user: User):
 
 
 @check_session
-def detail(request: HttpRequest, id, user: User):
+def detail(request: HttpRequest, id, user: MrMapUser):
     """ Renders a detail view of the selected service
 
     Args:
@@ -1135,13 +1135,13 @@ def detail(request: HttpRequest, id, user: User):
 
 
 @check_session
-def detail_child(request: HttpRequest, id, user: User):
+def detail_child(request: HttpRequest, id, user: MrMapUser):
     """ Returns a rendered html overview of the element with the given id
 
     Args:
         request (HttpRequest): The incoming request
         id (int): The element id
-        user (User): The performing user
+        user (MrMapUser): The performing user
     Returns:
          A rendered view for ajax insertion
     """
@@ -1193,7 +1193,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
         request (HttpRequest): The incoming request
         proxy_log (ProxyLog): The logging object
         id (int): The metadata id
-        user (User): The performing user
+        user (MrMapUser): The performing user
     Returns:
          A redirect to the GetMap uri
     """
@@ -1279,7 +1279,7 @@ def get_metadata_legend(request: HttpRequest, id: int, style_id: id):
         request (HttpRequest): The incoming HttpRequest
         id (int): The metadata id
         style_id (int): The stlye id
-        user (User): The performing user
+        user (MrMapUser): The performing user
     Returns:
         HttpResponse
     """

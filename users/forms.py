@@ -9,6 +9,7 @@ from django import forms
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
 from MapSkinner.messages import EMAIL_IS_UNKNOWN
+from MapSkinner.settings import MIN_PASSWORD_LENGTH
 from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from structure.models import MrMapUser, Theme
 
@@ -28,21 +29,34 @@ class PasswordResetForm(forms.Form):
 
 
 class PasswordChangeForm(forms.Form):
-    password = forms.CharField(min_length=9,
-                               max_length=255,
-                               label=_("Password"),
-                               label_suffix=" ",
-                               widget=forms.PasswordInput,
-                               validators=PASSWORD_VALIDATORS)
-    password_again = forms.CharField(max_length=255, label=_("Password again"), label_suffix=" ", widget=forms.PasswordInput,)
+    old_password = forms.CharField(
+        max_length=255,
+        label=_("Old password"),
+        label_suffix=" ",
+        widget=forms.PasswordInput,
+    )
+    new_password = forms.CharField(
+        min_length=MIN_PASSWORD_LENGTH,
+        max_length=255,
+        label=_("New password"),
+        label_suffix=" ",
+        widget=forms.PasswordInput,
+        validators=PASSWORD_VALIDATORS
+    )
+    new_password_again = forms.CharField(
+        max_length=255,
+        label=_("Confirm new Password"),
+        label_suffix=" ",
+        widget=forms.PasswordInput,
+    )
 
     def clean(self):
         cleaned_data = super(PasswordChangeForm, self).clean()
-        password = cleaned_data.get("password")
-        password_again = cleaned_data.get("password_again")
+        password = cleaned_data.get("new_password")
+        password_again = cleaned_data.get("new_password_again")
 
         if password != password_again:
-            self.add_error("password_again", forms.ValidationError(_("Password and confirmed password does not match")))
+            self.add_error("new_password_again", forms.ValidationError(_("Password and confirmed password does not match")))
 
         return cleaned_data
 

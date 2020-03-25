@@ -129,7 +129,7 @@ class MrMapUser(AbstractUser):
     organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.DO_NOTHING, null=True, blank=True)
     confirmed_newsletter = models.BooleanField(default=False)
     confirmed_survey = models.BooleanField(default=False)
-    confirmed_dsgvo = models.DateTimeField(null=True, blank=True) # ToDo: For production this is not supposed to be nullable!!!
+    confirmed_dsgvo = models.DateTimeField(null=True, blank=True, editable=False) # ToDo: For production this is not supposed to be nullable!!!
     theme = models.ForeignKey('Theme', related_name='user_theme', on_delete=models.DO_NOTHING, null=True, blank=True)
 
     def __str__(self):

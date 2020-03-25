@@ -43,6 +43,7 @@ LOGOUT_SUCCESS = _("Successfully logged out!")
 EMAIL_INVALID = _("The e-mail address was not valid")
 
 PASSWORD_CHANGE_SUCCESS = _("Password successfully changed!")
+PASSWORD_CHANGE_OLD_PASSWORD_WRONG = _("Old password was wrong!")
 PASSWORD_CHANGE_NO_MATCH = _("Passwords didn't match!")
 PASSWORD_SENT = _("A new password has been sent. Please check your e-mails!")
 

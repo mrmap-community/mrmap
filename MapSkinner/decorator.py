@@ -12,50 +12,10 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from django.shortcuts import redirect
 
-from MapSkinner.messages import SESSION_TIMEOUT, NO_PERMISSION, LOGOUT_FORCED, SERVICE_NOT_FOUND
-from MapSkinner.responses import BackendAjaxResponse
-from MapSkinner.settings import ROOT_URL
+from MapSkinner.messages import NO_PERMISSION, SERVICE_NOT_FOUND
 from service.models import Metadata, ProxyLog
 from structure.models import Permission
 from users.helper import user_helper
-
-
-def check_session(function):
-    """ Checks whether the user's session is valid or not
-
-    Args:
-        function: The decorated function
-    Returns:
-         The function
-    """
-    def wrap(request, *args, **kwargs):
-        if user_helper.is_session_expired(request):
-
-            messages.add_message(request, messages.INFO, SESSION_TIMEOUT)
-
-            if request.environ.get("HTTP_X_REQUESTED_WITH", None) is not None:
-                # this is an ajax call -> redirect user to login page if the session isn't valid anymore
-                last_page = request.META.get("HTTP_REFERER", "").replace(request._current_scheme_host, "")
-                request.session["next"] = last_page
-                return BackendAjaxResponse(html="", redirect=ROOT_URL).get_response()
-            else:
-                # save last path so the user can be redirected after a successful login
-                request.session["next"] = request.path
-                return redirect("login")
-
-        user = user_helper.get_user(user_id=request.session.get("user_id"))
-
-        if user is None:
-            if request.session.get("user_id", None) is not None:
-                del request.session["user_id"]
-            messages.add_message(request, messages.ERROR, LOGOUT_FORCED)
-
-            return redirect("login")
-        return function(request=request, user=user, *args, **kwargs)
-
-    wrap.__doc__ = function.__doc__
-    wrap.__name__ = function.__name__
-    return wrap
 
 
 def check_permission(permission_needed: Permission):

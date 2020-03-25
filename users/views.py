@@ -11,21 +11,20 @@ import os
 
 from django.contrib import messages
 from django.contrib.auth import logout, authenticate, login
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.http import HttpRequest, HttpResponseRedirect
+from django.http import HttpRequest
 from django.shortcuts import redirect, render
-from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from MapSkinner.decorator import check_session
-from MapSkinner.messages import FORM_INPUT_INVALID, ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
-    ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, PASSWORD_CHANGE_NO_MATCH, UNKNOWN_EMAIL, \
-    LOGOUT_SUCCESS, PASSWORD_SENT, EMAIL_INVALID, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED
-from MapSkinner.responses import DefaultContext, BackendAjaxResponse
-from MapSkinner.settings import SESSION_EXPIRATION, ROOT_URL, LAST_ACTIVITY_DATE_RANGE
+from MapSkinner.messages import ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
+    ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, \
+    LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED
+from MapSkinner.responses import DefaultContext
+from MapSkinner.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from MapSkinner.utils import print_debug_mode
 from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
@@ -98,18 +97,12 @@ def login_view(request: HttpRequest):
 
 
         login(request, user)
-        _next = request.session.get("next", None)
+        _next = form.cleaned_data.get("next", None)
 
         if _next is None:
-            home_uri = redirect("home")._headers.get("location", [None, "/home"])[1]
-            _next = ROOT_URL + home_uri
-        else:
-            _next = ROOT_URL + _next
-            try:
-                del request.session["next"]
-            except KeyError:
-                # this should not be possible - however ...
-                pass
+            home_uri = reverse("home")
+            _next = home_uri
+
         return redirect(_next)
 
 
@@ -122,7 +115,7 @@ def login_view(request: HttpRequest):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-##@check_session
+@login_required
 def home_view(request: HttpRequest):
     """ Renders the dashboard / home view of the user
 
@@ -163,7 +156,7 @@ def home_view(request: HttpRequest):
     return render(request, template, context.get_context())
 
 
-#@check_session
+@login_required
 def account(request: HttpRequest, params={}):
     """ Renders an overview of the user's account information
 
@@ -178,7 +171,7 @@ def account(request: HttpRequest, params={}):
     return _return_account_view(request, user, params)
 
 
-#@check_session
+@login_required
 def password_change(request: HttpRequest):
     """ Renders the form for password changing and validates the input afterwards
 
@@ -202,7 +195,7 @@ def password_change(request: HttpRequest):
     return redirect(reverse("account"))
 
 
-#@check_session
+@login_required
 def account_edit(request: HttpRequest):
     """ Renders a form for editing user account data
 

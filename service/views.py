@@ -3,6 +3,7 @@ import json
 from io import BytesIO
 from PIL import Image
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict
@@ -14,9 +15,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django_tables2 import RequestConfig
 from requests import ReadTimeout
 from MapSkinner import utils
-from MapSkinner.cacher import DocumentCacher, PreviewImageCacher
+from MapSkinner.cacher import PreviewImageCacher
 from MapSkinner.consts import *
-from MapSkinner.decorator import check_session, check_permission, log_proxy
+from MapSkinner.decorator import check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
@@ -25,14 +26,13 @@ from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
 from MapSkinner.utils import prepare_table_pagination_settings
 from service import tasks
-from service.forms import ServiceURIForm
-from service.helper import service_helper, update_helper, xml_helper
+from service.helper import xml_helper
 from service.filters import WmsFilter, WfsFilter
 from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, RemoveService
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.crypto_handler import CryptoHandler
+
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
@@ -43,7 +43,7 @@ from service.models import Metadata, Layer, Service, FeatureType, Document, Meta
 from service.tasks import async_remove_service_task
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from structure.models import MrMapUser, Permission, PendingTask, MrMapGroup, Organization, Contact
+from structure.models import MrMapUser, Permission, PendingTask, MrMapGroup
 from users.helper import user_helper
 from django.urls import reverse
 from django import forms
@@ -293,7 +293,7 @@ def _new_service_wizard(request: HttpRequest, user: MrMapUser):
     return params
 
 
-#@check_session
+@login_required
 def index(request: HttpRequest):
     """ Renders an overview of all wms and wfs
 
@@ -336,7 +336,7 @@ def index(request: HttpRequest):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-#@check_session
+@login_required
 def pending_tasks(request: HttpRequest):
     """ Renders a table of all pending tasks
 
@@ -366,7 +366,7 @@ def pending_tasks(request: HttpRequest):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-#@check_session
+@login_required
 @check_permission(Permission(can_remove_service=True))
 def remove(request: HttpRequest, id:int):
     """ Renders the remove form for a service
@@ -418,7 +418,7 @@ def remove(request: HttpRequest, id:int):
 
 
 # TODO: update function documentation
-#@check_session
+@login_required
 @check_permission(Permission(can_activate_service=True))
 def activate(request: HttpRequest, id: int):
     """ (De-)Activates a service and all of its layers
@@ -775,7 +775,7 @@ def get_capabilities_original(request: HttpRequest, proxy_log: ProxyLog, id: int
     return HttpResponse(doc, content_type='application/xml')
 
 
-#@check_session
+@login_required
 def set_session(request: HttpRequest):
     """ Can set a value to the django session
 
@@ -793,7 +793,7 @@ def set_session(request: HttpRequest):
     return BackendAjaxResponse(html="").get_response()
 
 
-#@check_session
+@login_required
 def wms_index(request: HttpRequest):
     """ Renders an overview of all wms
 
@@ -836,7 +836,7 @@ def wms_index(request: HttpRequest):
 
 
 # TODO: refactor this function and template by using bootstrap4
-#@check_session
+@login_required
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic
 def update_service(request: HttpRequest, id: int):
@@ -935,7 +935,7 @@ def update_service(request: HttpRequest, id: int):
     return render(request, template, context.get_context())
 
 
-#@check_session
+@login_required
 def discard_update(request: HttpRequest):
     """ If the user does not want to proceed with the update,
     we need to go back and drop the session stored data about the update
@@ -950,7 +950,7 @@ def discard_update(request: HttpRequest):
     return redirect("service:index")
 
 
-#@check_session
+@login_required
 @check_permission(Permission(can_update_service=True))
 def update_service_form(request: HttpRequest, id: int):
     """ Creates the form for updating a service
@@ -1019,7 +1019,7 @@ def update_service_form(request: HttpRequest, id: int):
 
 
 #TODO: refactor this method
-#@check_session
+@login_required
 def wfs_index(request: HttpRequest):
     """ Renders an overview of all wfs
 
@@ -1061,7 +1061,7 @@ def wfs_index(request: HttpRequest):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-#@check_session
+@login_required
 def detail(request: HttpRequest, id):
     """ Renders a detail view of the selected service
 
@@ -1144,7 +1144,7 @@ def detail(request: HttpRequest, id):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-#@check_session
+@login_required
 def detail_child(request: HttpRequest, id):
     """ Returns a rendered html overview of the element with the given id
 

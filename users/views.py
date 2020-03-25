@@ -22,7 +22,7 @@ from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.messages import ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
     ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, \
-    LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED
+    LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, PASSWORD_CHANGE_OLD_PASSWORD_WRONG
 from MapSkinner.responses import DefaultContext
 from MapSkinner.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from MapSkinner.utils import print_debug_mode
@@ -99,7 +99,7 @@ def login_view(request: HttpRequest):
         login(request, user)
         _next = form.cleaned_data.get("next", None)
 
-        if _next is None:
+        if _next is None or len(_next) == 0:
             home_uri = reverse("home")
             _next = home_uri
 
@@ -183,16 +183,31 @@ def password_change(request: HttpRequest):
     """
     user = user_helper.get_user(request)
     form = PasswordChangeForm(request.POST or None)
+
     if request.method == 'POST' and form.is_valid():
-        password = form.cleaned_data["password"]
-        user.password = make_password(password, user.salt)
+        old_pw = form.cleaned_data["old_password"]
+
+        # Check if the old password was correct, otherwise redirect back to the account editor page
+        pw_correct = user.check_password(old_pw)
+        if not pw_correct:
+            messages.error(request, PASSWORD_CHANGE_OLD_PASSWORD_WRONG)
+            return redirect(reverse("account"))
+
+        password = form.cleaned_data["new_password"]
+        user.set_password(password)
         user.save()
+        login(request, user)
         messages.add_message(request, messages.SUCCESS, PASSWORD_CHANGE_SUCCESS)
     else:
-        return account(request=request, params={'password_change_form': form,
-                                                'show_password_change_form': True})
+        return account(
+            request=request,
+            params={
+                'password_change_form': form,
+                'show_password_change_form': True
+            }
+        )
 
-    return redirect(reverse("account"))
+    return redirect(reverse("home"))
 
 
 @login_required

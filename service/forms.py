@@ -6,11 +6,11 @@ Created on: 15.04.19
 
 """
 from django import forms
+from django.urls import reverse_lazy
 
+from MapSkinner.consts import SERVICE_ADD
 from MapSkinner.validators import validate_get_request_uri
 from django.utils.translation import gettext_lazy as _
-
-from structure.models import User, Group
 
 
 class ServiceURIForm(forms.Form):
@@ -20,11 +20,13 @@ class ServiceURIForm(forms.Form):
 
 
 class RegisterNewServiceWizardPage1(forms.Form):
+    action_url = reverse_lazy(SERVICE_ADD,)
     page = forms.IntegerField(widget=forms.HiddenInput(), initial=1)
     get_request_uri = forms.URLField(validators=[validate_get_request_uri])
 
 
 class RegisterNewServiceWizardPage2(forms.Form):
+    action_url = reverse_lazy(SERVICE_ADD,)
     page = forms.IntegerField(required=False, widget=forms.HiddenInput(), initial=2)
     is_form_update = forms.BooleanField(required=False, widget=forms.HiddenInput(), initial=False)
     ogc_request = forms.CharField(label=_('OGC Request'), widget=forms.TextInput(attrs={'readonly': '', }))
@@ -62,6 +64,7 @@ class RegisterNewServiceWizardPage2(forms.Form):
 
 
 class RegisterNewServiceWizardPage3(forms.Form):
+    action_url = reverse_lazy(SERVICE_ADD,)
     page = forms.IntegerField(widget=forms.HiddenInput(), initial=3)
     get_request_uri = forms.CharField()
 

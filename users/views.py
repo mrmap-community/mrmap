@@ -35,16 +35,6 @@ from users.helper import user_helper
 from django.urls import reverse
 
 
-def _return_account_view(request: HttpRequest, user: User, params):
-    template = "views/account.html"
-    render_params = _prepare_account_view_params(user)
-    if params:
-        render_params.update(params)
-
-    context = DefaultContext(request, render_params, user)
-    return render(request=request, template_name=template, context=context.get_context())
-
-
 def _prepare_account_view_params(user: User):
     edit_account_form = UserForm(instance=user, initial={'theme': user.theme})
     edit_account_form.action_url = reverse('account-edit', )
@@ -163,7 +153,7 @@ def home_view(request: HttpRequest, user: User):
 
 
 @check_session
-def account(request: HttpRequest, user: User, params={}):
+def account(request: HttpRequest, user: User, params=None):
     """ Renders an overview of the user's account information
 
     Args:
@@ -173,7 +163,13 @@ def account(request: HttpRequest, user: User, params={}):
     Returns:
          A rendered view
     """
-    return _return_account_view(request, user, params)
+    template = "views/account.html"
+    render_params = _prepare_account_view_params(user)
+    if params:
+        render_params.update(params)
+
+    context = DefaultContext(request, render_params, user)
+    return render(request=request, template_name=template, context=context.get_context())
 
 
 @check_session
@@ -217,12 +213,8 @@ def account_edit(request: HttpRequest, user: User):
         messages.add_message(request, messages.SUCCESS, ACCOUNT_UPDATE_SUCCESS)
         return redirect("account")
 
-    return _return_account_view(request, user, {
-        "edit_account_form": form,
-        "show_edit_account_form": True
-    })
-
-
+    return account(request=request, params={"edit_account_form": form,
+                                            "show_edit_account_form": True})
 
 
 def activate_user(request: HttpRequest, activation_hash: str):

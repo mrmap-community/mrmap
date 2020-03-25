@@ -1,6 +1,10 @@
 import logging
 from django.test import TestCase, Client
 from django.urls import reverse
+
+from MapSkinner.consts import SERVICE_ADD
+from service.forms import RegisterNewServiceWizardPage1
+from service.tables import WmsServiceTable, WfsServiceTable, PendingTasksTable
 from tests.db_setup import create_active_user
 from tests.helper import _login
 from tests.test_data import get_password_data
@@ -18,14 +22,13 @@ class ServiceIndexViewTestCase(TestCase):
         response = client.get(
             reverse('service:index', ),
         )
-        self.logger.debug(response.__dict__)
         self.assertEqual(response.status_code, 200, )
         self.assertTemplateUsed(response=response, template_name="views/index.html")
-
-        # ToDo: proof if the new service form is in the context
-        # ToDo: proof if the wms_table is in the context
-        # ToDo: proof if the wfs_table is in the context
-        # ToDo: proof if the PendingTasksTable is in the context
+        self.assertIsInstance(response.context["wms_table"], WmsServiceTable)
+        self.assertIsInstance(response.context["wfs_table"], WfsServiceTable)
+        self.assertIsInstance(response.context["pt_table"], PendingTasksTable)
+        self.assertIsInstance(response.context["new_service_form"], RegisterNewServiceWizardPage1)
+        self.assertEqual(reverse(SERVICE_ADD,), response.context["new_service_form"].action_url)
 
     def test_post_new_service_wizard_page1_valid_input(self):
         # ToDo:

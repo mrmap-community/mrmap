@@ -22,6 +22,7 @@ urlpatterns = [
     path('update/discard/', discard_update, name='update-discard'),
 
     path('remove/<id>', remove, name='remove'),
+    path('add/', add, name='add'),
 
     path('pending-tasks/', pending_tasks, name="pending-tasks"),
 

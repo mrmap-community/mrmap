@@ -13,6 +13,8 @@ DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE = "sceletons/django_tables2_bootstrap4
 
 SERVICE_INDEX = "service:index"
 SERVICE_DETAIL = "service:detail"
+SERVICE_ADD = "service:add"
+
 
 STRUCTURE_DETAIL_GROUP = "structure:detail-group"
 STRUCTURE_INDEX_GROUP = "structure:groups-index"

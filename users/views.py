@@ -8,6 +8,7 @@ Created on: 28.05.19
 
 import datetime
 import os
+from random import random
 
 from django.contrib import messages
 from django.contrib.auth import logout, authenticate, login
@@ -318,9 +319,11 @@ def password_reset(request: HttpRequest):
         # generate new password
         # ToDo: Do sending via email!
         sec_handler = CryptoHandler()
-        gen_pw = sec_handler.sha256(user.salt + str(timezone.now()))[:7].upper()
+        gen_pw = sec_handler.sha256(
+            user.salt + str(timezone.now()) + str(random() * 10000)
+        )[:7].upper()
         print_debug_mode(gen_pw)
-        user.password = make_password(gen_pw, user.salt)
+        user.set_password(gen_pw)
         user.save()
         messages.add_message(request, messages.INFO, PASSWORD_SENT)
         return redirect('login')

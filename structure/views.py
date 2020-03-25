@@ -3,6 +3,7 @@ import json
 
 from celery.result import AsyncResult
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.forms import formset_factory
 from django.http import HttpRequest
@@ -15,21 +16,20 @@ from django_tables2 import RequestConfig
 from MapSkinner import utils
 from MapSkinner.celery_app import app
 from MapSkinner.consts import *
-from MapSkinner.decorator import check_session, check_permission
-from MapSkinner.messages import FORM_INPUT_INVALID, NO_PERMISSION, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_SENT, \
+from MapSkinner.decorator import check_permission
+from MapSkinner.messages import FORM_INPUT_INVALID, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_SENT, \
     PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, GROUP_FORM_INVALID, \
     PUBLISH_PERMISSION_REMOVED, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_IS_OTHERS_PROPERTY, \
-    GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED, \
-    GROUP_SUCCESSFULLY_DELETED
+    GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-from MapSkinner.settings import ROOT_URL, PAGE_SIZE_OPTIONS, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
-from MapSkinner.utils import prepare_table_pagination_settings, prepare_list_pagination_settings
+from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
+from MapSkinner.utils import prepare_table_pagination_settings
 from service.models import Service
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, RemoveOrganizationForm
-from structure.models import MrMapGroup, Role, Permission, Organization, PendingRequest, PendingTask, GroupActivity
+from structure.models import MrMapGroup, Role, Permission, Organization, PendingRequest, PendingTask
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable, PublishesForTable
 from django.urls import reverse
@@ -86,7 +86,7 @@ def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, ):
     return {"organizations": all_orgs_table, }
 
 
-#@check_session
+@login_required
 def index(request: HttpRequest):
     """ Renders an overview of all groups and organizations
 
@@ -194,7 +194,7 @@ def remove_task(request: HttpRequest, id: str):
     return redirect(request.META.get("HTTP_REFERER"))
 
 
-#@check_session
+@login_required
 def groups_index(request: HttpRequest):
     """ Renders an overview of all groups
 
@@ -218,7 +218,7 @@ def groups_index(request: HttpRequest):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-#@check_session
+@login_required
 def organizations_index(request: HttpRequest):
     """ Renders an overview of all organizations
 
@@ -242,7 +242,7 @@ def organizations_index(request: HttpRequest):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-#@check_session
+@login_required
 def detail_organizations(request:HttpRequest, org_id: int):
     """ Renders an overview of a group's details.
 
@@ -307,7 +307,7 @@ def detail_organizations(request:HttpRequest, org_id: int):
 
 
 # TODO: update function documentation
-#@check_session
+@login_required
 @check_permission(Permission(can_edit_organization=True))
 def edit_org(request: HttpRequest, org_id: int):
     """ The edit view for changing organization values
@@ -341,7 +341,7 @@ def edit_org(request: HttpRequest, org_id: int):
 
 
 # TODO: update function documentation
-#@check_session
+@login_required
 @check_permission(Permission(can_delete_organization=True))
 def remove_org(request: HttpRequest, org_id: int):
     """ Renders the remove form for an organization
@@ -365,7 +365,7 @@ def remove_org(request: HttpRequest, org_id: int):
 
 
 # TODO: update function documentation
-#@check_session
+@login_required
 @check_permission(Permission(can_create_organization=True))
 def new_org(request: HttpRequest):
     """ Renders the new organization form and saves the input
@@ -400,7 +400,7 @@ def new_org(request: HttpRequest):
         return redirect("structure:index")
 
 
-#@check_session
+@login_required
 @check_permission(Permission(can_toggle_publish_requests=True))
 def accept_publish_request(request: HttpRequest, request_id: int):
     """ Activate or decline the publishing request.
@@ -445,7 +445,7 @@ def accept_publish_request(request: HttpRequest, request_id: int):
     return redirect("structure:detail-organization", organization.id)
 
 
-#@check_session
+@login_required
 @check_permission(Permission(can_remove_publisher=True))
 def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
     """ Removes a publisher for an organization
@@ -476,7 +476,7 @@ def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
         messages.success(request, message=PUBLISH_PERMISSION_REMOVED.format(group.name, org.organization_name))
     return redirect("structure:detail-organization", org.id)
 
-#@check_session
+@login_required
 @check_permission(Permission(can_request_to_become_publisher=True))
 def publish_request(request: HttpRequest, org_id: int):
     """ Performs creation of a publishing request between a user/group and an organization
@@ -540,7 +540,7 @@ def publish_request(request: HttpRequest, org_id: int):
     return BackendAjaxResponse(html=html).get_response()
 
 
-#@check_session
+@login_required
 def detail_group(request: HttpRequest, id: int):
     """ Renders an overview of a group's details.
 
@@ -584,7 +584,7 @@ def detail_group(request: HttpRequest, id: int):
 
 
 # TODO: update function documentation
-#@check_session
+@login_required
 @check_permission(Permission(can_create_group=True))
 def new_group(request: HttpRequest):
     """ Renders the new group form and saves the input
@@ -620,7 +620,7 @@ def new_group(request: HttpRequest):
         redirect("structure:index")
 
 
-#@check_session
+@login_required
 def list_publisher_group(request: HttpRequest, id: int):
     """ List all organizations a group can publish for
 
@@ -644,7 +644,7 @@ def list_publisher_group(request: HttpRequest, id: int):
 
 
 # TODO: update function documentation
-#@check_session
+@login_required
 @check_permission(Permission(can_delete_group=True))
 def remove_group(request: HttpRequest, id: int):
     """ Renders the remove form for a group
@@ -683,7 +683,7 @@ def remove_group(request: HttpRequest, id: int):
     else:
         return edit_group(request=request, id=id)
 
-#@check_session
+@login_required
 @check_permission(Permission(can_edit_group=True))
 def edit_group(request: HttpRequest, id: int):
     """ The edit view for changing group values

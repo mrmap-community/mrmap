@@ -1,6 +1,7 @@
 import json
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest
 from django.shortcuts import render, redirect
 
@@ -9,19 +10,18 @@ from django.template.loader import render_to_string
 from django_tables2 import RequestConfig
 
 from MapSkinner import utils
-from MapSkinner.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
-from MapSkinner.decorator import check_session, check_permission
+from MapSkinner.decorator import check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
-    METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED, SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
+    SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
-from MapSkinner.settings import ROOT_URL, HTTP_OR_SSL, HOST_NAME, PAGE_DEFAULT, PAGE_SIZE_DEFAULT
+from MapSkinner.settings import PAGE_DEFAULT, PAGE_SIZE_DEFAULT
 from MapSkinner.utils import prepare_table_pagination_settings
-from editor.forms import MetadataEditorForm, FeatureTypeEditorForm
+from editor.forms import MetadataEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper.enums import OGCServiceEnum, MetadataEnum
-from service.models import Metadata, Keyword, Category, FeatureType, Layer, RequestOperation, SecuredOperation, Document
-from django.utils.translation import gettext_lazy as _
+from service.models import RequestOperation, SecuredOperation
+
 from structure.models import MrMapUser, Permission, MrMapGroup
 from users.helper import user_helper
 from editor.helper import editor_helper
@@ -64,7 +64,7 @@ def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
     return wfs_table
 
 
-#@check_session
+@login_required
 @check_permission(Permission(can_edit_metadata_service=True))
 def index(request: HttpRequest):
     """ The index view of the editor app.
@@ -86,7 +86,7 @@ def index(request: HttpRequest):
     return render(request, template, context.get_context())
 
 
-#@check_session
+@login_required
 @check_permission(Permission(can_edit_metadata_service=True))
 def index_wms(request: HttpRequest):
     """ The index view of the editor app.
@@ -108,7 +108,7 @@ def index_wms(request: HttpRequest):
     return render(request, template, context.get_context())
 
 
-#@check_session
+@login_required
 @check_permission(Permission(can_edit_metadata_service=True))
 def index_wfs(request: HttpRequest):
     """ The index view of the editor app.
@@ -130,7 +130,7 @@ def index_wfs(request: HttpRequest):
     return render(request, template, context.get_context())
 
 
-#@check_session
+@login_required
 @check_permission(Permission(can_edit_metadata_service=True))
 def edit(request: HttpRequest, id: int):
     """ The edit view for metadata
@@ -206,7 +206,7 @@ def edit(request: HttpRequest, id: int):
     return render(request, template, context.get_context())
 
 
-#@check_session
+@login_required
 @check_permission(Permission(can_edit_metadata_service=True))
 def edit_access(request: HttpRequest, id: int):
     """ The edit view for the operations access
@@ -283,7 +283,7 @@ def edit_access(request: HttpRequest, id: int):
     return render(request, template, context)
 
 
-#@check_session
+@login_required
 def access_geometry_form(request: HttpRequest, id: int):
     """ Renders the geometry form for the access editing
 
@@ -327,7 +327,7 @@ def access_geometry_form(request: HttpRequest, id: int):
     return BackendAjaxResponse(html=html).get_response()
 
 
-#@check_session
+@login_required
 @check_permission(Permission(can_edit_metadata_service=True))
 def restore(request: HttpRequest, id: int):
     """ Drops custom metadata and load original metadata from capabilities and ISO metadata
@@ -381,7 +381,7 @@ def restore(request: HttpRequest, id: int):
     return redirect("editor:index")
 
 
-#@check_session
+@login_required
 @check_permission(Permission(can_edit_metadata_service=True))
 def restore_featuretype(request: HttpRequest, id: int):
     """ Drops custom featuretype data and load original from capabilities and ISO metadata

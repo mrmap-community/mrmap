@@ -10,7 +10,6 @@ import base64
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 
-from MapSkinner.settings import SESSION_EXPIRATION
 from structure.models import MrMapGroup, MrMapUser, GroupActivity
 
 
@@ -53,22 +52,6 @@ def get_user(request: HttpRequest=None, username: str=None, user_id: int=None):
         return user
     except ObjectDoesNotExist:
         return None
-
-
-def is_session_expired(request: HttpRequest):
-    """ Checks whether the current session is expired or not
-
-    Args:
-        request: The request
-    Returns:
-         Returns true if expired, false otherwise
-    """
-    age = request.session.get_expiry_age()
-    if age > 0 and age <= SESSION_EXPIRATION:
-        # in valid range
-        return False
-    else:
-        return True
 
 
 def create_group_activity(group: MrMapGroup, user: MrMapUser, msg, metadata_title: str):

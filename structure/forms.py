@@ -11,6 +11,7 @@ from structure.models import MrMapGroup, Organization
 class LoginForm(forms.Form):
     username = forms.CharField(max_length=255, label=_("Username"), label_suffix=" ")
     password = forms.CharField(max_length=255, label=_("Password"), label_suffix=" ", widget=forms.PasswordInput)
+    next = forms.CharField(max_length=255, show_hidden_initial=False, widget=forms.HiddenInput(), required=False)
 
 
 class GroupForm(ModelForm):

@@ -7,6 +7,7 @@ Created on: 07.05.19
 """
 import base64
 
+from django.contrib.auth import authenticate
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 
@@ -41,11 +42,11 @@ def get_user(request: HttpRequest=None, username: str=None, user_id: int=None):
                 if len(auth_header) == 2:
                     credentials = auth_header[-1].encode("ascii")
                     username, password = base64.b64decode(credentials).decode("utf-8").split(":")
-                    user = get_user(username=username)
-                    if user is not None:
-                        # directly check if the password is valid!
-                        if user.is_password_valid(password):
-                            return user
+
+                    # Try to resolve the credentials to a user
+                    user = authenticate(username=username, password=password)
+                    if user.is_authenticated:
+                        return user
                     return None
         else:
             return None

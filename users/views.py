@@ -274,28 +274,15 @@ def activate_user(request: HttpRequest, activation_hash: str):
 
 
 def logout_view(request: HttpRequest):
-    """ Logs the structure out and redirects to login view
+    """ Logout the user and redirect to login view
 
     Args:
-        user:
         request (HttpRequest): The incoming request
     Returns:
          A view
     """
-    logout(request)
-
-    # remove session related data
-    del_keys = [
-        "user_id",
-        "next",
-    ]
-    for key in del_keys:
-        try:
-            del request.session[key]
-        except KeyError:
-            pass
-
     messages.add_message(request, messages.SUCCESS, LOGOUT_SUCCESS)
+    logout(request)
     return redirect('login')
 
 

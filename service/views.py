@@ -176,29 +176,25 @@ def _new_service_wizard_page1(request: HttpRequest, user: User,):
 def _new_service_wizard_page2(request: HttpRequest, user: User,):
     # Page two is posted --> collect all data from post and initial the form
     selected_group = user.groups.all().get(id=int(request.POST.get("registering_with_group")))
-    is_auth_needed = False
-    if request.POST.get("service_needs_authentication") == 'on':
-        is_auth_needed = True
 
     init_data = {'ogc_request': request.POST.get("ogc_request"),
                  'ogc_service': request.POST.get("ogc_service"),
                  'ogc_version': request.POST.get("ogc_version"),
                  'uri': request.POST.get("uri"),
                  'registering_with_group': request.POST.get("registering_with_group"),
-                 'service_needs_authentication': is_auth_needed,
+                 'service_needs_authentication': request.POST.get("service_needs_authentication") == 'on',
                  'username': request.POST.get("username", None),
                  'password': request.POST.get("password", None),
                  }
 
-    service_needs_authentication = False
-    if request.POST.get("service_needs_authentication") == 'on':
-        service_needs_authentication = True
-
-    form = RegisterNewServiceWizardPage2(initial=init_data,
+    is_auth_needed = True if request.POST.get("service_needs_authentication") == 'on' else False
+    form = RegisterNewServiceWizardPage2(request.POST,
+                                         initial=init_data,
                                          user=user,
                                          selected_group=selected_group,
-                                         service_needs_authentication=service_needs_authentication
+                                         service_needs_authentication=is_auth_needed,
                                          )
+
     # first check if it's just a update of the form
     if request.POST.get("is_form_update") == 'True':
         # it's just a updated form state. return the new state as view
@@ -209,11 +205,11 @@ def _new_service_wizard_page2(request: HttpRequest, user: User,):
     else:
         # it's not a update. we have to validate the fields now
         # and if all is fine generate a new pending task object
-
-        form = RegisterNewServiceWizardPage2(request.POST, initial=init_data,
+        form = RegisterNewServiceWizardPage2(request.POST,
+                                             initial=init_data,
                                              user=user,
                                              selected_group=selected_group,
-                                             service_needs_authentication=service_needs_authentication)
+                                             service_needs_authentication=is_auth_needed)
 
         if form.is_valid():
             # run creation async!
@@ -269,7 +265,7 @@ def _new_service_wizard_page2(request: HttpRequest, user: User,):
                 }
         else:
             # Form is not valid --> response with page 2 and show errors
-            params ={
+            params = {
                 "new_service_form": form,
                 "show_modal": True,
             }

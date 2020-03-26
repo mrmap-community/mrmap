@@ -10,8 +10,6 @@ from django import forms
 from MapSkinner.validators import validate_get_request_uri
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import User, Group
-
 
 class ServiceURIForm(forms.Form):
     uri = forms.CharField(label=_("GetRequest URI"), widget=forms.TextInput(attrs={

@@ -303,7 +303,7 @@ class OGCOperationRequestHandler:
             layer_identifiers = self.layers_param.split(",")
 
             if self.user is not None:
-                user_groups = self.user.groups.all()
+                user_groups = self.user.get_groups()
             else:
                 user_groups = []
             allowed_layers = Metadata.objects.filter(
@@ -1430,7 +1430,7 @@ class OGCOperationRequestHandler:
         # check if the metadata allows operation performing for certain groups
         sec_ops = metadata.secured_operations.filter(
             operation__operation_name__iexact=self.request_param,
-            allowed_group__in=self.user.groups.all(),
+            allowed_group__in=self.user.get_groups(),
         )
 
         if check_sec_ops and sec_ops.count() == 0:

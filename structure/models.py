@@ -165,8 +165,6 @@ class User(Contact):
             md_list = md_list.filter(service__servicetype__name=type.name.lower())
         return md_list
 
-
-
     def get_permissions(self, group: Group = None):
         """ Overloaded function. Returns a list containing all permission identifiers as strings in a list.
 
@@ -183,7 +181,7 @@ class User(Contact):
         groups = []
         if group is not None:
             groups = [group]
-        else :
+        else:
             groups = self.groups.all()
 
         for group in groups:
@@ -233,7 +231,6 @@ class User(Contact):
         sec_handler = CryptoHandler()
         user_activation.activation_hash = sec_handler.sha256(self.username + self.salt + str(user_activation.activation_until))
         user_activation.save()
-
 
 
 class UserActivation(models.Model):

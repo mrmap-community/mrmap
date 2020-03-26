@@ -7,7 +7,7 @@ from django.urls import reverse
 from MapSkinner.messages import PASSWORD_SENT, EMAIL_IS_UNKNOWN
 from MapSkinner.settings import ROOT_URL
 from structure.models import User, UserActivation
-from tests.db_setup import create_active_user
+from tests.baker_recipes import create_active_user
 from tests.helper import _login
 from tests.test_data import get_contact_data, get_password_data, get_username_data, get_email_data
 from django.utils import timezone

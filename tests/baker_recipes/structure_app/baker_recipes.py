@@ -1,0 +1,75 @@
+import os
+from django.contrib.auth.hashers import make_password
+from model_bakery import seq
+from model_bakery.recipe import Recipe, foreign_key, related
+from structure.models import User, Theme, Group, Role, Permission
+
+salt = str(os.urandom(25).hex())
+PASSWORD = "TestPassword!"
+
+light_theme = Recipe(
+    Theme,
+    name=seq("LIGHT")
+)
+
+superadmin_permission = Recipe(
+    Permission,
+    can_create_organization=True,
+    can_edit_organization=True,
+    can_delete_organization=True,
+    can_create_group=True,
+    can_delete_group=True,
+    can_edit_group=True,
+    can_add_user_to_group=True,
+    can_remove_user_from_group=True,
+    can_edit_group_role=True,
+    can_activate_service=True,
+    can_update_service=True,
+    can_register_service=True,
+    can_remove_service=True,
+    can_edit_metadata_service=True,
+    can_toggle_publish_requests=True,
+    can_remove_publisher=True,
+    can_request_to_become_publisher=True,
+)
+
+superadmin_role = Recipe(
+    Role,
+    name="superadmin_role",
+    permission=foreign_key(superadmin_permission)
+)
+
+god_user = Recipe(
+    User,
+    username="God",
+    email="god@heaven.va",
+    salt=salt,
+    password=make_password("354Dez25!"),
+    is_active=True,
+    theme=foreign_key(light_theme),
+)
+
+active_testuser = Recipe(
+    User,
+    username="Testuser",
+    email="test@example.com",
+    salt=salt,
+    password=make_password(PASSWORD, salt=salt),
+    is_active=True,
+    theme=foreign_key(light_theme)
+)
+
+inactive_testuser = active_testuser.extend(
+    is_active=False,
+)
+
+superadmin_group = Recipe(
+    Group,
+    name="_root_",
+    role=foreign_key(superadmin_role),
+    created_by=foreign_key(god_user),
+)
+
+superadmin_user = active_testuser.extend(
+    groups=related(superadmin_group)
+)

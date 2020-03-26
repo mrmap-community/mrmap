@@ -67,7 +67,7 @@ def _prepare_wms_table(request: HttpRequest, user: User, ):
         show_service = True
 
     md_list_wms = Metadata.objects.filter(
-        service__servicetype__name="wms",
+        service__servicetype__name=OGCServiceEnum.WMS,
         service__is_root=show_service,
         created_by__in=user.groups.all(),
         is_deleted=False,
@@ -117,7 +117,7 @@ def _prepare_wfs_table(request: HttpRequest, user: User, ):
          params (dict): The rendering parameter
     """
     md_list_wfs = Metadata.objects.filter(
-        service__servicetype__name="wfs",
+        service__servicetype__name=OGCServiceEnum.WMS,
         created_by__in=user.groups.all(),
         is_deleted=False,
     ).order_by("title")

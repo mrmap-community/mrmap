@@ -7,7 +7,7 @@ Created on: 23.03.2020
 """
 from django.test import TestCase
 from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2
-from tests.db_setup import create_active_user, create_random_user
+from tests.baker_recipes import create_active_user, create_random_user
 from tests.test_data import get_capabilitites_url
 
 

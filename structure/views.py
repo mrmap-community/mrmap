@@ -553,7 +553,7 @@ def detail_group(request: HttpRequest, id: int):
     user = user_helper.get_user(request)
 
     group = MrMapGroup.objects.get(id=id)
-    members = group.users.all()
+    members = group.user_set.all()
     template = "views/groups_detail.html"
 
     edit_form = GroupForm(instance=group)
@@ -601,7 +601,7 @@ def new_group(request: HttpRequest):
         if form.is_valid():
             # save changes of group
             group = form.save(commit=False)
-            if group.parent == group:
+            if group.parent_group == group:
                 # TODO: this message should be presented in the form errors ==> see form.add_error()
                 messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
             else:

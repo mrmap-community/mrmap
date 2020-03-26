@@ -1054,8 +1054,8 @@ class StructureTestCase(TestCase):
 
         ## case 0.2: User not logged in, tries to remove the publish permission of a group - where user is not a member - for it's organization -> fails!
         user_A.organization = org_of_A
-        group_of_B.users.remove(user_A)
-        self.assertTrue(user_A not in group_of_B.users.all())
+        group_of_B.user_set.remove(user_A)
+        self.assertTrue(user_A not in group_of_B.user_set.all())
         self.assertEqual(user_A.organization, org_of_A)
         self._remove_publish_permission(client, user_A, org_of_A, group_of_B)
         orgs_to_publish_for = group_of_B.publish_for_organizations.all()
@@ -1064,7 +1064,7 @@ class StructureTestCase(TestCase):
         ## case 0.3: User not logged in, tries to remove the publish permission of a group in another organization -> fails!
         ## first manipulate the user_A organization
         user_A.organization = None  # user_A is now not part of org_of_A anymore
-        self.assertTrue(user_A not in group_of_B.users.all())  # user_A is not part of group_of_B
+        self.assertTrue(user_A not in group_of_B.user_set.all())  # user_A is not part of group_of_B
         self.assertIsNone(user_A.organization)  # user_A is not part of org_of_A
         ## this means, that user_A is not part of the publishing group nor part of the organization, that provides the publish permission
         self._remove_publish_permission(client, user_A, org_of_A, group_of_B)
@@ -1090,7 +1090,7 @@ class StructureTestCase(TestCase):
         user_A.groups.remove(group_of_B)
         user_A.organization = org_of_A
         user_A.save()
-        self.assertTrue(user_A not in group_of_B.users.all())  # doublecheck
+        self.assertTrue(user_A not in group_of_B.user_set.all())  # doublecheck
         self.assertTrue(user_A.organization, org_of_A)  # doublecheck
 
         self._remove_publish_permission(client, user_A, org_of_A, group_of_B)
@@ -1106,7 +1106,7 @@ class StructureTestCase(TestCase):
         user_A.groups.remove(group_of_B)
         user_A.organization = None
         user_A.save()
-        self.assertTrue(user_A not in group_of_B.users.all())  # doublecheck
+        self.assertTrue(user_A not in group_of_B.user_set.all())  # doublecheck
         self.assertIsNone(user_A.organization)  # doublecheck
 
         self._remove_publish_permission(client, user_A, org_of_A, group_of_B)

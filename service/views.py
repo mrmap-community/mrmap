@@ -172,10 +172,12 @@ def _new_service_wizard(request: HttpRequest, user: MrMapUser):
                 'service_needs_authentication': False,
             }
             params.update({
-                "new_service_form": RegisterNewServiceWizardPage2(initial=init_data,
-                                                                  user=user,
-                                                                  selected_group=user.groups.first(),
-                                                                  service_needs_authentication='off'),
+                "new_service_form": RegisterNewServiceWizardPage2(
+                    initial=init_data,
+                    user=user,
+                    selected_group=user.groups.first(),
+                    service_needs_authentication='off'
+                ),
                 "action_url": reverse(SERVICE_INDEX, ),
                 "show_modal": True,
             })

@@ -82,7 +82,7 @@ class Command(BaseCommand):
         # handle root group
         group = self._create_default_group(superuser)
         group.created_by = superuser
-        group.users.add(superuser)
+        group.user_set.add(superuser)
         group.save()
 
         # handle root organization

@@ -124,7 +124,6 @@ class Theme(models.Model):
 
 class MrMapUser(AbstractUser):
     salt = models.CharField(max_length=500)
-    #groups = models.ManyToManyField('MrMapGroup', related_name='users', null=True, blank=True)
     organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.DO_NOTHING, null=True, blank=True)
     confirmed_newsletter = models.BooleanField(default=False)
     confirmed_survey = models.BooleanField(default=False)

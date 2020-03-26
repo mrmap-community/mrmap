@@ -57,9 +57,10 @@ def log_proxy(function):
             md = Metadata.objects.get(id=kwargs["id"])
         except ObjectDoesNotExist:
             return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
-        user_id = None
-        if user is not None:
-            user_id = user
+
+        logged_user = None
+        if user.is_authenticated:
+            logged_user = user
 
         uri = request.path
         post_body = {}
@@ -75,7 +76,7 @@ def log_proxy(function):
                 metadata=md,
                 uri=uri,
                 post_body=post_body,
-                user=user_id
+                user=logged_user
             )
             proxy_log.save()
         return function(request=request, proxy_log=proxy_log, *args, **kwargs)

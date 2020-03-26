@@ -1265,7 +1265,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
 
         # Log the response, if needed
         if proxy_log is not None:
-            proxy_log.log_response(response)
+            proxy_log.log_response(response, operation_handler.request_param)
 
         len_response = len(response)
 

@@ -57,6 +57,7 @@ class ProxyLog(models.Model):
     from structure.models import MrMapUser
     metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, null=True, blank=True)
     user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, null=True, blank=True)
+    operation = models.CharField(max_length=100, null=True, blank=True)
     uri = models.CharField(max_length=1000, null=True, blank=True)
     post_body = models.TextField(null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -66,7 +67,8 @@ class ProxyLog(models.Model):
     def __str__(self):
         return str(self.id)
 
-    def log_response(self, response):
+    @transaction.atomic
+    def log_response(self, response, request_param: str):
         """ Evaluate the response.
 
         In case of a WFS response, the number of returned features will be counted.
@@ -74,6 +76,7 @@ class ProxyLog(models.Model):
 
         Args:
             response: The response, could be xml or bytes
+            request_param (str): The operation that has been performed
         Returns:
              nothing
         """
@@ -87,7 +90,8 @@ class ProxyLog(models.Model):
         else:
             # For future implementation
             pass
-
+        self.operation = request_param
+        self.save()
         print_debug_mode(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
 
     def _log_wfs_response(self, xml: str):
@@ -119,7 +123,6 @@ class ProxyLog(models.Model):
                 break
 
         self.response_wfs_num_features = num_features
-        self.save()
 
     def _log_wms_response(self, img):
         """ Evaluate the wms response.
@@ -146,8 +149,6 @@ class ProxyLog(models.Model):
         # Calculation of megapixels, round up to 2 digits
         # megapixels = width*height / 1,000,000
         self.response_wms_megapixel = round(pixels / 1000000, 4)
-
-        self.save()
 
     def _count_data_pixels_only(self, img: Image):
         """ Counts all pixels, besides the pure-alpha-pixels

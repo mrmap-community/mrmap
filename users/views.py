@@ -128,21 +128,22 @@ def home_view(request: HttpRequest):
     """
     user = user_helper.get_user(request)
     template = "views/dashboard.html"
+    user_groups = user.get_groups()
     user_services_wms = Metadata.objects.filter(
             service__servicetype__name="wms",
             service__is_root=True,
-            created_by__in=user.groups.all(),
+            created_by__in=user_groups,
             service__is_deleted=False,
         ).count()
     user_services_wfs = Metadata.objects.filter(
             service__servicetype__name="wfs",
             service__is_root=True,
-            created_by__in=user.groups.all(),
+            created_by__in=user_groups,
             service__is_deleted=False,
         ).count()
 
     activities_since = timezone.now() - datetime.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
-    group_activities = GroupActivity.objects.filter(group__in=user.groups.all(), created_on__gte=activities_since).order_by("-created_on")
+    group_activities = GroupActivity.objects.filter(group__in=user_groups, created_on__gte=activities_since).order_by("-created_on")
     pending_requests = PendingRequest.objects.filter(organization=user.organization)
     params = {
         "wms_count": user_services_wms,
@@ -150,7 +151,7 @@ def home_view(request: HttpRequest):
         "all_count": user_services_wms + user_services_wfs,
         "requests": pending_requests,
         "group_activities": group_activities,
-        "groups": user.groups.all(),
+        "groups": user_groups,
         "organizations": Organization.objects.filter(is_auto_generated=False)
     }
     context = DefaultContext(request, params, user)

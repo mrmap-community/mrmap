@@ -148,7 +148,7 @@ def edit(request: HttpRequest, id: int):
     metadata = Metadata.objects.get(id=id)
 
     # check if user owns this service by group-relation
-    if metadata.created_by not in user.groups.all():
+    if metadata.created_by not in user.get_groups():
         messages.error(request, message=NO_PERMISSION)
         return redirect("editor:index")
 
@@ -345,7 +345,7 @@ def restore(request: HttpRequest, id: int):
     ext_auth = metadata.get_external_authentication_object()
 
     # check if user owns this service by group-relation
-    if metadata.created_by not in user.groups.all():
+    if metadata.created_by not in user.get_groups():
         messages.error(request, message=NO_PERMISSION)
         return redirect("editor:index")
 
@@ -397,7 +397,7 @@ def restore_featuretype(request: HttpRequest, id: int):
     feature_type = FeatureType.objects.get(id=id)
 
     # check if user owns this service by group-relation
-    if feature_type.created_by not in user.groups.all():
+    if feature_type.created_by not in user.get_groups():
         messages.error(request, message=NO_PERMISSION)
         return redirect("editor:index")
 

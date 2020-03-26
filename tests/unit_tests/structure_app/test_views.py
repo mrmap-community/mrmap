@@ -813,7 +813,7 @@ class StructureTestCase(TestCase):
         Args:
             client (Client): The logged in client
             user (MrMapUser): The performing user
-            group (MrMapGroup): The group which requests the publish permission
+            group (Group): The group which requests the publish permission
             organization (Organization): The organization
 
         Returns:
@@ -859,7 +859,7 @@ class StructureTestCase(TestCase):
             client (Client): The logged in client
             user (MrMapUser): The performing user
             organization (Organization): The organization which let a group publish
-            group (MrMapGroup): The group which has the publish permission
+            group (Group): The group which has the publish permission
         Returns:
 
         """
@@ -1075,7 +1075,7 @@ class StructureTestCase(TestCase):
         client = self._get_logged_in_client(user_B)
         user_B.groups.add(group_of_B)
         self.assertTrue(org_of_A in orgs_to_publish_for)
-        self.assertTrue(group_of_B in user_B.groups.all())
+        self.assertTrue(group_of_B in user_B.get_groups())
         self._remove_publish_permission(client, user_B, org_of_A, group_of_B)
         orgs_to_publish_for = group_of_B.publish_for_organizations.all()
         self.assertTrue(org_of_A not in orgs_to_publish_for, msg="Publish Permission was not removed!")

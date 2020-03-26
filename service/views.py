@@ -71,7 +71,7 @@ def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
     md_list_wms = Metadata.objects.filter(
         service__servicetype__name="wms",
         service__is_root=show_service,
-        created_by__in=user.groups.all(),
+        created_by__in=user.get_groups(),
         is_deleted=False,
     ).order_by("title")
 
@@ -120,7 +120,7 @@ def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
     """
     md_list_wfs = Metadata.objects.filter(
         service__servicetype__name="wfs",
-        created_by__in=user.groups.all(),
+        created_by__in=user.get_groups(),
         is_deleted=False,
     ).order_by("title")
 
@@ -175,7 +175,7 @@ def _new_service_wizard(request: HttpRequest, user: MrMapUser):
                 "new_service_form": RegisterNewServiceWizardPage2(
                     initial=init_data,
                     user=user,
-                    selected_group=user.groups.first(),
+                    selected_group=user.get_groups().first(),
                     service_needs_authentication='off'
                 ),
                 "action_url": reverse(SERVICE_INDEX, ),
@@ -191,7 +191,7 @@ def _new_service_wizard(request: HttpRequest, user: MrMapUser):
 
     elif page is 2:
         # Page two is posted --> collect all data from post and initial the form
-        selected_group = user.groups.all().get(id=int(request.POST.get("registering_with_group")))
+        selected_group = user.get_groups().get(id=int(request.POST.get("registering_with_group")))
         is_auth_needed = False
         if request.POST.get("service_needs_authentication") == 'on':
             is_auth_needed = True
@@ -310,7 +310,7 @@ def index(request: HttpRequest):
     template = "views/index.html"
 
     # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user.groups.all())
+    pt = PendingTask.objects.filter(created_by__in=user.get_groups())
     pt_table = PendingTasksTable(pt,
                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                  orderable=False, user=user,)
@@ -353,7 +353,7 @@ def pending_tasks(request: HttpRequest):
     template = "includes/pending_tasks.html"
 
     # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user.groups.all())
+    pt = PendingTask.objects.filter(created_by__in=user.get_groups())
 
     pt_table = PendingTasksTable(pt,
                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
@@ -810,7 +810,7 @@ def wms_index(request: HttpRequest):
     template = "views/wms_index.html"
 
     # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user.groups.all())
+    pt = PendingTask.objects.filter(created_by__in=user.get_groups())
     pt_table = PendingTasksTable(pt,
                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                  orderable=False, user=user,)
@@ -1036,7 +1036,7 @@ def wfs_index(request: HttpRequest):
     template = "views/wfs_index.html"
 
     # get pending tasks
-    pending_tasks = PendingTask.objects.filter(created_by__in=user.groups.all())
+    pending_tasks = PendingTask.objects.filter(created_by__in=user.get_groups())
     pt_table = PendingTasksTable(pending_tasks,
                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                  orderable=False, user=user,)

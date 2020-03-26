@@ -47,8 +47,9 @@ class RegisterNewServiceWizardPage2(forms.Form):
         super(RegisterNewServiceWizardPage2, self).__init__(*args, **kwargs)
 
         # initial the fields with the poped kwargs
-        self.fields['registering_with_group'].queryset = self.user.groups.all()
-        self.fields['registering_with_group'].initial = self.user.groups.first()
+        user_groups = self.user.get_groups()
+        self.fields['registering_with_group'].queryset = user_groups
+        self.fields['registering_with_group'].initial = user_groups.first()
         self.fields['registering_for_other_organization'].queryset = self.selected_group.publish_for_organizations.all()
         self.fields['service_needs_authentication'].initial = self.service_needs_authentication
 

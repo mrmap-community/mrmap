@@ -39,7 +39,7 @@ from users.helper.user_helper import create_group_activity
 
 
 def _prepare_group_table(request: HttpRequest, user: MrMapUser, ):
-    user_groups = user.groups.all()
+    user_groups = user.get_groups()
     user_groups_filtered = GroupFilter(request.GET, queryset=user_groups)
 
     groups = []
@@ -283,7 +283,7 @@ def detail_organizations(request:HttpRequest, org_id: int):
 
     publisher_form = PublisherForOrganizationForm()
     publisher_form.fields["organization_name"].initial = org.organization_name
-    publisher_form.fields["group"].choices = user.groups.all().values_list('id', 'name')
+    publisher_form.fields["group"].choices = user.get_groups().values_list('id', 'name')
     publisher_form.action_url = reverse('structure:publish-request', args=[org_id])
 
     params = {
@@ -463,7 +463,7 @@ def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
     group = MrMapGroup.objects.get(id=group_id, publish_for_organizations=org)
 
     # only allow removing if the user is part of the organization or the group!
-    if group not in user.groups.all() and user.organization != org:
+    if group not in user.get_groups() and user.organization != org:
         messages.error(request, message=PUBLISH_PERMISSION_REMOVING_DENIED)
     else:
         group.publish_for_organizations.remove(org)
@@ -494,7 +494,7 @@ def publish_request(request: HttpRequest, org_id: int):
 
     request_form = PublisherForOrganizationForm(request.POST or None)
     request_form.fields["organization_name"].initial = org.organization_name
-    groups = user.groups.all().values_list('id', 'name')
+    groups = user.get_groups().values_list('id', 'name')
     request_form.fields["group"].choices = groups
     params = {}
     if request.method == 'POST':

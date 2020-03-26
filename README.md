@@ -1,4 +1,4 @@
-#<img src="https://git.osgeo.org/gitea/hollsandre/MapSkinner/raw/branch/pre_master/MapSkinner/static/images/mr_map.png" width="200">
+#<img src="https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/pre_master/MapSkinner/static/images/mr_map.png" width="200">
 Mr. Map is a service registry for web map services ([WMS](https://www.opengeospatial.org/standards/wms)) 
 and web feature services ([WFS](https://www.opengeospatial.org/standards/wfs)) as introduced by the 
 Open Geospatial Consortium [OGC](http://www.opengeospatial.org/).
@@ -41,7 +41,7 @@ These instructions will get you a copy of the project up and running on your loc
 1. clone the project from the repo to your preferred install directory:
         
         (venv) $ cd `INSTALL-DIR`
-        (venv) $ git clone https://git.osgeo.org/gitea/hollsandre/MapSkinner 
+        (venv) $ git clone https://git.osgeo.org/gitea/GDI-RP/MapSkinner 
 
     > all following commands are from within the project root directory run.
 
@@ -104,7 +104,7 @@ What to do here?
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull request to us.
 
 ##Versioning
-We use [SemVer](https://semver.org/) for versioning. For the versions available, see the [tags on this repositry](https://git.osgeo.org/gitea/hollsandre/MapSkinner/releases).  
+We use [SemVer](https://semver.org/) for versioning. For the versions available, see the [tags on this repositry](https://git.osgeo.org/gitea/GDI-RP/MapSkinner/releases).  
 
 
 ##Authors

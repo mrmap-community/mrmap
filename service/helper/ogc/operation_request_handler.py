@@ -302,7 +302,7 @@ class OGCOperationRequestHandler:
             # in case of WMS
             layer_identifiers = self.layers_param.split(",")
 
-            if self.user is not None:
+            if self.user.is_authenticated:
                 user_groups = self.user.get_groups()
             else:
                 user_groups = []
@@ -1420,7 +1420,7 @@ class OGCOperationRequestHandler:
         }
 
         # if user could not be found in request -> not logged in -> no permission!
-        if self.user is None:
+        if not self.user.is_authenticated:
             return response
 
         check_sec_ops = False

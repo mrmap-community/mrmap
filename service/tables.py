@@ -5,6 +5,8 @@ from django.urls import reverse
 import json
 from MapSkinner.celery_app import app
 from celery.result import AsyncResult
+
+from MapSkinner.tables import MapSkinnerTable
 from MapSkinner.utils import get_theme, get_ok_nok_icon
 from MapSkinner.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
 from django.db.models import Count
@@ -20,7 +22,7 @@ def _get_close_button(url, user):
                        format_html(get_theme(user)["ICONS"]['WINDOW_CLOSE']),)
 
 
-class ServiceTable(tables.Table):
+class ServiceTable(MapSkinnerTable):
     attrs = {
         "th": {
             "class": "align-middle",
@@ -124,7 +126,7 @@ class WmsLayerTable(ServiceTable):
         return queryset, True
 
 
-class WfsServiceTable(tables.Table):
+class WfsServiceTable(MapSkinnerTable):
     caption = _("Shows all WFS which are configured in your Mr. Map environment.")
 
     class Meta:
@@ -195,7 +197,7 @@ class WfsServiceTable(tables.Table):
         return queryset, True
 
 
-class PendingTasksTable(tables.Table):
+class PendingTasksTable(MapSkinnerTable):
     caption = _("Shows all currently running pending tasks.")
 
     pt_cancle = tables.Column(verbose_name=' ', empty_values=[], orderable=False, )
@@ -256,7 +258,7 @@ class PendingTasksTable(tables.Table):
             return str(e)
 
 
-class ChildLayerTable(tables.Table):
+class ChildLayerTable(MapSkinnerTable):
     id = tables.Column(visible=False)
     title = tables.Column(visible=False)
     child_layer_title = tables.Column(empty_values=[], order_by='title', )
@@ -282,7 +284,7 @@ class ChildLayerTable(tables.Table):
                                record['title'], )
 
 
-class FeatureTypeTable(tables.Table):
+class FeatureTypeTable(MapSkinnerTable):
     id = tables.Column(visible=False)
     title = tables.Column(visible=False)
     featuretype_title = tables.Column(empty_values=[], order_by='title', )
@@ -302,7 +304,7 @@ class FeatureTypeTable(tables.Table):
                            record['title'], )
 
 
-class CoupledMetadataTable(tables.Table):
+class CoupledMetadataTable(MapSkinnerTable):
     id = tables.Column(visible=False)
     title = tables.Column(visible=False)
     coupled_metadata_title = tables.Column(empty_values=[], order_by='title', )

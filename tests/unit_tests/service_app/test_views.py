@@ -26,9 +26,13 @@ class ServiceIndexViewTestCase(TestCase):
         self.assertTemplateUsed(response=response, template_name="views/index.html")
         self.assertIsInstance(response.context["wms_table"], WmsServiceTable)
         self.assertEqual(len(response.context["wms_table"].rows), 10)
+        # see if paging is working... only 5 elements by default should be listed
+        self.assertEqual(len(response.context["wms_table"].page.object_list), 5)
 
         self.assertIsInstance(response.context["wfs_table"], WfsServiceTable)
         self.assertEqual(len(response.context["wfs_table"].rows), 10)
+        # see if paging is working... only 5 elements by default should be listed
+        self.assertEqual(len(response.context["wfs_table"].page.object_list), 5)
 
         self.assertIsInstance(response.context["pt_table"], PendingTasksTable)
         self.assertIsInstance(response.context["new_service_form"], RegisterNewServiceWizardPage1)

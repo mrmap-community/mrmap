@@ -23,7 +23,6 @@ from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
-from MapSkinner.utils import prepare_table_pagination_settings
 from service import tasks
 from service.helper import xml_helper
 from service.filters import WmsFilter, WfsFilter
@@ -89,13 +88,8 @@ def _prepare_wms_table(request: HttpRequest, user: User, ):
     wms_table_filtered.form.fields.update({'show_layers': show_layers_})
 
     wms_table.filter = wms_table_filtered
-    RequestConfig(request).configure(wms_table)
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    # TODO: move pagination as function to ExtendedTable
-    wms_table.pagination = prepare_table_pagination_settings(request, wms_table, 'wms-t')
-    wms_table.page_field = wms_table.pagination.get('page_name')
-    wms_table.paginate(page=request.GET.get(wms_table.pagination.get('page_name'), PAGE_DEFAULT),
-                       per_page=request.GET.get(wms_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+    wms_table.configure_pagination(request, 'wms-t')
 
     params = {
         "wms_table": wms_table,
@@ -126,13 +120,8 @@ def _prepare_wfs_table(request: HttpRequest, user: User, ):
                                 user=user,)
 
     wfs_table.filter = wfs_table_filtered
-    RequestConfig(request).configure(wfs_table)
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    # TODO: move pagination as function to ExtendedTable
-    wfs_table.pagination = prepare_table_pagination_settings(request, wfs_table, 'wfs-t')
-    wfs_table.page_field = wfs_table.pagination.get('page_name')
-    wfs_table.paginate(page=request.GET.get(wfs_table.pagination.get('page_name'), PAGE_DEFAULT),
-                       per_page=request.GET.get(wfs_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+    wfs_table.configure_pagination(request, 'wfs-t')
 
     params = {
         "wfs_table": wfs_table,

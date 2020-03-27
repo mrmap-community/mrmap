@@ -105,8 +105,8 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
 
         child_layer_table = ChildLayerTable(children, template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                             order_by='title', user=None,)
-        RequestConfig(request).configure(child_layer_table)
-        child_layer_table.paginate(page=request.GET.get("page", default_page), per_page=per_page)
+
+        child_layer_table.configure_pagination(request, 'cl-t')
 
         params['children'] = child_layer_table
 
@@ -175,8 +175,7 @@ def collect_wfs_root_data(md: Metadata, request: HttpRequest):
 
     featuretype_table = FeatureTypeTable(featuretypes, template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                          order_by='title', user=None,)
-    RequestConfig(request).configure(featuretype_table)
-    featuretype_table.paginate(page=request.GET.get("page", default_page), per_page=per_page)
+    featuretype_table.configure_pagination(request, 'ft-t')
     featuretype_table.filter = featuretypes_filtered
 
 
@@ -215,8 +214,7 @@ def collect_metadata_related_objects(md: Metadata, request: HttpRequest,):
             show_header=show_header,
             user=None,)
 
-        RequestConfig(request).configure(related_metadata_table)
-        related_metadata_table.paginate(page=request.GET.get("page", default_page), per_page=per_page)
+        related_metadata_table.configure_pagination(request, 'rm-t')
 
         params['related_metadata'] = related_metadata_table
 

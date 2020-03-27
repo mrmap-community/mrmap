@@ -7,7 +7,8 @@ from django.urls import reverse
 from MapSkinner.messages import PASSWORD_SENT, EMAIL_IS_UNKNOWN
 from MapSkinner.settings import ROOT_URL
 from structure.models import User, UserActivation
-from tests.baker_recipes import create_active_user
+from tests.baker_recipes.db_setup import create_superadminuser
+from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 from tests.helper import _login
 from tests.test_data import get_contact_data, get_password_data, get_username_data, get_email_data
 from django.utils import timezone
@@ -18,8 +19,8 @@ REDIRECT_WRONG = "Redirect wrong"
 
 class PasswordResetTestCase(TestCase):
     def setUp(self):
-        self.user_password = 'testpassword'
-        self.active_user = create_active_user('testuser', self.user_password, 'test@example.com')
+        self.user_password = PASSWORD
+        self.active_user = create_superadminuser()
         self.logger = logging.getLogger('PasswordResetTestCase')
 
     def test_success_password_reset(self):
@@ -52,8 +53,8 @@ class RegisterNewUserTestCase(TestCase):
         self.logger = logging.getLogger('RegisterNewUserTestCase')
         self.contact_data = get_contact_data()
         # creates user object in db
-        self.user_password = get_password_data().get('valid')
-        self.user = create_active_user("Testuser", self.user_password, "test@example.com")
+        self.user_password = PASSWORD
+        self.user = create_superadminuser()
 
     def test_success_user_register(self):
         """ Tests the register functionality
@@ -129,8 +130,8 @@ class ActivateUserTestCase(TestCase):
     def setUp(self):
         self.logger = logging.getLogger('ActivateUserTestCase')
         # creates user object in db
-        self.user_password = get_password_data().get('valid')
-        self.user = create_active_user("Testuser", self.user_password, "test@example.com")
+        self.user_password = PASSWORD
+        self.user = create_superadminuser()
 
     def test_user_activation(self):
         """ Tests the user activation process
@@ -175,8 +176,8 @@ class LoginLogoutTestCase(TestCase):
     def setUp(self):
         self.logger = logging.getLogger('LoginLogoutTestCase')
         # creates user object in db
-        self.user_password = get_password_data().get('valid')
-        self.user = create_active_user("Testuser", self.user_password, "test@example.com")
+        self.user_password = PASSWORD
+        self.user = create_superadminuser()
 
     def test_user_login_logout(self):
         """ Tests the login functionality
@@ -220,8 +221,8 @@ class PasswordChangeTestCase(TestCase):
     def setUp(self):
         self.logger = logging.getLogger('PasswordChangeTestCase')
         # creates user object in db
-        self.user_password = get_password_data().get('valid')
-        self.user = create_active_user("Testuser", self.user_password, "test@example.com")
+        self.user_password = PASSWORD
+        self.user = create_superadminuser()
 
     def test_user_password_change_with_logged_out_user(self):
         """ Tests the password change functionality
@@ -275,8 +276,8 @@ class AccountEditTestCase(TestCase):
     def setUp(self):
         self.logger = logging.getLogger('AccountEditTestCase')
         # creates user object in db
-        self.user_password = get_password_data().get('valid')
-        self.user = create_active_user("Testuser", self.user_password, "test@example.com")
+        self.user_password = PASSWORD
+        self.user = create_superadminuser()
         self.contact_data = get_contact_data()
 
     def test_get_account_edit_view(self):
@@ -333,12 +334,10 @@ class AccountEditTestCase(TestCase):
 
         # case 1: User logged in -> effect!
         # assert as expected
-        response = client.post(
+        client.post(
             reverse('account-edit', ),
             data=params
         )
-        self.logger.debug(response.__dict__)
-
         self.user.refresh_from_db()
         self.assertEqual(self.user.username, new_name, msg="Username could not be changed")
 
@@ -404,8 +403,8 @@ class HomeViewTestCase(TestCase):
     def setUp(self):
         self.logger = logging.getLogger('HomeViewTestCase')
         # creates user object in db
-        self.user_password = get_password_data().get('valid')
-        self.user = create_active_user("Testuser", self.user_password, "test@example.com")
+        self.user_password = PASSWORD
+        self.user = create_superadminuser()
 
     def test_home_view(self):
         client = _login(self.user.username, self.user_password, Client())

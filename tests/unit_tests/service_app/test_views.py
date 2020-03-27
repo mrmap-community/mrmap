@@ -1,12 +1,8 @@
 import logging
-from pprint import pprint
 from django.test import TestCase, Client
 from django.urls import reverse
-
 from MapSkinner.consts import SERVICE_ADD
 from service.forms import RegisterNewServiceWizardPage1
-from service.helper.enums import OGCServiceEnum
-from service.models import Service, Metadata
 from service.tables import WmsServiceTable, WfsServiceTable, PendingTasksTable
 from tests.baker_recipes.db_setup import *
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD

@@ -3,9 +3,12 @@ from django.contrib.auth.hashers import make_password
 from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key, related
 from structure.models import User, Theme, Group, Role, Permission
+from tests.test_data import get_password_data
 
 salt = str(os.urandom(25).hex())
-PASSWORD = "TestPassword!"
+PASSWORD = get_password_data().get('valid')
+EMAIL = "test@example.com"
+
 
 light_theme = Recipe(
     Theme,

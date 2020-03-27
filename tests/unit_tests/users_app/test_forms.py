@@ -7,7 +7,8 @@ Created on: 23.03.2020
 """
 import logging
 from django.test import TestCase
-from tests.baker_recipes import create_active_user
+
+from tests.baker_recipes.db_setup import create_superadminuser
 from tests.test_data import get_password_data, get_username_data, get_account_data, get_email_data
 from users.forms import PasswordChangeForm, UserForm, PasswordResetForm
 
@@ -23,7 +24,7 @@ class PasswordResetFormTestCase(TestCase):
         self.email = get_email_data()
 
     def test_valid_email(self):
-        create_active_user('testuser', 'testpassword', 'test@example.com')
+        create_superadminuser()
 
         self.params.update({
             'email': 'test@example.com'

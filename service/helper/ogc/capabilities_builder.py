@@ -829,7 +829,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
             bounding_geometry.transform(reference_system.code)
             bbox = list(bounding_geometry.extent)
 
-            switch_axis = epsg_handler.switch_axis_order(self.service_type, self.service_version, reference_system.code)
+            switch_axis = epsg_handler.check_switch_axis_order(self.service_type, self.service_version, reference_system.code)
             if switch_axis:
                 for i in range(0, len(bbox), 2):
                     tmp = bbox[i]
@@ -1313,7 +1313,7 @@ class CapabilityWMS130Builder(CapabilityWMSBuilder):
             bounding_geometry.transform(reference_system.code)
             bbox = list(bounding_geometry.extent)
 
-            switch_axis = epsg_handler.switch_axis_order(self.service_type, self.service_version, reference_system.code)
+            switch_axis = epsg_handler.check_switch_axis_order(self.service_type, self.service_version, reference_system.code)
             if switch_axis:
                 for i in range(0, len(bbox), 2):
                     tmp = bbox[i]

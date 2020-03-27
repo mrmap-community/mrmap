@@ -11,7 +11,7 @@ from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, OGCOperationEnum
 from service.models import Service, Document, Metadata
-from structure.models import User, Group, Role, Permission
+from structure.models import MrMapUser, MrMapGroup, Role, Permission
 
 
 class ServiceTestCase(TestCase):
@@ -44,7 +44,7 @@ class ServiceTestCase(TestCase):
         self.pw = "test"
         salt = str(os.urandom(25).hex())
         pw = self.pw
-        self.user = User.objects.create(
+        self.user = MrMapUser.objects.create(
             username="Testuser",
             is_active=True,
             salt=salt,
@@ -52,13 +52,13 @@ class ServiceTestCase(TestCase):
             confirmed_dsgvo=timezone.now(),
         )
 
-        self.group = Group.objects.create(
+        self.group = MrMapGroup.objects.create(
             name="Testgroup",
             role=role,
             created_by=self.user,
         )
 
-        self.user.groups.add(self.group)
+        self.group.user_set.add(self.user)
 
         self.test_wms = {
             "title": "Karte RP",
@@ -94,7 +94,7 @@ class ServiceTestCase(TestCase):
         service_helper.persist_service_model_instance(self.service, external_auth=None)
         self.service.persist_capabilities_doc(self.raw_data.service_capabilities_xml)
 
-    def _get_logged_in_client(self, user: User):
+    def _get_logged_in_client(self, user: MrMapUser):
         """ Helping function to encapsulate the login process
 
         Returns:

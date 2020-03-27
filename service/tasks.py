@@ -20,7 +20,7 @@ from MapSkinner.utils import print_debug_mode
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
     MetadataRelation, ProxyLog
-from structure.models import User, Group, Organization, PendingTask
+from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
 from users.helper import user_helper
@@ -49,7 +49,7 @@ def async_activate_service(service_id: int, user_id: int):
     Returns:
         nothing
     """
-    user = User.objects.get(id=user_id)
+    user = MrMapUser.objects.get(id=user_id)
 
     # get service and change status
     service = Service.objects.get(id=service_id)
@@ -88,11 +88,13 @@ def async_activate_service(service_id: int, user_id: int):
                 related_md.save()
             ft_metadata.save()
 
-
+    # Formating using an empty string here is correct, since these are the messages we show in
+    # the group activity list. We reuse a message template, which uses a '{}' placeholder.
+    # Since we do not show the title in here, we remove the placeholder with an empty string.
     if service.metadata.is_active:
-        msg = SERVICE_ACTIVATED
+        msg = SERVICE_ACTIVATED.format("")
     else:
-        msg = SERVICE_DEACTIVATED
+        msg = SERVICE_DEACTIVATED.format("")
 
     user_helper.create_group_activity(service.metadata.created_by, user, msg, service.metadata.title)
 
@@ -121,7 +123,7 @@ def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int,
     if group_id is None:
         group = None
     else:
-        group = Group.objects.get(
+        group = MrMapGroup.objects.get(
             id=group_id
         )
     if operation_id is not None:
@@ -189,11 +191,11 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         task_helper.update_progress(async_new_service, 0)
 
     # restore objects from ids
-    user = User.objects.get(id=user_id)
+    user = MrMapUser.objects.get(id=user_id)
     url_dict["service"] = service_helper.resolve_service_enum(url_dict["service"])
     url_dict["version"] = service_helper.resolve_version_enum(url_dict["version"])
 
-    register_group = Group.objects.get(id=register_group_id)
+    register_group = MrMapGroup.objects.get(id=register_group_id)
     if utils.resolve_none_string(str(register_for_organization_id)) is not None:
         register_for_organization = Organization.objects.get(id=register_for_organization_id)
     else:

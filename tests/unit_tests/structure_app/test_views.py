@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, ROOT_URL
 from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
-from structure.models import Group, User, Role, Permission, Organization, PendingRequest
+from structure.models import MrMapGroup, MrMapUser, Role, Permission, Organization, PendingRequest
 
 
 class StructureTestCase(TestCase):
@@ -26,7 +26,7 @@ class StructureTestCase(TestCase):
         pw = self.pw
 
         # create two different users, to check property rights during tests
-        user_A = User.objects.create(
+        user_A = MrMapUser.objects.create(
             username=self.username_A,
             salt=salt,
             password=make_password(pw, salt=salt),
@@ -34,7 +34,7 @@ class StructureTestCase(TestCase):
             is_active=True,
         )
         self.user_A_id = user_A.id
-        user_B = User.objects.create(
+        user_B = MrMapUser.objects.create(
             username=self.username_B,
             salt=salt,
             password=make_password(pw, salt=salt),
@@ -57,13 +57,13 @@ class StructureTestCase(TestCase):
         self.role_id = role.id
 
         # create default group for super rights and user
-        group = Group.objects.create(
+        group = MrMapGroup.objects.create(
             role=role,
             name="Testgroup",
             created_by=user_A
         )
-        user_A.groups.add(group)
-        user_B.groups.add(group)
+        group.user_set.add(user_A)
+        group.user_set.add(user_B)
         self.group_id = group.id
 
         # create default organization
@@ -90,7 +90,7 @@ class StructureTestCase(TestCase):
         role.permission.save()
         role.save()
 
-    def _get_logged_in_client(self, user: User):
+    def _get_logged_in_client(self, user: MrMapUser):
         """ Helping function to encapsulate the login process
 
         Returns:
@@ -98,7 +98,7 @@ class StructureTestCase(TestCase):
              user_id (int): The user (id) who shall be logged in
         """
         client = Client()
-        user = User.objects.get(
+        user = MrMapUser.objects.get(
             id=user.id
         )
         self.assertEqual(user.logged_in, False, msg="User already logged in")
@@ -122,7 +122,7 @@ class StructureTestCase(TestCase):
         Returns:
              user (User): The user
         """
-        return User.objects.get(id=self.user_A_id)
+        return MrMapUser.objects.get(id=self.user_A_id)
 
     def _get_user_B(self):
         """ Returns the user, which is used in these tests
@@ -130,7 +130,7 @@ class StructureTestCase(TestCase):
         Returns:
              user (User): The user
         """
-        return User.objects.get(id=self.user_B_id)
+        return MrMapUser.objects.get(id=self.user_B_id)
 
     def _get_group(self):
         """ Returns the group, which is created in the setUp()
@@ -138,9 +138,9 @@ class StructureTestCase(TestCase):
         Returns:
              group (Group): The group
         """
-        return Group.objects.get(id=self.group_id)
+        return MrMapGroup.objects.get(id=self.group_id)
 
-    def _create_new_group(self, client: Client, user: User, name: str, parent: Group = None):
+    def _create_new_group(self, client: Client, user: MrMapUser, name: str, parent: MrMapGroup = None):
         """ Helping function
 
         Calls the create-new-group route
@@ -163,7 +163,7 @@ class StructureTestCase(TestCase):
 
         client.post(reverse('structure:new-group', ), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
 
-    def _remove_group(self, client: Client, group: Group, user: User):
+    def _remove_group(self, client: Client, group: MrMapGroup, user: MrMapUser):
         """ Helping function
 
         Calls the delete-group route
@@ -197,7 +197,7 @@ class StructureTestCase(TestCase):
         self._create_new_group(client, user_A, g_name)
         exists = True
         try:
-            group = Group.objects.get(
+            group = MrMapGroup.objects.get(
                 name=g_name
             )
         except ObjectDoesNotExist:
@@ -209,7 +209,7 @@ class StructureTestCase(TestCase):
         self._create_new_group(client, user_A, g_name)
         exists = True
         try:
-            group = Group.objects.get(
+            group = MrMapGroup.objects.get(
                 name=g_name
             )
         except ObjectDoesNotExist:
@@ -224,7 +224,7 @@ class StructureTestCase(TestCase):
         self._create_new_group(client, user_A, "")
         exists = True
         try:
-            Group.objects.get(
+            MrMapGroup.objects.get(
                 name=""
             )
         except ObjectDoesNotExist:
@@ -237,7 +237,7 @@ class StructureTestCase(TestCase):
         self._create_new_group(client, user_A, g_name)
         exists = True
         try:
-            Group.objects.get(
+            MrMapGroup.objects.get(
                 name=g_name
             )
         except ObjectDoesNotExist:
@@ -259,7 +259,7 @@ class StructureTestCase(TestCase):
         g_descr = "KillMeWithFire"
 
         # create group directly to get around the client-not-logged-in-for-creation-thing
-        group_of_B = Group.objects.create(
+        group_of_B = MrMapGroup.objects.create(
             name=g_name,
             created_by=user_B,
             description=g_descr,
@@ -312,13 +312,13 @@ class StructureTestCase(TestCase):
         ## case 2.1: User logged in, delete group, keep existing subgroups
         g_name = "TestGroup"
         self._create_new_group(client, user_B, g_name)
-        group_of_B = Group.objects.get(name=g_name)
+        group_of_B = MrMapGroup.objects.get(name=g_name)
         g_sub_a_name = "TestGroup_Sub_A"
         self._create_new_group(client, user_A, g_sub_a_name, group_of_B)
         g_sub_b_name = "TestGroup_Sub_B"
         self._create_new_group(client, user_B, g_sub_b_name, group_of_B)
-        group_sub_a = Group.objects.get(name=g_sub_a_name)
-        group_sub_b = Group.objects.get(name=g_sub_b_name)
+        group_sub_a = MrMapGroup.objects.get(name=g_sub_a_name)
+        group_sub_b = MrMapGroup.objects.get(name=g_sub_b_name)
 
         self.assertIsNotNone(group_sub_a.id, msg="Sub group A does not exist!")
         self.assertIsNotNone(group_sub_b.id, msg="Sub group B does not exist!")
@@ -409,7 +409,7 @@ class StructureTestCase(TestCase):
         ## case 1: User is logged in, normal editing case
         client = self._get_logged_in_client(user_A)
         self._create_new_group(client, user_A, "New Parent")
-        new_parent = Group.objects.get(name="New Parent")
+        new_parent = MrMapGroup.objects.get(name="New Parent")
 
         params = {
             "user": user_A,
@@ -500,14 +500,14 @@ class StructureTestCase(TestCase):
         """
         return Organization.objects.get(id=self.org_id)
 
-    def _create_new_organization(self, client: Client, user: User, org_name: str, person_name: str, parent: Organization = None):
+    def _create_new_organization(self, client: Client, user: MrMapUser, org_name: str, person_name: str, parent: Organization = None):
         """ Helping function
 
         Calls the create-new-organization route
 
         Args:
             client (Client): The logged in client
-            user (User): The performing user
+            user (MrMapUser): The performing user
             org_name (str): The new organization's name
             person_name (str): The new organization's contact person name
 
@@ -523,14 +523,14 @@ class StructureTestCase(TestCase):
             params["parent"] = parent
         client.post(reverse('structure:new-organization',), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
 
-    def _remove_organization(self, client: Client, user: User, organization: Organization):
+    def _remove_organization(self, client: Client, user: MrMapUser, organization: Organization):
         """ Helping function
 
         Calls the remove-organization route
 
         Args:
             client (Client): The logged in client
-            user (User): The performing user
+            user (MrMapUser): The performing user
             organization (Organization): The organization
 
         Returns:
@@ -805,14 +805,14 @@ class StructureTestCase(TestCase):
             exists = False
         self.assertEqual(exists, False, msg="Organization could not be removed!")
 
-    def _create_publish_request(self, client: Client, user: User, group: Group, organization: Organization):
+    def _create_publish_request(self, client: Client, user: MrMapUser, group: MrMapGroup, organization: Organization):
         """ Helping function
 
         Calls the create-publish-request route
 
         Args:
             client (Client): The logged in client
-            user (User): The performing user
+            user (MrMapUser): The performing user
             group (Group): The group which requests the publish permission
             organization (Organization): The organization
 
@@ -828,14 +828,14 @@ class StructureTestCase(TestCase):
 
         client.post("/structure/publish-request/{}".format(organization.id), data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
 
-    def _toggle_publish_request(self, client: Client, user: User, organization: Organization, pub_request: PendingRequest, accept: bool):
+    def _toggle_publish_request(self, client: Client, user: MrMapUser, organization: Organization, pub_request: PendingRequest, accept: bool):
         """ Helping function
 
         Calls the accept-publish-request route
 
         Args:
             client (Client): The logged in client
-            user (User): The performing user
+            user (MrMapUser): The performing user
             organization (Organization): The organization which holds the publish request
             pub_request (PendingRequest): The publish request
             accept (bool): Whether to accept the publish request or not
@@ -850,14 +850,14 @@ class StructureTestCase(TestCase):
         uri = reverse("structure:accept-publish-request", args=(organization.id,))
         client.post(uri, data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
 
-    def _remove_publish_permission(self, client: Client, user: User, organization: Organization, group: Group):
+    def _remove_publish_permission(self, client: Client, user: MrMapUser, organization: Organization, group: MrMapGroup):
         """ Helping function
 
         Calls the remove-publish-permission route
 
         Args:
             client (Client): The logged in client
-            user (User): The performing user
+            user (MrMapUser): The performing user
             organization (Organization): The organization which let a group publish
             group (Group): The group which has the publish permission
         Returns:
@@ -1034,12 +1034,12 @@ class StructureTestCase(TestCase):
         group_of_B.created_by = user_B
 
         # create a seconds group with superuser rights
-        group_of_A = Group.objects.create(
+        group_of_A = MrMapGroup.objects.create(
             name="Group of A",
             role=self._get_role(),
             created_by=user_A
         )
-        user_A.groups.add(group_of_A)
+        group_of_A.user_set.add(user_A)
 
         org_of_A = self._get_organization()
         client = Client()
@@ -1054,8 +1054,8 @@ class StructureTestCase(TestCase):
 
         ## case 0.2: User not logged in, tries to remove the publish permission of a group - where user is not a member - for it's organization -> fails!
         user_A.organization = org_of_A
-        group_of_B.users.remove(user_A)
-        self.assertTrue(user_A not in group_of_B.users.all())
+        group_of_B.user_set.remove(user_A)
+        self.assertTrue(user_A not in group_of_B.user_set.all())
         self.assertEqual(user_A.organization, org_of_A)
         self._remove_publish_permission(client, user_A, org_of_A, group_of_B)
         orgs_to_publish_for = group_of_B.publish_for_organizations.all()
@@ -1064,7 +1064,7 @@ class StructureTestCase(TestCase):
         ## case 0.3: User not logged in, tries to remove the publish permission of a group in another organization -> fails!
         ## first manipulate the user_A organization
         user_A.organization = None  # user_A is now not part of org_of_A anymore
-        self.assertTrue(user_A not in group_of_B.users.all())  # user_A is not part of group_of_B
+        self.assertTrue(user_A not in group_of_B.user_set.all())  # user_A is not part of group_of_B
         self.assertIsNone(user_A.organization)  # user_A is not part of org_of_A
         ## this means, that user_A is not part of the publishing group nor part of the organization, that provides the publish permission
         self._remove_publish_permission(client, user_A, org_of_A, group_of_B)
@@ -1073,9 +1073,9 @@ class StructureTestCase(TestCase):
 
         ## case 1.1: User logged in, tries to remove it's group's publish permission
         client = self._get_logged_in_client(user_B)
-        user_B.groups.add(group_of_B)
+        group_of_B.user_set.add(user_B)
         self.assertTrue(org_of_A in orgs_to_publish_for)
-        self.assertTrue(group_of_B in user_B.groups.all())
+        self.assertTrue(group_of_B in user_B.get_groups())
         self._remove_publish_permission(client, user_B, org_of_A, group_of_B)
         orgs_to_publish_for = group_of_B.publish_for_organizations.all()
         self.assertTrue(org_of_A not in orgs_to_publish_for, msg="Publish Permission was not removed!")
@@ -1090,7 +1090,7 @@ class StructureTestCase(TestCase):
         user_A.groups.remove(group_of_B)
         user_A.organization = org_of_A
         user_A.save()
-        self.assertTrue(user_A not in group_of_B.users.all())  # doublecheck
+        self.assertTrue(user_A not in group_of_B.user_set.all())  # doublecheck
         self.assertTrue(user_A.organization, org_of_A)  # doublecheck
 
         self._remove_publish_permission(client, user_A, org_of_A, group_of_B)
@@ -1106,7 +1106,7 @@ class StructureTestCase(TestCase):
         user_A.groups.remove(group_of_B)
         user_A.organization = None
         user_A.save()
-        self.assertTrue(user_A not in group_of_B.users.all())  # doublecheck
+        self.assertTrue(user_A not in group_of_B.user_set.all())  # doublecheck
         self.assertIsNone(user_A.organization)  # doublecheck
 
         self._remove_publish_permission(client, user_A, org_of_A, group_of_B)
@@ -1117,7 +1117,7 @@ class StructureTestCase(TestCase):
         # manipulate permissions
         self._set_permission('can_remove_publisher', False)
         user_A.organization = org_of_A
-        user_A.groups.add(group_of_B)
+        group_of_B.user_set.add(user_A)
         user_A.save()
 
         self._remove_publish_permission(client, user_A, org_of_A, group_of_B)

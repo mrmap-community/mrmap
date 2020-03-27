@@ -34,8 +34,8 @@ from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
     MetadataRelation, MetadataOrigin, MetadataType, Style, ExternalAuthentication
 from service.settings import MD_RELATION_TYPE_VISUALIZES, MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
-from structure.models import Organization, Group
-from structure.models import User
+from structure.models import Organization, MrMapGroup
+from structure.models import MrMapUser
 
 
 class OGCWebMapServiceFactory:
@@ -684,8 +684,8 @@ class OGCWebMapService(OGCWebService):
         self.parse_request_uris(xml_obj, self)
 
 
-    def __create_single_layer_model_instance(self, layer_obj, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
-                         published_for: Organization, root_md: Metadata, user: User, contact, parent=None):
+    def __create_single_layer_model_instance(self, layer_obj, layers: list, service_type: ServiceType, wms: Service, creator: MrMapGroup, publisher: Organization,
+                                             published_for: Organization, root_md: Metadata, user: MrMapUser, contact, parent=None):
         """ Transforms a OGCWebMapLayer object to Layer model (models.py)
 
         Args:
@@ -693,11 +693,11 @@ class OGCWebMapService(OGCWebService):
             layers (list): A list of layers
             service_type (ServiceType): The type of the service this function has to deal with
             wms (Service): The root or parent service which holds all these layers
-            creator (Group): The group that started the registration process
+            creator (MrMapGroup): The group that started the registration process
             publisher (Organization): The organization that publishes the service
             published_for (Organization): The organization for which the first organization publishes this data (e.g. 'in the name of')
             root_md (Metadata): The metadata of the root service (parameter 'wms')
-            user (User): The performing user
+            user (MrMapUser): The performing user
             contact (Contact): The contact object (Organization)
             parent: The parent layer object to this layer
         Returns:
@@ -816,19 +816,19 @@ class OGCWebMapService(OGCWebService):
                      publisher=publisher, published_for=published_for, parent=parent_layer, user=user, contact=contact)
 
 
-    def __create_layer_model_instance(self, layers: list, service_type: ServiceType, wms: Service, creator: Group, publisher: Organization,
-                         published_for: Organization, root_md: Metadata, user: User, contact, parent=None):
+    def __create_layer_model_instance(self, layers: list, service_type: ServiceType, wms: Service, creator: MrMapGroup, publisher: Organization,
+                                      published_for: Organization, root_md: Metadata, user: MrMapUser, contact, parent=None):
         """ Iterates over all layers given by the service and persist them, including additional data like metadata and so on.
 
         Args:
             layers (list): A list of layers
             service_type (ServiceType): The type of the service this function has to deal with
             wms (Service): The root or parent service which holds all these layers
-            creator (Group): The group that started the registration process
+            creator (MrMapGroup): The group that started the registration process
             publisher (Organization): The organization that publishes the service
             published_for (Organization): The organization for which the first organization publishes this data (e.g. 'in the name of')
             root_md (Metadata): The metadata of the root service (parameter 'wms')
-            user (User): The performing user
+            user (MrMapUser): The performing user
             contact (Contact): The contact object (Organization)
             parent: The parent layer object to this layer
         Returns:
@@ -853,11 +853,11 @@ class OGCWebMapService(OGCWebService):
                 parent,
             )
 
-    def create_service_model_instance(self, user: User, register_group, register_for_organization):
+    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization):
         """ Persists the web map service and all of its related content and data
 
         Args:
-            user (User): The action performing user
+            user (MrMapUser): The action performing user
         Returns:
              service (Service): Service instance, contains all information, ready for persisting!
 

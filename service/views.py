@@ -3,6 +3,7 @@ import json
 from io import BytesIO
 from PIL import Image
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict
@@ -14,24 +15,25 @@ from django.views.decorators.csrf import csrf_exempt
 from django_tables2 import RequestConfig
 from requests import ReadTimeout
 from MapSkinner import utils
-from MapSkinner.cacher import DocumentCacher, PreviewImageCacher
+from MapSkinner.cacher import PreviewImageCacher
 from MapSkinner.consts import *
-from MapSkinner.decorator import check_session, check_permission, log_proxy
+from MapSkinner.decorator import check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
-    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
+    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
+    SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
 from MapSkinner.utils import prepare_table_pagination_settings
 from service import tasks
-from service.helper import service_helper, update_helper, xml_helper
+from service.helper import xml_helper
 from service.filters import WmsFilter, WfsFilter
 from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, RemoveService
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.crypto_handler import CryptoHandler
+
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
@@ -42,18 +44,18 @@ from service.models import Metadata, Layer, Service, FeatureType, Document, Meta
 from service.tasks import async_remove_service_task
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from structure.models import User, Permission, PendingTask, Group, Organization, Contact
+from structure.models import MrMapUser, Permission, PendingTask, MrMapGroup
 from users.helper import user_helper
 from django.urls import reverse
 from django import forms
 
 
-def _prepare_wms_table(request: HttpRequest, user: User, ):
+def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
     """ Collects all wms service data and prepares parameter for rendering
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The performing user
+        user (MrMapUser): The performing user
     Returns:
          params (dict): The rendering parameter
     """
@@ -70,7 +72,7 @@ def _prepare_wms_table(request: HttpRequest, user: User, ):
     md_list_wms = Metadata.objects.filter(
         service__servicetype__name="wms",
         service__is_root=show_service,
-        created_by__in=user.groups.all(),
+        created_by__in=user.get_groups(),
         is_deleted=False,
     ).order_by("title")
 
@@ -108,18 +110,18 @@ def _prepare_wms_table(request: HttpRequest, user: User, ):
     return params
 
 
-def _prepare_wfs_table(request: HttpRequest, user: User, ):
+def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
     """ Collects all wfs service data and prepares parameter for rendering
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The performing user
+        user (MrMapUser): The performing user
     Returns:
          params (dict): The rendering parameter
     """
     md_list_wfs = Metadata.objects.filter(
         service__servicetype__name="wfs",
-        created_by__in=user.groups.all(),
+        created_by__in=user.get_groups(),
         is_deleted=False,
     ).order_by("title")
 
@@ -145,18 +147,19 @@ def _prepare_wfs_table(request: HttpRequest, user: User, ):
     return params
 
 
-def _new_service_wizard(request: HttpRequest, user: User):
+def _new_service_wizard(request: HttpRequest, user: MrMapUser):
     """ Renders wizard page configuration for service registration
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The performing user
+        user (MrMapUser): The performing user
     Returns:
          params (dict): The rendering parameter
     """
     params = {}
     page = int(request.POST.get("page"))
 
+    user_groups = user.get_groups()
     if page is 1:
         # Page One is posted --> validate it
         form = RegisterNewServiceWizardPage1(request.POST)
@@ -173,7 +176,7 @@ def _new_service_wizard(request: HttpRequest, user: User):
             params.update({
                 "new_service_form": RegisterNewServiceWizardPage2(initial=init_data,
                                                                   user=user,
-                                                                  selected_group=user.groups.first()),
+                                                                  selected_group=user_groups.first()),
                 "action_url": reverse(SERVICE_INDEX, ),
                 "show_modal": True,
             })
@@ -187,11 +190,12 @@ def _new_service_wizard(request: HttpRequest, user: User):
 
     elif page is 2:
         # Page two is posted --> collect all data from post and initial the form
-        selected_group = user.groups.all().get(id=int(request.POST.get("registering_with_group")))
+        selected_group = user_groups.get(id=int(request.POST.get("registering_with_group")))
         is_auth_needed = False
         if request.POST.get("service_needs_authentication") == 'on':
             is_auth_needed = True
 
+        # ToDo: @joki: Is this even necessary anymore?
         init_data = {'ogc_request': request.POST.get("ogc_request"),
                      'ogc_service': request.POST.get("ogc_service"),
                      'ogc_version': request.POST.get("ogc_version"),
@@ -206,14 +210,13 @@ def _new_service_wizard(request: HttpRequest, user: User):
         if request.POST.get("service_needs_authentication") == 'on':
             service_needs_authentication = True
 
-        form = RegisterNewServiceWizardPage2(initial=init_data,
-                                             user=user,
-                                             selected_group=selected_group,
-                                             service_needs_authentication=service_needs_authentication
-                                             )
-
         # first check if it's just a update of the form
-        if request.POST.get("is_form_update") == 'True':
+        if utils.resolve_boolean_attribute_val(request.POST.get("is_form_update")):
+            form = RegisterNewServiceWizardPage2(
+                user,
+                selected_group,
+                service_needs_authentication,
+            )
             # it's just a updated form state. return the new state as view
             params.update({
                 "new_service_form": form,
@@ -230,10 +233,12 @@ def _new_service_wizard(request: HttpRequest, user: User):
             if request.POST.get("service_needs_authentication") == 'on':
                 service_needs_authentication = True
 
-            form = RegisterNewServiceWizardPage2(request.POST, initial=init_data,
-                                                 user=user,
-                                                 selected_group=selected_group,
-                                                 service_needs_authentication=service_needs_authentication)
+            form = RegisterNewServiceWizardPage2(
+                user,
+                selected_group,
+                service_needs_authentication,
+                request.POST,
+            )
 
             if form.is_valid():
                 # TODO: # Form is valid --> register new service --> redirect to service index
@@ -268,7 +273,7 @@ def _new_service_wizard(request: HttpRequest, user: User):
 
                     # create db object, so we know which pending task is still ongoing
                     pending_task_db = PendingTask()
-                    pending_task_db.created_by = Group.objects.get(id=form.cleaned_data['registering_with_group'].id)
+                    pending_task_db.created_by = MrMapGroup.objects.get(id=form.cleaned_data['registering_with_group'].id)
                     pending_task_db.task_id = pending_task.task_id
                     pending_task_db.description = json.dumps({
                         "service": form.cleaned_data['uri'],
@@ -298,21 +303,22 @@ def _new_service_wizard(request: HttpRequest, user: User):
     return params
 
 
-@check_session
-def index(request: HttpRequest, user: User):
+@login_required
+def index(request: HttpRequest):
     """ Renders an overview of all wms and wfs
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The session user
     Returns:
          A view
     """
+    user = user_helper.get_user(request)
+
     # Default content
     template = "views/index.html"
 
     # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user.groups.all())
+    pt = PendingTask.objects.filter(created_by__in=user.get_groups())
     pt_table = PendingTasksTable(pt,
                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                  orderable=False, user=user,)
@@ -340,21 +346,22 @@ def index(request: HttpRequest, user: User):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_session
-def pending_tasks(request: HttpRequest, user: User):
+@login_required
+def pending_tasks(request: HttpRequest):
     """ Renders a table of all pending tasks
 
     Args:
         request (HttpRequest): The incoming request
-        user (User): The session user
     Returns:
          A view
     """
+    user = user_helper.get_user(request)
+
     # Default content
     template = "includes/pending_tasks.html"
 
     # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user.groups.all())
+    pt = PendingTask.objects.filter(created_by__in=user.get_groups())
 
     pt_table = PendingTasksTable(pt,
                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
@@ -369,17 +376,17 @@ def pending_tasks(request: HttpRequest, user: User):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_session
+@login_required
 @check_permission(Permission(can_remove_service=True))
-def remove(request: HttpRequest, id:int, user: User):
+def remove(request: HttpRequest, id:int):
     """ Renders the remove form for a service
 
     Args:
         request(HttpRequest): The used request
-        user (User): The performing user
     Returns:
         Redirect to service:index
     """
+    user = user_helper.get_user(request)
 
     remove_form = RemoveService(request.POST)
     if remove_form.is_valid():
@@ -421,23 +428,29 @@ def remove(request: HttpRequest, id:int, user: User):
 
 
 # TODO: update function documentation
-@check_session
+@login_required
 @check_permission(Permission(can_activate_service=True))
-def activate(request: HttpRequest, id: int, user: User):
+def activate(request: HttpRequest, id: int):
     """ (De-)Activates a service and all of its layers
 
     Args:
-        user:
         id:
         request:
     Returns:
          An Ajax response
     """
+    user = user_helper.get_user(request)
+
     # run activation async!
     tasks.async_activate_service.delay(id, user.id)
 
-    # TODO: we dont know this at this time; refactor this; async_remove function should add messages
-    messages.success(request, 'Service %s successfully (de-)activated.' % id)
+    md = Metadata.objects.get(service__id=id)
+
+    if md.is_active:
+        msg = SERVICE_ACTIVATED.format(md.title)
+    else:
+        msg = SERVICE_DEACTIVATED.format(md.title)
+    messages.success(request, msg)
 
     return redirect("service:index")
 
@@ -777,8 +790,8 @@ def get_capabilities_original(request: HttpRequest, proxy_log: ProxyLog, id: int
     return HttpResponse(doc, content_type='application/xml')
 
 
-@check_session
-def set_session(request: HttpRequest, user: User):
+@login_required
+def set_session(request: HttpRequest):
     """ Can set a value to the django session
 
     Args:
@@ -795,8 +808,8 @@ def set_session(request: HttpRequest, user: User):
     return BackendAjaxResponse(html="").get_response()
 
 
-@check_session
-def wms_index(request: HttpRequest, user: User):
+@login_required
+def wms_index(request: HttpRequest):
     """ Renders an overview of all wms
 
     Args:t
@@ -804,11 +817,13 @@ def wms_index(request: HttpRequest, user: User):
     Returns:
          A view
     """
+    user = user_helper.get_user(request)
+
     # Default content
     template = "views/wms_index.html"
 
     # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user.groups.all())
+    pt = PendingTask.objects.filter(created_by__in=user.get_groups())
     pt_table = PendingTasksTable(pt,
                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                  orderable=False, user=user,)
@@ -836,19 +851,20 @@ def wms_index(request: HttpRequest, user: User):
 
 
 # TODO: refactor this function and template by using bootstrap4
-@check_session
+@login_required
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic
-def update_service(request: HttpRequest, user: User, id: int):
+def update_service(request: HttpRequest, id: int):
     """ Compare old service with new service and collect differences
 
     Args:
         request: The incoming request
-        user: The active user
         id: The service id
     Returns:
         A rendered view
     """
+    user = user_helper.get_user(request)
+
     template = "service_differences.html"
     update_params = request.session["update"]
     url_dict = service_helper.split_service_uri(update_params["full_uri"])
@@ -934,14 +950,14 @@ def update_service(request: HttpRequest, user: User, id: int):
     return render(request, template, context.get_context())
 
 
-@check_session
-def discard_update(request: HttpRequest, user: User):
+@login_required
+def discard_update(request: HttpRequest):
     """ If the user does not want to proceed with the update,
     we need to go back and drop the session stored data about the update
 
     Args:
         request (HttpRequest):
-        user (User):
+        user (MrMapUser):
     Returns:
          redirects
     """
@@ -949,9 +965,9 @@ def discard_update(request: HttpRequest, user: User):
     return redirect("service:index")
 
 
-@check_session
+@login_required
 @check_permission(Permission(can_update_service=True))
-def update_service_form(request: HttpRequest, user: User, id: int):
+def update_service_form(request: HttpRequest, id: int):
     """ Creates the form for updating a service
 
     Args:
@@ -1018,8 +1034,8 @@ def update_service_form(request: HttpRequest, user: User, id: int):
 
 
 #TODO: refactor this method
-@check_session
-def wfs_index(request: HttpRequest, user: User):
+@login_required
+def wfs_index(request: HttpRequest):
     """ Renders an overview of all wfs
 
     Args:
@@ -1027,11 +1043,13 @@ def wfs_index(request: HttpRequest, user: User):
     Returns:
          A view
     """
+    user = user_helper.get_user(request)
+
     # Default content
     template = "views/wfs_index.html"
 
     # get pending tasks
-    pending_tasks = PendingTask.objects.filter(created_by__in=user.groups.all())
+    pending_tasks = PendingTask.objects.filter(created_by__in=user.get_groups())
     pt_table = PendingTasksTable(pending_tasks,
                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                  orderable=False, user=user,)
@@ -1058,8 +1076,8 @@ def wfs_index(request: HttpRequest, user: User):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_session
-def detail(request: HttpRequest, id, user: User):
+@login_required
+def detail(request: HttpRequest, id):
     """ Renders a detail view of the selected service
 
     Args:
@@ -1067,6 +1085,8 @@ def detail(request: HttpRequest, id, user: User):
         id: The id of the selected metadata
     Returns:
     """
+    user = user_helper.get_user(request)
+
     template = "views/detail.html"
     service_md = get_object_or_404(Metadata, id=id)
     params = {}
@@ -1139,17 +1159,18 @@ def detail(request: HttpRequest, id, user: User):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@check_session
-def detail_child(request: HttpRequest, id, user: User):
+@login_required
+def detail_child(request: HttpRequest, id):
     """ Returns a rendered html overview of the element with the given id
 
     Args:
         request (HttpRequest): The incoming request
         id (int): The element id
-        user (User): The performing user
     Returns:
          A rendered view for ajax insertion
     """
+    user = user_helper.get_user(request)
+
     element_type = request.GET.get("serviceType")
     if element_type == "wms":
         template = "detail/service_detail_child_wms.html"
@@ -1198,7 +1219,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
         request (HttpRequest): The incoming request
         proxy_log (ProxyLog): The logging object
         id (int): The metadata id
-        user (User): The performing user
+        user (MrMapUser): The performing user
     Returns:
          A redirect to the GetMap uri
     """
@@ -1253,7 +1274,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
 
         # Log the response, if needed
         if proxy_log is not None:
-            proxy_log.log_response(response)
+            proxy_log.log_response(response, operation_handler.request_param)
 
         len_response = len(response)
 
@@ -1284,7 +1305,7 @@ def get_metadata_legend(request: HttpRequest, id: int, style_id: id):
         request (HttpRequest): The incoming HttpRequest
         id (int): The metadata id
         style_id (int): The stlye id
-        user (User): The performing user
+        user (MrMapUser): The performing user
     Returns:
         HttpResponse
     """

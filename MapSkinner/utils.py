@@ -13,7 +13,7 @@ from MapSkinner.consts import URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
 from MapSkinner.themes import DARK_THEME, LIGHT_THEME
 from MapSkinner.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from django.utils.html import format_html
-from structure.models import User
+from structure.models import MrMapUser
 
 from MapSkinner.settings import DEBUG
 
@@ -147,7 +147,7 @@ def prepare_list_pagination_settings(request: HttpRequest, l: list, param_lead: 
     return pagination
 
 
-def get_theme(user: User):
+def get_theme(user: MrMapUser):
     if user is None or user.theme is None:
         return LIGHT_THEME
     elif user.theme.name == 'DARK':

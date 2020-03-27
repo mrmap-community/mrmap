@@ -21,7 +21,8 @@ from MapSkinner.decorator import check_permission, log_proxy
 from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
-    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
+    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
+    SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
 from MapSkinner.utils import prepare_table_pagination_settings
@@ -440,8 +441,13 @@ def activate(request: HttpRequest, id: int):
     # run activation async!
     tasks.async_activate_service.delay(id, user.id)
 
-    # TODO: we dont know this at this time; refactor this; async_remove function should add messages
-    messages.success(request, 'Service %s successfully (de-)activated.' % id)
+    md = Metadata.objects.get(service__id=id)
+
+    if md.is_active:
+        msg = SERVICE_ACTIVATED.format(md.title)
+    else:
+        msg = SERVICE_DEACTIVATED.format(md.title)
+    messages.success(request, msg)
 
     return redirect("service:index")
 

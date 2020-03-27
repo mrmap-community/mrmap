@@ -609,7 +609,7 @@ def new_group(request: HttpRequest):
                 if group.role is None:
                     group.role = Role.objects.get(name="_default_")
                 group.save()
-                user.groups.add(group)
+                group.user_set.add(user)
             return redirect("structure:index")
         else:
             # TODO: this is not necessary; redirect to the redirect("structure:index") by example and show the modal with the errors

@@ -27,13 +27,11 @@ class GroupForm(ModelForm):
 
     class Meta:
         model = MrMapGroup
-        fields = '__all__'
-        exclude = [
-            "created_by",
-            "publish_for_organizations",
-            "role"
+        fields = [
+            "name",
+            "description",
+            "role",
         ]
-
 
 class PublisherForOrganizationForm(forms.Form):
     action_url = ''

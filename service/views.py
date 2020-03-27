@@ -159,6 +159,7 @@ def _new_service_wizard(request: HttpRequest, user: MrMapUser):
     params = {}
     page = int(request.POST.get("page"))
 
+    user_groups = user.get_groups()
     if page is 1:
         # Page One is posted --> validate it
         form = RegisterNewServiceWizardPage1(request.POST)
@@ -175,7 +176,7 @@ def _new_service_wizard(request: HttpRequest, user: MrMapUser):
             params.update({
                 "new_service_form": RegisterNewServiceWizardPage2(initial=init_data,
                                                                   user=user,
-                                                                  selected_group=user.groups.first()),
+                                                                  selected_group=user_groups.first()),
                 "action_url": reverse(SERVICE_INDEX, ),
                 "show_modal": True,
             })
@@ -189,11 +190,12 @@ def _new_service_wizard(request: HttpRequest, user: MrMapUser):
 
     elif page is 2:
         # Page two is posted --> collect all data from post and initial the form
-        selected_group = user.get_groups().get(id=int(request.POST.get("registering_with_group")))
+        selected_group = user_groups.get(id=int(request.POST.get("registering_with_group")))
         is_auth_needed = False
         if request.POST.get("service_needs_authentication") == 'on':
             is_auth_needed = True
 
+        # ToDo: @joki: Is this even necessary anymore?
         init_data = {'ogc_request': request.POST.get("ogc_request"),
                      'ogc_service': request.POST.get("ogc_service"),
                      'ogc_version': request.POST.get("ogc_version"),
@@ -208,14 +210,13 @@ def _new_service_wizard(request: HttpRequest, user: MrMapUser):
         if request.POST.get("service_needs_authentication") == 'on':
             service_needs_authentication = True
 
-        form = RegisterNewServiceWizardPage2(initial=init_data,
-                                             user=user,
-                                             selected_group=selected_group,
-                                             service_needs_authentication=service_needs_authentication
-                                             )
-
         # first check if it's just a update of the form
-        if request.POST.get("is_form_update") == 'True':
+        if utils.resolve_boolean_attribute_val(request.POST.get("is_form_update")):
+            form = RegisterNewServiceWizardPage2(
+                user,
+                selected_group,
+                service_needs_authentication,
+            )
             # it's just a updated form state. return the new state as view
             params.update({
                 "new_service_form": form,
@@ -232,10 +233,12 @@ def _new_service_wizard(request: HttpRequest, user: MrMapUser):
             if request.POST.get("service_needs_authentication") == 'on':
                 service_needs_authentication = True
 
-            form = RegisterNewServiceWizardPage2(request.POST, initial=init_data,
-                                                 user=user,
-                                                 selected_group=selected_group,
-                                                 service_needs_authentication=service_needs_authentication)
+            form = RegisterNewServiceWizardPage2(
+                user,
+                selected_group,
+                service_needs_authentication,
+                request.POST,
+            )
 
             if form.is_valid():
                 # TODO: # Form is valid --> register new service --> redirect to service index

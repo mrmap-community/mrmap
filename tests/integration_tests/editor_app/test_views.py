@@ -49,7 +49,7 @@ class EditorTestCase(TestCase):
             created_by=self.user,
         )
 
-        self.user.groups.add(self.group)
+        self.group.user_set.add(self.user)
 
         self.test_wms = {
             "title": "Karte RP",

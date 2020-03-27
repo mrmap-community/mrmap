@@ -62,8 +62,8 @@ class StructureTestCase(TestCase):
             name="Testgroup",
             created_by=user_A
         )
-        user_A.groups.add(group)
-        user_B.groups.add(group)
+        group.user_set.add(user_A)
+        group.user_set.add(user_B)
         self.group_id = group.id
 
         # create default organization
@@ -1039,7 +1039,7 @@ class StructureTestCase(TestCase):
             role=self._get_role(),
             created_by=user_A
         )
-        user_A.groups.add(group_of_A)
+        group_of_A.user_set.add(user_A)
 
         org_of_A = self._get_organization()
         client = Client()
@@ -1073,7 +1073,7 @@ class StructureTestCase(TestCase):
 
         ## case 1.1: User logged in, tries to remove it's group's publish permission
         client = self._get_logged_in_client(user_B)
-        user_B.groups.add(group_of_B)
+        group_of_B.user_set.add(user_B)
         self.assertTrue(org_of_A in orgs_to_publish_for)
         self.assertTrue(group_of_B in user_B.get_groups())
         self._remove_publish_permission(client, user_B, org_of_A, group_of_B)
@@ -1117,7 +1117,7 @@ class StructureTestCase(TestCase):
         # manipulate permissions
         self._set_permission('can_remove_publisher', False)
         user_A.organization = org_of_A
-        user_A.groups.add(group_of_B)
+        group_of_B.user_set.add(user_A)
         user_A.save()
 
         self._remove_publish_permission(client, user_A, org_of_A, group_of_B)

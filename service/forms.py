@@ -41,13 +41,14 @@ class RegisterNewServiceWizardPage2(forms.Form):
         # run super constructor to construct the form
         super(RegisterNewServiceWizardPage2, self).__init__(*args, **kwargs)
         # initial the fields if the values are transfered
+        user_groups = user.get_groups()
         if user is not None:
-            self.fields["registering_with_group"].queryset = user.groups.all()
-            self.fields["registering_with_group"].initial = user.groups.first()
+            self.fields["registering_with_group"].queryset = user_groups.all()
+            self.fields["registering_with_group"].initial = user_groups.first()
         if selected_group is not None:
             self.fields["registering_for_other_organization"].queryset = selected_group.publish_for_organizations.all()
-        elif user is not None and user.groups.first() is not None:
-            self.fields["registering_for_other_organization"].queryset = user.groups.first().publish_for_organizations.all()
+        elif user is not None and user_groups.first() is not None:
+            self.fields["registering_for_other_organization"].queryset = user_groups.first().publish_for_organizations.all()
         if service_needs_authentication:
             self.fields["service_needs_authentication"].initial = "on"
             self.fields["service_needs_authentication"].required = True

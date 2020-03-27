@@ -279,7 +279,7 @@ NOSE_ARGS = [
     '--with-coverage',
     '--cover-erase',
     '--cover-xml',
-    '--cover-xml-file=nosecover.xml',
+    '--cover-xml-file=tests/nosecover.xml',
 ]
 
 

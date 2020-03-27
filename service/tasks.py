@@ -88,11 +88,13 @@ def async_activate_service(service_id: int, user_id: int):
                 related_md.save()
             ft_metadata.save()
 
-
+    # Formating using an empty string here is correct, since these are the messages we show in
+    # the group activity list. We reuse a message template, which uses a '{}' placeholder.
+    # Since we do not show the title in here, we remove the placeholder with an empty string.
     if service.metadata.is_active:
-        msg = SERVICE_ACTIVATED
+        msg = SERVICE_ACTIVATED.format("")
     else:
-        msg = SERVICE_DEACTIVATED
+        msg = SERVICE_DEACTIVATED.format("")
 
     user_helper.create_group_activity(service.metadata.created_by, user, msg, service.metadata.title)
 

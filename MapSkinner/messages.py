@@ -12,15 +12,15 @@ from django.utils.translation import gettext_lazy as _
 # GROUP ACTIVITIES #
 # These messages HAVE to be untranslated, since they are written into the db
 # and will be translated during the template rendering process automatically
-PUBLISHING_REQUEST_CREATED = "Publish request created"
-SERVICE_REGISTERED = "Service registered"
-SERVICE_REMOVED = "Service removed"
-SERVICE_UPDATED = "Service updated"
-SERVICE_MD_EDITED = "Service metadata edited"
-SERVICE_ACTIVATED = "Service activated"
-SERVICE_DEACTIVATED = "Service deactivated"
-SERVICE_MD_RESTORED = "Service metadata restored"
-GROUP_EDITED = "Group edited"
+PUBLISHING_REQUEST_CREATED = _("Publish request created")
+SERVICE_REGISTERED = _("Service registered")
+SERVICE_REMOVED = _("Service removed")
+SERVICE_UPDATED = _("Service updated")
+SERVICE_MD_EDITED = _("Service metadata edited")
+SERVICE_ACTIVATED = _("Service {} activated")
+SERVICE_DEACTIVATED = _("Service {} deactivated")
+SERVICE_MD_RESTORED = _("Service metadata restored")
+GROUP_EDITED = _("Group edited")
 
 ####################
 

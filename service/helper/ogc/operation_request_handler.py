@@ -805,7 +805,7 @@ class OGCOperationRequestHandler:
         )
         return geometry_obj
 
-    def _create_filter_xml_from_geometries(self, geom_list: list):
+    def _create_filter_xml_from_geometries(self, geom_list: list, switch_axis_order: bool = False):
         """ Creates a xml string for the filter parameter of a WFS operation
 
         Returns:
@@ -857,7 +857,8 @@ class OGCOperationRequestHandler:
             property_elem = xml_helper.create_subelement(within_elem, "{}{}".format(_filter_prefix, prop_tag))
             property_elem.text = self.geom_property_name
             polygon_elem = xml_helper.create_subelement(
-                within_elem, "{}Polygon".format(gml),
+                within_elem,
+                "{}Polygon".format(gml),
                 attrib={"srsName": self.srs_param}
             )
             outer_bound_elem = xml_helper.create_subelement(polygon_elem, "{}{}".format(gml, outer_bound_tag))
@@ -865,9 +866,17 @@ class OGCOperationRequestHandler:
             pos_list_elem = xml_helper.create_subelement(linear_ring_elem, "{}posList".format(gml))
             tmp = []
 
+            # If the axis have to be switched, we switch the index, which will be used to fetch the corresponding vertex
+            if switch_axis_order:
+                order = [1, 0]
+            else:
+                order = [0, 1]
+
             for vertex in geom.coords[0]:
-                tmp.append(str(vertex[0]))
-                tmp.append(str(vertex[1]))
+                # We make use of the order list, that defines a switched
+                # or non-switched access to the index of the geometry
+                tmp.append(str(vertex[order[0]]))
+                tmp.append(str(vertex[order[1]]))
             pos_list_elem.text = " ".join(tmp)
 
         _filter = xml_helper.xml_to_string(root)
@@ -897,14 +906,12 @@ class OGCOperationRequestHandler:
             del tmp_bbox[-1]
 
         # Check whether the axis of the bbox have to be switched
+        # ToDo: Rethink this! We can expect the bbox parameter to have the correct axis order, since it comes from a GIS client!
         tmp_backup = copy(tmp_bbox)
-        epsg_api = EpsgApi()
-        switch_axis = epsg_api.switch_axis_order(self.service_type_param, self.version_param, self.srs_param)
-        if switch_axis:
-           for i in range(0, len(tmp_bbox)-1, 2):
-               tmp = tmp_bbox[i]
-               tmp_bbox[i] = tmp_bbox[i+1]
-               tmp_bbox[i+1] = tmp
+        #epsg_api = EpsgApi()
+        #switch_axis = epsg_api.check_switch_axis_order(self.service_type_param, self.version_param, self.srs_param)
+        #if switch_axis:
+        #    tmp_bbox = epsg_api.perform_switch_axis_order(tmp_bbox)
 
         # Create Polygon from (possibly axis-switched bbox)
         bbox_param_geom = GEOSGeometry(Polygon.from_bbox(tmp_bbox), srid=self.srs_code)
@@ -1368,10 +1375,14 @@ class OGCOperationRequestHandler:
         """
         bounding_geoms_filter_xml = []
         prefix = ""
-        if self.version_param == OGCServiceVersionEnum.V_2_0_0 or OGCServiceVersionEnum.V_2_0_2:
+        prefix_nsmap = {}
+        if self.version_param == OGCServiceVersionEnum.V_2_0_0.value or self.version_param == OGCServiceVersionEnum.V_2_0_2.value:
             prefix = "{" + XML_NAMESPACES["fes"] + "}"
+            prefix_nsmap = {
+                "fes": XML_NAMESPACES["fes"]
+            }
 
-        # First get all single polygons from the GeometryCollection
+        # First get all polygons from the GeometryCollection and transform them according to the requested srs code
         for sec_op in sec_ops:
             bounding_geom_collection = sec_op.bounding_geometry
             for bounding_geom in bounding_geom_collection.coords:
@@ -1380,8 +1391,12 @@ class OGCOperationRequestHandler:
                 geom.transform(self.srs_code)
                 bounding_geoms_filter_xml.append(geom)
 
-        # Then transform them into spatial restricting filter xml elements
-        _filter = self._create_filter_xml_from_geometries(bounding_geoms_filter_xml)
+        # Check whether the axis order has to be switched
+        epsg_api = EpsgApi()
+        switch_axis = epsg_api.check_switch_axis_order(self.service_type_param, self.version_param, self.srs_param)
+
+        # Transform the polygon objects into a <Filter> xml document (as str)
+        _filter = self._create_filter_xml_from_geometries(bounding_geoms_filter_xml, switch_axis_order=switch_axis)
 
         # check if there is already a filter, that came with the initial request. If so, we need to combine this
         # with our newly created one
@@ -1392,7 +1407,7 @@ class OGCOperationRequestHandler:
             backend_filter_elem_children = backend_filter_elem.getchildren()
 
             if len(backend_filter_elem_children) > 0 and len(request_filter_elem_children) > 0:
-                add_elem = etree.Element("{}And".format(prefix))
+                add_elem = etree.Element("{}And".format(prefix), nsmap=prefix_nsmap)
                 for child in request_filter_elem_children:
                     xml_helper.add_subelement(add_elem, child)
                 for child in backend_filter_elem_children:

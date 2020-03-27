@@ -58,16 +58,13 @@ def _prepare_wms_table(request: HttpRequest, user: User, ):
     """
     # whether whole services or single layers should be displayed
 
-    if 'show_layers' in request.GET:
-        if request.GET.get("show_layers").lower() == 'on':
-            show_service = False
-        else:
-            show_service = True
+    if 'show_layers' in request.GET and request.GET.get("show_layers").lower() == 'on':
+        show_service = False
     else:
         show_service = True
 
     md_list_wms = Metadata.objects.filter(
-        service__servicetype__name=OGCServiceEnum.WMS,
+        service__servicetype__name=OGCServiceEnum.WMS.value,
         service__is_root=show_service,
         created_by__in=user.groups.all(),
         is_deleted=False,
@@ -117,7 +114,7 @@ def _prepare_wfs_table(request: HttpRequest, user: User, ):
          params (dict): The rendering parameter
     """
     md_list_wfs = Metadata.objects.filter(
-        service__servicetype__name=OGCServiceEnum.WMS,
+        service__servicetype__name=OGCServiceEnum.WFS.value,
         created_by__in=user.groups.all(),
         is_deleted=False,
     ).order_by("title")

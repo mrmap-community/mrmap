@@ -17,8 +17,8 @@ class ServiceIndexViewTestCase(TestCase):
     def setUp(self):
         self.logger = logging.getLogger('ServiceViewTestCase')
         self.user = create_superadminuser()
-        create_wms_service(self.user.groups.first())
-        create_wfs_service(self.user.groups.first())
+        create_wms_service(self.user.groups.first(), 10)
+        create_wfs_service(self.user.groups.first(), 10)
 
     def test_get_index_view(self):
         client = _login(self.user.username, PASSWORD, Client())
@@ -29,10 +29,10 @@ class ServiceIndexViewTestCase(TestCase):
         self.assertEqual(response.status_code, 200, )
         self.assertTemplateUsed(response=response, template_name="views/index.html")
         self.assertIsInstance(response.context["wms_table"], WmsServiceTable)
-        self.assertEqual(len(response.context["wms_table"].rows), 1)
+        self.assertEqual(len(response.context["wms_table"].rows), 10)
 
         self.assertIsInstance(response.context["wfs_table"], WfsServiceTable)
-        self.assertEqual(len(response.context["wfs_table"].rows), 1)
+        self.assertEqual(len(response.context["wfs_table"].rows), 10)
 
         self.assertIsInstance(response.context["pt_table"], PendingTasksTable)
         self.assertIsInstance(response.context["new_service_form"], RegisterNewServiceWizardPage1)

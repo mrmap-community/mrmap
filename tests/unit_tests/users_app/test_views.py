@@ -1,4 +1,6 @@
 import logging
+from unittest import SkipTest
+
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase, Client
@@ -317,6 +319,29 @@ class AccountEditTestCase(TestCase):
         )
         self.user.refresh_from_db()
         self.assertNotEqual(self.user.username, new_name, msg="Username has been changed")
+
+    def test_user_profile_edit_with_logged_in_user(self):
+        raise(SkipTest("ToDo"))
+        # ToDo: Username should not be changeable, but the other values. So change the testcase.
+        new_name = get_username_data().get('valid')
+        params = {
+            "email": get_email_data().get('valid'),
+            "theme": "LIGHT1",
+        }
+
+        # case 1: User logged in -> effect!
+        # assert as expected
+        response = self.client.post(
+            reverse('account-edit', ),
+            data=params
+        )
+        user = self.user.refresh_from_db()
+        client = self.client
+
+        import pdb;
+        pdb.set_trace()
+
+        self.assertEqual(self.user.username, new_name, msg="Theme could not be changed")
 
     def test_error_messages_of_password_without_upper(self):
         """

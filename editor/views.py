@@ -8,30 +8,16 @@ from django.shortcuts import render, redirect
 # Create your views here.
 from django.template.loader import render_to_string
 from MapSkinner import utils
-<<<<<<< HEAD
-from MapSkinner.decorator import check_session, check_permission
-=======
 from MapSkinner.decorator import check_permission
->>>>>>> 1c55a8886073eaf7be122f177d7119ce0f28fe65
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
     SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
-<<<<<<< HEAD
-=======
-from MapSkinner.settings import PAGE_DEFAULT, PAGE_SIZE_DEFAULT
-from MapSkinner.utils import prepare_table_pagination_settings
->>>>>>> 1c55a8886073eaf7be122f177d7119ce0f28fe65
 from editor.forms import MetadataEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper.enums import OGCServiceEnum, MetadataEnum
 from service.models import RequestOperation, SecuredOperation
-<<<<<<< HEAD
-from structure.models import User, Permission, Group
-=======
-
 from structure.models import MrMapUser, Permission, MrMapGroup
->>>>>>> 1c55a8886073eaf7be122f177d7119ce0f28fe65
 from users.helper import user_helper
 from editor.helper import editor_helper
 from editor.tables import *

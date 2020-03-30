@@ -9,38 +9,24 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django_tables2 import RequestConfig
 from MapSkinner import utils
 from MapSkinner.celery_app import app
 from MapSkinner.consts import *
-<<<<<<< HEAD
-from MapSkinner.decorator import check_session, check_permission
-=======
 from MapSkinner.decorator import check_permission
->>>>>>> 1c55a8886073eaf7be122f177d7119ce0f28fe65
 from MapSkinner.messages import FORM_INPUT_INVALID, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_SENT, \
     PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, GROUP_FORM_INVALID, \
     PUBLISH_PERMISSION_REMOVED, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-<<<<<<< HEAD
+
 from MapSkinner.settings import ROOT_URL
-=======
-from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
-from MapSkinner.utils import prepare_table_pagination_settings
->>>>>>> 1c55a8886073eaf7be122f177d7119ce0f28fe65
 from service.models import Service
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, RemoveOrganizationForm
-<<<<<<< HEAD
-from structure.models import Group, Role, Permission, Organization, PendingRequest, PendingTask
-from structure.models import User
-=======
 from structure.models import MrMapGroup, Role, Permission, Organization, PendingRequest, PendingTask
 from structure.models import MrMapUser
->>>>>>> 1c55a8886073eaf7be122f177d7119ce0f28fe65
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable, PublishesForTable
 from django.urls import reverse
 

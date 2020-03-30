@@ -31,10 +31,6 @@ from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, RemoveService
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-<<<<<<< HEAD
-=======
-
->>>>>>> 1c55a8886073eaf7be122f177d7119ce0f28fe65
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
@@ -45,11 +41,7 @@ from service.models import Metadata, Layer, Service, FeatureType, Document, Meta
 from service.tasks import async_remove_service_task
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-<<<<<<< HEAD
-from structure.models import User, Permission, PendingTask, Group
-=======
 from structure.models import MrMapUser, Permission, PendingTask, MrMapGroup
->>>>>>> 1c55a8886073eaf7be122f177d7119ce0f28fe65
 from users.helper import user_helper
 from django.urls import reverse
 from django import forms
@@ -239,7 +231,7 @@ def _new_service_wizard_page2(request: HttpRequest, user: MrMapUser,):
 
                 # create db object, so we know which pending task is still ongoing
                 pending_task_db = PendingTask()
-                pending_task_db.created_by = Group.objects.get(
+                pending_task_db.created_by = MrMapGroup.objects.get(
                     id=form.cleaned_data['registering_with_group'].id)
                 pending_task_db.task_id = pending_task.task_id
                 pending_task_db.description = json.dumps({
@@ -270,7 +262,7 @@ def _new_service_wizard_page2(request: HttpRequest, user: MrMapUser,):
 
 
 @login_required
-def add(request: HttpRequest, user: User):
+def add(request: HttpRequest, user: MrMapUser):
     """ Renders wizard page configuration for service registration
 
         Args:
@@ -407,12 +399,7 @@ def remove(request: HttpRequest, id:int):
         return redirect("service:detail", id)
 
 
-<<<<<<< HEAD
-@check_session
-=======
-# TODO: update function documentation
 @login_required
->>>>>>> 1c55a8886073eaf7be122f177d7119ce0f28fe65
 @check_permission(Permission(can_activate_service=True))
 def activate(request: HttpRequest, id: int):
     """ (De-)Activates a service and all of its layers

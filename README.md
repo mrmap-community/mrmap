@@ -20,10 +20,6 @@ The system provides the following functionalities:
 
 Please read [FUNCTIONALITY.md](FUNCTIONALITY.mc) for full list of Functions.
   
-  
-##Links
-* [demo](https://mapskinner.geospatial-interoperability-solutions.eu/) - user: demo, password: demo
-<!--ToDo: * [quality assurance server]()-->
 
 ##Getting Started
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.

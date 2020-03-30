@@ -61,7 +61,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 1. run setup routine to get initialized db with admin user for mr. map:
         
-        (venv) $ python mangage.py setup
+        (venv) $ python manage.py setup
         
 ###Start up everything we need
 > all following commands are run within the project root directory run by using your virtual env.

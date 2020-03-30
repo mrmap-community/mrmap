@@ -325,20 +325,23 @@ class AccountEditTestCase(TestCase):
         # ToDo: Username should not be changeable, but the other values. So change the testcase.
         new_name = get_username_data().get('valid')
         params = {
-            "user": self.user,
-            "username": new_name,
             "email": get_email_data().get('valid'),
-            "theme": "LIGHT",
+            "theme": "LIGHT1",
         }
 
         # case 1: User logged in -> effect!
         # assert as expected
-        self.client.post(
+        response = self.client.post(
             reverse('account-edit', ),
             data=params
         )
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.username, new_name, msg="Username could not be changed")
+        user = self.user.refresh_from_db()
+        client = self.client
+
+        import pdb;
+        pdb.set_trace()
+
+        self.assertEqual(self.user.username, new_name, msg="Theme could not be changed")
 
     def test_error_messages_of_password_without_upper(self):
         """

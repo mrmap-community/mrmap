@@ -318,25 +318,6 @@ class AccountEditTestCase(TestCase):
         self.user.refresh_from_db()
         self.assertNotEqual(self.user.username, new_name, msg="Username has been changed")
 
-    def test_user_profile_edit_with_logged_in_user(self):
-
-        new_name = get_username_data().get('valid')
-        params = {
-            "user": self.user,
-            "username": new_name,
-            "email": get_email_data().get('valid'),
-            "theme": "LIGHT",
-        }
-
-        # case 1: User logged in -> effect!
-        # assert as expected
-        self.client.post(
-            reverse('account-edit', ),
-            data=params
-        )
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.username, new_name, msg="Username could not be changed")
-
     def test_error_messages_of_password_without_upper(self):
         """
             Tests if the validator fires the right error messages on all cases.

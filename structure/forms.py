@@ -31,6 +31,7 @@ class GroupForm(ModelForm):
             "name",
             "description",
             "role",
+            "parent_group"
         ]
 
 class PublisherForOrganizationForm(forms.Form):

@@ -683,17 +683,18 @@ def edit_group(request: HttpRequest, id: int):
     user = user_helper.get_user(request)
 
     group = MrMapGroup.objects.get(id=id)
+    form = GroupForm(request.POST, instance=group)
+
     if group.created_by != user:
-        # TODO: this message should be presented in the form errors ==> see form.add_error()
+        form.add_error(None, GROUP_IS_OTHERS_PROPERTY)
         messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)
         return redirect("structure:detail-organization", group.id)
-    form = GroupForm(request.POST, instance=group)
     if request.method == "POST":
         if form.is_valid():
             # save changes of group
             group = form.save(commit=False)
-            if group.parent == group:
-                # TODO: this message should be presented in the form errors ==> see form.add_error()
+            if group.parent_group == group:
+                form.add_error('parent_group', GROUP_CAN_NOT_BE_OWN_PARENT)
                 messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
             else:
                 group.save()

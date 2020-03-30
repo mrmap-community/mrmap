@@ -11,7 +11,6 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from django_tables2 import RequestConfig
 from requests import ReadTimeout
 from MapSkinner import utils
 from MapSkinner.cacher import PreviewImageCacher
@@ -22,7 +21,7 @@ from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
+from MapSkinner.settings import ROOT_URL
 from service import tasks
 from service.helper import xml_helper
 from service.filters import WmsFilter, WfsFilter
@@ -395,7 +394,6 @@ def remove(request: HttpRequest, id:int, user: User):
         return redirect("service:detail", id)
 
 
-# TODO: update function documentation
 @check_session
 @check_permission(Permission(can_activate_service=True))
 def activate(request: HttpRequest, id: int, user: User):
@@ -406,7 +404,7 @@ def activate(request: HttpRequest, id: int, user: User):
         id:
         request:
     Returns:
-         An Ajax response
+         redirects to service:index
     """
     # run activation async!
     tasks.async_activate_service.delay(id, user.id)

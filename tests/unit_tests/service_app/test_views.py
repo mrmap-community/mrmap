@@ -13,13 +13,12 @@ class ServiceIndexViewTestCase(TestCase):
     def setUp(self):
         self.logger = logging.getLogger('ServiceViewTestCase')
         self.user = create_superadminuser()
+        self.client = _login(self.user.username, PASSWORD, Client())
         create_wms_service(self.user.groups.first(), 10)
         create_wfs_service(self.user.groups.first(), 10)
 
     def test_get_index_view(self):
-        client = _login(self.user.username, PASSWORD, Client())
-
-        response = client.get(
+        response = self.client.get(
             reverse('service:index', ),
         )
         self.assertEqual(response.status_code, 200, )
@@ -37,6 +36,9 @@ class ServiceIndexViewTestCase(TestCase):
         self.assertIsInstance(response.context["pt_table"], PendingTasksTable)
         self.assertIsInstance(response.context["new_service_form"], RegisterNewServiceWizardPage1)
         self.assertEqual(reverse(SERVICE_ADD,), response.context["new_service_form"].action_url)
+
+
+class ServiceAddViewTestCase(TestCase):
 
     def test_post_new_service_wizard_page1_valid_input(self):
         # ToDo:

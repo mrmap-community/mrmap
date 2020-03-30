@@ -180,6 +180,22 @@ class OGCOperationRequestHandler:
             elif key == "TYPENAME" or key == "TYPENAMES":
                 self.type_name_param = val
 
+    def _extend_bbox_by_srs(self, bbox_list: list):
+        """ Extends the bbox_param by the same value that can be found inside srs_param
+
+        Due to some wrongly configured services, we always add the srs parameter as a fifth value to the array of
+        bbox vertices. This way, these services will respond correctly.
+
+        Args:
+            bbox_list (list): Contains bounding box values
+        Returns:
+            bbox_list (list): Contains bounding box values and maybe the srs_param
+        """
+        if len(bbox_list) == 4 and self.srs_param not in bbox_list:
+            # Only four values, which represent the extent vertices. Add the srs_param
+            bbox_list.append(self.srs_param)
+        return bbox_list
+
     def _bbox_to_filter(self):
         """ Transforms the BBOX parameter into a valid Filter. Removes the BBOX parameter from the query, since
         Filter and BBOX parameter can not coexist in one request.
@@ -919,6 +935,11 @@ class OGCOperationRequestHandler:
 
         # Restore (possibly axis-switched bbox) with original parameter, so it can be used for sending the request later
         tmp_bbox = tmp_backup
+
+        # For WFS, we need to check if the bbox parameter can be extended using the srs
+        if self.service_type_param.lower() == OGCServiceEnum.WFS.value:
+            tmp_bbox = self._extend_bbox_by_srs(tmp_bbox)
+
         ret_dict["geom"] = bbox_param_geom
         ret_dict["bbox_param"] = ",".join(tmp_bbox)
 

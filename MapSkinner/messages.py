@@ -12,15 +12,15 @@ from django.utils.translation import gettext_lazy as _
 # GROUP ACTIVITIES #
 # These messages HAVE to be untranslated, since they are written into the db
 # and will be translated during the template rendering process automatically
-PUBLISHING_REQUEST_CREATED = "Publish request created"
-SERVICE_REGISTERED = "Service registered"
-SERVICE_REMOVED = "Service removed"
-SERVICE_UPDATED = "Service updated"
-SERVICE_MD_EDITED = "Service metadata edited"
-SERVICE_ACTIVATED = "Service activated"
-SERVICE_DEACTIVATED = "Service deactivated"
-SERVICE_MD_RESTORED = "Service metadata restored"
-GROUP_EDITED = "Group edited"
+PUBLISHING_REQUEST_CREATED = _("Publish request created")
+SERVICE_REGISTERED = _("Service registered")
+SERVICE_REMOVED = _("Service removed")
+SERVICE_UPDATED = _("Service updated")
+SERVICE_MD_EDITED = _("Service metadata edited")
+SERVICE_ACTIVATED = _("Service {} activated")
+SERVICE_DEACTIVATED = _("Service {} deactivated")
+SERVICE_MD_RESTORED = _("Service metadata restored")
+GROUP_EDITED = _("Group edited")
 
 ####################
 
@@ -35,6 +35,7 @@ ACCOUNT_NOT_ACTIVATED = _("Your account is currently not activated")
 LOGOUT_FORCED = _("You have been logged out.")
 
 ACTIVATION_LINK_INVALID = _("Your activation link was invalid. Please contact an administrator.")
+ACTIVATION_LINK_EXPIRED = _("Your account was not activated in time. Please register again.")
 ACTIVATION_LINK_SENT = _("An activation link for your account was sent. Please check your e-mails!")
 
 UNKNOWN_EMAIL = _("This e-mail is not known")
@@ -42,6 +43,7 @@ LOGOUT_SUCCESS = _("Successfully logged out!")
 EMAIL_INVALID = _("The e-mail address was not valid")
 
 PASSWORD_CHANGE_SUCCESS = _("Password successfully changed!")
+PASSWORD_CHANGE_OLD_PASSWORD_WRONG = _("Old password was wrong!")
 PASSWORD_CHANGE_NO_MATCH = _("Passwords didn't match!")
 PASSWORD_SENT = _("A new password has been sent. Please check your e-mails!")
 

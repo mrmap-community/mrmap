@@ -106,9 +106,11 @@ class EpsgApi:
 
         return order
 
-    def switch_axis_order(self, service_type: str, service_version: str, srs_identifier: str):
+    def check_switch_axis_order(self, service_type: str, service_version: str, srs_identifier: str):
         """ Checks whether the axis have to be switched, regarding the given service type (like 'wms_1.3.0')
         and spatial reference system identifier
+
+        Axis must be switched if order of axis for the requested srs is not (east, north)
 
         Args:
             service_type (str): The service type given as [type]_[version]
@@ -124,7 +126,7 @@ class EpsgApi:
                 OGCServiceVersionEnum.V_1_3_0.value: True
             },
             OGCServiceEnum.WFS.value: {
-                OGCServiceVersionEnum.V_1_1_1.value: True,
+                OGCServiceVersionEnum.V_1_1_0.value: True,
                 OGCServiceVersionEnum.V_2_0_0.value: True,
                 OGCServiceVersionEnum.V_2_0_2.value: True,
             },
@@ -141,3 +143,18 @@ class EpsgApi:
         order = self._get_axis_order(srs_identifier)
         ret_val = (order["first_axis"] == "north" and order["second_axis"] == "east")
         return ret_val
+
+    def perform_switch_axis_order(self, vertices: list):
+        """ Switches axis for given list of vertices of a geometry
+
+        Args:
+            vertices (list): The list of vertices
+        Returns:
+             vertices (list): The list of vertices with switched axis
+        """
+
+        for i in range(0, len(vertices) - 1, 2):
+            tmp = vertices[i]
+            vertices[i] = vertices[i + 1]
+            vertices[i + 1] = tmp
+        return vertices

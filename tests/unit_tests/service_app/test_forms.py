@@ -186,15 +186,17 @@ class RegisterNewServiceWizardPage2TestCase(TestCase):
         """
             Tests if the correct queryset and initial value of the specific registering_with_group field
         """
+        user_groups = self.user.get_groups()
         form = RegisterNewServiceWizardPage2(user=self.user)
-        self.assertEqual(list(form.fields["registering_with_group"].queryset), list(self.user.groups.all()))
-        self.assertQuerysetEqual(form.fields["registering_for_other_organization"].queryset, self.user.groups.first().publish_for_organizations.all())
-        self.assertEqual(form.fields["registering_with_group"].initial, self.user.groups.first())
+        self.assertEqual(list(form.fields["registering_with_group"].queryset), list(user_groups))
+        self.assertQuerysetEqual(form.fields["registering_for_other_organization"].queryset, user_groups.first().publish_for_organizations.all())
+        self.assertEqual(form.fields["registering_with_group"].initial, user_groups.first())
 
     def test_construction_with_given_selected_group(self):
         """
             Tests if the correct queryset of the specific registering_for_other_organization field
         """
-        form = RegisterNewServiceWizardPage2(selected_group=self.user.groups.first())
-        self.assertQuerysetEqual(form.fields["registering_for_other_organization"].queryset, self.user.groups.first().publish_for_organizations.all())
+        user_groups = self.user.get_groups()
+        form = RegisterNewServiceWizardPage2(selected_group=user_groups.first())
+        self.assertQuerysetEqual(form.fields["registering_for_other_organization"].queryset, user_groups.first().publish_for_organizations.all())
 

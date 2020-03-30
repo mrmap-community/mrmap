@@ -18,6 +18,9 @@
                     clearInterval(interval);
                     setTimeout(function() {
                         $("#id_pending_tasks_div").remove();
+
+                        // reload current page
+                        location.reload();
                     }, 1000);
                 };
             }, 1000);

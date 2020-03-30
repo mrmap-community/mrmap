@@ -6,9 +6,10 @@ from django.urls import reverse
 
 from MapSkinner.messages import PASSWORD_SENT, EMAIL_IS_UNKNOWN
 from MapSkinner.settings import ROOT_URL
-from structure.models import User, UserActivation
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
+from structure.models import MrMapUser, UserActivation
+from tests.db_setup import create_active_user
 from tests.helper import _login
 from tests.test_data import get_contact_data, get_password_data, get_username_data, get_email_data
 from django.utils import timezone
@@ -72,7 +73,7 @@ class RegisterNewUserTestCase(TestCase):
         self.assertEqual(response.status_code, 302, msg="No redirect after posting user registration form.")
 
         # test all user attributes are correctly inserted
-        user = User.objects.get(
+        user = MrMapUser.objects.get(
             username=self.contact_data.get('username'),
             email=self.contact_data.get('email'),
         )
@@ -109,7 +110,7 @@ class RegisterNewUserTestCase(TestCase):
         self.assertFormError(response, 'form', 'username', 'Special or non printable characters are not allowed')
         user = None
         try:
-            user = User.objects.get(
+            user = MrMapUser.objects.get(
                 username=self.contact_data.get('!qwertzui123'),
             )
         except ObjectDoesNotExist as e:

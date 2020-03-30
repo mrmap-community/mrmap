@@ -15,7 +15,7 @@ from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, OGCServiceEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import RequestOperation, ExternalAuthentication
-from structure.models import User
+from structure.models import MrMapUser
 
 
 class OGCWebService:
@@ -231,7 +231,7 @@ class OGCWebService:
         self.service_bounding_box = bbox
 
     @abstractmethod
-    def create_service_model_instance(self, user: User, register_group, register_for_organization):
+    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization):
         pass
 
     @transaction.atomic

@@ -41,6 +41,7 @@
                                     <input type="{{ field.field.widget.input_type }}" name="{{ field.name }}"
                                            class="form-control" id="{{ field.id_for_label }}"
                                            placeholder="{{ field.label }}" required="{{ field.field.is_required }}">
+                                    <input type="hidden" name="next" value="{{ request.GET.next }}">
                                 </div>
                                 {% endfor %}
                                 <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">

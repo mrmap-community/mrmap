@@ -15,7 +15,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from structure.models import Group, Role, Permission, Organization, User, Theme
+from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
 
 
 class Command(BaseCommand):
@@ -51,12 +51,11 @@ class Command(BaseCommand):
         """
         # Check if superuser already exists
         name = input("Enter a username:")
-        superuser = User()
-        superuser.username = name
 
-        if User.objects.filter(username=name).exists():
+        if MrMapUser.objects.filter(username=name).exists():
             self.stdout.write(self.style.NOTICE("User with that name already exists!"))
             return
+
         # check password
         password = getpass("Enter a password: ")
         password_conf = getpass("Enter the password again: ")
@@ -65,8 +64,11 @@ class Command(BaseCommand):
             password = getpass("Enter the password: ")
             password_conf = getpass("Enter the password again: ")
 
-        superuser.salt = str(os.urandom(25).hex())
-        superuser.password = make_password(password, salt=superuser.salt)
+        superuser = MrMapUser.objects.create_superuser(
+            name,
+            "",
+            password
+        )
         superuser.confirmed_dsgvo = timezone.now()
         superuser.is_active = True
         superuser.theme = Theme.objects.get(name='LIGHT')
@@ -80,7 +82,7 @@ class Command(BaseCommand):
         # handle root group
         group = self._create_default_group(superuser)
         group.created_by = superuser
-        group.users.add(superuser)
+        group.user_set.add(superuser)
         group.save()
 
         # handle root organization
@@ -92,7 +94,7 @@ class Command(BaseCommand):
         msg = "Superuser '" + name + "' added to organization '" + orga.organization_name + "'!"
         self.stdout.write(self.style.SUCCESS(msg))
 
-    def _create_default_group(self, user: User):
+    def _create_default_group(self, user: MrMapUser):
         """ Creates default group, default role for group and default superuser permission for role
 
         Args:
@@ -100,7 +102,7 @@ class Command(BaseCommand):
         Returns:
              group (Group): The newly created group
         """
-        group = Group.objects.get_or_create(name="_root_", created_by=user)[0]
+        group = MrMapGroup.objects.get_or_create(name="_root_", created_by=user)[0]
         if group.role is None:
             role = Role.objects.get_or_create(name="_root_")[0]
             if role.permission is None:

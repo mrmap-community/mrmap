@@ -7,7 +7,7 @@ from django.utils import timezone
 from MapSkinner.settings import HOST_NAME, HTTP_OR_SSL, ROOT_URL
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
 from service.helper import service_helper
-from structure.models import Permission, Role, User, Group
+from structure.models import Permission, Role, MrMapUser, MrMapGroup
 
 
 class EditorTestCase(TestCase):
@@ -35,7 +35,7 @@ class EditorTestCase(TestCase):
         self.pw = "test"
         salt = str(os.urandom(25).hex())
         pw = self.pw
-        self.user = User.objects.create(
+        self.user = MrMapUser.objects.create(
             username="Testuser",
             is_active=True,
             salt=salt,
@@ -43,13 +43,13 @@ class EditorTestCase(TestCase):
             confirmed_dsgvo=timezone.now(),
         )
 
-        self.group = Group.objects.create(
+        self.group = MrMapGroup.objects.create(
             name="Testgroup",
             role=role,
             created_by=self.user,
         )
 
-        self.user.groups.add(self.group)
+        self.group.user_set.add(self.user)
 
         self.test_wms = {
             "title": "Karte RP",
@@ -78,7 +78,7 @@ class EditorTestCase(TestCase):
         service_helper.persist_service_model_instance(self.service_wms, None)
         self.service_wms.persist_capabilities_doc(self.raw_data_wms.service_capabilities_xml)
 
-    def _get_logged_in_client(self, user: User):
+    def _get_logged_in_client(self, user: MrMapUser):
         """ Helping function to encapsulate the login process
 
         Returns:
@@ -86,7 +86,7 @@ class EditorTestCase(TestCase):
              user_id (int): The user (id) who shall be logged in
         """
         client = Client()
-        user = User.objects.get(
+        user = MrMapUser.objects.get(
             id=user.id
         )
         self.assertEqual(user.logged_in, False, msg="User already logged in")

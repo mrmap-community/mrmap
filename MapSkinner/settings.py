@@ -83,10 +83,6 @@ XML_NAMESPACES = {
 }
 GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 
-# Session refreshes on every request!
-SESSION_EXPIRATION = 30*60  # minutes*seconds
-SESSION_SAVE_EVERY_REQUEST = True
-
 # Home/Dashboard settings
 LAST_ACTIVITY_DATE_RANGE = 7
 
@@ -193,7 +189,6 @@ DATABASES = {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': 'MrMap',
         'USER': 'postgres',
-        'PASSWORD': 'postgres',
         'HOST': '127.0.0.1',
         'PORT': '5432'
     }
@@ -214,8 +209,11 @@ CACHES = {
     }
 }
 
-# Password validation
+# Session settings and password validation
 # https://docs.djangoproject.com/en/2.1/ref/settings/#auth-password-validators
+
+MIN_PASSWORD_LENGTH = 4  # ToDo: For production use another, more appropriate length!
+MIN_USERNAME_LENGTH = 5  # ToDo: For production use another, more appropriate length!
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -223,6 +221,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            "min_length": MIN_PASSWORD_LENGTH,
+        }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -232,6 +233,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+AUTH_USER_MODEL = 'structure.MrMapUser'
+SESSION_COOKIE_AGE = 30 * 60  # Defines how many seconds can pass until the session expires, default is 30 * 60
+SESSION_SAVE_EVERY_REQUEST = True  # Whether the session age will be refreshed on every request or only if data has been modified
+LOGIN_URL = "/"  # Defines where to redirect a user, that has to be logged in for a certain route
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/

@@ -18,6 +18,9 @@
                 if( $("#id_pt_empty").length ) {
                     clearInterval(interval);
                     $("#id_pending_tasks_div").remove();
+
+                    // reload current page
+                    location.reload();
                 };
             }, 1000);
         </script>

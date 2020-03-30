@@ -90,24 +90,6 @@ class StructureTestCase(TestCase):
         role.permission.save()
         role.save()
 
-    def _get_logged_in_client(self, user: MrMapUser):
-        """ Helping function to encapsulate the login process
-
-        Returns:
-             client (Client): The client object, which holds an active session for the user
-             user_id (int): The user (id) who shall be logged in
-        """
-        client = Client()
-        user = MrMapUser.objects.get(
-            id=user.id
-        )
-        self.assertEqual(user.logged_in, False, msg="User already logged in")
-        response = client.post(reverse('login', ), data={"username": user.username, "password": self.pw})
-        user.refresh_from_db()
-        self.assertEqual(response.url, ROOT_URL + reverse('home', ), msg="Redirect wrong")
-        self.assertEqual(user.logged_in, True, msg="User not logged in")
-        return client
-
     def _get_role(self):
         """ Returns the role, which is used in these tests
 
@@ -205,7 +187,8 @@ class StructureTestCase(TestCase):
         self.assertFalse(exists, msg="Group was created by not logged in user!")
 
         ## case 1: User logged in -> creation as expected
-        client = self._get_logged_in_client(user_A)
+        client = Client()
+        client.login(username=user_A.username, password=self.pw)
         self._create_new_group(client, user_A, g_name)
         exists = True
         try:
@@ -288,7 +271,8 @@ class StructureTestCase(TestCase):
         self.assertTrue(exists, msg="Group of user A could be deleted by user B, not logged in!")
 
         ## case 1.1: User logged in, delete another user's group -> fail!
-        client = self._get_logged_in_client(user_A)
+        client = Client()
+        client.login(username=user_A.username, password=self.pw)
         self._remove_group(client, group_of_B, user_A)
 
         exists = True
@@ -300,7 +284,8 @@ class StructureTestCase(TestCase):
         self.assertTrue(exists, msg="Group of user A could be deleted by user B!")
 
         ## case 1.2: User logged in, delete own group, no subgroups exists
-        client = self._get_logged_in_client(user_B)
+        client = Client()
+        client.login(username=user_B.username, password=self.pw)
         self._remove_group(client, group_of_B, user_B)
         exists = True
         try:
@@ -407,7 +392,8 @@ class StructureTestCase(TestCase):
         self.assertNotEqual(group_of_A.description, new_descr, msg=error)
 
         ## case 1: User is logged in, normal editing case
-        client = self._get_logged_in_client(user_A)
+        client = Client()
+        client.login(username=user_A.username, password=self.pw)
         self._create_new_group(client, user_A, "New Parent")
         new_parent = MrMapGroup.objects.get(name="New Parent")
 
@@ -424,13 +410,14 @@ class StructureTestCase(TestCase):
         error = "Group is not correctly editable!"
 
         self.assertEqual(group_of_A.id, group_of_A_id, msg=error)
-        self.assertEqual(group_of_A.parent, new_parent, msg=error)
+        self.assertEqual(group_of_A.parent_group, new_parent, msg=error)
         self.assertEqual(group_of_A.name, new_g_name, msg=error)
         self.assertEqual(group_of_A.description, new_descr, msg=error)
 
         # case 2.1: User is logged in, tries to edit another one's group -> fail!
         error = "Group was edited by another user!"
-        client = self._get_logged_in_client(user_B)
+        client = Client()
+        client.login(username=user_B.username, password=self.pw)
         params["user"] = user_B
         params["parent"] = ""
         params["name"] = old_g_name
@@ -567,7 +554,8 @@ class StructureTestCase(TestCase):
         self.assertFalse(exists, msg="Organization was created even though user is not logged in!")
 
         ## case 1: User logged in -> creation as expected
-        client = self._get_logged_in_client(user)
+        client = Client()
+        client.login(username=user.username, password=self.pw)
         self._create_new_organization(client, user, o_name, p_name)
         exists = True
         try:
@@ -674,7 +662,8 @@ class StructureTestCase(TestCase):
         self.assertNotEqual(org_of_A.person_name, new_p_name, msg="Person name could was edited, but user is logged out!")
 
         ## case 1: User logged in -> normal editing of own group
-        client = self._get_logged_in_client(user_A)
+        client = Client()
+        client.login(username=user_A.username, password=self.pw)
 
         client.post(uri, data=params, HTTP_REFERER=HTTP_OR_SSL + HOST_NAME)
         org_of_A.refresh_from_db()
@@ -770,7 +759,8 @@ class StructureTestCase(TestCase):
         self.assertEqual(exists, True, msg="Organization was removed by the not logged in user!")
 
         ## case 1.1: User logged in, try to delete another one's organization -> fail
-        client = self._get_logged_in_client(user_A)
+        client = Client()
+        client.login(username=user_A.username, password=self.pw)
         self._remove_organization(client, user_A, org_of_B)
         exists = True
         try:
@@ -784,7 +774,8 @@ class StructureTestCase(TestCase):
         perm = 'can_delete_organization'
         self._set_permission(perm, False)
 
-        client = self._get_logged_in_client(user_B)
+        client = Client()
+        client.login(username=user_B.username, password=self.pw)
         self._remove_organization(client, user_B, org_of_B)
         exists = True
         try:
@@ -902,7 +893,8 @@ class StructureTestCase(TestCase):
         self.assertFalse(exists, msg="PendingRequest was created by not logged in user!")
 
         ## case 1: User is logged in, tries to create a publish request
-        client = self._get_logged_in_client(user_A)
+        client = Client()
+        client.login(username=user_A.username, password=self.pw)
         self._create_publish_request(client, user_A, group_of_A, org)
         exists = True
         try:
@@ -952,7 +944,8 @@ class StructureTestCase(TestCase):
         group_of_B.created_by = user_B
 
         # create publish request at first
-        client_logged_in_B = self._get_logged_in_client(user_B)
+        client = Client()
+        client.login(username=user_B.username, password=self.pw)
         self._create_publish_request(client_logged_in_B, user_B, group_of_B, org_of_A)
         pub_requ = PendingRequest.objects.get(
             type=PENDING_REQUEST_TYPE_PUBLISHING,
@@ -1072,7 +1065,8 @@ class StructureTestCase(TestCase):
         self.assertTrue(org_of_A in orgs_to_publish_for, msg="Publish Permission was removed by not logged in user!")
 
         ## case 1.1: User logged in, tries to remove it's group's publish permission
-        client = self._get_logged_in_client(user_B)
+        client = Client()
+        client.login(username=user_B.username, password=self.pw)
         group_of_B.user_set.add(user_B)
         self.assertTrue(org_of_A in orgs_to_publish_for)
         self.assertTrue(group_of_B in user_B.get_groups())
@@ -1085,7 +1079,8 @@ class StructureTestCase(TestCase):
 
         ## case 1.2: User logged in, tries to remove the publish permission of a group - where user is not a member - for it's organization
         orgs_to_publish_for = group_of_B.publish_for_organizations.all()
-        client = self._get_logged_in_client(user_A)
+        client = Client()
+        client.login(username=user_A.username, password=self.pw)
         self.assertTrue(org_of_A in orgs_to_publish_for)
         user_A.groups.remove(group_of_B)
         user_A.organization = org_of_A

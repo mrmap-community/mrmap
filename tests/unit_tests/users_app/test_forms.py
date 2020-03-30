@@ -64,14 +64,15 @@ class PasswordChangeFormTestCase(TestCase):
     """
 
     def setUp(self):
-        self.params = {}
+        self.params = {'old_password': 'qwertzuiop'}
         self.password_data = get_password_data()
 
     def test_valid_password(self):
-        # case: Password wirth upper, lower, digit and more than 8 characters should be accepted.
+        # case: Password with upper, lower, digit and more than 8 characters should be accepted.
+
         self.params.update({
-            'password': self.password_data.get('valid'),
-            'password_again': self.password_data.get('valid')
+            'new_password': self.password_data.get('valid'),
+            'new_password_again': self.password_data.get('valid')
         })
         form = PasswordChangeForm(data=self.params)
         self.assertTrue(form.is_valid(), msg="Password should be accepted.")
@@ -79,8 +80,8 @@ class PasswordChangeFormTestCase(TestCase):
     def test_invalid_password_without_upper(self):
         # case: Error behaviour for password without upper character, user will not be created
         self.params.update({
-            'password': self.password_data.get('invalid_without_upper'),
-            'password_again': self.password_data.get('invalid_without_upper')
+            'new_password': self.password_data.get('invalid_without_upper'),
+            'new_password_again': self.password_data.get('invalid_without_upper')
         })
         form = PasswordChangeForm(data=self.params)
         self.assertFalse(form.is_valid(), msg="Password without upper character are accepted.")
@@ -88,8 +89,8 @@ class PasswordChangeFormTestCase(TestCase):
     def test_invalid_password_without_lower(self):
         # case: Error behaviour for password without lower character, user will not be created
         self.params.update({
-            'password': self.password_data.get('invalid_without_lower'),
-            'password_again': self.password_data.get('invalid_without_lower')
+            'new_password': self.password_data.get('invalid_without_lower'),
+            'new_password_again': self.password_data.get('invalid_without_lower')
         })
         form = PasswordChangeForm(data=self.params)
         self.assertFalse(form.is_valid(), msg="Password without lower character are accepted.")
@@ -97,8 +98,8 @@ class PasswordChangeFormTestCase(TestCase):
     def test_invalid_password_without_digit(self):
         # case: Error behaviour for password without digit character, user will not be created
         self.params.update({
-            'password': self.password_data.get('invalid_without_digit'),
-            'password_again': self.password_data.get('invalid_without_digit')
+            'new_password': self.password_data.get('invalid_without_digit'),
+            'new_password_again': self.password_data.get('invalid_without_digit')
         })
         form = PasswordChangeForm(data=self.params)
         self.assertFalse(form.is_valid(), msg="Password without digit character are accepted.")
@@ -106,8 +107,8 @@ class PasswordChangeFormTestCase(TestCase):
     def test_invalid_password_with_less_as_9(self):
         # case: Error behaviour for password with less as 9 character, user will not be created
         self.params.update({
-            'password': self.password_data.get('invalid_at_most_8'),
-            'password_again': self.password_data.get('invalid_at_most_8')
+            'new_password': self.password_data.get('invalid_at_most_8'),
+            'new_password_again': self.password_data.get('invalid_at_most_8')
         })
         form = PasswordChangeForm(data=self.params)
         self.assertFalse(form.is_valid(), msg="Password with less as 9 character are accepted.")
@@ -115,8 +116,8 @@ class PasswordChangeFormTestCase(TestCase):
     def test_invalid_password_with_more_than_255(self):
         # case: Error behaviour for password with more than 255 character, user will not be created
         self.params.update({
-            'password': self.password_data.get('invalid_more_than_255'),
-            'password_again': self.password_data.get('invalid_more_than_255')
+            'new_password': self.password_data.get('invalid_more_than_255'),
+            'new_password_again': self.password_data.get('invalid_more_than_255')
         })
         form = PasswordChangeForm(data=self.params)
         self.assertFalse(form.is_valid(), msg="Password with more than 255 character are accepted.")
@@ -124,8 +125,8 @@ class PasswordChangeFormTestCase(TestCase):
     def test_valid_password_again(self):
         # case: Error behaviour for password without upper character, user will not be created
         self.params.update({
-            'password': self.password_data.get('valid'),
-            'password_again': self.password_data.get('valid')
+            'new_password': self.password_data.get('valid'),
+            'new_password_again': self.password_data.get('valid')
         })
         form = PasswordChangeForm(data=self.params)
         self.assertTrue(form.is_valid(), msg="Repeat password and password Field wasn't accepted.")
@@ -133,15 +134,15 @@ class PasswordChangeFormTestCase(TestCase):
     def test_invalid_password_again(self):
         # case: Error behaviour for password without upper character, user will not be created
         self.params.update({
-            'password': self.password_data.get('valid'),
-            'password_again': self.password_data.get('valid_2')
+            'new_password': self.password_data.get('valid'),
+            'new_password_again': self.password_data.get('valid_2')
         })
         form = PasswordChangeForm(data=self.params)
         self.assertFalse(form.is_valid(), msg="Repeat password and password Field was accepted, but two different passwords where given.")
 
     def test_empty_password(self):
         self.params.update({
-            'password_again': self.password_data.get('valid_2')
+            'new_password_again': self.password_data.get('valid_2')
         })
         form = PasswordChangeForm(data=self.params)
         self.assertFalse(form.is_valid(),
@@ -149,7 +150,7 @@ class PasswordChangeFormTestCase(TestCase):
 
     def test_empty_password_again(self):
         self.params.update({
-            'password': self.password_data.get('valid'),
+            'new_password': self.password_data.get('valid'),
         })
         form = PasswordChangeForm(data=self.params)
         self.assertFalse(form.is_valid(),
@@ -180,23 +181,3 @@ class UserFormTestCase(TestCase):
             self.logger.error(form.errors.as_data())
 
         self.assertTrue(is_valid, msg="Valid account data should be accepted.")
-
-    def test_invalid_username_with_special(self):
-        self.account_data.update({
-            'username': self.username_data.get('invalid_has_special'),
-        })
-        form = UserForm(data=self.account_data)
-        self.assertFalse(form.is_valid(), msg="Username with special character are accepted.")
-
-    def test_invalid_username_with_printable(self):
-        self.account_data.update({
-            'username': self.username_data.get('invalid_has_non_printable'),
-        })
-        form = UserForm(data=self.account_data)
-        self.assertFalse(form.is_valid(), msg="Username with non printable character are accepted.")
-
-    def test_empty_username(self):
-        self.account_data.pop('username')
-        form = UserForm(data=self.account_data)
-        self.assertFalse(form.is_valid(),
-                         msg="Username was empty but form was accepted.")

@@ -6,24 +6,16 @@ from service.forms import RegisterNewServiceWizardPage1
 from service.tables import WmsServiceTable, WfsServiceTable, PendingTasksTable
 from tests.baker_recipes.db_setup import *
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
-from tests.helper import _login
-from django.utils import timezone
-from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, HOST_NAME, HTTP_OR_SSL
-from service import tasks
-from service.helper import service_helper, xml_helper
-from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, OGCOperationEnum
-from service.models import Service, Document, Metadata
-from structure.models import MrMapUser, MrMapGroup, Role, Permission
 
 
 class ServiceIndexViewTestCase(TestCase):
     def setUp(self):
         self.logger = logging.getLogger('ServiceViewTestCase')
         self.user = create_superadminuser()
-        self.client = _login(self.user.username, PASSWORD, Client())
-        create_wms_service(self.user.groups.first(), 10)
-        create_wfs_service(self.user.groups.first(), 10)
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
+        create_wms_service(self.user.get_groups().first(), 10)
+        create_wfs_service(self.user.get_groups().first(), 10)
 
     def test_get_index_view(self):
         response = self.client.get(

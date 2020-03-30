@@ -179,10 +179,11 @@ def password_change(request: HttpRequest):
     Returns:
         A view
     """
-    user = user_helper.get_user(request)
     form = PasswordChangeForm(request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
+        user = user_helper.get_user(request)
+
         old_pw = form.cleaned_data["old_password"]
 
         # Check if the old password was correct, otherwise redirect back to the account editor page
@@ -199,10 +200,7 @@ def password_change(request: HttpRequest):
     else:
         return account(
             request=request,
-            params={
-                'password_change_form': form,
-                'show_password_change_form': True
-            }
+            params={'password_change_form': form}
         )
 
     return redirect(reverse("home"))

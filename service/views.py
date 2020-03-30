@@ -47,7 +47,7 @@ from django.urls import reverse
 from django import forms
 
 
-def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
+def _prepare_wms_table(request: HttpRequest):
     """ Collects all wms service data and prepares parameter for rendering
 
     Args:
@@ -57,6 +57,7 @@ def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
          params (dict): The rendering parameter
     """
     # whether whole services or single layers should be displayed
+    user = user_helper.get_user(request)
 
     if 'show_layers' in request.GET and request.GET.get("show_layers").lower() == 'on':
         show_service = False
@@ -99,7 +100,7 @@ def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
     return params
 
 
-def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
+def _prepare_wfs_table(request: HttpRequest):
     """ Collects all wfs service data and prepares parameter for rendering
 
     Args:
@@ -108,6 +109,7 @@ def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
     Returns:
          params (dict): The rendering parameter
     """
+    user = user_helper.get_user(request)
     md_list_wfs = Metadata.objects.filter(
         service__servicetype__name=OGCServiceEnum.WFS.value,
         created_by__in=user.get_groups(),
@@ -131,8 +133,9 @@ def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
     return params
 
 
-def _new_service_wizard_page1(request: HttpRequest, user: MrMapUser,):
+def _new_service_wizard_page1(request: HttpRequest):
     # Page One is posted --> validate it
+    user = user_helper.get_user(request)
     form = RegisterNewServiceWizardPage1(request.POST)
     if form.is_valid():
         # Form is valid --> response with initialed page 2
@@ -160,8 +163,9 @@ def _new_service_wizard_page1(request: HttpRequest, user: MrMapUser,):
     return index(request=request, update_params=params)
 
 
-def _new_service_wizard_page2(request: HttpRequest, user: MrMapUser,):
+def _new_service_wizard_page2(request: HttpRequest):
     # Page two is posted --> collect all data from post and initial the form
+    user = user_helper.get_user(request)
     selected_group = user.get_groups().get(id=int(request.POST.get("registering_with_group")))
 
     init_data = {'ogc_request': request.POST.get("ogc_request"),
@@ -262,7 +266,7 @@ def _new_service_wizard_page2(request: HttpRequest, user: MrMapUser,):
 
 
 @login_required
-def add(request: HttpRequest, user: MrMapUser):
+def add(request: HttpRequest):
     """ Renders wizard page configuration for service registration
 
         Args:
@@ -274,9 +278,9 @@ def add(request: HttpRequest, user: MrMapUser):
     if request.method == 'POST':
         page = int(request.POST.get("page"))
         if page == 1:
-            return _new_service_wizard_page1(request, user)
+            return _new_service_wizard_page1(request)
         if page == 2:
-            return _new_service_wizard_page2(request, user)
+            return _new_service_wizard_page2(request)
 
     return redirect(SERVICE_INDEX)
 
@@ -308,8 +312,8 @@ def index(request: HttpRequest, update_params=None):
         "user": user,
     }
 
-    params.update(_prepare_wms_table(request, user, ))
-    params.update(_prepare_wfs_table(request, user, ))
+    params.update(_prepare_wms_table(request))
+    params.update(_prepare_wfs_table(request))
 
     if update_params:
         params.update(update_params)
@@ -805,7 +809,7 @@ def wms_index(request: HttpRequest):
         "user": user,
     }
 
-    params.update(_prepare_wms_table(request, user, ))
+    params.update(_prepare_wms_table(request))
 
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
@@ -1021,7 +1025,7 @@ def wfs_index(request: HttpRequest):
         "user": user,
     }
 
-    params.update(_prepare_wfs_table(request, user, ))
+    params.update(_prepare_wfs_table(request))
 
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())

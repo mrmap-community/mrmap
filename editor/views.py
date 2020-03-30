@@ -7,21 +7,16 @@ from django.shortcuts import render, redirect
 
 # Create your views here.
 from django.template.loader import render_to_string
-from django_tables2 import RequestConfig
-
 from MapSkinner import utils
 from MapSkinner.decorator import check_permission
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
     SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
-from MapSkinner.settings import PAGE_DEFAULT, PAGE_SIZE_DEFAULT
-from MapSkinner.utils import prepare_table_pagination_settings
 from editor.forms import MetadataEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper.enums import OGCServiceEnum, MetadataEnum
 from service.models import RequestOperation, SecuredOperation
-
 from structure.models import MrMapUser, Permission, MrMapGroup
 from users.helper import user_helper
 from editor.helper import editor_helper
@@ -36,13 +31,8 @@ def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
     wms_table = WmsServiceTable(wms_table_filtered.qs,
                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, user=user,)
     wms_table.filter = wms_table_filtered
-    RequestConfig(request).configure(wms_table)
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    # TODO: move pagination as function to ExtendedTable
-    wms_table.pagination = prepare_table_pagination_settings(request, wms_table, 'wms-t')
-    wms_table.page_field = wms_table.pagination.get('page_name')
-    wms_table.paginate(page=request.GET.get(wms_table.pagination.get('page_name'), PAGE_DEFAULT),
-                       per_page=request.GET.get(wms_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+    wms_table.configure_pagination(request, 'wms-t')
 
     return wms_table
 
@@ -53,13 +43,8 @@ def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
     wfs_table = WfsServiceTable(wfs_table_filtered.qs,
                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, user=user, )
     wfs_table.filter = wfs_table_filtered
-    RequestConfig(request).configure(wfs_table)
     # TODO: # since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    # TODO: move pagination as function to ExtendedTable
-    wfs_table.pagination = prepare_table_pagination_settings(request, wfs_table, 'wfs-t')
-    wfs_table.page_field = wfs_table.pagination.get('page_name')
-    wfs_table.paginate(page=request.GET.get(wfs_table.pagination.get('page_name'), PAGE_DEFAULT),
-                       per_page=request.GET.get(wfs_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+    wfs_table.configure_pagination(request, 'wfs-t')
 
     return wfs_table
 

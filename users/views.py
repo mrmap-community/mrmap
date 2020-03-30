@@ -36,16 +36,6 @@ from users.helper import user_helper
 from django.urls import reverse
 
 
-def _return_account_view(request: HttpRequest, user: MrMapUser, params):
-    template = "views/account.html"
-    render_params = _prepare_account_view_params(user)
-    if params:
-        render_params.update(params)
-
-    context = DefaultContext(request, render_params, user)
-    return render(request=request, template_name=template, context=context.get_context())
-
-
 def _prepare_account_view_params(user: MrMapUser):
     edit_account_form = UserForm(instance=user, initial={'theme': user.theme})
     edit_account_form.action_url = reverse('account-edit', )
@@ -96,7 +86,6 @@ def login_view(request: HttpRequest):
                 messages.add_message(request, messages.ERROR, USERNAME_OR_PW_INVALID)
                 return redirect("login")
 
-
         login(request, user)
         _next = form.cleaned_data.get("next", None)
 
@@ -106,11 +95,11 @@ def login_view(request: HttpRequest):
 
         return redirect(_next)
 
-
     params = {
         "login_form": LoginForm(),
         "login_article_title": _("Sign in for Mr. Map"),
-        "login_article": _("Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. ")
+        "login_article": _(
+            "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. ")
     }
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
@@ -130,20 +119,21 @@ def home_view(request: HttpRequest):
     template = "views/dashboard.html"
     user_groups = user.get_groups()
     user_services_wms = Metadata.objects.filter(
-            service__servicetype__name="wms",
-            service__is_root=True,
-            created_by__in=user_groups,
-            service__is_deleted=False,
-        ).count()
+        service__servicetype__name="wms",
+        service__is_root=True,
+        created_by__in=user_groups,
+        service__is_deleted=False,
+    ).count()
     user_services_wfs = Metadata.objects.filter(
-            service__servicetype__name="wfs",
-            service__is_root=True,
-            created_by__in=user_groups,
-            service__is_deleted=False,
-        ).count()
+        service__servicetype__name="wfs",
+        service__is_root=True,
+        created_by__in=user_groups,
+        service__is_deleted=False,
+    ).count()
 
     activities_since = timezone.now() - datetime.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
-    group_activities = GroupActivity.objects.filter(group__in=user_groups, created_on__gte=activities_since).order_by("-created_on")
+    group_activities = GroupActivity.objects.filter(group__in=user_groups, created_on__gte=activities_since).order_by(
+        "-created_on")
     pending_requests = PendingRequest.objects.filter(organization=user.organization)
     params = {
         "wms_count": user_services_wms,
@@ -159,7 +149,7 @@ def home_view(request: HttpRequest):
 
 
 @login_required
-def account(request: HttpRequest, params={}):
+def account(request: HttpRequest, params=None):
     """ Renders an overview of the user's account information
 
     Args:
@@ -169,8 +159,14 @@ def account(request: HttpRequest, params={}):
     Returns:
          A rendered view
     """
+    template = "views/account.html"
     user = user_helper.get_user(request)
-    return _return_account_view(request, user, params)
+    render_params = _prepare_account_view_params(user)
+    if params:
+        render_params.update(params)
+
+    context = DefaultContext(request, render_params, user)
+    return render(request=request, template_name=template, context=context.get_context())
 
 
 @login_required
@@ -183,10 +179,11 @@ def password_change(request: HttpRequest):
     Returns:
         A view
     """
-    user = user_helper.get_user(request)
     form = PasswordChangeForm(request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
+        user = user_helper.get_user(request)
+
         old_pw = form.cleaned_data["old_password"]
 
         # Check if the old password was correct, otherwise redirect back to the account editor page
@@ -203,10 +200,7 @@ def password_change(request: HttpRequest):
     else:
         return account(
             request=request,
-            params={
-                'password_change_form': form,
-                'show_password_change_form': True
-            }
+            params={'password_change_form': form}
         )
 
     return redirect(reverse("home"))
@@ -231,10 +225,8 @@ def account_edit(request: HttpRequest):
         messages.add_message(request, messages.SUCCESS, ACCOUNT_UPDATE_SUCCESS)
         return redirect("account")
 
-    return _return_account_view(request, user, {
-        "edit_account_form": form,
-        "show_edit_account_form": True
-    })
+    return account(request=request, params={"edit_account_form": form,
+                                            "show_edit_account_form": True})
 
 
 def activate_user(request: HttpRequest, activation_hash: str):
@@ -333,7 +325,8 @@ def register(request: HttpRequest):
     form = RegistrationForm(request.POST or None)
     params = {
         "form": form,
-        "registration_article": _("Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. "),
+        "registration_article": _(
+            "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. "),
         "registration_title": _("Sign up"),
         "action_url": ROOT_URL + "/register/"
     }

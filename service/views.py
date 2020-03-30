@@ -12,7 +12,6 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from django_tables2 import RequestConfig
 from requests import ReadTimeout
 from MapSkinner import utils
 from MapSkinner.cacher import PreviewImageCacher
@@ -24,8 +23,7 @@ from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
-from MapSkinner.utils import prepare_table_pagination_settings
+from MapSkinner.settings import ROOT_URL
 from service import tasks
 from service.helper import xml_helper
 from service.filters import WmsFilter, WfsFilter
@@ -33,7 +31,6 @@ from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, RemoveService
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
@@ -50,7 +47,7 @@ from django.urls import reverse
 from django import forms
 
 
-def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
+def _prepare_wms_table(request: HttpRequest):
     """ Collects all wms service data and prepares parameter for rendering
 
     Args:
@@ -60,17 +57,15 @@ def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
          params (dict): The rendering parameter
     """
     # whether whole services or single layers should be displayed
+    user = user_helper.get_user(request)
 
-    if 'show_layers' in request.GET:
-        if request.GET.get("show_layers").lower() == 'on':
-            show_service = False
-        else:
-            show_service = True
+    if 'show_layers' in request.GET and request.GET.get("show_layers").lower() == 'on':
+        show_service = False
     else:
         show_service = True
 
     md_list_wms = Metadata.objects.filter(
-        service__servicetype__name="wms",
+        service__servicetype__name=OGCServiceEnum.WMS.value,
         service__is_root=show_service,
         created_by__in=user.get_groups(),
         is_deleted=False,
@@ -95,13 +90,8 @@ def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
     wms_table_filtered.form.fields.update({'show_layers': show_layers_})
 
     wms_table.filter = wms_table_filtered
-    RequestConfig(request).configure(wms_table)
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    # TODO: move pagination as function to ExtendedTable
-    wms_table.pagination = prepare_table_pagination_settings(request, wms_table, 'wms-t')
-    wms_table.page_field = wms_table.pagination.get('page_name')
-    wms_table.paginate(page=request.GET.get(wms_table.pagination.get('page_name'), PAGE_DEFAULT),
-                       per_page=request.GET.get(wms_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+    wms_table.configure_pagination(request, 'wms-t')
 
     params = {
         "wms_table": wms_table,
@@ -110,7 +100,7 @@ def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
     return params
 
 
-def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
+def _prepare_wfs_table(request: HttpRequest):
     """ Collects all wfs service data and prepares parameter for rendering
 
     Args:
@@ -119,8 +109,9 @@ def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
     Returns:
          params (dict): The rendering parameter
     """
+    user = user_helper.get_user(request)
     md_list_wfs = Metadata.objects.filter(
-        service__servicetype__name="wfs",
+        service__servicetype__name=OGCServiceEnum.WFS.value,
         created_by__in=user.get_groups(),
         is_deleted=False,
     ).order_by("title")
@@ -132,13 +123,8 @@ def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
                                 user=user,)
 
     wfs_table.filter = wfs_table_filtered
-    RequestConfig(request).configure(wfs_table)
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    # TODO: move pagination as function to ExtendedTable
-    wfs_table.pagination = prepare_table_pagination_settings(request, wfs_table, 'wfs-t')
-    wfs_table.page_field = wfs_table.pagination.get('page_name')
-    wfs_table.paginate(page=request.GET.get(wfs_table.pagination.get('page_name'), PAGE_DEFAULT),
-                       per_page=request.GET.get(wfs_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+    wfs_table.configure_pagination(request, 'wfs-t')
 
     params = {
         "wfs_table": wfs_table,
@@ -147,168 +133,165 @@ def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
     return params
 
 
-def _new_service_wizard(request: HttpRequest, user: MrMapUser):
-    """ Renders wizard page configuration for service registration
+def _new_service_wizard_page1(request: HttpRequest):
+    # Page One is posted --> validate it
+    user = user_helper.get_user(request)
+    form = RegisterNewServiceWizardPage1(request.POST)
+    if form.is_valid():
+        # Form is valid --> response with initialed page 2
+        url_dict = service_helper.split_service_uri(form.cleaned_data['get_request_uri'])
+        init_data = {
+            'ogc_request': url_dict["request"],
+            'ogc_service': url_dict["service"].value,
+            'ogc_version': url_dict["version"],
+            'uri': url_dict["base_uri"],
+            'service_needs_authentication': False,
+        }
 
-    Args:
-        request (HttpRequest): The incoming request
-        user (MrMapUser): The performing user
-    Returns:
-         params (dict): The rendering parameter
-    """
-    params = {}
-    page = int(request.POST.get("page"))
+        params = {
+            "new_service_form": RegisterNewServiceWizardPage2(initial=init_data,
+                                                              user=user,
+                                                              selected_group=user.get_groups().first()),
+            "show_modal": True,
+        }
+    else:
+        # Form is not valid --> response with page 1 and show errors
+        params = {
+            "new_service_form": form,
+            "show_modal": True,
+        }
+    return index(request=request, update_params=params)
 
-    user_groups = user.get_groups()
-    if page is 1:
-        # Page One is posted --> validate it
-        form = RegisterNewServiceWizardPage1(request.POST)
+
+def _new_service_wizard_page2(request: HttpRequest):
+    # Page two is posted --> collect all data from post and initial the form
+    user = user_helper.get_user(request)
+    selected_group = user.get_groups().get(id=int(request.POST.get("registering_with_group")))
+
+    init_data = {'ogc_request': request.POST.get("ogc_request"),
+                 'ogc_service': request.POST.get("ogc_service"),
+                 'ogc_version': request.POST.get("ogc_version"),
+                 'uri': request.POST.get("uri"),
+                 'registering_with_group': request.POST.get("registering_with_group"),
+                 'service_needs_authentication': request.POST.get("service_needs_authentication") == 'on',
+                 'username': request.POST.get("username", None),
+                 'password': request.POST.get("password", None),
+                 }
+
+    is_auth_needed = True if request.POST.get("service_needs_authentication") == 'on' else False
+    form = RegisterNewServiceWizardPage2(request.POST,
+                                         initial=init_data,
+                                         user=user,
+                                         selected_group=selected_group,
+                                         service_needs_authentication=is_auth_needed,
+                                         )
+
+    # first check if it's just a update of the form
+    if request.POST.get("is_form_update") == 'True':
+        # it's just a updated form state. return the new state as view
+        params = {
+            "new_service_form": form,
+            "show_modal": True,
+        }
+    else:
+        # it's not a update. we have to validate the fields now
+        # and if all is fine generate a new pending task object
+        form = RegisterNewServiceWizardPage2(request.POST,
+                                             initial=init_data,
+                                             user=user,
+                                             selected_group=selected_group,
+                                             service_needs_authentication=is_auth_needed)
+
         if form.is_valid():
-            # Form is valid --> response with page 2
-            url_dict = service_helper.split_service_uri(form.cleaned_data['get_request_uri'])
-            init_data = {
-                'ogc_request': url_dict["request"],
-                'ogc_service': url_dict["service"].value,
-                'ogc_version': url_dict["version"],
-                'uri': url_dict["base_uri"],
-                'service_needs_authentication': False,
-            }
-            params.update({
-                "new_service_form": RegisterNewServiceWizardPage2(initial=init_data,
-                                                                  user=user,
-                                                                  selected_group=user_groups.first()),
-                "action_url": reverse(SERVICE_INDEX, ),
-                "show_modal": True,
-            })
-        else:
-            # Form is not valid --> response with page 1 and show errors
-            params.update({
-                "new_service_form": form,
-                "action_url": reverse(SERVICE_INDEX, ),
-                "show_modal": True,
-            })
-
-    elif page is 2:
-        # Page two is posted --> collect all data from post and initial the form
-        selected_group = user_groups.get(id=int(request.POST.get("registering_with_group")))
-        is_auth_needed = False
-        if request.POST.get("service_needs_authentication") == 'on':
-            is_auth_needed = True
-
-        # ToDo: @joki: Is this even necessary anymore?
-        init_data = {'ogc_request': request.POST.get("ogc_request"),
-                     'ogc_service': request.POST.get("ogc_service"),
-                     'ogc_version': request.POST.get("ogc_version"),
-                     'uri': request.POST.get("uri"),
-                     'registering_with_group': request.POST.get("registering_with_group"),
-                     'service_needs_authentication': is_auth_needed,
-                     'username': request.POST.get("username", None),
-                     'password': request.POST.get("password", None),
-                     }
-
-        service_needs_authentication = False
-        if request.POST.get("service_needs_authentication") == 'on':
-            service_needs_authentication = True
-
-        # first check if it's just a update of the form
-        if utils.resolve_boolean_attribute_val(request.POST.get("is_form_update")):
-            form = RegisterNewServiceWizardPage2(
-                user,
-                selected_group,
-                service_needs_authentication,
-            )
-            # it's just a updated form state. return the new state as view
-            params.update({
-                "new_service_form": form,
-                "action_url": reverse(SERVICE_INDEX, ),
-                "show_modal": True,
-            })
-            return params
-        else:
-            # it's not a update. we have to validate the fields now
-            # and if all is fine generate a new pending task object
-
-            # get bounded form with parameter request.POST
-            service_needs_authentication = False
-            if request.POST.get("service_needs_authentication") == 'on':
-                service_needs_authentication = True
-
-            form = RegisterNewServiceWizardPage2(
-                user,
-                selected_group,
-                service_needs_authentication,
-                request.POST,
-            )
-
-            if form.is_valid():
-                # TODO: # Form is valid --> register new service --> redirect to service index
-                # run creation async!
-                external_auth = None
-                if form.cleaned_data['service_needs_authentication']:
-                    external_auth = {
-                        "username": form.cleaned_data['username'],
-                        "password": form.cleaned_data['password'],
-                        "auth_type": form.cleaned_data['authentication_type']
-                    }
-
-                register_for_other_org = 'None'
-                if form.cleaned_data['registering_for_other_organization'] is not None:
-                    register_for_other_org = form.cleaned_data['registering_for_other_organization'].id
-
-                uri_dict = {
-                    "base_uri": form.cleaned_data["uri"],
-                    "version": form.cleaned_data["ogc_version"],
-                    "service": form.cleaned_data["ogc_service"],
-                    "request": form.cleaned_data["ogc_request"],
+            # run creation async!
+            external_auth = None
+            if form.cleaned_data['service_needs_authentication']:
+                external_auth = {
+                    "username": form.cleaned_data['username'],
+                    "password": form.cleaned_data['password'],
+                    "auth_type": form.cleaned_data['authentication_type']
                 }
 
-                try:
-                    pending_task = tasks.async_new_service.delay(
-                        uri_dict,
-                        user.id,
-                        form.cleaned_data['registering_with_group'].id,
-                        register_for_other_org,
-                        external_auth
-                    )
+            register_for_other_org = 'None'
+            if form.cleaned_data['registering_for_other_organization'] is not None:
+                register_for_other_org = form.cleaned_data['registering_for_other_organization'].id
 
-                    # create db object, so we know which pending task is still ongoing
-                    pending_task_db = PendingTask()
-                    pending_task_db.created_by = MrMapGroup.objects.get(id=form.cleaned_data['registering_with_group'].id)
-                    pending_task_db.task_id = pending_task.task_id
-                    pending_task_db.description = json.dumps({
-                        "service": form.cleaned_data['uri'],
-                        "phase": "Parsing",
-                    })
 
-                    pending_task_db.save()
-                except Exception as e:
-                    # Form is not valid --> response with page 2 and show errors
-                    form.add_error(None, e)
-                    params.update({
-                        "new_service_form": form,
-                        "action_url": reverse(SERVICE_INDEX, ),
-                        "show_modal": True,
-                    })
+            uri_dict = {
+                "base_uri": form.cleaned_data["uri"],
+                "version": form.cleaned_data["ogc_version"],
+                "service": form.cleaned_data["ogc_service"],
+                "request": form.cleaned_data["ogc_request"],
+            }
 
-                return {'wizard_finished': True}
+            try:
+                pending_task = tasks.async_new_service.delay(
+                    uri_dict,
+                    user.id,
+                    form.cleaned_data['registering_with_group'].id,
+                    register_for_other_org,
+                    external_auth
+                )
 
-            else:
-                # Form is not valid --> response with page 2 and show errors
-                params.update({
-                    "new_service_form": form,
-                    "action_url": reverse(SERVICE_INDEX, ),
-                    "show_modal": True,
+                # create db object, so we know which pending task is still ongoing
+                pending_task_db = PendingTask()
+                pending_task_db.created_by = MrMapGroup.objects.get(
+                    id=form.cleaned_data['registering_with_group'].id)
+                pending_task_db.task_id = pending_task.task_id
+                pending_task_db.description = json.dumps({
+                    "service": form.cleaned_data['uri'],
+                    "phase": "Parsing",
                 })
 
-    return params
+                pending_task_db.save()
+
+                # everthing works well. Redirect to index page.
+                return redirect(SERVICE_INDEX)
+
+            except Exception as e:
+                # Form is not valid --> response with page 2 and show errors
+                form.add_error(None, e)
+                params = {
+                    "new_service_form": form,
+                    "show_modal": True,
+                }
+        else:
+            # Form is not valid --> response with page 2 and show errors
+            params = {
+                "new_service_form": form,
+                "show_modal": True,
+            }
+
+    return index(request=request, update_params=params)
 
 
 @login_required
-def index(request: HttpRequest):
+def add(request: HttpRequest):
+    """ Renders wizard page configuration for service registration
+
+        Args:
+            request (HttpRequest): The incoming request
+            user (User): The performing user
+        Returns:
+             params (dict): The rendering parameter
+    """
+    if request.method == 'POST':
+        page = int(request.POST.get("page"))
+        if page == 1:
+            return _new_service_wizard_page1(request)
+        if page == 2:
+            return _new_service_wizard_page2(request)
+
+    return redirect(SERVICE_INDEX)
+
+
+@login_required
+def index(request: HttpRequest, update_params=None):
     """ Renders an overview of all wms and wfs
 
     Args:
         request (HttpRequest): The incoming request
+        update_params: (Optional) the update_params dict
     Returns:
          A view
     """
@@ -321,26 +304,19 @@ def index(request: HttpRequest):
     pt = PendingTask.objects.filter(created_by__in=user.get_groups())
     pt_table = PendingTasksTable(pt,
                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                 orderable=False, user=user,)
+                                 orderable=False, user=user, )
 
     params = {
         "pt_table": pt_table,
         "new_service_form": RegisterNewServiceWizardPage1(),
-        "action_url": reverse(SERVICE_INDEX, ),
         "user": user,
-        "wizard_finished": False
     }
 
-    params.update(_prepare_wms_table(request, user, ))
-    params.update(_prepare_wfs_table(request, user, ))
+    params.update(_prepare_wms_table(request))
+    params.update(_prepare_wfs_table(request))
 
-    # special content for new service wizard
-    if request.method == 'POST':
-        params.update(_new_service_wizard(request, user))
-
-    if params['wizard_finished'] is True:
-        # we have to redirect to service:index, to prevent new post of the form after pressing f5
-        return redirect(reverse(SERVICE_INDEX, ))
+    if update_params:
+        params.update(update_params)
 
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
@@ -427,7 +403,6 @@ def remove(request: HttpRequest, id:int):
         return redirect("service:detail", id)
 
 
-# TODO: update function documentation
 @login_required
 @check_permission(Permission(can_activate_service=True))
 def activate(request: HttpRequest, id: int):
@@ -437,7 +412,7 @@ def activate(request: HttpRequest, id: int):
         id:
         request:
     Returns:
-         An Ajax response
+         redirects to service:index
     """
     user = user_helper.get_user(request)
 
@@ -831,20 +806,10 @@ def wms_index(request: HttpRequest):
     params = {
         "pt_table": pt_table,
         "new_service_form": RegisterNewServiceWizardPage1(),
-        "action_url": reverse(SERVICE_INDEX, ),
         "user": user,
-        "wizard_finished": False
     }
 
-    params.update(_prepare_wms_table(request, user, ))
-
-    # special content for new service wizard
-    if request.method == 'POST':
-        params.update(_new_service_wizard(request, user))
-
-    if params['wizard_finished'] is True:
-        # we have to redirect to service:index, to prevent new post of the form after pressing f5
-        return redirect(reverse(SERVICE_INDEX, ))
+    params.update(_prepare_wms_table(request))
 
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
@@ -1057,20 +1022,10 @@ def wfs_index(request: HttpRequest):
     params = {
         "pt_table": pt_table,
         "new_service_form": RegisterNewServiceWizardPage1(),
-        "action_url": reverse(SERVICE_INDEX, ),
         "user": user,
-        "wizard_finished": False
     }
 
-    params.update(_prepare_wfs_table(request, user, ))
-
-    # special content for new service wizard
-    if request.method == 'POST':
-        params.update(_new_service_wizard(request, user))
-
-    if params['wizard_finished'] is True:
-        # we have to redirect to service:index, to prevent new post of the form after pressing f5
-        return redirect(reverse(SERVICE_INDEX, ))
+    params.update(_prepare_wfs_table(request))
 
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())

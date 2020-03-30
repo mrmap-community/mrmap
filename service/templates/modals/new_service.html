@@ -7,7 +7,7 @@
 {% endblock %}
 
 {% block modal-footer %}
-<button type="button" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" data-dismiss="modal">{% trans 'Cancel' %}</button>
+<a class="btn {{ THEME.MODAL.BTN_WARNING_COLOR }}" href="{% url 'service:index' %}" role="button">{% trans 'Dismiss' %}</a>
 <button type="button submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">
     {% trans 'Next' %}
 </button>

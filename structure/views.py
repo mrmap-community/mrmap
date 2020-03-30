@@ -1,18 +1,14 @@
 import datetime
 import json
-
 from celery.result import AsyncResult
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
-from django.forms import formset_factory
 from django.http import HttpRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django_tables2 import RequestConfig
-
 from MapSkinner import utils
 from MapSkinner.celery_app import app
 from MapSkinner.consts import *
@@ -23,8 +19,8 @@ from MapSkinner.messages import FORM_INPUT_INVALID, GROUP_CAN_NOT_BE_OWN_PARENT,
     PUBLISH_PERMISSION_REMOVED, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-from MapSkinner.settings import ROOT_URL, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
-from MapSkinner.utils import prepare_table_pagination_settings
+
+from MapSkinner.settings import ROOT_URL
 from service.models import Service
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
@@ -54,13 +50,8 @@ def _prepare_group_table(request: HttpRequest, user: MrMapUser, ):
                               order_by_field='sg',  # sg = sort groups
                               user=user, )
     groups_table.filter = user_groups_filtered
-    RequestConfig(request).configure(groups_table)
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    # TODO: move pagination as function to ExtendedTable
-    groups_table.pagination = prepare_table_pagination_settings(request, groups_table, 'groups-t')
-    groups_table.page_field = groups_table.pagination.get('page_name')
-    groups_table.paginate(page=request.GET.get(groups_table.pagination.get('page_name'), PAGE_DEFAULT),
-                          per_page=request.GET.get(groups_table.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
+    groups_table.configure_pagination(request, 'groups-t')
 
     return {"groups": groups_table, }
 
@@ -75,14 +66,9 @@ def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, ):
                                        order_by_field='so',  # so = sort organizations
                                        user=user, )
     all_orgs_table.filter = all_orgs_filtered
-    RequestConfig(request).configure(all_orgs_table)
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    # TODO: move pagination as function to ExtendedTable
-    all_orgs_table.pagination = prepare_table_pagination_settings(request, all_orgs_table, 'orgs-t')
-    all_orgs_table.page_field = all_orgs_table.pagination.get('page_name')
-    all_orgs_table.paginate(page=request.GET.get(all_orgs_table.pagination.get('page_name'), PAGE_DEFAULT),
-                            per_page=request.GET.get(all_orgs_table.pagination.get('page_size_param'),
-                                                     PAGE_SIZE_DEFAULT))
+    all_orgs_table.configure_pagination(request, 'orgs-t')
+
     return {"organizations": all_orgs_table, }
 
 

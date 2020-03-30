@@ -7,7 +7,7 @@ Created on: 23.03.2020
 """
 from django.test import TestCase
 from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2
-from tests.db_setup import create_active_user, create_random_user
+from tests.baker_recipes.db_setup import create_superadminuser
 from tests.test_data import get_capabilitites_url
 
 
@@ -115,7 +115,7 @@ class RegisterNewServiceWizardPage2TestCase(TestCase):
     """
 
     def setUp(self):
-        self.user = create_random_user()
+        self.user = create_superadminuser()
 
     def test_construction_if_no_parameter_are_transfered(self):
         try:

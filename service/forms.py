@@ -6,7 +6,9 @@ Created on: 15.04.19
 
 """
 from django import forms
+from django.urls import reverse_lazy
 
+from MapSkinner.consts import SERVICE_ADD
 from MapSkinner.validators import validate_get_request_uri
 from django.utils.translation import gettext_lazy as _
 
@@ -18,11 +20,13 @@ class ServiceURIForm(forms.Form):
 
 
 class RegisterNewServiceWizardPage1(forms.Form):
+    action_url = reverse_lazy(SERVICE_ADD,)
     page = forms.IntegerField(widget=forms.HiddenInput(), initial=1)
     get_request_uri = forms.URLField(validators=[validate_get_request_uri])
 
 
 class RegisterNewServiceWizardPage2(forms.Form):
+    action_url = reverse_lazy(SERVICE_ADD,)
     page = forms.IntegerField(required=False, widget=forms.HiddenInput(), initial=2)
     is_form_update = forms.BooleanField(required=False, widget=forms.HiddenInput(), initial=False)
     ogc_request = forms.CharField(label=_('OGC Request'), widget=forms.TextInput(attrs={'readonly': '', }))
@@ -37,12 +41,17 @@ class RegisterNewServiceWizardPage2(forms.Form):
     password = forms.CharField(label=_("Password"), required=False, widget=forms.PasswordInput, disabled=True)
     authentication_type = forms.ChoiceField(label=_("Authentication type"), required=False, disabled=True, choices=(('http_digest', 'HTTP Digest'), ('http_basic', 'HTTP Basic')))
 
-    def __init__(self, user=None, selected_group=None, service_needs_authentication=False, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
+        # pop custom kwargs before invoke super constructor and hold them
+        user = None if 'user' not in kwargs else kwargs.pop('user')
+        selected_group = None if 'selected_group' not in kwargs else kwargs.pop('selected_group')
+        service_needs_authentication = False if 'service_needs_authentication' not in kwargs else kwargs.pop('service_needs_authentication')
+
         # run super constructor to construct the form
         super(RegisterNewServiceWizardPage2, self).__init__(*args, **kwargs)
         # initial the fields if the values are transfered
-        user_groups = user.get_groups()
         if user is not None:
+            user_groups = user.get_groups()
             self.fields["registering_with_group"].queryset = user_groups.all()
             self.fields["registering_with_group"].initial = user_groups.first()
         if selected_group is not None:
@@ -58,11 +67,6 @@ class RegisterNewServiceWizardPage2(forms.Form):
             self.fields["password"].required = True
             self.fields["authentication_type"].disabled = False
             self.fields["authentication_type"].required = True
-
-
-class RegisterNewServiceWizardPage3(forms.Form):
-    page = forms.IntegerField(widget=forms.HiddenInput(), initial=3)
-    get_request_uri = forms.CharField()
 
 
 class RemoveService(forms.Form):

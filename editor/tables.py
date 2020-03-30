@@ -2,6 +2,7 @@ import django_tables2 as tables
 from django.utils.html import format_html
 from django.urls import reverse
 
+from MapSkinner.tables import MapSkinnerTable
 from service.models import Layer, FeatureType
 from MapSkinner.consts import *
 from MapSkinner.utils import get_theme, get_ok_nok_icon
@@ -26,12 +27,7 @@ def _get_undo_button(url, user):
                        format_html(get_theme(user)["ICONS"]['UNDO']),)
 
 
-class ExtendedTable(tables.Table):
-    filter = None
-    pagination = None
-
-
-class WmsServiceTable(ExtendedTable):
+class WmsServiceTable(MapSkinnerTable):
     caption = _("Shows all WMS which are configured in your Mr. Map environment. You can Edit them if you want.")
 
     wms_title = tables.Column(accessor='title', verbose_name='Title', )
@@ -90,7 +86,7 @@ class WmsServiceTable(ExtendedTable):
         return _get_undo_button(url, self.user)
 
 
-class WfsServiceTable(ExtendedTable):
+class WfsServiceTable(MapSkinnerTable):
     caption = _("Shows all WFS which are configured in your Mr. Map environment. You can Edit them if you want.")
 
     wfs_title = tables.Column(accessor='title', verbose_name='Title', )

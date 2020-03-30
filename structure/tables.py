@@ -2,12 +2,14 @@ import django_tables2 as tables
 from django.template.loader import render_to_string
 from django.utils.html import format_html
 from django.urls import reverse
+
+from MapSkinner.tables import MapSkinnerTable
 from MapSkinner.utils import get_theme, get_ok_nok_icon
 from MapSkinner.consts import URL_PATTERN
 from django.utils.translation import gettext_lazy as _
 
 
-class PublisherTable(tables.Table):
+class PublisherTable(MapSkinnerTable):
     class Meta:
         row_attrs = {
             "class": "text-center"
@@ -52,7 +54,7 @@ class PublisherTable(tables.Table):
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
-class PublishesForTable(tables.Table):
+class PublishesForTable(MapSkinnerTable):
     class Meta:
         row_attrs = {
             "class": "text-center"
@@ -85,7 +87,7 @@ class PublishesForTable(tables.Table):
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
-class PublisherRequestTable(tables.Table):
+class PublisherRequestTable(MapSkinnerTable):
     class Meta:
         row_attrs = {
             "class": "text-center"
@@ -131,7 +133,7 @@ class PublisherRequestTable(tables.Table):
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
-class GroupTable(tables.Table):
+class GroupTable(MapSkinnerTable):
     groups_name = tables.Column(accessor='name', verbose_name='Name', )
     groups_description = tables.Column(accessor='description', verbose_name='Description', )
     groups_organization = tables.Column(accessor='organization', verbose_name='Organization', )
@@ -151,7 +153,7 @@ class GroupTable(tables.Table):
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
-class OrganizationTable(tables.Table):
+class OrganizationTable(MapSkinnerTable):
     orgs_organization_name = tables.Column(accessor='organization_name', verbose_name='Name', )
     orgs_description = tables.Column(accessor='description', verbose_name='Description', )
     orgs_is_auto_generated = tables.Column(accessor='is_auto_generated', verbose_name='Real organization', )

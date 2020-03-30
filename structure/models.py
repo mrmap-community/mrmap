@@ -194,6 +194,7 @@ class MrMapUser(AbstractUser):
         if group is not None:
             groups = [group]
         else:
+
             groups = self.get_groups()
 
         for group in groups:

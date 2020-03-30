@@ -1,5 +1,5 @@
 from django.core.exceptions import FieldError
-from django.test import TestCase, RequestFactory, tag
+from django.test import TestCase, RequestFactory
 from django.urls import reverse
 from django_tables2 import RequestConfig
 from MapSkinner.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE

@@ -79,4 +79,8 @@ class UpdateServiceForm(forms.Form):
     get_capabilities_uri = forms.URLField(
         validators=[validate_get_request_uri]
     )
+    keep_custom_md = forms.BooleanField(
+        label=_("Keep custom metadata"),
+        initial=True
+    )
 

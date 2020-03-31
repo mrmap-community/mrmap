@@ -58,12 +58,14 @@ def transform_lists_to_m2m_collections(element):
             element.keywords.add(kw)
         # reference systems
         for srs in element.reference_system_list:
+            srs.save()
             element.reference_system.add(srs)
 
     elif isinstance(element, Service):
         # service transforming of lists
         # formats
         for _format in element.formats_list:
+            _format.save()
             element.formats.add(_format)
 
         # categories
@@ -238,13 +240,16 @@ def update_single_layer(old: Layer, new: Layer, keep_custom_metadata: bool = Fal
     created_on = old.created
     parent_service = old.parent_service
     parent_layer = old.parent_layer
+    metadata_type = old.metadata.metadata_type
     custom_md = None
+
     if keep_custom_metadata and old.metadata.is_custom:
         custom_md = old.metadata
 
-
-    # overwrite old information with new one
+    # Overwrite old information with new one
     old = copy(new)
+
+    # Restore important information
     old.id = _id
     old.identifier = identifier
     old.uuid = uuid
@@ -252,6 +257,7 @@ def update_single_layer(old: Layer, new: Layer, keep_custom_metadata: bool = Fal
     old.created_by = created_by
     old.parent_service = parent_service
     old.parent_layer = parent_layer
+    old.metadata.metadata_type = metadata_type
 
     if keep_custom_metadata and custom_md is not None:
         old.metadata = custom_md
@@ -268,7 +274,7 @@ def update_single_layer(old: Layer, new: Layer, keep_custom_metadata: bool = Fal
     return old
 
 @transaction.atomic
-def update_wfs(old: Service, new: Service, diff: dict, links: dict, keep_custom_metadata: bool = False):
+def update_wfs_elements(old: Service, new: Service, diff: dict, links: dict, keep_custom_metadata: bool = False):
     """ Updates the whole wfs service
 
     Goes through all data, starting at metadata, down to feature types and it's elements to update the current status.
@@ -343,12 +349,23 @@ def _update_wms_layers_recursive(old: Service, new: Service, layers: list, links
         rename = False
 
         if layer.identifier in links.keys():
-            # aha! This layer is just a renamed one, that already exists. It must be updated and renamed!
+            # This layer is just a renamed one, that already exists. It must be updated and renamed!
             identifier = links[layer.identifier]
             rename = True
-        # check if layer already exists
-        existing_layer = Layer.objects.filter(parent_service=old, identifier=identifier)
-        if existing_layer.count() == 0:
+
+        # Update layer
+        try:
+            existing_layer = Layer.objects.get(parent_service=old, identifier=identifier)
+
+            if rename:
+                existing_layer.identifier = layer.identifier
+
+            existing_layer.save()
+            existing_layer = update_single_layer(existing_layer, layer, keep_custom_metadata)
+            # for parent-child connection we need to put the existing layer into the running variable layer
+            layer = existing_layer
+
+        except ObjectDoesNotExist:
             # not existing yet -> add it!
             layer.parent_service = old
             layer.parent_layer = parent
@@ -358,28 +375,20 @@ def _update_wms_layers_recursive(old: Service, new: Service, layers: list, links
             layer.metadata = md
             layer.save()
             layer = transform_lists_to_m2m_collections(layer)
-        elif existing_layer.count() == 1:
-            # existing -> update it!
-            existing_layer = existing_layer[0]
-            if rename:
-                existing_layer.identifier = layer.identifier
-            existing_layer.save()
-            existing_layer = update_single_layer(existing_layer, layer, keep_custom_metadata)
-            # for parent-child connection we need to put the existing layer into the running variable layer
-            layer = existing_layer
+
 
         children = layer.children_list
         if len(children) > 0:
             _update_wms_layers_recursive(old, new, children, links, layer, keep_custom_metadata)
 
 @transaction.atomic
-def update_wms(old: Service, new: Service, diff: dict, links: dict, keep_custom_metadata: bool = False):
+def update_wms_elements(old: Service, new: Service, diff: dict, links: dict, keep_custom_metadata: bool = False):
     """ Updates a whole wms service
 
     Handles all metadata and layers.
 
     Args:
-        old (Service): The existing service that nees to be updated
+        old (Service): The existing service that needs to be updated
         new (Service): The newer version from where the new data is taken
         diff (dict): The differences that have been found before between the old and new service
         links (dict): Contains key/value pairs of old_identifier->new_identifier (needed for renamed layers or feature types)

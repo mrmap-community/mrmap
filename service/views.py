@@ -828,89 +828,97 @@ def update_service(request: HttpRequest, id: int):
     Returns:
         A rendered view
     """
+    template = "views/service_update.html"
     user = user_helper.get_user(request)
+    update_form = UpdateServiceForm(request.POST or None)
 
-    template = "service_differences.html"
-    update_params = request.session["update"]
-    url_dict = service_helper.split_service_uri(update_params["full_uri"])
+    # Check if update form is valid
+    if not update_form.is_valid():
+        messages.error(request, update_form.errors)
+        return redirect("service:detail", id)
+
+    # Check if uri can be retrieved correctly from the form
+    uri = update_form.cleaned_data.get("get_capabilities_uri", None)
+    if uri is None:
+        messages.error(request, PARAMETER_ERROR.format("Get capabilities uri"))
+        return redirect("service:detail", id)
+
+    url_dict = service_helper.split_service_uri(uri)
     new_service_type = url_dict.get("service")
-    old_service = Service.objects.get(id=id)
+    current_service = Service.objects.get(metadata__id=id)
 
-    # check if metadata should be kept
-    keep_custom_metadata = request.POST.get("keep-metadata", None)
-    if keep_custom_metadata is None:
-        keep_custom_metadata = request.session.get("keep-metadata", "")
-    request.session["keep-metadata"] = keep_custom_metadata
-    keep_custom_metadata = keep_custom_metadata == "on"
+    # Check cross service update attempt
+    if current_service.servicetype.name != new_service_type.value:
+        messages.add_message(request, messages.ERROR, SERVICE_UPDATE_WRONG_TYPE)
+        return redirect("service:detail", id)
+
+    # Check whether to keep custom metadata or not. If this value can not be found, we make sure to act as it would be
+    # checked
+    keep_custom_md = update_form.cleaned_data.get("keep_custom_metadata", True)
 
     # get info which layers/featuretypes are linked (old->new)
     links = json.loads(request.POST.get("storage", '{}'))
-    update_confirmed = utils.resolve_boolean_attribute_val(request.POST.get("confirmed", 'false'))
 
-    # parse new capabilities into db model
-    registrating_group = old_service.created_by
-    new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"),
-                                                            version=url_dict.get("version"),
-                                                            base_uri=url_dict.get("base_uri"), user=user,
-                                                            register_group=registrating_group)
-    xml = new_service["raw_data"].service_capabilities_xml
-    new_service = new_service["service"]
+    # Create db model from new service information
+    registrating_group = current_service.created_by
+    new_service_obj = service_helper.get_service_model_instance(
+        service_type=url_dict.get("service"),
+        version=service_helper.resolve_version_enum(url_dict.get("version")),
+        base_uri=url_dict.get("base_uri"),
+        user=user,
+        register_group=registrating_group
+    )
+    new_service_capabilities_xml = new_service_obj["raw_data"].service_capabilities_xml
+    new_service_obj = new_service_obj["service"]
 
     # Collect differences
-    comparator = ServiceComparator(service_1=new_service, service_2=old_service)
+    comparator = ServiceComparator(service_a=new_service_obj, service_b=current_service)
     diff = comparator.compare_services()
 
+    update_confirmed = False
+
     if update_confirmed:
-        # check cross service update attempt
-        if old_service.servicetype.name != new_service_type.value:
-            # cross update attempt -> forbidden!
-            messages.add_message(request, messages.ERROR, SERVICE_UPDATE_WRONG_TYPE)
-            return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(
-                old_service.metadata.id))).get_response()
-        # check if new capabilities is even different from existing
-        # if not we do not need to spend time and money on performing it!
-        # if not service_helper.capabilities_are_different(update_params["full_uri"], old_service.metadata.capabilities_original_uri):
-        #     messages.add_message(request, messages.INFO, SERVICE_UPDATE_ABORTED_NO_DIFF)
-        #     return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(old_service.metadata.id))).get_response()
-
-        if not keep_custom_metadata:
-            # the update is confirmed, we can continue changing the service!
-            # first update the metadata of the whole service
-            md = update_helper.update_metadata(old_service.metadata, new_service.metadata)
-            old_service.metadata = md
+        if not keep_custom_md:
+            # Just overwrite existing metadata, like custom keyword, and so on
+            # First update the metadata of the whole service
+            md = update_helper.update_metadata(current_service.metadata, new_service_obj.metadata)
+            current_service.metadata = md
             # don't forget the timestamp when we updated the last time
-            old_service.metadata.last_modified = timezone.now()
+            current_service.metadata.last_modified = timezone.now()
             # save the metadata changes
-            old_service.metadata.save()
+            current_service.metadata.save()
         # secondly update the service itself, overwrite the metadata with the previously updated metadata
-        old_service = update_helper.update_service(old_service, new_service)
-        old_service.last_modified = timezone.now()
+        current_service = update_helper.update_service(current_service, new_service_obj)
+        current_service.last_modified = timezone.now()
 
-        if new_service.servicetype.name == OGCServiceEnum.WFS.value:
-            old_service = update_helper.update_wfs(old_service, new_service, diff, links, keep_custom_metadata)
+        if new_service_obj.servicetype.name == OGCServiceEnum.WFS.value:
+            current_service = update_helper.update_wfs_elements(current_service, new_service_obj, diff, links, keep_custom_md)
+        elif new_service_obj.servicetype.name == OGCServiceEnum.WMS.value:
+            current_service = update_helper.update_wms_elements(current_service, new_service_obj, diff, links, keep_custom_md)
 
-        elif new_service.servicetype.name == OGCServiceEnum.WMS.value:
-            old_service = update_helper.update_wms(old_service, new_service, diff, links, keep_custom_metadata)
-
-        cap_document = Document.objects.get(related_metadata=old_service.metadata)
-        cap_document.current_capability_document = xml
+        cap_document = Document.objects.get(related_metadata=current_service.metadata)
+        cap_document.current_capability_document = new_service_capabilities_xml
         cap_document.save()
+        current_service.save()
 
-        old_service.save()
-        del request.session["keep-metadata"]
-        del request.session["update"]
-        user_helper.create_group_activity(old_service.metadata.created_by, user, SERVICE_UPDATED,
-                                          old_service.metadata.title)
-        return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(
-            old_service.metadata.id))).get_response()
-    else:
-        # otherwise
-        params = {
-            "diff": diff,
-            "old_service": old_service,
-            "new_service": new_service,
-            "page_indicator_list": [False, True],
-        }
+        user_helper.create_group_activity(
+            current_service.metadata.created_by,
+            user,
+            SERVICE_UPDATED,
+            current_service.metadata.title
+        )
+
+        params = {}
+        context = DefaultContext(request, params, user)
+        return render(request, template, context.get_context())
+
+
+    params = {
+        "current_service": current_service,
+        "update_service": new_service_obj,
+        "diff_layers": diff.get("layers", {}),
+        "diff_feature_types": diff.get("feature_types", {}),
+    }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
 

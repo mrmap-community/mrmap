@@ -1,0 +1,96 @@
+{% extends 'sceletons/card.html' %}
+{% load i18n static %}
+{% load fontawesome_5 %}
+
+
+{% block card-header-title-left %}
+    <h4 class="mb-1 mr-3">
+        {% if current_service.servicetype.name == 'wms' %}
+            {% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}
+        {% else %}
+            {% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %}
+        {% endif %} <strong>{{ current_service.metadata.title }}</strong>
+    </h4>
+{% endblock %}
+
+{% block card-body %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="column">
+            <h5>
+                <strong>{% trans 'New elements' %}</strong>
+            </h5>
+            <div class="table table-hover">
+                <table>
+                    <tbody>
+                        
+                        {% for layer in diff_layers.new %}
+                        <tr>
+                            <td>{{ layer }}</td>
+                            <td title="{% trans 'If element was just renamed, select old title.' %}">
+                                <select>
+                                    {% for removed_layer in diff_layers.removed %}
+                                        <option>
+                                            {{ layer }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td>{% trans 'None' %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="column">
+            <h5>
+                <strong>{% trans 'Updated elements' %}</strong>
+            </h5>
+            <div class="table table-hover">
+                <table>
+                    <tbody>
+                        {% for layer in diff_layers.updated %}
+                        <tr>
+                            <td>{{ layer }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td>{% trans 'None' %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="column">
+            <h5>
+                <strong>{% trans 'Removed elements' %}</strong>
+            </h5>
+            <div class="table table-hover">
+                <table>
+                    <tbody>
+                        {% for layer in diff_layers.removed %}
+                        <tr>
+                            <td>{{ layer }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td>{% trans 'None' %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

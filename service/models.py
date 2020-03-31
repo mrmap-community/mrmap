@@ -2323,7 +2323,7 @@ class ReferenceSystem(models.Model):
     version = models.CharField(max_length=50, default="9.6.1")
 
     def __str__(self):
-        return self.code
+        return str(self.code)
 
 
 class Dataset(Resource):

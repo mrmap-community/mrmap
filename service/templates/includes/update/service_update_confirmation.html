@@ -15,81 +15,91 @@
 
 {% block card-body %}
 <div class="container-fluid">
-    <div class="row">
-        <div class="column">
-            <h5>
-                <strong>{% trans 'New elements' %}</strong>
-            </h5>
-            <div class="table table-hover">
-                <table>
-                    <tbody>
-                        
-                        {% for layer in diff_layers.new %}
-                        <tr>
-                            <td>{{ layer }}</td>
-                            <td title="{% trans 'If element was just renamed, select old title.' %}">
-                                <select>
-                                    {% for removed_layer in diff_layers.removed %}
-                                        <option>
-                                            {{ layer }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td>{% trans 'None' %}</td>
-                        </tr>
+    <div class="table-responsive">
+        <h5>
+            <strong>{% trans 'New' %}</strong>
+        </h5>
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>{% trans 'Title' %}</th>
+                    <th>{% trans 'Identifier' %}</th>
+                    <th>{% trans 'Renamed from...' %}</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for layer in diff_layers.new %}
+            <tr data-id="{{ layer.metadata.id }}">
+                <td>{{ layer.metadata.title }}</td>
+                <td>{{ layer.metadata.identifier }}</td>
+                <td title="{% trans 'If element was just renamed, select old title.' %}">
+                    <select name="renamed_from">
+                        <option value="None">---</option>
+                        {% for removed_layer in diff_layers.removed %}
+                        <option value="{{ removed_layer.metadata.id }}">
+                            {{ removed_layer.metadata.identifier }} ({{ removed_layer.metadata.title }})
+                        </option>
                         {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                    </select>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td>{% trans 'None' %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </div>
-    <div class="row">
-        <div class="column">
-            <h5>
-                <strong>{% trans 'Updated elements' %}</strong>
-            </h5>
-            <div class="table table-hover">
-                <table>
-                    <tbody>
-                        {% for layer in diff_layers.updated %}
-                        <tr>
-                            <td>{{ layer }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td>{% trans 'None' %}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <div class="table-responsive">
+        <h5>
+            <strong>{% trans 'Removed' %}</strong>
+        </h5>
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>{% trans 'Title' %}</th>
+                    <th>{% trans 'Identifier' %}</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for layer in diff_layers.removed %}
+            <tr>
+                <td>{{ layer.metadata.title }}</td>
+                <td>{{ layer.metadata.identifier }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td>{% trans 'None' %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </div>
-    <div class="row">
-        <div class="column">
-            <h5>
-                <strong>{% trans 'Removed elements' %}</strong>
-            </h5>
-            <div class="table table-hover">
-                <table>
-                    <tbody>
-                        {% for layer in diff_layers.removed %}
-                        <tr>
-                            <td>{{ layer }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td>{% trans 'None' %}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <div class="table-responsive">
+        <h5>
+            <strong>{% trans 'Updated' %}</strong>
+        </h5>
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>{% trans 'Title' %}</th>
+                    <th>{% trans 'Identifier' %}</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for layer in diff_layers.updated %}
+            <tr>
+                <td>{{ layer.metadata.title }}</td>
+                <td>{{ layer.metadata.identifier }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td>{% trans 'None' %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </div>
 
 </div>

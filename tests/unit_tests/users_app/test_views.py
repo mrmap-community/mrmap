@@ -10,7 +10,7 @@ from MapSkinner.messages import PASSWORD_SENT, EMAIL_IS_UNKNOWN
 from MapSkinner.settings import ROOT_URL
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
-from structure.models import MrMapUser, UserActivation
+from structure.models import MrMapUser, UserActivation, Theme
 from tests.test_data import get_contact_data, get_password_data, get_username_data, get_email_data
 from django.utils import timezone
 from django.contrib.messages import get_messages
@@ -321,27 +321,25 @@ class AccountEditTestCase(TestCase):
         self.assertNotEqual(self.user.username, new_name, msg="Username has been changed")
 
     def test_user_profile_edit_with_logged_in_user(self):
-        raise(SkipTest("ToDo"))
-        # ToDo: Username should not be changeable, but the other values. So change the testcase.
-        new_name = get_username_data().get('valid')
         params = {
+            "first_name": "admin",
+            "last_name": "frontend",
             "email": get_email_data().get('valid'),
             "theme": "LIGHT1",
         }
 
         # case 1: User logged in -> effect!
         # assert as expected
-        response = self.client.post(
+        self.client.post(
             reverse('account-edit', ),
             data=params
         )
-        user = self.user.refresh_from_db()
-        client = self.client
+        self.user.refresh_from_db()
 
-        import pdb;
-        pdb.set_trace()
-
-        self.assertEqual(self.user.username, new_name, msg="Theme could not be changed")
+        self.assertEqual(self.user.theme, Theme.objects.get(name='LIGHT1'), msg="Theme could not be changed")
+        self.assertEqual(self.user.first_name, "admin", msg="Firstname could not be changed")
+        self.assertEqual(self.user.last_name, "frontend", msg="Firstname could not be changed")
+        self.assertEqual(self.user.email, get_email_data().get('valid'), msg="Email could not be changed")
 
     def test_error_messages_of_password_without_upper(self):
         """

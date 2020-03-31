@@ -28,7 +28,7 @@ from service import tasks
 from service.helper import xml_helper
 from service.filters import WmsFilter, WfsFilter
 from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
-    RegisterNewServiceWizardPage2, RemoveService
+    RegisterNewServiceWizardPage2, RemoveServiceForm, UpdateServiceForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
@@ -364,7 +364,7 @@ def remove(request: HttpRequest, id:int):
     """
     user = user_helper.get_user(request)
 
-    remove_form = RemoveService(request.POST)
+    remove_form = RemoveServiceForm(request.POST)
     if remove_form.is_valid():
         metadata = get_object_or_404(Metadata, id=id)
         service_type = metadata.get_service_type()
@@ -1096,10 +1096,21 @@ def detail(request: HttpRequest, id):
         mi = {mime.operation: op}
         mime_types.update(mi)
 
-    remove_service_form = RemoveService(initial={'service_id': service.id,
-                                                 'service_needs_authentication': False,
-                                                 })
+    remove_service_form = RemoveServiceForm(
+        initial={
+            'service_id': service.id,
+            'service_needs_authentication': False,
+        }
+    )
     remove_service_form.action_url = reverse('service:remove', args=[id])
+
+    update_service_form = UpdateServiceForm(
+        initial={
+            'service_id': service.id,
+            'service_needs_authentication': False,
+        }
+    )
+    update_service_form.action_url = reverse('service:update', args=[id])
 
     params.update({
         "has_dataset_metadata": has_dataset_metadata,
@@ -1107,6 +1118,7 @@ def detail(request: HttpRequest, id):
         "service": service,
         "layers": layers_md_list,
         "mime_types": mime_types,
+        "update_service_form": update_service_form,
         "remove_service_form": remove_service_form,
         "leaflet_add_bbox": True,
     })

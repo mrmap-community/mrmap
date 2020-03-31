@@ -35,11 +35,17 @@
     </div>
     <div class="col-sm mb-2 text-center">
             {% if 'can_update_service' in user_permissions %}
-                {% comment %} TODO: implement logic for this buttons {% endcomment %}
-                <button type="button" class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}" data-toggle="modal" data-target="#edit_group">
+                <button type="button" class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}" data-toggle="modal" data-target="#id_modal_update_service">
                     {% autoescape off %}{{THEME.ICONS.UPDATE}}{% endautoescape %} {% trans 'Update' %}
                 </button>
-                {% comment %} TODO: Modal necessary? {% endcomment %}
+
+                {% if 'can_update_service' in user_permissions %}
+                    {% with form=update_service_form %}
+                        {% with 'update_service' as id_modal %}
+                            {% include 'modals/update_service.html' %}
+                        {% endwith %}
+                    {% endwith %}
+                {% endif %}
             {% endif %}
     </div>
             {% if 'can_edit_metadata_service' in user_permissions %}

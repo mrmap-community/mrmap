@@ -69,6 +69,14 @@ class RegisterNewServiceWizardPage2(forms.Form):
             self.fields["authentication_type"].required = True
 
 
-class RemoveService(forms.Form):
+class RemoveServiceForm(forms.Form):
     action_url = ''
     is_confirmed = forms.BooleanField(label=_('Do you really want to remove this service?'))
+
+
+class UpdateServiceForm(forms.Form):
+    action_url = ''
+    get_capabilities_uri = forms.URLField(
+        validators=[validate_get_request_uri]
+    )
+

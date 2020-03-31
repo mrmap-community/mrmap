@@ -266,6 +266,7 @@ def _new_service_wizard_page2(request: HttpRequest):
 
 
 @login_required
+@check_permission(Permission(can_register_service=True))
 def add(request: HttpRequest):
     """ Renders wizard page configuration for service registration
 

@@ -1,4 +1,6 @@
 import logging
+
+from django.contrib.messages import get_messages
 from django.test import TestCase, Client
 from django.urls import reverse
 from MapSkinner.consts import SERVICE_ADD
@@ -54,6 +56,22 @@ class ServiceAddViewTestCase(TestCase):
         response = self.client.get(reverse('service:add'))
         self.assertEqual(response.status_code, 302, msg="No redirect was done")
         self.assertEqual(response.url, reverse('service:index'), msg="Redirect wrong")
+
+    def test_permission_denied_page1(self):
+        post_params = {
+            'page': '1',
+            'get_request_uri': get_capabilitites_url().get('valid')
+        }
+
+        # remove permission to add new services
+        perm = self.user.get_groups()[0].role.permission
+        perm.can_register_service = False
+        perm.save()
+
+        response = self.client.post(reverse('service:add'), HTTP_REFERER=reverse('service:add'), data=post_params,)
+        self.assertEqual(response.status_code, 302)
+        messages = [m.message for m in get_messages(response.wsgi_request)]
+        self.assertIn('You do not have permissions for this!', messages)
 
     def test_post_new_service_wizard_page1_valid_input(self):
         post_params={

@@ -2,10 +2,14 @@ import logging
 from django.test import TestCase, Client
 from django.urls import reverse
 from MapSkinner.consts import SERVICE_ADD
-from service.forms import RegisterNewServiceWizardPage1
+from MapSkinner.settings import ROOT_URL
+from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2
+from service.helper.enums import OGCServiceEnum
 from service.tables import WmsServiceTable, WfsServiceTable, PendingTasksTable
+from structure.models import PendingTask
 from tests.baker_recipes.db_setup import *
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
+from tests.test_data import get_capabilitites_url
 
 
 class ServiceIndexViewTestCase(TestCase):
@@ -40,14 +44,101 @@ class ServiceIndexViewTestCase(TestCase):
 
 class ServiceAddViewTestCase(TestCase):
 
-    def test_post_new_service_wizard_page1_valid_input(self):
-        # ToDo:
-        pass
+    def setUp(self):
+        self.logger = logging.getLogger('ServiceViewTestCase')
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
 
-    def test_post_new_service_wizard_page1_invalid_input(self):
-        # ToDo:
-        pass
+    def test_redirect_if_http_get(self):
+        response = self.client.get(reverse('service:add'))
+        self.assertEqual(response.status_code, 302, msg="No redirect was done")
+        self.assertEqual(response.url, reverse('service:index'), msg="Redirect wrong")
+
+    def test_post_new_service_wizard_page1_valid_input(self):
+        post_params={
+            'page': '1',
+            'get_request_uri': get_capabilitites_url().get('valid')
+        }
+
+        response = self.client.post(reverse('service:add'), data=post_params)
+
+        self.assertEqual(response.status_code, 200,)
+        self.assertIsInstance(response.context['new_service_form'], RegisterNewServiceWizardPage2)
+
+    def test_post_new_service_wizard_page1_invalid_version(self):
+        post_params = {
+            'page': '1',
+            'get_request_uri': get_capabilitites_url().get('invalid_version')
+        }
+
+        response = self.client.post(reverse('service:add'), data=post_params)
+
+        self.assertEqual(response.status_code, 200, )
+        self.assertIsInstance(response.context['new_service_form'], RegisterNewServiceWizardPage1)
+        self.assertFormError(response, 'new_service_form', 'get_request_uri', 'The given {} version {} is not supported from Mr. Map.'.format(OGCServiceEnum.WMS.value, '9.4.0'))
+
+    def test_post_new_service_wizard_page1_invalid_no_service(self):
+        post_params = {
+            'page': '1',
+            'get_request_uri': get_capabilitites_url().get('invalid_no_service')
+        }
+
+        response = self.client.post(reverse('service:add'), data=post_params)
+
+        self.assertEqual(response.status_code, 200, )
+        self.assertIsInstance(response.context['new_service_form'], RegisterNewServiceWizardPage1)
+        self.assertFormError(response, 'new_service_form', 'get_request_uri', 'The given uri is not valid cause there is no service parameter.')
+
+    def test_post_new_service_wizard_page1_invalid_no_version(self):
+        post_params = {
+            'page': '1',
+            'get_request_uri': get_capabilitites_url().get('invalid_no_version')
+        }
+
+        response = self.client.post(reverse('service:add'), data=post_params)
+
+        self.assertEqual(response.status_code, 200, )
+        self.assertIsInstance(response.context['new_service_form'], RegisterNewServiceWizardPage1)
+        self.assertFormError(response, 'new_service_form', 'get_request_uri', 'The given uri is not valid cause there is no version parameter.')
+
+    def test_post_new_service_wizard_page1_invalid_no_request(self):
+        post_params = {
+            'page': '1',
+            'get_request_uri': get_capabilitites_url().get('invalid_no_request')
+        }
+
+        response = self.client.post(reverse('service:add'), data=post_params)
+
+        self.assertEqual(response.status_code, 200, )
+        self.assertIsInstance(response.context['new_service_form'], RegisterNewServiceWizardPage1)
+        self.assertFormError(response, 'new_service_form', 'get_request_uri', 'The given uri is not valid cause there is no request parameter.')
+
+    def test_post_new_service_wizard_page1_invalid_servicetype(self):
+        post_params = {
+            'page': '1',
+            'get_request_uri': get_capabilitites_url().get('invalid_servicetype')
+        }
+
+        response = self.client.post(reverse('service:add'), data=post_params)
+
+        self.assertEqual(response.status_code, 200, )
+        self.assertIsInstance(response.context['new_service_form'], RegisterNewServiceWizardPage1)
+        self.assertFormError(response, 'new_service_form', 'get_request_uri', 'The given service typ is not supported from Mr. Map.')
 
     def test_post_new_service_wizard_page2(self):
-        # ToDo:
-        pass
+
+        post_params = {
+            'page': '2',
+            'is_form_update': 'False',
+            'ogc_request': 'GetCapabilities',
+            'ogc_service': 'wms',
+            'ogc_version': '1.3.0',
+            'uri': 'http://geo5.service24.rlp.de/wms/karte_rp.fcgi?',
+            'registering_with_group': '1',
+        }
+
+        response = self.client.post(reverse('service:add'), data=post_params)
+        self.assertEqual(response.status_code, 302, )
+        self.assertEqual(response.url, reverse('service:index'), msg="Redirect wrong")
+        self.assertEqual(PendingTask.objects.all().count(), 1)

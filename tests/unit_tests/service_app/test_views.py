@@ -4,9 +4,9 @@ from django.contrib.messages import get_messages
 from django.test import TestCase, Client
 from django.urls import reverse
 from MapSkinner.consts import SERVICE_ADD
-from MapSkinner.settings import ROOT_URL
 from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2
 from service.helper.enums import OGCServiceEnum
+from service.models import Layer, FeatureType
 from service.tables import WmsServiceTable, WfsServiceTable, PendingTasksTable
 from structure.models import PendingTask
 from tests.baker_recipes.db_setup import *
@@ -47,7 +47,7 @@ class ServiceIndexViewTestCase(TestCase):
 class ServiceAddViewTestCase(TestCase):
 
     def setUp(self):
-        self.logger = logging.getLogger('ServiceViewTestCase')
+        self.logger = logging.getLogger('ServiceAddViewTestCase')
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
@@ -160,3 +160,56 @@ class ServiceAddViewTestCase(TestCase):
         self.assertEqual(response.status_code, 302, )
         self.assertEqual(response.url, reverse('service:index'), msg="Redirect wrong")
         self.assertEqual(PendingTask.objects.all().count(), 1)
+
+
+class ServiceRemoveViewTestCase(TestCase):
+
+    def setUp(self):
+        self.logger = logging.getLogger('ServiceAddViewTestCase')
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
+        self.wms_services = create_wms_service(self.user.get_groups().first(), 1)
+        self.wfs_services = create_wfs_service(self.user.get_groups().first(), 1)
+
+    def test_remove_wms_service(self):
+        post_data = {
+            'is_confirmed': 'on'
+        }
+        metadata = self.wms_services[0]
+        response = self.client.post(reverse('service:remove', args=[self.wms_services[0].id]), data=post_data)
+        self.assertEqual(response.status_code, 302)
+
+        metadata.refresh_from_db()
+        self.assertTrue(metadata.is_deleted, msg="Metadata is not marked as deleted.")
+
+        sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
+        for sub_element in sub_elements:
+            sub_element.refresh_from_db()
+            self.assertTrue(sub_element.is_deleted, msg="Metadata of subelement is not marked as deleted.")
+
+        # ToDo: assert group activity exists
+
+    def test_remove_wfs_service(self):
+        post_data = {
+            'is_confirmed': 'on'
+        }
+        metadata = self.wfs_services[0]
+        response = self.client.post(reverse('service:remove', args=[self.wfs_services[0].id]), data=post_data)
+        self.assertEqual(response.status_code, 302)
+
+        metadata.refresh_from_db()
+        self.assertTrue(metadata.is_deleted, msg="Metadata is not marked as deleted.")
+
+        sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
+        for sub_element in sub_elements:
+            sub_element.refresh_from_db()
+            self.assertTrue(sub_element.is_deleted, msg="Metadata of subelement is not marked as deleted.")
+
+        # ToDo: assert group activity exists
+
+    def test_remove_service_invalid_form(self):
+
+        response = self.client.post(reverse('service:remove', args=[self.wms_services[0].id]),)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.context['remove_service_form'].is_valid())

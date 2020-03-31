@@ -355,28 +355,21 @@ def pending_tasks(request: HttpRequest):
 
 @login_required
 @check_permission(Permission(can_remove_service=True))
-def remove(request: HttpRequest, id:int):
+def remove(request: HttpRequest, metadata_id: int):
     """ Renders the remove form for a service
 
     Args:
         request(HttpRequest): The used request
+        metadata_id:
     Returns:
         Redirect to service:index
     """
     user = user_helper.get_user(request)
 
     remove_form = RemoveService(request.POST)
-    if remove_form.is_valid():
-        metadata = get_object_or_404(Metadata, id=id)
-        service_type = metadata.get_service_type()
-        sub_elements = None
-
-        if service_type == OGCServiceEnum.WMS.value:
-            sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
-        elif service_type == OGCServiceEnum.WFS.value:
-            sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
-
-        if remove_form.cleaned_data['is_confirmed']:
+    if request.method == 'POST':
+        if remove_form.is_valid() and request.POST.get("is_confirmed") == 'on':
+            metadata = get_object_or_404(Metadata, id=metadata_id)
             # remove service and all of the related content
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
 
@@ -384,24 +377,32 @@ def remove(request: HttpRequest, id:int):
             metadata.is_deleted = True
             metadata.save()
 
-            # TODO: we dont know this at this time; refactor this; async_remove function should add messages
-            messages.success(request, 'Service "{}" successfully deleted.'.format(metadata.title))
+            sub_elements = None
+            service_type = metadata.get_service_type()
+            if service_type == OGCServiceEnum.WMS.value:
+                sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
+            elif service_type == OGCServiceEnum.WFS.value:
+                sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
+
+            if sub_elements is not None:
+                for sub_element in sub_elements:
+                    sub_metadata = sub_element.metadata
+                    sub_metadata.is_deleted = True
+                    sub_metadata.save()
+
+            messages.success(request, 'Service "{}" marked for deletion.'.format(metadata.title))
 
             # call removing as async task
             async_remove_service_task.delay(metadata.service.id)
-
             return redirect(SERVICE_INDEX)
         else:
-            # TODO: redirect to service:detail; show modal by default with error message
             params = {
-                "service": metadata,
-                "metadata": metadata,
-                "sub_elements": sub_elements,
+                "remove_service_form": remove_form,
+                "show_modal": True,
             }
-            return redirect("service:detail", id)
+            return detail(request=request, id=metadata_id, update_params=params)
     else:
-        # TODO: redirect to service:detail; show modal by default with error message
-        return redirect("service:detail", id)
+        return redirect("service:detail", metadata_id)
 
 
 @login_required
@@ -1033,7 +1034,7 @@ def wfs_index(request: HttpRequest):
 
 
 @login_required
-def detail(request: HttpRequest, id):
+def detail(request: HttpRequest, id, update_params=None):
     """ Renders a detail view of the selected service
 
     Args:
@@ -1111,6 +1112,10 @@ def detail(request: HttpRequest, id):
         "remove_service_form": remove_service_form,
         "leaflet_add_bbox": True,
     })
+
+    if update_params:
+        params.update(update_params)
+
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 

@@ -84,3 +84,20 @@ class UpdateServiceForm(forms.Form):
         initial=True
     )
 
+
+class UpdateOldToNewElementsForm(forms.Form):
+    def __init__(self, new_elements: list, removed_elements: list, *args, **kwargs):
+        super(UpdateOldToNewElementsForm, self).__init__(*args, **kwargs)
+
+        # Prepare remove elements as choices
+        remove_elements_choices = [(-1, _("---"))]
+        for elem in removed_elements:
+            remove_elements_choices.append((elem.metadata.id, elem.metadata.identifier))
+
+        # Add new form fields dynamically
+        for elem in new_elements:
+            self.fields['new_elem_{}'.format(elem.metadata.identifier)] = forms.ChoiceField(
+                label="{} ({})".format(elem.metadata.identifier, elem.metadata.title),
+                choices=remove_elements_choices,
+                help_text=_("Select the old layer name, if this new layer was just renamed.")
+            )

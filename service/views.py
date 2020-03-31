@@ -28,7 +28,7 @@ from service import tasks
 from service.helper import xml_helper
 from service.filters import WmsFilter, WfsFilter
 from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
-    RegisterNewServiceWizardPage2, RemoveServiceForm, UpdateServiceForm
+    RegisterNewServiceWizardPage2, RemoveServiceForm, UpdateServiceForm, UpdateOldToNewElementsForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
@@ -416,15 +416,16 @@ def activate(request: HttpRequest, id: int):
     """
     user = user_helper.get_user(request)
 
+    md = Metadata.objects.get(service__id=id)
+
     # run activation async!
     tasks.async_activate_service.delay(id, user.id)
 
-    md = Metadata.objects.get(service__id=id)
-
+    # If metadata WAS active, then it will be deactivated now
     if md.is_active:
-        msg = SERVICE_ACTIVATED.format(md.title)
-    else:
         msg = SERVICE_DEACTIVATED.format(md.title)
+    else:
+        msg = SERVICE_ACTIVATED.format(md.title)
     messages.success(request, msg)
 
     return redirect("service:index")
@@ -912,12 +913,18 @@ def update_service(request: HttpRequest, id: int):
         context = DefaultContext(request, params, user)
         return render(request, template, context.get_context())
 
+    diff_elements = diff.get("layers", {})
+    update_confirmation_form = UpdateOldToNewElementsForm(
+        new_elements=diff_elements.get("new"),
+        removed_elements=diff_elements.get("removed"),
+    )
 
     params = {
         "current_service": current_service,
         "update_service": new_service_obj,
         "diff_layers": diff.get("layers", {}),
         "diff_feature_types": diff.get("feature_types", {}),
+        "update_confirmation_form": update_confirmation_form,
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())

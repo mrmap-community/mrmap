@@ -1,6 +1,7 @@
 {% extends 'sceletons/card.html' %}
 {% load i18n static %}
 {% load fontawesome_5 %}
+{% load bootstrap4 %}
 
 
 {% block card-header-title-left %}
@@ -15,92 +16,91 @@
 
 {% block card-body %}
 <div class="container-fluid">
-    <div class="table-responsive">
+    <form>
+        <div class="alert alert-info" role="alert">
+            {% trans 'You are about to update this service.' %}
+            <br>
+            {% trans 'Please read the info and help texts on this page very carefully and only proceed if you know what you are doing.' %}
+        </div>
+        <hr>
         <h5>
             <strong>{% trans 'New' %}</strong>
         </h5>
-        <table class="table table-hover">
-            <thead>
+        <div class="alert alert-warning" role="alert">
+            {% trans 'New elements could just be already known elements, but renamed.' %}
+            <br>
+            {% trans 'In this case: Select for every renamed "new" element the old one from the related list.' %}
+            <br>
+            {% trans 'If the element is really new, just leave the empty selection.' %}
+        </div>
+
+        {% bootstrap_form update_confirmation_form %}
+
+        <div class="table-responsive">
+            <h5>
+                <strong>{% trans 'Removed' %}</strong>
+            </h5>
+            <div class="alert alert-warning" role="alert">
+                {% trans 'These elements will be removed, since they do not exist in the service anymore.' %}
+                <br>
+                {% trans 'It is possible, that one of these elements was simply renamed. If so, go up to the new elements and read the help text.' %}
+            </div>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>{% trans 'Title' %}</th>
+                        <th>{% trans 'Identifier' %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for layer in diff_layers.removed %}
                 <tr>
-                    <th>{% trans 'Title' %}</th>
-                    <th>{% trans 'Identifier' %}</th>
-                    <th>{% trans 'Renamed from...' %}</th>
+                    <td>{{ layer.metadata.title }}</td>
+                    <td>{{ layer.metadata.identifier }}</td>
                 </tr>
-            </thead>
-            <tbody>
-            {% for layer in diff_layers.new %}
-            <tr data-id="{{ layer.metadata.id }}">
-                <td>{{ layer.metadata.title }}</td>
-                <td>{{ layer.metadata.identifier }}</td>
-                <td title="{% trans 'If element was just renamed, select old title.' %}">
-                    <select name="renamed_from">
-                        <option value="None">---</option>
-                        {% for removed_layer in diff_layers.removed %}
-                        <option value="{{ removed_layer.metadata.id }}">
-                            {{ removed_layer.metadata.identifier }} ({{ removed_layer.metadata.title }})
-                        </option>
-                        {% endfor %}
-                    </select>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td>{% trans 'None' %}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <div class="table-responsive">
-        <h5>
-            <strong>{% trans 'Removed' %}</strong>
-        </h5>
-        <table class="table table-hover">
-            <thead>
+                {% empty %}
                 <tr>
-                    <th>{% trans 'Title' %}</th>
-                    <th>{% trans 'Identifier' %}</th>
+                    <td>{% trans 'None' %}</td>
                 </tr>
-            </thead>
-            <tbody>
-            {% for layer in diff_layers.removed %}
-            <tr>
-                <td>{{ layer.metadata.title }}</td>
-                <td>{{ layer.metadata.identifier }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td>{% trans 'None' %}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <div class="table-responsive">
-        <h5>
-            <strong>{% trans 'Updated' %}</strong>
-        </h5>
-        <table class="table table-hover">
-            <thead>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+
+        <div class="table-responsive">
+            <h5>
+                <strong>{% trans 'Updated' %}</strong>
+            </h5>
+            <div class="alert alert-success" role="alert">
+                {% trans 'These elements still exist in the service and will be updated normally.' %}
+            </div>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>{% trans 'Title' %}</th>
+                        <th>{% trans 'Identifier' %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for layer in diff_layers.updated %}
                 <tr>
-                    <th>{% trans 'Title' %}</th>
-                    <th>{% trans 'Identifier' %}</th>
+                    <td>{{ layer.metadata.title }}</td>
+                    <td>{{ layer.metadata.identifier }}</td>
                 </tr>
-            </thead>
-            <tbody>
-            {% for layer in diff_layers.updated %}
-            <tr>
-                <td>{{ layer.metadata.title }}</td>
-                <td>{{ layer.metadata.identifier }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td>{% trans 'None' %}</td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                {% empty %}
+                <tr>
+                    <td>{% trans 'None' %}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="row"><div class="col">
+            <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">{% trans 'Continue'%}</button>
+        </div></div>
+    </form>
 
 </div>
 {% endblock %}

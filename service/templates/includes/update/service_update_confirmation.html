@@ -16,7 +16,8 @@
 
 {% block card-body %}
 <div class="container-fluid">
-    <form>
+    <form action="{{update_confirmation_form.action_url}}" method="post">
+        {% csrf_token %}
         <div class="alert alert-info" role="alert">
             {% trans 'You are about to update this service.' %}
             <br>
@@ -66,7 +67,6 @@
                 </tbody>
             </table>
         </div>
-
 
         <div class="table-responsive">
             <h5>

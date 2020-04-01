@@ -1055,7 +1055,7 @@ class Metadata(Resource):
 
 
 class MetadataType(models.Model):
-    type = models.CharField(max_length=255, blank=True, null=True)
+    type = models.CharField(max_length=255, blank=True, null=True, unique=True)
 
     def __str__(self):
         return self.type
@@ -2321,6 +2321,9 @@ class ReferenceSystem(models.Model):
     code = models.CharField(max_length=100)
     prefix = models.CharField(max_length=255, default="EPSG:")
     version = models.CharField(max_length=50, default="9.6.1")
+
+    class Meta:
+        unique_together = ("code", "prefix")
 
     def __str__(self):
         return str(self.code)

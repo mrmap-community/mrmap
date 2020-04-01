@@ -74,8 +74,9 @@ class RemoveServiceForm(forms.Form):
     is_confirmed = forms.BooleanField(label=_('Do you really want to remove this service?'))
 
 
-class UpdateServiceForm(forms.Form):
+class UpdateServiceCheckForm(forms.Form):
     action_url = ''
+    page = forms.IntegerField(widget=forms.HiddenInput(), initial=1)
     get_capabilities_uri = forms.URLField(
         validators=[validate_get_request_uri]
     )
@@ -86,8 +87,16 @@ class UpdateServiceForm(forms.Form):
 
 
 class UpdateOldToNewElementsForm(forms.Form):
-    def __init__(self, new_elements: list, removed_elements: list, *args, **kwargs):
+    action_url = ''
+    page = forms.IntegerField(widget=forms.HiddenInput(), initial=2)
+    capabilities_url = forms.CharField(widget=forms.HiddenInput())
+    keep_custom_md = forms.BooleanField(widget=forms.HiddenInput())
+
+    def __init__(self, new_elements: list, removed_elements: list, keep_custom_md: bool, get_capabilities_uri: str, *args, **kwargs):
         super(UpdateOldToNewElementsForm, self).__init__(*args, **kwargs)
+
+        self.fields["keep_custom_md"].initial = keep_custom_md
+        self.fields["capabilities_url"].initial = get_capabilities_uri
 
         # Prepare remove elements as choices
         remove_elements_choices = [(-1, _("---"))]

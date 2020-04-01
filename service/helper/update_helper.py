@@ -10,7 +10,8 @@ from copy import copy
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 
-from service.models import Service, Layer, FeatureType, Metadata
+from service.models import Service, Layer, FeatureType, Metadata, ReferenceSystem, MimeType, MetadataType
+
 
 @transaction.atomic
 def transform_lists_to_m2m_collections(element):
@@ -56,16 +57,20 @@ def transform_lists_to_m2m_collections(element):
         # keywords
         for kw in element.keywords_list:
             element.keywords.add(kw)
-        # reference systems
+
+        # Reference systems
         for srs in element.reference_system_list:
-            srs.save()
+            srs = ReferenceSystem.objects.get_or_create(code=srs.code, prefix=srs.prefix)[0]
             element.reference_system.add(srs)
 
     elif isinstance(element, Service):
         # service transforming of lists
         # formats
         for _format in element.formats_list:
-            _format.save()
+            _format = MimeType.objects.get_or_create(
+                operation=_format.operation,
+                mime_type=_format.mime_type,
+            )[0]
             element.formats.add(_format)
 
         # categories
@@ -105,6 +110,7 @@ def update_metadata(old: Metadata, new: Metadata):
     old.keywords.clear()
     for kw in new.keywords_list:
         old.keywords.add(kw)
+
     # reference systems
     old.reference_system.clear()
     for srs in new.reference_system_list:
@@ -344,42 +350,48 @@ def _update_wms_layers_recursive(old: Service, new: Service, layers: list, links
     Returns:
          old (Service): The updated existing service
     """
-    for layer in layers:
-        identifier = layer.identifier
+    for layers in layers:
         rename = False
 
-        if layer.identifier in links.keys():
-            # This layer is just a renamed one, that already exists. It must be updated and renamed!
-            identifier = links[layer.identifier]
-            rename = True
+        keys = links.keys()
+        if layers.identifier in keys:
+            # Get the id, from the layer that already exist
+            id = links[layers.identifier]
+            # If the id is not -1, the layer is not new but just needs to be renamed
+            rename = id != -1
+        else:
+            # if the layer is not new, we just want to update it
+            id = old.metadata.id
 
         # Update layer
         try:
-            existing_layer = Layer.objects.get(parent_service=old, identifier=identifier)
+            existing_layer = Layer.objects.get(metadata__id=id)
 
             if rename:
-                existing_layer.identifier = layer.identifier
+                existing_layer.identifier = layers.identifier
+                existing_layer.save()
 
-            existing_layer.save()
-            existing_layer = update_single_layer(existing_layer, layer, keep_custom_metadata)
+            existing_layer = update_single_layer(existing_layer, layers, keep_custom_metadata)
+
             # for parent-child connection we need to put the existing layer into the running variable layer
-            layer = existing_layer
+            layers = existing_layer
 
         except ObjectDoesNotExist:
-            # not existing yet -> add it!
-            layer.parent_service = old
-            layer.parent_layer = parent
-            md = layer.metadata
+            # Layer is new  -> add it!
+            layers.parent_service = old
+            layers.parent_layer = parent
+            md = layers.metadata
+            md.metadata_type = MetadataType.objects.get_or_create(type=md.metadata_type.type)[0]
             md.save()
+
             transform_lists_to_m2m_collections(md)
-            layer.metadata = md
-            layer.save()
-            layer = transform_lists_to_m2m_collections(layer)
+            layers.metadata = md
+            layers.save()
+            layers = transform_lists_to_m2m_collections(layers)
 
-
-        children = layer.children_list
+        children = layers.children_list
         if len(children) > 0:
-            _update_wms_layers_recursive(old, new, children, links, layer, keep_custom_metadata)
+            _update_wms_layers_recursive(old, new, children, links, layers, keep_custom_metadata)
 
 @transaction.atomic
 def update_wms_elements(old: Service, new: Service, diff: dict, links: dict, keep_custom_metadata: bool = False):
@@ -396,7 +408,7 @@ def update_wms_elements(old: Service, new: Service, diff: dict, links: dict, kee
     Returns:
          old (Service): The updated existing service
     """
-    _update_wms_layers_recursive(old, new, [new.root_layer], links=links, keep_custom_metadata=keep_custom_metadata)
+    _update_wms_layers_recursive(old, new, [old.root_layer], links=links, keep_custom_metadata=keep_custom_metadata)
     # remove unused layers
     for layer in diff["layers"]["removed"]:
         # find persisted layer at first

@@ -17,9 +17,7 @@ urlpatterns = [
     path('metadata/<int:id>/operation', get_operation_result, name='metadata-proxy-operation'),
     path('metadata/<int:id>/legend/<int:style_id>', get_metadata_legend, name='metadata-proxy-legend'),
 
-    #path('update/register-form/<id>', update_service_form, name='register-form'),
     path('update/<id>', update_service, name='update'),
-    #path('update/discard/', discard_update, name='update-discard'),
 
     path('remove/<id>', remove, name='remove'),
     path('add/', add, name='add'),

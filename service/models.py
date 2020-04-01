@@ -399,7 +399,6 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
-
     def clear_cached_documents(self):
         """ Sets the content of all possibly auto-generated documents to None
 
@@ -457,7 +456,6 @@ class Metadata(Resource):
                 cacher.set(str(self.id), doc)
 
         return doc
-
 
     def get_current_capability_xml(self, version_param: str):
         """ Getter for the capability xml of the current status of this metadata object.
@@ -1787,6 +1785,7 @@ class Document(Resource):
 
         self.current_capability_document = xml_helper.xml_to_string(cap_doc_curr_obj)
         self.save()
+
 
 class TermsOfUse(Resource):
     name = models.CharField(max_length=100)

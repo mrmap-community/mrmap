@@ -928,21 +928,14 @@ def update_service(request: HttpRequest, id: int):
         comparator = ServiceComparator(service_a=new_service_obj, service_b=current_service)
         diff = comparator.compare_services()
 
-        if not keep_custom_md:
-            # Just overwrite existing metadata, like custom keyword, and so on
-            # First update the metadata of the whole service
-            md = update_helper.update_metadata(current_service.metadata, new_service_obj.metadata)
-            current_service.metadata = md
+        # UPDATE
+        # First update the metadata of the whole service
+        md = update_helper.update_metadata(current_service.metadata, new_service_obj.metadata, keep_custom_md)
+        md.save()
+        current_service.metadata = md
 
-            # don't forget the timestamp
-            current_service.metadata.last_modified = timezone.now()
-
-            # save the metadata changes
-            current_service.metadata.save()
-
-        # secondly update the service itself, overwrite the metadata with the previously updated metadata
+        # Then update the service object
         current_service = update_helper.update_service(current_service, new_service_obj)
-        current_service.last_modified = timezone.now()
 
         #if new_service_obj.servicetype.name == OGCServiceEnum.WFS.value:
         #    current_service = update_helper.update_wfs_elements(
@@ -961,9 +954,8 @@ def update_service(request: HttpRequest, id: int):
         #        keep_custom_md
         #    )
 
-        cap_document = Document.objects.get(related_metadata=current_service.metadata)
-        cap_document.current_capability_document = new_service_capabilities_xml
-        cap_document.save()
+        update_helper.update_capability_document(current_service, new_service_capabilities_xml)
+
         current_service.save()
         user_helper.create_group_activity(
             current_service.metadata.created_by,

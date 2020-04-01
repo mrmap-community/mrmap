@@ -9,8 +9,10 @@ from copy import copy
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+from django.utils import timezone
 
-from service.models import Service, Layer, FeatureType, Metadata, ReferenceSystem, MimeType, MetadataType
+from editor.forms import MetadataEditorForm
+from service.models import Service, Layer, FeatureType, Metadata, ReferenceSystem, MimeType, MetadataType, Document
 
 
 @transaction.atomic
@@ -82,7 +84,7 @@ def transform_lists_to_m2m_collections(element):
     return element
 
 @transaction.atomic
-def update_metadata(old: Metadata, new: Metadata):
+def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
     """ Overwrites existing metadata (old) with newer content (new).
 
     Database related information like id, created_by, and so on is saved before and written back after overwriting.
@@ -93,30 +95,54 @@ def update_metadata(old: Metadata, new: Metadata):
     Returns:
          old (Metadata): The overwritten metadata
     """
-    # save important persistance information
-    uuid = old.uuid
-    _id = old.id
-    created_by = old.created_by
-    created_on = old.created
 
-    # overwrite old information with new one
-    old = copy(new)
-    old.id = _id
-    old.uuid = uuid
-    old.created = created_on
-    old.created_by = created_by
+    if not keep_custom_md:
+        # Save important persistance information
+        uuid = old.uuid
+        _id = old.id
+        created_by = old.created_by
+        created_on = old.created
+        activated = old.is_active
 
-    # keywords
-    old.keywords.clear()
-    for kw in new.keywords_list:
-        old.keywords.add(kw)
+        # Overwrite old information with new one
+        old = copy(new)
+        old.id = _id
+        old.uuid = uuid
+        old.created = created_on
+        old.created_by = created_by
+        old.is_active = activated
 
-    # reference systems
-    old.reference_system.clear()
-    for srs in new.reference_system_list:
-        old.reference_system.add(srs)
+        # Keywords
+        old.keywords.clear()
+        for kw in new.keywords_list:
+            old.keywords.add(kw)
 
+        # reference systems
+        old.reference_system.clear()
+        for srs in new.reference_system_list:
+            old.reference_system.add(srs)
+
+    old.last_modified = timezone.now()
     return old
+
+
+def update_capability_document(current_service: Service, new_capabilities: str):
+    """ Updates the Document object, related to the service/metadata
+
+    Args:
+        current_service (Service):
+        new_capabilities (str):
+    Returns:
+         nothing
+    """
+    cap_document = Document.objects.get(related_metadata=current_service.metadata)
+    cap_document.original_capability_document = new_capabilities
+
+    # By deleting the current_capability_document, the system is forced to create a current capability document from the
+    # state at this time
+    cap_document.current_capability_document = None
+    cap_document.save()
+
 
 @transaction.atomic
 def update_service(old: Service, new: Service):
@@ -137,6 +163,7 @@ def update_service(old: Service, new: Service):
     created_on = old.created
     published_for = old.published_for
     md = old.metadata  # metadata is expected to be updated already at this point. Therefore we need to keep it!
+    activated = old.is_active
 
     # overwrite old information with new one
     old = copy(new)
@@ -146,6 +173,7 @@ def update_service(old: Service, new: Service):
     old.created_by = created_by
     old.published_for = published_for
     old.metadata = md
+    old.is_active = activated
 
     # formats
     old.formats.clear()
@@ -157,6 +185,7 @@ def update_service(old: Service, new: Service):
     for category in new.categories_list:
         old.categories.add(category)
 
+    old.last_modified = timezone.now()
     return old
 
 @transaction.atomic

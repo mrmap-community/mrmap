@@ -82,7 +82,8 @@ class UpdateServiceCheckForm(forms.Form):
     )
     keep_custom_md = forms.BooleanField(
         label=_("Keep custom metadata"),
-        initial=True
+        initial=True,
+        required=False
     )
 
 

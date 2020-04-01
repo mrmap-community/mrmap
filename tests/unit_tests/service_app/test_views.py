@@ -4,6 +4,7 @@ from django.contrib.messages import get_messages
 from django.test import TestCase, Client
 from django.urls import reverse
 from MapSkinner.consts import SERVICE_ADD
+from MapSkinner.messages import SERVICE_ACTIVATED
 from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2
 from service.helper.enums import OGCServiceEnum
 from service.models import Layer, FeatureType
@@ -169,15 +170,15 @@ class ServiceRemoveViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        self.wms_services = create_wms_service(self.user.get_groups().first(), 1)
-        self.wfs_services = create_wfs_service(self.user.get_groups().first(), 1)
+        self.wms_service_metadatas = create_wms_service(self.user.get_groups().first(), 1)
+        self.wfs_service_metadatas = create_wfs_service(self.user.get_groups().first(), 1)
 
     def test_remove_wms_service(self):
         post_data = {
             'is_confirmed': 'on'
         }
-        metadata = self.wms_services[0]
-        response = self.client.post(reverse('service:remove', args=[self.wms_services[0].id]), data=post_data)
+        metadata = self.wms_service_metadatas[0]
+        response = self.client.post(reverse('service:remove', args=[metadata.id]), data=post_data)
         self.assertEqual(response.status_code, 302)
 
         metadata.refresh_from_db()
@@ -194,8 +195,8 @@ class ServiceRemoveViewTestCase(TestCase):
         post_data = {
             'is_confirmed': 'on'
         }
-        metadata = self.wfs_services[0]
-        response = self.client.post(reverse('service:remove', args=[self.wfs_services[0].id]), data=post_data)
+        metadata = self.wfs_service_metadatas[0]
+        response = self.client.post(reverse('service:remove', args=[self.wfs_service_metadatas[0].id]), data=post_data)
         self.assertEqual(response.status_code, 302)
 
         metadata.refresh_from_db()
@@ -210,7 +211,7 @@ class ServiceRemoveViewTestCase(TestCase):
 
     def test_remove_service_invalid_form(self):
 
-        response = self.client.post(reverse('service:remove', args=[self.wms_services[0].id]),)
+        response = self.client.post(reverse('service:remove', args=[self.wms_service_metadatas[0].id]),)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context['remove_service_form'].is_valid())
 
@@ -222,8 +223,40 @@ class ServiceRemoveViewTestCase(TestCase):
         perm.save()
 
         response = self.client.post(reverse('service:remove',
-                                    args=[self.wms_services[0].id]),
-                                    HTTP_REFERER=reverse('service:remove', args=[self.wms_services[0].id]),)
+                                    args=[self.wms_service_metadatas[0].id]),
+                                    HTTP_REFERER=reverse('service:remove', args=[self.wms_service_metadatas[0].id]),)
+        self.assertEqual(response.status_code, 302)
+        messages = [m.message for m in get_messages(response.wsgi_request)]
+        self.assertIn('You do not have permissions for this!', messages)
+
+
+class ServiceActivateViewTestCase(TestCase):
+
+    def setUp(self):
+        self.logger = logging.getLogger('ServiceAddViewTestCase')
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
+        self.wms_service_metadatas = create_wms_service(self.user.get_groups().first(), 1)
+
+    def test_activate_service(self):
+
+        service = self.wms_service_metadatas[0].service
+        response = self.client.post(reverse('service:activate', args=[service.id]),)
+        self.assertEqual(response.status_code, 302)
+        messages = [m.message for m in get_messages(response.wsgi_request)]
+        self.assertIn(SERVICE_ACTIVATED.format(self.wms_service_metadatas[0].title), messages)
+
+    def test_permission_denied_activate_service(self):
+        # remove permission to remove services
+        perm = self.user.get_groups()[0].role.permission
+        perm.can_activate_service = False
+        perm.save()
+
+        service = self.wms_service_metadatas[0].service
+        response = self.client.post(reverse('service:activate',
+                                            args=[service.id]),
+                                    HTTP_REFERER=reverse('service:activate', args=[service.id]), )
         self.assertEqual(response.status_code, 302)
         messages = [m.message for m in get_messages(response.wsgi_request)]
         self.assertIn('You do not have permissions for this!', messages)

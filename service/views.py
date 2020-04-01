@@ -405,7 +405,7 @@ def remove(request: HttpRequest, metadata_id: int):
 
 @login_required
 @check_permission(Permission(can_activate_service=True))
-def activate(request: HttpRequest, id: int):
+def activate(request: HttpRequest, service_id: int):
     """ (De-)Activates a service and all of its layers
 
     Args:
@@ -417,9 +417,9 @@ def activate(request: HttpRequest, id: int):
     user = user_helper.get_user(request)
 
     # run activation async!
-    tasks.async_activate_service.delay(id, user.id)
+    tasks.async_activate_service.delay(service_id, user.id)
 
-    md = Metadata.objects.get(service__id=id)
+    md = Metadata.objects.get(service__id=service_id)
 
     if md.is_active:
         msg = SERVICE_ACTIVATED.format(md.title)

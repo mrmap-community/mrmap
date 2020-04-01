@@ -314,6 +314,10 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
     """
     def __init__(self, metadata: Metadata, force_version: str = None):
         super().__init__(metadata=metadata, force_version=force_version)
+        self.root_layer = Layer.objects.get(
+            parent_service=self.service,
+            parent_layer=None
+        )
 
     def _generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
@@ -358,29 +362,29 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
             nothing
         """
         md = self.metadata
-        parent_md = md.service.parent_service.metadata
+        service_md = self.service.metadata
 
         # Create generic xml starter elements
         contents = OrderedDict({
-            "{}Name": parent_md.identifier,
-            "{}Title": parent_md.title,
-            "{}Abstract": parent_md.abstract,
+            "{}Name": service_md.identifier,
+            "{}Title": service_md.title,
+            "{}Abstract": service_md.abstract,
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
 
         # KeywordList and keywords
-        self._generate_keyword_xml(service_elem, parent_md)
+        self._generate_keyword_xml(service_elem, service_md)
 
         # OnlineResource
-        self._generate_online_resource_xml(service_elem, parent_md)
+        self._generate_online_resource_xml(service_elem, service_md)
 
         # Fill in the data for <ContactInformation>
         self._generate_service_contact_information_xml(service_elem)
 
         # Create generic xml end elements
         contents = OrderedDict({
-            "{}Fees": parent_md.fees,
-            "{}AccessConstraints": parent_md.access_constraints,
+            "{}Fees": service_md.fees,
+            "{}AccessConstraints": service_md.access_constraints,
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
 
@@ -511,7 +515,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
 
         self._generate_capability_exception_xml(capability_elem)
 
-        self._generate_capability_layer_xml(capability_elem, md)
+        self._generate_capability_layer_xml(capability_elem, self.root_layer.metadata)
 
         self._generate_vendor_specific_capabilities_xml(capability_elem, self.inspire_vs_ns)
 
@@ -523,13 +527,12 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-
         # Since this is not a very important information, we do not parse the Exception information during registration.
         # Therefore we do a little hack: Just copy the element from the `original_capability_document` of the related
         # metadata document object.
         try:
             original_doc = Document.objects.get(
-                related_metadata=self.metadata.service.parent_service.metadata,
+                related_metadata=self.service.metadata,
             ).original_capability_document
         except ObjectDoesNotExist as e:
             return
@@ -1216,29 +1219,29 @@ class CapabilityWMS130Builder(CapabilityWMSBuilder):
             nothing
         """
         md = self.metadata
-        parent_md = md.service.parent_service.metadata
+        service_md = self.service.metadata
 
         #Create start of <Service> elements
         contents = OrderedDict({
-            "{}Name": parent_md.identifier,
-            "{}Title": parent_md.title,
-            "{}Abstract": parent_md.abstract,
+            "{}Name": service_md.identifier,
+            "{}Title": service_md.title,
+            "{}Abstract": service_md.abstract,
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
 
         # Add keywords to <wms:KeywordList>
-        self._generate_keyword_xml(service_elem, parent_md)
+        self._generate_keyword_xml(service_elem, service_md)
 
         # OnlineResource
-        self._generate_online_resource_xml(service_elem, parent_md)
+        self._generate_online_resource_xml(service_elem, service_md)
 
         # Fill in the data for <ContactInformation>
         self._generate_service_contact_information_xml(service_elem)
 
         # Create end of <Service> elements
         contents = OrderedDict({
-            "{}Fees": parent_md.fees,
-            "{}AccessConstraints": parent_md.access_constraints,
+            "{}Fees": service_md.fees,
+            "{}AccessConstraints": service_md.access_constraints,
             "{}MaxWidth": "",  # ToDo: Implement md.service.max_width in registration
             "{}MaxHeight": "",  # ToDo: Implement md.service.max_height in registration
         })

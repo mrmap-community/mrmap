@@ -213,3 +213,17 @@ class ServiceRemoveViewTestCase(TestCase):
         response = self.client.post(reverse('service:remove', args=[self.wms_services[0].id]),)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context['remove_service_form'].is_valid())
+
+    def test_permission_denied_remove(self):
+
+        # remove permission to remove services
+        perm = self.user.get_groups()[0].role.permission
+        perm.can_remove_service = False
+        perm.save()
+
+        response = self.client.post(reverse('service:remove',
+                                    args=[self.wms_services[0].id]),
+                                    HTTP_REFERER=reverse('service:remove', args=[self.wms_services[0].id]),)
+        self.assertEqual(response.status_code, 302)
+        messages = [m.message for m in get_messages(response.wsgi_request)]
+        self.assertIn('You do not have permissions for this!', messages)

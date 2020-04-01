@@ -8,7 +8,7 @@ from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizar
 from service.helper.enums import OGCServiceEnum
 from service.models import Layer, FeatureType
 from service.tables import WmsServiceTable, WfsServiceTable, PendingTasksTable
-from structure.models import PendingTask
+from structure.models import PendingTask, GroupActivity
 from tests.baker_recipes.db_setup import *
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 from tests.test_data import get_capabilitites_url
@@ -185,10 +185,10 @@ class ServiceRemoveViewTestCase(TestCase):
 
         sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
         for sub_element in sub_elements:
-            sub_element.refresh_from_db()
-            self.assertTrue(sub_element.is_deleted, msg="Metadata of subelement is not marked as deleted.")
+            sub_metadata = sub_element.metadata
+            self.assertTrue(sub_metadata.is_deleted, msg="Metadata of subelement is not marked as deleted.")
 
-        # ToDo: assert group activity exists
+        self.assertEqual(GroupActivity.objects.all().count(), 1)
 
     def test_remove_wfs_service(self):
         post_data = {
@@ -203,10 +203,10 @@ class ServiceRemoveViewTestCase(TestCase):
 
         sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
         for sub_element in sub_elements:
-            sub_element.refresh_from_db()
-            self.assertTrue(sub_element.is_deleted, msg="Metadata of subelement is not marked as deleted.")
+            sub_metadata = sub_element.metadata
+            self.assertTrue(sub_metadata.is_deleted, msg="Metadata of subelement is not marked as deleted.")
 
-        # ToDo: assert group activity exists
+        self.assertEqual(GroupActivity.objects.all().count(), 1)
 
     def test_remove_service_invalid_form(self):
 

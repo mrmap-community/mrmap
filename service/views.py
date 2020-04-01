@@ -377,18 +377,16 @@ def remove(request: HttpRequest, metadata_id: int):
             metadata.is_deleted = True
             metadata.save()
 
-            sub_elements = None
             service_type = metadata.get_service_type()
             if service_type == OGCServiceEnum.WMS.value:
                 sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
             elif service_type == OGCServiceEnum.WFS.value:
                 sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
 
-            if sub_elements is not None:
-                for sub_element in sub_elements:
-                    sub_metadata = sub_element.metadata
-                    sub_metadata.is_deleted = True
-                    sub_metadata.save()
+            for sub_element in sub_elements:
+                sub_metadata = sub_element.metadata
+                sub_metadata.is_deleted = True
+                sub_metadata.save()
 
             messages.success(request, 'Service "{}" marked for deletion.'.format(metadata.title))
 

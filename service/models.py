@@ -1889,7 +1889,6 @@ class Service(Resource):
     def __str__(self):
         return str(self.id)
 
-
     def get_supported_formats(self):
         """ Returns a list of supported formats.
 
@@ -2066,7 +2065,6 @@ class Service(Resource):
             for f_t in feature_types:
                 self.delete_child_data(f_t)
 
-        #
         self.metadata.delete()
         super().delete()
 
@@ -2166,6 +2164,20 @@ class Layer(Service):
 
     def __str__(self):
         return str(self.identifier)
+
+    def delete(self, using=None, keep_parents=False):
+        """ Deletes layer and all of it's children
+
+        Args:
+            using:
+            keep_parents:
+        Returns:
+
+        """
+        children = self.get_children()
+        for child in children:
+            child.delete(using, keep_parents)
+        super().delete(using, keep_parents)
 
     def get_inherited_reference_systems(self):
         ref_systems = []

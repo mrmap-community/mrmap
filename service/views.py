@@ -861,17 +861,17 @@ def update_service(request: HttpRequest, id: int):
 
         # Create db model from new service information (no persisting, yet)
         registrating_group = current_service.created_by
-        new_service_obj = service_helper.get_service_model_instance(
+        new_service = service_helper.get_service_model_instance(
             service_type=url_dict.get("service"),
             version=service_helper.resolve_version_enum(url_dict.get("version")),
             base_uri=url_dict.get("base_uri"),
             user=user,
             register_group=registrating_group
         )
-        new_service_obj = new_service_obj["service"]
+        new_service = new_service["service"]
 
         # Collect differences
-        comparator = ServiceComparator(service_a=new_service_obj, service_b=current_service)
+        comparator = ServiceComparator(service_a=new_service, service_b=current_service)
         diff = comparator.compare_services()
 
         diff_elements = diff.get("layers", {})
@@ -885,7 +885,7 @@ def update_service(request: HttpRequest, id: int):
 
         params = {
             "current_service": current_service,
-            "update_service": new_service_obj,
+            "update_service": new_service,
             "diff_layers": diff.get("layers", {}),
             "diff_feature_types": diff.get("feature_types", {}),
             "update_confirmation_form": update_confirmation_form,
@@ -914,45 +914,46 @@ def update_service(request: HttpRequest, id: int):
 
         # Create db model from new service information (no persisting, yet)
         registrating_group = current_service.created_by
-        new_service_obj = service_helper.get_service_model_instance(
+        new_service = service_helper.get_service_model_instance(
             service_type=url_dict.get("service"),
             version=service_helper.resolve_version_enum(url_dict.get("version")),
             base_uri=url_dict.get("base_uri"),
             user=user,
             register_group=registrating_group
         )
-        new_service_capabilities_xml = new_service_obj["raw_data"].service_capabilities_xml
-        new_service_obj = new_service_obj["service"]
+        new_service_capabilities_xml = new_service["raw_data"].service_capabilities_xml
+        new_service = new_service["service"]
 
         # Collect differences
-        comparator = ServiceComparator(service_a=new_service_obj, service_b=current_service)
+        comparator = ServiceComparator(service_a=new_service, service_b=current_service)
         diff = comparator.compare_services()
 
         # UPDATE
         # First update the metadata of the whole service
-        md = update_helper.update_metadata(current_service.metadata, new_service_obj.metadata, keep_custom_md)
+        md = update_helper.update_metadata(current_service.metadata, new_service.metadata, keep_custom_md)
         md.save()
         current_service.metadata = md
 
         # Then update the service object
-        current_service = update_helper.update_service(current_service, new_service_obj)
+        current_service = update_helper.update_service(current_service, new_service)
 
-        #if new_service_obj.servicetype.name == OGCServiceEnum.WFS.value:
-        #    current_service = update_helper.update_wfs_elements(
-        #        current_service,
-        #        new_service_obj,
-        #        diff,
-        #        links,
-        #        keep_custom_md
-        #    )
-        #elif new_service_obj.servicetype.name == OGCServiceEnum.WMS.value:
-        #    current_service = update_helper.update_wms_elements(
-        #        current_service,
-        #        new_service_obj,
-        #        diff,
-        #        links,
-        #        keep_custom_md
-        #    )
+        # Update the subelements
+        if new_service.servicetype.name == OGCServiceEnum.WFS.value:
+            current_service = update_helper.update_wfs_elements(
+                current_service,
+                new_service,
+                diff,
+                links,
+                keep_custom_md
+            )
+        elif new_service.servicetype.name == OGCServiceEnum.WMS.value:
+            current_service = update_helper.update_wms_elements(
+                current_service,
+                new_service,
+                diff,
+                links,
+                keep_custom_md
+            )
 
         update_helper.update_capability_document(current_service, new_service_capabilities_xml)
 

@@ -1,0 +1,213 @@
+# install(script) nginx + uwsgi + django + mapskinner/mrmap:
+#!/bin/bash
+mrmap_db_user=mrmap_db_user
+mrmap_db_pw=mrmap_db_pw
+
+apt-get install -y nginx postgresql postgresql-client postgis redis-server libcurl4-openssl-dev libssl-dev virtualenv build-essential git python3-pip
+
+# make python3 default
+update-alternatives --install /usr/bin/python python /usr/bin/python3.7 1
+
+#db
+su - postgres -c "psql -c \"CREATE USER $mrmap_db_user WITH ENCRYPTED PASSWORD '$mrmap_db_pw';\""
+su - postgres -c "psql -c 'CREATE DATABASE \"MrMap\" OWNER $mrmap_db_user;'"
+
+# temporarily set postgres to trust, needed to create postgis
+if  ! grep -q "host    mrmap           postgres   127.0.0.1/32            trust"  /etc/postgresql/11/main/pg_hba.conf ;then
+	echo "host    mrmap           postgres   127.0.0.1/32            trust" >> /etc/postgresql/11/main/pg_hba.conf
+fi
+
+# mapskinner setup, has to be done as postgres because of postgis extension
+
+git clone https://git.osgeo.org/gitea/GDI-RP/MapSkinner /opt/
+python -m pip install uwsgi
+python -m pip install -r /opt/MapSkinner/requirements.txt
+python /opt/MapSkinner/manage.py makemigrations service
+python /opt/MapSkinner/manage.py makemigrations structure
+python /opt/MapSkinner/manage.py migrate
+python /opt/MapSkinner/manage.py collectstatic
+
+# set Django debug to false
+sed -i s/"DEBUG = True"/"DEBUG = False"/g /opt/MapSkinner/MapSkinner/settings.py
+
+# remove postgres trust
+if  grep -q "host    mrmap           postgres   127.0.0.1/32            trust"  /etc/postgresql/11/main/pg_hba.conf ;then
+	sed -i '/host    mrmap           postgres   127.0.0.1\/32            trust/d' /etc/postgresql/11/main/pg_hba.conf
+fi
+
+# add rights for dedicated user
+if  ! grep -q "host    mrmap           $mrmap_db_user   127.0.0.1/32            md5"  /etc/postgresql/11/main/pg_hba.conf ;then
+	echo "host    mrmap           $mrmap_db_user   127.0.0.1/32            md5" >> /etc/postgresql/11/main/pg_hba.conf
+fi
+
+# change settings.py to dedicated user
+sed -i s/"        'USER': 'postgres',"/"        'USER': '$mrmap_db_user',"/g /opt/MapSkinner/MapSkinner/settings.py
+
+if  ! grep -q "        'PASSWORD': '$mrmap_db_pw',"  /opt/MapSkinner/MapSkinner/settings.py ;then
+	sed -i "/        'USER': '$mrmap_db_user',/a \        \'PASSWORD': '$mrmap_db_pw'," /opt/MapSkinner/MapSkinner/settings.py
+fi
+
+# create nginx config
+cat <<EOF > /etc/nginx/sites-available/mrmap
+upstream django {
+    
+    server 127.0.0.1:8000;
+}
+
+# configuration of the server
+server {
+    listen      80;
+    server_name 127.0.0.1; # substitute your machine's IP address or FQDN
+    charset     utf-8;
+
+    # max upload size
+    client_max_body_size 75M;   # adjust to taste
+
+
+    location /static {
+        alias /opt/MapSkinner/static; # your Django project's static files - amend as required
+    }
+
+    # Finally, send all non-media requests to the Django server.
+    location / {
+        uwsgi_pass  django;
+        include     /etc/nginx/uwsgi_params; # the uwsgi_params file you installed
+    }
+}
+EOF
+
+ln -s /etc/nginx/sites-available/mrmap /etc/nginx/sites-enabled/
+rm /etc/nginx/sites-enabled/default
+
+cat <<EOF > /opt/MapSkinner/MapSkinner/mrmap_uwsgi.ini 
+[uwsgi]
+
+# Django-related settings
+# the base directory (full path)
+chdir           = /opt/MapSkinner
+# Django's wsgi file
+wsgi-file       = MapSkinner/wsgi.py
+# run as webserver user
+uid=www-data
+gid=www-data
+# process-related settings
+# master
+master          = true
+# maximum number of worker processes
+processes       = 10
+# the socket (use the full path to be safe
+socket          = 127.0.0.1:8000
+# ... with appropriate permissions - may be needed
+# chmod-socket    = 664
+# clear environment on exit
+vacuum          = true
+EOF
+
+cat <<EOF >  /tmp/change_database_rights.psql
+DO \$\$DECLARE r record;
+DECLARE
+    v_schema varchar := 'public';
+    v_new_owner varchar := '$mrmap_db_user';
+BEGIN
+    FOR r IN 
+        select 'ALTER TABLE "' || table_schema || '"."' || table_name || '" OWNER TO ' || v_new_owner || ';' as a from information_schema.tables where table_schema = v_schema
+        union all
+        select 'ALTER TABLE "' || sequence_schema || '"."' || sequence_name || '" OWNER TO ' || v_new_owner || ';' as a from information_schema.sequences where sequence_schema = v_schema
+        union all
+        select 'ALTER TABLE "' || table_schema || '"."' || table_name || '" OWNER TO ' || v_new_owner || ';' as a from information_schema.views where table_schema = v_schema
+        union all
+        select 'ALTER FUNCTION "'||nsp.nspname||'"."'||p.proname||'"('||pg_get_function_identity_arguments(p.oid)||') OWNER TO ' || v_new_owner || ';' as a from pg_proc p join pg_namespace nsp ON p.pronamespace = nsp.oid where nsp.nspname = v_schema
+        union all
+        select 'ALTER SCHEMA "' || v_schema || '" OWNER TO ' || v_new_owner 
+        union all
+        select 'ALTER DATABASE "' || current_database() || '" OWNER TO ' || v_new_owner 
+    LOOP
+        EXECUTE r.a;
+    END LOOP;
+END\$\$;
+
+GRANT ALL PRIVILEGES ON DATABASE "MrMap" TO $mrmap_db_user;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO $mrmap_db_user;
+
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO $mrmap_db_user;
+
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $mrmap_db_user;
+EOF
+
+su - postgres -c "psql -d 'MrMap' -f /tmp/change_database_rights.psql"
+
+
+############################################### test #################################################
+# uwsgi --ini /opt/MapSkinner/MapSkinner/mrmap_uwsgi.ini
+############################################### test #################################################
+
+cat <<EOF > /etc/systemd/system/uwsgi.service
+[Unit]
+Description=uwsgi service for mrmap
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/uwsgi --ini /opt/MapSkinner/MapSkinner/mrmap_uwsgi.ini
+Restart=on-failure
+ExecStop=/usr/bin/pkill -f uwsgi -9
+ExecReload=/usr/bin/pkill -f uwsgi -9;/usr/local/bin/uwsgi --ini /opt/MapSkinner/MapSkinner/mrmap_uwsgi.ini
+
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl start uwsgi
+#systemctl stop uwsgi
+#systemctl restart uwsgi
+
+################################################ test ###################################################
+# celery -A MapSkinner worker -l info --workdir /opt/MapSkinner/
+################################################ test ###################################################
+
+mkdir /var/log/celery/
+mkdir /var/run/celery/
+chown www-data:www-data /var/log/celery/
+chown www-data:www-data /var/run/celery/
+
+
+cat <<EOF > /etc/systemd/system/uwsgi.service
+[Unit]
+Description=Celery Service
+After=network.target
+
+[Service]
+Type=forking
+User=www-data
+Group=www-data
+ExecStart=/usr/local/bin/celery -A MapSkinner multi start worker -l warning --logfile=/var/log/celery/%n.log \
+  --workdir="/opt/MapSkinner/" --pidfile="/var/run/celery/%n.pid"
+ExecStop=/usr/local/bin/celery -A MapSkinner multi stopwait worker -l warning --logfile=/var/log/celery/%n.log \
+  --workdir="/opt/MapSkinner/" --pidfile="/var/run/celery/%n.pid"
+ExecReload=/usr/local/bin/celery -A MapSkinner multi restart worker -l warning --logfile=/var/log/celery/%n.log \
+  --workdir="/opt/MapSkinner/" --pidfile="/var/run/celery/%n.pid"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl start celery
+#systemctl stop celery
+#systemctl restart celery
+#systemctl status celery
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -124,6 +124,7 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
     created_on = old.created
     activated = old.is_active
     metadata_type = old.metadata_type
+    metadata_is_custom = old.is_custom
 
     # If needed, cache custom metadata
     custom_md = {}
@@ -153,6 +154,7 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
 
     # Restore custom metadata if needed
     if keep_custom_md:
+        old.is_custom = metadata_is_custom
         for key, val in custom_md.items():
             # ManyRelatedManagers have to be handled differently
             try:
@@ -243,6 +245,7 @@ def update_feature_type(old: FeatureType, new: FeatureType, keep_custom_metadata
     title = old.title
     abstract = old.abstract
     service = old.parent_service
+
     custom_md = old.is_custom
 
     # overwrite old information with new one

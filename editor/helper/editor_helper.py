@@ -15,12 +15,13 @@ from django.http import HttpRequest
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
+from MapSkinner.cacher import DocumentCacher
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK, SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, \
     SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
 
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, MetadataEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
     MetadataOrigin, SecuredOperation, RequestOperation, Layer, Style
@@ -42,6 +43,7 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
     ns_prefix = ""
     keyword_container_tag = "KeywordList"
     keyword_prefix = ""
+    keyword_ns_map = {}
 
     if _type == 'wfs':
         ns_keyword_prefix_s = "ows"
@@ -51,13 +53,15 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
             ns_prefix = "ows:"
         keyword_container_tag = "Keywords"
         keyword_prefix = "{" + XML_NAMESPACES[ns_keyword_prefix_s] + "}"
+        keyword_ns_map[ns_keyword_prefix_s] = XML_NAMESPACES[ns_keyword_prefix_s]
 
     xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format(keyword_container_tag), xml_obj)
+
     if xml_keywords_list_obj is None:
         # there are no keywords in this capabilities for this element yet
         # we need to add an element first!
         try:
-            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Abstract".format(ns_prefix))
+            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Abstract".format(ns_prefix), nsmap=keyword_ns_map)
         except TypeError as e:
             # there seems to be no <Abstract> element. We add simply after <Title> and also create a new Abstract element
             xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Title".format(ns_prefix))
@@ -78,7 +82,7 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
 
     # then add all edited
     for kw in metadata.keywords.all():
-        xml_keyword = xml_helper.create_subelement(xml_keywords_list_obj, "{}Keyword".format(keyword_prefix))
+        xml_keyword = xml_helper.create_subelement(xml_keywords_list_obj, "{}Keyword".format(keyword_prefix), nsmap=keyword_ns_map)
         xml_helper.write_text_to_element(xml_keyword, txt=kw.keyword)
 
 
@@ -116,9 +120,9 @@ def overwrite_capabilities_document(metadata: Metadata):
     is_root = metadata.is_root()
     if is_root:
         rel_md = metadata
-    elif metadata.metadata_type.type == 'layer':
+    elif metadata.metadata_type.type == MetadataEnum.LAYER.value:
         rel_md = metadata.service.parent_service.metadata
-    elif metadata.metadata_type.type == 'featuretype':
+    elif metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
         rel_md = metadata.featuretype.parent_service.metadata
     cap_doc = Document.objects.get(related_metadata=rel_md)
 
@@ -155,15 +159,20 @@ def overwrite_capabilities_document(metadata: Metadata):
         "Abstract": metadata.abstract,
         "AccessConstraints": metadata.access_constraints,
     }
-    service_type = metadata.get_service_type()
-    if service_type == 'wfs':
-        prefix = "wfs:"
-    else:
-        prefix = ""
+    tmp = xml_helper.xml_to_string(xml_obj)
     for key, val in elements.items():
         try:
-            xml_helper.write_text_to_element(xml_obj, "./{}{}".format(prefix, key), val)
-        except AttributeError:
+            # Check if element exists to change it
+            key_xml_obj = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format(key), xml_obj)
+            if key_xml_obj is not None:
+                # Element exists, we can change it easily
+                xml_helper.write_text_to_element(xml_obj, "./" + GENERIC_NAMESPACE_TEMPLATE.format(key), val)
+            else:
+                # The element does not exist (happens in case of abstract sometimes)
+                # First create, than change it
+                xml_helper.create_subelement(xml_obj, key, )
+                xml_helper.write_text_to_element(xml_obj, "./" + GENERIC_NAMESPACE_TEMPLATE.format(key), val)
+        except AttributeError as e:
             # for not is_root this will fail in AccessConstraints querying
             pass
 
@@ -171,6 +180,10 @@ def overwrite_capabilities_document(metadata: Metadata):
     xml = xml_helper.xml_to_string(xml_obj_root)
     cap_doc.current_capability_document = xml
     cap_doc.save()
+
+    # Delete all cached documents, since metadata changed now!
+    metadata.clear_cached_documents()
+    rel_md.clear_cached_documents()
 
 
 @transaction.atomic

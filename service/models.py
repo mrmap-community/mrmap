@@ -414,6 +414,7 @@ class Metadata(Resource):
         Returns:
 
         """
+        # Clear cached documents
         cacher = DocumentCacher("SERVICE_METADATA", "0")
         cacher.remove(str(self.id))
 
@@ -423,7 +424,7 @@ class Metadata(Resource):
         Returns:
 
         """
-
+        # Clear cached documents
         for version in OGCServiceVersionEnum:
             cacher = DocumentCacher(OGCOperationEnum.GET_CAPABILITIES.value, version.value)
             cacher.remove(str(self.id))
@@ -437,23 +438,34 @@ class Metadata(Resource):
             service_metadata_document (str): The xml document
         """
         doc = None
+        cacher = DocumentCacher(title="SERVICE_METADATA", version="0")
         try:
+            # Before we access the database (slow), we try to find a cached document from redis (memory -> faster)
+            doc = cacher.get(self.id)
+            if doc is not None:
+                return doc
+
+            # If we reach this point, we found no cached document. Check the db!
             # Try to fetch an existing Document record from the db
-            cap_doc = Document.objects.get(related_metadata=self)
+            cap_doc = Document.objects.get_or_create(related_metadata=self)[0]
             doc = cap_doc.service_metadata_document
 
-            if doc is None:
+            if doc is None or len(doc) == 0:
                 # Well, there is one but no service_metadata_document is found inside
                 raise ObjectDoesNotExist
 
         except ObjectDoesNotExist as e:
             # There is no service metadata document in the database, we need to create it
-            cacher = DocumentCacher(title="SERVICE_METADATA", version="0")
-            doc = cacher.get(self.id)
-            if doc is None:
-                builder = ServiceMetadataBuilder(self.id, MetadataEnum.SERVICE)
-                doc = builder.generate_service_metadata()
-                cacher.set(str(self.id), doc)
+            builder = ServiceMetadataBuilder(self.id, MetadataEnum.SERVICE)
+            doc = builder.generate_service_metadata()
+
+            # Write new creates service metadata to cache
+            cacher.set(str(self.id), doc)
+
+            # Write metadata to db as well
+            cap_doc = Document.objects.get_or_create(related_metadata=self)[0]
+            cap_doc.service_metadata_document = doc
+            cap_doc.save()
 
         return doc
 
@@ -470,25 +482,40 @@ class Metadata(Resource):
         """
         from service.helper import service_helper
         cap_doc = None
+
+        cacher = DocumentCacher(title=OGCOperationEnum.GET_CAPABILITIES.value, version=version_param)
         try:
+            # Before we access the database (slow), we try to find a cached document from redis (memory -> faster)
+            cap_xml = cacher.get(self.id)
+            if cap_xml is not None:
+                return cap_xml
+
+            # If we reach this point, we found no cached document. Check the db!
             # Try to fetch an existing Document record from the db
             cap_doc = Document.objects.get(related_metadata=self)
 
-            if cap_doc.current_capability_document is None:
-                # Well, there is one but no current_capability_document is found inside
-                raise ObjectDoesNotExist
-        except ObjectDoesNotExist as e:
-            # This means we have no capability document in the db or the value is set to None.
-            # This is possible for subelements of a service, which (usually) do not have an own capability document.
-            # We create a capability document on the fly for this metadata object and use the set_proxy functionality
-            # of the Document class for automatically setting all proxied links.
+            cap_xml = cap_doc.current_capability_document
 
-            cacher = DocumentCacher(title=OGCOperationEnum.GET_CAPABILITIES.value, version=version_param)
-            cap_xml = cacher.get(self.id)
-            if cap_xml is None:
-                cap_xml = self._create_capability_xml(version_param)
+            if cap_xml is None or len(cap_xml) == 0:
+                # Well, there is a Document record but no current_capability_document is found inside
+                raise ObjectDoesNotExist
+            else:
+                # There is a capability_document in the db. Let's write it to cache, so it can be returned even faster
                 cacher.set(self.id, cap_xml)
 
+        except ObjectDoesNotExist as e:
+            # This means we have no Document record or the current_capability value is None.
+            # This is possible for subelements of a service, which (usually) do not have an own capability document or
+            # if a service has been updated.
+
+            # We create a capability document on the fly for this metadata object and use the set_proxy functionality
+            # of the Document class for automatically setting all proxied links according to the user's setting.
+            cap_xml = self._create_capability_xml(version_param)
+
+            # Write the new capability document to the cache!
+            cacher.set(self.id, cap_xml)
+
+            # If no Document record existed, we create it now!
             if cap_doc is None:
                 cap_doc = Document(
                     related_metadata=self,
@@ -496,12 +523,15 @@ class Metadata(Resource):
                     current_capability_document=cap_xml,
                 )
             else:
+                # There is a Document record but the current_capability was None. We set this value now
                 cap_doc.current_capability_document = cap_xml
 
             # Do not forget to proxy the links inside the document, if needed
             if self.use_proxy_uri:
                 version_param_enum = service_helper.resolve_version_enum(version=version_param)
                 cap_doc.set_proxy(use_proxy=True, force_version=version_param_enum, auto_save=False)
+
+            cap_doc.save()
 
         return cap_doc.current_capability_document
 
@@ -986,6 +1016,9 @@ class Metadata(Resource):
         # change capabilities document
         root_md_doc = Document.objects.get(related_metadata=root_md)
         root_md_doc.set_proxy(use_proxy)
+
+        # Clear cached documents
+        self.clear_cached_documents()
 
         self.use_proxy_uri = use_proxy
 

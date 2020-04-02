@@ -122,6 +122,13 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
     activated = old.is_active
     metadata_type = old.metadata_type
 
+    # If needed, cache custom metadata
+    custom_md = {}
+    if keep_custom_md:
+        custom_md_fields = MetadataEditorForm._meta.fields
+        for field in custom_md_fields:
+            custom_md[field] = old.__getattribute__(field)
+        del custom_md_fields
 
     # Overwrite old information with new one
     old = deepcopy(new)
@@ -145,6 +152,23 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
             prefix=srs.prefix
         )[0]
         old.reference_system.add(srs)
+
+    # Restore custom metadata if needed
+    if keep_custom_md:
+        for key, val in custom_md.items():
+            # ManyRelatedManagers have to be handled differently
+            try:
+                old.__setattr__(key, val)
+            except TypeError:
+                # If the above simple attribute setter fails, we are dealing with a ManyRelatedManager, that has to be
+                # handled differently
+                field = val.prefetch_cache_name
+                old_manager = old.__getattribute__(field)
+                old_manager_elems = old_manager.all()
+                custom_m2m_elements = val.all()
+                for elem in custom_m2m_elements:
+                    if not elem in old_manager_elems:
+                        old_manager.add(elem)
 
     old.last_modified = timezone.now()
     return old

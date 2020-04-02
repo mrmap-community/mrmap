@@ -399,7 +399,6 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
-
     def clear_cached_documents(self):
         """ Sets the content of all possibly auto-generated documents to None
 
@@ -415,6 +414,7 @@ class Metadata(Resource):
         Returns:
 
         """
+        # Clear cached documents
         cacher = DocumentCacher("SERVICE_METADATA", "0")
         cacher.remove(str(self.id))
 
@@ -424,7 +424,7 @@ class Metadata(Resource):
         Returns:
 
         """
-
+        # Clear cached documents
         for version in OGCServiceVersionEnum:
             cacher = DocumentCacher(OGCOperationEnum.GET_CAPABILITIES.value, version.value)
             cacher.remove(str(self.id))
@@ -1016,6 +1016,9 @@ class Metadata(Resource):
         # change capabilities document
         root_md_doc = Document.objects.get(related_metadata=root_md)
         root_md_doc.set_proxy(use_proxy)
+
+        # Clear cached documents
+        self.clear_cached_documents()
 
         self.use_proxy_uri = use_proxy
 

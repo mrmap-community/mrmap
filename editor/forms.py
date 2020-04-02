@@ -22,6 +22,7 @@ class MetadataEditorForm(ModelForm):
         # there's a `fields` property now
         self.fields['terms_of_use'].required = False
         self.fields['categories'].required = False
+        self.fields['keywords'].required = False
 
     class Meta:
         model = Metadata

@@ -96,6 +96,9 @@ def update_capability_document(current_service: Service, new_capabilities: str):
     cap_document = Document.objects.get(related_metadata=current_service.metadata)
     cap_document.original_capability_document = new_capabilities
 
+    # Remove cached document
+    current_service.metadata.clear_cached_documents()
+
     # By deleting the current_capability_document, the system is forced to create a current capability document from the
     # state at this time
     cap_document.current_capability_document = None
@@ -139,11 +142,6 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
     old.is_active = activated
     old.metadata_type = metadata_type
 
-    # Keywords
-    old.keywords.clear()
-    for kw in new.keywords_list:
-        old.keywords.add(kw)
-
     # reference systems
     old.reference_system.clear()
     for srs in new.reference_system_list:
@@ -169,6 +167,11 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
                 for elem in custom_m2m_elements:
                     if elem not in old_manager_elems:
                         old_manager.add(elem)
+    else:
+        # Keywords updating without keeping custom md
+        old.keywords.clear()
+        for kw in new.keywords_list:
+            old.keywords.add(kw)
 
     old.last_modified = timezone.now()
     return old
@@ -321,7 +324,7 @@ def update_single_layer(old: Layer, new: Layer, keep_custom_metadata: bool = Fal
     old.metadata = metadata
     old.is_active = active
 
-    old.metadata = update_metadata(old.metadata, new.metadata, keep_custom_metadata)
+    old.metadata = update_metadata(metadata, new.metadata, keep_custom_metadata)
 
     old.metadata.save()
     old.save()

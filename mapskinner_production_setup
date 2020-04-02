@@ -13,13 +13,13 @@ su - postgres -c "psql -c \"CREATE USER $mrmap_db_user WITH ENCRYPTED PASSWORD '
 su - postgres -c "psql -c 'CREATE DATABASE \"MrMap\" OWNER $mrmap_db_user;'"
 
 # temporarily set postgres to trust, needed to create postgis
-if  ! grep -q "host    mrmap           postgres   127.0.0.1/32            trust"  /etc/postgresql/11/main/pg_hba.conf ;then
-	echo "host    mrmap           postgres   127.0.0.1/32            trust" >> /etc/postgresql/11/main/pg_hba.conf
-fi
+sed -i s/"host    all             all             127.0.0.1\/32            md5"/"host    all             all             127.0.0.1\/32            trust"/g /etc/postgresql/11/main/pg_hba.conf
+
+/etc/init.d/postgresql restart
 
 # mapskinner setup, has to be done as postgres because of postgis extension
 
-git clone https://git.osgeo.org/gitea/GDI-RP/MapSkinner /opt/
+git clone https://git.osgeo.org/gitea/GDI-RP/MapSkinner /opt/MapSkinner
 python -m pip install uwsgi
 python -m pip install -r /opt/MapSkinner/requirements.txt
 python /opt/MapSkinner/manage.py makemigrations service
@@ -30,15 +30,11 @@ python /opt/MapSkinner/manage.py collectstatic
 # set Django debug to false
 sed -i s/"DEBUG = True"/"DEBUG = False"/g /opt/MapSkinner/MapSkinner/settings.py
 
-# remove postgres trust
-if  grep -q "host    mrmap           postgres   127.0.0.1/32            trust"  /etc/postgresql/11/main/pg_hba.conf ;then
-	sed -i '/host    mrmap           postgres   127.0.0.1\/32            trust/d' /etc/postgresql/11/main/pg_hba.conf
-fi
+# remove postgres trust, replace with mr map database user
+sed -i s/"host    all             all             127.0.0.1\/32            trust"/"host    mrmap             $mrmap_db_user             127.0.0.1\/32            md5"/g /etc/postgresql/11/main/pg_hba.conf
 
-# add rights for dedicated user
-if  ! grep -q "host    mrmap           $mrmap_db_user   127.0.0.1/32            md5"  /etc/postgresql/11/main/pg_hba.conf ;then
-	echo "host    mrmap           $mrmap_db_user   127.0.0.1/32            md5" >> /etc/postgresql/11/main/pg_hba.conf
-fi
+/etc/init.d/postgresql restart
+
 
 # change settings.py to dedicated user
 sed -i s/"        'USER': 'postgres',"/"        'USER': '$mrmap_db_user',"/g /opt/MapSkinner/MapSkinner/settings.py
@@ -172,7 +168,7 @@ chown www-data:www-data /var/log/celery/
 chown www-data:www-data /var/run/celery/
 
 
-cat <<EOF > /etc/systemd/system/uwsgi.service
+cat <<EOF > /etc/systemd/system/celery.service
 [Unit]
 Description=Celery Service
 After=network.target
@@ -197,17 +193,5 @@ systemctl start celery
 #systemctl restart celery
 #systemctl status celery
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+/etc/init.d/nginx restart
 

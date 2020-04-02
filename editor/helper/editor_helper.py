@@ -176,10 +176,21 @@ def overwrite_capabilities_document(metadata: Metadata):
     cap_doc.current_capability_document = xml
     cap_doc.save()
 
-    # Delete cached version of the document. Delete all cached documents from other service related elements.
+    # Delete cached version of the capabilities document. Delete the cached parent service document as well!
     cacher = DocumentCacher(title=OGCOperationEnum.GET_CAPABILITIES.value, version=_version.value)
     cacher.remove(rel_md.id)
     cacher.remove(metadata.id)
+
+    # Delete cached service metadata documents
+    cacher = DocumentCacher(title="SERVICE_METADATA", version=0)
+    cacher.remove(rel_md.id)
+    cacher.remove(metadata.id)
+
+    # Delete persisted service metadata document from database
+    cap_doc = Document.objects.get(related_metadata=metadata)
+    cap_doc.service_metadata_document = None
+    cap_doc.save()
+
 
 
 @transaction.atomic

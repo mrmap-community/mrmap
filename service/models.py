@@ -438,23 +438,34 @@ class Metadata(Resource):
             service_metadata_document (str): The xml document
         """
         doc = None
+        cacher = DocumentCacher(title="SERVICE_METADATA", version="0")
         try:
+            # Before we access the database (slow), we try to find a cached document from redis (memory -> faster)
+            doc = cacher.get(self.id)
+            if doc is not None:
+                return doc
+
+            # If we reach this point, we found no cached document. Check the db!
             # Try to fetch an existing Document record from the db
-            cap_doc = Document.objects.get(related_metadata=self)
+            cap_doc = Document.objects.get_or_create(related_metadata=self)[0]
             doc = cap_doc.service_metadata_document
 
-            if doc is None:
+            if doc is None or len(doc) == 0:
                 # Well, there is one but no service_metadata_document is found inside
                 raise ObjectDoesNotExist
 
         except ObjectDoesNotExist as e:
             # There is no service metadata document in the database, we need to create it
-            cacher = DocumentCacher(title="SERVICE_METADATA", version="0")
-            doc = cacher.get(self.id)
-            if doc is None:
-                builder = ServiceMetadataBuilder(self.id, MetadataEnum.SERVICE)
-                doc = builder.generate_service_metadata()
-                cacher.set(str(self.id), doc)
+            builder = ServiceMetadataBuilder(self.id, MetadataEnum.SERVICE)
+            doc = builder.generate_service_metadata()
+
+            # Write new creates service metadata to cache
+            cacher.set(str(self.id), doc)
+
+            # Write metadata to db as well
+            cap_doc = Document.objects.get_or_create(related_metadata=self)[0]
+            cap_doc.service_metadata_document = doc
+            cap_doc.save()
 
         return doc
 

@@ -159,14 +159,19 @@ def overwrite_capabilities_document(metadata: Metadata):
         "Abstract": metadata.abstract,
         "AccessConstraints": metadata.access_constraints,
     }
-    service_type = metadata.get_service_type()
-    if service_type == 'wfs':
-        prefix = "wfs:"
-    else:
-        prefix = ""
+    tmp = xml_helper.xml_to_string(xml_obj)
     for key, val in elements.items():
         try:
-            xml_helper.write_text_to_element(xml_obj, GENERIC_NAMESPACE_TEMPLATE.format(key), val)
+            # Check if element exists to change it
+            key_xml_obj = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format(key), xml_obj)
+            if key_xml_obj is not None:
+                # Element exists, we can change it easily
+                xml_helper.write_text_to_element(xml_obj, "./" + GENERIC_NAMESPACE_TEMPLATE.format(key), val)
+            else:
+                # The element does not exist (happens in case of abstract sometimes)
+                # First create, than change it
+                xml_helper.create_subelement(xml_obj, key, )
+                xml_helper.write_text_to_element(xml_obj, "./" + GENERIC_NAMESPACE_TEMPLATE.format(key), val)
         except AttributeError as e:
             # for not is_root this will fail in AccessConstraints querying
             pass

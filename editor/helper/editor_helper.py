@@ -21,7 +21,7 @@ from MapSkinner.messages import EDITOR_INVALID_ISO_LINK, SECURITY_PROXY_MUST_BE_
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
 
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, MetadataEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
     MetadataOrigin, SecuredOperation, RequestOperation, Layer, Style
@@ -43,6 +43,7 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
     ns_prefix = ""
     keyword_container_tag = "KeywordList"
     keyword_prefix = ""
+    keyword_ns_map = {}
 
     if _type == 'wfs':
         ns_keyword_prefix_s = "ows"
@@ -52,13 +53,15 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
             ns_prefix = "ows:"
         keyword_container_tag = "Keywords"
         keyword_prefix = "{" + XML_NAMESPACES[ns_keyword_prefix_s] + "}"
+        keyword_ns_map[ns_keyword_prefix_s] = XML_NAMESPACES[ns_keyword_prefix_s]
 
     xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format(keyword_container_tag), xml_obj)
+
     if xml_keywords_list_obj is None:
         # there are no keywords in this capabilities for this element yet
         # we need to add an element first!
         try:
-            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Abstract".format(ns_prefix))
+            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Abstract".format(ns_prefix), nsmap=keyword_ns_map)
         except TypeError as e:
             # there seems to be no <Abstract> element. We add simply after <Title> and also create a new Abstract element
             xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Title".format(ns_prefix))
@@ -79,7 +82,7 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
 
     # then add all edited
     for kw in metadata.keywords.all():
-        xml_keyword = xml_helper.create_subelement(xml_keywords_list_obj, "{}Keyword".format(keyword_prefix))
+        xml_keyword = xml_helper.create_subelement(xml_keywords_list_obj, "{}Keyword".format(keyword_prefix), nsmap=keyword_ns_map)
         xml_helper.write_text_to_element(xml_keyword, txt=kw.keyword)
 
 
@@ -117,9 +120,9 @@ def overwrite_capabilities_document(metadata: Metadata):
     is_root = metadata.is_root()
     if is_root:
         rel_md = metadata
-    elif metadata.metadata_type.type == 'layer':
+    elif metadata.metadata_type.type == MetadataEnum.LAYER.value:
         rel_md = metadata.service.parent_service.metadata
-    elif metadata.metadata_type.type == 'featuretype':
+    elif metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
         rel_md = metadata.featuretype.parent_service.metadata
     cap_doc = Document.objects.get(related_metadata=rel_md)
 
@@ -163,8 +166,8 @@ def overwrite_capabilities_document(metadata: Metadata):
         prefix = ""
     for key, val in elements.items():
         try:
-            xml_helper.write_text_to_element(xml_obj, "./{}{}".format(prefix, key), val)
-        except AttributeError:
+            xml_helper.write_text_to_element(xml_obj, GENERIC_NAMESPACE_TEMPLATE.format(key), val)
+        except AttributeError as e:
             # for not is_root this will fail in AccessConstraints querying
             pass
 
@@ -173,8 +176,9 @@ def overwrite_capabilities_document(metadata: Metadata):
     cap_doc.current_capability_document = xml
     cap_doc.save()
 
-    # Delete cached version of the document
+    # Delete cached version of the document. Delete all cached documents from other service related elements.
     cacher = DocumentCacher(title=OGCOperationEnum.GET_CAPABILITIES.value, version=_version.value)
+    cacher.remove(rel_md.id)
     cacher.remove(metadata.id)
 
 

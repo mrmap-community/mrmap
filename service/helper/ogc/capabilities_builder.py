@@ -37,12 +37,16 @@ class CapabilityXMLBuilder:
         self.metadata = metadata
 
         # A single FeatureType is not a service, therefore we can not use the regular metadata.service call.
-        if metadata.get_service_type() == OGCServiceEnum.WFS.value:
+        md_type = metadata.metadata_type.type
+        if md_type == MetadataEnum.SERVICE.value:
+            service = metadata.service
+            parent_service = service
+        elif md_type == MetadataEnum.FEATURETYPE.value:
             service = FeatureType.objects.get(
                 metadata=metadata
             ).parent_service
             parent_service = service
-        else:
+        elif md_type == MetadataEnum.LAYER.value:
             service = metadata.service
             if not service.is_root:
                 parent_service = service.parent_service
@@ -522,7 +526,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         self._generate_capability_exception_xml(capability_elem)
 
         layer_md = self.metadata
-        if self.metadata.metadata_type.type == MetadataEnum.SERVICE:
+        if self.metadata.metadata_type.type == MetadataEnum.SERVICE.value:
             layer_md = self.root_layer.metadata
 
         self._generate_capability_layer_xml(capability_elem, layer_md)
@@ -1392,11 +1396,15 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
 
         self.rs_declaration = "SRS"
 
-        self.feature_type = FeatureType.objects.get(
-            metadata=metadata,
-        )
-        self.service = self.feature_type.parent_service
-
+        self.feature_type_list = []
+        if self.metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
+            self.feature_type_list = FeatureType.objects.filter(
+                metadata=metadata,
+            )
+        else:
+            self.feature_type_list = FeatureType.objects.filter(
+                parent_service=self.parent_service
+            )
     def _generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
 
@@ -1606,39 +1614,40 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        feature_type_elem = xml_helper.create_subelement(
-            upper_elem,
-            "{}FeatureType".format(self.wfs_ns)
-        )
+        for feature_type_obj in self.feature_type_list:
+            feature_type_elem = xml_helper.create_subelement(
+                upper_elem,
+                "{}FeatureType".format(self.wfs_ns)
+            )
 
-        # Generate dynamic contents
-        contents = OrderedDict({
-            "{}Name": self.metadata.identifier,
-            "{}Title": self.metadata.title,
-            "{}Abstract": self.metadata.abstract,
-        })
-        self._generate_simple_elements_from_dict(
-            feature_type_elem,
-            contents,
-            self.wfs_ns
-        )
+            # Generate dynamic contents
+            contents = OrderedDict({
+                "{}Name": feature_type_obj.metadata.identifier,
+                "{}Title": feature_type_obj.metadata.title,
+                "{}Abstract": feature_type_obj.metadata.abstract,
+            })
+            self._generate_simple_elements_from_dict(
+                feature_type_elem,
+                contents,
+                self.wfs_ns
+            )
 
-        # ows:Keywords
-        self._generate_keyword_xml(feature_type_elem, self.metadata)
+            # ows:Keywords
+            self._generate_keyword_xml(feature_type_elem, feature_type_obj.metadata)
 
-        # DefaultSRS | OtherSRS
-        self._generate_feature_type_list_feature_type_srs_xml(feature_type_elem)
+            # DefaultSRS | OtherSRS
+            self._generate_feature_type_list_feature_type_srs_xml(feature_type_elem, feature_type_obj)
 
-        # OutputFormats
-        self._generate_feature_type_list_feature_type_formats_xml(feature_type_elem)
+            # OutputFormats
+            self._generate_feature_type_list_feature_type_formats_xml(feature_type_elem, feature_type_obj)
 
-        # ows:WGS84BoundingBox
-        self._generate_feature_type_list_feature_type_bbox_xml(feature_type_elem)
+            # ows:WGS84BoundingBox
+            self._generate_feature_type_list_feature_type_bbox_xml(feature_type_elem, feature_type_obj)
 
-        # MetadataURL
-        self._generate_feature_type_list_feature_type_metadata_url(feature_type_elem)
+            # MetadataURL
+            self._generate_feature_type_list_feature_type_metadata_url(feature_type_elem)
 
-    def _generate_feature_type_list_feature_type_srs_xml(self, upper_elem):
+    def _generate_feature_type_list_feature_type_srs_xml(self, upper_elem, feature_type_obj: FeatureType):
         """ Generate the 'DefaultSRS|OtherSRS' subelement of a xml service object
 
         Args:
@@ -1653,7 +1662,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         )
         xml_helper.write_text_to_element(
             elem,
-            txt="{}{}".format(self.feature_type.default_srs.prefix, self.feature_type.default_srs.code)
+            txt="{}{}".format(feature_type_obj.default_srs.prefix, feature_type_obj.default_srs.code)
         )
         for srs in self.metadata.reference_system.all():
             # OtherSRS
@@ -1666,7 +1675,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
                 txt="{}{}".format(srs.prefix, srs.code)
             )
 
-    def _generate_feature_type_list_feature_type_formats_xml(self, upper_elem: Element):
+    def _generate_feature_type_list_feature_type_formats_xml(self, upper_elem: Element, feature_type_obj: FeatureType):
         """ Generate the 'OutputFormats' subelement of a xml service object
 
         Args:
@@ -1678,14 +1687,14 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             upper_elem,
             "{}OutputFormats".format(self.wfs_ns)
         )
-        for format in self.feature_type.formats.all():
+        for format in feature_type_obj.formats.all():
             elem = xml_helper.create_subelement(
                 output_format_elem,
                 "{}Format".format(self.wfs_ns)
             )
             xml_helper.write_text_to_element(elem, txt=format.mime_type)
 
-    def _generate_feature_type_list_feature_type_bbox_xml(self, upper_elem: Element):
+    def _generate_feature_type_list_feature_type_bbox_xml(self, upper_elem: Element, feature_type_obj: FeatureType):
         """ Generate the 'WGS84BoundingBox' subelement of a xml service object
 
         Args:
@@ -1693,7 +1702,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        bbox = self.metadata.bounding_geometry.extent
+        bbox = feature_type_obj.metadata.bounding_geometry.extent
         bbox_elem = xml_helper.create_subelement(
             upper_elem,
             "{}WGS84BoundingBox".format(self.default_ns),
@@ -1726,7 +1735,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             )
         )
 
-    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem, feature_type_obj: FeatureType):
         """ Generate the 'MetadataURL' subelement of a xml feature type list object
 
         Args:
@@ -1734,7 +1743,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        dataset_mds = self.metadata.related_metadata.filter(
+        dataset_mds = feature_type_obj.metadata.related_metadata.filter(
             metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
         )
         for dataset_md in dataset_mds:
@@ -2054,7 +2063,7 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
             nothing
         """
         # In WFS 1.0.0 only one (the default) srs will be shown in the capabilities document
-        srs = self.feature_type.default_srs
+        srs = self.feature_type_list.default_srs
         srs_elem = xml_helper.create_subelement(
             upper_elem,
             "{}SRS".format(self.default_ns)
@@ -2073,7 +2082,7 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
             nothing
         """
         bounding_geom = self.metadata.bounding_geometry
-        bounding_geom.transform(self.feature_type.default_srs.code)
+        bounding_geom.transform(self.feature_type_list.default_srs.code)
         extent = bounding_geom.extent
         xml_helper.create_subelement(
             upper_elem,

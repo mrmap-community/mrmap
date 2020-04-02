@@ -481,7 +481,8 @@ class Metadata(Resource):
                 raise ObjectDoesNotExist
         except ObjectDoesNotExist as e:
             # This means we have no capability document in the db or the value is set to None.
-            # This is possible for subelements of a service, which (usually) do not have an own capability document.
+            # This is possible for subelements of a service, which (usually) do not have an own capability document or
+            # if a service has been updated.
             # We create a capability document on the fly for this metadata object and use the set_proxy functionality
             # of the Document class for automatically setting all proxied links.
 
@@ -504,6 +505,8 @@ class Metadata(Resource):
             if self.use_proxy_uri:
                 version_param_enum = service_helper.resolve_version_enum(version=version_param)
                 cap_doc.set_proxy(use_proxy=True, force_version=version_param_enum, auto_save=False)
+
+            cap_doc.save()
 
         return cap_doc.current_capability_document
 

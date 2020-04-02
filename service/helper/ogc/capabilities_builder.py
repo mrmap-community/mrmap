@@ -41,10 +41,16 @@ class CapabilityXMLBuilder:
             service = FeatureType.objects.get(
                 metadata=metadata
             ).parent_service
+            parent_service = service
         else:
             service = metadata.service
+            if not service.is_root:
+                parent_service = service.parent_service
+            else:
+                parent_service = service
 
         self.service = service
+        self.parent_service = parent_service
 
         self.service_type = self.service.servicetype.name
         self.service_version = force_version or self.service.servicetype.version
@@ -315,7 +321,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
     def __init__(self, metadata: Metadata, force_version: str = None):
         super().__init__(metadata=metadata, force_version=force_version)
         self.root_layer = Layer.objects.get(
-            parent_service=self.service,
+            parent_service=self.parent_service,
             parent_layer=None
         )
 
@@ -343,7 +349,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         print_debug_mode("Service creation took {} seconds".format((time() - start_time)))
 
         start_time = time()
-        capability =  xml_helper.create_subelement(root, "{}Capability".format(self.default_ns))
+        capability = xml_helper.create_subelement(root, "{}Capability".format(self.default_ns))
         self._generate_capability_xml(capability)
         print_debug_mode("Capabilities creation took {} seconds".format(time() - start_time))
 
@@ -362,7 +368,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
             nothing
         """
         md = self.metadata
-        service_md = self.service.metadata
+        service_md = self.parent_service.metadata
 
         # Create generic xml starter elements
         contents = OrderedDict({
@@ -515,7 +521,11 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
 
         self._generate_capability_exception_xml(capability_elem)
 
-        self._generate_capability_layer_xml(capability_elem, self.root_layer.metadata)
+        layer_md = self.metadata
+        if self.metadata.metadata_type.type == MetadataEnum.SERVICE:
+            layer_md = self.root_layer.metadata
+
+        self._generate_capability_layer_xml(capability_elem, layer_md)
 
         self._generate_vendor_specific_capabilities_xml(capability_elem, self.inspire_vs_ns)
 
@@ -542,7 +552,8 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Exception"),
             original_doc
         )
-        xml_helper.add_subelement(capability_elem, original_exception_elem)
+        if original_exception_elem is not None:
+            xml_helper.add_subelement(capability_elem, original_exception_elem)
 
     def _generate_capability_request_xml(self, request_elem: Element):
         """ Generate the 'Request' subelement of a xml capability object

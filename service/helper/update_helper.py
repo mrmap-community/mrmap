@@ -167,7 +167,7 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
                 old_manager_elems = old_manager.all()
                 custom_m2m_elements = val.all()
                 for elem in custom_m2m_elements:
-                    if not elem in old_manager_elems:
+                    if elem not in old_manager_elems:
                         old_manager.add(elem)
 
     old.last_modified = timezone.now()

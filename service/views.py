@@ -166,7 +166,7 @@ def _new_service_wizard_page1(request: HttpRequest):
 def _new_service_wizard_page2(request: HttpRequest):
     # Page two is posted --> collect all data from post and initial the form
     user = user_helper.get_user(request)
-    selected_group = user.get_groups().get(id=int(request.POST.get("registering_with_group")))
+    selected_group = user.get_groups(filter_by={'id': int(request.POST.get("registering_with_group"))})
 
     init_data = {'ogc_request': request.POST.get("ogc_request"),
                  'ogc_service': request.POST.get("ogc_service"),
@@ -179,15 +179,15 @@ def _new_service_wizard_page2(request: HttpRequest):
                  }
 
     is_auth_needed = True if request.POST.get("service_needs_authentication") == 'on' else False
-    form = RegisterNewServiceWizardPage2(request.POST,
-                                         initial=init_data,
-                                         user=user,
-                                         selected_group=selected_group,
-                                         service_needs_authentication=is_auth_needed,
-                                         )
 
     # first check if it's just a update of the form
     if request.POST.get("is_form_update") == 'True':
+        # reset update flag
+        form = RegisterNewServiceWizardPage2(initial=init_data,
+                                             user=user,
+                                             selected_group=selected_group,
+                                             service_needs_authentication=is_auth_needed,
+                                             )
         # it's just a updated form state. return the new state as view
         params = {
             "new_service_form": form,
@@ -998,7 +998,6 @@ def update_service_form(request: HttpRequest, id: int):
     return BackendAjaxResponse(html=html).get_response()
 
 
-#TODO: refactor this method
 @login_required
 def wfs_index(request: HttpRequest):
     """ Renders an overview of all wfs

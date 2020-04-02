@@ -458,7 +458,6 @@ class Metadata(Resource):
 
         return doc
 
-
     def get_current_capability_xml(self, version_param: str):
         """ Getter for the capability xml of the current status of this metadata object.
 
@@ -472,26 +471,40 @@ class Metadata(Resource):
         """
         from service.helper import service_helper
         cap_doc = None
+
+        cacher = DocumentCacher(title=OGCOperationEnum.GET_CAPABILITIES.value, version=version_param)
         try:
+            # Before we access the database (slow), we try to find a cached document from redis (memory -> faster)
+            cap_xml = cacher.get(self.id)
+            if cap_xml is not None:
+                return cap_xml
+
+            # If we reach this point, we found no cached document. Check the db!
             # Try to fetch an existing Document record from the db
             cap_doc = Document.objects.get(related_metadata=self)
 
-            if cap_doc.current_capability_document is None:
-                # Well, there is one but no current_capability_document is found inside
-                raise ObjectDoesNotExist
-        except ObjectDoesNotExist as e:
-            # This means we have no capability document in the db or the value is set to None.
-            # This is possible for subelements of a service, which (usually) do not have an own capability document or
-            # if a service has been updated.
-            # We create a capability document on the fly for this metadata object and use the set_proxy functionality
-            # of the Document class for automatically setting all proxied links.
+            cap_xml = cap_doc.current_capability_document
 
-            cacher = DocumentCacher(title=OGCOperationEnum.GET_CAPABILITIES.value, version=version_param)
-            cap_xml = cacher.get(self.id)
-            if cap_xml is None:
-                cap_xml = self._create_capability_xml(version_param)
+            if cap_xml is None or len(cap_xml) == 0:
+                # Well, there is a Document record but no current_capability_document is found inside
+                raise ObjectDoesNotExist
+            else:
+                # There is a capability_document in the db. Let's write it to cache, so it can be returned even faster
                 cacher.set(self.id, cap_xml)
 
+        except ObjectDoesNotExist as e:
+            # This means we have no Document record or the current_capability value is None.
+            # This is possible for subelements of a service, which (usually) do not have an own capability document or
+            # if a service has been updated.
+
+            # We create a capability document on the fly for this metadata object and use the set_proxy functionality
+            # of the Document class for automatically setting all proxied links according to the user's setting.
+            cap_xml = self._create_capability_xml(version_param)
+
+            # Write the new capability document to the cache!
+            cacher.set(self.id, cap_xml)
+
+            # If no Document record existed, we create it now!
             if cap_doc is None:
                 cap_doc = Document(
                     related_metadata=self,
@@ -499,6 +512,7 @@ class Metadata(Resource):
                     current_capability_document=cap_xml,
                 )
             else:
+                # There is a Document record but the current_capability was None. We set this value now
                 cap_doc.current_capability_document = cap_xml
 
             # Do not forget to proxy the links inside the document, if needed

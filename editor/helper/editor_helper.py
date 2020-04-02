@@ -15,12 +15,13 @@ from django.http import HttpRequest
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
+from MapSkinner.cacher import DocumentCacher
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK, SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, \
     SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
 from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
 
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
     MetadataOrigin, SecuredOperation, RequestOperation, Layer, Style
@@ -171,6 +172,10 @@ def overwrite_capabilities_document(metadata: Metadata):
     xml = xml_helper.xml_to_string(xml_obj_root)
     cap_doc.current_capability_document = xml
     cap_doc.save()
+
+    # Delete cached version of the document
+    cacher = DocumentCacher(title=OGCOperationEnum.GET_CAPABILITIES.value, version=_version.value)
+    cacher.remove(metadata.id)
 
 
 @transaction.atomic

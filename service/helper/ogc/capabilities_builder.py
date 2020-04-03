@@ -507,8 +507,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        md = self.metadata
-
         # Layers are not included in this contents dict, since they will be appended separately at the end
         contents = OrderedDict({
             "{}Request": "",
@@ -604,16 +602,18 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
                 contents.update({"{}" + key: ""})
 
         # Create xml elements
+        service_mime_types = service.get_supported_formats()
         for key, val in contents.items():
             k = key.format(self.default_ns)
             elem = xml_helper.create_subelement(request_elem, k)
-            self._generate_capability_operation_xml(elem)
+            self._generate_capability_operation_xml(elem, service_mime_types)
 
-    def _generate_capability_operation_xml(self, operation_elem: Element):
+    def _generate_capability_operation_xml(self, operation_elem: Element, service_mime_types: QuerySet):
         """ Generate the various operation subelements of a xml capability object
 
         Args:
             operation_elem (_Element): The operation xml element
+            service_mime_types (QuerySet): Queryset containing all mime_types of the service
         Returns:
             nothing
         """
@@ -662,7 +662,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
             post_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id)
 
         # Add all mime types that are supported by this operation
-        supported_formats = service.formats.filter(
+        supported_formats = service_mime_types.filter(
             operation=tag
         )
         for format in supported_formats:
@@ -1665,7 +1665,8 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             elem,
             txt="{}{}".format(feature_type_obj.default_srs.prefix, feature_type_obj.default_srs.code)
         )
-        for srs in self.metadata.reference_system.all():
+        other_ref_systems = feature_type_obj.metadata.reference_system.all()
+        for srs in other_ref_systems:
             # OtherSRS
             elem = xml_helper.create_subelement(
                 upper_elem,

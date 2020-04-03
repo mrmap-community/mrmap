@@ -45,6 +45,10 @@ def transform_lists_to_m2m_collections(element):
         for ns in element.namespaces_list:
             element.namespaces.add(ns)
 
+        # additional srs
+        for srs in element.additional_srs_list:
+            element.metadata.reference_system.add(srs)
+
     elif isinstance(element, Metadata):
         # metadata transforming of lists
         # keywords
@@ -332,6 +336,9 @@ def update_wfs_elements(old: Service, new: Service, diff: dict, links: dict, kee
                 existing_f_t = old_service_feature_types.get(metadata__id=id)
 
             existing_f_t = update_feature_type(existing_f_t, feature_type, keep_custom_metadata)
+
+            # Write non-persisted lists to many-to-many collections
+            existing_f_t = transform_lists_to_m2m_collections(existing_f_t)
             existing_f_t.save()
 
         except ObjectDoesNotExist:

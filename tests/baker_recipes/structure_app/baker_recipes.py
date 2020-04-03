@@ -36,11 +36,39 @@ superadmin_permission = Recipe(
     can_request_to_become_publisher=True,
 )
 
+guest_permission = Recipe(
+    Permission,
+    can_create_organization=False,
+    can_edit_organization=False,
+    can_delete_organization=False,
+    can_create_group=False,
+    can_delete_group=False,
+    can_edit_group=False,
+    can_add_user_to_group=False,
+    can_remove_user_from_group=False,
+    can_edit_group_role=False,
+    can_activate_service=False,
+    can_update_service=False,
+    can_register_service=False,
+    can_remove_service=False,
+    can_edit_metadata_service=False,
+    can_toggle_publish_requests=False,
+    can_remove_publisher=False,
+    can_request_to_become_publisher=False,
+)
+
 superadmin_role = Recipe(
     Role,
     name="superadmin_role",
     permission=foreign_key(superadmin_permission)
 )
+
+guest_role = Recipe(
+    Role,
+    name="guest_role",
+    permission=foreign_key(guest_permission)
+)
+
 
 god_user = Recipe(
     MrMapUser,
@@ -52,6 +80,13 @@ god_user = Recipe(
     theme=foreign_key(light_theme),
 )
 
+guest_group = Recipe(
+    MrMapGroup,
+    name="guest_group",
+    role=foreign_key(guest_role),
+    created_by=foreign_key(god_user),
+)
+
 active_testuser = Recipe(
     MrMapUser,
     username="Testuser",
@@ -59,7 +94,8 @@ active_testuser = Recipe(
     salt=salt,
     password=make_password(PASSWORD, salt=salt),
     is_active=True,
-    theme=foreign_key(light_theme)
+    theme=foreign_key(light_theme),
+    groups=related(guest_group)
 )
 
 inactive_testuser = active_testuser.extend(
@@ -73,6 +109,13 @@ superadmin_group = Recipe(
     created_by=foreign_key(god_user),
 )
 
-superadmin_user = active_testuser.extend(
+superadmin_user = Recipe(
+    MrMapUser,
+    username="Testuser",
+    email="test@example.com",
+    salt=salt,
+    password=make_password(PASSWORD, salt=salt),
+    is_active=True,
+    theme=foreign_key(light_theme),
     groups=related(superadmin_group)
 )

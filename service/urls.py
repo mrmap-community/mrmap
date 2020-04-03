@@ -6,7 +6,6 @@ app_name = 'service'
 urlpatterns = [
     path('', index, name='index'),
     path('session', set_session, name='session'),
-    path('activate/<id>', activate, name='activate'),
 
     path('metadata/<int:id>', get_service_metadata, name='get-service-metadata'),
     path('metadata/dataset/<int:id>', get_dataset_metadata, name='get-dataset-metadata'),
@@ -21,7 +20,8 @@ urlpatterns = [
     path('update/<id>', update_service, name='update-service'),
     path('update/discard/', discard_update, name='update-discard'),
 
-    path('remove/<id>', remove, name='remove'),
+    path('remove/<metadata_id>', remove, name='remove'),
+    path('activate/<service_id>', activate, name='activate'),
     path('add/', add, name='add'),
 
     path('pending-tasks/', pending_tasks, name="pending-tasks"),

@@ -166,7 +166,7 @@ def _new_service_wizard_page1(request: HttpRequest):
 def _new_service_wizard_page2(request: HttpRequest):
     # Page two is posted --> collect all data from post and initial the form
     user = user_helper.get_user(request)
-    selected_group = user.get_groups().get(id=int(request.POST.get("registering_with_group")))
+    selected_group = MrMapGroup.objects.get(id=int(request.POST.get("registering_with_group")))
 
     init_data = {'ogc_request': request.POST.get("ogc_request"),
                  'ogc_service': request.POST.get("ogc_service"),
@@ -179,15 +179,15 @@ def _new_service_wizard_page2(request: HttpRequest):
                  }
 
     is_auth_needed = True if request.POST.get("service_needs_authentication") == 'on' else False
-    form = RegisterNewServiceWizardPage2(request.POST,
-                                         initial=init_data,
-                                         user=user,
-                                         selected_group=selected_group,
-                                         service_needs_authentication=is_auth_needed,
-                                         )
 
     # first check if it's just a update of the form
     if request.POST.get("is_form_update") == 'True':
+        # reset update flag
+        form = RegisterNewServiceWizardPage2(initial=init_data,
+                                             user=user,
+                                             selected_group=selected_group,
+                                             service_needs_authentication=is_auth_needed,
+                                             )
         # it's just a updated form state. return the new state as view
         params = {
             "new_service_form": form,
@@ -266,6 +266,7 @@ def _new_service_wizard_page2(request: HttpRequest):
 
 
 @login_required
+@check_permission(Permission(can_register_service=True))
 def add(request: HttpRequest):
     """ Renders wizard page configuration for service registration
 
@@ -354,28 +355,21 @@ def pending_tasks(request: HttpRequest):
 
 @login_required
 @check_permission(Permission(can_remove_service=True))
-def remove(request: HttpRequest, id:int):
+def remove(request: HttpRequest, metadata_id: int):
     """ Renders the remove form for a service
 
     Args:
         request(HttpRequest): The used request
+        metadata_id:
     Returns:
         Redirect to service:index
     """
     user = user_helper.get_user(request)
 
     remove_form = RemoveService(request.POST)
-    if remove_form.is_valid():
-        metadata = get_object_or_404(Metadata, id=id)
-        service_type = metadata.get_service_type()
-        sub_elements = None
-
-        if service_type == OGCServiceEnum.WMS.value:
-            sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
-        elif service_type == OGCServiceEnum.WFS.value:
-            sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
-
-        if remove_form.cleaned_data['is_confirmed']:
+    if request.method == 'POST':
+        if remove_form.is_valid() and request.POST.get("is_confirmed") == 'on':
+            metadata = get_object_or_404(Metadata, id=metadata_id)
             # remove service and all of the related content
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
 
@@ -383,29 +377,35 @@ def remove(request: HttpRequest, id:int):
             metadata.is_deleted = True
             metadata.save()
 
-            # TODO: we dont know this at this time; refactor this; async_remove function should add messages
-            messages.success(request, 'Service "{}" successfully deleted.'.format(metadata.title))
+            service_type = metadata.get_service_type()
+            if service_type == OGCServiceEnum.WMS.value:
+                sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
+            elif service_type == OGCServiceEnum.WFS.value:
+                sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
+
+            for sub_element in sub_elements:
+                sub_metadata = sub_element.metadata
+                sub_metadata.is_deleted = True
+                sub_metadata.save()
+
+            messages.success(request, 'Service "{}" marked for deletion.'.format(metadata.title))
 
             # call removing as async task
             async_remove_service_task.delay(metadata.service.id)
-
             return redirect(SERVICE_INDEX)
         else:
-            # TODO: redirect to service:detail; show modal by default with error message
             params = {
-                "service": metadata,
-                "metadata": metadata,
-                "sub_elements": sub_elements,
+                "remove_service_form": remove_form,
+                "show_modal": True,
             }
-            return redirect("service:detail", id)
+            return detail(request=request, id=metadata_id, update_params=params)
     else:
-        # TODO: redirect to service:detail; show modal by default with error message
-        return redirect("service:detail", id)
+        return redirect("service:detail", metadata_id)
 
 
 @login_required
 @check_permission(Permission(can_activate_service=True))
-def activate(request: HttpRequest, id: int):
+def activate(request: HttpRequest, service_id: int):
     """ (De-)Activates a service and all of its layers
 
     Args:
@@ -417,9 +417,9 @@ def activate(request: HttpRequest, id: int):
     user = user_helper.get_user(request)
 
     # run activation async!
-    tasks.async_activate_service.delay(id, user.id)
+    tasks.async_activate_service.delay(service_id, user.id)
 
-    md = Metadata.objects.get(service__id=id)
+    md = Metadata.objects.get(service__id=service_id)
 
     if md.is_active:
         msg = SERVICE_ACTIVATED.format(md.title)
@@ -998,7 +998,6 @@ def update_service_form(request: HttpRequest, id: int):
     return BackendAjaxResponse(html=html).get_response()
 
 
-#TODO: refactor this method
 @login_required
 def wfs_index(request: HttpRequest):
     """ Renders an overview of all wfs
@@ -1032,7 +1031,7 @@ def wfs_index(request: HttpRequest):
 
 
 @login_required
-def detail(request: HttpRequest, id):
+def detail(request: HttpRequest, id, update_params=None):
     """ Renders a detail view of the selected service
 
     Args:
@@ -1110,6 +1109,10 @@ def detail(request: HttpRequest, id):
         "remove_service_form": remove_service_form,
         "leaflet_add_bbox": True,
     })
+
+    if update_params:
+        params.update(update_params)
+
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 

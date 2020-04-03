@@ -105,4 +105,5 @@ def get_capabilitites_url():
         "invalid_no_version": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&REQUEST=GetCapabilities",
         "invalid_no_request": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.3.0",
         "invalid_version": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=9.4.0&REQUEST=GetCapabilities",
+        "invalid_servicetype": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=ABC&VERSION=9.4.0&REQUEST=GetCapabilities",
     }

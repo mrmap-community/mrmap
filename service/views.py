@@ -398,7 +398,7 @@ def remove(request: HttpRequest, metadata_id: int):
                 "remove_service_form": remove_form,
                 "show_modal": True,
             }
-            return detail(request=request, id=metadata_id, update_params=params)
+            return detail(request=request, metadata_id=metadata_id, update_params=params)
     else:
         return redirect("service:detail", metadata_id)
 
@@ -431,17 +431,15 @@ def activate(request: HttpRequest, service_id: int):
 
 
 @log_proxy
-def get_service_metadata(request: HttpRequest, proxy_log: ProxyLog, id: int):
+def get_service_metadata(metadata_id: int):
     """ Returns the service metadata xml file for a given metadata id
 
     Args:
-        request (HttpRequest): The incoming request
-        proxy_log (ProxyLog): The logging object
-        id (int): The metadata id
+        metadata_id (int): The metadata id
     Returns:
          A HttpResponse containing the xml file
     """
-    metadata = Metadata.objects.get(id=id)
+    metadata = Metadata.objects.get(id=metadata_id)
 
     if not metadata.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
@@ -451,16 +449,15 @@ def get_service_metadata(request: HttpRequest, proxy_log: ProxyLog, id: int):
     return HttpResponse(doc, content_type=APP_XML)
 
 
-def get_dataset_metadata(request: HttpRequest, id: int):
+def get_dataset_metadata(metadata_id: int):
     """ Returns the dataset metadata xml file for a given metadata id
 
     Args:
-        request (HttpRequest): The incoming request
-        id (int): The metadata id
+        metadata_id (int): The metadata id
     Returns:
          A HttpResponse containing the xml file
     """
-    md = Metadata.objects.get(id=id)
+    md = Metadata.objects.get(id=metadata_id)
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
     try:
@@ -479,7 +476,7 @@ def get_dataset_metadata(request: HttpRequest, id: int):
     return HttpResponse(document, content_type='application/xml')
 
 
-def check_for_dataset_metadata(request: HttpRequest, id: int):
+def check_for_dataset_metadata(request: HttpRequest, metadata_id: int):
     """ Checks whether an element (layer or featuretype) has a dataset metadata record.
 
     This function is used for ajax calls from the client, to check dynamically on an opened subelement if there
@@ -487,15 +484,15 @@ def check_for_dataset_metadata(request: HttpRequest, id: int):
 
     Args:
         request (HttpRequest): The incoming request
-        id (int): The element id
+        metadata_id (int): The element id
     Returns:
          A BackendAjaxResponse, containing a boolean, whether the requested element has a dataset metadata record or not
     """
     element_type = request.GET.get("serviceType")
     if element_type == OGCServiceEnum.WMS.value:
-        element = Layer.objects.get(metadata__id=id)
+        element = Layer.objects.get(metadata__id=metadata_id)
     elif element_type == OGCServiceEnum.WFS.value:
-        element = FeatureType.objects.get(metadata__id=id)
+        element = FeatureType.objects.get(metadata__id=metadata_id)
     else:
         return
     md = element.metadata
@@ -514,17 +511,16 @@ def check_for_dataset_metadata(request: HttpRequest, id: int):
 
 @log_proxy
 # TODO: currently the preview is not pretty. Refactor this method to get a pretty preview img by consider the right scale of the layers
-def get_service_metadata_preview(request: HttpRequest, proxy_log: ProxyLog, id: int):
+def get_service_metadata_preview(request: HttpRequest, metadata_id: int):
     """ Returns the service metadata previe als png for a given metadata id
 
     Args:
         request (HttpRequest): The incoming request
-        proxy_log (ProxyLog): The logging object
-        id (int): The metadata id
+        metadata_id (int): The metadata id
     Returns:
          A HttpResponse containing the png preview
     """
-    md = Metadata.objects.get(id=id)
+    md = Metadata.objects.get(id=metadata_id)
 
     if md.service.servicetype.name == OGCServiceEnum.WMS.value and md.service.is_root:
         layer = Layer.objects.get(
@@ -587,17 +583,17 @@ def get_service_metadata_preview(request: HttpRequest, proxy_log: ProxyLog, id: 
     return HttpResponse(response, content_type=content_type)
 
 
-def get_capabilities(request: HttpRequest, id: int):
+def get_capabilities(request: HttpRequest, metadata_id: int):
     """ Returns the current capabilities xml file
 
     Args:
         request (HttpRequest): The incoming request
-        id (int): The metadata id
+        metadata_id (int): The metadata id
     Returns:
          A HttpResponse containing the xml file
     """
 
-    md = Metadata.objects.get(id=id)
+    md = Metadata.objects.get(id=metadata_id)
     stored_version = md.get_service_version().value
     # move increasing hits to background process to speed up response time!
     async_increase_hits.delay(id)
@@ -676,7 +672,7 @@ def get_capabilities(request: HttpRequest, id: int):
 
 
 @log_proxy
-def get_metadata_html(request: HttpRequest, proxy_log: ProxyLog, id: int):
+def get_metadata_html(request: HttpRequest, metadata_id: int):
     """ Returns the metadata as html rendered view
         Args:
             request (HttpRequest): The incoming request
@@ -689,7 +685,7 @@ def get_metadata_html(request: HttpRequest, proxy_log: ProxyLog, id: int):
     base_template = '404.html'
     # ----
 
-    md = Metadata.objects.get(id=id)
+    md = Metadata.objects.get(id=metadata_id)
 
     # collect global data for all cases
     params = {
@@ -795,12 +791,12 @@ def wms_index(request: HttpRequest):
 @login_required
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic
-def update_service(request: HttpRequest, id: int):
+def update_service(request: HttpRequest, service_id: int):
     """ Compare old service with new service and collect differences
 
     Args:
         request: The incoming request
-        id: The service id
+        service_id: The service id
     Returns:
         A rendered view
     """
@@ -810,7 +806,7 @@ def update_service(request: HttpRequest, id: int):
     update_params = request.session["update"]
     url_dict = service_helper.split_service_uri(update_params["full_uri"])
     new_service_type = url_dict.get("service")
-    old_service = Service.objects.get(id=id)
+    old_service = Service.objects.get(id=service_id)
 
     # check if metadata should be kept
     keep_custom_metadata = request.POST.get("keep-metadata", None)
@@ -908,13 +904,12 @@ def discard_update(request: HttpRequest):
 
 @login_required
 @check_permission(Permission(can_update_service=True))
-def update_service_form(request: HttpRequest, id: int):
+def update_service_form(request: HttpRequest, service_id: int):
     """ Creates the form for updating a service
 
     Args:
         request: The incoming request
-        user: The current user
-        id: The service id
+        service_id: The service id
     Returns:
          A BackendAjaxResponse
     """
@@ -934,9 +929,9 @@ def update_service_form(request: HttpRequest, id: int):
 
             try:
                 # get current service to compare with
-                service = Service.objects.get(id=id)
+                service = Service.objects.get(id=service_id)
                 params = {
-                    "action_url": ROOT_URL + "/service/update/" + str(id),
+                    "action_url": ROOT_URL + "/service/update/" + str(service_id),
                     "service": service,
                     "error": error,
                     "uri": url_dict["base_uri"],
@@ -965,11 +960,11 @@ def update_service_form(request: HttpRequest, id: int):
         params = {
             "form": uri_form,
             "article": _("Enter the new capabilities URL of your service."),
-            "action_url": ROOT_URL + "/service/register-form/" + str(id),
+            "action_url": ROOT_URL + "/service/register-form/" + str(service_id),
             "button_text": "Update",
             "page_indicator_list": [True, False],
         }
-    params["service_id"] = id
+    params["service_id"] = service_id
     html = render_to_string(template_name=template, request=request, context=params)
     return BackendAjaxResponse(html=html).get_response()
 
@@ -1088,7 +1083,7 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None):
 
 @csrf_exempt
 @log_proxy
-def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
+def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id: int):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
 
     Decides which operation will be handled by resolving a given 'request=' query parameter.
@@ -1108,7 +1103,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
 
     try:
         # redirects request to parent service, if the given id is not the root of the service
-        metadata = Metadata.objects.get(id=id)
+        metadata = Metadata.objects.get(id=metadata_id)
         operation_handler = OGCOperationRequestHandler(uri=get_query_string, request=request, metadata=metadata)
 
         if not metadata.is_active:
@@ -1118,7 +1113,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
             return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
 
         elif operation_handler.request_param.upper() == OGCOperationEnum.GET_CAPABILITIES.value.upper():
-            return get_capabilities(request=request, id=id)
+            return get_capabilities(request=request, metadata_id=metadata_id)
 
         elif not metadata.is_root():
             # we do not allow the direct call of operations on child elements, such as layers!
@@ -1176,16 +1171,15 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
         return HttpResponse(status=500, content=e)
 
 
-def get_metadata_legend(request: HttpRequest, id: int, style_id: id):
+def get_metadata_legend(request: HttpRequest, metadata_id: int, style_id: id):
     """ Calls the legend uri of a special style inside the metadata (<LegendURL> element) and returns the response to the user
 
     This function has to be public available (no check_session decorator)
 
     Args:
         request (HttpRequest): The incoming HttpRequest
-        id (int): The metadata id
+        metadata_id (int): The metadata id
         style_id (int): The stlye id
-        user (MrMapUser): The performing user
     Returns:
         HttpResponse
     """

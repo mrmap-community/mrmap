@@ -6,20 +6,20 @@ app_name = 'service'
 urlpatterns = [
     path('', index, name='index'),
     path('session', set_session, name='session'),
-    path('activate/<id>', activate, name='activate'),
 
-    path('metadata/<int:id>', get_service_metadata, name='get-service-metadata'),
-    path('metadata/dataset/<int:id>', get_dataset_metadata, name='get-dataset-metadata'),
-    path('metadata/dataset/check/<int:id>', check_for_dataset_metadata, name='check-for-dataset-metadata'),
-    path('metadata/preview/<int:id>', get_service_metadata_preview, name='get-service-metadata-preview'),
-    path('metadata/html/<int:id>', get_metadata_html, name='get-metadata-html'),
+    path('metadata/<metadata_id>', get_service_metadata, name='get-service-metadata'),
+    path('metadata/dataset/<metadata_id>', get_dataset_metadata, name='get-dataset-metadata'),
+    path('metadata/dataset/check/<metadata_id>', check_for_dataset_metadata, name='check-for-dataset-metadata'),
+    path('metadata/preview/<metadata_id>', get_service_metadata_preview, name='get-service-metadata-preview'),
+    path('metadata/html/<metadata_id>', get_metadata_html, name='get-metadata-html'),
 
-    path('metadata/<int:id>/operation', get_operation_result, name='metadata-proxy-operation'),
-    path('metadata/<int:id>/legend/<int:style_id>', get_metadata_legend, name='metadata-proxy-legend'),
+    path('metadata/<metadata_id>/operation', get_operation_result, name='metadata-proxy-operation'),
+    path('metadata/<metadata_id>/legend/<int:style_id>', get_metadata_legend, name='metadata-proxy-legend'),
 
     path('update/<id>', update_service, name='update'),
 
-    path('remove/<id>', remove, name='remove'),
+    path('remove/<metadata_id>', remove, name='remove'),
+    path('activate/<service_id>', activate, name='activate'),
     path('add/', add, name='add'),
 
     path('pending-tasks/', pending_tasks, name="pending-tasks"),
@@ -27,7 +27,7 @@ urlpatterns = [
     path('wms/', wms_index, name='wms-index'),
     path('wfs/', wfs_index, name='wfs-index'),
 
-    path('detail/<int:id>', detail, name='detail'),
+    path('detail/<metadata_id>', detail, name='detail'),
 ]
 
 

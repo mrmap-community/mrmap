@@ -166,7 +166,7 @@ def _new_service_wizard_page1(request: HttpRequest):
 def _new_service_wizard_page2(request: HttpRequest):
     # Page two is posted --> collect all data from post and initial the form
     user = user_helper.get_user(request)
-    selected_group = user.get_groups().get(id=int(request.POST.get("registering_with_group")))
+    selected_group = MrMapGroup.objects.get(id=int(request.POST.get("registering_with_group")))
 
     init_data = {'ogc_request': request.POST.get("ogc_request"),
                  'ogc_service': request.POST.get("ogc_service"),
@@ -179,15 +179,15 @@ def _new_service_wizard_page2(request: HttpRequest):
                  }
 
     is_auth_needed = True if request.POST.get("service_needs_authentication") == 'on' else False
-    form = RegisterNewServiceWizardPage2(request.POST,
-                                         initial=init_data,
-                                         user=user,
-                                         selected_group=selected_group,
-                                         service_needs_authentication=is_auth_needed,
-                                         )
 
     # first check if it's just a update of the form
     if request.POST.get("is_form_update") == 'True':
+        # reset update flag
+        form = RegisterNewServiceWizardPage2(initial=init_data,
+                                             user=user,
+                                             selected_group=selected_group,
+                                             service_needs_authentication=is_auth_needed,
+                                             )
         # it's just a updated form state. return the new state as view
         params = {
             "new_service_form": form,
@@ -266,6 +266,7 @@ def _new_service_wizard_page2(request: HttpRequest):
 
 
 @login_required
+@check_permission(Permission(can_register_service=True))
 def add(request: HttpRequest):
     """ Renders wizard page configuration for service registration
 
@@ -354,28 +355,21 @@ def pending_tasks(request: HttpRequest):
 
 @login_required
 @check_permission(Permission(can_remove_service=True))
-def remove(request: HttpRequest, id:int):
+def remove(request: HttpRequest, metadata_id: int):
     """ Renders the remove form for a service
 
     Args:
         request(HttpRequest): The used request
+        metadata_id:
     Returns:
         Redirect to service:index
     """
     user = user_helper.get_user(request)
 
     remove_form = RemoveServiceForm(request.POST)
-    if remove_form.is_valid():
-        metadata = get_object_or_404(Metadata, id=id)
-        service_type = metadata.get_service_type()
-        sub_elements = None
-
-        if service_type == OGCServiceEnum.WMS.value:
-            sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
-        elif service_type == OGCServiceEnum.WFS.value:
-            sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
-
-        if remove_form.cleaned_data['is_confirmed']:
+    if request.method == 'POST':
+        if remove_form.is_valid() and request.POST.get("is_confirmed") == 'on':
+            metadata = get_object_or_404(Metadata, id=metadata_id)
             # remove service and all of the related content
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
 
@@ -383,43 +377,49 @@ def remove(request: HttpRequest, id:int):
             metadata.is_deleted = True
             metadata.save()
 
-            # TODO: we dont know this at this time; refactor this; async_remove function should add messages
-            messages.success(request, 'Service "{}" successfully deleted.'.format(metadata.title))
+            service_type = metadata.get_service_type()
+            if service_type == OGCServiceEnum.WMS.value:
+                sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
+            elif service_type == OGCServiceEnum.WFS.value:
+                sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
+
+            for sub_element in sub_elements:
+                sub_metadata = sub_element.metadata
+                sub_metadata.is_deleted = True
+                sub_metadata.save()
+
+            messages.success(request, 'Service "{}" marked for deletion.'.format(metadata.title))
 
             # call removing as async task
             async_remove_service_task.delay(metadata.service.id)
-
             return redirect(SERVICE_INDEX)
         else:
-            # TODO: redirect to service:detail; show modal by default with error message
             params = {
-                "service": metadata,
-                "metadata": metadata,
-                "sub_elements": sub_elements,
+                "remove_service_form": remove_form,
+                "show_modal": True,
             }
-            return redirect("service:detail", id)
+            return detail(request=request, metadata_id=metadata_id, update_params=params)
     else:
-        # TODO: redirect to service:detail; show modal by default with error message
-        return redirect("service:detail", id)
+        return redirect("service:detail", metadata_id)
 
 
 @login_required
 @check_permission(Permission(can_activate_service=True))
-def activate(request: HttpRequest, id: int):
+def activate(request: HttpRequest, service_id: int):
     """ (De-)Activates a service and all of its layers
 
     Args:
-        id:
+        service_id:
         request:
     Returns:
          redirects to service:index
     """
     user = user_helper.get_user(request)
 
-    md = Metadata.objects.get(service__id=id)
+    md = Metadata.objects.get(service__id=service_id)
 
     # run activation async!
-    tasks.async_activate_service.delay(id, user.id)
+    tasks.async_activate_service.delay(service_id, user.id)
 
     # If metadata WAS active, then it will be deactivated now
     if md.is_active:
@@ -432,17 +432,15 @@ def activate(request: HttpRequest, id: int):
 
 
 @log_proxy
-def get_service_metadata(request: HttpRequest, proxy_log: ProxyLog, id: int):
+def get_service_metadata(metadata_id: int):
     """ Returns the service metadata xml file for a given metadata id
 
     Args:
-        request (HttpRequest): The incoming request
-        proxy_log (ProxyLog): The logging object
-        id (int): The metadata id
+        metadata_id (int): The metadata id
     Returns:
          A HttpResponse containing the xml file
     """
-    metadata = Metadata.objects.get(id=id)
+    metadata = Metadata.objects.get(id=metadata_id)
 
     if not metadata.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
@@ -452,16 +450,15 @@ def get_service_metadata(request: HttpRequest, proxy_log: ProxyLog, id: int):
     return HttpResponse(doc, content_type=APP_XML)
 
 
-def get_dataset_metadata(request: HttpRequest, id: int):
+def get_dataset_metadata(metadata_id: int):
     """ Returns the dataset metadata xml file for a given metadata id
 
     Args:
-        request (HttpRequest): The incoming request
-        id (int): The metadata id
+        metadata_id (int): The metadata id
     Returns:
          A HttpResponse containing the xml file
     """
-    md = Metadata.objects.get(id=id)
+    md = Metadata.objects.get(id=metadata_id)
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
     try:
@@ -480,7 +477,7 @@ def get_dataset_metadata(request: HttpRequest, id: int):
     return HttpResponse(document, content_type='application/xml')
 
 
-def check_for_dataset_metadata(request: HttpRequest, id: int):
+def check_for_dataset_metadata(request: HttpRequest, metadata_id: int):
     """ Checks whether an element (layer or featuretype) has a dataset metadata record.
 
     This function is used for ajax calls from the client, to check dynamically on an opened subelement if there
@@ -488,15 +485,15 @@ def check_for_dataset_metadata(request: HttpRequest, id: int):
 
     Args:
         request (HttpRequest): The incoming request
-        id (int): The element id
+        metadata_id (int): The element id
     Returns:
          A BackendAjaxResponse, containing a boolean, whether the requested element has a dataset metadata record or not
     """
     element_type = request.GET.get("serviceType")
     if element_type == OGCServiceEnum.WMS.value:
-        element = Layer.objects.get(metadata__id=id)
+        element = Layer.objects.get(metadata__id=metadata_id)
     elif element_type == OGCServiceEnum.WFS.value:
-        element = FeatureType.objects.get(metadata__id=id)
+        element = FeatureType.objects.get(metadata__id=metadata_id)
     else:
         return
     md = element.metadata
@@ -515,17 +512,16 @@ def check_for_dataset_metadata(request: HttpRequest, id: int):
 
 @log_proxy
 # TODO: currently the preview is not pretty. Refactor this method to get a pretty preview img by consider the right scale of the layers
-def get_service_metadata_preview(request: HttpRequest, proxy_log: ProxyLog, id: int):
+def get_service_metadata_preview(request: HttpRequest, metadata_id: int):
     """ Returns the service metadata previe als png for a given metadata id
 
     Args:
         request (HttpRequest): The incoming request
-        proxy_log (ProxyLog): The logging object
-        id (int): The metadata id
+        metadata_id (int): The metadata id
     Returns:
          A HttpResponse containing the png preview
     """
-    md = Metadata.objects.get(id=id)
+    md = Metadata.objects.get(id=metadata_id)
 
     if md.service.servicetype.name == OGCServiceEnum.WMS.value and md.service.is_root:
         layer = Layer.objects.get(
@@ -588,17 +584,17 @@ def get_service_metadata_preview(request: HttpRequest, proxy_log: ProxyLog, id: 
     return HttpResponse(response, content_type=content_type)
 
 
-def get_capabilities(request: HttpRequest, id: int):
+def get_capabilities(request: HttpRequest, metadata_id: int):
     """ Returns the current capabilities xml file
 
     Args:
         request (HttpRequest): The incoming request
-        id (int): The metadata id
+        metadata_id (int): The metadata id
     Returns:
          A HttpResponse containing the xml file
     """
 
-    md = Metadata.objects.get(id=id)
+    md = Metadata.objects.get(id=metadata_id)
     stored_version = md.get_service_version().value
     # move increasing hits to background process to speed up response time!
     async_increase_hits.delay(id)
@@ -677,7 +673,7 @@ def get_capabilities(request: HttpRequest, id: int):
 
 
 @log_proxy
-def get_metadata_html(request: HttpRequest, proxy_log: ProxyLog, id: int):
+def get_metadata_html(request: HttpRequest, metadata_id: int):
     """ Returns the metadata as html rendered view
         Args:
             request (HttpRequest): The incoming request
@@ -690,7 +686,7 @@ def get_metadata_html(request: HttpRequest, proxy_log: ProxyLog, id: int):
     base_template = '404.html'
     # ----
 
-    md = Metadata.objects.get(id=id)
+    md = Metadata.objects.get(id=metadata_id)
 
     # collect global data for all cases
     params = {
@@ -740,30 +736,6 @@ def get_metadata_html(request: HttpRequest, proxy_log: ProxyLog, id: int):
 
     context = DefaultContext(request, params, None)
     return render(request=request, template_name=base_template, context=context.get_context())
-
-
-@log_proxy
-def get_capabilities_original(request: HttpRequest, proxy_log: ProxyLog, id: int):
-    """ Returns the current capabilities xml file
-
-    Args:
-        request (HttpRequest): The incoming request
-        proxy_log (ProxyLog): The logging object
-        id (int): The metadata id
-    Returns:
-         A HttpResponse containing the xml file
-    """
-    md = Metadata.objects.get(id=id)
-
-    if not md.is_active:
-        return HttpResponse(content=SERVICE_DISABLED, status=423)
-
-    # move increasing hits to background process to speed up response time!
-    async_increase_hits.delay(id)
-    cap_doc = Document.objects.get(related_metadata=md)
-    doc = cap_doc.original_capability_document
-
-    return HttpResponse(doc, content_type='application/xml')
 
 
 @login_required
@@ -820,12 +792,12 @@ def wms_index(request: HttpRequest):
 @login_required
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic
-def update_service(request: HttpRequest, id: int):
+def update_service(request: HttpRequest, service_id: int):
     """ Compare old service with new service and collect differences
 
     Args:
         request: The incoming request
-        id: The service id
+        service_id: The service id
     Returns:
         A rendered view
     """
@@ -968,7 +940,6 @@ def update_service(request: HttpRequest, id: int):
         return redirect("service:detail", id)
 
 
-#TODO: refactor this method
 @login_required
 def wfs_index(request: HttpRequest):
     """ Renders an overview of all wfs
@@ -1002,27 +973,25 @@ def wfs_index(request: HttpRequest):
 
 
 @login_required
-def detail(request: HttpRequest, id):
+def detail(request: HttpRequest, metadata_id: int, update_params=None):
     """ Renders a detail view of the selected service
 
     Args:
         request: The incoming request
-        id: The id of the selected metadata
+        metadata_id: The id of the selected metadata
+        update_params: dict with params we will update before we return the context
     Returns:
     """
     user = user_helper.get_user(request)
 
     template = "views/detail.html"
-    service_md = get_object_or_404(Metadata, id=id)
+    service_md = get_object_or_404(Metadata, id=metadata_id)
     params = {}
 
     # catch featuretype
     if service_md.metadata_type.type == 'featuretype':
         params.update({'caption': _("Shows informations about the featuretype which you are selected.")})
-        if 'no-base' in request.GET:
-            template = "views/featuretype_detail_no_base.html"
-        else:
-            template = "views/featuretype_detail.html"
+        template = "views/featuretype_detail_no_base.html" if 'no-base' in request.GET else "views/featuretype_detail.html"
         service = service_md.featuretype
         layers_md_list = {}
     else:
@@ -1033,10 +1002,7 @@ def detail(request: HttpRequest, id):
             layers_md_list = layers.filter(parent_layer=None)
         else:
             params.update({'caption': _("Shows informations about the sublayer which you are selected.")})
-            if 'no-base' in request.GET:
-                template = "views/sublayer_detail_no_base.html"
-            else:
-                template = "views/sublayer_detail.html"
+            template = "views/sublayer_detail_no_base.html" if 'no-base' in request.GET else "views/sublayer_detail.html"
             service = Layer.objects.get(
                 metadata=service_md
             )
@@ -1072,7 +1038,7 @@ def detail(request: HttpRequest, id):
             'service_needs_authentication': False,
         }
     )
-    remove_service_form.action_url = reverse('service:remove', args=[id])
+    remove_service_form.action_url = reverse('service:remove', args=[metadata_id])
 
     update_service_check_form = UpdateServiceCheckForm(
         initial={
@@ -1092,60 +1058,17 @@ def detail(request: HttpRequest, id):
         "remove_service_form": remove_service_form,
         "leaflet_add_bbox": True,
     })
+
+    if update_params:
+        params.update(update_params)
+
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 
 
-@login_required
-def detail_child(request: HttpRequest, id):
-    """ Returns a rendered html overview of the element with the given id
-
-    Args:
-        request (HttpRequest): The incoming request
-        id (int): The element id
-    Returns:
-         A rendered view for ajax insertion
-    """
-    user = user_helper.get_user(request)
-
-    element_type = request.GET.get("serviceType")
-    if element_type == "wms":
-        template = "detail/service_detail_child_wms.html"
-        element = Layer.objects.get(id=id)
-    elif element_type == "wfs":
-        template = "detail/service_detail_child_wfs.html"
-        element = FeatureType.objects.get(id=id)
-    else:
-        template = ""
-        element = None
-
-    params = {
-        "element": element,
-        "user_permissions": user.get_permissions(),
-    }
-    html = render_to_string(template_name=template, context=params)
-    return BackendAjaxResponse(html=html).get_response()
-
-
-def metadata_proxy(request: HttpRequest, id: int):
-    """ Returns the xml document which is resolved by the metadata id.
-
-    Args:
-        request (HttpRequest): The incoming request
-        id (int): The metadata id
-    Returns:
-         HttpResponse
-    """
-    md = Metadata.objects.get(id=id)
-    con = CommonConnector(url=md.metadata_url)
-    con.load()
-    xml_raw = con.content
-    return HttpResponse(xml_raw, content_type='application/xml')
-
-
 @csrf_exempt
 @log_proxy
-def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
+def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id: int):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
 
     Decides which operation will be handled by resolving a given 'request=' query parameter.
@@ -1165,7 +1088,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
 
     try:
         # redirects request to parent service, if the given id is not the root of the service
-        metadata = Metadata.objects.get(id=id)
+        metadata = Metadata.objects.get(id=metadata_id)
         operation_handler = OGCOperationRequestHandler(uri=get_query_string, request=request, metadata=metadata)
 
         if not metadata.is_active:
@@ -1175,7 +1098,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
             return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
 
         elif operation_handler.request_param.upper() == OGCOperationEnum.GET_CAPABILITIES.value.upper():
-            return get_capabilities(request=request, id=id)
+            return get_capabilities(request=request, metadata_id=metadata_id)
 
         elif not metadata.is_root():
             # we do not allow the direct call of operations on child elements, such as layers!
@@ -1233,16 +1156,15 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, id: int):
         return HttpResponse(status=500, content=e)
 
 
-def get_metadata_legend(request: HttpRequest, id: int, style_id: id):
+def get_metadata_legend(request: HttpRequest, metadata_id: int, style_id: id):
     """ Calls the legend uri of a special style inside the metadata (<LegendURL> element) and returns the response to the user
 
     This function has to be public available (no check_session decorator)
 
     Args:
         request (HttpRequest): The incoming HttpRequest
-        id (int): The metadata id
+        metadata_id (int): The metadata id
         style_id (int): The stlye id
-        user (MrMapUser): The performing user
     Returns:
         HttpResponse
     """

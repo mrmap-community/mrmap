@@ -81,10 +81,10 @@ def _get_request_uri_has_no_version_parameter(value):
     if "version" in url_dict and url_dict["version"] is not None:
         if "service" in url_dict or url_dict["service"] is not None:
             if url_dict["service"] == OGCServiceEnum.WMS:
-                service_type = 'WMS'
+                service_type = OGCServiceEnum.WMS.value
                 supported_versions = supported_wms_versions
             elif url_dict["service"] == OGCServiceEnum.WFS:
-                service_type = 'WFS'
+                service_type = OGCServiceEnum.WFS.value
                 supported_versions = supported_wfs_versions
             else:
                 return ValidationError(

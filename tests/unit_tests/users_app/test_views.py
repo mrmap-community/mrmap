@@ -15,6 +15,8 @@ from tests.test_data import get_contact_data, get_password_data, get_username_da
 from django.utils import timezone
 from django.contrib.messages import get_messages
 
+from users.forms import PasswordChangeForm
+
 REDIRECT_WRONG = "Redirect wrong"
 
 
@@ -185,6 +187,11 @@ class LoginLogoutTestCase(TestCase):
         self.user_password = PASSWORD
         self.user = create_superadminuser()
 
+    def test_get(self):
+        client = Client()
+        response = client.get(reverse('login', ))
+        self.assertEqual(response.status_code, 200, msg="No redirect was processed.")
+
     def test_user_login_logout(self):
         """ Tests the login functionality
 
@@ -224,8 +231,9 @@ class PasswordChangeTestCase(TestCase):
         # creates user object in db
         self.user_password = PASSWORD
         self.user = create_superadminuser()
-        client = Client()
-        client.login(username=self.user.username, password=self.user_password)
+        self.new_password = "SuperStrongPassword!123"
+        self.client = Client()
+        self.client.login(username=self.user.username, password=self.user_password)
 
     def test_user_password_change_with_logged_out_user(self):
         """ Tests the password change functionality
@@ -250,26 +258,32 @@ class PasswordChangeTestCase(TestCase):
         self.assertNotEqual(self.user.password, make_password(new_pw, self.user.salt), msg=PASSWORD_WRONG)
 
     def test_user_password_change_with_logged_in_user(self):
-        PASSWORD_WRONG = "Password wrong"
-        new_pw = get_password_data().get('valid')
-
-        # case 1: Input passwords match
-        # assert action has effect as expected
-        self.client.post(
+        response = self.client.post(
             reverse('password-change', ),
-            data={"password": new_pw, "password_again": new_pw, "user": self.user}
+            data={"old_password": PASSWORD, "new_password": self.new_password, "new_password_again": self.new_password}
         )
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.password, make_password(new_pw, self.user.salt), msg=PASSWORD_WRONG)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Client().login(username=self.user.username, password=self.new_password), msg="New password doesn't work.")
 
-        # case 2: Input passwords do not match
-        # assert action has no effect
-        self.client.post(
+    def test_user_password_change_invalid_password_again(self):
+        response = self.client.post(
             reverse('password-change', ),
-            data={"password": new_pw, "password_again": new_pw[::-1], "user": self.user}
+            data={"old_password": PASSWORD, "new_password": self.new_password, "new_password_again": self.new_password[::-1]}
         )
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.password, make_password(new_pw, self.user.salt), msg=PASSWORD_WRONG)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response.context['password_change_form'], PasswordChangeForm)
+        self.assertTrue(response.context['show_password_change_form'])
+
+    def test_user_password_change_invalid_old_password(self):
+        response = self.client.post(
+            reverse('password-change', ),
+            data={"old_password": "qwertzuiopoiuztrewq", "new_password": self.new_password, "new_password_again": self.new_password[::-1]}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response.context['password_change_form'], PasswordChangeForm)
+        self.assertTrue(response.context['show_password_change_form'])
 
 
 class AccountEditTestCase(TestCase):

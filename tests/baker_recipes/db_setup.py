@@ -31,6 +31,8 @@ def create_wms_service(group: MrMapGroup, how_much_services: int = 1, how_much_s
                               parent_service=root_service,
                               metadata=sublayer_metadata)
 
+    return root_service_metadatas
+
 
 def create_wfs_service(group: MrMapGroup, how_much_services: int = 1, how_much_featuretypes: int = 1):
     root_service_metadatas = baker.make_recipe('tests.baker_recipes.service_app.active_wfs_service_metadata',
@@ -51,3 +53,5 @@ def create_wfs_service(group: MrMapGroup, how_much_services: int = 1, how_much_f
                               created_by=group,
                               parent_service=root_service,
                               metadata=featuretype_metadata)
+
+    return root_service_metadatas

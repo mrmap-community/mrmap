@@ -157,7 +157,7 @@ class MrMapUser(AbstractUser):
             md_list = md_list.filter(service__servicetype__name=type.name.lower())
         return md_list
 
-    def get_groups(self, filter_by: dict={}):
+    def get_groups(self, filter_by: dict = {}):
         """ Returns a queryset of all MrMapGroups related to the user
 
         filter_by takes the same attributes and properties as a regular queryset filter call.
@@ -171,6 +171,7 @@ class MrMapUser(AbstractUser):
         Returns:
              list
         """
+
         groups = MrMapGroup.objects.filter(
             id__in=self.groups.all().values('id')
         ).filter(

@@ -1871,7 +1871,6 @@ class Service(Resource):
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
 
-
     get_capabilities_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_capabilities_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 

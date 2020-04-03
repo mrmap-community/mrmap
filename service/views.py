@@ -166,7 +166,7 @@ def _new_service_wizard_page1(request: HttpRequest):
 def _new_service_wizard_page2(request: HttpRequest):
     # Page two is posted --> collect all data from post and initial the form
     user = user_helper.get_user(request)
-    selected_group = user.get_groups(filter_by={'id': int(request.POST.get("registering_with_group"))})
+    selected_group = MrMapGroup.objects.get(id=int(request.POST.get("registering_with_group")))
 
     init_data = {'ogc_request': request.POST.get("ogc_request"),
                  'ogc_service': request.POST.get("ogc_service"),

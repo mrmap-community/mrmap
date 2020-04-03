@@ -171,17 +171,12 @@ class MrMapUser(AbstractUser):
         Returns:
              list
         """
-        if 'id' in filter_by:
-            # return the concrete objecte instead of queryset if filter by id, cause this will only return one element
-            groups = MrMapGroup.objects.filter(
-                id__in=self.groups.all().values('id')
-            ).get(id=filter_by.get('id'))
-        else:
-            groups = MrMapGroup.objects.filter(
-                id__in=self.groups.all().values('id')
-            ).filter(
-                **filter_by
-            )
+
+        groups = MrMapGroup.objects.filter(
+            id__in=self.groups.all().values('id')
+        ).filter(
+            **filter_by
+        )
         return groups
 
     def get_permissions(self, group: MrMapGroup = None):

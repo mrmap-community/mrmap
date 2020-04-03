@@ -597,7 +597,7 @@ def get_capabilities(request: HttpRequest, metadata_id: int):
     md = Metadata.objects.get(id=metadata_id)
     stored_version = md.get_service_version().value
     # move increasing hits to background process to speed up response time!
-    async_increase_hits.delay(id)
+    async_increase_hits.delay(metadata_id)
 
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
@@ -792,12 +792,12 @@ def wms_index(request: HttpRequest):
 @login_required
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic
-def update_service(request: HttpRequest, service_id: int):
+def update_service(request: HttpRequest, metadata_id: int):
     """ Compare old service with new service and collect differences
 
     Args:
         request: The incoming request
-        service_id: The service id
+        metadata_id: The service id
     Returns:
         A rendered view
     """
@@ -813,23 +813,23 @@ def update_service(request: HttpRequest, service_id: int):
         # Check if update form is valid
         if not update_form.is_valid():
             messages.error(request, update_form.errors)
-            return redirect("service:detail", id)
+            return redirect("service:detail", metadata_id)
 
         # Check if uri can be retrieved correctly from the form
         uri = update_form.cleaned_data.get("get_capabilities_uri", None)
         keep_custom_md = update_form.cleaned_data.get("keep_custom_md", None)
         if uri is None:
             messages.error(request, PARAMETER_ERROR.format("Get capabilities uri"))
-            return redirect("service:detail", id)
+            return redirect("service:detail", metadata_id)
 
         url_dict = service_helper.split_service_uri(uri)
         new_service_type = url_dict.get("service")
-        current_service = Service.objects.get(metadata__id=id)
+        current_service = Service.objects.get(metadata__id=metadata_id)
 
         # Check cross service update attempt
         if current_service.servicetype.name != new_service_type.value:
             messages.add_message(request, messages.ERROR, SERVICE_UPDATE_WRONG_TYPE)
-            return redirect("service:detail", id)
+            return redirect("service:detail", metadata_id)
 
         # Create db model from new service information (no persisting, yet)
         registrating_group = current_service.created_by
@@ -853,7 +853,7 @@ def update_service(request: HttpRequest, service_id: int):
             keep_custom_md=keep_custom_md,
             get_capabilities_uri=uri
         )
-        update_confirmation_form.action_url = reverse("service:update", args=[id])
+        update_confirmation_form.action_url = reverse("service:update", args=[metadata_id])
 
         params = {
             "current_service": current_service,
@@ -878,10 +878,10 @@ def update_service(request: HttpRequest, service_id: int):
 
         if uri is None:
             messages.error(request, PARAMETER_ERROR.format("Get capabilities uri"))
-            return redirect("service:detail", id)
+            return redirect("service:detail", metadata_id)
 
         url_dict = service_helper.split_service_uri(uri)
-        current_service = Service.objects.get(metadata__id=id)
+        current_service = Service.objects.get(metadata__id=metadata_id)
 
         # Create db model from new service information (no persisting, yet)
         registrating_group = current_service.created_by
@@ -937,7 +937,7 @@ def update_service(request: HttpRequest, service_id: int):
         )
 
         messages.success(request, SERVICE_UPDATED)
-        return redirect("service:detail", id)
+        return redirect("service:detail", metadata_id)
 
 
 @login_required
@@ -1046,7 +1046,7 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None):
             'service_needs_authentication': False,
         }
     )
-    update_service_check_form.action_url = reverse('service:update', args=[id])
+    update_service_check_form.action_url = reverse('service:update', args=[metadata_id])
 
     params.update({
         "has_dataset_metadata": has_dataset_metadata,
@@ -1156,7 +1156,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id:
         return HttpResponse(status=500, content=e)
 
 
-def get_metadata_legend(request: HttpRequest, metadata_id: int, style_id: id):
+def get_metadata_legend(request: HttpRequest, metadata_id: int, style_id: int):
     """ Calls the legend uri of a special style inside the metadata (<LegendURL> element) and returns the response to the user
 
     This function has to be public available (no check_session decorator)
@@ -1164,7 +1164,7 @@ def get_metadata_legend(request: HttpRequest, metadata_id: int, style_id: id):
     Args:
         request (HttpRequest): The incoming HttpRequest
         metadata_id (int): The metadata id
-        style_id (int): The stlye id
+        style_id (int): The style id
     Returns:
         HttpResponse
     """

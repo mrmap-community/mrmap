@@ -54,7 +54,7 @@ def log_proxy(function):
     def wrap(request, *args, **kwargs):
         user = user_helper.get_user(request=request)
         try:
-            md = Metadata.objects.get(id=kwargs["id"])
+            md = Metadata.objects.get(id=kwargs["metadata_id"])
         except ObjectDoesNotExist:
             return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 

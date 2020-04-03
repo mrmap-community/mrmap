@@ -126,7 +126,7 @@ class OGCWebMapService(OGCWebService):
 
         if not metadata_only:
             start_time = time.time()
-            self.get_layers(xml_obj=xml_obj, async_task=async_task)
+            self._get_layers(xml_obj=xml_obj, async_task=async_task)
             print_debug_mode(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
 
     ### DATASET METADATA ###
@@ -485,9 +485,9 @@ class OGCWebMapService(OGCWebService):
             parent.child_layer.append(layer_obj)
         position += 1
 
-        self.get_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size, async_task=async_task)
+        self._get_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size, async_task=async_task)
 
-    def get_layers_recursive(self, layers, parent=None, position=0, step_size: float = None, async_task: Task = None):
+    def _get_layers_recursive(self, layers, parent=None, position=0, step_size: float = None, async_task: Task = None):
         """ Recursive Iteration over all children and subchildren.
 
         Creates OGCWebMapLayer objects for each xml layer and fills it with the layer content.
@@ -515,7 +515,7 @@ class OGCWebMapService(OGCWebService):
                 self._parse_single_layer(layer, parent, position, step_size=step_size, async_task=async_task)
                 position += 1
 
-    def get_layers(self, xml_obj, async_task: Task = None):
+    def _get_layers(self, xml_obj, async_task: Task = None):
         """ Parses all layers of a service and creates OGCWebMapLayer objects from each.
 
         Uses recursion on the inside to get all children.
@@ -545,7 +545,7 @@ class OGCWebMapService(OGCWebService):
         step_size = float(PROGRESS_STATUS_AFTER_PARSING / len_layers)
         print_debug_mode("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
 
-        self.get_layers_recursive(layers, step_size=step_size, async_task=async_task)
+        self._get_layers_recursive(layers, step_size=step_size, async_task=async_task)
 
     def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         """ Parses all <Service> element information which can be found in every wms specification since 1.0.0
@@ -1277,4 +1277,4 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         )
         self.max_height = max_height
 
-        self.get_layers(xml_obj=xml_obj)
+        self._get_layers(xml_obj=xml_obj)

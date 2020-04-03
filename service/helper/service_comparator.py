@@ -23,7 +23,7 @@ class ServiceComparator:
         "service_id"
     ]
 
-    def __init__(self, service_1: Service, service_2: Service):
+    def __init__(self, service_a: Service, service_b: Service):
         """ Compares two services against each other and stores the differences in a dict.
 
         Valid combinations are only wms,wms or wfs,wfs
@@ -31,19 +31,19 @@ class ServiceComparator:
         Service_1 has to be the service, which is not yet persisted but needs to be checked against service_2.
 
         Args:
-            service_1 (Service): The first service to be compared
-            service_2 (Service): The second service to be compared
+            service_a (Service): The first service to be compared
+            service_b (Service): The second service to be compared
         """
-        if service_1.servicetype.name != service_2.servicetype.name:
+        if service_a.servicetype.name != service_b.servicetype.name:
             raise Exception("INVALID SERVICE ARGUMENTS. Service types not matching")
-        self.service_1 = service_1
-        self.service_2 = service_2
+        self.service_a = service_a
+        self.service_b = service_b
 
-    def get_service_1(self):
-        return self.service_1
+    def get_service_a(self):
+        return self.service_a
 
-    def get_service_2(self):
-        return self.service_2
+    def get_service_b(self):
+        return self.service_b
 
     def compare_services(self):
         """ The main function to be called.
@@ -54,16 +54,16 @@ class ServiceComparator:
              diff (dict): The differences collected
         """
         diff = {}
-        if self.service_1.servicetype.name == OGCServiceEnum.WMS.value:
+        if self.service_a.servicetype.name == OGCServiceEnum.WMS.value:
             # Check layer metadata against each other
             # Always iterate over service_1 and check against service_2
-            layers = self.service_1.get_all_layers()
+            layers = self.service_a.get_all_layers()
             diff["layers"] = self.compare_layers(layers)
 
-        elif self.service_1.servicetype.name == OGCServiceEnum.WFS.value:
+        elif self.service_a.servicetype.name == OGCServiceEnum.WFS.value:
             # Check feature services against each other
             # always iterate over service_1 and check against service_2
-            diff["feature_types"] = self.compare_feature_types(self.service_1.feature_type_list)
+            diff["feature_types"] = self.compare_feature_types(self.service_a.feature_type_list)
 
         return diff
 
@@ -74,38 +74,43 @@ class ServiceComparator:
 
         Args:
             layers (list): The 'new' layers
-            diff (dict): The differences as a dict
         Returns:
             nothing
         """
-        service_2_layers = Layer.objects.filter(parent_service=self.service_2)
+        layers_of_b = Layer.objects.filter(parent_service=self.service_b)
         diff = {
             "new": [],
             "updated": [],
             "removed": [],
         }
-        for layer_1 in layers:
-            found = False
-            for layer_2 in service_2_layers:
-                if layer_1.identifier == layer_2.identifier:
-                    # case: still there
-                    found = True
-                    diff["updated"].append(layer_1)
-                    break
-            if not found:
-                # case: layer from new service not found in old service -> must be a new layer!
-                diff["new"].append(layer_1)
 
-        for layer_2 in service_2_layers:
+        for layer_of_a in layers:
             found = False
-            for layer_1 in layers:
-                if layer_1.identifier == layer_2.identifier:
+            identifier = layer_of_a.identifier
+            filtered_b_layers = layers_of_b.filter(
+                identifier=identifier
+            )
+            count = filtered_b_layers.count()
+            if count == 1:
+                # Case: layer still exists and has the same identifier as before
+                diff["updated"].append(layer_of_a)
+            elif count == 0:
+                # Case: layer from new service not found in current service -> must be a new layer!
+                diff["new"].append(layer_of_a)
+            else:
+                # This should absolutely not happen!! Multiple identifiers found!
+                raise Exception("Identifiers not unique!")
+
+        for layer_of_b in layers_of_b:
+            found = False
+            for layer_of_a in layers:
+                if layer_of_a.identifier == layer_of_b.identifier:
                     # case: still there
                     found = True
                     break
             if not found:
                 # case: layer from old service not found in new service -> must have been removed!
-                diff["removed"].append(layer_2)
+                diff["removed"].append(layer_of_b)
 
         return diff
 
@@ -115,38 +120,40 @@ class ServiceComparator:
         Collects which layers must be new, which one must be updated and which one are removed
 
         Args:
-            layers (list): The 'new' layers
-            diff (dict): The differences as a dict
+            feature_type_list (list): The 'new' feature types as list
         Returns:
             nothing
         """
-        service_2_f_t = FeatureType.objects.filter(service=self.service_2)
+        feature_types_of_b = FeatureType.objects.filter(parent_service=self.service_b)
         diff = {
             "new": [],
             "updated": [],
             "removed": [],
         }
-        for f_t in feature_type_list:
-            found = False
-            for f_t_2 in service_2_f_t:
-                if f_t.identifier == f_t_2.identifier:
-                    # case: still there
-                    found = True
-                    diff["updated"].append(f_t)
-                    break
-            if not found:
-                # case: layer from new service not found in old service -> must be a new layer!
-                diff["new"].append(f_t)
+        for f_t_of_a in feature_type_list:
 
-        for f_t_2 in service_2_f_t:
+            filtered_b_f_t = feature_types_of_b.filter(metadata__identifier=f_t_of_a.metadata.identifier)
+
+            count = filtered_b_f_t.count()
+            if count == 1:
+                # Case: Feature still exists and has the same identifier as before
+                diff["updated"].append(f_t_of_a)
+            elif count == 0:
+                # Case: Feature from new service not found in current service -> must be a new Feature!
+                diff["new"].append(f_t_of_a)
+            else:
+                # This should absolutely not happen!! Multiple identifiers found!
+                raise Exception("Identifiers not unique!")
+
+        for f_t_of_b in feature_types_of_b:
             found = False
-            for f_t in feature_type_list:
-                if f_t.identifier == f_t_2.identifier:
+            for f_t_of_a in feature_type_list:
+                if f_t_of_a.metadata.identifier == f_t_of_b.metadata.identifier:
                     # case: still there
                     found = True
                     break
             if not found:
-                # case: layer from old service not found in new service -> must have been removed!
-                diff["removed"].append(f_t_2)
+                # case: Feature from old service not found in new service -> must have been removed!
+                diff["removed"].append(f_t_of_b)
 
         return diff

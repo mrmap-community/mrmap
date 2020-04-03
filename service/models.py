@@ -1086,7 +1086,7 @@ class Metadata(Resource):
 
 
 class MetadataType(models.Model):
-    type = models.CharField(max_length=255, blank=True, null=True)
+    type = models.CharField(max_length=255, blank=True, null=True, unique=True)
 
     def __str__(self):
         return self.type
@@ -1819,6 +1819,7 @@ class Document(Resource):
         self.current_capability_document = xml_helper.xml_to_string(cap_doc_curr_obj)
         self.save()
 
+
 class TermsOfUse(Resource):
     name = models.CharField(max_length=100)
     symbol_url = models.CharField(max_length=100)
@@ -2096,7 +2097,6 @@ class Service(Resource):
             for f_t in feature_types:
                 self.delete_child_data(f_t)
 
-        #
         self.metadata.delete()
         super().delete()
 
@@ -2196,6 +2196,20 @@ class Layer(Service):
 
     def __str__(self):
         return str(self.identifier)
+
+    def delete(self, using=None, keep_parents=False):
+        """ Deletes layer and all of it's children
+
+        Args:
+            using:
+            keep_parents:
+        Returns:
+
+        """
+        children = self.get_children()
+        for child in children:
+            child.delete(using, keep_parents)
+        super().delete(using, keep_parents)
 
     def get_inherited_reference_systems(self):
         ref_systems = []
@@ -2351,8 +2365,11 @@ class ReferenceSystem(models.Model):
     prefix = models.CharField(max_length=255, default="EPSG:")
     version = models.CharField(max_length=50, default="9.6.1")
 
+    class Meta:
+        unique_together = ("code", "prefix")
+
     def __str__(self):
-        return self.code
+        return str(self.code)
 
 
 class Dataset(Resource):

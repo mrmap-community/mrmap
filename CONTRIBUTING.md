@@ -168,10 +168,10 @@ def update_service(request: HttpRequest, id: int):
         old_service.last_modified = timezone.now()
 
         if new_service.servicetype.name == ServiceTypes.WFS.value:
-            old_service = update_helper.update_wfs(old_service, new_service, diff, links, keep_custom_metadata)
+            old_service = update_helper.update_wfs_elements(old_service, new_service, diff, links, keep_custom_metadata)
 
         elif new_service.servicetype.name == ServiceTypes.WMS.value:
-            old_service = update_helper.update_wms(old_service, new_service, diff, links, keep_custom_metadata)
+            old_service = update_helper.update_wms_elements(old_service, new_service, diff, links, keep_custom_metadata)
 
         cap_document = CapabilityDocument.objects.get(related_metadata=old_service.metadata)
         cap_document.current_capability_document = xml

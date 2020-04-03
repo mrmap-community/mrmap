@@ -4,8 +4,8 @@ from django.contrib.messages import get_messages
 from django.test import TestCase, Client
 from django.urls import reverse
 from MapSkinner.consts import SERVICE_ADD
-from MapSkinner.messages import SERVICE_ACTIVATED
-from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2, RemoveService
+from MapSkinner.messages import SERVICE_ACTIVATED, SERVICE_DEACTIVATED
+from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2, RemoveServiceForm
 from service.helper.enums import OGCServiceEnum
 from service.models import Layer, FeatureType, Service, Metadata
 from service.tables import WmsServiceTable, WfsServiceTable, PendingTasksTable
@@ -308,7 +308,12 @@ class ServiceActivateViewTestCase(TestCase):
         response = self.client.post(reverse('service:activate', args=[service.id]),)
         self.assertEqual(response.status_code, 302)
         messages = [m.message for m in get_messages(response.wsgi_request)]
-        self.assertIn(SERVICE_ACTIVATED.format(self.wms_service_metadatas[0].title), messages)
+
+        activated_status = service.metadata.is_active
+        if activated_status:
+            self.assertIn(SERVICE_DEACTIVATED.format(self.wms_service_metadatas[0].title), messages)
+        else:
+            self.assertIn(SERVICE_ACTIVATED.format(self.wms_service_metadatas[0].title), messages)
 
     def test_permission_denied_activate_service(self):
         # remove permission to remove services
@@ -387,6 +392,6 @@ class ServiceDetailViewTestCase(TestCase):
 
     def test_get_detail_context(self):
         response = self.client.post(reverse('service:detail', args=[self.wms_service_metadatas[0].id]), )
-        self.assertIsInstance(response.context['remove_service_form'], RemoveService)
+        self.assertIsInstance(response.context['remove_service_form'], RemoveServiceForm)
         self.assertEqual(response.context['remove_service_form'].action_url, reverse('service:remove', args=[self.wms_service_metadatas[0].id]))
         self.assertIsInstance(response.context['service_md'], Metadata)

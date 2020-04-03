@@ -54,7 +54,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                {% for layer in diff_layers.removed %}
+                {% for layer in diff_elements.removed %}
                 <tr>
                     <td>{{ layer.metadata.title }}</td>
                     <td>{{ layer.metadata.identifier }}</td>
@@ -83,7 +83,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                {% for layer in diff_layers.updated %}
+                {% for layer in diff_elements.updated %}
                 <tr>
                     <td>{{ layer.metadata.title }}</td>
                     <td>{{ layer.metadata.identifier }}</td>

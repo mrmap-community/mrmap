@@ -466,26 +466,28 @@ class OGCWebFeatureService(OGCWebService):
             elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("LowerCorner"),
             xml_elem=feature_type
         )
-        min_x = tmp.split(" ")[0]
-        min_y = tmp.split(" ")[1]
-        tmp = xml_helper.try_get_text_from_xml_element(
-            elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("UpperCorner"),
-            xml_elem=feature_type
-        )
-        max_x = tmp.split(" ")[0]
-        max_y = tmp.split(" ")[1]
-        tmp = OrderedDict()
-        bbox = Polygon(
-            (
-                (float(min_x), float(min_y)),
-                (float(min_x), float(max_y)),
-                (float(max_x), float(max_y)),
-                (float(max_x), float(min_y)),
-                (float(min_x), float(min_y)),
+        if tmp is not None:
+            # tmp might be None if no extent information are found. Just skip this.
+            min_x = tmp.split(" ")[0]
+            min_y = tmp.split(" ")[1]
+            tmp = xml_helper.try_get_text_from_xml_element(
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("UpperCorner"),
+                xml_elem=feature_type
             )
-        )
-        f_t.metadata.bounding_geometry = bbox
-        f_t.bbox_lat_lon = bbox
+            max_x = tmp.split(" ")[0]
+            max_y = tmp.split(" ")[1]
+            tmp = OrderedDict()
+            bbox = Polygon(
+                (
+                    (float(min_x), float(min_y)),
+                    (float(min_x), float(max_y)),
+                    (float(max_x), float(max_y)),
+                    (float(max_x), float(min_y)),
+                    (float(min_x), float(min_y)),
+                )
+            )
+            f_t.metadata.bounding_geometry = bbox
+            f_t.bbox_lat_lon = bbox
 
         # Output formats
         formats = xml_helper.try_get_element_from_xml(

@@ -33,15 +33,6 @@ def transform_lists_to_m2m_collections(element):
          element: The element
     """
     if isinstance(element, FeatureType):
-        # featuretype transforming of lists
-        # additional srs
-        for srs in element.additional_srs_list:
-            element.additional_srs.add(srs)
-
-        # keywords
-        for kw in element.keywords_list:
-            element.keywords.add(kw)
-
         # formats
         for _format in element.formats_list:
             element.formats.add(_format)
@@ -242,51 +233,18 @@ def update_feature_type(old: FeatureType, new: FeatureType, keep_custom_metadata
     _id = old.id
     created_by = old.created_by
     created_on = old.created
-    title = old.title
-    abstract = old.abstract
     service = old.parent_service
-
-    custom_md = old.is_custom
+    metadata = old.metadata
 
     # overwrite old information with new one
-    old = copy(new)
+    old = deepcopy(new)
     old.id = _id
     old.uuid = uuid
     old.created = created_on
     old.created_by = created_by
     old.parent_service = service
-    if keep_custom_metadata:
-        # save custom title and abstract
-        old.title = title
-        old.abstract = abstract
-        old.is_custom = custom_md
 
-    # additional srs
-    old.additional_srs.clear()
-    for srs in new.additional_srs_list:
-        old.additional_srs.add(srs)
-
-    if not keep_custom_metadata:
-        # overwrite all keywords
-        # keywords
-        old.keywords.clear()
-        for kw in new.keywords_list:
-            old.keywords.add(kw)
-
-    # formats
-    old.formats.clear()
-    for _format in new.formats_list:
-        old.formats.add(_format)
-
-    # elements
-    old.elements.clear()
-    for element in new.elements_list:
-        old.elements.add(element)
-
-    # namespaces
-    old.namespaces.clear()
-    for ns in new.namespaces_list:
-        old.namespaces.add(ns)
+    old.metadata = update_metadata(metadata, new.metadata, keep_custom_metadata)
 
     return old
 
@@ -352,40 +310,50 @@ def update_wfs_elements(old: Service, new: Service, diff: dict, links: dict, kee
     """
     # update, add and remove feature types
     # feature types
-    old_service_feature_types = FeatureType.objects.filter(service=old)
+    old_service_feature_types = FeatureType.objects.filter(parent_service=old)
     for feature_type in new.feature_type_list:
-        name = feature_type.identifier
-        rename = False
+        id = None
+        existing_f_t = None
 
-        if feature_type.identifier in links.keys():
-            # This layer is just a renamed one, that already exists. It must be updated and renamed!
-            # Get the id, from the layer that already exist
-            id = links[feature_type.identifier]
-            # If the id is not -1, the layer is not new but just needs to be renamed
-            rename = id != -1
+        if feature_type.metadata.identifier in links.keys():
+            # This FeatureType is just a renamed one, that already exists. It must be updated and renamed!
+            # Get the id, from the FeatureType that already exist
+            id = links[feature_type.metadata.identifier]
+        else:
+            existing_f_t = FeatureType.objects.get(
+                parent_service=old,
+                metadata__identifier=feature_type.metadata.identifier,
+            )
 
-        existing_f_t = old_service_feature_types.filter(identifier=name)
-        if existing_f_t.count() == 0:
-            # does not exist -> must be new
-            # add the new feature type
-            feature_type.parent_service = old
-            feature_type.save()
-            transform_lists_to_m2m_collections(feature_type)
-            old.featuretypes.add(feature_type)
-        elif existing_f_t.count() == 1:
-            # exists already and needs to be overwritten
-            existing_f_t = existing_f_t.first()
-            if rename:
-                existing_f_t.identifier = feature_type.identifier
-            existing_f_t.save()
-            #transform_lists_to_m2m_collections(existing_f_t)
+        try:
+            if existing_f_t is None:
+                # Try to get this FeatureType (will fail for id=-1 -> indicates new FeatureType
+                # but no linking to old FeatureType)
+                existing_f_t = old_service_feature_types.get(metadata__id=id)
+
             existing_f_t = update_feature_type(existing_f_t, feature_type, keep_custom_metadata)
             existing_f_t.save()
+
+        except ObjectDoesNotExist:
+            # FeatureType could not be found with the given information.
+            # FeatureType must be new  -> add it!
+            feature_type.parent_service = old
+            feature_type.is_active = old.is_active
+            md = feature_type.metadata
+            md.is_active = old.is_active
+            md.metadata_type = MetadataType.objects.get_or_create(type=md.metadata_type.type)[0]
+            md.save()
+
+            transform_lists_to_m2m_collections(md)
+            feature_type.metadata = md
+            feature_type.save()
+            feature_type = transform_lists_to_m2m_collections(feature_type)
+            feature_type.save()
+
     # remove old featuretypes
     for removable in diff["feature_types"]["removed"]:
-        #old.featuretypes.remove(removable)
         try:
-            pers_feature_type = FeatureType.objects.get(service=old, identifier=removable.identifier)
+            pers_feature_type = FeatureType.objects.get(parent_service=old, metadata__identifier=removable.metadata.identifier)
             pers_feature_type.delete()
         except ObjectDoesNotExist:
             pass

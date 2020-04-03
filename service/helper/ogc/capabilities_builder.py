@@ -1405,6 +1405,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             self.feature_type_list = FeatureType.objects.filter(
                 parent_service=self.parent_service
             )
+
     def _generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
 
@@ -1702,38 +1703,41 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         Returns:
             nothing
         """
-        bbox = feature_type_obj.metadata.bounding_geometry.extent
-        bbox_elem = xml_helper.create_subelement(
-            upper_elem,
-            "{}WGS84BoundingBox".format(self.default_ns),
-            attrib={
-                "dimensions": "2"
-            }
-        )
-
-        lower_corner_elem = xml_helper.create_subelement(
-            bbox_elem,
-            "{}LowerCorner".format(self.default_ns)
-        )
-        xml_helper.write_text_to_element(
-            lower_corner_elem,
-            txt="{} {}".format(
-                str(bbox[0]),
-                str(bbox[1])
+        try:
+            bbox = feature_type_obj.metadata.bounding_geometry.extent
+            bbox_elem = xml_helper.create_subelement(
+                upper_elem,
+                "{}WGS84BoundingBox".format(self.default_ns),
+                attrib={
+                    "dimensions": "2"
+                }
             )
-        )
 
-        upper_corner_elem = xml_helper.create_subelement(
-            bbox_elem,
-            "{}UpperCorner".format(self.default_ns)
-        )
-        xml_helper.write_text_to_element(
-            upper_corner_elem,
-            txt="{} {}".format(
-                str(bbox[2]),
-                str(bbox[3])
+            lower_corner_elem = xml_helper.create_subelement(
+                bbox_elem,
+                "{}LowerCorner".format(self.default_ns)
             )
-        )
+            xml_helper.write_text_to_element(
+                lower_corner_elem,
+                txt="{} {}".format(
+                    str(bbox[0]),
+                    str(bbox[1])
+                )
+            )
+
+            upper_corner_elem = xml_helper.create_subelement(
+                bbox_elem,
+                "{}UpperCorner".format(self.default_ns)
+            )
+            xml_helper.write_text_to_element(
+                upper_corner_elem,
+                txt="{} {}".format(
+                    str(bbox[2]),
+                    str(bbox[3])
+                )
+            )
+        except AttributeError:
+            pass
 
     def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem, feature_type_obj: FeatureType):
         """ Generate the 'MetadataURL' subelement of a xml feature type list object

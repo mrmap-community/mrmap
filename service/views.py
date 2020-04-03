@@ -874,7 +874,7 @@ def update_service(request: HttpRequest, id: int):
         comparator = ServiceComparator(service_a=new_service, service_b=current_service)
         diff = comparator.compare_services()
 
-        diff_elements = diff.get("layers", {})
+        diff_elements = diff.get("layers", None) or diff.get("feature_types", {})
         update_confirmation_form = UpdateOldToNewElementsForm(
             new_elements=diff_elements.get("new"),
             removed_elements=diff_elements.get("removed"),
@@ -886,8 +886,7 @@ def update_service(request: HttpRequest, id: int):
         params = {
             "current_service": current_service,
             "update_service": new_service,
-            "diff_layers": diff.get("layers", {}),
-            "diff_feature_types": diff.get("feature_types", {}),
+            "diff_elements": diff_elements,
             "update_confirmation_form": update_confirmation_form,
         }
         context = DefaultContext(request, params, user)

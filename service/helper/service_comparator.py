@@ -124,7 +124,7 @@ class ServiceComparator:
         Returns:
             nothing
         """
-        feature_types_of_b = FeatureType.objects.filter(service=self.service_b)
+        feature_types_of_b = FeatureType.objects.filter(parent_service=self.service_b)
         diff = {
             "new": [],
             "updated": [],
@@ -132,7 +132,7 @@ class ServiceComparator:
         }
         for f_t_of_a in feature_type_list:
 
-            filtered_b_f_t = feature_types_of_b.filter(identifier=f_t_of_a.identifier)
+            filtered_b_f_t = feature_types_of_b.filter(metadata__identifier=f_t_of_a.metadata.identifier)
 
             count = filtered_b_f_t.count()
             if count == 1:
@@ -148,7 +148,7 @@ class ServiceComparator:
         for f_t_of_b in feature_types_of_b:
             found = False
             for f_t_of_a in feature_type_list:
-                if f_t_of_a.identifier == f_t_of_b.identifier:
+                if f_t_of_a.metadata.identifier == f_t_of_b.metadata.identifier:
                     # case: still there
                     found = True
                     break

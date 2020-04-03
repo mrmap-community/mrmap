@@ -175,33 +175,26 @@ def password_change(request: HttpRequest):
 
     Args:
         request (HttpRequest): The incoming request
-        user (MrMapUser): The user
     Returns:
         A view
     """
-    form = PasswordChangeForm(request.POST or None)
 
-    if request.method == 'POST' and form.is_valid():
+    if request.method == 'POST':
         user = user_helper.get_user(request)
-
-        old_pw = form.cleaned_data["old_password"]
-
-        # Check if the old password was correct, otherwise redirect back to the account editor page
-        pw_correct = user.check_password(old_pw)
-        if not pw_correct:
-            messages.error(request, PASSWORD_CHANGE_OLD_PASSWORD_WRONG)
-            return redirect(reverse("account"))
-
-        password = form.cleaned_data["new_password"]
-        user.set_password(password)
-        user.save()
-        login(request, user)
-        messages.add_message(request, messages.SUCCESS, PASSWORD_CHANGE_SUCCESS)
-    else:
-        return account(
-            request=request,
-            params={'password_change_form': form}
-        )
+        form = PasswordChangeForm(request.POST or None, user=user)
+        if form.is_valid():
+            password = form.cleaned_data["new_password"]
+            user.set_password(password)
+            user.save()
+            login(request, user)
+            messages.add_message(request, messages.SUCCESS, PASSWORD_CHANGE_SUCCESS)
+        else:
+            return account(
+                request=request,
+                params={'password_change_form': form,
+                        'show_password_change_form': True,
+                        }
+            )
 
     return redirect(reverse("home"))
 

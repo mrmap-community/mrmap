@@ -8,7 +8,7 @@ Created on: 28.05.19
 from django import forms
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
-from MapSkinner.messages import EMAIL_IS_UNKNOWN
+from MapSkinner.messages import EMAIL_IS_UNKNOWN, PASSWORD_CHANGE_OLD_PASSWORD_WRONG
 from MapSkinner.settings import MIN_PASSWORD_LENGTH
 from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from structure.models import MrMapUser, Theme
@@ -29,6 +29,8 @@ class PasswordResetForm(forms.Form):
 
 
 class PasswordChangeForm(forms.Form):
+    user = None
+
     old_password = forms.CharField(
         max_length=255,
         label=_("Old password"),
@@ -50,10 +52,22 @@ class PasswordChangeForm(forms.Form):
         widget=forms.PasswordInput,
     )
 
+    def __init__(self, *args, **kwargs):
+
+        # pop custom kwargs before invoke super constructor and hold them
+        self.user = None if 'user' not in kwargs else kwargs.pop('user')
+
+        # run super constructor to construct the form
+        super(PasswordChangeForm, self).__init__(*args, **kwargs)
+
     def clean(self):
         cleaned_data = super(PasswordChangeForm, self).clean()
+        old_password = cleaned_data.get("old_password")
         password = cleaned_data.get("new_password")
         password_again = cleaned_data.get("new_password_again")
+
+        if self.user is not None and not self.user.check_password(old_password):
+            self.add_error("old_password", forms.ValidationError(PASSWORD_CHANGE_OLD_PASSWORD_WRONG))
 
         if password != password_again:
             self.add_error("new_password_again", forms.ValidationError(_("Password and confirmed password does not match")))

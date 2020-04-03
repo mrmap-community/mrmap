@@ -741,30 +741,6 @@ def get_metadata_html(request: HttpRequest, proxy_log: ProxyLog, id: int):
     return render(request=request, template_name=base_template, context=context.get_context())
 
 
-@log_proxy
-def get_capabilities_original(request: HttpRequest, proxy_log: ProxyLog, id: int):
-    """ Returns the current capabilities xml file
-
-    Args:
-        request (HttpRequest): The incoming request
-        proxy_log (ProxyLog): The logging object
-        id (int): The metadata id
-    Returns:
-         A HttpResponse containing the xml file
-    """
-    md = Metadata.objects.get(id=id)
-
-    if not md.is_active:
-        return HttpResponse(content=SERVICE_DISABLED, status=423)
-
-    # move increasing hits to background process to speed up response time!
-    async_increase_hits.delay(id)
-    cap_doc = Document.objects.get(related_metadata=md)
-    doc = cap_doc.original_capability_document
-
-    return HttpResponse(doc, content_type='application/xml')
-
-
 @login_required
 def set_session(request: HttpRequest):
     """ Can set a value to the django session
@@ -1108,53 +1084,6 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None):
 
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
-
-
-@login_required
-def detail_child(request: HttpRequest, id):
-    """ Returns a rendered html overview of the element with the given id
-
-    Args:
-        request (HttpRequest): The incoming request
-        id (int): The element id
-    Returns:
-         A rendered view for ajax insertion
-    """
-    user = user_helper.get_user(request)
-
-    element_type = request.GET.get("serviceType")
-    if element_type == "wms":
-        template = "detail/service_detail_child_wms.html"
-        element = Layer.objects.get(id=id)
-    elif element_type == "wfs":
-        template = "detail/service_detail_child_wfs.html"
-        element = FeatureType.objects.get(id=id)
-    else:
-        template = ""
-        element = None
-
-    params = {
-        "element": element,
-        "user_permissions": user.get_permissions(),
-    }
-    html = render_to_string(template_name=template, context=params)
-    return BackendAjaxResponse(html=html).get_response()
-
-
-def metadata_proxy(request: HttpRequest, id: int):
-    """ Returns the xml document which is resolved by the metadata id.
-
-    Args:
-        request (HttpRequest): The incoming request
-        id (int): The metadata id
-    Returns:
-         HttpResponse
-    """
-    md = Metadata.objects.get(id=id)
-    con = CommonConnector(url=md.metadata_url)
-    con.load()
-    xml_raw = con.content
-    return HttpResponse(xml_raw, content_type='application/xml')
 
 
 @csrf_exempt

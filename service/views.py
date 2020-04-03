@@ -1031,27 +1031,25 @@ def wfs_index(request: HttpRequest):
 
 
 @login_required
-def detail(request: HttpRequest, id, update_params=None):
+def detail(request: HttpRequest, metadata_id: int, update_params=None):
     """ Renders a detail view of the selected service
 
     Args:
         request: The incoming request
-        id: The id of the selected metadata
+        metadata_id: The id of the selected metadata
+        update_params: dict with params we will update before we return the context
     Returns:
     """
     user = user_helper.get_user(request)
 
     template = "views/detail.html"
-    service_md = get_object_or_404(Metadata, id=id)
+    service_md = get_object_or_404(Metadata, id=metadata_id)
     params = {}
 
     # catch featuretype
     if service_md.metadata_type.type == 'featuretype':
         params.update({'caption': _("Shows informations about the featuretype which you are selected.")})
-        if 'no-base' in request.GET:
-            template = "views/featuretype_detail_no_base.html"
-        else:
-            template = "views/featuretype_detail.html"
+        template = "views/featuretype_detail_no_base.html" if 'no-base' in request.GET else "views/featuretype_detail.html"
         service = service_md.featuretype
         layers_md_list = {}
     else:
@@ -1062,10 +1060,7 @@ def detail(request: HttpRequest, id, update_params=None):
             layers_md_list = layers.filter(parent_layer=None)
         else:
             params.update({'caption': _("Shows informations about the sublayer which you are selected.")})
-            if 'no-base' in request.GET:
-                template = "views/sublayer_detail_no_base.html"
-            else:
-                template = "views/sublayer_detail.html"
+            template = "views/sublayer_detail_no_base.html" if 'no-base' in request.GET else "views/sublayer_detail.html"
             service = Layer.objects.get(
                 metadata=service_md
             )
@@ -1095,10 +1090,8 @@ def detail(request: HttpRequest, id, update_params=None):
         mi = {mime.operation: op}
         mime_types.update(mi)
 
-    remove_service_form = RemoveService(initial={'service_id': service.id,
-                                                 'service_needs_authentication': False,
-                                                 })
-    remove_service_form.action_url = reverse('service:remove', args=[id])
+    remove_service_form = RemoveService()
+    remove_service_form.action_url = reverse('service:remove', args=[metadata_id])
 
     params.update({
         "has_dataset_metadata": has_dataset_metadata,

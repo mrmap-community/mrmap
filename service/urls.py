@@ -29,7 +29,7 @@ urlpatterns = [
     path('wms/', wms_index, name='wms-index'),
     path('wfs/', wfs_index, name='wfs-index'),
 
-    path('detail/<int:id>', detail, name='detail'),
+    path('detail/<metadata_id>', detail, name='detail'),
 ]
 
 

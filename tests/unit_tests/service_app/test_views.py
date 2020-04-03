@@ -5,9 +5,9 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from MapSkinner.consts import SERVICE_ADD
 from MapSkinner.messages import SERVICE_ACTIVATED
-from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2
+from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2, RemoveService
 from service.helper.enums import OGCServiceEnum
-from service.models import Layer, FeatureType
+from service.models import Layer, FeatureType, Service, Metadata
 from service.tables import WmsServiceTable, WfsServiceTable, PendingTasksTable
 from structure.models import PendingTask, GroupActivity
 from tests.baker_recipes.db_setup import *
@@ -323,3 +323,70 @@ class ServiceActivateViewTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
         messages = [m.message for m in get_messages(response.wsgi_request)]
         self.assertIn('You do not have permissions for this!', messages)
+
+
+class ServiceDetailViewTestCase(TestCase):
+
+    def setUp(self):
+        self.logger = logging.getLogger('ServiceAddViewTestCase')
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
+        self.wms_service_metadatas = create_wms_service(self.user.get_groups().first(), 1)
+        self.wfs_service_metadatas = create_wfs_service(self.user.get_groups().first(), 1)
+
+    def test_get_detail_wms(self):
+        response = self.client.post(reverse('service:detail', args=[self.wms_service_metadatas[0].id]), )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, template_name="views/detail.html")
+
+    def test_get_detail_wms_sublayer(self):
+        service = self.wms_service_metadatas[0].service
+        sublayer_services = Service.objects.filter(
+            parent_service=service
+        )
+        response = self.client.post(reverse('service:detail', args=[sublayer_services[0].metadata.id]), )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, template_name="views/sublayer_detail.html")
+
+    def test_get_detail_wms_sublayer_without_base_extending(self):
+        service = self.wms_service_metadatas[0].service
+        sublayer_services = Service.objects.filter(
+            parent_service=service
+        )
+        response = self.client.post(reverse('service:detail', args=[sublayer_services[0].metadata.id]) + '?no-base', )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, template_name="views/sublayer_detail_no_base.html")
+
+    def test_get_detail_wfs(self):
+        response = self.client.post(reverse('service:detail', args=[self.wfs_service_metadatas[0].id]), )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, template_name="views/detail.html")
+
+    def test_get_detail_wfs_featuretype(self):
+        service = self.wfs_service_metadatas[0].service
+        featuretypes = FeatureType.objects.filter(
+            parent_service=service
+        )
+        response = self.client.post(reverse('service:detail', args=[featuretypes[0].metadata.id]), )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, template_name="views/featuretype_detail.html")
+
+    def test_get_detail_wfs_featuretype_without_base_extending(self):
+        service = self.wfs_service_metadatas[0].service
+        featuretypes = FeatureType.objects.filter(
+            parent_service=service
+        )
+        response = self.client.post(reverse('service:detail', args=[featuretypes[0].metadata.id]) + '?no-base', )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, template_name="views/featuretype_detail_no_base.html")
+
+    def test_get_detail_404(self):
+        response = self.client.post(reverse('service:detail', args=[9999]), )
+        self.assertEqual(response.status_code, 404)
+
+    def test_get_detail_context(self):
+        response = self.client.post(reverse('service:detail', args=[self.wms_service_metadatas[0].id]), )
+        self.assertIsInstance(response.context['remove_service_form'], RemoveService)
+        self.assertEqual(response.context['remove_service_form'].action_url, reverse('service:remove', args=[self.wms_service_metadatas[0].id]))
+        self.assertIsInstance(response.context['service_md'], Metadata)

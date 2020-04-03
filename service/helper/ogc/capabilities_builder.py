@@ -1665,7 +1665,8 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             elem,
             txt="{}{}".format(feature_type_obj.default_srs.prefix, feature_type_obj.default_srs.code)
         )
-        for srs in self.metadata.reference_system.all():
+        other_ref_systems = feature_type_obj.metadata.reference_system.all()
+        for srs in other_ref_systems:
             # OtherSRS
             elem = xml_helper.create_subelement(
                 upper_elem,

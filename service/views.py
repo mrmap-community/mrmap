@@ -409,7 +409,7 @@ def activate(request: HttpRequest, service_id: int):
     """ (De-)Activates a service and all of its layers
 
     Args:
-        id:
+        service_id:
         request:
     Returns:
          redirects to service:index

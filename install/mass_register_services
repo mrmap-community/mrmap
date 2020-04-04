@@ -1,0 +1,56 @@
+# usage: 
+# WARNING: THIS DISABLES CSRF VERIFICATION FOR THE TIME OF REGISTERING, BUT ENABLES IT AGAIN AFTER THE LAST REQUEST SENT
+# create wmslist under /opt/MapSkinner/install/wmslist.csv or use existing
+# remove "" in wmslist if you need: sed -i s/\"//g /opt/MapSkinner/install/wmslist.csv
+# bash /opt/MapSkinner/install/mass_register_services
+user="root"
+password="root"
+group=1
+host="http://127.0.0.1"
+
+# disable csrf verification for the mass registration
+sed -i s/"'django.middleware.csrf.CsrfViewMiddleware',"/"#'django.middleware.csrf.CsrfViewMiddleware',"/g /opt/MapSkinner/MapSkinner/settings.py
+
+systemctl restart uwsgi
+
+#sed -i s/"listen      80;"/"listen      127.0.0.1:80;"/g /etc/nginx/sites-available/mrmap
+#/etc/init.d/nginx restart
+
+# perform login
+curl -v -c cookies.txt -b cookies.txt $host --data "username=$user&next=&password=$password&next=&next=&next="
+
+# start registration, list structure: one get capabilities request each line
+input="/opt/MapSkinner/install/wmslist.csv"
+while IFS= read -r line
+do
+
+	params=`echo $line | cut -d'?' -f2-`
+	echo $params
+	saveIFS=$IFS
+	IFS='=&'
+	parm=($params)
+	IFS=$saveIFS
+
+	declare -A array
+	for ((i=0; i<${#parm[@]}; i+=2))
+	do
+    		array[${parm[i]}]=${parm[i+1]}
+	done
+
+#echo ${array[VERSION]}
+#echo ${array[REQUEST]}
+#echo ${array[SERVICE]}
+
+# actual registration
+curl -v -c cookies.txt -b cookies.txt $host/service/add/ --data "page=2&is_form_update=False&ogc_request=GetCapabilities&ogc_service=wms&ogc_version=${array[VERSION]}&uri=$line&registering_with_group=$group&registering_for_other_organization="
+done < "$input"
+
+# enable it again
+sed -i s/"#'django.middleware.csrf.CsrfViewMiddleware',"/"'django.middleware.csrf.CsrfViewMiddleware',"/g /opt/MapSkinner/MapSkinner/settings.py
+
+systemctl restart uwsgi
+
+#sed -i s/"listen      127.0.0.1:80;"/"listen      80;"/g /etc/nginx/sites-available/mrmap
+#/etc/init.d/nginx/restart
+
+

@@ -788,7 +788,6 @@ def wms_index(request: HttpRequest):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-# TODO: refactor this function and template by using bootstrap4
 @login_required
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic
@@ -812,15 +811,16 @@ def update_service(request: HttpRequest, metadata_id: int):
 
         # Check if update form is valid
         if not update_form.is_valid():
-            messages.error(request, update_form.errors)
-            return redirect("service:detail", metadata_id)
+            # Form is not valid --> response with page 1 and show errors
+            params = {
+                "update_service_form": update_form,
+                "show_update_form": True,
+            }
+            return detail(request, metadata_id, params)
 
-        # Check if uri can be retrieved correctly from the form
+        # Get variables from form
         uri = update_form.cleaned_data.get("get_capabilities_uri", None)
         keep_custom_md = update_form.cleaned_data.get("keep_custom_md", None)
-        if uri is None:
-            messages.error(request, PARAMETER_ERROR.format("Get capabilities uri"))
-            return redirect("service:detail", metadata_id)
 
         url_dict = service_helper.split_service_uri(uri)
         new_service_type = url_dict.get("service")
@@ -828,8 +828,12 @@ def update_service(request: HttpRequest, metadata_id: int):
 
         # Check cross service update attempt
         if current_service.servicetype.name != new_service_type.value:
-            messages.add_message(request, messages.ERROR, SERVICE_UPDATE_WRONG_TYPE)
-            return redirect("service:detail", metadata_id)
+            update_form.add_error("get_capabilities_uri", SERVICE_UPDATE_WRONG_TYPE)
+            params = {
+                "update_service_form": update_form,
+                "show_update_form": True,
+            }
+            return detail(request, metadata_id, params)
 
         # Create db model from new service information (no persisting, yet)
         registrating_group = current_service.created_by

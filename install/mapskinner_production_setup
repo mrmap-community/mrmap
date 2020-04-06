@@ -55,10 +55,17 @@ private: /etc/ssl/private/nginx-selfsigned.key
 									!!! ATTENTION !!!"
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt
 
+echo "Generating Secure Diffie-Hellman for TLS, this may take a while"
+#generate new one with 4096 bits for real production
+openssl dhparam -out /etc/ssl/certs/dhparams.pem 2048
+
 # get nginx config, later this will be: cp -a /opt/MapSkinner/install/confs/mrmap_nginx /etc/nginx/sites-available/mrmap
 wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_setup/install/confs/mrmap_nginx -O /etc/nginx/sites-available/mrmap
 sed -i s/"    server_name 127.0.0.1;"/"    server_name $hostname;"/g /etc/nginx/sites-available/mrmap
 sed s/"    server_name         127.0.0.1;"/"    server_name         $hostname;"/g /etc/nginx/sites-available/mrmap
+
+# hardening
+sed -i s/"#server_tokens off;"/"server_tokens off;"/g /etc/nginx/nginx.conf
 
 ln -s /etc/nginx/sites-available/mrmap /etc/nginx/sites-enabled/
 rm /etc/nginx/sites-enabled/default

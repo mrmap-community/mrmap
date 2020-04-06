@@ -59,7 +59,7 @@ wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_set
 
 # get script to change db rights, later:  cp -a /opt/MapSkinner/install/confs/change_db_rights /tmp/change_database_rights.psql
 wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_setup/install/confs/change_db_rights -O /tmp/change_database_rights.psql
-sed -i s/\$mrmap_db_user/$mr_map_db_user/g /tmp/change_database_rights.psql
+sed -i s/\$mrmap_db_user/$mrmap_db_user/g /tmp/change_database_rights.psql
 # execute
 su - postgres -c "psql -d 'MrMap' -f /tmp/change_database_rights.psql"
 

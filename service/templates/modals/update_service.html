@@ -1,0 +1,14 @@
+{% extends 'sceletons/modal-form.html' %}
+{% load i18n %}
+{% load bootstrap4 %}
+
+{% block modal-title %}
+{% trans 'Update service' %}
+{% endblock %}
+
+{% block modal-footer %}
+<a class="btn {{ THEME.MODAL.BTN_WARNING_COLOR }}" href="{% url 'service:detail' service.metadata.id %}" role="button">{% trans 'Dismiss' %}</a>
+<button type="button submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">
+    {% trans 'Next' %}
+</button>
+{% endblock %}

@@ -69,6 +69,45 @@ class RegisterNewServiceWizardPage2(forms.Form):
             self.fields["authentication_type"].required = True
 
 
-class RemoveService(forms.Form):
+class RemoveServiceForm(forms.Form):
     action_url = ''
     is_confirmed = forms.BooleanField(label=_('Do you really want to remove this service?'))
+
+
+class UpdateServiceCheckForm(forms.Form):
+    action_url = ''
+    page = forms.IntegerField(widget=forms.HiddenInput(), initial=1)
+    get_capabilities_uri = forms.URLField(
+        validators=[validate_get_request_uri]
+    )
+    keep_custom_md = forms.BooleanField(
+        label=_("Keep custom metadata"),
+        initial=True,
+        required=False
+    )
+
+
+class UpdateOldToNewElementsForm(forms.Form):
+    action_url = ''
+    page = forms.IntegerField(widget=forms.HiddenInput(), initial=2)
+    capabilities_url = forms.CharField(widget=forms.HiddenInput())
+    keep_custom_md = forms.BooleanField(widget=forms.HiddenInput())
+
+    def __init__(self, new_elements: list, removed_elements: list, keep_custom_md: bool, get_capabilities_uri: str, *args, **kwargs):
+        super(UpdateOldToNewElementsForm, self).__init__(*args, **kwargs)
+
+        self.fields["keep_custom_md"].initial = keep_custom_md
+        self.fields["capabilities_url"].initial = get_capabilities_uri
+
+        # Prepare remove elements as choices
+        remove_elements_choices = [(-1, _("---"))]
+        for elem in removed_elements:
+            remove_elements_choices.append((elem.metadata.id, elem.metadata.identifier))
+
+        # Add new form fields dynamically
+        for elem in new_elements:
+            self.fields['new_elem_{}'.format(elem.metadata.identifier)] = forms.ChoiceField(
+                label="{} ({})".format(elem.metadata.identifier, elem.metadata.title),
+                choices=remove_elements_choices,
+                help_text=_("Select the old layer name, if this new layer was just renamed.")
+            )

@@ -323,6 +323,7 @@ class OGCOperationRequestHandler:
                 user_groups = self.user.get_groups()
             else:
                 user_groups = []
+
             allowed_layers = Metadata.objects.filter(
                 service__parent_service__metadata=md,
                 identifier__in=layer_identifiers,
@@ -1376,12 +1377,14 @@ class OGCOperationRequestHandler:
         if self.layers_param is None:
             return
 
-        for layer_param in self.layers_param.split(","):
-            layer_obj = Layer.objects.get(
-                parent_service__metadata=metadata,
-                identifier=layer_param
-            )
-            leaf_layers += layer_obj.get_leaf_layers()
+        layer_identifiers = self.layers_param.split(",")
+
+        layer_objs = Layer.objects.filter(
+            parent_service__metadata=metadata,
+            identifier__in=layer_identifiers
+        )
+        for layer in layer_objs:
+            leaf_layers += layer.get_leaf_layers()
 
         if len(leaf_layers) > 0:
             self.layers_param = ",".join(leaf_layers)

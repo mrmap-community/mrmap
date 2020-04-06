@@ -1110,7 +1110,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id:
             parent_md = metadata.service.parent_service.metadata
             return get_operation_result(request=request, id=parent_md.id)
 
-        # We need to check if one of the requested layers is secured. If so, we need to check the
+        # We need to check if at least one of the requested layers is secured.
         md_secured = metadata.is_secured
         if operation_handler.layers_param is not None:
             layers = operation_handler.layers_param.split(",")

@@ -2,6 +2,7 @@
 #!/bin/bash
 mrmap_db_user=mrmap_db_user
 mrmap_db_pw=mrmap_db_pw
+hostname=127.0.0.1
 
 apt-get install -y nginx postgresql postgresql-client postgis redis-server libcurl4-openssl-dev libssl-dev virtualenv build-essential git python3-pip fcgiwrap cgi-mapserver apache2-utils
 
@@ -29,6 +30,7 @@ python /opt/MapSkinner/manage.py collectstatic
 
 # set Django debug to false
 sed -i s/"DEBUG = True"/"DEBUG = False"/g /opt/MapSkinner/MapSkinner/settings.py
+sed -i s/"HOST_NAME = \"127.0.0.1:8000\""/"HOST_NAME = \"$hostname\""/g /opt/MapSkinner/MapSkinner/settings.py
 
 # remove postgres trust, replace with mr map database user
 sed -i s/"host    all             all             127.0.0.1\/32            trust"/"host    MrMap             $mrmap_db_user             127.0.0.1\/32            md5"/g /etc/postgresql/11/main/pg_hba.conf
@@ -44,10 +46,13 @@ if  ! grep -q "        'PASSWORD': '$mrmap_db_pw',"  /opt/MapSkinner/MapSkinner/
 fi
 
 # create ssl cert, self signed for now
+echo "creating a self signed cert, just smash enter and change the cert to a valid one afterwards"
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt
 
 # get nginx config, later this will be: cp -a /opt/MapSkinner/install/confs/mrmap_nginx /etc/nginx/sites-available/mrmap
 wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_setup/install/confs/mrmap_nginx -O /etc/nginx/sites-available/mrmap
+sed -i s/"    server_name 127.0.0.1;"/"    server_name $hostname;"/g /etc/nginx/sites-available/mrmap
+sed s/"    server_name         127.0.0.1;"/"    server_name         $hostname;"/g /etc/nginx/sites-available/mrmap
 
 ln -s /etc/nginx/sites-available/mrmap /etc/nginx/sites-enabled/
 rm /etc/nginx/sites-enabled/default
@@ -160,8 +165,4 @@ echo "Congratulations, MapSkinner is installed on your system!"
 echo "Please execute \"python /opt/MapSkinner/manage.py setup\" to create a user, afterwards access with browser and have fun :)"
 
 /etc/init.d/nginx restart
-
-# change hostname if you want to access from outside
-#sed -i s/"HOST_NAME = \"127.0.0.1:8000\""/"HOST_NAME = \"192.168.56.111\""/g /opt/MapSkinner/MapSkinner/settings.py
-#/etc/init.d/nginx restart
 systemctl restart uwsgi

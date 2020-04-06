@@ -1172,6 +1172,36 @@ class StructureIndexViewTestCase(TestCase):
 
         self.assertEqual(response.context['pub_requests_count'], 10)
 
+    def test_get_groups_index(self):
+        response = self.client.get(
+            reverse('structure:groups-index', ),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, template_name="views/groups_index.html")
+
+        self.assertIsInstance(response.context['groups'], GroupTable)
+        self.assertEqual(len(response.context['groups'].rows), 10)
+        self.assertEqual(len(response.context['groups'].page.object_list), 5)
+
+        self.assertIsInstance(response.context['new_group_form'], GroupForm)
+
+        #self.assertEqual(response.context['pub_requests_count'], 10)
+
+    def test_get_organization_index(self):
+        response = self.client.get(
+            reverse('structure:organizations-index', ),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, template_name="views/organizations_index.html")
+
+        self.assertIsInstance(response.context['organizations'], OrganizationTable)
+        self.assertEqual(len(response.context['organizations'].rows), 10)
+        self.assertEqual(len(response.context['organizations'].page.object_list), 5)
+
+        self.assertIsInstance(response.context['new_organization_form'], OrganizationForm)
+
+        #self.assertEqual(response.context['pub_requests_count'], 10)
+
     def test_remove_pending_task(self):
         response = self.client.get(
             reverse('structure:remove-task',

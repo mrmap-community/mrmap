@@ -211,7 +211,7 @@ class PendingTasksTable(MapSkinnerTable):
         super().__init__(*args, **kwargs)
 
     def render_pt_cancle(self, record):
-        url = reverse('structure:remove-task', args=(record.task_id,))
+        url = reverse('structure:remove-task', args=(record.id,))
         return _get_close_button(url, self.user)
 
     @staticmethod

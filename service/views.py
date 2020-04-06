@@ -216,7 +216,6 @@ def _new_service_wizard_page2(request: HttpRequest):
             if form.cleaned_data['registering_for_other_organization'] is not None:
                 register_for_other_org = form.cleaned_data['registering_for_other_organization'].id
 
-
             uri_dict = {
                 "base_uri": form.cleaned_data["uri"],
                 "version": form.cleaned_data["ogc_version"],

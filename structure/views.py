@@ -106,70 +106,17 @@ def index(request: HttpRequest):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-def task(request: HttpRequest, id: str):
-    """ Returns information about the pending task
-
-    Args:
-        request:
-        id (str): The task id
-    Returns:
-         An ajax view
-    """
-    params = {
-        "description": "",
-        "id": "",
-        "state": "",
-        "info": "",
-    }
-    try:
-        task = AsyncResult(id, app=app)
-        params.update({
-            "id": task.id,
-            "state": task.state,
-            "info": task.info,
-        })
-    except AttributeError:
-        pass
-    try:
-        task_db = PendingTask.objects.get(task_id=id)
-        desc = json.loads(task_db.description)
-        if desc.get("status", None) is None and desc.get("exception", None) is not None:
-            # something went wrong, the task has failed!
-            tmp = {
-                "phase": "Aborted ({})".format(desc.get("exception")),
-                "service": desc.get("service", None),
-                "exception": desc.get("exception")
-            }
-            params["info"] = {
-                "current": 0,
-            }
-            task_db.description = json.dumps(tmp)
-            task_db.save()
-        params["description"] = task_db.description
-    except ObjectDoesNotExist:
-        # this happens if the db record already was deleted
-        # just fake the progress as it would be finished!
-        params["info"] = {
-            "current": 100,
-        }
-        params["description"] = json.dumps({
-            "service": "",
-            "phase": "finished",
-        })
-    return BackendAjaxResponse(html="", task=params).get_response()
-
-
-def remove_task(request: HttpRequest, id: str):
+def remove_task(request: HttpRequest, task_id: int):
     """ Removes a pending task from the PendingTask table
 
     Args:
         request (HttpRequest): The incoming request
-        id (str): The task identifier
+        task_id (str): The task identifier
     Returns:
         A redirect
     """
     task = PendingTask.objects.get(
-        task_id=id
+        id=task_id
     )
     descr = json.loads(task.description)
     messages.info(request, message=SERVICE_REGISTRATION_ABORTED.format(descr.get("service", None)))

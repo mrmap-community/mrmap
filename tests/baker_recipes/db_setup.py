@@ -128,3 +128,10 @@ def create_pending_request(group: MrMapGroup = None, orga: Organization = None, 
     else:
         return baker.make_recipe('tests.baker_recipes.structure_app.pending_request',
                                  _quantity=how_much_requests)
+
+
+def create_pending_task(group: MrMapGroup, how_much_pending_tasks: int = 1):
+    return baker.make_recipe('tests.baker_recipes.structure_app.pending_task',
+                             created_by=group,
+                             _quantity=how_much_pending_tasks)
+

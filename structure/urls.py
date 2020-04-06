@@ -5,8 +5,7 @@ app_name = 'structure'
 urlpatterns = [
     path('', index, name='index'),
 
-    path('task/<id>', task, name='task'),
-    path('task/remove/<id>', remove_task, name='remove-task'),
+    path('task/remove/<task_id>', remove_task, name='remove-task'),
 
     path('groups/', groups_index, name='groups-index'),
     path('groups/detail/<id>', detail_group, name='detail-group'),

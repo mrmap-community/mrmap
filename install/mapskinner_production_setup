@@ -46,7 +46,13 @@ if  ! grep -q "        'PASSWORD': '$mrmap_db_pw',"  /opt/MapSkinner/MapSkinner/
 fi
 
 # create ssl cert, self signed for now
-echo "creating a self signed cert, just smash enter and change the cert to a valid one afterwards"
+echo "						!!! ATTENTION !!!
+
+creating a self signed cert, just smash enter and change the cert to a valid one afterwards
+public:  /etc/ssl/certs/nginx-selfsigned.crt
+private: /etc/ssl/private/nginx-selfsigned.key
+
+									!!! ATTENTION !!!"
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt
 
 # get nginx config, later this will be: cp -a /opt/MapSkinner/install/confs/mrmap_nginx /etc/nginx/sites-available/mrmap

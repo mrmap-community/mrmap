@@ -8,8 +8,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict
 from django.shortcuts import render, get_object_or_404, redirect
-from django.template.loader import render_to_string
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from requests import ReadTimeout
@@ -17,17 +15,17 @@ from MapSkinner import utils
 from MapSkinner.cacher import PreviewImageCacher
 from MapSkinner.consts import *
 from MapSkinner.decorator import check_permission, log_proxy
-from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
+from MapSkinner.messages import SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-from MapSkinner.settings import ROOT_URL
+
 from service import tasks
 from service.helper import xml_helper
 from service.filters import WmsFilter, WfsFilter
-from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
+from service.forms import RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, RemoveServiceForm, UpdateServiceCheckForm, UpdateOldToNewElementsForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
@@ -1110,7 +1108,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id:
             parent_md = metadata.service.parent_service.metadata
             return get_operation_result(request=request, id=parent_md.id)
 
-        # We need to check if one of the requested layers is secured. If so, we need to check the
+        # We need to check if at least one of the requested layers is secured.
         md_secured = metadata.is_secured
         if operation_handler.layers_param is not None:
             layers = operation_handler.layers_param.split(",")

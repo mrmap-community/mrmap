@@ -9,7 +9,7 @@ group=1
 host="http://127.0.0.1"
 
 # disable csrf verification for the mass registration
-sed -i s/"'django.middleware.csrf.CsrfViewMiddleware',"/"#'django.middleware.csrf.CsrfViewMiddleware',"/g /opt/MapSkinner/MapSkinner/settings.py
+sed -i s/"    'django.middleware.csrf.CsrfViewMiddleware',"/"    #'django.middleware.csrf.CsrfViewMiddleware',"/g /opt/MapSkinner/MapSkinner/settings.py
 
 systemctl restart uwsgi
 
@@ -46,7 +46,7 @@ curl -v -c cookies.txt -b cookies.txt $host/service/add/ --data "page=2&is_form_
 done < "$input"
 
 # enable it again
-sed -i s/"#'django.middleware.csrf.CsrfViewMiddleware',"/"'django.middleware.csrf.CsrfViewMiddleware',"/g /opt/MapSkinner/MapSkinner/settings.py
+sed -i s/"    #'django.middleware.csrf.CsrfViewMiddleware',"/"    'django.middleware.csrf.CsrfViewMiddleware',"/g /opt/MapSkinner/MapSkinner/settings.py
 
 systemctl restart uwsgi
 

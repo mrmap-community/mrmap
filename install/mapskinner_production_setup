@@ -3,7 +3,7 @@
 mrmap_db_user=mrmap_db_user
 mrmap_db_pw=mrmap_db_pw
 
-apt-get install -y nginx postgresql postgresql-client postgis redis-server libcurl4-openssl-dev libssl-dev virtualenv build-essential git python3-pip fcgiwrap cgi-mapserver
+apt-get install -y nginx postgresql postgresql-client postgis redis-server libcurl4-openssl-dev libssl-dev virtualenv build-essential git python3-pip fcgiwrap cgi-mapserver apache2-utils
 
 # make python3 default
 update-alternatives --install /usr/bin/python python /usr/bin/python3.7 1
@@ -20,7 +20,7 @@ sed -i s/"host    all             all             127.0.0.1\/32            md5"/
 # mapskinner setup, has to be done as postgres because of postgis extension
 
 git clone https://git.osgeo.org/gitea/GDI-RP/MapSkinner /opt/MapSkinner
-python -m pip install uwsgi
+python -m pip install uwsgi flower
 python -m pip install -r /opt/MapSkinner/requirements.txt
 python /opt/MapSkinner/manage.py makemigrations service
 python /opt/MapSkinner/manage.py makemigrations structure
@@ -66,7 +66,7 @@ server{
     ssl_certificate     /etc/ssl/certs/nginx-selfsigned.crt;
     ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key;
 
-    
+
     charset     utf-8;
     # max upload size
     client_max_body_size 75M;   # adjust to taste
@@ -89,6 +89,15 @@ server{
 				include /etc/nginx/fastcgi_params;
 				fastcgi_param SCRIPT_FILENAME  \$document_root\$fastcgi_script_name;
 		}
+
+		location /flower/ {
+				auth_basic           "Celery statistics";
+				auth_basic_user_file /etc/nginx/.htpasswd;
+				rewrite ^/flower/(.*)\$ /\$1 break;
+				proxy_pass http://127.0.0.1:5555;
+				proxy_set_header Host \$host;
+	}
+
 
 }
 EOF
@@ -239,6 +248,13 @@ ExecReload=/bin/sh -c '\${CELERY_BIN} multi restart \${CELERYD_NODES} \
 WantedBy=multi-user.target
 EOF
 
+# start celery and enable start on boot
+systemctl start celery
+#systemctl stop celery
+#systemctl restart celery
+#systemctl status celery
+systemctl enable celery
+
 # create celery helper service
 cat <<EOF > /etc/systemd/system/celery-helper.service
 [Unit]
@@ -257,17 +273,83 @@ WantedBy=multi-user.target
 EOF
 systemctl enable celery-helper
 
+# create statistics service for celery
+cat <<EOF > /etc/systemd/system/celery-flower.service
+[Unit]
+Description=Celery Flower Statistics Service
+After=network.target
 
-# start celery and enable start on boot
-systemctl start celery
-#systemctl stop celery
-#systemctl restart celery
-#systemctl status celery
-systemctl enable celery
+[Service]
+Type=simple
+ExecStart=celery -A MapSkinner --workdir=/opt/MapSkinner --url_prefix=flower flower
+ExecReload="/usr/bin/pkill -f flower;usr/local/bin/celery -A MapSkinner --workdir=/opt/MapSkinner --url_prefix=flower flower"
+ExecStop="/usr/bin/pkill -f flower"
+Restart=on-abort
+
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl start celery-flower
+systemctl enable celery-flower
+
+systemctl daemon-reload
+
+echo "Enter password for basic auth for celery statistics, available under /flower, username is root for now"
+htpasswd -c /etc/nginx/.htpasswd root
+echo '
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMNmhyyyyhhhddmMMMMMMMMMMMMM
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMNmhso/:.`./`.oshdddhs++symMMMMMMMMM
+MMMMMMMMMMMMMMMMMMMMMMMMMMNmdyo+:-:/-.``````.sdmdhysoosmh++++oyNMMMMMM
+MMMMMMMMMMMMMMMMMMMNddyso++/```````````-....sNo++++++++oMo+++++oyMMMMM
+MMMMMMMMMMMMMMMmy+::++++++++.````````:+o++++dd+++++++++yNo+++++++oNMMM
+MMMMMMMMMMMMNho+++++++++++++.`.-/+sydNMMo+++sNyooosyhdmNs+++++++-.:mMM
+MMMMMMMMMMms+++::+++++++++ommNMMMNmddhy/+++++ohmmddhyhshyo+++++++.`:MM
+MMMMMMMMMo//++/``.``-+++++/yss+-.```://:+++++++:++++++syyyhso+++/.``sM
+MMMMMMMm/:::://:--.``-+++-```````./-.+++ooo:+hmmddho++++syyos++-``-..M
+MMMMMMN+--:/:/+/:/+/``.:/.```````--/+odNMMMNMMMMMMMMdo++++::/+++``.-.d
+MMMMMMy/++-:+++/.:/:.``````````````-yMMMMMMMMMMMMMMMMNs/+:```.oo`-+-.y
+MMMMMdos++++++..`/+++/:.```````````yMMMMMMMMMMMMMMMMMMMd+:.``.sM/-:.-s
+MMMMMhyyo+++++---.++++-:.`````````-MMMMMMMMMddMMMMMMMMMMMds+ohMM:..``y
+MMMMMyyys++++++++++++/-```````````dMMMMMMMMNo+ymMMMMMMMMMMMMMMm/````-d
+MMMMMyyyyo++++++++++/`````+-`````oMMMMMMMMNo++++shdNMMMMMMNho:``````+M
+MMMMMs+syyo+++++++++:`````Nh.``:yMMMMMMMMh++++++++.`.---.```` `````.NM
+MMMMMy//+yyo+++++++/``````+MMMMMMMMMMMms.`./+++++++`/-````    ````.dMM
+MMMMMN///+yys+++/.``--..```-ohdmmdhs/-``````-+++++:`/-`  `:so ```-mMMM
+MMMMMMs/////oo+++.-:.``--::--````          `.///++:`  `:oyyyy` `sMMMMM
+MMMMMMN+////////:---:.-++++++++++- +soo+//::--..``  -oyyyyyyy- mMMMMMM
+MMMMMMMN+///////:-````.++++++++++- :yyyyyyyyyyyyyyyyyyyyyyyyy+ sMMMMMM
+MMMMMMMMNo/////////:.``/+++++++++: `yyyyyyyyyyyyyyyyyyyyyyyyyy -MMMMMM
+MMMMMMMMMMd+//////////:--//+++++-`  oyyyyyyyyyyyyy+-........--` mMMMMM
+MMMMMMMMMMMMds/////////////yysss:-- :yyyyyyyyyy+- .odddddddhhhhhmMMMMM
+MMMNNmMMNmo/:sMmhso++/////+yhhddhdN-`yyyyyyy+. -omMMMMMMMMMMMMMMMMMMMM
+Ndy...+mhs.-.:NMdmNhydMMMMMMMMMMMMMo oyys/. -smMMMMMMMMMMMMMMMMMMMMMMM
+mhh:.+./yo.o-.hh::-:+yMMMMMMMMMMMMMm -/. :yNMMMMMMMMMMMMMMMMMMMMMMMMMM
+Mhh+.os-::.y/.ohs.-dmMMMMMMMMMMMMMMM.`:yNMMMMNds+/::+hmMMMMMMMMMMMMMMM
+Mdhy./hy/./hs.:hyo.mMMMMNddMMMMMMNmMmNMMMMMmh-..osss+--sNMMMMMMMMMMMMM
+Mmhh--dhhydhh-.yhy/odmMmy//mMNdo/--+mMMMMMdhh+..hdhhhs..hMMMMMMMMMMMMM
+MNhh+-hNmmNhhsshs/:..+NNmNMNhhs..+..:dMMMMmhhy..+MNhy/.:mMMMMMMMMMMMMM
+MMdhhy/-:.-smhhh/....-hMMMMmhy+..yy:.-sNMMMhhh+..ss/-./yNMMMMMMMMMMMMM
+MMmhhh-..-..ydhy:.-/..oMMMMdhh:.-hhy/..+NMMdhhy...:+oymMMMMMMMMMMMMMMM
+MMNhhho..+/..ohh-.+s../NMMNhhy-./ho/-...:dMmhhy:.-ydNMMMMMMMMMMMMMMMMM
+MMMdhhy..:ho-./s..sh-.-dMMdhho....-/oyy:.-omhhh+../NMMMMMMMMMMMMMMMMMM
+MMMmhhh/.-hhs-...-hh+..sNMhhh/..:yhdhhhh/../hhhy..-dMMMMMMMMMMMMMMMMMM
+MMMMhhho..shyy+../hhy..-mmhhy...+mMMNdhhyo-:dhhy+osdMMMMMMMMMMMMMMMMMM
+MMMMdhhy..+dhhhsyhhhh:..shhho---hMMMMMmhhhhNMhhhhhmMMMMMMMMMMMMMMMMMMM
+MMMMmhhh/.-dNhhdmMhhh+--ohhhhhyhNMMMMMMNNMMMMMNMMMMMMMMMMMMMMMMMMMMMMM
+MMMMNhhho--yMMMMMMmhhhhhmmmdddmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+MMMMMdhhhhhhMMMMMMNmdmmNMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+MMMMMNhhddmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+
+'
+echo "Congratulations, MapSkinner is installed on your system!"
+echo "Please execute \"python /opt/MapSkinner/manage.py setup\" to create a user, afterwards access with browser and have fun :)"
 
 /etc/init.d/nginx restart
 
 # change hostname if you want to access from outside
 #sed -i s/"HOST_NAME = \"127.0.0.1:8000\""/"HOST_NAME = \"192.168.56.111\""/g /opt/MapSkinner/MapSkinner/settings.py
 #/etc/init.d/nginx restart
-#systemctl restart uwsgi
+systemctl restart uwsgi

@@ -43,6 +43,9 @@ if  ! grep -q "        'PASSWORD': '$mrmap_db_pw',"  /opt/MapSkinner/MapSkinner/
 	sed -i "/        'USER': '$mrmap_db_user',/a \        \'PASSWORD': '$mrmap_db_pw'," /opt/MapSkinner/MapSkinner/settings.py
 fi
 
+# create ssl cert, self signed for now
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt
+
 # create nginx config
 cat <<EOF > /etc/nginx/sites-available/mrmap
 upstream django {
@@ -53,9 +56,18 @@ upstream django {
 # configuration of the server
 server {
     listen      80;
-    server_name 127.0.0.1; # substitute your machine's IP address or FQDN
-    charset     utf-8;
+    server_name 127.0.0.1;
+    return 301 https://$server_name$request_uri;
+}
 
+server{
+    listen              443 ssl;
+    server_name         127.0.0.1;
+    ssl_certificate     /etc/ssl/certs/nginx-selfsigned.crt;
+    ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key;
+
+    
+    charset     utf-8;
     # max upload size
     client_max_body_size 75M;   # adjust to taste
 

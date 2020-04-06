@@ -6,7 +6,7 @@
 user="root"
 password="root"
 group=1
-host="http://127.0.0.1"
+host="https://127.0.0.1"
 
 # disable csrf verification for the mass registration
 sed -i s/"    'django.middleware.csrf.CsrfViewMiddleware',"/"    #'django.middleware.csrf.CsrfViewMiddleware',"/g /opt/MapSkinner/MapSkinner/settings.py
@@ -17,7 +17,7 @@ systemctl restart uwsgi
 #/etc/init.d/nginx restart
 
 # perform login
-curl -v -c cookies.txt -b cookies.txt $host --data "username=$user&next=&password=$password&next=&next=&next="
+curl -v -k -c cookies.txt -b cookies.txt $host --data "username=$user&next=&password=$password&next=&next=&next="
 
 # start registration, list structure: one get capabilities request each line
 input="/opt/MapSkinner/install/wmslist"
@@ -42,7 +42,7 @@ do
 #echo ${array[SERVICE]}
 
 # actual registration
-curl -v -c cookies.txt -b cookies.txt $host/service/add/ --data "page=2&is_form_update=False&ogc_request=GetCapabilities&ogc_service=wms&ogc_version=${array[VERSION]}&uri=$line&registering_with_group=$group&registering_for_other_organization="
+curl -v -k -c cookies.txt -b cookies.txt $host/service/add/ --data "page=2&is_form_update=False&ogc_request=GetCapabilities&ogc_service=wms&ogc_version=${array[VERSION]}&uri=$line&registering_with_group=$group&registering_for_other_organization="
 done < "$input"
 
 # enable it again

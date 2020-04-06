@@ -1,13 +1,14 @@
+import io
 import uuid
 
-import os, io
+import os
 from collections import OrderedDict
 
 import time
 from PIL import Image
 from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import models, transaction
+from django.db import transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
 

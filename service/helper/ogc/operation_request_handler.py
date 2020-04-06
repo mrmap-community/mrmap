@@ -5,6 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 05.12.19
 
 """
+import time
 import urllib
 import io
 from collections import OrderedDict
@@ -26,8 +27,8 @@ from MapSkinner import utils
 from MapSkinner.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
     SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY, SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY, \
     OPERATION_HANDLER_MULTIPLE_QUERIES_NOT_ALLOWED
-from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
-from MapSkinner.utils import execute_threads
+from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES, EXEC_TIME_PRINT
+from MapSkinner.utils import execute_threads, print_debug_mode
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
@@ -1320,14 +1321,14 @@ class OGCOperationRequestHandler:
         if as_bytes:
             out_bytes_stream = io.BytesIO()
             try:
-                img.save(out_bytes_stream, img.format, optimize=True, quality=80)
+                img.save(out_bytes_stream, img.format, quality=80)
                 img = out_bytes_stream.getvalue()
             except IOError:
                 # happens if a non-alpha channel format is requested, such as jpeg
                 # replace alpha channel with white background
                 bg = Image.new("RGB", img.size, (255, 255, 255))
                 bg.paste(img, mask=img.split()[3])
-                bg.save(out_bytes_stream, img.format, optimize=True, quality=80)
+                bg.save(out_bytes_stream, img.format, quality=80)
                 img = out_bytes_stream.getvalue()
 
         return img

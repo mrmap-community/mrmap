@@ -75,10 +75,8 @@ def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, ):
 @login_required
 def index(request: HttpRequest):
     """ Renders an overview of all groups and organizations
-
     Args:
         request (HttpRequest): The incoming request
-        user (MrMapUser): The current user
     Returns:
          A view
     """

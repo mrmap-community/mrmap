@@ -3,6 +3,7 @@ from django.contrib.auth.hashers import make_password
 from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key, related
 from structure.models import MrMapUser, Theme, Role, Permission, MrMapGroup
+from structure.settings import SUPERUSER_GROUP_NAME, PUBLIC_GROUP_NAME
 from tests.test_data import get_password_data
 
 salt = str(os.urandom(25).hex())
@@ -104,14 +105,14 @@ inactive_testuser = active_testuser.extend(
 
 superadmin_group = Recipe(
     MrMapGroup,
-    name="_root_",
+    name=SUPERUSER_GROUP_NAME,
     role=foreign_key(superadmin_role),
     created_by=foreign_key(god_user),
 )
 
 public_group = Recipe(
     MrMapGroup,
-    name="Public",
+    name=PUBLIC_GROUP_NAME,
     role=foreign_key(guest_role),
     created_by=foreign_key(god_user),
 )

@@ -16,6 +16,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
+from structure.settings import PUBLIC_ROLE_NAME, PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, SUPERUSER_ROLE_NAME
 
 
 class Command(BaseCommand):
@@ -109,9 +110,9 @@ class Command(BaseCommand):
         Returns:
              group (Group): The newly created group
         """
-        group = MrMapGroup.objects.get_or_create(name="Public", created_by=user)[0]
+        group = MrMapGroup.objects.get_or_create(name=PUBLIC_GROUP_NAME, created_by=user)[0]
         if group.role is None:
-            role = Role.objects.get_or_create(name="public_role")[0]
+            role = Role.objects.get_or_create(name=PUBLIC_ROLE_NAME)[0]
             if role.permission is None:
                 perm = Permission()
                 for key, val in perm.__dict__.items():
@@ -133,9 +134,9 @@ class Command(BaseCommand):
         Returns:
              group (Group): The newly created group
         """
-        group = MrMapGroup.objects.get_or_create(name="_root_", created_by=user)[0]
+        group = MrMapGroup.objects.get_or_create(name=SUPERUSER_GROUP_NAME, created_by=user)[0]
         if group.role is None:
-            role = Role.objects.get_or_create(name="_root_")[0]
+            role = Role.objects.get_or_create(name=SUPERUSER_ROLE_NAME)[0]
             if role.permission is None:
                 perm = Permission()
                 for key, val in perm.__dict__.items():

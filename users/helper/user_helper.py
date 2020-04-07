@@ -12,6 +12,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 
 from structure.models import MrMapGroup, MrMapUser, GroupActivity
+from structure.settings import PUBLIC_GROUP_NAME
 
 
 def get_user(request: HttpRequest=None, username: str=None, user_id: int=None):
@@ -62,7 +63,7 @@ def get_public_groups():
          public_groups: QuerySet
     """
     public_groups = MrMapGroup.objects.filter(
-        name="Public"
+        name=PUBLIC_GROUP_NAME
     )
     return public_groups
 

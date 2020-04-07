@@ -415,15 +415,17 @@ def activate(request: HttpRequest, service_id: int):
     user = user_helper.get_user(request)
 
     md = Metadata.objects.get(service__id=service_id)
+    md.is_active = not md.is_active
+    md.save()
 
     # run activation async!
-    tasks.async_activate_service.delay(service_id, user.id)
+    tasks.async_activate_service.delay(service_id, user.id, md.is_active)
 
     # If metadata WAS active, then it will be deactivated now
     if md.is_active:
-        msg = SERVICE_DEACTIVATED.format(md.title)
-    else:
         msg = SERVICE_ACTIVATED.format(md.title)
+    else:
+        msg = SERVICE_DEACTIVATED.format(md.title)
     messages.success(request, msg)
 
     return redirect("service:index")

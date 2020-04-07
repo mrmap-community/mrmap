@@ -169,7 +169,7 @@ def organizations_index(request: HttpRequest):
 
 
 @login_required
-def detail_organizations(request:HttpRequest, org_id: int):
+def detail_organizations(request: HttpRequest, org_id: int):
     """ Renders an overview of a group's details.
 
     Args:
@@ -182,12 +182,10 @@ def detail_organizations(request:HttpRequest, org_id: int):
     org = Organization.objects.get(id=org_id)
     members = MrMapUser.objects.filter(organization=org)
     sub_orgs = Organization.objects.filter(parent=org)
-    services = Service.objects.filter(metadata__contact=org, is_root=True)
     template = "views/organizations_detail.html"
 
     # list publishers and requests
     pub_requests = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=org_id)
-    pub_requests_count = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=user.organization).count()
     pub_requests_table = PublisherRequestTable(
         pub_requests,
         template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
@@ -215,13 +213,10 @@ def detail_organizations(request:HttpRequest, org_id: int):
     params = {
         "organization": org,
         "members": members,
-        "sub_organizations": sub_orgs,
-        "services": services,
+        "sub_organizations": sub_orgs, # ToDo: nicht in template
         "pub_requests": pub_requests,
         "pub_requests_table": pub_requests_table,
-        "all_publisher": all_publishing_groups,
         "all_publisher_table": publisher_table,
-        "pub_requests_count": pub_requests_count,
         "edit_organization_form": edit_form,
         "delete_organization_form": delete_form,
         "publisher_form": publisher_form,
@@ -232,7 +227,6 @@ def detail_organizations(request:HttpRequest, org_id: int):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-# TODO: update function documentation
 @login_required
 @check_permission(Permission(can_edit_organization=True))
 def edit_org(request: HttpRequest, org_id: int):
@@ -242,7 +236,7 @@ def edit_org(request: HttpRequest, org_id: int):
         request:
         org_id:
     Returns:
-         A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
+         Rendered view
     """
     user = user_helper.get_user(request)
     org = Organization.objects.get(id=org_id)

@@ -42,7 +42,9 @@
                 {% if 'can_update_service' in user_permissions %}
                     {% with form=update_service_form %}
                         {% with 'update_service' as id_modal %}
-                            {% include 'modals/update_service.html' %}
+                            {% with show_update_form as show_modal %}
+                                {% include 'modals/update_service.html' %}
+                            {% endwith %}
                         {% endwith %}
                     {% endwith %}
                 {% endif %}

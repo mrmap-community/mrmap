@@ -8,8 +8,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict
 from django.shortcuts import render, get_object_or_404, redirect
-from django.template.loader import render_to_string
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from requests import ReadTimeout
@@ -17,17 +15,17 @@ from MapSkinner import utils
 from MapSkinner.cacher import PreviewImageCacher
 from MapSkinner.consts import *
 from MapSkinner.decorator import check_permission, log_proxy
-from MapSkinner.messages import FORM_INPUT_INVALID, SERVICE_UPDATE_WRONG_TYPE, \
+from MapSkinner.messages import SERVICE_UPDATE_WRONG_TYPE, \
     SERVICE_REMOVED, SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-from MapSkinner.settings import ROOT_URL
+
 from service import tasks
 from service.helper import xml_helper
 from service.filters import WmsFilter, WfsFilter
-from service.forms import ServiceURIForm, RegisterNewServiceWizardPage1, \
+from service.forms import RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, RemoveServiceForm, UpdateServiceCheckForm, UpdateOldToNewElementsForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
@@ -430,8 +428,7 @@ def activate(request: HttpRequest, service_id: int):
     return redirect("service:index")
 
 
-@log_proxy
-def get_service_metadata(metadata_id: int):
+def get_service_metadata(request: HttpRequest, metadata_id: int):
     """ Returns the service metadata xml file for a given metadata id
 
     Args:
@@ -449,7 +446,7 @@ def get_service_metadata(metadata_id: int):
     return HttpResponse(doc, content_type=APP_XML)
 
 
-def get_dataset_metadata(metadata_id: int):
+def get_dataset_metadata(request: HttpRequest, metadata_id: int):
     """ Returns the dataset metadata xml file for a given metadata id
 
     Args:
@@ -466,7 +463,7 @@ def get_dataset_metadata(metadata_id: int):
             md = md.get_related_dataset_metadata()
             if md is None:
                 raise ObjectDoesNotExist
-            return redirect("service:get-dataset-metadata", id=md.id)
+            return redirect("service:get-dataset-metadata", metadata_id=md.id)
         document = Document.objects.get(related_metadata=md)
         document = document.dataset_metadata_document
         if document is None:
@@ -509,7 +506,6 @@ def check_for_dataset_metadata(request: HttpRequest, metadata_id: int):
     return BackendAjaxResponse(html="", has_dataset_doc=has_dataset_doc).get_response()
 
 
-@log_proxy
 # TODO: currently the preview is not pretty. Refactor this method to get a pretty preview img by consider the right scale of the layers
 def get_service_metadata_preview(request: HttpRequest, metadata_id: int):
     """ Returns the service metadata previe als png for a given metadata id
@@ -671,7 +667,6 @@ def get_capabilities(request: HttpRequest, metadata_id: int):
     return HttpResponse(doc, content_type='application/xml')
 
 
-@log_proxy
 def get_metadata_html(request: HttpRequest, metadata_id: int):
     """ Returns the metadata as html rendered view
         Args:
@@ -787,7 +782,6 @@ def wms_index(request: HttpRequest):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-# TODO: refactor this function and template by using bootstrap4
 @login_required
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic
@@ -811,15 +805,16 @@ def update_service(request: HttpRequest, metadata_id: int):
 
         # Check if update form is valid
         if not update_form.is_valid():
-            messages.error(request, update_form.errors)
-            return redirect("service:detail", metadata_id)
+            # Form is not valid --> response with page 1 and show errors
+            params = {
+                "update_service_form": update_form,
+                "show_update_form": True,
+            }
+            return detail(request, metadata_id, params)
 
-        # Check if uri can be retrieved correctly from the form
+        # Get variables from form
         uri = update_form.cleaned_data.get("get_capabilities_uri", None)
         keep_custom_md = update_form.cleaned_data.get("keep_custom_md", None)
-        if uri is None:
-            messages.error(request, PARAMETER_ERROR.format("Get capabilities uri"))
-            return redirect("service:detail", metadata_id)
 
         url_dict = service_helper.split_service_uri(uri)
         new_service_type = url_dict.get("service")
@@ -827,8 +822,12 @@ def update_service(request: HttpRequest, metadata_id: int):
 
         # Check cross service update attempt
         if current_service.servicetype.name != new_service_type.value:
-            messages.add_message(request, messages.ERROR, SERVICE_UPDATE_WRONG_TYPE)
-            return redirect("service:detail", metadata_id)
+            update_form.add_error("get_capabilities_uri", SERVICE_UPDATE_WRONG_TYPE)
+            params = {
+                "update_service_form": update_form,
+                "show_update_form": True,
+            }
+            return detail(request, metadata_id, params)
 
         # Create db model from new service information (no persisting, yet)
         registrating_group = current_service.created_by
@@ -1105,7 +1104,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id:
             parent_md = metadata.service.parent_service.metadata
             return get_operation_result(request=request, id=parent_md.id)
 
-        # We need to check if one of the requested layers is secured. If so, we need to check the
+        # We need to check if at least one of the requested layers is secured.
         md_secured = metadata.is_secured
         if operation_handler.layers_param is not None:
             layers = operation_handler.layers_param.split(",")

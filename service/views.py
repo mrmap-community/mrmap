@@ -429,8 +429,7 @@ def activate(request: HttpRequest, service_id: int):
     return redirect("service:index")
 
 
-@log_proxy
-def get_service_metadata(metadata_id: int):
+def get_service_metadata(request: HttpRequest, metadata_id: int):
     """ Returns the service metadata xml file for a given metadata id
 
     Args:
@@ -448,7 +447,7 @@ def get_service_metadata(metadata_id: int):
     return HttpResponse(doc, content_type=APP_XML)
 
 
-def get_dataset_metadata(metadata_id: int):
+def get_dataset_metadata(request: HttpRequest, metadata_id: int):
     """ Returns the dataset metadata xml file for a given metadata id
 
     Args:
@@ -465,7 +464,7 @@ def get_dataset_metadata(metadata_id: int):
             md = md.get_related_dataset_metadata()
             if md is None:
                 raise ObjectDoesNotExist
-            return redirect("service:get-dataset-metadata", id=md.id)
+            return redirect("service:get-dataset-metadata", metadata_id=md.id)
         document = Document.objects.get(related_metadata=md)
         document = document.dataset_metadata_document
         if document is None:
@@ -508,7 +507,6 @@ def check_for_dataset_metadata(request: HttpRequest, metadata_id: int):
     return BackendAjaxResponse(html="", has_dataset_doc=has_dataset_doc).get_response()
 
 
-@log_proxy
 # TODO: currently the preview is not pretty. Refactor this method to get a pretty preview img by consider the right scale of the layers
 def get_service_metadata_preview(request: HttpRequest, metadata_id: int):
     """ Returns the service metadata previe als png for a given metadata id
@@ -670,7 +668,6 @@ def get_capabilities(request: HttpRequest, metadata_id: int):
     return HttpResponse(doc, content_type='application/xml')
 
 
-@log_proxy
 def get_metadata_html(request: HttpRequest, metadata_id: int):
     """ Returns the metadata as html rendered view
         Args:

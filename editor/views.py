@@ -249,7 +249,7 @@ def edit_access(request: HttpRequest, id: int):
         sec_ops = SecuredOperation.objects.filter(
             secured_metadata=md
         )
-        all_groups = MrMapGroup.objects.all()
+        all_groups = MrMapGroup.objects.all().order_by('id')
         tmp = editor_helper.prepare_secured_operations_groups(operations, sec_ops, all_groups, md)
 
         spatial_restrictable_operations = [

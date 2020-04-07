@@ -79,17 +79,18 @@ class Command(BaseCommand):
         # handle default role
         self._create_default_role()
 
+        # handle public group
+        group = self._create_public_group(superuser)
+        group.created_by = superuser
+        group.user_set.add(superuser)
+        group.save()
+
         # handle root group
         group = self._create_superuser_group(superuser)
         group.created_by = superuser
         group.user_set.add(superuser)
         group.save()
 
-        # handle public group
-        group = self._create_public_group(superuser)
-        group.created_by = superuser
-        group.user_set.add(superuser)
-        group.save()
 
         # handle root organization
         orga = self._create_default_organization()

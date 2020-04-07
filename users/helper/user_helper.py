@@ -63,10 +63,9 @@ def get_public_groups():
          public_groups: QuerySet
     """
     public_groups = MrMapGroup.objects.filter(
-        name=PUBLIC_GROUP_NAME
+        is_public_group=True
     )
     return public_groups
-
 
 
 def create_group_activity(group: MrMapGroup, user: MrMapUser, msg, metadata_title: str):

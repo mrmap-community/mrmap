@@ -110,7 +110,11 @@ class Command(BaseCommand):
         Returns:
              group (Group): The newly created group
         """
-        group = MrMapGroup.objects.get_or_create(name=PUBLIC_GROUP_NAME, created_by=user)[0]
+        group = MrMapGroup.objects.get_or_create(
+            name=PUBLIC_GROUP_NAME,
+            created_by=user,
+            is_public_group=True
+        )[0]
         if group.role is None:
             role = Role.objects.get_or_create(name=PUBLIC_ROLE_NAME)[0]
             if role.permission is None:

@@ -17,7 +17,8 @@ from MapSkinner.messages import FORM_INPUT_INVALID, GROUP_CAN_NOT_BE_OWN_PARENT,
     PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, GROUP_FORM_INVALID, \
     PUBLISH_PERMISSION_REMOVED, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_IS_OTHERS_PROPERTY, \
-    GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED
+    GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED, \
+    ORGANIZATION_SUCCESSFULLY_EDITED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 
 from MapSkinner.settings import ROOT_URL
@@ -169,12 +170,13 @@ def organizations_index(request: HttpRequest):
 
 
 @login_required
-def detail_organizations(request: HttpRequest, org_id: int):
+def detail_organizations(request: HttpRequest, org_id: int, update_params=None):
     """ Renders an overview of a group's details.
 
     Args:
         request: The incoming request
         org_id: The id of the requested group
+        update_params:
     Returns:
          A rendered view
     """
@@ -223,6 +225,9 @@ def detail_organizations(request: HttpRequest, org_id: int):
         'caption': _("Shows informations about the organization which you are selected."),
     }
 
+    if update_params:
+        params.update(update_params)
+
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
 
@@ -240,21 +245,20 @@ def edit_org(request: HttpRequest, org_id: int):
     """
     user = user_helper.get_user(request)
     org = Organization.objects.get(id=org_id)
-    if org.created_by != user:
-        # TODO: this message should be presented in the form errors ==> see form.add_error()
-        messages.error(request, message=ORGANIZATION_IS_OTHERS_PROPERTY)
-        return redirect("structure:detail-organization", org.id)
-    form = OrganizationForm(request.POST or None, instance=org)
+
     if request.method == "POST":
+        form = OrganizationForm(request.POST or None, instance=org, requesting_user=user)
         if form.is_valid():
             # save changes of group
-            org = form.save(commit=False)
-            if org.parent == org:
-                # TODO: this message should be presented in the form errors ==> see form.add_error()
-                messages.add_message(request=request, level=messages.ERROR, message=ORGANIZATION_CAN_NOT_BE_OWN_PARENT)
-            else:
-                org.save()
-        return redirect("structure:detail-organization", org.id)
+            form.save()
+            messages.success(request, message=ORGANIZATION_SUCCESSFULLY_EDITED)
+            return redirect("structure:detail-organization", org.id)
+        else:
+            params = {
+                "edit_organization_form": form,
+                "show_edit_organization_form": True,
+            }
+            return detail_organizations(request=request, org_id=org_id, update_params=params)
 
     else:
         return redirect("structure:detail-organization", org.id)

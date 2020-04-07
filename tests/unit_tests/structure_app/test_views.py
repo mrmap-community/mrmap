@@ -1228,3 +1228,25 @@ class StructureIndexViewTestCase(TestCase):
         self.assertIsInstance(response.context['all_publisher_table'], PublisherTable)
         self.assertIsInstance(response.context['pub_requests_table'], PublisherRequestTable)
         self.assertEqual(len(response.context['pub_requests_table'].rows), 10)
+
+    def test_get_edit_organization(self):
+        response = self.client.get(
+            reverse('structure:edit-organization',
+                    args=(self.orgas[0].id,)),
+            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+        )
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_valid_edit_organization(self):
+        params = {
+            # ToDo
+        }
+        response = self.client.post(
+            reverse('structure:edit-organization',
+                    args=(self.orgas[0].id,)),
+            data=params,
+            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+        )
+
+        self.assertEqual(response.status_code, 302)

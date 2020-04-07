@@ -3,6 +3,7 @@ from django import forms
 from django.forms import ModelForm
 from django.utils.translation import gettext_lazy as _
 
+from MapSkinner.messages import ORGANIZATION_IS_OTHERS_PROPERTY, ORGANIZATION_CAN_NOT_BE_OWN_PARENT
 from MapSkinner.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
 from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from structure.models import MrMapGroup, Organization
@@ -64,6 +65,21 @@ class OrganizationForm(ModelForm):
         model = Organization
         fields = '__all__'
         exclude = ["created_by", "address_type", "is_auto_generated"]
+
+    def __init__(self, *args, **kwargs):
+        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
+        super(OrganizationForm, self).__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super(OrganizationForm, self).clean()
+
+        if self.instance.created_by != self.requesting_user:
+            self.add_error(None, ORGANIZATION_IS_OTHERS_PROPERTY)
+
+        if cleaned_data.get("parent") == self.instance:
+            self.add_error("parent", ORGANIZATION_CAN_NOT_BE_OWN_PARENT)
+
+        return cleaned_data
 
 
 class RemoveGroupForm(forms.Form):

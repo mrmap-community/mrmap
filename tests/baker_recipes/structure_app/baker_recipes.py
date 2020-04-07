@@ -109,6 +109,13 @@ superadmin_group = Recipe(
     created_by=foreign_key(god_user),
 )
 
+public_group = Recipe(
+    MrMapGroup,
+    name="Public",
+    role=foreign_key(guest_role),
+    created_by=foreign_key(god_user),
+)
+
 superadmin_user = Recipe(
     MrMapUser,
     username="Testuser",
@@ -117,5 +124,5 @@ superadmin_user = Recipe(
     password=make_password(PASSWORD, salt=salt),
     is_active=True,
     theme=foreign_key(light_theme),
-    groups=related(superadmin_group)
+    groups=related(superadmin_group),
 )

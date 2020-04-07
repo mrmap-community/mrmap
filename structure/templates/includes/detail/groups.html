@@ -12,7 +12,7 @@
 <div class="row mb-2 ">
     <div class="col">
         <div class="d-flex justify-content-between">
-            {% if 'can_edit_group' in user_permissions %}
+            {% if 'can_edit_group' in user_permissions and group.created_by == user %}
             <div>
                 <button type="button" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" data-toggle="modal" data-target="#id_modal_edit_group_modal">
                     {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit group' %}
@@ -24,7 +24,7 @@
                 {% endwith %}
             {% endwith %}
             {% endif %}
-            {% if 'can_delete_group' in user_permissions %}
+            {% if 'can_delete_group' in user_permissions and group.created_by == user %}
             <div class="ml-auto">
                 <button type="button" class="btn {{THEME.CARD.BTN_DANGER_COLOR}}" data-toggle="modal" data-target="#id_modal_delete_group_modal">
                     {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Delete group' %}

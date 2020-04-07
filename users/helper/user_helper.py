@@ -55,6 +55,19 @@ def get_user(request: HttpRequest=None, username: str=None, user_id: int=None):
         return None
 
 
+def get_public_groups():
+    """ Returns the public group, which is associated with the anonymousUser
+
+    Returns:
+         public_groups: QuerySet
+    """
+    public_groups = MrMapGroup.objects.filter(
+        name="Public"
+    )
+    return public_groups
+
+
+
 def create_group_activity(group: MrMapGroup, user: MrMapUser, msg, metadata_title: str):
     """ Creates a group activity record for logging group actions.
 

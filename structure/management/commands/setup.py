@@ -80,7 +80,13 @@ class Command(BaseCommand):
         self._create_default_role()
 
         # handle root group
-        group = self._create_default_group(superuser)
+        group = self._create_superuser_group(superuser)
+        group.created_by = superuser
+        group.user_set.add(superuser)
+        group.save()
+
+        # handle public group
+        group = self._create_public_group(superuser)
         group.created_by = superuser
         group.user_set.add(superuser)
         group.save()
@@ -94,11 +100,35 @@ class Command(BaseCommand):
         msg = "Superuser '" + name + "' added to organization '" + orga.organization_name + "'!"
         self.stdout.write(self.style.SUCCESS(msg))
 
-    def _create_default_group(self, user: MrMapUser):
+    def _create_public_group(self, user: MrMapUser):
+        """ Creates public group
+
+        Args:
+            user (MrMapUser): The superuser object
+        Returns:
+             group (Group): The newly created group
+        """
+        group = MrMapGroup.objects.get_or_create(name="Public", created_by=user)[0]
+        if group.role is None:
+            role = Role.objects.get_or_create(name="public_role")[0]
+            if role.permission is None:
+                perm = Permission()
+                for key, val in perm.__dict__.items():
+                    if 'can_' in key:
+                        setattr(perm, key, False)
+
+                perm.save()
+                role.permission = perm
+            role.save()
+            group.role = role
+            group.created_by = user
+        return group
+
+    def _create_superuser_group(self, user: MrMapUser):
         """ Creates default group, default role for group and default superuser permission for role
 
         Args:
-            user (Usser): The superuser object
+            user (MrMapUser): The superuser object
         Returns:
              group (Group): The newly created group
         """

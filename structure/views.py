@@ -83,10 +83,6 @@ def index(request: HttpRequest):
     template = "views/structure_index.html"
     user = user_helper.get_user(request)
 
-    # check for notifications like publishing requests
-    # publish requests
-    pub_requests_count = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=user.organization).count()
-
     group_form = GroupForm()
     group_form.action_url = reverse('structure:new-group')
 
@@ -94,7 +90,6 @@ def index(request: HttpRequest):
     organization_form.action_url = reverse('structure:new-organization')
 
     params = {
-        "pub_requests_count": pub_requests_count,
         "new_group_form": group_form,
         "new_organization_form": organization_form,
     }

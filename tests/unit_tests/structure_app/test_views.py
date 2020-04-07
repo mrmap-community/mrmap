@@ -1170,8 +1170,6 @@ class StructureIndexViewTestCase(TestCase):
         self.assertIsInstance(response.context['new_group_form'], GroupForm)
         self.assertIsInstance(response.context['new_organization_form'], OrganizationForm)
 
-        self.assertEqual(response.context['pub_requests_count'], 10)
-
     def test_get_groups_index(self):
         response = self.client.get(
             reverse('structure:groups-index', ),

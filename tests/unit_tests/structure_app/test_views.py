@@ -1239,9 +1239,25 @@ class StructureIndexViewTestCase(TestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_valid_edit_organization(self):
+        perm = self.user.get_groups()[0].role.permission
+        perm.can_edit_organization = True
+        perm.save()
+
         params = {
-            # ToDo
+            'organization_name': 'TestOrga',
+            'description': 'This is a test',
+            'parent': self.orgas[1].id,
+            'person_name': 'Test name',
+            'email': 'test@example.com',
+            'phone': '+12 34567890',
+            'facsimile': 'qwertz',
+            'city': 'Musterstadt',
+            'postal_code': '12345',
+            'address': 'Musterweg 123',
+            'state_or_province': 'RLP',
+            'country': 'Germany',
         }
+
         response = self.client.post(
             reverse('structure:edit-organization',
                     args=(self.orgas[0].id,)),
@@ -1250,3 +1266,32 @@ class StructureIndexViewTestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
+
+    def test_invalid_edit_organization(self):
+        perm = self.user.get_groups()[0].role.permission
+        perm.can_edit_organization = True
+        perm.save()
+
+        params = {
+            'organization_name': 'TestOrga',
+            'description': 'This is a test',
+            'parent': self.orgas[0].id,
+            'person_name': 'Test name',
+            'email': 'test@example.com',
+            'phone': '+12 34567890',
+            'facsimile': 'qwertz',
+            'city': 'Musterstadt',
+            'postal_code': '12345',
+            'address': 'Musterweg 123',
+            'state_or_province': 'RLP',
+            'country': 'Germany',
+        }
+
+        response = self.client.post(
+            reverse('structure:edit-organization',
+                    args=(self.orgas[0].id,)),
+            data=params,
+            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+        )
+
+        self.assertEqual(response.status_code, 200)

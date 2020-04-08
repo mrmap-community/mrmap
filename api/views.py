@@ -2,7 +2,7 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.http import HttpRequest
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -52,9 +52,15 @@ def menu_view(request: HttpRequest):
 
     if request.method == "POST":
         # Generate new access token, old token can not be reused, must be deleted
-        token.delete()
+        if token is not None:
+            token.delete()
         token = Token(user=user)
         token.save()
+
+        # Redirect user directly to the same page. Why?
+        # This way, we make sure the user does not re-generate another token accidentally by pressing F5 or reload,
+        # or whatever. We force the GET way.
+        return redirect("api:menu")
     else:
         # Show existing access token
         pass

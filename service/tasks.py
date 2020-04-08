@@ -40,7 +40,7 @@ def async_increase_hits(metadata_id: int):
 
 
 @shared_task(name="async_activate_service")
-def async_activate_service(service_id: int, user_id: int):
+def async_activate_service(service_id: int, user_id: int, is_active: bool):
     """ Async call for activating a service, its subelements and all of their related metadata
 
     Args:
@@ -53,7 +53,7 @@ def async_activate_service(service_id: int, user_id: int):
 
     # get service and change status
     service = Service.objects.get(id=service_id)
-    new_status = not service.metadata.is_active  # invert active status
+    new_status = is_active
     service.metadata.is_active = new_status
     service.metadata.save(update_last_modified=False)
     service.is_active = new_status

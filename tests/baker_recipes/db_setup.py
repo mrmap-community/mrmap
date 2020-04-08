@@ -1,7 +1,6 @@
 from django.db.models import QuerySet
 from model_bakery import baker
-from model_bakery.recipe import related
-from structure.models import MrMapGroup, MrMapUser, Organization
+from structure.models import MrMapUser, Organization
 from service.helper.enums import MetadataEnum
 from service.models import MetadataType
 from structure.models import MrMapGroup
@@ -13,10 +12,14 @@ def create_testuser():
 
 def create_superadminuser(groups: QuerySet = None):
     if groups is not None:
-        return baker.make_recipe('tests.baker_recipes.structure_app.superadmin_user',
-                                 groups=groups)
+        superuser = baker.make_recipe('tests.baker_recipes.structure_app.superadmin_user',
+                                      groups=groups)
     else:
-        return baker.make_recipe('tests.baker_recipes.structure_app.superadmin_user')
+        superuser = baker.make_recipe('tests.baker_recipes.structure_app.superadmin_user')
+
+    public_group = baker.make_recipe('tests.baker_recipes.structure_app.public_group', created_by=superuser)
+    public_group.user_set.add(superuser)
+    return superuser
 
 
 def create_wms_service(group: MrMapGroup, how_much_services: int = 1, how_much_sublayers: int = 1):

@@ -16,6 +16,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
+from structure.settings import PUBLIC_ROLE_NAME, PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, SUPERUSER_ROLE_NAME
 
 
 class Command(BaseCommand):
@@ -79,11 +80,18 @@ class Command(BaseCommand):
         # handle default role
         self._create_default_role()
 
-        # handle root group
-        group = self._create_default_group(superuser)
+        # handle public group
+        group = self._create_public_group(superuser)
         group.created_by = superuser
         group.user_set.add(superuser)
         group.save()
+
+        # handle root group
+        group = self._create_superuser_group(superuser)
+        group.created_by = superuser
+        group.user_set.add(superuser)
+        group.save()
+
 
         # handle root organization
         orga = self._create_default_organization()
@@ -94,17 +102,45 @@ class Command(BaseCommand):
         msg = "Superuser '" + name + "' added to organization '" + orga.organization_name + "'!"
         self.stdout.write(self.style.SUCCESS(msg))
 
-    def _create_default_group(self, user: MrMapUser):
-        """ Creates default group, default role for group and default superuser permission for role
+    def _create_public_group(self, user: MrMapUser):
+        """ Creates public group
 
         Args:
-            user (Usser): The superuser object
+            user (MrMapUser): The superuser object
         Returns:
              group (Group): The newly created group
         """
-        group = MrMapGroup.objects.get_or_create(name="_root_", created_by=user)[0]
+        group = MrMapGroup.objects.get_or_create(
+            name=PUBLIC_GROUP_NAME,
+            created_by=user,
+            is_public_group=True
+        )[0]
         if group.role is None:
-            role = Role.objects.get_or_create(name="_root_")[0]
+            role = Role.objects.get_or_create(name=PUBLIC_ROLE_NAME)[0]
+            if role.permission is None:
+                perm = Permission()
+                for key, val in perm.__dict__.items():
+                    if 'can_' in key:
+                        setattr(perm, key, False)
+
+                perm.save()
+                role.permission = perm
+            role.save()
+            group.role = role
+            group.created_by = user
+        return group
+
+    def _create_superuser_group(self, user: MrMapUser):
+        """ Creates default group, default role for group and default superuser permission for role
+
+        Args:
+            user (MrMapUser): The superuser object
+        Returns:
+             group (Group): The newly created group
+        """
+        group = MrMapGroup.objects.get_or_create(name=SUPERUSER_GROUP_NAME, created_by=user)[0]
+        if group.role is None:
+            role = Role.objects.get_or_create(name=SUPERUSER_ROLE_NAME)[0]
             if role.permission is None:
                 perm = Permission()
                 for key, val in perm.__dict__.items():

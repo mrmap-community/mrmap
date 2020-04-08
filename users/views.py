@@ -30,7 +30,8 @@ from MapSkinner.utils import print_debug_mode
 from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
 from structure.forms import LoginForm, RegistrationForm
-from structure.models import MrMapUser, UserActivation, PendingRequest, GroupActivity, Organization
+from structure.models import MrMapUser, UserActivation, PendingRequest, GroupActivity, Organization, MrMapGroup
+from structure.settings import PUBLIC_GROUP_NAME
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm
 from users.helper import user_helper
 from django.urls import reverse
@@ -343,6 +344,10 @@ def register(request: HttpRequest):
         user.confirmed_survey = cleaned_data.get("survey")
         user.is_active = False
         user.save()
+
+        # Add user to Public group
+        public_group = MrMapGroup.objects.get(name=PUBLIC_GROUP_NAME)
+        public_group.user_set.add(user)
 
         # create user_activation object to improve checking against activation link
         user.create_activation()

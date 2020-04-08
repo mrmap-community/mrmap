@@ -42,8 +42,8 @@ class Permission(models.Model):
     can_edit_metadata_service = models.BooleanField(default=False)
 
     can_toggle_publish_requests = models.BooleanField(default=False)
-    can_remove_publisher = models.BooleanField(default=True)
-    can_request_to_become_publisher = models.BooleanField(default=True)
+    can_remove_publisher = models.BooleanField(default=False)
+    can_request_to_become_publisher = models.BooleanField(default=False)
     # more permissions coming
 
     def __str__(self):
@@ -110,6 +110,7 @@ class MrMapGroup(Group):
     role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
     publish_for_organizations = models.ManyToManyField('Organization', related_name='can_publish_for', blank=True)
     created_by = models.ForeignKey('MrMapUser', on_delete=models.DO_NOTHING)
+    is_public_group = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name

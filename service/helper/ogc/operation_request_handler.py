@@ -101,6 +101,13 @@ class OGCOperationRequestHandler:
 
         self.intersected_allowed_geometry = None
         self.user = user_helper.get_user(request)
+
+        # If user is AnonymousUser, we need to get the public groups
+        if self.user.is_authenticated:
+            self.user_groups = self.user.get_groups()
+        else:
+            self.user_groups = user_helper.get_public_groups()
+
         self.access_denied_img = None  # if subelements are not accessible for the user, this PIL.Image object represents an overlay with information about the resources, which can not be accessed
 
         if self.request_is_GET:
@@ -319,15 +326,10 @@ class OGCOperationRequestHandler:
             # in case of WMS
             layer_identifiers = self.layers_param.split(",")
 
-            if self.user.is_authenticated:
-                user_groups = self.user.get_groups()
-            else:
-                user_groups = []
-
             allowed_layers = Metadata.objects.filter(
                 service__parent_service__metadata=md,
                 identifier__in=layer_identifiers,
-                secured_operations__allowed_group__in=user_groups,
+                secured_operations__allowed_group__in=self.user_groups,
                 secured_operations__operation__operation_name__iexact=self.request_param,
             )
             allowed_layers_identifier_list = [l.identifier for l in allowed_layers]
@@ -1459,10 +1461,6 @@ class OGCOperationRequestHandler:
             "response_type": ""
         }
 
-        # if user could not be found in request -> not logged in -> no permission!
-        if not self.user.is_authenticated:
-            return response
-
         check_sec_ops = False
         if self.request_param in WMS_SECURED_OPERATIONS or self.request_param in WFS_SECURED_OPERATIONS:
             check_sec_ops = True
@@ -1470,7 +1468,7 @@ class OGCOperationRequestHandler:
         # check if the metadata allows operation performing for certain groups
         sec_ops = metadata.secured_operations.filter(
             operation__operation_name__iexact=self.request_param,
-            allowed_group__in=self.user.get_groups(),
+            allowed_group__in=self.user_groups,
         )
 
         if check_sec_ops and sec_ops.count() == 0:

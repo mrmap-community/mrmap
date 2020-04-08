@@ -1,19 +1,73 @@
 # Create your views here.
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
+from django.http import HttpRequest
+from django.shortcuts import render
+from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from rest_framework import viewsets
+from rest_framework.authtoken.models import Token
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 
 from MapSkinner import utils
+from MapSkinner.decorator import check_permission
+from MapSkinner.responses import DefaultContext
 from api import view_helper
+from api.forms import TokenForm
+
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, RoleSerializer, \
     MetadataSerializer, CatalogueMetadataSerializer
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS
 from service.models import Service, Layer, Metadata
-from structure.models import Organization, MrMapGroup, Role
+from structure.models import Organization, MrMapGroup, Role, Permission
+from users.helper import user_helper
+
+@check_permission(
+    Permission(
+        can_generate_api_token=True
+    )
+)
+def menu_view(request: HttpRequest):
+    """ The API menu view where settings for the remote access can be set.
+
+    Args:
+        request (HttpRequest): The incoming request
+    Returns:
+         rendered view
+    """
+    template = "views/api_menu.html"
+    token_form = TokenForm(request.POST)
+    user = user_helper.get_user(request)
+
+    # Get user token
+    try:
+        token = Token.objects.get(
+            user=user
+        )
+    except ObjectDoesNotExist:
+        # User has no token yet
+        token = None
+
+    if request.method == "POST":
+        # Generate new access token, old token can not be reused, must be deleted
+        token.delete()
+        token = Token(user=user)
+        token.save()
+    else:
+        # Show existing access token
+        pass
+
+    if token is not None:
+        token_form = TokenForm(instance=token)
+
+    token_form.action_url = reverse("api:menu")
+    params = {
+        "form": token_form,
+    }
+    default_context = DefaultContext(request, params)
+    return render(request, template, default_context.get_context())
 
 
 class APIPagination(PageNumberPagination):

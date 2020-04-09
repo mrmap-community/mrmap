@@ -2,13 +2,13 @@
 # WARNING: THIS DISABLES CSRF VERIFICATION FOR THE TIME OF REGISTERING, BUT ENABLES IT AGAIN AFTER THE LAST REQUEST SENT
 # create wmslist under /opt/MapSkinner/install/wmslist.csv or use existing
 # remove "" in wmslist if you need: sed -i s/\"//g /opt/MapSkinner/install/wmslist
-# bash /opt/MapSkinner/install/mass_register_services
+# bash /opt/MapSkinner/install/mass_register_services MyWmsList.txt
 
 #!bin/bash
 user="root"
 password="root"
 group=1
-host="http://192.168.56.111:443"
+host="https://127.0.0.1"
 
 # disable csrf verification for the mass registration
 sed -i s/"    'django.middleware.csrf.CsrfViewMiddleware',"/"    #'django.middleware.csrf.CsrfViewMiddleware',"/g /opt/MapSkinner/MapSkinner/settings.py

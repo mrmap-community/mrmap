@@ -141,7 +141,7 @@ wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_set
 
 while true; do
     read -p "Do you want to install Modsecurity and generate stronger Key Exchange Algorithm? This can take up to 30mins, recommended for production!y/n? \
-							You can also do this later with bash /opt/MapSkinner/install/modsecurity_and_stronger_DH.bash " yn
+You can do this later with bash /opt/MapSkinner/install/modsecurity_and_stronger_DH.bash " yn
     case $yn in
         [Yy]* )
 				# later : bash /opt/MapSkinner/install/modsecurity_and_stronger_DH.bash;

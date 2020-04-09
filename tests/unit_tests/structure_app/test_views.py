@@ -1,12 +1,14 @@
 import os
 from copy import copy
 from django.contrib.auth.hashers import make_password
+from django.contrib.messages import get_messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
 from django_extensions import logging
 
+from MapSkinner.messages import ORGANIZATION_CAN_NOT_BE_OWN_PARENT
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME
 from structure.forms import GroupForm, OrganizationForm, RemoveOrganizationForm, PublisherForOrganizationForm
 from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
@@ -1229,7 +1231,7 @@ class StructureIndexViewTestCase(TestCase):
         self.assertIsInstance(response.context['pub_requests_table'], PublisherRequestTable)
         self.assertEqual(len(response.context['pub_requests_table'].rows), 10)
 
-    def test_get_edit_organization(self):
+    def test_permission_edit_organization(self):
         response = self.client.get(
             reverse('structure:edit-organization',
                     args=(self.orgas[0].id,)),
@@ -1237,6 +1239,8 @@ class StructureIndexViewTestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
+        messages = [m.message for m in get_messages(response.wsgi_request)]
+        self.assertIn('You do not have permissions for this!', messages)
 
     def test_valid_edit_organization(self):
         perm = self.user.get_groups()[0].role.permission
@@ -1295,3 +1299,6 @@ class StructureIndexViewTestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['show_edit_organization_form'])
+        self.assertFormError(response, 'edit_organization_form', 'parent', ORGANIZATION_CAN_NOT_BE_OWN_PARENT)
+

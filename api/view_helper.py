@@ -38,11 +38,15 @@ def filter_queryset_service_query(queryset, query):
         queryset: The given queryset which only contains matching elements
     """
     if query is not None:
-        queryset = queryset.filter(
-            Q(metadata__title__icontains=query) |
-            Q(metadata__abstract__icontains=query) |
-            Q(metadata__keywords__keyword__icontains=query)
-        ).distinct()
+        # DRF automatically replaces '+' to ' ' whitespaces, so we work with this
+        query_list = query.split(" ")
+        q = Q()
+        for query_elem in query_list:
+            q &= Q(metadata__title__icontains=query_elem)\
+                 | Q(metadata__abstract__icontains=query_elem)\
+                 | Q(metadata__keywords__keyword__icontains=query_elem)
+
+        queryset = queryset.filter(q).distinct()
     return queryset
 
 
@@ -75,11 +79,15 @@ def filter_queryset_metadata_query(queryset, query):
         queryset: The given queryset which only contains matching elements
     """
     if query is not None:
-        queryset = queryset.filter(
-            Q(title__icontains=query) |
-            Q(abstract__icontains=query) |
-            Q(keywords__keyword__icontains=query)
-        ).distinct()
+        # DRF automatically replaces '+' to ' ' whitespaces, so we work with this
+        query_list = query.split(" ")
+        q = Q()
+        for query_elem in query_list:
+            q &= Q(title__icontains=query_elem)\
+                 | Q(abstract__icontains=query_elem)\
+                 | Q(keywords__keyword__icontains=query_elem)
+
+        queryset = queryset.filter(q).distinct()
     return queryset
 
 

@@ -264,7 +264,6 @@ class ServiceViewSet(viewsets.GenericViewSet):
         pass
 
 
-
 class LayerViewSet(viewsets.GenericViewSet):
     """ Overview of all layers matching the given parameters
 
@@ -539,7 +538,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
         Query parameters:
 
-            q: optional, query
+            q: optional, query (multiple query arguments can be passed by using '+' like q=val1+val2)
             type: optional, specifies which type of resource shall be fetched ('wms' or 'wfs')
             order: optional, orders by an attribute (e.g. title, identifier, default is hits)
             rpp (int): Number of results per page

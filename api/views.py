@@ -540,6 +540,8 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
             q: optional, query (multiple query arguments can be passed by using '+' like q=val1+val2)
             type: optional, specifies which type of resource shall be fetched ('wms' or 'wfs')
+            fully-inside: optional, specifies four EPSG:4326 coordinates, that span a bbox. Only results fully inside this bbox will be returned
+            partially-inside: optional, specifies four EPSG:4326 coordinates, that span a bbox. Only results fully or partially inside this bbox will be returned
             order: optional, orders by an attribute (e.g. title, identifier, default is hits)
             rpp (int): Number of results per page
     """
@@ -560,6 +562,20 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         self.queryset = Metadata.objects.filter(
             is_active=True,
         )
+
+        # filter by bbox extent. fully-inside and partially-inside are mutually exclusive
+        fully_inside = self.request.query_params.get("fully-inside", None)
+        part_inside = self.request.query_params.get("partially-inside", None)
+
+        is_full = fully_inside is not None and part_inside is None
+        is_intersected = fully_inside is None and part_inside is not None
+        bbox = fully_inside or part_inside
+        if fully_inside is not None and part_inside is not None:
+            raise Exception("Parameter fully-inside and part-inside can not be in the same request.")
+        elif is_full:
+            self.queryset = view_helper.filter_queryset_metadata_inside_bbox(self.queryset, bbox)
+        elif is_intersected:
+            self.queryset = view_helper.filter_queryset_metadata_intersects_bbox(self.queryset, bbox)
 
         # filter by service type
         type = self.request.query_params.get("type", None)

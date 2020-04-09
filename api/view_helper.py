@@ -5,6 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 10.09.19
 
 """
+from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.db.models import Q
 
 
@@ -88,6 +89,48 @@ def filter_queryset_metadata_query(queryset, query):
                  | Q(keywords__keyword__icontains=query_elem)
 
         queryset = queryset.filter(q).distinct()
+    return queryset
+
+
+def filter_queryset_metadata_inside_bbox(queryset, bbox: str):
+    """ Filters a given REST framework queryset by a given bbox.
+
+    Filters for results, which are fully inside the bbox.
+
+    Args:
+        queryset: A queryset containing elements
+        bbox: A bbox string in EPSG:4326
+    Returns:
+        queryset: The given queryset which only contains matching elements
+    """
+    if bbox is not None:
+        if not isinstance(bbox, list):
+            bbox = bbox.split(",")
+        bbox = GEOSGeometry(Polygon.from_bbox(bbox), srid=4326)
+        queryset = queryset.filter(
+            bounding_geometry__contained=bbox
+        )
+    return queryset
+
+
+def filter_queryset_metadata_intersects_bbox(queryset, bbox: str):
+    """ Filters a given REST framework queryset by a given bbox.
+
+    Filters for results, which are partially inside the bbox.
+
+    Args:
+        queryset: A queryset containing elements
+        bbox: A bbox string in EPSG:4326
+    Returns:
+        queryset: The given queryset which only contains matching elements
+    """
+    if bbox is not None:
+        if not isinstance(bbox, list):
+            bbox = bbox.split(",")
+        bbox = GEOSGeometry(Polygon.from_bbox(bbox), srid=4326)
+        queryset = queryset.filter(
+            bounding_geometry__bboverlaps=bbox
+        )
     return queryset
 
 

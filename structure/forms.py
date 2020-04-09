@@ -102,7 +102,7 @@ class RemoveOrganizationForm(forms.Form):
         if self.to_be_deleted_org.created_by != self.requesting_user:
             self.add_error(None, ORGANIZATION_IS_OTHERS_PROPERTY)
 
-        if cleaned_data.get('is_confirmed') != 'on':
+        if not cleaned_data.get('is_confirmed'):
             self.add_error('is_confirmed', _('You have to confirm the checkbox.'))
 
         return cleaned_data

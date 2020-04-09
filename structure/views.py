@@ -255,7 +255,7 @@ def edit_org(request: HttpRequest, org_id: int):
             # save changes of group
             form.save()
             messages.success(request, message=ORGANIZATION_SUCCESSFULLY_EDITED)
-            return HttpResponseRedirect(reverse("structure:detail-organization", args=(org_id,)), status=302)
+            return HttpResponseRedirect(reverse("structure:detail-organization", args=(org_id,)), status=303)
         else:
             params = {
                 "edit_organization_form": form,
@@ -282,26 +282,23 @@ def remove_org(request: HttpRequest, org_id: int):
     org = get_object_or_404(Organization, id=org_id)
 
     if request.method == "POST":
-        form = RemoveOrganizationForm(request.POST or None, to_be_deleted_org=org, requesting_user=user)
+        form = RemoveOrganizationForm(request.POST, to_be_deleted_org=org, requesting_user=user)
         if form.is_valid():
             # remove group and all of the related content
             org_name = org.organization_name
             org.delete()
-
             messages.success(request, message=_('Organization {} successfully deleted.'.format(org_name)))
-            return redirect("structure:organizations-index")
+            return HttpResponseRedirect(reverse("structure:organizations-index"), status=303)
         else:
             params = {
                 "delete_organization_form": form,
                 "show_delete_organization_form": True,
             }
-            return detail_organizations(request=request, org_id=org_id, update_params=params)
-
+            return detail_organizations(request=request, org_id=org_id, update_params=params, status_code=422)
     else:
-        return redirect("structure:detail-organization", org.id)
+        return HttpResponseRedirect(reverse("structure:detail-organization", args=(org_id,)), status=303)
 
 
-# TODO: update function documentation
 @login_required
 @check_permission(Permission(can_create_organization=True))
 def new_org(request: HttpRequest):

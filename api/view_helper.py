@@ -46,7 +46,7 @@ def filter_queryset_service_query(queryset, query):
     return queryset
 
 
-def order_queryset_metadata(queryset, order_by):
+def order_queryset(queryset, order_by):
     """ Orders a given REST framework queryset by a given order parameter.
 
 

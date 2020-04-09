@@ -14,6 +14,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
@@ -26,3 +27,8 @@ API_ALLOWED_HTTP_METHODS = [
 ]
 
 CATALOGUE_DEFAULT_ORDER = "hits"
+METADATA_DEFAULT_ORDER = "hits"
+SERVICE_DEFAULT_ORDER = "id"
+LAYER_DEFAULT_ORDER = "id"
+GROUP_DEFAULT_ORDER = "name"
+ORGANIZATION_DEFAULT_ORDER = "organization_name"

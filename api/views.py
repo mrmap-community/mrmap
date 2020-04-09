@@ -20,7 +20,8 @@ from api.forms import TokenForm
 
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, RoleSerializer, \
     MetadataSerializer, CatalogueMetadataSerializer
-from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER
+from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
+    LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER
 from service.models import Service, Layer, Metadata
 from structure.models import Organization, MrMapGroup, Role, Permission
 from users.helper import user_helper
@@ -126,7 +127,8 @@ class ServiceViewSet(viewsets.GenericViewSet):
             type: optional, 'wms' or 'wfs'
             q: optional, search in abstract, title and keywords for a match
             orgid: optional, search for layers which are published by this organization (id)
-            las: (layer-as-service) optional, returns services and layers all in one
+            order: optional, orders by an attribute (e.g. id, uuid, ..., default is id)
+            rpp (int): Number of results per page
 
     """
     serializer_class = ServiceSerializer
@@ -134,6 +136,10 @@ class ServiceViewSet(viewsets.GenericViewSet):
     pagination_class = APIPagination
 
     permission_classes = (IsAuthenticated,)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.orderable_fields = [field.name for field in Service._meta.fields]
 
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
@@ -146,14 +152,16 @@ class ServiceViewSet(viewsets.GenericViewSet):
             is_root=True
         )
 
+        """ Layer as service is deactivated, since there is an own layer API
+        
         # filter by service or service+layers
         las = self.request.query_params.get("las", False)
         las = utils.resolve_boolean_attribute_val(las)
-        if las:
+        if not las:
             self.queryset = self.queryset.filter(
-                Q(is_root=las) |
-                Q(is_root=not las)
+                is_root=False
             )
+        """
 
         # filter by type
         service_type = self.request.query_params.get("type", None)
@@ -170,6 +178,12 @@ class ServiceViewSet(viewsets.GenericViewSet):
         # filter by uuid
         uuid = self.request.query_params.get("uuid", None)
         self.queryset = view_helper.filter_queryset_services_uuid(self.queryset, uuid)
+
+        # order by
+        order_by = self.request.query_params.get("order", SERVICE_DEFAULT_ORDER)
+        if order_by not in self.orderable_fields:
+            order_by = SERVICE_DEFAULT_ORDER
+        self.queryset = view_helper.order_queryset(self.queryset, order_by)
 
         return self.queryset
 
@@ -218,6 +232,8 @@ class LayerViewSet(viewsets.GenericViewSet):
             pid: optional, refers to the parent service id
             q: optional, search in abstract, title and keywords for a match
             orgid: optional, search for layers which are published by this organization (id)
+            order: optional, orders by an attribute (e.g. id, identifier, ..., default is id)
+            rpp (int): Number of results per page
     """
 
     serializer_class = LayerSerializer
@@ -225,6 +241,10 @@ class LayerViewSet(viewsets.GenericViewSet):
     pagination_class = APIPagination
 
     permission_classes = (IsAuthenticated,)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.orderable_fields = [field.name for field in Layer._meta.fields]
 
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
@@ -251,6 +271,12 @@ class LayerViewSet(viewsets.GenericViewSet):
         # filter by uuid
         uuid = self.request.query_params.get("uuid", None)
         self.queryset = view_helper.filter_queryset_services_uuid(self.queryset, uuid)
+
+        # order by
+        order_by = self.request.query_params.get("order", LAYER_DEFAULT_ORDER)
+        if order_by not in self.orderable_fields:
+            order_by = LAYER_DEFAULT_ORDER
+        self.queryset = view_helper.order_queryset(self.queryset, order_by)
 
         return self.queryset
 
@@ -290,12 +316,18 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         Query parameters:
 
             ag: (auto generated) optional, filter for auto_generated organizations vs. real organizations
+            order: optional, orders by an attribute (e.g. id, email, default is organization_name)
+            rpp (int): Number of results per page
     """
     serializer_class = OrganizationSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
     pagination_class = APIPagination
 
     permission_classes = (IsAuthenticated,)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.orderable_fields = [field.name for field in Organization._meta.fields]
 
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
@@ -310,6 +342,12 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         auto_generated = utils.resolve_boolean_attribute_val(auto_generated)
         self.queryset = view_helper.filter_queryset_real_organization(self.queryset, auto_generated)
 
+        # order by
+        order_by = self.request.query_params.get("order", ORGANIZATION_DEFAULT_ORDER)
+        if order_by not in self.orderable_fields:
+            order_by = ORGANIZATION_DEFAULT_ORDER
+        self.queryset = view_helper.order_queryset(self.queryset, order_by)
+
         return self.queryset
 
 
@@ -320,12 +358,18 @@ class MetadataViewSet(viewsets.GenericViewSet):
 
             q: optional, filters for the given query. Matches against title, abstract and keywords
             uuid: optional, filters for the given uuid and returns only the matching element
+            order: optional, orders by an attribute (e.g. title, abstract, ..., default is hits)
+            rpp (int): Number of results per page
     """
     serializer_class = MetadataSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
     pagination_class = APIPagination
 
     permission_classes = (IsAuthenticated,)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.orderable_fields = [field.name for field in Metadata._meta.fields]
 
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
@@ -344,6 +388,12 @@ class MetadataViewSet(viewsets.GenericViewSet):
         # filter by uuid
         uuid = self.request.query_params.get("uuid", None)
         self.queryset = view_helper.filter_queryset_metadata_uuid(self.queryset, uuid)
+
+        # order by
+        order_by = self.request.query_params.get("order", METADATA_DEFAULT_ORDER)
+        if order_by not in self.orderable_fields:
+            order_by = METADATA_DEFAULT_ORDER
+        self.queryset = view_helper.order_queryset(self.queryset, order_by)
 
         return self.queryset
 
@@ -383,12 +433,18 @@ class GroupViewSet(viewsets.GenericViewSet):
         Query parameters:
 
             orgid: optional, filter for organizations
+            order: optional, orders by an attribute (e.g. id, organization, default is name)
+            rpp (int): Number of results per page
     """
     serializer_class = GroupSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
     pagination_class = APIPagination
 
     permission_classes = (IsAuthenticated,)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.orderable_fields = [field.name for field in MrMapGroup._meta.fields]
 
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
@@ -401,6 +457,12 @@ class GroupViewSet(viewsets.GenericViewSet):
         # filter by organization
         orgid = self.request.query_params.get("orgid", None)
         self.queryset = view_helper.filter_queryset_group_organization_id(self.queryset, orgid)
+
+        # order by
+        order_by = self.request.query_params.get("order", GROUP_DEFAULT_ORDER)
+        if order_by not in self.orderable_fields:
+            order_by = GROUP_DEFAULT_ORDER
+        self.queryset = view_helper.order_queryset(self.queryset, order_by)
 
         return self.queryset
 
@@ -440,6 +502,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
             q: optional, query
             type: optional, specifies which type of resource shall be fetched ('wms' or 'wfs')
             order: optional, orders by an attribute (e.g. title, identifier, default is hits)
+            rpp (int): Number of results per page
     """
     serializer_class = CatalogueMetadataSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
@@ -471,7 +534,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         order_by = self.request.query_params.get("order", CATALOGUE_DEFAULT_ORDER)
         if order_by not in self.orderable_fields:
             order_by = CATALOGUE_DEFAULT_ORDER
-        self.queryset = view_helper.order_queryset_metadata(self.queryset, order_by)
+        self.queryset = view_helper.order_queryset(self.queryset, order_by)
 
         return self.queryset
 

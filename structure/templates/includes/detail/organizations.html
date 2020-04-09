@@ -47,7 +47,9 @@
                 </div>
                 {% with form=delete_organization_form %}
                     {% with 'delete_organization_modal' as id_modal %}
-                        {% include 'modals/delete_organization.html' %}
+                        {% with show_delete_organization_form as show_modal %}
+                            {% include 'modals/delete_organization.html' %}
+                        {% endwith %}
                     {% endwith %}
                 {% endwith %}
             {% endif %}

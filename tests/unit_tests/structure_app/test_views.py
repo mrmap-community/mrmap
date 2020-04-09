@@ -1270,6 +1270,7 @@ class StructureIndexViewTestCase(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('structure:detail-organization', args=(self.orgas[0].id,)))
 
     def test_invalid_edit_organization(self):
         perm = self.user.get_groups()[0].role.permission
@@ -1302,3 +1303,83 @@ class StructureIndexViewTestCase(TestCase):
         self.assertTrue(response.context['show_edit_organization_form'])
         self.assertFormError(response, 'edit_organization_form', 'parent', ORGANIZATION_CAN_NOT_BE_OWN_PARENT)
 
+    def test_get_remove_organization(self):
+        perm = self.user.get_groups()[0].role.permission
+        perm.can_delete_organization = True
+        perm.save()
+
+        response = self.client.get(
+            reverse('structure:delete-organization',
+                    args=(self.orgas[0].id,)),
+            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('structure:detail-organization', args=(self.orgas[0].id,)))
+
+    def test_post_invalid_remove_organization(self):
+        perm = self.user.get_groups()[0].role.permission
+        perm.can_delete_organization = True
+        perm.save()
+
+        params = {
+            'is_confirmed': 'off',
+        }
+
+        response = self.client.post(
+            reverse('structure:delete-organization',
+                    args=(self.orgas[0].id,)),
+            data=params,
+            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['show_remove_organization_form'])
+        self.assertFormError(response, 'delete_organization_form', 'is_confirmed', 'You have to confirm the checkbox.')
+
+        response = self.client.post(
+            reverse('structure:delete-organization',
+                    args=(self.orgas[0].id,)),
+            data={},
+            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['show_remove_organization_form'])
+        self.assertFormError(response, 'delete_organization_form', 'is_confirmed', 'This field is required.')
+
+    def test_post_valid_remove_organization(self):
+        perm = self.user.get_groups()[0].role.permission
+        perm.can_delete_organization = True
+        perm.save()
+
+        params = {
+            'is_confirmed': 'on',
+        }
+
+        org_name = self.orgas[0].organization_name
+
+        response = self.client.post(
+            reverse('structure:delete-organization',
+                    args=(self.orgas[0].id,)),
+            data=params,
+            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+        )
+
+        import pdb
+        pdb.set_trace()
+
+        self.assertEqual(response.status_code, 302)
+        messages = [m.message for m in get_messages(response.wsgi_request)]
+        self.assertIn('Organization {} successfully deleted.'.format(org_name), messages)
+
+    def test_permission_remove_organization(self):
+        response = self.client.get(
+            reverse('structure:delete-organization',
+                    args=(self.orgas[0].id,)),
+            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+        )
+
+        self.assertEqual(response.status_code, 302)
+        messages = [m.message for m in get_messages(response.wsgi_request)]
+        self.assertIn('You do not have permissions for this!', messages)

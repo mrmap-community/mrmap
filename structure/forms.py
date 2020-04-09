@@ -91,6 +91,22 @@ class RemoveOrganizationForm(forms.Form):
     action_url = ''
     is_confirmed = forms.BooleanField(label=_('Do you really want to remove this organization?'))
 
+    def __init__(self, *args, **kwargs):
+        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
+        self.to_be_deleted_org = None if 'to_be_deleted_org' not in kwargs else kwargs.pop('to_be_deleted_org')
+        super(RemoveOrganizationForm, self).__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super(RemoveOrganizationForm, self).clean()
+
+        if self.to_be_deleted_org.created_by != self.requesting_user:
+            self.add_error(None, ORGANIZATION_IS_OTHERS_PROPERTY)
+
+        if cleaned_data.get('is_confirmed') != 'on':
+            self.add_error('is_confirmed', _('You have to confirm the checkbox.'))
+
+        return cleaned_data
+
 
 class RegistrationForm(forms.Form):
     username = forms.CharField(

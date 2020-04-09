@@ -95,7 +95,7 @@ class Organization(Contact):
     description = models.TextField(null=True, blank=True)
     parent = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True)
     is_auto_generated = models.BooleanField(default=True)
-    created_by = models.ForeignKey('MrMapUser', related_name='created_by', on_delete=models.DO_NOTHING, null=True, blank=True)
+    created_by = models.ForeignKey('MrMapUser', related_name='created_by', on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         if self.organization_name is None:
@@ -106,7 +106,7 @@ class Organization(Contact):
 class MrMapGroup(Group):
     description = models.TextField(blank=True, null=True)
     parent_group = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True, related_name="children_groups")
-    organization = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, null=True, blank=True, related_name="organization_groups")
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True, related_name="organization_groups")
     role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
     publish_for_organizations = models.ManyToManyField('Organization', related_name='can_publish_for', blank=True)
     created_by = models.ForeignKey('MrMapUser', on_delete=models.DO_NOTHING)
@@ -125,7 +125,7 @@ class Theme(models.Model):
 
 class MrMapUser(AbstractUser):
     salt = models.CharField(max_length=500)
-    organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.DO_NOTHING, null=True, blank=True)
+    organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.SET_NULL, null=True, blank=True)
     confirmed_newsletter = models.BooleanField(default=False)
     confirmed_survey = models.BooleanField(default=False)
     confirmed_dsgvo = models.DateTimeField(auto_now_add=True, null=True, blank=True) # ToDo: For production this is not supposed to be nullable!!!
@@ -259,8 +259,8 @@ class GroupActivity(models.Model):
 
 class PendingRequest(models.Model):
     type = models.CharField(max_length=255) # defines what type of request this is
-    group = models.ForeignKey(MrMapGroup, related_name="pending_publish_requests", on_delete=models.DO_NOTHING)
-    organization = models.ForeignKey(Organization, related_name="pending_publish_requests", on_delete=models.DO_NOTHING)
+    group = models.ForeignKey(MrMapGroup, related_name="pending_publish_requests", on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, related_name="pending_publish_requests", on_delete=models.CASCADE)
     message = models.TextField(null=True, blank=True)
     activation_until = models.DateTimeField(null=True)
     created_on = models.DateTimeField(auto_now_add=True)

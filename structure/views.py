@@ -4,7 +4,7 @@ from celery.result import AsyncResult
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -170,7 +170,7 @@ def organizations_index(request: HttpRequest):
 
 
 @login_required
-def detail_organizations(request: HttpRequest, org_id: int, update_params=None):
+def detail_organizations(request: HttpRequest, org_id: int, update_params=None, status_code=None):
     """ Renders an overview of a group's details.
 
     Args:
@@ -229,7 +229,10 @@ def detail_organizations(request: HttpRequest, org_id: int, update_params=None):
         params.update(update_params)
 
     context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context())
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=200 if status_code is None else status_code)
 
 
 @login_required
@@ -244,7 +247,7 @@ def edit_org(request: HttpRequest, org_id: int):
          Rendered view
     """
     user = user_helper.get_user(request)
-    org = Organization.objects.get(id=org_id)
+    org = get_object_or_404(Organization, id=org_id)
 
     if request.method == "POST":
         form = OrganizationForm(request.POST or None, instance=org, requesting_user=user)
@@ -252,16 +255,15 @@ def edit_org(request: HttpRequest, org_id: int):
             # save changes of group
             form.save()
             messages.success(request, message=ORGANIZATION_SUCCESSFULLY_EDITED)
-            return redirect("structure:detail-organization", org.id)
+            return HttpResponseRedirect(reverse("structure:detail-organization", args=(org_id,)), status=302)
         else:
             params = {
                 "edit_organization_form": form,
                 "show_edit_organization_form": True,
             }
-            return detail_organizations(request=request, org_id=org_id, update_params=params)
-
+            return detail_organizations(request=request, org_id=org_id, update_params=params, status_code=422)
     else:
-        return redirect("structure:detail-organization", org.id)
+        return HttpResponseRedirect(reverse("structure:detail-organization", args=(org_id,)), status=303)
 
 
 # TODO: update function documentation
@@ -272,20 +274,31 @@ def remove_org(request: HttpRequest, org_id: int):
 
     Args:
         request(HttpRequest): The used request
+        org_id:
     Returns:
         A rendered view
     """
     user = user_helper.get_user(request)
     org = get_object_or_404(Organization, id=org_id)
-    if org.created_by != user:
-        # TODO: this message should be presented in the form errors ==> see form.add_error()
-        messages.error(request, message=ORGANIZATION_IS_OTHERS_PROPERTY)
-        return redirect("structure:detail-organization", org.id)
+
+    if request.method == "POST":
+        form = RemoveOrganizationForm(request.POST or None, to_be_deleted_org=org, requesting_user=user)
+        if form.is_valid():
+            # remove group and all of the related content
+            org_name = org.organization_name
+            org.delete()
+
+            messages.success(request, message=_('Organization {} successfully deleted.'.format(org_name)))
+            return redirect("structure:organizations-index")
+        else:
+            params = {
+                "delete_organization_form": form,
+                "show_delete_organization_form": True,
+            }
+            return detail_organizations(request=request, org_id=org_id, update_params=params)
+
     else:
-        # remove group and all of the related content
-        org.delete()
-        messages.success(request, message='Organization ' + org.organization_name + ' successfully deleted.')
-        return redirect("structure:organizations-index")
+        return redirect("structure:detail-organization", org.id)
 
 
 # TODO: update function documentation

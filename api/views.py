@@ -53,7 +53,7 @@ def menu_view(request: HttpRequest):
     params = {
         "form": token_form,
     }
-    default_context = DefaultContext(request, params)
+    default_context = DefaultContext(request, params, user)
     return render(request, template, default_context.get_context())
 
 

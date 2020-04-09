@@ -12,8 +12,7 @@ from django.urls import path, include
 # Routers provide an easy way of automatically determining the URL conf.
 from rest_framework import routers
 
-from api.views import ServiceViewSet, LayerViewSet, OrganizationViewSet, GroupViewSet, RoleViewSet, MetadataViewSet, \
-    CatalogueViewSet, menu_view, generate_token
+from api.views import *
 
 router = routers.DefaultRouter()
 # catalogue api
@@ -24,7 +23,6 @@ router.register('metadata', MetadataViewSet, basename="metadata")
 router.register('service', ServiceViewSet, basename="service")
 router.register('layer', LayerViewSet, basename="layer")
 router.register('group', GroupViewSet, basename="group")
-#router.register('role', RoleViewSet, basename="role")
 
 app_name = "api"
 urlpatterns = [

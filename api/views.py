@@ -133,6 +133,8 @@ class ServiceViewSet(viewsets.GenericViewSet):
     http_method_names = API_ALLOWED_HTTP_METHODS
     pagination_class = APIPagination
 
+    permission_classes = (IsAuthenticated,)
+
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
 
@@ -222,6 +224,8 @@ class LayerViewSet(viewsets.GenericViewSet):
     http_method_names = API_ALLOWED_HTTP_METHODS
     pagination_class = APIPagination
 
+    permission_classes = (IsAuthenticated,)
+
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
 
@@ -291,6 +295,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     http_method_names = API_ALLOWED_HTTP_METHODS
     pagination_class = APIPagination
 
+    permission_classes = (IsAuthenticated,)
+
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
 
@@ -318,6 +324,8 @@ class MetadataViewSet(viewsets.GenericViewSet):
     serializer_class = MetadataSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
     pagination_class = APIPagination
+
+    permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
@@ -380,6 +388,8 @@ class GroupViewSet(viewsets.GenericViewSet):
     http_method_names = API_ALLOWED_HTTP_METHODS
     pagination_class = APIPagination
 
+    permission_classes = (IsAuthenticated,)
+
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
 
@@ -422,25 +432,6 @@ class GroupViewSet(viewsets.GenericViewSet):
         pass
 
 
-class RoleViewSet(viewsets.ModelViewSet):
-    """ Overview of all roles
-
-    """
-    serializer_class = RoleSerializer
-    http_method_names = API_ALLOWED_HTTP_METHODS
-    pagination_class = APIPagination
-
-    def get_queryset(self):
-        """ Specifies if the queryset shall be filtered or not
-
-        Returns:
-             The queryset
-        """
-        self.queryset = Role.objects.all()
-
-        return self.queryset
-
-
 class CatalogueViewSet(viewsets.GenericViewSet):
     """ Combines the serializers for a 'usual' catalogue api which provides most of the important information
 
@@ -453,7 +444,6 @@ class CatalogueViewSet(viewsets.GenericViewSet):
     serializer_class = CatalogueMetadataSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
     pagination_class = APIPagination
-    #permission_classes = (IsAuthenticated,)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -13,7 +13,7 @@ from django.urls import path, include
 from rest_framework import routers
 
 from api.views import ServiceViewSet, LayerViewSet, OrganizationViewSet, GroupViewSet, RoleViewSet, MetadataViewSet, \
-    CatalogueViewSet, menu_view
+    CatalogueViewSet, menu_view, generate_token
 
 router = routers.DefaultRouter()
 # catalogue api
@@ -29,5 +29,6 @@ router.register('group', GroupViewSet, basename="group")
 app_name = "api"
 urlpatterns = [
     path("", include(router.urls)),
-    path("menu", menu_view, name="menu")
+    path("menu", menu_view, name="menu"),
+    path("generate-token", generate_token, name="generate-token"),
 ]

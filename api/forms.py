@@ -21,8 +21,12 @@ class TokenForm(forms.ModelForm):
             "key": forms.TextInput(
                 attrs={
                     "readonly": "readonly",
-                }
+                    "placeholder": "You have no token right now",
+                },
             )
+        }
+        labels = {
+            "key": ""
         }
 
     def __init__(self, *args, **kwargs):

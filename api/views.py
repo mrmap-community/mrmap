@@ -8,12 +8,14 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
+from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from MapSkinner import utils
 from MapSkinner.decorator import check_permission
+from MapSkinner.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.responses import DefaultContext
 from api import view_helper
 from api.forms import TokenForm
@@ -22,6 +24,7 @@ from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSeri
     MetadataSerializer, CatalogueMetadataSerializer
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
     LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER
+from service import tasks
 from service.models import Service, Layer, Metadata
 from structure.models import Organization, MrMapGroup, Role, Permission
 from users.helper import user_helper
@@ -215,6 +218,42 @@ class ServiceViewSet(viewsets.GenericViewSet):
 
         return Response(serializer.data)
 
+    @action(methods=["post"], detail=True, url_path="active-state")
+    def active_state(self, request, pk=None):
+        """ Activates a service via remote access
+
+        Args:
+            request: The incoming request
+            pk: The service id
+        Returns:
+             Response
+        """
+        user = user_helper.get_user(request)
+        parameter_name = "active"
+        new_status = request.POST.dict().get(parameter_name, None)
+        new_status = utils.resolve_boolean_attribute_val(new_status)
+
+        error_msg = PARAMETER_ERROR.format(parameter_name)
+
+        if new_status is None or not isinstance(new_status, bool):
+            return Response(data=error_msg, status=500)
+
+        try:
+            md = Metadata.objects.get(service__id=pk)
+
+            if new_status:
+                success_msg = SERVICE_ACTIVATED.format(md.title)
+            else:
+                success_msg = SERVICE_DEACTIVATED.format(md.title)
+
+            md.is_active = new_status
+            md.save()
+            # run activation async!
+            tasks.async_activate_service.delay(pk, user.id, new_status)
+            return Response(data=success_msg, status=200)
+        except ObjectDoesNotExist:
+            return Response(data=SERVICE_NOT_FOUND, status=404)
+
     def update(self, request, pk=None):
         pass
 
@@ -223,6 +262,7 @@ class ServiceViewSet(viewsets.GenericViewSet):
 
     def destroy(self, request, pk=None):
         pass
+
 
 
 class LayerViewSet(viewsets.GenericViewSet):

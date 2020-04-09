@@ -23,6 +23,7 @@ REST_FRAMEWORK = {
 API_CACHE_TIME = 60*30  # 30 minutes
 API_ALLOWED_HTTP_METHODS = [
     "get",
+    "post",
     "head",
 ]
 

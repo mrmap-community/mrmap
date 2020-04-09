@@ -9,6 +9,7 @@ from django.views.decorators.cache import cache_page
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from MapSkinner import utils
@@ -19,7 +20,7 @@ from api.forms import TokenForm
 
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, RoleSerializer, \
     MetadataSerializer, CatalogueMetadataSerializer
-from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS
+from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER
 from service.models import Service, Layer, Metadata
 from structure.models import Organization, MrMapGroup, Role, Permission
 from users.helper import user_helper
@@ -174,7 +175,7 @@ class ServiceViewSet(viewsets.GenericViewSet):
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME))
     def list(self, request):
-        tmp = self.paginate_queryset(self.queryset)
+        tmp = self.paginate_queryset(self.get_queryset())
         serializer = ServiceSerializer(tmp, many=True)
         return self.get_paginated_response(serializer.data)
 
@@ -253,7 +254,7 @@ class LayerViewSet(viewsets.GenericViewSet):
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME))
     def list(self, request):
-        tmp = self.paginate_queryset(self.queryset)
+        tmp = self.paginate_queryset(self.get_queryset())
         serializer = LayerSerializer(tmp, many=True)
         return self.get_paginated_response(serializer.data)
 
@@ -342,7 +343,7 @@ class MetadataViewSet(viewsets.GenericViewSet):
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME))
     def list(self, request):
-        tmp = self.paginate_queryset(self.queryset)
+        tmp = self.paginate_queryset(self.get_queryset())
         serializer = MetadataSerializer(tmp, many=True)
         return self.get_paginated_response(serializer.data)
 
@@ -397,7 +398,7 @@ class GroupViewSet(viewsets.GenericViewSet):
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME))
     def list(self, request):
-        tmp = self.paginate_queryset(self.queryset)
+        tmp = self.paginate_queryset(self.get_queryset())
         serializer = GroupSerializer(tmp, many=True)
         return self.get_paginated_response(serializer.data)
 
@@ -447,11 +448,16 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
             q: optional, query
             type: optional, specifies which type of resource shall be fetched ('wms' or 'wfs')
+            order: optional, orders by an attribute (e.g. title, identifier, default is hits)
     """
     serializer_class = CatalogueMetadataSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
     pagination_class = APIPagination
+    #permission_classes = (IsAuthenticated,)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.orderable_fields = [field.name for field in Metadata._meta.fields]
 
     def get_queryset(self):
         """ Specifies if the queryset shall be filtered or not
@@ -471,13 +477,19 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         query = self.request.query_params.get("q", None)
         self.queryset = view_helper.filter_queryset_metadata_query(self.queryset, query)
 
+        # order by
+        order_by = self.request.query_params.get("order", CATALOGUE_DEFAULT_ORDER)
+        if order_by not in self.orderable_fields:
+            order_by = CATALOGUE_DEFAULT_ORDER
+        self.queryset = view_helper.order_queryset_metadata(self.queryset, order_by)
+
         return self.queryset
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME))
     def list(self, request):
-        tmp = self.paginate_queryset(self.queryset)
+        tmp = self.paginate_queryset(self.get_queryset())
         serializer = CatalogueMetadataSerializer(tmp, many=True)
         return self.get_paginated_response(serializer.data)
 

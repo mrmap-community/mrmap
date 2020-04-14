@@ -44,6 +44,8 @@ class Permission(models.Model):
     can_toggle_publish_requests = models.BooleanField(default=False)
     can_remove_publisher = models.BooleanField(default=False)
     can_request_to_become_publisher = models.BooleanField(default=False)
+
+    can_generate_api_token = models.BooleanField(default=False)
     # more permissions coming
 
     def __str__(self):

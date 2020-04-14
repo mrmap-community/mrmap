@@ -46,6 +46,7 @@ FONT_AWESOME_ICONS = {
     'EXTERNAL_LINK': format_html(ICON_PATTERN, 'fas', 'fa-external-link-alt', ),
     'PUBLISHER': format_html(ICON_PATTERN, 'fas', 'fa-address-card', ),
     'HOME': format_html(ICON_PATTERN, 'fas', 'fa-home', ),
+    'API': format_html(ICON_PATTERN, 'fas', 'fa-hashtag', ),
 }
 
 # dark theme settings

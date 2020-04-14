@@ -7,8 +7,11 @@ Created on: 15.08.19
 """
 from rest_framework import serializers
 
+from MapSkinner import utils
+from service.forms import RegisterNewServiceWizardPage2
+from service.helper import service_helper
 from service.models import ServiceType
-from structure.models import MrMapGroup, Role, Permission
+from structure.models import MrMapGroup, Role, Permission, MrMapUser
 
 
 class ServiceTypeSerializer(serializers.ModelSerializer):
@@ -96,6 +99,15 @@ class RoleSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class PendingTaskSerializer(serializers.Serializer):
+    """ Serializer for PendingTask model
+
+    """
+    description = serializers.CharField()
+    progress = serializers.FloatField()
+    is_finished = serializers.BooleanField()
+
+
 class KeywordSerializer(serializers.Serializer):
     """ Serializer for Keyword model
 
@@ -141,6 +153,56 @@ class ServiceSerializer(serializers.Serializer):
     metadata = serializers.PrimaryKeyRelatedField(read_only=True)
     is_root = serializers.BooleanField()
     servicetype = ServiceTypeSerializer()
+
+    def create(self, validated_data):
+        """ Creates a new service
+
+        Starts the regular registration process
+
+        Args:
+            validated_data (dict): The validated data from a POST request
+        Returns:
+             pending_task (PendingTask) or None
+        """
+        # Writing of .get("xy", None) or None makes sure that empty strings will be mapped to None
+        user = validated_data.get("user", None)
+        get_capabilities_uri = validated_data.get("uri", None) or None
+        registering_with_group = validated_data.get("group", None) or None
+        registering_for_org = validated_data.get("for-org", None) or None
+        has_ext_auth = validated_data.get("ext-auth", False) or False
+        ext_auth_username = validated_data.get("ext-username", None) or None
+        ext_auth_password = validated_data.get("ext-password", None) or None
+        ext_auth_type = validated_data.get("ext-auth-type", None) or None
+
+        # Split uri in components as it is done with RegisterNewServiceWizardPage1
+        url_dict = service_helper.split_service_uri(get_capabilities_uri)
+        ogc_request = url_dict["request"]
+        ogc_service = url_dict["service"].value
+        ogc_version = url_dict["version"]
+        uri = url_dict["base_uri"]
+
+        init_data = {
+            "ogc_request": ogc_request,
+            "ogc_service": ogc_service,
+            "ogc_version": ogc_version,
+            "uri": uri,
+            "registering_with_group": registering_with_group,
+            "registering_for_other_organization": registering_for_org,
+            "service_needs_authentication": has_ext_auth,
+            "username": ext_auth_username,
+            "password": ext_auth_password,
+            "authentication_type": ext_auth_type,
+        }
+
+        # Use RegisterNewServiceWizardPage2 workflow as for frontend registration
+        form = RegisterNewServiceWizardPage2(
+            init_data,
+            user=user
+        )
+        if form.is_valid():
+            pending_task = service_helper.create_new_service(form, user)
+            return pending_task
+        return None
 
 
 class LayerSerializer(ServiceSerializer):

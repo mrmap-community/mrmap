@@ -76,6 +76,12 @@ class DefaultContext:
         for key, val in context.items():
             self.context[key] = val
 
+class APIResponse:
+    def __init__(self):
+        self.data = {
+            "success": False,
+            "msg": "",
+        }
 
 class BackendAjaxResponse:
     """ Generic JsonResponse wrapper for Backend->Frontend(AJAX) communication

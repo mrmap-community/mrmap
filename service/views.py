@@ -36,7 +36,6 @@ from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT
 from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style, ProxyLog
-from service.tasks import async_remove_service_task
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
 from structure.models import MrMapUser, Permission, PendingTask, MrMapGroup
@@ -198,6 +197,7 @@ def _new_service_wizard_page2(request: HttpRequest):
                                              service_needs_authentication=is_auth_needed)
 
         if form.is_valid():
+<<<<<<< HEAD
             # run creation async!
             external_auth = None
             if form.cleaned_data['service_needs_authentication']:
@@ -218,26 +218,12 @@ def _new_service_wizard_page2(request: HttpRequest):
                 "request": form.cleaned_data["ogc_request"],
             }
 
+=======
+>>>>>>> 43e4871106d53ec9a8aa4c1e5e273c9867130c9b
             try:
-                pending_task = tasks.async_new_service.delay(
-                    uri_dict,
-                    user.id,
-                    form.cleaned_data['registering_with_group'].id,
-                    register_for_other_org,
-                    external_auth
-                )
-
-                # create db object, so we know which pending task is still ongoing
-                pending_task_db = PendingTask()
-                pending_task_db.created_by = MrMapGroup.objects.get(
-                    id=form.cleaned_data['registering_with_group'].id)
-                pending_task_db.task_id = pending_task.task_id
-                pending_task_db.description = json.dumps({
-                    "service": form.cleaned_data['uri'],
-                    "phase": "Parsing",
-                })
-
-                pending_task_db.save()
+                # Run creation async!
+                # Function returns the pending task object
+                pending_task = service_helper.create_new_service(form, user)
 
                 # everthing works well. Redirect to index page.
                 return redirect(SERVICE_INDEX)
@@ -362,28 +348,7 @@ def remove(request: HttpRequest, metadata_id: int):
     if request.method == 'POST':
         if remove_form.is_valid() and request.POST.get("is_confirmed") == 'on':
             metadata = get_object_or_404(Metadata, id=metadata_id)
-            # remove service and all of the related content
-            user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
-
-            # set service as deleted, so it won't be listed anymore in the index view until completely removed
-            metadata.is_deleted = True
-            metadata.save()
-
-            service_type = metadata.get_service_type()
-            if service_type == OGCServiceEnum.WMS.value:
-                sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
-            elif service_type == OGCServiceEnum.WFS.value:
-                sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
-
-            for sub_element in sub_elements:
-                sub_metadata = sub_element.metadata
-                sub_metadata.is_deleted = True
-                sub_metadata.save()
-
-            messages.success(request, 'Service "{}" marked for deletion.'.format(metadata.title))
-
-            # call removing as async task
-            async_remove_service_task.delay(metadata.service.id)
+            service_helper.remove_service(metadata, user)
             return redirect(SERVICE_INDEX)
         else:
             params = {

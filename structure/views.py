@@ -18,7 +18,7 @@ from MapSkinner.messages import FORM_INPUT_INVALID, GROUP_CAN_NOT_BE_OWN_PARENT,
     PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, GROUP_FORM_INVALID, \
     PUBLISH_PERMISSION_REMOVED, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED, \
-    ORGANIZATION_SUCCESSFULLY_EDITED
+    ORGANIZATION_SUCCESSFULLY_EDITED, GROUP_SUCCESSFULLY_EDITED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 
 from MapSkinner.settings import ROOT_URL
@@ -260,7 +260,7 @@ def edit_org(request: HttpRequest, org_id: int):
         if form.is_valid():
             # save changes of group
             form.save()
-            messages.success(request, message=ORGANIZATION_SUCCESSFULLY_EDITED)
+            messages.success(request, message=ORGANIZATION_SUCCESSFULLY_EDITED.format(org.organization_name))
             return HttpResponseRedirect(reverse("structure:detail-organization", args=(org_id,)), status=303)
         else:
             params = {
@@ -482,7 +482,9 @@ def detail_group(request: HttpRequest, group_id: int, update_params=None, status
 
     Args:
         request: The incoming request
-        id: The id of the requested group
+        group_id: The id of the requested group
+        update_params:
+        status_code:
     Returns:
          A rendered view
     """
@@ -646,7 +648,7 @@ def edit_group(request: HttpRequest, group_id: int):
         if form.is_valid():
             # save changes of group
             group.save()
-            messages.success(request, message=_('Group {} successfully edited.'.format(group.name)))
+            messages.success(request, message=GROUP_SUCCESSFULLY_EDITED.format(group.name))
             return HttpResponseRedirect(reverse("structure:detail-group", args=(group.id,)), status=303)
         else:
             params = {

@@ -45,6 +45,9 @@ def menu_view(request: HttpRequest):
     token_form = TokenForm(request.POST)
     user = user_helper.get_user(request)
 
+    if not user.is_authenticated:
+        return redirect("login")
+
     # Get user token
     try:
         token = Token.objects.get(
@@ -164,11 +167,11 @@ class ServiceViewSet(viewsets.GenericViewSet):
 
         Query parameters:
 
-            type: optional, 'wms' or 'wfs'
-            q: optional, search in abstract, title and keywords for a match
-            orgid: optional, search for layers which are published by this organization (id)
-            order: optional, orders by an attribute (e.g. id, uuid, ..., default is id)
-            rpp (int): Number of results per page
+            type:   optional, 'wms' or 'wfs'
+            q:      optional, search in abstract, title and keywords for a match
+            orgid:  optional, search for layers which are published by this organization (id)
+            order:  optional, orders by an attribute (e.g. id, uuid, ..., default is id)
+            rpp:    optional, Number of results per page
 
     """
     serializer_class = ServiceSerializer
@@ -352,11 +355,11 @@ class LayerViewSet(viewsets.GenericViewSet):
     """ Overview of all layers matching the given parameters
 
         Query parameters:
-            pid: optional, refers to the parent service id
-            q: optional, search in abstract, title and keywords for a match
-            orgid: optional, search for layers which are published by this organization (id)
-            order: optional, orders by an attribute (e.g. id, identifier, ..., default is id)
-            rpp (int): Number of results per page
+            pid:    optional, refers to the parent service id
+            q:      optional, search in abstract, title and keywords for a match
+            orgid:  optional, search for layers which are published by this organization (id)
+            order:  optional, orders by an attribute (e.g. id, identifier, ..., default is id)
+            rpp:    optional, Number of results per page
     """
 
     serializer_class = LayerSerializer
@@ -438,9 +441,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
         Query parameters:
 
-            ag: (auto generated) optional, filter for auto_generated organizations vs. real organizations
-            order: optional, orders by an attribute (e.g. id, email, default is organization_name)
-            rpp (int): Number of results per page
+            ag:     optional, filter for auto_generated organizations vs. real organizations
+            order:  optional, orders by an attribute (e.g. id, email, default is organization_name)
+            rpp:    optional, Number of results per page
     """
     serializer_class = OrganizationSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
@@ -479,10 +482,10 @@ class MetadataViewSet(viewsets.GenericViewSet):
 
         Query parameters:
 
-            q: optional, filters for the given query. Matches against title, abstract and keywords
-            uuid: optional, filters for the given uuid and returns only the matching element
-            order: optional, orders by an attribute (e.g. title, abstract, ..., default is hits)
-            rpp (int): Number of results per page
+            q:      optional, filters for the given query. Matches against title, abstract and keywords
+            uuid:   optional, filters for the given uuid and returns only the matching element
+            order:  optional, orders by an attribute (e.g. title, abstract, ..., default is hits)
+            rpp:    optional, Number of results per page
     """
     serializer_class = MetadataSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
@@ -555,9 +558,9 @@ class GroupViewSet(viewsets.GenericViewSet):
 
         Query parameters:
 
-            orgid: optional, filter for organizations
-            order: optional, orders by an attribute (e.g. id, organization, default is name)
-            rpp (int): Number of results per page
+            orgid:  optional, filter for organizations
+            order:  optional, orders by an attribute (e.g. id, organization, default is name)
+            rpp:    optional, Number of results per page
     """
     serializer_class = GroupSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
@@ -623,15 +626,15 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         Query parameters:
 
             -----   REGULAR    -----
-            q: optional, query (multiple query arguments can be passed by using '+' like q=val1+val2)
-            type: optional, specifies which type of resource shall be fetched ('wms' or 'wfs')
-            order: optional, orders by an attribute (e.g. title, identifier, default is hits)
-            rpp (int): Number of results per page
+            q:      optional, query (multiple query arguments can be passed by using '+' like q=val1+val2)
+            type:   optional, specifies which type of resource shall be fetched ('wms' or 'wfs')
+            order:  optional, orders by an attribute (e.g. title, identifier, default is hits)
+            rpp:    optional, Number of results per page
 
             -----   SPATIAL    -----
-            bbox-srs: optional, specifies another spatial reference system for the parameter `fully-inside` and `partially-inside`. If not given, the default is EPSG:4326
-            fully-inside: optional, specifies four coordinates, that span a bbox. Only results fully inside this bbox will be returned
-            partially-inside: optional, specifies four coordinates, that span a bbox. Only results fully or partially inside this bbox will be returned
+            bbox-srs:           optional, specifies another spatial reference system for the parameter `fully-inside` and `partially-inside`. If not given, the default is EPSG:4326
+            fully-inside:       optional, specifies four coordinates, that span a bbox. Only results fully inside this bbox will be returned
+            partially-inside:   optional, specifies four coordinates, that span a bbox. Only results fully or partially inside this bbox will be returned
 
     """
     serializer_class = CatalogueMetadataSerializer

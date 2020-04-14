@@ -59,9 +59,6 @@ class GroupForm(ModelForm):
         if self.instance.created_by_id is not None and self.instance.created_by != self.requesting_user:
             self.add_error(None, GROUP_IS_OTHERS_PROPERTY)
 
-        if cleaned_data.get("parent_group") == self.instance:
-            self.add_error("parent_group", GROUP_CAN_NOT_BE_OWN_PARENT)
-
         return cleaned_data
 
 
@@ -140,9 +137,6 @@ class OrganizationForm(ModelForm):
 
         if self.instance.created_by is not None and self.instance.created_by != self.requesting_user:
             self.add_error(None, ORGANIZATION_IS_OTHERS_PROPERTY)
-
-        if cleaned_data.get("parent") == self.instance:
-            self.add_error("parent", ORGANIZATION_CAN_NOT_BE_OWN_PARENT)
 
         return cleaned_data
 

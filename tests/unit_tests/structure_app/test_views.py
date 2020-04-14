@@ -223,37 +223,6 @@ class StructureEditOrganizationViewTestCase(TestCase):
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.url, reverse('structure:detail-organization', args=(self.orgas[0].id,)))
 
-    def test_invalid_edit_organization(self):
-        perm = self.user.get_groups()[0].role.permission
-        perm.can_edit_organization = True
-        perm.save()
-
-        params = {
-            'organization_name': 'TestOrga',
-            'description': 'This is a test',
-            'parent': self.orgas[0].id,
-            'person_name': 'Test name',
-            'email': 'test@example.com',
-            'phone': '+12 34567890',
-            'facsimile': 'qwertz',
-            'city': 'Musterstadt',
-            'postal_code': '12345',
-            'address': 'Musterweg 123',
-            'state_or_province': 'RLP',
-            'country': 'Germany',
-        }
-
-        response = self.client.post(
-            reverse('structure:edit-organization',
-                    args=(self.orgas[0].id,)),
-            data=params,
-            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
-        )
-
-        self.assertEqual(response.status_code, 422)
-        self.assertTrue(response.context['show_edit_organization_form'])
-        self.assertFormError(response, 'edit_organization_form', 'parent', ORGANIZATION_CAN_NOT_BE_OWN_PARENT)
-
 
 class StructureRemoveOrganizationViewTestCase(TestCase):
     def setUp(self):

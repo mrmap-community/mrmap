@@ -3,10 +3,11 @@ Brief description of files and scripts found in the install folder.
 I.  mapskinner_production_setup.bash
 
 This script will install mapskinner with production settings on your blank debian10  
-server.
-Get it with ```wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_setup/install/mapskinner_production_setup.bash```  
+server. Get it with:  
+```wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_setup/install/mapskinner_production_setup.bash```  
 Change your hostname and desired database credentials at the beginning of the script.  
-Afterwards execute it with ```bash mapskinner_production_setup.bash```  
+Afterwards execute it with:  
+```bash mapskinner_production_setup.bash```  
 There will be some questions prompted.  
 
 The script will do the following:   
@@ -31,7 +32,9 @@ intranet only servers.
 
 II.  update_mapskinner.bash
 
-This updates your MapSkinner installation  
+This updates your MapSkinner installation.  
+Get it with:
+```wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_setup/install/update_mapskinner.bash```   
 
 Usage:  
 bash update_mapskinner.bash  

@@ -83,10 +83,7 @@ def index(request: HttpRequest):
     user = user_helper.get_user(request)
 
     group_form = GroupForm()
-    group_form.action_url = reverse('structure:new-group')
-
     organization_form = OrganizationForm()
-    organization_form.action_url = reverse('structure:new-organization')
 
     params = {
         "new_group_form": group_form,
@@ -120,27 +117,33 @@ def remove_task(request: HttpRequest, task_id: int):
 
 
 @login_required
-def groups_index(request: HttpRequest):
+def groups_index(request: HttpRequest, update_params=None, status_code=None):
     """ Renders an overview of all groups
 
     Args:
         request (HttpRequest): The incoming request
+        update_params:
+        status_code:
     Returns:
          A view
     """
     template = "views/groups_index.html"
     user = user_helper.get_user(request)
-
     group_form = GroupForm()
-    group_form.action_url = reverse('structure:new-group')
 
     params = {
         "new_group_form": group_form,
     }
     params.update(_prepare_group_table(request, user))
 
+    if update_params:
+        params.update(update_params)
+
     context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context())
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=200 if status_code is None else status_code)
 
 
 @login_required
@@ -253,7 +256,7 @@ def edit_org(request: HttpRequest, org_id: int):
     org = get_object_or_404(Organization, id=org_id)
 
     if request.method == "POST":
-        form = OrganizationForm(request.POST or None, instance=org, requesting_user=user)
+        form = OrganizationForm(request.POST or None, instance=org, requesting_user=user, is_edit=True)
         if form.is_valid():
             # save changes of group
             form.save()
@@ -474,7 +477,7 @@ def publish_request(request: HttpRequest, org_id: int):
 
 
 @login_required
-def detail_group(request: HttpRequest, id: int):
+def detail_group(request: HttpRequest, group_id: int, update_params=None, status_code=None):
     """ Renders an overview of a group's details.
 
     Args:
@@ -485,15 +488,14 @@ def detail_group(request: HttpRequest, id: int):
     """
     user = user_helper.get_user(request)
 
-    group = MrMapGroup.objects.get(id=id)
+    group = MrMapGroup.objects.get(id=group_id)
     members = group.user_set.all()
     template = "views/groups_detail.html"
 
-    edit_form = GroupForm(instance=group)
-    edit_form.action_url = reverse('structure:edit-group', args=[id])
+    edit_form = GroupForm(instance=group, is_edit=True)
 
     delete_form = RemoveGroupForm()
-    delete_form.action_url = reverse('structure:delete-group', args=[id])
+    delete_form.action_url = reverse('structure:delete-group', args=[group_id])
 
     publisher_for = group.publish_for_organizations.all()
     all_publisher_table = PublishesForTable(
@@ -511,11 +513,17 @@ def detail_group(request: HttpRequest, id: int):
         "all_publisher_table": all_publisher_table,
         "caption": _("Shows informations about the group which you are selected."),
     }
+
+    if update_params:
+        params.update(update_params)
+
     context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context())
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=200 if status_code is None else status_code)
 
 
-# TODO: update function documentation
 @login_required
 @check_permission(Permission(can_create_group=True))
 def new_group(request: HttpRequest):
@@ -524,32 +532,30 @@ def new_group(request: HttpRequest):
     Args:
         request: The incoming request
     Returns:
-         A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
+         A view
     """
     user = user_helper.get_user(request)
 
-    form = GroupForm(request.POST or None)
+    form = GroupForm(request.POST, requesting_user=user)
     if request.method == "POST":
         if form.is_valid():
             # save changes of group
             group = form.save(commit=False)
-            if group.parent_group == group:
-                # TODO: this message should be presented in the form errors ==> see form.add_error()
-                messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
-            else:
-                group.created_by = user
-                if group.role is None:
-                    group.role = Role.objects.get(name="_default_")
-                group.save()
-                group.user_set.add(user)
-            return redirect("structure:index")
+            group.created_by = user
+            if group.role is None:
+                group.role = Role.objects.get(name="_default_")
+            group.save()
+            group.user_set.add(user)
+            messages.success(request, message=_('Group {} successfully created.'.format(group.name)))
+            return HttpResponseRedirect(reverse("structure:detail-group", args=(group.id,)), status=303)
         else:
-            # TODO: this is not necessary; redirect to the redirect("structure:index") by example and show the modal with the errors
-            messages.error(request, message=GROUP_FORM_INVALID)
-            return redirect("structure:index")
+            params = {
+                "new_organization_form": form,
+                "show_new_organization_form": True,
+            }
+        return groups_index(request=request, update_params=params, status_code=422)
     else:
-        # TODO: we should redirect to redirect("structure:index") by example and show the modal by default
-        redirect("structure:index")
+        return HttpResponseRedirect(reverse("structure:groups-index", ), status=303)
 
 
 @login_required
@@ -578,11 +584,12 @@ def list_publisher_group(request: HttpRequest, id: int):
 # TODO: update function documentation
 @login_required
 @check_permission(Permission(can_delete_group=True))
-def remove_group(request: HttpRequest, id: int):
+def remove_group(request: HttpRequest, group_id: int):
     """ Renders the remove form for a group
 
     Args:
         request(HttpRequest): The used request
+        group_id:
     Returns:
         A rendered view
     """
@@ -590,7 +597,7 @@ def remove_group(request: HttpRequest, id: int):
 
     remove_form = RemoveGroupForm(request.POST)
     if remove_form.is_valid():
-        group = get_object_or_404(MrMapGroup, id=id)
+        group = get_object_or_404(MrMapGroup, id=group_id)
 
         if group.created_by != user:
             # TODO: this message should be presented in the form errors ==> see form.add_error()
@@ -613,41 +620,42 @@ def remove_group(request: HttpRequest, id: int):
             messages.success(request, message='Group ' + group.name + ' successfully deleted.')
             return redirect(STRUCTURE_INDEX_GROUP)
     else:
-        return edit_group(request=request, id=id)
+        params = {
+            "remove_group_form": remove_form,
+            "show_remove_group_form": True,
+        }
+    return detail_group(request=request, group_id=group_id, update_params=params, status_code=422)
+
 
 @login_required
 @check_permission(Permission(can_edit_group=True))
-def edit_group(request: HttpRequest, id: int):
+def edit_group(request: HttpRequest, group_id: int):
     """ The edit view for changing group values
 
     Args:
         request:
-        id:
+        group_id:
     Returns:
          A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
     """
     user = user_helper.get_user(request)
+    group = MrMapGroup.objects.get(id=group_id)
+    form = GroupForm(request.POST, requesting_user=user, instance=group, is_edit=True)
 
-    group = MrMapGroup.objects.get(id=id)
-    form = GroupForm(request.POST, instance=group)
-
-    if group.created_by != user:
-        form.add_error(None, GROUP_IS_OTHERS_PROPERTY)
-        messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)
-        return redirect("structure:detail-organization", group.id)
     if request.method == "POST":
         if form.is_valid():
             # save changes of group
-            group = form.save(commit=False)
-            if group.parent_group == group:
-                form.add_error('parent_group', GROUP_CAN_NOT_BE_OWN_PARENT)
-                messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
-            else:
-                group.save()
-        return redirect("structure:detail-group", group.id)
-
+            group.save()
+            messages.success(request, message=_('Group {} successfully edited.'.format(group.name)))
+            return HttpResponseRedirect(reverse("structure:detail-group", args=(group.id,)), status=303)
+        else:
+            params = {
+                "edit_group_form": form,
+                "show_edit_group_form": True,
+            }
+        return detail_group(request=request, group_id=group_id, update_params=params, status_code=422)
     else:
-        return redirect("structure:detail-group", group.id)
+        return HttpResponseRedirect(reverse("structure:groups-index", ), status=303)
 
 
 def handler404(request: HttpRequest, exception=None):

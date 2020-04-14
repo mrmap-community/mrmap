@@ -5,10 +5,10 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.messages import ORGANIZATION_IS_OTHERS_PROPERTY, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, \
-    ORGANIZATION_ALREADY_EXISTS
+    ORGANIZATION_ALREADY_EXISTS, GROUP_IS_OTHERS_PROPERTY, GROUP_CAN_NOT_BE_OWN_PARENT
 from MapSkinner.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
 from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
-from structure.models import MrMapGroup, Organization
+from structure.models import MrMapGroup, Organization, Role
 
 
 class LoginForm(forms.Form):
@@ -27,6 +27,8 @@ class GroupForm(ModelForm):
         widget=forms.Textarea(),
         required=False,
     )
+    role = forms.ModelChoiceField(queryset=Role.objects.all(), empty_label=None)
+    parent_group = forms.ModelChoiceField(queryset=MrMapGroup.objects.all())
 
     class Meta:
         model = MrMapGroup
@@ -36,6 +38,31 @@ class GroupForm(ModelForm):
             "role",
             "parent_group"
         ]
+
+    def __init__(self, *args, **kwargs):
+        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
+        self.is_edit = False if 'is_edit' not in kwargs else kwargs.pop('is_edit')
+        super(GroupForm, self).__init__(*args, **kwargs)
+
+        if 'instance' in kwargs:
+            self.fields['parent_group'].queryset = MrMapGroup.objects.all().exclude(id=kwargs.get('instance').id)
+
+        if self.is_edit:
+            self.action_url = reverse('structure:edit-group', args=[self.instance.id])
+        else:
+            self.action_url = reverse('structure:new-group')
+
+    def clean(self):
+        cleaned_data = super(GroupForm, self).clean()
+
+        if self.instance.created_by_id is not None and self.instance.created_by != self.requesting_user:
+            self.add_error(None, GROUP_IS_OTHERS_PROPERTY)
+
+        if cleaned_data.get("parent_group") == self.instance:
+            self.add_error("parent_group", GROUP_CAN_NOT_BE_OWN_PARENT)
+
+        return cleaned_data
+
 
 class PublisherForOrganizationForm(forms.Form):
     action_url = ''
@@ -73,6 +100,9 @@ class OrganizationForm(ModelForm):
         self.is_edit = False if 'is_edit' not in kwargs else kwargs.pop('is_edit')
         super(OrganizationForm, self).__init__(*args, **kwargs)
 
+        if 'instance' in kwargs:
+            self.fields['parent'].queryset = Organization.objects.all().exclude(id=kwargs.get('instance').id)
+
         if self.is_edit:
             self.action_url = reverse('structure:edit-organization', args=[self.instance.id])
         else:
@@ -81,7 +111,7 @@ class OrganizationForm(ModelForm):
     def clean(self):
         cleaned_data = super(OrganizationForm, self).clean()
 
-        if self.instance.created_by != self.requesting_user:
+        if self.instance.created_by is not None and self.instance.created_by != self.requesting_user:
             self.add_error(None, ORGANIZATION_IS_OTHERS_PROPERTY)
 
         if cleaned_data.get("parent") == self.instance:

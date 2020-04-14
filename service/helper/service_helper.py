@@ -5,12 +5,12 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 16.04.19
 
 """
-
+import json
 import urllib
 
 from celery import Task
 
-from service.settings import DEFAULT_SERVICE_VERSION
+from service import tasks
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
 from service.helper.epsg_api import EpsgApi
@@ -18,6 +18,7 @@ from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Service, ExternalAuthentication
 from service.helper.crypto_handler import CryptoHandler
+from structure.models import PendingTask, MrMapGroup, MrMapUser
 
 
 def resolve_version_enum(version: str):
@@ -87,6 +88,7 @@ def split_service_uri(uri):
 
     ret_dict["base_uri"] += "&".join(additional_params)
     return ret_dict
+
 
 def prepare_original_uri_stump(uri: str):
     """ Prepares an original uri of a service to end on '?' or '&'.
@@ -239,3 +241,55 @@ def capabilities_are_different(cap_url_1, cap_url_2):
     xml_2_hash = sec_handler.sha256(xml_2)
 
     return xml_1_hash != xml_2_hash
+
+
+def create_new_service(form, user: MrMapUser):
+    """ Creates a service from a filled RegisterNewServiceWizardPage2 form object.
+
+    Returns the PendingTask record for the registration process
+
+    Args:
+        form (RegisterNewServiceWizardPage2): The filled form instance
+        user (MrMapUser): The performing user
+    Returns:
+         pending_task_db (PendingTask): The PendingTask record for the registration
+    """
+    external_auth = None
+    if form.cleaned_data['service_needs_authentication']:
+        external_auth = {
+            "username": form.cleaned_data['username'],
+            "password": form.cleaned_data['password'],
+            "auth_type": form.cleaned_data['authentication_type']
+        }
+
+    register_for_other_org = 'None'
+    if form.cleaned_data['registering_for_other_organization'] is not None:
+        register_for_other_org = form.cleaned_data['registering_for_other_organization'].id
+
+    uri_dict = {
+        "base_uri": form.cleaned_data["uri"],
+        "version": form.cleaned_data["ogc_version"],
+        "service": form.cleaned_data["ogc_service"],
+        "request": form.cleaned_data["ogc_request"],
+    }
+
+    pending_task = tasks.async_new_service.delay(
+        uri_dict,
+        user.id,
+        form.cleaned_data['registering_with_group'].id,
+        register_for_other_org,
+        external_auth
+    )
+
+    # create db object, so we know which pending task is still ongoing
+    pending_task_db = PendingTask()
+    pending_task_db.created_by = MrMapGroup.objects.get(
+        id=form.cleaned_data['registering_with_group'].id)
+    pending_task_db.task_id = pending_task.task_id
+    pending_task_db.description = json.dumps({
+        "service": form.cleaned_data['uri'],
+        "phase": "Parsing",
+    })
+
+    pending_task_db.save()
+    return pending_task_db

@@ -201,47 +201,10 @@ def _new_service_wizard_page2(request: HttpRequest):
                                              service_needs_authentication=is_auth_needed)
 
         if form.is_valid():
-            # run creation async!
-            external_auth = None
-            if form.cleaned_data['service_needs_authentication']:
-                external_auth = {
-                    "username": form.cleaned_data['username'],
-                    "password": form.cleaned_data['password'],
-                    "auth_type": form.cleaned_data['authentication_type']
-                }
-
-            register_for_other_org = 'None'
-            if form.cleaned_data['registering_for_other_organization'] is not None:
-                register_for_other_org = form.cleaned_data['registering_for_other_organization'].id
-
-
-            uri_dict = {
-                "base_uri": form.cleaned_data["uri"],
-                "version": form.cleaned_data["ogc_version"],
-                "service": form.cleaned_data["ogc_service"],
-                "request": form.cleaned_data["ogc_request"],
-            }
-
             try:
-                pending_task = tasks.async_new_service.delay(
-                    uri_dict,
-                    user.id,
-                    form.cleaned_data['registering_with_group'].id,
-                    register_for_other_org,
-                    external_auth
-                )
-
-                # create db object, so we know which pending task is still ongoing
-                pending_task_db = PendingTask()
-                pending_task_db.created_by = MrMapGroup.objects.get(
-                    id=form.cleaned_data['registering_with_group'].id)
-                pending_task_db.task_id = pending_task.task_id
-                pending_task_db.description = json.dumps({
-                    "service": form.cleaned_data['uri'],
-                    "phase": "Parsing",
-                })
-
-                pending_task_db.save()
+                # Run creation async!
+                # Function returns the pending task object
+                pending_task = service_helper.create_new_service(form, user)
 
                 # everthing works well. Redirect to index page.
                 return redirect(SERVICE_INDEX)

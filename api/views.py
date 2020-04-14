@@ -199,7 +199,23 @@ class ServiceViewSet(viewsets.GenericViewSet):
         return self.get_paginated_response(serializer.data)
 
     def create(self, request):
-        pass
+        service_serializer = ServiceSerializer()
+        user = user_helper.get_user(request)
+        params = {
+            "user": user
+        }
+        params.update(request.POST.dict())
+        pending_task = service_serializer.create(validated_data=params)
+        resp_data = {
+            "Registration start successful": pending_task is not None,
+            "pending_task_id": pending_task.id
+        }
+        if pending_task:
+            status = 200
+        else:
+            status = 500
+        response = Response(data=resp_data, status=status)
+        return response
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
@@ -233,26 +249,30 @@ class ServiceViewSet(viewsets.GenericViewSet):
         new_status = request.POST.dict().get(parameter_name, None)
         new_status = utils.resolve_boolean_attribute_val(new_status)
 
-        error_msg = PARAMETER_ERROR.format(parameter_name)
+        resp_data = {
+            "success": False,
+            "msg": "",
+        }
 
         if new_status is None or not isinstance(new_status, bool):
-            return Response(data=error_msg, status=500)
+            resp_data["msg"] = PARAMETER_ERROR.format(parameter_name)
+            return Response(data=resp_data, status=500)
 
         try:
             md = Metadata.objects.get(service__id=pk)
 
-            if new_status:
-                success_msg = SERVICE_ACTIVATED.format(md.title)
-            else:
-                success_msg = SERVICE_DEACTIVATED.format(md.title)
+            resp_data["oldStatus"] = md.is_active
 
             md.is_active = new_status
             md.save()
             # run activation async!
             tasks.async_activate_service.delay(pk, user.id, new_status)
-            return Response(data=success_msg, status=200)
+            resp_data["newStatus"] = md.is_active
+            resp_data["success"] = True
+            return Response(data=resp_data, status=200)
         except ObjectDoesNotExist:
-            return Response(data=SERVICE_NOT_FOUND, status=404)
+            resp_data["msg"] = SERVICE_NOT_FOUND
+            return Response(data=resp_data, status=404)
 
     def update(self, request, pk=None):
         pass

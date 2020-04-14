@@ -235,6 +235,13 @@ class ServiceViewSet(viewsets.GenericViewSet):
         return self.get_paginated_response(serializer.data)
 
     def create(self, request):
+        """ Creates a new service
+
+        Args:
+            request (HttpRequest): The incoming request
+        Returns:
+             response (Response)
+        """
         service_serializer = ServiceSerializer()
         user = user_helper.get_user(request)
         params = {
@@ -242,15 +249,15 @@ class ServiceViewSet(viewsets.GenericViewSet):
         }
         params.update(request.POST.dict())
         pending_task = service_serializer.create(validated_data=params)
-        resp_data = {
-            "Registration start successful": pending_task is not None,
-            "pending_task_id": pending_task.id
-        }
+
+        response = APIResponse()
+        response.data["success"] = pending_task is not None
+        response.data["pending_task_id"] = pending_task.id
         if pending_task:
             status = 200
         else:
             status = 500
-        response = Response(data=resp_data, status=status)
+        response = Response(data=response.data, status=status)
         return response
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache

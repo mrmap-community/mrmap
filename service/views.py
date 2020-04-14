@@ -197,29 +197,6 @@ def _new_service_wizard_page2(request: HttpRequest):
                                              service_needs_authentication=is_auth_needed)
 
         if form.is_valid():
-<<<<<<< HEAD
-            # run creation async!
-            external_auth = None
-            if form.cleaned_data['service_needs_authentication']:
-                external_auth = {
-                    "username": form.cleaned_data['username'],
-                    "password": form.cleaned_data['password'],
-                    "auth_type": form.cleaned_data['authentication_type']
-                }
-
-            register_for_other_org = 'None'
-            if form.cleaned_data['registering_for_other_organization'] is not None:
-                register_for_other_org = form.cleaned_data['registering_for_other_organization'].id
-
-            uri_dict = {
-                "base_uri": form.cleaned_data["uri"],
-                "version": form.cleaned_data["ogc_version"],
-                "service": form.cleaned_data["ogc_service"],
-                "request": form.cleaned_data["ogc_request"],
-            }
-
-=======
->>>>>>> 43e4871106d53ec9a8aa4c1e5e273c9867130c9b
             try:
                 # Run creation async!
                 # Function returns the pending task object

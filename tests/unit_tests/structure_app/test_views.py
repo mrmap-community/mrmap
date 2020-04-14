@@ -390,3 +390,19 @@ class StructureNewOrganizationViewTestCase(TestCase):
         self.assertEqual(response.url, reverse('structure:detail-organization', args=(latest.id,)))
         messages = [m.message for m in get_messages(response.wsgi_request)]
         self.assertIn('Organization {} successfully created.'.format('TestOrga'), messages)
+
+    def test_post_invalid_new_organization(self):
+        perm = self.user.get_groups()[0].role.permission
+        perm.can_create_organization = True
+        perm.save()
+
+        post_params = {'person_name': 'TestPerson'}
+        response = self.client.post(
+            reverse('structure:new-organization'),
+            data=post_params,
+            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+        )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertTrue(response.context['show_new_organization_form'])
+        self.assertFormError(response, 'new_organization_form', 'organization_name', 'This field is required.')

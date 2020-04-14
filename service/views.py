@@ -73,12 +73,10 @@ def _prepare_wms_table(request: HttpRequest):
 
     if show_service:
         wms_table = WmsServiceTable(wms_table_filtered.qs,
-                                    template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                     order_by_field='swms',  # swms = sort wms
                                     user=user,)
     else:
         wms_table = WmsLayerTable(wms_table_filtered.qs,
-                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                   order_by_field='swms',  # swms = sort wms
                                   user=user,)
 
@@ -116,7 +114,6 @@ def _prepare_wfs_table(request: HttpRequest):
 
     wfs_table_filtered = WfsFilter(request.GET, queryset=md_list_wfs)
     wfs_table = WfsServiceTable(wfs_table_filtered.qs,
-                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                 order_by_field='swfs',  # swms = sort wms
                                 user=user,)
 
@@ -301,7 +298,6 @@ def index(request: HttpRequest, update_params=None):
     # get pending tasks
     pt = PendingTask.objects.filter(created_by__in=user.get_groups())
     pt_table = PendingTasksTable(pt,
-                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                  orderable=False, user=user, )
 
     params = {
@@ -338,7 +334,6 @@ def pending_tasks(request: HttpRequest):
     pt = PendingTask.objects.filter(created_by__in=user.get_groups())
 
     pt_table = PendingTasksTable(pt,
-                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                  orderable=False, user=user,)
 
     params = {
@@ -769,7 +764,6 @@ def wms_index(request: HttpRequest):
     # get pending tasks
     pt = PendingTask.objects.filter(created_by__in=user.get_groups())
     pt_table = PendingTasksTable(pt,
-                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                  orderable=False, user=user,)
 
     params = {
@@ -957,7 +951,6 @@ def wfs_index(request: HttpRequest):
     # get pending tasks
     pending_tasks = PendingTask.objects.filter(created_by__in=user.get_groups())
     pt_table = PendingTasksTable(pending_tasks,
-                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                  orderable=False, user=user,)
 
     params = {

@@ -29,7 +29,7 @@ def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
     wms_services = user.get_services_as_qs(OGCServiceEnum.WMS)
     wms_table_filtered = WmsServiceFilter(request.GET, queryset=wms_services)
     wms_table = WmsServiceTable(wms_table_filtered.qs,
-                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, user=user,)
+                                user=user,)
     wms_table.filter = wms_table_filtered
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
     wms_table.configure_pagination(request, 'wms-t')
@@ -41,7 +41,7 @@ def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
     wfs_services = user.get_services_as_qs(OGCServiceEnum.WFS)
     wfs_table_filtered = WfsServiceFilter(request.GET, queryset=wfs_services)
     wfs_table = WfsServiceTable(wfs_table_filtered.qs,
-                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, user=user, )
+                                user=user, )
     wfs_table.filter = wfs_table_filtered
     # TODO: # since parameters could be changed directly in the uri, we need to make sure to avoid problems
     wfs_table.configure_pagination(request, 'wfs-t')

@@ -47,7 +47,6 @@ def _prepare_group_table(request: HttpRequest, user: MrMapUser, ):
         ))
 
     groups_table = GroupTable(groups,
-                              template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                               order_by_field='sg',  # sg = sort groups
                               user=user, )
     groups_table.filter = user_groups_filtered
@@ -63,7 +62,6 @@ def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, ):
     all_orgs_filtered = OrganizationFilter(request.GET, queryset=all_orgs)
 
     all_orgs_table = OrganizationTable(all_orgs_filtered.qs,
-                                       template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                        order_by_field='so',  # so = sort organizations
                                        user=user, )
     all_orgs_table.filter = all_orgs_filtered
@@ -198,14 +196,12 @@ def detail_organizations(request: HttpRequest, org_id: int, update_params=None, 
     pub_requests = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=org_id)
     pub_requests_table = PublisherRequestTable(
         pub_requests,
-        template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
         user=user,
     )
 
     all_publishing_groups = MrMapGroup.objects.filter(publish_for_organizations__id=org_id)
     publisher_table = PublisherTable(
         all_publishing_groups,
-        template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
         user=user,
     )
 
@@ -412,6 +408,7 @@ def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
         messages.success(request, message=PUBLISH_PERMISSION_REMOVED.format(group.name, org.organization_name))
     return redirect("structure:detail-organization", org.id)
 
+
 @login_required
 @check_permission(Permission(can_request_to_become_publisher=True))
 def publish_request(request: HttpRequest, org_id: int):
@@ -501,7 +498,6 @@ def detail_group(request: HttpRequest, id: int):
     publisher_for = group.publish_for_organizations.all()
     all_publisher_table = PublishesForTable(
         publisher_for,
-        template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
         user=user,
     )
 
@@ -513,7 +509,7 @@ def detail_group(request: HttpRequest, id: int):
         "edit_group_form": edit_form,
         "delete_group_form": delete_form,
         "all_publisher_table": all_publisher_table,
-        'caption': _("Shows informations about the group which you are selected."),
+        "caption": _("Shows informations about the group which you are selected."),
     }
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())

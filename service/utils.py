@@ -103,8 +103,9 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
                              'title': child.metadata.title,
                              'sublayers_count': child_child_layers.count()}, )
 
-        child_layer_table = ChildLayerTable(children, template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                            order_by='title', user=None,)
+        child_layer_table = ChildLayerTable(children,
+                                            order_by='title',
+                                            user=None,)
 
         child_layer_table.configure_pagination(request, 'cl-t')
 
@@ -138,8 +139,10 @@ def collect_wms_root_data(md: Metadata):
                   'title': layer.metadata.title,
                   'sublayers_count': child_child_layers.count()}]
 
-    sub_layer_table = ChildLayerTable(sub_layer, template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                      orderable=False, show_header=False, user=None,)
+    sub_layer_table = ChildLayerTable(sub_layer,
+                                      orderable=False,
+                                      show_header=False,
+                                      user=None,)
 
     params['children'] = sub_layer_table
     params['fees'] = md.fees
@@ -173,8 +176,9 @@ def collect_wfs_root_data(md: Metadata, request: HttpRequest):
                              'title': child.metadata.title,
                              })
 
-    featuretype_table = FeatureTypeTable(featuretypes, template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
-                                         order_by='title', user=None,)
+    featuretype_table = FeatureTypeTable(featuretypes,
+                                         order_by='title',
+                                         user=None,)
     featuretype_table.configure_pagination(request, 'ft-t')
     featuretype_table.filter = featuretypes_filtered
 
@@ -209,7 +213,6 @@ def collect_metadata_related_objects(md: Metadata, request: HttpRequest,):
         # build django tables2 table
         related_metadata_table = CoupledMetadataTable(
             metadatas_dict_array,
-            template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
             order_by='title',
             show_header=show_header,
             user=None,)

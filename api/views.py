@@ -20,6 +20,7 @@ from MapSkinner.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
 from MapSkinner.responses import DefaultContext, APIResponse
 from api import view_helper
 from api.forms import TokenForm
+from api.permissions import CanRegisterService, CanRemoveService, CanActivateService
 
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, RoleSerializer, \
     MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer
@@ -174,7 +175,12 @@ class ServiceViewSet(viewsets.GenericViewSet):
     http_method_names = API_ALLOWED_HTTP_METHODS + ["delete"]
     pagination_class = APIPagination
 
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (
+        IsAuthenticated,
+        CanRegisterService,
+        CanRemoveService,
+        CanActivateService,
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

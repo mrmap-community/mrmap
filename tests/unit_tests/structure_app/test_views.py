@@ -66,7 +66,7 @@ class StructureIndexViewTestCase(TestCase):
 
         self.assertIsInstance(response.context['new_group_form'], GroupForm)
 
-        #self.assertEqual(response.context['pub_requests_count'], 10)
+        # self.assertEqual(response.context['pub_requests_count'], 10)
 
     def test_get_organization_index(self):
         response = self.client.get(
@@ -81,7 +81,7 @@ class StructureIndexViewTestCase(TestCase):
 
         self.assertIsInstance(response.context['new_organization_form'], OrganizationForm)
 
-        #self.assertEqual(response.context['pub_requests_count'], 10)
+        # self.assertEqual(response.context['pub_requests_count'], 10)
 
 
 class StructurePendingTaskViewTestCase(TestCase):
@@ -110,7 +110,7 @@ class StructurePendingTaskViewTestCase(TestCase):
         response = self.client.get(
             reverse('structure:remove-task',
                     args=(self.pending_tasks[0].id,)),
-                    HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
         self.assertEqual(response.status_code, 302)
@@ -316,7 +316,7 @@ class StructureRemoveOrganizationViewTestCase(TestCase):
         response = self.client.post(
             reverse('structure:delete-organization',
                     args=(self.orgas[0].id,)),
-            data={'is_confirmed': 'on',},
+            data={'is_confirmed': 'on', },
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
@@ -364,7 +364,7 @@ class StructureNewOrganizationViewTestCase(TestCase):
         perm.save()
 
         response = self.client.get(
-            reverse('structure:new-organization',),
+            reverse('structure:new-organization', ),
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
@@ -379,7 +379,7 @@ class StructureNewOrganizationViewTestCase(TestCase):
         post_params = {'organization_name': 'TestOrga', 'person_name': 'TestPerson'}
 
         response = self.client.post(
-            reverse('structure:new-organization',),
+            reverse('structure:new-organization', ),
             data=post_params,
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )

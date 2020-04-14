@@ -34,7 +34,9 @@
                 </div>
                 {% with form=publisher_form %}
                     {% with 'request_publishing_modal' as id_modal %}
-                        {% include 'modals/request_publishing_for_organization.html' %}
+                        {% with show_publisher_form as show_modal %}
+                            {% include 'modals/request_publishing_for_organization.html' %}
+                        {% endwith %}
                     {% endwith %}
                 {% endwith %}
             {% endif %}

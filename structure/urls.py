@@ -12,7 +12,7 @@ urlpatterns = [
     path('groups/edit/<group_id>', edit_group, name='edit-group'),
     path('groups/delete/<group_id>', remove_group, name='delete-group'),
     path('groups/new/register-form/', new_group, name='new-group'),
-    path('groups/publisher/<id>', list_publisher_group, name='publisher-group'),
+    path('groups/publisher/<group_id>', list_publisher_group, name='publisher-group'),
 
     path('publish-request/<request_id>/accept/', accept_publish_request, name='accept-publish-request'),
 

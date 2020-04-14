@@ -18,7 +18,7 @@ from MapSkinner.messages import FORM_INPUT_INVALID, GROUP_CAN_NOT_BE_OWN_PARENT,
     PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, GROUP_FORM_INVALID, \
     PUBLISH_PERMISSION_REMOVED, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED, \
-    ORGANIZATION_SUCCESSFULLY_EDITED, GROUP_SUCCESSFULLY_EDITED
+    ORGANIZATION_SUCCESSFULLY_EDITED, GROUP_SUCCESSFULLY_EDITED, GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 
 from MapSkinner.settings import ROOT_URL
@@ -424,56 +424,28 @@ def publish_request(request: HttpRequest, org_id: int):
          A rendered view
     """
     user = user_helper.get_user(request)
-
-    template = "request_publish_permission.html"
     org = Organization.objects.get(id=org_id)
-
-    request_form = PublisherForOrganizationForm(request.POST or None)
-    request_form.fields["organization_name"].initial = org.organization_name
-    groups = user.get_groups().values_list('id', 'name')
-    request_form.fields["group"].choices = groups
-    params = {}
+    form = PublisherForOrganizationForm(request.POST, requesting_user=user, organization=org)
     if request.method == 'POST':
-        if request_form.is_valid():
-            msg = request_form.cleaned_data["request_msg"]
-            group = MrMapGroup.objects.get(id=request_form.cleaned_data["group"])
-
-            # check if user is already a publisher using this group or a request already has been created
-            pub_request = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=org, group=group)
-            if org in group.publish_for_organizations.all() or pub_request.count() > 0 or org == group.organization:
-                if pub_request.count() > 0:
-                    messages.add_message(request, messages.INFO, PUBLISH_REQUEST_ABORTED_IS_PENDING)
-                elif org == group.organization:
-                    messages.add_message(request, messages.INFO, PUBLISH_REQUEST_ABORTED_OWN_ORG)
-                else:
-                    messages.add_message(request, messages.INFO, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER)
-                return redirect("structure:detail-organization", str(org_id))
-
+        if form.is_valid():
             publish_request_obj = PendingRequest()
             publish_request_obj.type = PENDING_REQUEST_TYPE_PUBLISHING
             publish_request_obj.organization = org
-            publish_request_obj.message = msg
-            publish_request_obj.group = group
+            publish_request_obj.message = form.cleaned_data["request_msg"]
+            publish_request_obj.group = form.cleaned_data["group"]
             publish_request_obj.activation_until = timezone.now() + datetime.timedelta(hours=PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW)
             publish_request_obj.save()
             # create pending publish request for organization!
-            messages.add_message(request, messages.SUCCESS, PUBLISH_REQUEST_SENT)
+            messages.success(request, message=PUBLISH_REQUEST_SENT)
+            return HttpResponseRedirect(reverse("structure:detail-organization", args=(org.id,)), status=303)
         else:
-            messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
-        return redirect("structure:detail-organization", org_id)
-
+            params = {
+                "publisher_form": form,
+                "show_publisher_form": True,
+            }
+            return detail_organizations(request=request, org_id=org_id, update_params=params, status_code=422)
     else:
-        params = {
-            "form": request_form,
-            "organization": org,
-            "user": user,
-            "button_text": _("Send"),
-            "article": _("You need to ask for permission to become a publisher. Please select your group for which you want to have publishing permissions and explain why you need them."),
-            "action_url": ROOT_URL + "/structure/publish-request/" + str(org_id),
-        }
-
-    html = render_to_string(template_name=template, context=params, request=request)
-    return BackendAjaxResponse(html=html).get_response()
+        return HttpResponseRedirect(reverse("structure:detail-organization", args=(org_id,)), status=303)
 
 
 @login_required
@@ -548,7 +520,7 @@ def new_group(request: HttpRequest):
                 group.role = Role.objects.get(name="_default_")
             group.save()
             group.user_set.add(user)
-            messages.success(request, message=_('Group {} successfully created.'.format(group.name)))
+            messages.success(request, message=GROUP_SUCCESSFULLY_CREATED.format(group.name))
             return HttpResponseRedirect(reverse("structure:detail-group", args=(group.id,)), status=303)
         else:
             params = {
@@ -561,19 +533,19 @@ def new_group(request: HttpRequest):
 
 
 @login_required
-def list_publisher_group(request: HttpRequest, id: int):
+def list_publisher_group(request: HttpRequest, group_id: int):
     """ List all organizations a group can publish for
 
     Args:
         request: The incoming request
-        id: The group id
+        group_id: The group id
     Returns:
         A rendered view
     """
     user = user_helper.get_user(request)
 
     template = "index_publish_requests.html"
-    group = MrMapGroup.objects.get(id=id)
+    group = MrMapGroup.objects.get(id=group_id)
 
     params = {
         "group": group,
@@ -596,19 +568,10 @@ def remove_group(request: HttpRequest, group_id: int):
         A rendered view
     """
     user = user_helper.get_user(request)
-
-    remove_form = RemoveGroupForm(request.POST)
-    if remove_form.is_valid():
-        group = get_object_or_404(MrMapGroup, id=group_id)
-
-        if group.created_by != user:
-            # TODO: this message should be presented in the form errors ==> see form.add_error()
-            messages.error(request, message=GROUP_IS_OTHERS_PROPERTY)
-            return redirect(STRUCTURE_DETAIL_GROUP, group.id)
-        elif remove_form.cleaned_data['is_confirmed'] == 'off':
-            # TODO: redirect to service:detail; show modal by default with error message
-            return redirect(STRUCTURE_DETAIL_GROUP, group.id)
-        else:
+    group = get_object_or_404(MrMapGroup, id=group_id)
+    form = RemoveGroupForm(request.POST, instance=group, requesting_user=user)
+    if request.method == "POST":
+        if form.is_valid():
             # clean subgroups from parent
             sub_groups = MrMapGroup.objects.filter(
                 parent_group=group
@@ -616,17 +579,17 @@ def remove_group(request: HttpRequest, group_id: int):
             for sub in sub_groups:
                 sub.parent = None
                 sub.save()
-
             # remove group and all of the related content
             group.delete()
-            messages.success(request, message='Group ' + group.name + ' successfully deleted.')
-            return redirect(STRUCTURE_INDEX_GROUP)
-    else:
-        params = {
-            "remove_group_form": remove_form,
-            "show_remove_group_form": True,
-        }
-    return detail_group(request=request, group_id=group_id, update_params=params, status_code=422)
+            messages.success(request, message=GROUP_SUCCESSFULLY_DELETED.format(group.name))
+            return HttpResponseRedirect(reverse("structure:groups-index"), status=303)
+        else:
+            params = {
+                "remove_group_form": form,
+                "show_remove_group_form": True,
+            }
+        return detail_group(request=request, group_id=group_id, update_params=params, status_code=422)
+    return HttpResponseRedirect(reverse("structure:detail-group", args=(group_id,)), status=303)
 
 
 @login_required
@@ -638,12 +601,11 @@ def edit_group(request: HttpRequest, group_id: int):
         request:
         group_id:
     Returns:
-         A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
+         A View
     """
     user = user_helper.get_user(request)
     group = MrMapGroup.objects.get(id=group_id)
     form = GroupForm(request.POST, requesting_user=user, instance=group, is_edit=True)
-
     if request.method == "POST":
         if form.is_valid():
             # save changes of group
@@ -657,7 +619,7 @@ def edit_group(request: HttpRequest, group_id: int):
             }
         return detail_group(request=request, group_id=group_id, update_params=params, status_code=422)
     else:
-        return HttpResponseRedirect(reverse("structure:groups-index", ), status=303)
+        return HttpResponseRedirect(reverse("structure:detail-group", args=(group.id,)), status=303)
 
 
 def handler404(request: HttpRequest, exception=None):

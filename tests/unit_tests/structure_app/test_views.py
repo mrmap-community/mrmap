@@ -1,7 +1,7 @@
 from django.contrib.messages import get_messages
 from django.test import TestCase, Client
 from django.urls import reverse
-from MapSkinner.messages import ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_ALREADY_EXISTS
+from MapSkinner.messages import ORGANIZATION_CAN_NOT_BE_OWN_PARENT
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME
 from structure.forms import GroupForm, OrganizationForm, RemoveOrganizationForm, PublisherForOrganizationForm, \
     RemoveGroupForm

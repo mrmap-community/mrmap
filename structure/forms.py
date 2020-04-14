@@ -5,10 +5,12 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.messages import ORGANIZATION_IS_OTHERS_PROPERTY, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, \
-     GROUP_IS_OTHERS_PROPERTY, GROUP_CAN_NOT_BE_OWN_PARENT
+    GROUP_IS_OTHERS_PROPERTY, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
+    PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER
 from MapSkinner.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
 from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
-from structure.models import MrMapGroup, Organization, Role
+from structure.models import MrMapGroup, Organization, Role, PendingRequest
+from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
 
 
 class LoginForm(forms.Form):
@@ -66,13 +68,39 @@ class GroupForm(ModelForm):
 class PublisherForOrganizationForm(forms.Form):
     action_url = ''
     organization_name = forms.CharField(max_length=500, label_suffix=" ", label=_("Organization"), disabled=True)
-    group = forms.ChoiceField(widget=forms.Select)
+    group = forms.ModelChoiceField(queryset=None)
     request_msg = forms.CharField(
         widget=forms.Textarea(),
         required=True,
         label=_("Message"),
         label_suffix=" ",
     )
+
+    def __init__(self, *args, **kwargs):
+        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
+        self.organization = None if 'organization' not in kwargs else kwargs.pop('organization')
+        super(PublisherForOrganizationForm, self).__init__(*args, **kwargs)
+
+        if self.requesting_user is not None:
+            self.fields['group'].queryset = self.requesting_user.get_groups()
+
+        if self.organization is not None:
+            self.fields["organization_name"].initial = self.organization.organization_name
+
+    def clean(self):
+        cleaned_data = super(PublisherForOrganizationForm, self).clean()
+
+        group = MrMapGroup.objects.get(id=cleaned_data["group"].id)
+
+        # check if user is already a publisher using this group or a request already has been created
+        pub_request = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=self.organization, group=group)
+        if self.organization in group.publish_for_organizations.all() or pub_request.count() > 0 or self.organization == group.organization:
+            if pub_request.count() > 0:
+                self.add_error(None, PUBLISH_REQUEST_ABORTED_IS_PENDING)
+            elif self.organization == group.organization:
+                self.add_error("group", PUBLISH_REQUEST_ABORTED_OWN_ORG)
+            else:
+                self.add_error(None, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER)
 
 
 class OrganizationForm(ModelForm):
@@ -122,6 +150,18 @@ class OrganizationForm(ModelForm):
 class RemoveGroupForm(forms.Form):
     action_url = ''
     is_confirmed = forms.BooleanField(label=_('Do you really want to remove this group?'))
+
+    def __init__(self, *args, **kwargs):
+        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
+        super(RemoveGroupForm, self).__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super(RemoveGroupForm, self).clean()
+
+        if self.instance.created_by is not None and self.instance.created_by != self.requesting_user:
+            self.add_error(None, ORGANIZATION_IS_OTHERS_PROPERTY)
+
+        return cleaned_data
 
 
 class RemoveOrganizationForm(forms.Form):

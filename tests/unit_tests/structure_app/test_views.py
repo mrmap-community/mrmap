@@ -406,3 +406,13 @@ class StructureNewOrganizationViewTestCase(TestCase):
         self.assertEqual(response.status_code, 422)
         self.assertTrue(response.context['show_new_organization_form'])
         self.assertFormError(response, 'new_organization_form', 'organization_name', 'This field is required.')
+
+    def test_permission_remove_organization(self):
+        response = self.client.get(
+            reverse('structure:new-organization'),
+            HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
+        )
+
+        self.assertEqual(response.status_code, 302)
+        messages = [m.message for m in get_messages(response.wsgi_request)]
+        self.assertIn('You do not have permissions for this!', messages)

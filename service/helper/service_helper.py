@@ -306,6 +306,10 @@ def remove_service(metadata: Metadata, user: MrMapUser):
     Returns:
          Nothing
     """
+    # Make sure performing user is part of the group which added the service once
+    user_groups = user.get_groups()
+    if metadata.created_by not in user_groups:
+        raise PermissionError()
     # remove service and all of the related content
     user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
 

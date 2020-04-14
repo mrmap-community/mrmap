@@ -2,12 +2,21 @@ Brief description of files and scripts found in the install folder.
 
 I.  mapskinner_production_setup.bash
 
-This script will install mapskinner with production settings on your blank debian10  
-server. Get it with:  
-```wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_setup/install/mapskinner_production_setup.bash```  
+This script will install mapskinner with production settings on your blank debian10 server.  
+
+Get it with:
+```
+wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_setup/install/mapskinner_production_setup.bash
+```  
+
 Change your hostname and desired database credentials at the beginning of the script.  
+
 Afterwards execute it with:  
-```bash mapskinner_production_setup.bash```  
+```
+bash mapskinner_production_setup.bash
+```  
+
+
 There will be some questions prompted.  
 
 The script will do the following:   
@@ -33,11 +42,16 @@ intranet only servers.
 II.  update_mapskinner.bash
 
 This updates your MapSkinner installation.  
+
 Get it with:
-```wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_setup/install/update_mapskinner.bash```   
+```
+wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_setup/install/update_mapskinner.bash
+```  
 
 Usage:  
-bash update_mapskinner.bash  
+```
+bash update_mapskinner.bash
+```  
 
 III. mass_register.py
 
@@ -59,4 +73,6 @@ Afterwards enable again with:
 
 Usage:  
 Change credentials in mass_register.py then  
-python3 mass_register.py WMSLIST  
+```
+python3 mass_register.py WMSLIST 
+```    

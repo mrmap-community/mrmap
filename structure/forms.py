@@ -28,7 +28,6 @@ class GroupForm(ModelForm):
         required=False,
     )
     role = forms.ModelChoiceField(queryset=Role.objects.all(), empty_label=None)
-    parent_group = forms.ModelChoiceField(queryset=MrMapGroup.objects.all())
 
     class Meta:
         model = MrMapGroup

@@ -265,12 +265,12 @@ class ServiceViewSet(viewsets.GenericViewSet):
     @method_decorator(cache_page(API_CACHE_TIME))
     def retrieve(self, request, pk=None):
         try:
-            tmp = Layer.objects.get(id=pk)
+            tmp = Layer.objects.get(metadata__id=pk)
             if not tmp.metadata.is_active:
                 return Response(status=423)
             serializer = LayerSerializer(tmp)
         except ObjectDoesNotExist:
-            tmp = Service.objects.get(id=pk)
+            tmp = Service.objects.get(metadata__id=pk)
             if not tmp.metadata.is_active:
                 return Response(status=423)
             serializer = ServiceSerializer(tmp)
@@ -393,7 +393,7 @@ class LayerViewSet(viewsets.GenericViewSet):
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME))
     def retrieve(self, request, pk=None):
-        tmp = Layer.objects.get(id=pk)
+        tmp = Layer.objects.get(metadata__id=pk)
         if not tmp.metadata.is_active:
             return Response(status=423)
         return Response(LayerSerializer(tmp).data)

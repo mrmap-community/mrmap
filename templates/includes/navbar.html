@@ -52,6 +52,11 @@
                     <a class="dropdown-item" href="{% url 'editor:wfs-index' %}">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %}</a>
                 </div>
             </li>
+            <li class="nav-item dropdown {% if PATH == 'api' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'api:menu' %}" title="{% trans 'API' %}">
+                    {% autoescape off %}{{THEME.ICONS.API}}{% endautoescape %} {% trans 'API' %}
+                </a>
+            </li>
         </ul>
         <div>
             <a class="btn {{THEME.NAV.BTN_LIGHT}}" href="{% url 'account' %}" title="{% trans 'Account' %}" role="button">

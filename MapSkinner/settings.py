@@ -124,6 +124,7 @@ INSTALLED_APPS = [
     'editor',
     'captcha',
     'rest_framework',
+    'rest_framework.authtoken',
     'api',
     'bootstrap4',
     'fontawesome_5',
@@ -232,7 +233,6 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-
 AUTH_USER_MODEL = 'structure.MrMapUser'
 SESSION_COOKIE_AGE = 30 * 60  # Defines how many seconds can pass until the session expires, default is 30 * 60
 SESSION_SAVE_EVERY_REQUEST = True  # Whether the session age will be refreshed on every request or only if data has been modified

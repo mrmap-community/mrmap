@@ -8,6 +8,9 @@ Created on: 10.09.19
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.db.models import Q
 
+from MapSkinner.messages import PARAMETER_ERROR
+from service.settings import DEFAULT_SRS
+
 
 def filter_queryset_service_pid(queryset, pid):
     """ Filters a given REST framework queryset by a given parent id.
@@ -92,28 +95,37 @@ def filter_queryset_metadata_query(queryset, query):
     return queryset
 
 
-def filter_queryset_metadata_inside_bbox(queryset, bbox: str):
+def filter_queryset_metadata_inside_bbox(queryset, bbox: str, bbox_srs: str):
     """ Filters a given REST framework queryset by a given bbox.
 
     Filters for results, which are fully inside the bbox.
 
     Args:
         queryset: A queryset containing elements
-        bbox: A bbox string in EPSG:4326
+        bbox: A bbox string (four coordinates)
+        bbox_srs: Defines the reference system for the bbox
     Returns:
         queryset: The given queryset which only contains matching elements
     """
     if bbox is not None:
+        try:
+            srs = int(bbox_srs.split(":")[-1])
+        except ValueError:
+            # The srs is not valid
+            raise Exception(PARAMETER_ERROR.format("bbox-srs"))
+
         if not isinstance(bbox, list):
             bbox = bbox.split(",")
-        bbox = GEOSGeometry(Polygon.from_bbox(bbox), srid=4326)
+
+        bbox = GEOSGeometry(Polygon.from_bbox(bbox), srid=srs)
+        bbox.transform(DEFAULT_SRS)
         queryset = queryset.filter(
             bounding_geometry__contained=bbox
         )
     return queryset
 
 
-def filter_queryset_metadata_intersects_bbox(queryset, bbox: str):
+def filter_queryset_metadata_intersects_bbox(queryset, bbox: str, bbox_srs: str):
     """ Filters a given REST framework queryset by a given bbox.
 
     Filters for results, which are partially inside the bbox.
@@ -121,13 +133,22 @@ def filter_queryset_metadata_intersects_bbox(queryset, bbox: str):
     Args:
         queryset: A queryset containing elements
         bbox: A bbox string in EPSG:4326
+        bbox_srs: Defines the reference system for the bbox
     Returns:
         queryset: The given queryset which only contains matching elements
     """
     if bbox is not None:
+        try:
+            srs = int(bbox_srs.split(":")[-1])
+        except ValueError:
+            # The srs is not valid
+            raise Exception(PARAMETER_ERROR.format("bbox-srs"))
+
         if not isinstance(bbox, list):
             bbox = bbox.split(",")
-        bbox = GEOSGeometry(Polygon.from_bbox(bbox), srid=4326)
+
+        bbox = GEOSGeometry(Polygon.from_bbox(bbox), srid=srs)
+        bbox.transform(DEFAULT_SRS)
         queryset = queryset.filter(
             bounding_geometry__bboverlaps=bbox
         )

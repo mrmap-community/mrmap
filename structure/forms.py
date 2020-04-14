@@ -1,9 +1,11 @@
 from captcha.fields import CaptchaField
 from django import forms
 from django.forms import ModelForm
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
-from MapSkinner.messages import ORGANIZATION_IS_OTHERS_PROPERTY, ORGANIZATION_CAN_NOT_BE_OWN_PARENT
+from MapSkinner.messages import ORGANIZATION_IS_OTHERS_PROPERTY, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, \
+    ORGANIZATION_ALREADY_EXISTS
 from MapSkinner.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
 from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from structure.models import MrMapGroup, Organization
@@ -68,7 +70,13 @@ class OrganizationForm(ModelForm):
 
     def __init__(self, *args, **kwargs):
         self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
+        self.is_edit = False if 'is_edit' not in kwargs else kwargs.pop('is_edit')
         super(OrganizationForm, self).__init__(*args, **kwargs)
+
+        if self.is_edit:
+            self.action_url = reverse('structure:edit-organization', args=[self.instance.id])
+        else:
+            self.action_url = reverse('structure:new-organization')
 
     def clean(self):
         cleaned_data = super(OrganizationForm, self).clean()

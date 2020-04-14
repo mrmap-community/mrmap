@@ -80,6 +80,7 @@ ORGANIZATION_FORM_INVALID = GROUP_FORM_INVALID
 ORGANIZATION_CAN_NOT_BE_OWN_PARENT = _("An organization can not be parent to itself!")
 ORGANIZATION_IS_OTHERS_PROPERTY = _("This organization is owned by another user. Action denied.")
 ORGANIZATION_SUCCESSFULLY_EDITED = _("Organization successfully edited.")
+ORGANIZATION_ALREADY_EXISTS = _("Organization with the name '{}' already exists.")
 
 SERVICE_REGISTRATION_ABORTED = _("The service registration for '{}' was canceled")
 SERVICE_UPDATE_WRONG_TYPE = _("You tried to update a service to another service type. This is not possible!")

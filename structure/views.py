@@ -146,12 +146,13 @@ def groups_index(request: HttpRequest):
 
 
 @login_required
-def organizations_index(request: HttpRequest):
+def organizations_index(request: HttpRequest, update_params=None, status_code=None):
     """ Renders an overview of all organizations
 
     Args:
         request (HttpRequest): The incoming request
-        user (MrMapUser): The current user
+        update_params:
+        status_code:
     Returns:
          A view
     """
@@ -159,14 +160,20 @@ def organizations_index(request: HttpRequest):
     user = user_helper.get_user(request)
 
     organization_form = OrganizationForm()
-    organization_form.action_url = reverse('structure:new-organization')
+
     params = {
         "new_organization_form": organization_form,
     }
     params.update(_prepare_orgs_table(request, user))
 
+    if update_params:
+        params.update(update_params)
+
     context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context())
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=200 if status_code is None else status_code)
 
 
 @login_required
@@ -177,6 +184,7 @@ def detail_organizations(request: HttpRequest, org_id: int, update_params=None, 
         request: The incoming request
         org_id: The id of the requested group
         update_params:
+        status_code:
     Returns:
          A rendered view
     """
@@ -201,8 +209,7 @@ def detail_organizations(request: HttpRequest, org_id: int, update_params=None, 
         user=user,
     )
 
-    edit_form = OrganizationForm(instance=org)
-    edit_form.action_url = reverse('structure:edit-organization', args=[org_id])
+    edit_form = OrganizationForm(instance=org, is_edit=True)
 
     delete_form = RemoveOrganizationForm()
     delete_form.action_url = reverse('structure:delete-organization', args=[org_id])
@@ -303,35 +310,30 @@ def remove_org(request: HttpRequest, org_id: int):
 @check_permission(Permission(can_create_organization=True))
 def new_org(request: HttpRequest):
     """ Renders the new organization form and saves the input
-
     Args:
         request: The incoming request
     Returns:
-         A BackendAjaxResponse for Ajax calls or a redirect for a successful editing
+
     """
     user = user_helper.get_user(request)
-    orgs = list(Organization.objects.values_list("organization_name", flat=True))
-    if None in orgs:
-        orgs.pop(orgs.index(None))
     form = OrganizationForm(request.POST or None)
     if request.method == "POST":
         if form.is_valid():
             # save changes of group
             org = form.save(commit=False)
-            if org.parent == org:
-                # TODO: this message should be presented in the form errors ==> see form.add_error()
-                messages.add_message(request=request, level=messages.ERROR, message=GROUP_CAN_NOT_BE_OWN_PARENT)
-            else:
-                org.created_by = user
-                org.is_auto_generated = False  # when the user creates an organization per form, it is not auto generated!
-                org.save()
+            org.created_by = user
+            org.is_auto_generated = False  # when the user creates an organization per form, it is not auto generated!
+            org.save()
+            messages.success(request, message=_('Organization {} successfully created.'.format(org.organization_name)))
+            return HttpResponseRedirect(reverse("structure:detail-organization", args=(org.id,)), status=303)
         else:
-            # TODO: this is not necessary; redirect to the redirect("structure:index") by example and show the modal with the errors
-            messages.error(request, message=GROUP_FORM_INVALID)
-        return redirect("structure:index")
+            params = {
+                "new_organization_form": form,
+                "show_new_organization_form": True,
+            }
+            return organizations_index(request=request, update_params=params, status_code=422)
     else:
-        # TODO: we should redirect to redirect("structure:index") by example and show the modal by default
-        return redirect("structure:index")
+        return HttpResponseRedirect(reverse("structure:organizations-index",), status=303)
 
 
 @login_required

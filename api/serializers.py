@@ -99,6 +99,15 @@ class RoleSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class PendingTaskSerializer(serializers.Serializer):
+    """ Serializer for PendingTask model
+
+    """
+    description = serializers.CharField()
+    progress = serializers.FloatField()
+    is_finished = serializers.BooleanField()
+
+
 class KeywordSerializer(serializers.Serializer):
     """ Serializer for Keyword model
 

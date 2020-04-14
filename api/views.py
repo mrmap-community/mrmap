@@ -1,4 +1,5 @@
 # Create your views here.
+from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
@@ -15,18 +16,19 @@ from rest_framework.response import Response
 
 from MapSkinner import utils
 from MapSkinner.decorator import check_permission
-from MapSkinner.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
-from MapSkinner.responses import DefaultContext
+from MapSkinner.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, SERVICE_ACTIVATED, SERVICE_DEACTIVATED, \
+    RESOURCE_NOT_FOUND
+from MapSkinner.responses import DefaultContext, APIResponse
 from api import view_helper
 from api.forms import TokenForm
 
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, RoleSerializer, \
-    MetadataSerializer, CatalogueMetadataSerializer
+    MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
     LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER
 from service import tasks
 from service.models import Service, Layer, Metadata
-from structure.models import Organization, MrMapGroup, Role, Permission
+from structure.models import Organization, MrMapGroup, Role, Permission, PendingTask
 from users.helper import user_helper
 
 
@@ -120,6 +122,40 @@ class APIPagination(PageNumberPagination):
 
     """
     page_size_query_param = "rpp"
+
+
+class PendingTaskViewSet(viewsets.GenericViewSet):
+    """ ViewSet for PendingTask records
+
+    """
+    serializer_class = PendingTaskSerializer
+    http_method_names = ["get"]
+    pagination_class = APIPagination
+
+    permission_classes = (IsAuthenticated,)
+
+    def retrieve(self, request, pk=None):
+        """ Returns a single PendingTask record information
+
+        Args:
+            request (HttpRequet): The incoming request
+            pk (int): The primary_key (id) of the PendingTask
+        Returns:
+             response (Response): Contains the json serialized information about the pending task
+        """
+        response = APIResponse()
+        try:
+            tmp = PendingTask.objects.get(id=pk)
+            celery_task = AsyncResult(tmp.task_id)
+            progress = float(celery_task.info.get("current", -1))
+            serializer = PendingTaskSerializer(tmp)
+
+            response.data.update(serializer.data)
+            response.data["progress"] = progress
+            response.data["success"] = True
+        except ObjectDoesNotExist:
+            response.data["msg"] = RESOURCE_NOT_FOUND
+        return Response(data=response.data)
 
 
 class ServiceViewSet(viewsets.GenericViewSet):
@@ -249,30 +285,26 @@ class ServiceViewSet(viewsets.GenericViewSet):
         new_status = request.POST.dict().get(parameter_name, None)
         new_status = utils.resolve_boolean_attribute_val(new_status)
 
-        resp_data = {
-            "success": False,
-            "msg": "",
-        }
-
+        response = APIResponse()
         if new_status is None or not isinstance(new_status, bool):
-            resp_data["msg"] = PARAMETER_ERROR.format(parameter_name)
-            return Response(data=resp_data, status=500)
+            response.data["msg"] = PARAMETER_ERROR.format(parameter_name)
+            return Response(data=response.data, status=500)
 
         try:
             md = Metadata.objects.get(service__id=pk)
 
-            resp_data["oldStatus"] = md.is_active
+            response.data["oldStatus"] = md.is_active
 
             md.is_active = new_status
             md.save()
             # run activation async!
             tasks.async_activate_service.delay(pk, user.id, new_status)
-            resp_data["newStatus"] = md.is_active
-            resp_data["success"] = True
-            return Response(data=resp_data, status=200)
+            response.data["newStatus"] = md.is_active
+            response.data["success"] = True
+            return Response(data=response.data, status=200)
         except ObjectDoesNotExist:
-            resp_data["msg"] = SERVICE_NOT_FOUND
-            return Response(data=resp_data, status=404)
+            response.data["msg"] = SERVICE_NOT_FOUND
+            return Response(data=response.data, status=404)
 
     def update(self, request, pk=None):
         pass

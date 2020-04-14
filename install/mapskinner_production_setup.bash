@@ -4,6 +4,7 @@ mrmap_db_user=mrmap_db_user
 mrmap_db_pw=mrmap_db_pw
 hostname=127.0.0.1
 
+# install required packages
 apt-get install -y postgresql postgresql-client postgis redis-server libcurl4-openssl-dev libssl-dev virtualenv build-essential git python3-pip fcgiwrap cgi-mapserver apache2-utils curl gnupg2 ca-certificates lsb-release gettext
 
 # add nginx official mainline repo
@@ -17,7 +18,7 @@ apt-get install nginx
 # make python3 default
 update-alternatives --install /usr/bin/python python /usr/bin/python3.7 1
 
-#db
+#db setup
 su - postgres -c "psql -c \"CREATE USER $mrmap_db_user WITH ENCRYPTED PASSWORD '$mrmap_db_pw';\""
 su - postgres -c "psql -c 'CREATE DATABASE \"MrMap\" OWNER $mrmap_db_user;'"
 
@@ -36,7 +37,7 @@ python /opt/MapSkinner/manage.py makemigrations structure
 python /opt/MapSkinner/manage.py migrate
 python /opt/MapSkinner/manage.py collectstatic
 
-# set Django debug to false
+# changes to settings.py, set Django debug to false, set hostname
 sed -i s/"DEBUG = True"/"DEBUG = False"/g /opt/MapSkinner/MapSkinner/settings.py
 sed -i s/"HOST_NAME = \"127.0.0.1:8000\""/"HOST_NAME = \"$hostname\""/g /opt/MapSkinner/MapSkinner/settings.py
 
@@ -52,6 +53,8 @@ sed -i s/"        'USER': 'postgres',"/"        'USER': '$mrmap_db_user',"/g /op
 if  ! grep -q "        'PASSWORD': '$mrmap_db_pw',"  /opt/MapSkinner/MapSkinner/settings.py ;then
 	sed -i "/        'USER': '$mrmap_db_user',/a \        \'PASSWORD': '$mrmap_db_pw'," /opt/MapSkinner/MapSkinner/settings.py
 fi
+
+# db setup done
 
 # create ssl cert, self signed for now
 echo "                     !!! ATTENTION !!!
@@ -69,10 +72,11 @@ openssl dhparam -out /etc/ssl/certs/dhparams.pem 2048
 
 # get nginx config, later this will be: cp -a /opt/MapSkinner/install/confs/mrmap_nginx /etc/nginx/sites-available/mrmap
 wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_setup/install/confs/mrmap_nginx -O /etc/nginx/conf.d/mrmap.conf
+# replace hostname in nginx config
 sed -i s/"    server_name 127.0.0.1;"/"    server_name $hostname;"/g /etc/nginx/conf.d/mrmap.conf
-sed s/"    server_name         127.0.0.1;"/"    server_name         $hostname;"/g /etc/nginx/conf.d/mrmap.conf
+sed -i s/"    server_name         127.0.0.1;"/"    server_name         $hostname;"/g /etc/nginx/conf.d/mrmap.conf
 
-# hardening
+# disable server tokens
 sed -i "/http {/a \    \server_tokens off;" /etc/nginx/nginx.conf
 
 rm /etc/nginx/conf.d/default.conf

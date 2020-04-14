@@ -36,7 +36,6 @@ from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT
 from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style, ProxyLog
-from service.tasks import async_remove_service_task
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
 from structure.models import MrMapUser, Permission, PendingTask, MrMapGroup
@@ -331,28 +330,7 @@ def remove(request: HttpRequest, metadata_id: int):
     if request.method == 'POST':
         if remove_form.is_valid() and request.POST.get("is_confirmed") == 'on':
             metadata = get_object_or_404(Metadata, id=metadata_id)
-            # remove service and all of the related content
-            user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
-
-            # set service as deleted, so it won't be listed anymore in the index view until completely removed
-            metadata.is_deleted = True
-            metadata.save()
-
-            service_type = metadata.get_service_type()
-            if service_type == OGCServiceEnum.WMS.value:
-                sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
-            elif service_type == OGCServiceEnum.WFS.value:
-                sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
-
-            for sub_element in sub_elements:
-                sub_metadata = sub_element.metadata
-                sub_metadata.is_deleted = True
-                sub_metadata.save()
-
-            messages.success(request, 'Service "{}" marked for deletion.'.format(metadata.title))
-
-            # call removing as async task
-            async_remove_service_task.delay(metadata.service.id)
+            service_helper.remove_service(metadata, user)
             return redirect(SERVICE_INDEX)
         else:
             params = {

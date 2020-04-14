@@ -1,7 +1,6 @@
 # Create your views here.
 from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -16,8 +15,8 @@ from rest_framework.response import Response
 
 from MapSkinner import utils
 from MapSkinner.decorator import check_permission
-from MapSkinner.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, SERVICE_ACTIVATED, SERVICE_DEACTIVATED, \
-    RESOURCE_NOT_FOUND
+from MapSkinner.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
+    RESOURCE_NOT_FOUND, SERVICE_REMOVED
 from MapSkinner.responses import DefaultContext, APIResponse
 from api import view_helper
 from api.forms import TokenForm
@@ -27,8 +26,9 @@ from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSeri
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
     LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER
 from service import tasks
+from service.helper import service_helper
 from service.models import Service, Layer, Metadata
-from structure.models import Organization, MrMapGroup, Role, Permission, PendingTask
+from structure.models import Organization, MrMapGroup, Permission, PendingTask
 from users.helper import user_helper
 
 
@@ -171,7 +171,7 @@ class ServiceViewSet(viewsets.GenericViewSet):
 
     """
     serializer_class = ServiceSerializer
-    http_method_names = API_ALLOWED_HTTP_METHODS
+    http_method_names = API_ALLOWED_HTTP_METHODS + ["delete"]
     pagination_class = APIPagination
 
     permission_classes = (IsAuthenticated,)
@@ -320,7 +320,26 @@ class ServiceViewSet(viewsets.GenericViewSet):
         pass
 
     def destroy(self, request, pk=None):
-        pass
+        """ Deletes a service which is identified by its metadata record's primary_key pk
+
+        Args:
+            request (HttpRequest): The incoming request
+            pk (int): The primary key (id)
+        Returns:
+             Response
+        """
+        # Use the already existing internal deleting of services
+        response = APIResponse()
+        try:
+            md = Metadata.objects.get(id=pk)
+            user = user_helper.get_user(request)
+            service_helper.remove_service(md, user)
+            response.data["success"] = True
+            response.data["msg"] = SERVICE_REMOVED
+        except ObjectDoesNotExist:
+            response.data["success"] = False
+            response.data["msg"] = RESOURCE_NOT_FOUND
+        return Response(data=response.data)
 
 
 class LayerViewSet(viewsets.GenericViewSet):

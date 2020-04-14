@@ -10,15 +10,17 @@ import urllib
 
 from celery import Task
 
+from MapSkinner.messages import SERVICE_REMOVED
 from service import tasks
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
-from service.models import Service, ExternalAuthentication
+from service.models import Service, ExternalAuthentication, Metadata, Layer, FeatureType
 from service.helper.crypto_handler import CryptoHandler
 from structure.models import PendingTask, MrMapGroup, MrMapUser
+from users.helper import user_helper
 
 
 def resolve_version_enum(version: str):
@@ -293,3 +295,34 @@ def create_new_service(form, user: MrMapUser):
 
     pending_task_db.save()
     return pending_task_db
+
+
+def remove_service(metadata: Metadata, user: MrMapUser):
+    """ Removes a service, referenced by its metadata object
+
+    Args:
+        metadata (Metadata): The metadata object related to the service
+        user (MrMapUser): The performing user
+    Returns:
+         Nothing
+    """
+    # remove service and all of the related content
+    user_helper.create_group_activity(metadata.created_by, user, SERVICE_REMOVED, metadata.title)
+
+    # set service as deleted, so it won't be listed anymore in the index view until completely removed
+    metadata.is_deleted = True
+    metadata.save()
+
+    service_type = metadata.get_service_type()
+    if service_type == OGCServiceEnum.WMS.value:
+        sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
+    elif service_type == OGCServiceEnum.WFS.value:
+        sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
+
+    for sub_element in sub_elements:
+        sub_metadata = sub_element.metadata
+        sub_metadata.is_deleted = True
+        sub_metadata.save()
+
+    # call removing as async task
+    tasks.async_remove_service_task.delay(metadata.service.id)

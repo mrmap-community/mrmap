@@ -1,28 +1,19 @@
 import datetime
 import json
-from celery.result import AsyncResult
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
-from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from MapSkinner import utils
-from MapSkinner.celery_app import app
-from MapSkinner.consts import *
 from MapSkinner.decorator import check_permission
-from MapSkinner.messages import FORM_INPUT_INVALID, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_SENT, \
-    PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
-    PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, GROUP_FORM_INVALID, \
-    PUBLISH_PERMISSION_REMOVED, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, ORGANIZATION_IS_OTHERS_PROPERTY, \
-    GROUP_IS_OTHERS_PROPERTY, PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED, \
+from MapSkinner.messages import PUBLISH_REQUEST_SENT, \
+    PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, \
+    PUBLISH_PERMISSION_REMOVED, \
+    PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED, \
     ORGANIZATION_SUCCESSFULLY_EDITED, GROUP_SUCCESSFULLY_EDITED, GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED
-from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-
-from MapSkinner.settings import ROOT_URL
-from service.models import Service
+from MapSkinner.responses import DefaultContext
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, RemoveOrganizationForm
@@ -30,7 +21,6 @@ from structure.models import MrMapGroup, Role, Permission, Organization, Pending
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable, PublishesForTable
 from django.urls import reverse
-
 from users.helper import user_helper
 from users.helper.user_helper import create_group_activity
 
@@ -256,7 +246,7 @@ def edit_org(request: HttpRequest, org_id: int):
     org = get_object_or_404(Organization, id=org_id)
 
     if request.method == "POST":
-        form = OrganizationForm(request.POST or None, instance=org, requesting_user=user, is_edit=True)
+        form = OrganizationForm(request.POST, instance=org, requesting_user=user, is_edit=True)
         if form.is_valid():
             # save changes of group
             form.save()
@@ -288,7 +278,7 @@ def remove_org(request: HttpRequest, org_id: int):
     org = get_object_or_404(Organization, id=org_id)
 
     if request.method == "POST":
-        form = RemoveOrganizationForm(request.POST, to_be_deleted_org=org, requesting_user=user)
+        form = RemoveOrganizationForm(request.POST, instance=org, requesting_user=user)
         if form.is_valid():
             # remove group and all of the related content
             org_name = org.organization_name
@@ -524,8 +514,8 @@ def new_group(request: HttpRequest):
             return HttpResponseRedirect(reverse("structure:detail-group", args=(group.id,)), status=303)
         else:
             params = {
-                "new_organization_form": form,
-                "show_new_organization_form": True,
+                "new_group_form": form,
+                "show_new_group_form": True,
             }
         return groups_index(request=request, update_params=params, status_code=422)
     else:

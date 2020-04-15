@@ -147,13 +147,14 @@ class RemoveGroupForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
+        self.instance = None if 'instance' not in kwargs else kwargs.pop('instance')
         super(RemoveGroupForm, self).__init__(*args, **kwargs)
 
     def clean(self):
         cleaned_data = super(RemoveGroupForm, self).clean()
 
         if self.instance.created_by is not None and self.instance.created_by != self.requesting_user:
-            self.add_error(None, ORGANIZATION_IS_OTHERS_PROPERTY)
+            self.add_error(None, GROUP_IS_OTHERS_PROPERTY)
 
         return cleaned_data
 
@@ -164,13 +165,13 @@ class RemoveOrganizationForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
-        self.to_be_deleted_org = None if 'to_be_deleted_org' not in kwargs else kwargs.pop('to_be_deleted_org')
+        self.instance = None if 'instance' not in kwargs else kwargs.pop('instance')
         super(RemoveOrganizationForm, self).__init__(*args, **kwargs)
 
     def clean(self):
         cleaned_data = super(RemoveOrganizationForm, self).clean()
 
-        if self.to_be_deleted_org.created_by != self.requesting_user:
+        if self.instance.created_by != self.requesting_user:
             self.add_error(None, ORGANIZATION_IS_OTHERS_PROPERTY)
 
         if not cleaned_data.get('is_confirmed'):

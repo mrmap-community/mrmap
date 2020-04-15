@@ -352,6 +352,8 @@ class Metadata(Resource):
     service_metadata_original_uri = models.CharField(max_length=500, blank=True, null=True)
     service_metadata_uri = models.CharField(max_length=500, blank=True, null=True)
 
+    html_metadata_uri = models.CharField(max_length=500, blank=True, null=True)
+
     contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, blank=True, null=True)
     terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, null=True)
     access_constraints = models.TextField(null=True, blank=True)

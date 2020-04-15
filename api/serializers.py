@@ -9,7 +9,7 @@ from rest_framework import serializers
 
 from service.forms import RegisterNewServiceWizardPage2
 from service.helper import service_helper
-from service.models import ServiceType
+from service.models import ServiceType, Metadata
 from structure.models import MrMapGroup, Role, Permission
 
 
@@ -119,6 +119,9 @@ class MetadataRelationSerializer(serializers.Serializer):
 
     """
     id = serializers.PrimaryKeyRelatedField(read_only=True, source="metadata_to")
+    type = serializers.CharField(read_only=True, source="metadata_to.metadata_type.type")
+    identifier = serializers.CharField(read_only=True, source="metadata_to.identifier")
+    title = serializers.CharField(read_only=True, source="metadata_to.title")
 
 
 class MetadataSerializer(serializers.Serializer):
@@ -229,16 +232,18 @@ class CatalogueMetadataSerializer(serializers.Serializer):
     metadata_type = serializers.CharField(label="type")
     title = serializers.CharField()
     abstract = serializers.CharField()
-    bounding_geometry = serializers.CharField(read_only=True, source="bounding_geometry.geojson")
-    #online_resource = serializers.CharField()
+    spatial_extent_geojson = serializers.CharField(read_only=True, source="bounding_geometry.geojson")
     capabilities_uri = serializers.CharField()
-    service_metadata_uri = serializers.CharField()
+    xml_metadata_uri = serializers.CharField(source="service_metadata_uri")
+    html_metadata_uri = serializers.CharField()
     fees = serializers.CharField()
     access_constraints = serializers.CharField()
     terms_of_use = serializers.PrimaryKeyRelatedField(read_only=True)
-    service = ServiceSerializer(read_only=True)
+    service = serializers.IntegerField(read_only=True, source="service.id")
     organization = OrganizationSerializer(read_only=True, source="contact")
     related_metadata = MetadataRelationSerializer(many=True)
     keywords = KeywordSerializer(read_only=True, many=True)
     categories = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
 
+    class Meta:
+        model = Metadata

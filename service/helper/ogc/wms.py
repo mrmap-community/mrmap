@@ -18,7 +18,7 @@ from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
 from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH, SERVICE_OPERATION_URI_TEMPLATE, \
-    SERVICE_METADATA_URI_TEMPLATE
+    SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE
 from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
     PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
@@ -979,6 +979,7 @@ class OGCWebMapService(OGCWebService):
 
         md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
         md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
+        md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
         # save again, due to added related metadata
         md.save()
 
@@ -1016,6 +1017,7 @@ class OGCWebMapService(OGCWebService):
             md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(
                 OGCOperationEnum.GET_CAPABILITIES.value)
             md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
+            md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
             md.save()
             for iso_md in layer.iso_metadata:
                 iso_md = iso_md.to_db_model()

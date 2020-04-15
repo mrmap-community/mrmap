@@ -32,6 +32,8 @@ The script will do the following:
   - /etc/systemd/system/uwsgi.service -> Systemd config for uwsgi server  
   - /etc/systemd/system/celery.service -> Systemd config for celery  
   - /etc/default/celery -> Environment file for  celery  
+- Create an alias called restartMapSkinner to restart all MapSkinner related  
+  services, usage: just type "restartMapSkinner" on command line  
 
 At the end of the script you are asked if you would like to install ModSecurity and generate  
 stronger encryption keys, this is absolutely recommended for a real production server  

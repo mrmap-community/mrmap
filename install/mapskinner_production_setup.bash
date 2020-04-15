@@ -76,9 +76,10 @@ wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_set
 sed -i s/"    server_name 127.0.0.1;"/"    server_name $hostname;"/g /etc/nginx/conf.d/mrmap.conf
 sed -i s/"    server_name         127.0.0.1;"/"    server_name         $hostname;"/g /etc/nginx/conf.d/mrmap.conf
 
-# disable server tokens
-sed -i "/http {/a \    \server_tokens off;" /etc/nginx/nginx.conf
-
+# disable server tokens, it not done already
+if  ! grep -q "server_tokens off;"  /etc/nginx/nginx.conf ;then
+  sed -i "/http {/a \    \server_tokens off;" /etc/nginx/nginx.conf
+fi
 rm /etc/nginx/conf.d/default.conf
 
 
@@ -136,6 +137,10 @@ systemctl start celery-flower
 
 
 systemctl daemon-reload
+
+if  ! grep -q "restartMapSkinner"  /etc/bash.bashrc ;then
+echo alias "restartMapSkinner"="systemctl restart celery;systemctl restart uwsgi;systemctl restart celery-flower;/etc/init.d/nginx restart" >> /etc/bash.bashrc
+fi
 
 echo "Enter password for basic auth for celery statistics, available under /flower, username is root for now"
 htpasswd -c /etc/nginx/.htpasswd root

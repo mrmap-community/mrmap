@@ -139,7 +139,7 @@ systemctl start celery-flower
 systemctl daemon-reload
 
 if  ! grep -q "restartMapSkinner"  /etc/bash.bashrc ;then
-echo alias "restartMapSkinner"="systemctl restart celery;systemctl restart uwsgi;systemctl restart celery-flower;/etc/init.d/nginx restart" >> /etc/bash.bashrc
+echo "alias "restartMapSkinner"=\"systemctl restart celery;systemctl restart uwsgi;systemctl restart celery-flower;/etc/init.d/nginx restart\"" >> /etc/bash.bashrc
 fi
 
 echo "Enter password for basic auth for celery statistics, available under /flower, username is root for now"

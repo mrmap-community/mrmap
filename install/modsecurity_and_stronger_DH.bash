@@ -50,8 +50,14 @@ cp -a crs-setup.conf.example crs-setup.conf
 cp -a rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf.example rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf
 cp -a rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf.example rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf
 sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' /etc/nginx/modsec/modsecurity.conf
+cat << EOF > /etc/nginx/modsec/rule-exclusions.conf
+# exclude uris for rfi attacks, needed for service registration
+SecRuleUpdateTargetById 931120 "!ARGS:uri"
+EOF
+
 cat << EOF > /etc/nginx/modsec/modsec_includes.conf
 include ../modsec/modsecurity.conf
+include ../modsec/rule-exclusions.conf
 include ../owasp-modsecurity-crs/crs-setup.conf
 include ../owasp-modsecurity-crs/rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf
 include ../owasp-modsecurity-crs/rules/REQUEST-901-INITIALIZATION.conf

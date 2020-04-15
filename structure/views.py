@@ -6,7 +6,6 @@ from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from MapSkinner import utils
 from MapSkinner.decorator import check_permission
 from MapSkinner.messages import PUBLISH_REQUEST_SENT, \
     PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, \
@@ -16,7 +15,8 @@ from MapSkinner.messages import PUBLISH_REQUEST_SENT, \
 from MapSkinner.responses import DefaultContext
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
-from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, RemoveOrganizationForm
+from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, \
+    RemoveOrganizationForm, AcceptDenyPublishRequestForm
 from structure.models import MrMapGroup, Role, Permission, Organization, PendingRequest, PendingTask
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable, PublishesForTable
@@ -305,7 +305,7 @@ def new_org(request: HttpRequest):
 
     """
     user = user_helper.get_user(request)
-    form = OrganizationForm(request.POST or None)
+    form = OrganizationForm(request.POST)
     if request.method == "POST":
         if form.is_valid():
             # save changes of group
@@ -336,38 +336,44 @@ def accept_publish_request(request: HttpRequest, request_id: int):
         request (HttpRequest): The incoming request
         request_id (int): The group id
     Returns:
-         A BackendAjaxResponse since it is an Ajax request
+         A View
     """
     user = user_helper.get_user(request)
     # activate or remove publish request/ publisher
-    post_params = request.POST
-    is_accepted = utils.resolve_boolean_attribute_val(post_params.get("accept"))
     pub_request = PendingRequest.objects.get(type=PENDING_REQUEST_TYPE_PUBLISHING, id=request_id)
-    organization = pub_request.organization
-    now = timezone.now()
-    if is_accepted and pub_request.activation_until >= now:
-        # add organization to group_publisher
-        pub_request.group.publish_for_organizations.add(organization)
-
-        create_group_activity(
-            group=pub_request.group,
-            user=user,
-            msg=_("Publisher changed"),
-            metadata_title=_("Group '{}' has been accepted as publisher for '{}'".format(pub_request.group, pub_request.organization)),
-        )
-        messages.add_message(request, messages.SUCCESS, PUBLISH_REQUEST_ACCEPTED.format(pub_request.group.name))
-    elif not is_accepted:
-        create_group_activity(
-            group=pub_request.group,
-            user=user,
-            msg=_("Publisher changed"),
-            metadata_title=_("Group '{}' has been rejected as publisher for '{}'".format(pub_request.group, pub_request.organization)),
-        )
-        messages.info(request, PUBLISH_REQUEST_DENIED.format(pub_request.group.name))
-    elif pub_request.activation_until < now:
-        messages.error(request, REQUEST_ACTIVATION_TIMEOVER)
-    pub_request.delete()
-    return redirect("structure:detail-organization", organization.id)
+    form = AcceptDenyPublishRequestForm(request.POST, request=request, pub_request=pub_request)
+    if request.method == "POST":
+        if form.is_valid():
+            if form.cleaned_data['is_accepted']:
+                # add organization to group_publisher
+                pub_request.group.publish_for_organizations.add(pub_request.organization)
+                create_group_activity(
+                    group=pub_request.group,
+                    user=user,
+                    msg=_("Publisher changed"),
+                    metadata_title=_("Group '{}' has been accepted as publisher for '{}'".format(pub_request.group,
+                                                                                                 pub_request.organization)),
+                )
+                messages.add_message(request, messages.SUCCESS, PUBLISH_REQUEST_ACCEPTED.format(pub_request.group.name))
+            else:
+                create_group_activity(
+                    group=pub_request.group,
+                    user=user,
+                    msg=_("Publisher changed"),
+                    metadata_title=_("Group '{}' has been rejected as publisher for '{}'".format(pub_request.group,
+                                                                                                 pub_request.organization)),
+                )
+                messages.info(request, PUBLISH_REQUEST_DENIED.format(pub_request.group.name))
+            pub_request.delete()
+            return HttpResponseRedirect(reverse("structure:detail-organization",
+                                                args=(pub_request.organization.id,)),
+                                        status=303)
+        else:
+            return detail_organizations(request=request, org_id=pub_request.organization.id, status_code=422)
+    else:
+        return HttpResponseRedirect(reverse("structure:detail-organization",
+                                            args=(pub_request.organization.id,)),
+                                    status=303)
 
 
 @login_required

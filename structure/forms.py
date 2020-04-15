@@ -3,10 +3,12 @@ from django import forms
 from django.forms import ModelForm
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
+from django.contrib import messages
 
 from MapSkinner.messages import ORGANIZATION_IS_OTHERS_PROPERTY, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, \
     GROUP_IS_OTHERS_PROPERTY, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
-    PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER
+    PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, REQUEST_ACTIVATION_TIMEOVER
 from MapSkinner.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
 from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from structure.models import MrMapGroup, Organization, Role, PendingRequest
@@ -231,5 +233,25 @@ class RegistrationForm(forms.Form):
 
         if password != password_check:
             self.add_error("password_check", forms.ValidationError(_("Password and confirmed password does not match")))
+
+        return cleaned_data
+
+
+class AcceptDenyPublishRequestForm(forms.Form):
+    is_accepted = forms.BooleanField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        self.request = None if 'request' not in kwargs else kwargs.pop('request')
+        self.pub_request = None if 'pub_request' not in kwargs else kwargs.pop('pub_request')
+        super(AcceptDenyPublishRequestForm, self).__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super(AcceptDenyPublishRequestForm, self).clean()
+
+        now = timezone.now()
+
+        if self.pub_request.activation_until <= now:
+            messages.error(self.request, REQUEST_ACTIVATION_TIMEOVER)
+            self.pub_request.delete()
 
         return cleaned_data

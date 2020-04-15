@@ -10,7 +10,7 @@ def create_testuser():
     return baker.make_recipe('tests.baker_recipes.structure_app.active_testuser')
 
 
-def create_superadminuser(groups: QuerySet = None):
+def create_superadminuser(groups: QuerySet = None,):
     if groups is not None:
         superuser = baker.make_recipe('tests.baker_recipes.structure_app.superadmin_user',
                                       groups=groups)

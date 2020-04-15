@@ -8,7 +8,8 @@ from django.contrib import messages
 
 from MapSkinner.messages import ORGANIZATION_IS_OTHERS_PROPERTY, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, \
     GROUP_IS_OTHERS_PROPERTY, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
-    PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, REQUEST_ACTIVATION_TIMEOVER
+    PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, REQUEST_ACTIVATION_TIMEOVER, \
+    PUBLISH_PERMISSION_REMOVING_DENIED
 from MapSkinner.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
 from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from structure.models import MrMapGroup, Organization, Role, PendingRequest
@@ -252,5 +253,23 @@ class AcceptDenyPublishRequestForm(forms.Form):
         if self.pub_request.activation_until <= now:
             self.add_error(None, REQUEST_ACTIVATION_TIMEOVER)
             self.pub_request.delete()
+
+        return cleaned_data
+
+
+class RemovePublisher(forms.Form):
+    is_accepted = forms.BooleanField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        self.user = None if 'user' not in kwargs else kwargs.pop('user')
+        self.organization = None if 'organization' not in kwargs else kwargs.pop('organization')
+        self.group = None if 'group' not in kwargs else kwargs.pop('group')
+        super(RemovePublisher, self).__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super(RemovePublisher, self).clean()
+
+        if self.group not in self.user.get_groups() and self.user.organization != self.organization:
+            self.add_error(None, PUBLISH_PERMISSION_REMOVING_DENIED)
 
         return cleaned_data

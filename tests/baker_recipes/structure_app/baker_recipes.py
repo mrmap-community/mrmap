@@ -86,7 +86,7 @@ god_user = Recipe(
 guest_group = Recipe(
     MrMapGroup,
     role=foreign_key(guest_role),
-    created_by=foreign_key(god_user),
+    #created_by=foreign_key(god_user),
 )
 
 active_testuser = Recipe(

@@ -8,15 +8,15 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from MapSkinner.decorator import check_permission
 from MapSkinner.messages import PUBLISH_REQUEST_SENT, \
-    PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, REQUEST_ACTIVATION_TIMEOVER, \
+    PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, \
     PUBLISH_PERMISSION_REMOVED, \
-    PUBLISH_PERMISSION_REMOVING_DENIED, SERVICE_REGISTRATION_ABORTED, \
+    SERVICE_REGISTRATION_ABORTED, \
     ORGANIZATION_SUCCESSFULLY_EDITED, GROUP_SUCCESSFULLY_EDITED, GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED
 from MapSkinner.responses import DefaultContext
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, \
-    RemoveOrganizationForm, AcceptDenyPublishRequestForm
+    RemoveOrganizationForm, AcceptDenyPublishRequestForm, RemovePublisher
 from structure.models import MrMapGroup, Role, Permission, Organization, PendingRequest, PendingTask
 from structure.models import MrMapUser
 from structure.tables import GroupTable, OrganizationTable, PublisherTable, PublisherRequestTable, PublishesForTable
@@ -96,9 +96,7 @@ def remove_task(request: HttpRequest, task_id: int):
     Returns:
         A redirect
     """
-    task = PendingTask.objects.get(
-        id=task_id
-    )
+    task = get_object_or_404(PendingTask, id=task_id)
     descr = json.loads(task.description)
     messages.info(request, message=SERVICE_REGISTRATION_ABORTED.format(descr.get("service", None)))
 
@@ -180,7 +178,7 @@ def detail_organizations(request: HttpRequest, org_id: int, update_params=None, 
          A rendered view
     """
     user = user_helper.get_user(request)
-    org = Organization.objects.get(id=org_id)
+    org = get_object_or_404(Organization, id=org_id)
     members = MrMapUser.objects.filter(organization=org)
     sub_orgs = Organization.objects.filter(parent=org)
     template = "views/organizations_detail.html"
@@ -305,8 +303,8 @@ def new_org(request: HttpRequest):
 
     """
     user = user_helper.get_user(request)
-    form = OrganizationForm(request.POST)
     if request.method == "POST":
+        form = OrganizationForm(request.POST)
         if form.is_valid():
             # save changes of group
             org = form.save(commit=False)
@@ -340,7 +338,7 @@ def accept_publish_request(request: HttpRequest, request_id: int):
     """
     user = user_helper.get_user(request)
     # activate or remove publish request/ publisher
-    pub_request = PendingRequest.objects.get(type=PENDING_REQUEST_TYPE_PUBLISHING, id=request_id)
+    pub_request = get_object_or_404(PendingRequest, type=PENDING_REQUEST_TYPE_PUBLISHING, id=request_id)
     form = AcceptDenyPublishRequestForm(request.POST, pub_request=pub_request)
     if request.method == "POST":
         if form.is_valid():
@@ -388,26 +386,33 @@ def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
         org_id (int): The organization id
         group_id (int): The group id (publisher)
     Returns:
-         A BackendAjaxResponse since it is an Ajax request
+         A View
     """
     user = user_helper.get_user(request)
-
-    org = Organization.objects.get(id=org_id)
-    group = MrMapGroup.objects.get(id=group_id, publish_for_organizations=org)
-
-    # only allow removing if the user is part of the organization or the group!
-    if group not in user.get_groups() and user.organization != org:
-        messages.error(request, message=PUBLISH_PERMISSION_REMOVING_DENIED)
+    org = get_object_or_404(Organization, id=org_id)
+    group = get_object_or_404(MrMapGroup, id=group_id, publish_for_organizations=org)
+    if request.method == "POST":
+        form = RemovePublisher(request.POST, user=user, organization=org, group=group)
+        if form.is_valid():
+            group.publish_for_organizations.remove(org)
+            create_group_activity(
+                group=group,
+                user=user,
+                msg=_("Publisher changed"),
+                metadata_title=_("Group '{}' has been removed as publisher for '{}'.".format(group, org)),
+            )
+            messages.success(request, message=PUBLISH_PERMISSION_REMOVED.format(group.name, org.organization_name))
+            return HttpResponseRedirect(reverse("structure:detail-organization",
+                                                args=(org.id,)),
+                                        status=303)
+        else:
+            for error in form.non_field_errors():
+                messages.error(request, error)
+            return detail_organizations(request=request, org_id=org.id, status_code=422)
     else:
-        group.publish_for_organizations.remove(org)
-        create_group_activity(
-            group=group,
-            user=user,
-            msg=_("Publisher changed"),
-            metadata_title=_("Group '{}' has been removed as publisher for '{}'.".format(group, org)),
-        )
-        messages.success(request, message=PUBLISH_PERMISSION_REMOVED.format(group.name, org.organization_name))
-    return redirect("structure:detail-organization", org.id)
+        return HttpResponseRedirect(reverse("structure:detail-organization",
+                                            args=(org.id,)),
+                                    status=303)
 
 
 @login_required
@@ -422,7 +427,7 @@ def publish_request(request: HttpRequest, org_id: int):
          A rendered view
     """
     user = user_helper.get_user(request)
-    org = Organization.objects.get(id=org_id)
+    org = get_object_or_404(Organization, id=org_id)
     form = PublisherForOrganizationForm(request.POST, requesting_user=user, organization=org)
     if request.method == 'POST':
         if form.is_valid():
@@ -460,7 +465,7 @@ def detail_group(request: HttpRequest, group_id: int, update_params=None, status
     """
     user = user_helper.get_user(request)
 
-    group = MrMapGroup.objects.get(id=group_id)
+    group = get_object_or_404(MrMapGroup, id=group_id)
     members = group.user_set.all()
     template = "views/groups_detail.html"
 
@@ -507,9 +512,8 @@ def new_group(request: HttpRequest):
          A view
     """
     user = user_helper.get_user(request)
-
-    form = GroupForm(request.POST, requesting_user=user)
     if request.method == "POST":
+        form = GroupForm(request.POST, requesting_user=user)
         if form.is_valid():
             # save changes of group
             group = form.save(commit=False)
@@ -543,7 +547,7 @@ def list_publisher_group(request: HttpRequest, group_id: int):
     user = user_helper.get_user(request)
 
     template = "index_publish_requests.html"
-    group = MrMapGroup.objects.get(id=group_id)
+    group = get_object_or_404(MrMapGroup, id=group_id)
 
     params = {
         "group": group,
@@ -553,7 +557,6 @@ def list_publisher_group(request: HttpRequest, group_id: int):
     return render(request, template, context)
 
 
-# TODO: update function documentation
 @login_required
 @check_permission(Permission(can_delete_group=True))
 def remove_group(request: HttpRequest, group_id: int):
@@ -602,7 +605,7 @@ def edit_group(request: HttpRequest, group_id: int):
          A View
     """
     user = user_helper.get_user(request)
-    group = MrMapGroup.objects.get(id=group_id)
+    group = get_object_or_404(MrMapGroup, id=group_id)
     form = GroupForm(request.POST, requesting_user=user, instance=group, is_edit=True)
     if request.method == "POST":
         if form.is_valid():

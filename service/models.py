@@ -449,6 +449,32 @@ class Metadata(Resource):
             cacher = DocumentCacher(OGCOperationEnum.GET_CAPABILITIES.value, version.value)
             cacher.remove(str(self.id))
 
+    def get_subelements_metadatas(self):
+        """ Returns a list containing all subelement metadata records
+
+
+        Returns:
+             ret_list (list)
+        """
+        md_type = self.metadata_type.type
+        is_service = md_type == MetadataEnum.SERVICE.value
+        is_layer = md_type == MetadataEnum.LAYER.value
+
+        ret_list = []
+        if is_service:
+            subelement_metadatas = Metadata.objects.filter(
+                service__parent_service__metadata=self,
+            )
+            ret_list = list(subelement_metadatas)
+        elif is_layer:
+            # Collect further sublayers!
+            layer = Layer.objects.get(metadata=self)
+            sub_layers = layer.get_children(all=True)
+            ret_list = [layer.metadata for layer in sub_layers]
+
+        return ret_list
+
+
     def get_service_metadata_xml(self):
         """ Getter for the service metadata.
 
@@ -2268,7 +2294,6 @@ class Layer(Service):
             parent_layer = parent_layer.parent_layer
         return bounding_geometry
 
-
     def get_style(self):
         """ Simple getter for the style of the current layer
 
@@ -2277,13 +2302,31 @@ class Layer(Service):
         """
         return self.style.all()
 
-    def get_children(self):
+    def _get_all_children_recursive(self, layer_list: list):
+        """ Returns a list of all children of the current layer
+
+        Args:
+            layer_list (list): The list of collected layers so far
+        Returns:
+            layer_list (list)
+        """
+        children = self.get_children()
+        for child in children:
+            layer_list.append(child)
+            child._get_all_children_recursive(layer_list)
+        return layer_list
+
+    def get_children(self, all=False):
         """ Simple getter for the direct children of the current layer
 
         Returns:
              children (QuerySet): A query set containing all direct children layer of this layer
         """
-        return self.child_layer.all()
+        if all:
+            return self._get_all_children_recursive([])
+        else:
+            return self.child_layer.all()
+
 
     def delete_children_secured_operations(self, layer, operation, group):
         """ Walk recursive through all layers of wms and remove their secured operations

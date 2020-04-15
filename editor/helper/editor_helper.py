@@ -254,7 +254,6 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
             )[0]
         md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
         md_relation.save()
-        metadata.related_metadata.add(md_relation)
 
 
 @transaction.atomic
@@ -313,6 +312,13 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     original_md.categories.clear()
     for category in categories:
         original_md.categories.add(category)
+
+    # Categories are inherited by subelements
+    subelement_mds = original_md.get_subelements_metadatas()
+    for subelement_md in subelement_mds:
+        subelement_md.categories.clear()
+        for category in categories:
+            subelement_md.categories.add(category)
 
     # change capabilities document so that all sensitive elements (links) are proxied
     if original_md.use_proxy_uri != custom_md.use_proxy_uri:

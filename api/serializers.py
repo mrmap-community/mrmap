@@ -7,11 +7,10 @@ Created on: 15.08.19
 """
 from rest_framework import serializers
 
-from MapSkinner import utils
 from service.forms import RegisterNewServiceWizardPage2
 from service.helper import service_helper
-from service.models import ServiceType
-from structure.models import MrMapGroup, Role, Permission, MrMapUser
+from service.models import ServiceType, Metadata, Category
+from structure.models import MrMapGroup, Role, Permission
 
 
 class ServiceTypeSerializer(serializers.ModelSerializer):
@@ -108,18 +107,24 @@ class PendingTaskSerializer(serializers.Serializer):
     is_finished = serializers.BooleanField()
 
 
-class KeywordSerializer(serializers.Serializer):
-    """ Serializer for Keyword model
+class MetadataRelationMetadataSerializer(serializers.Serializer):
+    """ Serializer for Metadata records inside MetadataRelation model
 
     """
-    keyword = serializers.CharField(read_only=True)
+    id = serializers.IntegerField(read_only=True)
+    type = serializers.CharField(read_only=True, source="metadata_type.type")
+    identifier = serializers.CharField(read_only=True)
 
+    class Meta:
+        model = Metadata
 
 class MetadataRelationSerializer(serializers.Serializer):
     """ Serializer for MetadataRelation model
 
     """
-    id = serializers.PrimaryKeyRelatedField(read_only=True, source="metadata_to")
+    relation_from = MetadataRelationMetadataSerializer(source="metadata_from")
+    relation_type = serializers.CharField(read_only=True)
+    relation_to = MetadataRelationMetadataSerializer(source="metadata_to")
 
 
 class MetadataSerializer(serializers.Serializer):
@@ -139,8 +144,7 @@ class MetadataSerializer(serializers.Serializer):
     service = serializers.PrimaryKeyRelatedField(read_only=True)
     organization = serializers.PrimaryKeyRelatedField(read_only=True, source="contact")
     related_metadata = MetadataRelationSerializer(many=True)
-    keywords = KeywordSerializer(read_only=True, many=True)
-    #contact = OrganizationSerializer()
+    keywords = serializers.StringRelatedField(read_only=True, many=True)
 
 
 class ServiceSerializer(serializers.Serializer):
@@ -221,24 +225,43 @@ class LayerSerializer(ServiceSerializer):
     servicetype = ServiceTypeSerializer()
 
 
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = [
+            "id",
+            "type",
+            "title_EN",
+            "description_EN",
+            "title_locale_1",
+            "description_locale_1",
+            "title_locale_2",
+            "description_locale_2",
+            "symbol",
+            "online_link",
+        ]
+
 class CatalogueMetadataSerializer(serializers.Serializer):
     """ Serializer for Metadata model
 
     """
     id = serializers.IntegerField()
     identifier = serializers.CharField()
+    metadata_type = serializers.CharField(label="type")
     title = serializers.CharField()
     abstract = serializers.CharField()
-    bounding_geometry = serializers.CharField()  # ToDo: Use gis module to serialize the models.PolygonField()
-    #online_resource = serializers.CharField()
+    spatial_extent_geojson = serializers.CharField(read_only=True, source="bounding_geometry.geojson")
     capabilities_uri = serializers.CharField()
-    service_metadata_uri = serializers.CharField()
+    xml_metadata_uri = serializers.CharField(source="service_metadata_uri")
+    html_metadata_uri = serializers.CharField()
     fees = serializers.CharField()
     access_constraints = serializers.CharField()
     terms_of_use = serializers.PrimaryKeyRelatedField(read_only=True)
-    service = ServiceSerializer(read_only=True)
+    parent_service = serializers.IntegerField(read_only=True, source="service.parent_service.metadata.id")
     organization = OrganizationSerializer(read_only=True, source="contact")
     related_metadata = MetadataRelationSerializer(many=True)
-    keywords = KeywordSerializer(read_only=True, many=True)
-    categories = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
+    keywords = serializers.StringRelatedField(read_only=True, many=True)
+    categories = CategorySerializer(read_only=True, many=True)
 
+    class Meta:
+        model = Metadata

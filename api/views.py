@@ -22,13 +22,14 @@ from api import view_helper
 from api.forms import TokenForm
 from api.permissions import CanRegisterService, CanRemoveService, CanActivateService
 
-from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, RoleSerializer, \
+from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, \
     MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
     LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER
 from service import tasks
 from service.helper import service_helper
 from service.models import Service, Layer, Metadata
+from service.settings import DEFAULT_SRS_STRING
 from structure.models import Organization, MrMapGroup, Permission, PendingTask
 from users.helper import user_helper
 
@@ -44,6 +45,9 @@ def menu_view(request: HttpRequest):
     template = "views/api_menu.html"
     token_form = TokenForm(request.POST)
     user = user_helper.get_user(request)
+
+    if not user.is_authenticated:
+        return redirect("login")
 
     # Get user token
     try:
@@ -164,11 +168,11 @@ class ServiceViewSet(viewsets.GenericViewSet):
 
         Query parameters:
 
-            type: optional, 'wms' or 'wfs'
-            q: optional, search in abstract, title and keywords for a match
-            orgid: optional, search for layers which are published by this organization (id)
-            order: optional, orders by an attribute (e.g. id, uuid, ..., default is id)
-            rpp (int): Number of results per page
+            type:   optional, 'wms' or 'wfs'
+            q:      optional, search in abstract, title and keywords for a match
+            orgid:  optional, search for layers which are published by this organization (id)
+            order:  optional, orders by an attribute (e.g. id, uuid, ..., default is id)
+            rpp:    optional, Number of results per page
 
     """
     serializer_class = ServiceSerializer
@@ -352,11 +356,11 @@ class LayerViewSet(viewsets.GenericViewSet):
     """ Overview of all layers matching the given parameters
 
         Query parameters:
-            pid: optional, refers to the parent service id
-            q: optional, search in abstract, title and keywords for a match
-            orgid: optional, search for layers which are published by this organization (id)
-            order: optional, orders by an attribute (e.g. id, identifier, ..., default is id)
-            rpp (int): Number of results per page
+            pid:    optional, refers to the parent service id
+            q:      optional, search in abstract, title and keywords for a match
+            orgid:  optional, search for layers which are published by this organization (id)
+            order:  optional, orders by an attribute (e.g. id, identifier, ..., default is id)
+            rpp:    optional, Number of results per page
     """
 
     serializer_class = LayerSerializer
@@ -438,9 +442,9 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
         Query parameters:
 
-            ag: (auto generated) optional, filter for auto_generated organizations vs. real organizations
-            order: optional, orders by an attribute (e.g. id, email, default is organization_name)
-            rpp (int): Number of results per page
+            ag:     optional, filter for auto_generated organizations vs. real organizations
+            order:  optional, orders by an attribute (e.g. id, email, default is organization_name)
+            rpp:    optional, Number of results per page
     """
     serializer_class = OrganizationSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
@@ -479,10 +483,10 @@ class MetadataViewSet(viewsets.GenericViewSet):
 
         Query parameters:
 
-            q: optional, filters for the given query. Matches against title, abstract and keywords
-            uuid: optional, filters for the given uuid and returns only the matching element
-            order: optional, orders by an attribute (e.g. title, abstract, ..., default is hits)
-            rpp (int): Number of results per page
+            q:      optional, filters for the given query. Matches against title, abstract and keywords
+            uuid:   optional, filters for the given uuid and returns only the matching element
+            order:  optional, orders by an attribute (e.g. title, abstract, ..., default is hits)
+            rpp:    optional, Number of results per page
     """
     serializer_class = MetadataSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
@@ -555,9 +559,9 @@ class GroupViewSet(viewsets.GenericViewSet):
 
         Query parameters:
 
-            orgid: optional, filter for organizations
-            order: optional, orders by an attribute (e.g. id, organization, default is name)
-            rpp (int): Number of results per page
+            orgid:  optional, filter for organizations
+            order:  optional, orders by an attribute (e.g. id, organization, default is name)
+            rpp:    optional, Number of results per page
     """
     serializer_class = GroupSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
@@ -623,15 +627,36 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         Query parameters:
 
             -----   REGULAR    -----
-            q: optional, query (multiple query arguments can be passed by using '+' like q=val1+val2)
-            type: optional, specifies which type of resource shall be fetched ('wms' or 'wfs')
-            order: optional, orders by an attribute (e.g. title, identifier, default is hits)
-            rpp (int): Number of results per page
+            q:                  optional, query
+                                    * Type: str
+                                    * multiple query arguments can be passed by using '+' like q=val1+val2
+            type:               optional, specifies which type of resource shall be fetched
+                                    * Type: str
+                                    * Possible values are: ('service' | 'wms'| 'layer' | 'wfs' | 'feature' | 'dataset')
+            cat:                optional, specifies a category id
+                                    * Type: int
+                                    * multiple ids can be passed by using '+' like cat=1+4
+            cat-strict:         optional, specifies if multiple given categories shall be evaluated as OR or AND
+                                    * Type: bool
+                                    * if true, cat=1+4 returns only results that are in category 1 AND category 4
+                                    * if false or not set, cat=1+4 returns results that are in category 1 OR category 4
+            order:              optional, orders by an attribute
+                                    * Type: str
+                                    * e.g. 'title', 'identifier', ..., default is 'hits'
+            rpp:                optional, number of results per page
+                                    * Type: int
 
             -----   SPATIAL    -----
-            bbox-srs: optional, specifies another spatial reference system for the parameter `fully-inside` and `partially-inside`. If not given, the default is EPSG:4326
-            fully-inside: optional, specifies four coordinates, that span a bbox. Only results fully inside this bbox will be returned
-            partially-inside: optional, specifies four coordinates, that span a bbox. Only results fully or partially inside this bbox will be returned
+            bbox:               optional, specifies four coordinates which create a bounding box
+                                    * Type: str
+                                    * coordinates must be comma separated like 'x1,y1,x2,y2'
+                                    * default srs for bbox coordinates is EPSG:4326
+            bbox-srs:           optional, specifies a spatial reference system for the bbox
+                                    * Type: str
+                                    * If not set, the default 'EPSG:4326' is used
+            bbox-strict:        optional, if true only results are returned, that are completely inside the bbox
+                                    * Type: bool
+                                    * If not set, overlapping results will be returned as well.
 
     """
     serializer_class = CatalogueMetadataSerializer
@@ -653,27 +678,27 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         )
 
         # filter by bbox extent. fully-inside and partially-inside are mutually exclusive
-        fully_inside = self.request.query_params.get("fully-inside", None)
-        part_inside = self.request.query_params.get("partially-inside", None)
-        bbox_srs = self.request.query_params.get("bbox-srs", "EPSG:4326")
-
-        is_full = fully_inside is not None and part_inside is None
-        is_intersected = fully_inside is None and part_inside is not None
-        bbox = fully_inside or part_inside
-        if fully_inside is not None and part_inside is not None:
-            raise Exception("Parameter fully-inside and part-inside can not be in the same request.")
-        elif is_full:
-            self.queryset = view_helper.filter_queryset_metadata_inside_bbox(self.queryset, bbox, bbox_srs)
-        elif is_intersected:
-            self.queryset = view_helper.filter_queryset_metadata_intersects_bbox(self.queryset, bbox, bbox_srs)
+        bbox = self.request.query_params.get("bbox", None) or None
+        bbox_srs = self.request.query_params.get("bbox-srs", DEFAULT_SRS_STRING)
+        bbox_strict = utils.resolve_boolean_attribute_val(
+            self.request.query_params.get("bbox-strict", False) or False
+        )
+        self.queryset = view_helper.filter_queryset_metadata_bbox(self.queryset, bbox, bbox_srs, bbox_strict)
 
         # filter by service type
         type = self.request.query_params.get("type", None)
-        self.queryset = view_helper.filter_queryset_metadata_service_type(self.queryset, type)
+        self.queryset = view_helper.filter_queryset_metadata_type(self.queryset, type)
 
         # filter by query
         query = self.request.query_params.get("q", None)
         self.queryset = view_helper.filter_queryset_metadata_query(self.queryset, query)
+
+        # filter by category
+        category = self.request.query_params.get("cat", None)
+        category_strict = utils.resolve_boolean_attribute_val(
+            self.request.query_params.get("cat-strict", False) or False
+        )
+        self.queryset = view_helper.filter_queryset_metadata_category(self.queryset, category, category_strict)
 
         # order by
         order_by = self.request.query_params.get("order", CATALOGUE_DEFAULT_ORDER)

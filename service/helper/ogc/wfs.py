@@ -11,7 +11,8 @@ from django.db import transaction
 from lxml.etree import _Element
 
 from service.helper.crypto_handler import CryptoHandler
-from service.settings import DEFAULT_SRS, SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE
+from service.settings import DEFAULT_SRS, SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, \
+    HTML_METADATA_URI_TEMPLATE
 from service.settings import MD_RELATION_TYPE_VISUALIZES, \
     EXTERNAL_AUTHENTICATION_FILEPATH
 from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
@@ -788,10 +789,10 @@ class OGCWebFeatureService(OGCWebService):
             )[0]
             md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
             md_relation.save()
-            md.related_metadata.add(md_relation)
 
         md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
         md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
+        md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
         # save again, due to added related metadata
         md.save()
 
@@ -833,7 +834,6 @@ class OGCWebFeatureService(OGCWebService):
                 md_relation.origin = origin
                 md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
                 md_relation.save()
-                f_t.metadata.related_metadata.add(md_relation)
 
             # keywords of feature types
             for kw in f_t.keywords_list:

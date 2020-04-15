@@ -436,6 +436,7 @@ class ISOMetadata:
 
         if update or new:
             metadata.uuid = self.file_identifier
+            metadata.identifier = self.file_identifier
             metadata.abstract = self.abstract
             metadata.access_constraints = self.access_constraints
 

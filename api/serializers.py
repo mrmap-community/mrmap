@@ -7,11 +7,10 @@ Created on: 15.08.19
 """
 from rest_framework import serializers
 
-from MapSkinner import utils
 from service.forms import RegisterNewServiceWizardPage2
 from service.helper import service_helper
 from service.models import ServiceType
-from structure.models import MrMapGroup, Role, Permission, MrMapUser
+from structure.models import MrMapGroup, Role, Permission
 
 
 class ServiceTypeSerializer(serializers.ModelSerializer):
@@ -230,7 +229,7 @@ class CatalogueMetadataSerializer(serializers.Serializer):
     metadata_type = serializers.CharField(label="type")
     title = serializers.CharField()
     abstract = serializers.CharField()
-    bounding_geometry = serializers.CharField()  # ToDo: Use gis module to serialize the models.PolygonField()
+    bounding_geometry = serializers.CharField(read_only=True, source="bounding_geometry.geojson")
     #online_resource = serializers.CharField()
     capabilities_uri = serializers.CharField()
     service_metadata_uri = serializers.CharField()

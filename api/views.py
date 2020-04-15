@@ -627,7 +627,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
             -----   REGULAR    -----
             q:      optional, query (multiple query arguments can be passed by using '+' like q=val1+val2)
-            type:   optional, specifies which type of resource shall be fetched ('wms'| 'wfs' | 'dataset')
+            type:   optional, specifies which type of resource shall be fetched ('service' | 'wms'| 'layer' | 'wfs' | 'feature' | 'dataset')
             order:  optional, orders by an attribute (e.g. title, identifier, default is hits)
             rpp:    optional, Number of results per page
 

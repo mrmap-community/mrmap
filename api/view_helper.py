@@ -155,7 +155,7 @@ def filter_queryset_metadata_intersects_bbox(queryset, bbox: str, bbox_srs: str)
     return queryset
 
 
-def filter_queryset_metadata_service_type(queryset, type: str):
+def filter_queryset_metadata_type(queryset, type: str):
     """ Filters a given REST framework queryset by a given service type as string
 
     Args:
@@ -164,9 +164,12 @@ def filter_queryset_metadata_service_type(queryset, type: str):
     Returns:
         queryset: The given queryset which only contains matching elements
     """
+    filter_identifier = "service__servicetype__name"
+    if type == "dataset":
+        filter_identifier = "metadata_type__type"
     if type is not None:
         queryset = queryset.filter(
-            service__servicetype__name=type
+            **{filter_identifier: type},
         )
     return queryset
 

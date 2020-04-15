@@ -227,6 +227,7 @@ class CatalogueMetadataSerializer(serializers.Serializer):
     """
     id = serializers.IntegerField()
     identifier = serializers.CharField()
+    metadata_type = serializers.CharField(label="type")
     title = serializers.CharField()
     abstract = serializers.CharField()
     bounding_geometry = serializers.CharField()  # ToDo: Use gis module to serialize the models.PolygonField()

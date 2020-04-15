@@ -16,7 +16,7 @@ class RoleAdmin(admin.ModelAdmin):
 
 
 class OrganizationAdmin(admin.ModelAdmin):
-    list_display = ['organization_name', 'is_auto_generated', 'country', 'city', 'postal_code']
+    list_display = ['id', 'organization_name', 'is_auto_generated', 'country', 'city', 'postal_code']
 
 
 class ThemeAdmin(admin.ModelAdmin):

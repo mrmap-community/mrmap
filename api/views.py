@@ -627,7 +627,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
             -----   REGULAR    -----
             q:      optional, query (multiple query arguments can be passed by using '+' like q=val1+val2)
-            type:   optional, specifies which type of resource shall be fetched ('wms' or 'wfs')
+            type:   optional, specifies which type of resource shall be fetched ('wms'| 'wfs' | 'dataset')
             order:  optional, orders by an attribute (e.g. title, identifier, default is hits)
             rpp:    optional, Number of results per page
 
@@ -672,7 +672,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
         # filter by service type
         type = self.request.query_params.get("type", None)
-        self.queryset = view_helper.filter_queryset_metadata_service_type(self.queryset, type)
+        self.queryset = view_helper.filter_queryset_metadata_type(self.queryset, type)
 
         # filter by query
         query = self.request.query_params.get("q", None)
@@ -688,7 +688,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    #@method_decorator(cache_page(API_CACHE_TIME))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         serializer = CatalogueMetadataSerializer(tmp, many=True)

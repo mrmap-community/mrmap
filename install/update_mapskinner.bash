@@ -74,6 +74,8 @@ python -m pip install -r requirements.txt
 rm -r ${installation_folder}MapSkinner/static
 python manage.py collectstatic
 python manage.py compilemessages
+python manage.py makemigrations
+python manage.py migrate
 
 systemctl restart uwsgi
 /etc/init.d/nginx restart

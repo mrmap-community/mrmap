@@ -35,13 +35,25 @@ The script will do the following:
 
 At the end of the script you are asked if you would like to install ModSecurity and generate  
 stronger encryption keys, this is absolutely recommended for a real production server  
-facing the threats of the www, it can take up to an hour though! Can be skipped for testing and  
-intranet only servers.  
+facing the threats of the www, it can take up to an hour though! Can be skipped for testing and intranet only servers.  
 
 
 II.  update_mapskinner.bash
 
 This updates your MapSkinner installation.  
+In the first step this will check if there are differences between your local  
+and the repositories "settings.py". If there are major differences you can and  
+should abort the update process to check whats missing! Adjust your local "settings.py"  
+and start the update process again.  
+In the next step it will backup these files:  
+- MapSkinner/settings.py   
+- service/settings.py  
+Afterwards your local copy will be reset with "git reset --hard" (this will delete   
+all local changes made to the code!), updated to the newest master status and puts  
+configurations back to where they belong.  
+In the end the script will collect all new static files and translations and  
+tries to apply global migrations if there are any. Specific migrations to certain  
+apps need to be done manually!  
 
 Get it with:
 ```
@@ -74,5 +86,5 @@ Afterwards enable again with:
 Usage:  
 Change credentials in mass_register.py then  
 ```
-python3 mass_register.py WMSLIST 
+python3 mass_register.py WMSLIST
 ```    

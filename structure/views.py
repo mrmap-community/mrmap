@@ -341,7 +341,7 @@ def accept_publish_request(request: HttpRequest, request_id: int):
     user = user_helper.get_user(request)
     # activate or remove publish request/ publisher
     pub_request = PendingRequest.objects.get(type=PENDING_REQUEST_TYPE_PUBLISHING, id=request_id)
-    form = AcceptDenyPublishRequestForm(request.POST, request=request, pub_request=pub_request)
+    form = AcceptDenyPublishRequestForm(request.POST, pub_request=pub_request)
     if request.method == "POST":
         if form.is_valid():
             if form.cleaned_data['is_accepted']:
@@ -369,6 +369,8 @@ def accept_publish_request(request: HttpRequest, request_id: int):
                                                 args=(pub_request.organization.id,)),
                                         status=303)
         else:
+            for error in form.non_field_errors():
+                messages.error(request, error)
             return detail_organizations(request=request, org_id=pub_request.organization.id, status_code=422)
     else:
         return HttpResponseRedirect(reverse("structure:detail-organization",

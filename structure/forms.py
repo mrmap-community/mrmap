@@ -241,7 +241,6 @@ class AcceptDenyPublishRequestForm(forms.Form):
     is_accepted = forms.BooleanField(required=False)
 
     def __init__(self, *args, **kwargs):
-        self.request = None if 'request' not in kwargs else kwargs.pop('request')
         self.pub_request = None if 'pub_request' not in kwargs else kwargs.pop('pub_request')
         super(AcceptDenyPublishRequestForm, self).__init__(*args, **kwargs)
 
@@ -251,7 +250,7 @@ class AcceptDenyPublishRequestForm(forms.Form):
         now = timezone.now()
 
         if self.pub_request.activation_until <= now:
-            messages.error(self.request, REQUEST_ACTIVATION_TIMEOVER)
+            self.add_error(None, REQUEST_ACTIVATION_TIMEOVER)
             self.pub_request.delete()
 
         return cleaned_data

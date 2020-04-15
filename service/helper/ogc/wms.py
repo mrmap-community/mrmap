@@ -975,7 +975,6 @@ class OGCWebMapService(OGCWebService):
             )[0]
             md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
             md_relation.save()
-            md.related_metadata.add(md_relation)
 
         md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
         md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
@@ -1029,7 +1028,6 @@ class OGCWebMapService(OGCWebService):
                 )[0]
                 metadata_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
                 metadata_relation.save()
-                md.related_metadata.add(metadata_relation)
 
             layer.metadata = md
 

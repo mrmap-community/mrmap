@@ -279,6 +279,23 @@ class MetadataRelation(models.Model):
     def __str__(self):
         return "{} {} {}".format(self.metadata_from.title, self.relation_type, self.metadata_to.title)
 
+    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        """ Overwrites default save function
+
+        Saves the relation and stores information about relation in both related metadata records
+
+        Args:
+            force_insert: Default save parameter
+            force_update: Default save parameter
+            using: Default save parameter
+            update_fields: Default save parameter
+        Returns:
+
+        """
+        super().save(force_insert, force_update, using, update_fields)
+        self.metadata_to.related_metadata.add(self)
+        self.metadata_from.related_metadata.add(self)
+
 
 class ExternalAuthentication(models.Model):
     username = models.CharField(max_length=255)

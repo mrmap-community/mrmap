@@ -254,7 +254,6 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
             )[0]
         md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
         md_relation.save()
-        metadata.related_metadata.add(md_relation)
 
 
 @transaction.atomic

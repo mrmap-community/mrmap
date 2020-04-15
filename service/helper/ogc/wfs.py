@@ -789,7 +789,6 @@ class OGCWebFeatureService(OGCWebService):
             )[0]
             md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
             md_relation.save()
-            md.related_metadata.add(md_relation)
 
         md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
         md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
@@ -835,7 +834,6 @@ class OGCWebFeatureService(OGCWebService):
                 md_relation.origin = origin
                 md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
                 md_relation.save()
-                f_t.metadata.related_metadata.add(md_relation)
 
             # keywords of feature types
             for kw in f_t.keywords_list:

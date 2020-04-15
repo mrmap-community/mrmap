@@ -50,6 +50,7 @@ and start the update process again.
 In the next step it will backup these files:  
 - MapSkinner/settings.py   
 - service/settings.py  
+
 Afterwards your local copy will be reset with "git reset --hard" (this will delete   
 all local changes made to the code!), updated to the newest master status and puts  
 configurations back to where they belong.  

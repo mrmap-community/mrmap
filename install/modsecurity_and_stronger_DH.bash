@@ -26,8 +26,6 @@ nginx_version=`cat /tmp/nginx.version | cut -d "/" -f 2`
 wget "http://nginx.org/download/nginx-$nginx_version.tar.gz"
 tar zxvf nginx-$nginx_version.tar.gz
 cd nginx-$nginx_version
-#export MODSECURITY_INC="/opt/ModSecurity/headers/"
-#export MODSECURITY_LIB="/opt/ModSecurity/src/.libs/"
 nginx -V > /tmp/nginx.options_tmp 2>&1
 tail -1 /tmp/nginx.options_tmp >> /tmp/nginx.compile_options
 nginx_compile_options=`awk -F'--with-debug' '{print $1}' /tmp/nginx.compile_options | cut -d ":" -f 2`

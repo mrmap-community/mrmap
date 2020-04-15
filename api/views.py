@@ -636,6 +636,10 @@ class CatalogueViewSet(viewsets.GenericViewSet):
             cat:                optional, specifies a category id
                                     * Type: int
                                     * multiple ids can be passed by using '+' like cat=1+4
+            cat-strict:         optional, specifies if multiple given categories shall be evaluated as OR or AND
+                                    * Type: bool
+                                    * if true, cat=1+4 returns only results that are in category 1 AND category 4
+                                    * if false or not set, cat=1+4 returns results that are in category 1 OR category 4
             order:              optional, orders by an attribute
                                     * Type: str
                                     * e.g. 'title', 'identifier', ..., default is 'hits'
@@ -676,14 +680,10 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         # filter by bbox extent. fully-inside and partially-inside are mutually exclusive
         bbox = self.request.query_params.get("bbox", None) or None
         bbox_srs = self.request.query_params.get("bbox-srs", DEFAULT_SRS_STRING)
-        bbox_full_inside = utils.resolve_boolean_attribute_val(
+        bbox_strict = utils.resolve_boolean_attribute_val(
             self.request.query_params.get("bbox-strict", False) or False
         )
-
-        if bbox_full_inside:
-            self.queryset = view_helper.filter_queryset_metadata_inside_bbox(self.queryset, bbox, bbox_srs)
-        else:
-            self.queryset = view_helper.filter_queryset_metadata_intersects_bbox(self.queryset, bbox, bbox_srs)
+        self.queryset = view_helper.filter_queryset_metadata_bbox(self.queryset, bbox, bbox_srs, bbox_strict)
 
         # filter by service type
         type = self.request.query_params.get("type", None)
@@ -695,7 +695,10 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
         # filter by category
         category = self.request.query_params.get("cat", None)
-        self.queryset = view_helper.filter_queryset_metadata_category(self.queryset, category)
+        category_strict = utils.resolve_boolean_attribute_val(
+            self.request.query_params.get("cat-strict", False) or False
+        )
+        self.queryset = view_helper.filter_queryset_metadata_category(self.queryset, category, category_strict)
 
         # order by
         order_by = self.request.query_params.get("order", CATALOGUE_DEFAULT_ORDER)

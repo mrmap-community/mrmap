@@ -95,7 +95,7 @@ def filter_queryset_metadata_query(queryset, query):
     return queryset
 
 
-def filter_queryset_metadata_category(queryset, category):
+def filter_queryset_metadata_category(queryset, category, category_strict):
     """ Filters a given REST framework queryset by a given query.
 
     Only keeps elements which title, abstract or keyword can be matched to the given query.
@@ -103,27 +103,32 @@ def filter_queryset_metadata_category(queryset, category):
     Args:
         queryset: A queryset containing elements
         category: A list of ids
+        category_strict: Whether to evaluate multiple ids using AND or OR
     Returns:
         queryset: The given queryset which only contains matching elements
     """
     if category is not None:
         # DRF automatically replaces '+' to ' ' whitespaces, so we work with this
         category_list = category.split(" ")
+
         queryset = queryset.filter(
             categories__id__in=category_list
-        )
+        ).distinct()
+        if category_strict:
+            for category in category_list:
+                queryset = queryset.filter(categories__id=category)
+
     return queryset
 
 
-def filter_queryset_metadata_inside_bbox(queryset, bbox: str, bbox_srs: str):
+def filter_queryset_metadata_bbox(queryset, bbox: str, bbox_srs: str, bbox_strict: bool):
     """ Filters a given REST framework queryset by a given bbox.
-
-    Filters for results, which are fully inside the bbox.
 
     Args:
         queryset: A queryset containing elements
         bbox: A bbox string (four coordinates)
         bbox_srs: Defines the reference system for the bbox
+        bbox_strict: Defines whether only results fully inside or intersected as well shall be returned
     Returns:
         queryset: The given queryset which only contains matching elements
     """
@@ -139,38 +144,14 @@ def filter_queryset_metadata_inside_bbox(queryset, bbox: str, bbox_srs: str):
 
         bbox = GEOSGeometry(Polygon.from_bbox(bbox), srid=srs)
         bbox.transform(DEFAULT_SRS)
+
+        if bbox_strict:
+            filter_identifier = "bounding_geometry__contained"
+        else:
+            filter_identifier = "bounding_geometry__bboverlaps"
+
         queryset = queryset.filter(
-            bounding_geometry__contained=bbox
-        )
-    return queryset
-
-
-def filter_queryset_metadata_intersects_bbox(queryset, bbox: str, bbox_srs: str):
-    """ Filters a given REST framework queryset by a given bbox.
-
-    Filters for results, which are partially inside the bbox.
-
-    Args:
-        queryset: A queryset containing elements
-        bbox: A bbox string in EPSG:4326
-        bbox_srs: Defines the reference system for the bbox
-    Returns:
-        queryset: The given queryset which only contains matching elements
-    """
-    if bbox is not None:
-        try:
-            srs = int(bbox_srs.split(":")[-1])
-        except ValueError:
-            # The srs is not valid
-            raise Exception(PARAMETER_ERROR.format("bbox-srs"))
-
-        if not isinstance(bbox, list):
-            bbox = bbox.split(",")
-
-        bbox = GEOSGeometry(Polygon.from_bbox(bbox), srid=srs)
-        bbox.transform(DEFAULT_SRS)
-        queryset = queryset.filter(
-            bounding_geometry__bboverlaps=bbox
+            **{filter_identifier: bbox}
         )
     return queryset
 

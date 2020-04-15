@@ -9,7 +9,7 @@ from rest_framework import serializers
 
 from service.forms import RegisterNewServiceWizardPage2
 from service.helper import service_helper
-from service.models import ServiceType, Metadata
+from service.models import ServiceType, Metadata, Category
 from structure.models import MrMapGroup, Role, Permission
 
 
@@ -107,13 +107,6 @@ class PendingTaskSerializer(serializers.Serializer):
     is_finished = serializers.BooleanField()
 
 
-class KeywordSerializer(serializers.Serializer):
-    """ Serializer for Keyword model
-
-    """
-    keyword = serializers.CharField(read_only=True)
-
-
 class MetadataRelationMetadataSerializer(serializers.Serializer):
     """ Serializer for Metadata records inside MetadataRelation model
 
@@ -151,8 +144,7 @@ class MetadataSerializer(serializers.Serializer):
     service = serializers.PrimaryKeyRelatedField(read_only=True)
     organization = serializers.PrimaryKeyRelatedField(read_only=True, source="contact")
     related_metadata = MetadataRelationSerializer(many=True)
-    keywords = KeywordSerializer(read_only=True, many=True)
-    #contact = OrganizationSerializer()
+    keywords = serializers.StringRelatedField(read_only=True, many=True)
 
 
 class ServiceSerializer(serializers.Serializer):
@@ -233,6 +225,22 @@ class LayerSerializer(ServiceSerializer):
     servicetype = ServiceTypeSerializer()
 
 
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = [
+            "id",
+            "type",
+            "title_EN",
+            "description_EN",
+            "title_locale_1",
+            "description_locale_1",
+            "title_locale_2",
+            "description_locale_2",
+            "symbol",
+            "online_link",
+        ]
+
 class CatalogueMetadataSerializer(serializers.Serializer):
     """ Serializer for Metadata model
 
@@ -249,11 +257,11 @@ class CatalogueMetadataSerializer(serializers.Serializer):
     fees = serializers.CharField()
     access_constraints = serializers.CharField()
     terms_of_use = serializers.PrimaryKeyRelatedField(read_only=True)
-    service = serializers.IntegerField(read_only=True, source="service.id")
+    parent_service = serializers.IntegerField(read_only=True, source="service.parent_service.metadata.id")
     organization = OrganizationSerializer(read_only=True, source="contact")
     related_metadata = MetadataRelationSerializer(many=True)
-    keywords = KeywordSerializer(read_only=True, many=True)
-    categories = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
+    keywords = serializers.StringRelatedField(read_only=True, many=True)
+    categories = CategorySerializer(read_only=True, many=True)
 
     class Meta:
         model = Metadata

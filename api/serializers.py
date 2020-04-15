@@ -114,14 +114,24 @@ class KeywordSerializer(serializers.Serializer):
     keyword = serializers.CharField(read_only=True)
 
 
+class MetadataRelationMetadataSerializer(serializers.Serializer):
+    """ Serializer for Metadata records inside MetadataRelation model
+
+    """
+    id = serializers.IntegerField(read_only=True)
+    type = serializers.CharField(read_only=True, source="metadata_type.type")
+    identifier = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Metadata
+
 class MetadataRelationSerializer(serializers.Serializer):
     """ Serializer for MetadataRelation model
 
     """
-    id = serializers.PrimaryKeyRelatedField(read_only=True, source="metadata_to")
-    type = serializers.CharField(read_only=True, source="metadata_to.metadata_type.type")
-    identifier = serializers.CharField(read_only=True, source="metadata_to.identifier")
-    title = serializers.CharField(read_only=True, source="metadata_to.title")
+    relation_from = MetadataRelationMetadataSerializer(source="metadata_from")
+    relation_type = serializers.CharField(read_only=True)
+    relation_to = MetadataRelationMetadataSerializer(source="metadata_to")
 
 
 class MetadataSerializer(serializers.Serializer):

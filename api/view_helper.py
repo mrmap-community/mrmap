@@ -95,6 +95,26 @@ def filter_queryset_metadata_query(queryset, query):
     return queryset
 
 
+def filter_queryset_metadata_category(queryset, category):
+    """ Filters a given REST framework queryset by a given query.
+
+    Only keeps elements which title, abstract or keyword can be matched to the given query.
+
+    Args:
+        queryset: A queryset containing elements
+        category: A list of ids
+    Returns:
+        queryset: The given queryset which only contains matching elements
+    """
+    if category is not None:
+        # DRF automatically replaces '+' to ' ' whitespaces, so we work with this
+        category_list = category.split(" ")
+        queryset = queryset.filter(
+            categories__id__in=category_list
+        )
+    return queryset
+
+
 def filter_queryset_metadata_inside_bbox(queryset, bbox: str, bbox_srs: str):
     """ Filters a given REST framework queryset by a given bbox.
 

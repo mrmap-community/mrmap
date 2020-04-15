@@ -29,6 +29,7 @@ from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEF
 from service import tasks
 from service.helper import service_helper
 from service.models import Service, Layer, Metadata
+from service.settings import DEFAULT_SRS_STRING
 from structure.models import Organization, MrMapGroup, Permission, PendingTask
 from users.helper import user_helper
 
@@ -626,15 +627,32 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         Query parameters:
 
             -----   REGULAR    -----
-            q:      optional, query (multiple query arguments can be passed by using '+' like q=val1+val2)
-            type:   optional, specifies which type of resource shall be fetched ('service' | 'wms'| 'layer' | 'wfs' | 'feature' | 'dataset')
-            order:  optional, orders by an attribute (e.g. title, identifier, default is hits)
-            rpp:    optional, Number of results per page
+            q:                  optional, query
+                                    * Type: str
+                                    * multiple query arguments can be passed by using '+' like q=val1+val2
+            type:               optional, specifies which type of resource shall be fetched
+                                    * Type: str
+                                    * Possible values are: ('service' | 'wms'| 'layer' | 'wfs' | 'feature' | 'dataset')
+            cat:                optional, specifies a category id
+                                    * Type: int
+                                    * multiple ids can be passed by using '+' like cat=1+4
+            order:              optional, orders by an attribute
+                                    * Type: str
+                                    * e.g. 'title', 'identifier', ..., default is 'hits'
+            rpp:                optional, number of results per page
+                                    * Type: int
 
             -----   SPATIAL    -----
-            bbox-srs:           optional, specifies another spatial reference system for the parameter `fully-inside` and `partially-inside`. If not given, the default is EPSG:4326
-            fully-inside:       optional, specifies four coordinates, that span a bbox. Only results fully inside this bbox will be returned
-            partially-inside:   optional, specifies four coordinates, that span a bbox. Only results fully or partially inside this bbox will be returned
+            bbox:               optional, specifies four coordinates which create a bounding box
+                                    * Type: str
+                                    * coordinates must be comma separated like 'x1,y1,x2,y2'
+                                    * default srs for bbox coordinates is EPSG:4326
+            bbox-srs:           optional, specifies a spatial reference system for the bbox
+                                    * Type: str
+                                    * If not set, the default 'EPSG:4326' is used
+            bbox-strict:        optional, if true only results are returned, that are completely inside the bbox
+                                    * Type: bool
+                                    * If not set, overlapping results will be returned as well.
 
     """
     serializer_class = CatalogueMetadataSerializer
@@ -656,18 +674,15 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         )
 
         # filter by bbox extent. fully-inside and partially-inside are mutually exclusive
-        fully_inside = self.request.query_params.get("fully-inside", None)
-        part_inside = self.request.query_params.get("partially-inside", None)
-        bbox_srs = self.request.query_params.get("bbox-srs", "EPSG:4326")
+        bbox = self.request.query_params.get("bbox", None) or None
+        bbox_srs = self.request.query_params.get("bbox-srs", DEFAULT_SRS_STRING)
+        bbox_full_inside = utils.resolve_boolean_attribute_val(
+            self.request.query_params.get("bbox-strict", False) or False
+        )
 
-        is_full = fully_inside is not None and part_inside is None
-        is_intersected = fully_inside is None and part_inside is not None
-        bbox = fully_inside or part_inside
-        if fully_inside is not None and part_inside is not None:
-            raise Exception("Parameter fully-inside and part-inside can not be in the same request.")
-        elif is_full:
+        if bbox_full_inside:
             self.queryset = view_helper.filter_queryset_metadata_inside_bbox(self.queryset, bbox, bbox_srs)
-        elif is_intersected:
+        else:
             self.queryset = view_helper.filter_queryset_metadata_intersects_bbox(self.queryset, bbox, bbox_srs)
 
         # filter by service type
@@ -677,6 +692,10 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         # filter by query
         query = self.request.query_params.get("q", None)
         self.queryset = view_helper.filter_queryset_metadata_query(self.queryset, query)
+
+        # filter by category
+        category = self.request.query_params.get("cat", None)
+        self.queryset = view_helper.filter_queryset_metadata_category(self.queryset, category)
 
         # order by
         order_by = self.request.query_params.get("order", CATALOGUE_DEFAULT_ORDER)
@@ -696,7 +715,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    #@method_decorator(cache_page(API_CACHE_TIME))
     def retrieve(self, request, pk=None):
         tmp = Metadata.objects.get(id=pk)
         if not tmp.is_active:

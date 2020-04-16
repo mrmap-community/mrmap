@@ -70,24 +70,13 @@ bash update_mapskinner.bash
 
 III. mass_register.py
 
-Used to register a list of services at once  .
-This will fail if there are too many, i have to investigate more on this  .
-The list has to contain one wms get capabilities request each line including parameters   .
+Used to register a list of services at once via the mapskinner api.
 
-You have to temporarily disable csrf verification for the time of registering, do this with:  
+The list has to contain one wms get capabilities request each line including parameters.  
+Generate an API Token on the web interface and paste it into the token parameter in the script.  
+Adjust the rest of the parameters in mass_register.py to your needs.
 
-```
--sed -i s/"    'django.middleware.csrf.CsrfViewMiddleware',"/"    #'django.middleware.csrf.CsrfViewMiddleware',"/g /opt/MapSkinner/MapSkinner/settings.py
--systemctl restart uwsgi
-
-Afterwards enable again with:
-
--sed -i s/"    '#django.middleware.csrf.CsrfViewMiddleware',"/"    'django.middleware.csrf.CsrfViewMiddleware',"/g /opt/MapSkinner/MapSkinner/settings.py
--systemctl restart uwsgi
-```
-
-Usage:  
-Change credentials in mass_register.py then  
+Usage:    
 ```
 python3 mass_register.py WMSLIST
 ```    

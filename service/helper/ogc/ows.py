@@ -6,7 +6,7 @@ from abc import abstractmethod
 from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
-from requests import ReadTimeout
+from requests.exceptions import ReadTimeout
 
 from MapSkinner.messages import CONNECTION_TIMEOUT
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE

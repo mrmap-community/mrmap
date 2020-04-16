@@ -88,7 +88,7 @@ class OGCOperationRequestHandler:
         self.axis_corrected_bbox_param = None  # contains an axis corrected version of the bbox_param. Only differs in case of WMS 1.3.0
         self.srs_param = None  # refers to param 'SRS'|'SRSNAME' (WMS 1.0.0 - 1.1.1) and 'CRS' (WMS 1.3.0)
         self.srs_code = None  # only the srsid as int
-        self.format_param = None  # refers to param 'FORMAT'
+        self.format_param = None  # refers to param 'FORMAT' and 'OUTPUTFORMAT'
         self.count_param = None  # refers to param 'COUNT' (WFS 2.x) and 'MAXFEATURES' (WFS 1.x)
         self.version_param = None  # refers to param 'VERSION'
         self.filter_param = None  # refers to param 'FILTER' (WFS)
@@ -171,8 +171,8 @@ class OGCOperationRequestHandler:
                 self.x_y_param[1] = val
             elif key == "VERSION":
                 self.version_param = val
-            elif key == "FORMAT":
-                self.format_param = val
+            elif key == "FORMAT" or key == "OUTPUTFORMAT":
+                self.format_param = val or None
             elif key == "SRS" or key == "CRS" or key == "SRSNAME":
                 self.srs_param = val
                 self.srs_code = int(self.srs_param.split(":")[-1])  # get the last element of the ':' splitted string

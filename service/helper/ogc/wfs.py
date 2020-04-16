@@ -111,6 +111,7 @@ class OGCWebFeatureService(OGCWebService):
 
         self.feature_type_list = {}
         self.service_mime_type_list = []
+        self.service_mime_type_get_feature_list = []
 
         # for wfs we need to overwrite the default namespace with 'wfs'
         XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs", "")
@@ -360,6 +361,8 @@ class OGCWebFeatureService(OGCWebService):
                         mime_type=format_value
                     )[0]
                     self.service_mime_type_list.append(mime_type)
+                    if action == OGCOperationEnum.GET_FEATURE.value:
+                        self.service_mime_type_get_feature_list.append(mime_type)
 
         self.get_capabilities_uri["get"] = get.get(get_cap, None)
         self.get_capabilities_uri["post"] = post.get(get_cap, None)
@@ -496,16 +499,22 @@ class OGCWebFeatureService(OGCWebService):
             elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Format")
         )
         format_list = []
-        for _format in formats:
-            # Due to missing semantic interpretation in the standard of WFS, we assume the outputFormats of featureTypes
-            # to define the GetFeature operation
-            m_t = MimeType.objects.get_or_create(
-                operation=OGCOperationEnum.GET_FEATURE.value,
-                mime_type=xml_helper.try_get_text_from_xml_element(
-                    xml_elem=_format
-                )
-            )[0]
-            format_list.append(m_t)
+
+        if len(formats) == 0:
+            # No Formats found on feature type level. Specification says, we use the same formats, that are specified
+            # by the parent service element
+            format_list = self.service_mime_type_get_feature_list
+        else:
+            for _format in formats:
+                # Due to missing semantic interpretation in the standard of WFS, we assume the outputFormats of featureTypes
+                # to define the GetFeature operation
+                m_t = MimeType.objects.get_or_create(
+                    operation=OGCOperationEnum.GET_FEATURE.value,
+                    mime_type=xml_helper.try_get_text_from_xml_element(
+                        xml_elem=_format
+                    )
+                )[0]
+                format_list.append(m_t)
 
         # Dataset (ISO) Metadata parsing
         self._parse_dataset_md(f_t, feature_type)

@@ -1,0 +1,13 @@
+[Unit]
+Description=uwsgi service for mrmap
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/uwsgi --ini /opt/MapSkinner/MapSkinner/mrmap_uwsgi.ini
+Restart=on-failure
+ExecStop=/usr/bin/pkill -f uwsgi -9
+ExecReload=/usr/bin/pkill -f uwsgi -9;/usr/local/bin/uwsgi --ini /opt/MapSkinner/MapSkinner/mrmap_uwsgi.ini
+
+
+[Install]
+WantedBy=multi-user.target

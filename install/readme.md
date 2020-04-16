@@ -83,6 +83,6 @@ or email the request to me: andre.holl@vermkv.rlp.de
 - You can disable it with:  
 
 ```
-sed -i 's/SecRuleEngine On/SecRuleEngine DetectionOnly/' /etc/nginx/modsec/modsecurity.conf   
+sed -i 's/SecRuleEngine On/SecRuleEngine DetectionOnly/g' /etc/nginx/modsec/modsecurity.conf   
 /etc/init.d/nginx restart
 ```    

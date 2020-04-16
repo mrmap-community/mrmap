@@ -9,7 +9,7 @@ from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryD
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from requests import ReadTimeout
+from requests.exceptions import ReadTimeout
 from MapSkinner import utils
 from MapSkinner.cacher import PreviewImageCacher
 from MapSkinner.consts import *
@@ -1028,7 +1028,11 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id:
 
         # Log the response, if needed
         if proxy_log is not None:
-            proxy_log.log_response(response, operation_handler.request_param)
+            proxy_log.log_response(
+                response,
+                operation_handler.request_param,
+                operation_handler.format_param,
+            )
 
         len_response = len(response)
 

@@ -1,0 +1,21 @@
+[uwsgi]
+
+# Django-related settings
+# the base directory (full path)
+chdir           = /opt/MapSkinner
+# Django's wsgi file
+wsgi-file       = MapSkinner/wsgi.py
+# run as webserver user
+uid=www-data
+gid=www-data
+# process-related settings
+# master
+master          = true
+# maximum number of worker processes
+processes       = 10
+# the socket (use the full path to be safe
+socket          = 127.0.0.1:8000
+# ... with appropriate permissions - may be needed
+# chmod-socket    = 664
+# clear environment on exit
+vacuum          = true

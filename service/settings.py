@@ -127,3 +127,10 @@ PREVIEW_MIME_TYPE_DEFAULT = "png"   # Specify a preferred default mime type (wit
 
 # PROXY LOG
 COUNT_DATA_PIXELS_ONLY = True  # If True, the response megapixel will be computed without transparent (alpha) pixel.
+LOGABLE_FEATURE_RESPONSE_FORMATS = [
+    "csv",
+    "geojson",
+    "kml",
+    "gml2",
+    "gml3",
+]

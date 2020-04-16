@@ -1,5 +1,4 @@
 import io
-import json
 from io import BytesIO
 from PIL import Image
 from django.contrib import messages
@@ -20,7 +19,6 @@ from MapSkinner.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_UPDATED, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
-
 from service import tasks
 from service.helper import xml_helper
 from service.filters import WmsFilter, WfsFilter
@@ -670,24 +668,6 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
 
     context = DefaultContext(request, params, None)
     return render(request=request, template_name=base_template, context=context.get_context())
-
-
-@login_required
-def set_session(request: HttpRequest):
-    """ Can set a value to the django session
-
-    Args:
-        request:
-    Returns:
-    """
-    param_GET = request.GET.dict()
-    _session = param_GET.get("session", None)
-    if _session is None:
-        return BackendAjaxResponse(html="").get_response()
-    _session = json.loads(_session)
-    for _session_key, _session_val in _session.items():
-        request.session[_session_key] = _session_val
-    return BackendAjaxResponse(html="").get_response()
 
 
 @login_required

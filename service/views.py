@@ -972,8 +972,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id:
     Args:
         request (HttpRequest): The incoming request
         proxy_log (ProxyLog): The logging object
-        id (int): The metadata id
-        user (MrMapUser): The performing user
+        metadata_id (int): The metadata id
     Returns:
          A redirect to the GetMap uri
     """

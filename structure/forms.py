@@ -4,10 +4,8 @@ from django.forms import ModelForm
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
-from django.contrib import messages
-
-from MapSkinner.messages import ORGANIZATION_IS_OTHERS_PROPERTY, ORGANIZATION_CAN_NOT_BE_OWN_PARENT, \
-    GROUP_IS_OTHERS_PROPERTY, GROUP_CAN_NOT_BE_OWN_PARENT, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
+from MapSkinner.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
+    GROUP_IS_OTHERS_PROPERTY, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, REQUEST_ACTIVATION_TIMEOVER, \
     PUBLISH_PERMISSION_REMOVING_DENIED
 from MapSkinner.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
@@ -101,6 +99,8 @@ class PublisherForOrganizationForm(forms.Form):
                 self.add_error("group", PUBLISH_REQUEST_ABORTED_OWN_ORG)
             else:
                 self.add_error(None, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER)
+
+        return cleaned_data
 
 
 class OrganizationForm(ModelForm):

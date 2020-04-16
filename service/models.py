@@ -1,3 +1,4 @@
+import csv
 import io
 import uuid
 
@@ -154,14 +155,34 @@ class ProxyLog(models.Model):
         self.response_wfs_num_features = num_features
 
     def _log_wfs_response_csv(self, response: str):
-        """ Evaluate the wfs response.
+        """ Evaluate the wfs response as csv.
+
+        It's assumed, that the first line of a csv formatted wfs response contains the headlines
+        of each column.
+        All following lines are features.
 
         Args:
             response (str): The response csv
         Returns:
              nothing
         """
+        # CSV responses might be wrongly encoded. So UTF-8 will fail and we need to try latin-1
+        try:
+            response = response.decode("utf-8")
+        except Exception:
+            try:
+                response = response.decode("latin-1")
+            except Exception:
+                raise UnicodeDecodeError("not supported")
+
+        _input = io.StringIO(response)
+        reader = csv.reader(_input, delimiter=",")
+
+        # Set initial of num_features to -1 so we don't need to subtract the headline row afterwards
         num_features = -1
+        for line in reader:
+            num_features += 1
+
         self.response_wfs_num_features = num_features
 
     def _log_wfs_response_geojson(self, response: str):
@@ -231,7 +252,7 @@ class ProxyLog(models.Model):
             self._log_wfs_response_kml(response)
         else:
             # Should not happen!
-            raise Exception(PARAMETER_ERROR.format("outputformat"))
+            raise ValueError(PARAMETER_ERROR.format("outputformat"))
 
     def _log_wms_response(self, img):
         """ Evaluate the wms response.

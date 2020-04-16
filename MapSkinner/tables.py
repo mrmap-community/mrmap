@@ -1,6 +1,8 @@
 from django.http import HttpRequest
 from django_tables2 import tables, RequestConfig
 from django_tables2.templatetags import django_tables2
+
+from MapSkinner.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
 from MapSkinner.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_MAX, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
 
 
@@ -43,6 +45,5 @@ class MapSkinnerTable(tables.Table):
         self.paginate(page=request.GET.get(self.pagination.get('page_name'), PAGE_DEFAULT),
                       per_page=request.GET.get(self.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
-
-
-
+    def __init__(self, *args, **kwargs):
+        super().__init__(template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, *args, **kwargs)

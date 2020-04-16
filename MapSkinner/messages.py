@@ -76,10 +76,14 @@ PUBLISH_PERMISSION_REMOVING_DENIED = _("Publish permission removing denied. You 
 GROUP_CAN_NOT_BE_OWN_PARENT = _("A group can not be parent to itself!")
 GROUP_IS_OTHERS_PROPERTY = _("This group is owned by another user. Action denied.")
 GROUP_FORM_INVALID = _("The form data was not valid.")
-GROUP_SUCCESSFULLY_DELETED = _("Group %s successfully deleted.")
+
+GROUP_SUCCESSFULLY_DELETED = _("Group '{}' successfully deleted.")
+GROUP_SUCCESSFULLY_EDITED = _("Group '{}' successfully edited.")
+GROUP_SUCCESSFULLY_CREATED = _("Group {} successfully created.")
 ORGANIZATION_FORM_INVALID = GROUP_FORM_INVALID
 ORGANIZATION_CAN_NOT_BE_OWN_PARENT = _("An organization can not be parent to itself!")
 ORGANIZATION_IS_OTHERS_PROPERTY = _("This organization is owned by another user. Action denied.")
+ORGANIZATION_SUCCESSFULLY_EDITED = _("Organization '{}' successfully edited.")
 
 SERVICE_REGISTRATION_ABORTED = _("The service registration for '{}' was canceled")
 SERVICE_UPDATE_WRONG_TYPE = _("You tried to update a service to another service type. This is not possible!")

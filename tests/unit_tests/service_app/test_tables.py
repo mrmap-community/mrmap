@@ -18,7 +18,6 @@ class ServiceTestCase(TestCase):
         md_list = Metadata.objects.all()
 
         wms_table = WmsServiceTable(md_list,
-                                    template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                     order_by_field='swms',  # swms = sort wms
                                     user=None, )
 
@@ -42,7 +41,6 @@ class ServiceTestCase(TestCase):
         md_list = Metadata.objects.all()
 
         wms_table = WmsLayerTable(md_list,
-                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                   order_by_field='swms',  # swms = sort wms
                                   user=None, )
 
@@ -66,7 +64,6 @@ class ServiceTestCase(TestCase):
         md_list = Metadata.objects.all()
 
         wfs_table = WfsServiceTable(md_list,
-                                    template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                     order_by_field='swfs',  # swms = sort wms
                                     user=None, )
 
@@ -90,7 +87,6 @@ class ServiceTestCase(TestCase):
         md_list = Metadata.objects.all()
 
         table = PendingTasksTable(md_list,
-                                  template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                   order_by_field='sort',  # swms = sort wms
                                   user=None, )
 
@@ -114,7 +110,6 @@ class ServiceTestCase(TestCase):
         md_list = Metadata.objects.all()
 
         table = ChildLayerTable(md_list,
-                                template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                 order_by_field='sort',  # swms = sort wms
                                 user=None, )
 
@@ -139,7 +134,6 @@ class ServiceTestCase(TestCase):
         md_list = Metadata.objects.all()
 
         table = FeatureTypeTable(md_list,
-                                 template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                  order_by_field='sort',  # swms = sort wms
                                  user=None, )
 
@@ -164,7 +158,6 @@ class ServiceTestCase(TestCase):
         md_list = Metadata.objects.all()
 
         table = CoupledMetadataTable(md_list,
-                                     template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE,
                                      order_by_field='sort',  # swms = sort wms
                                      user=None, )
 

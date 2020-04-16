@@ -5,15 +5,14 @@ app_name = 'structure'
 urlpatterns = [
     path('', index, name='index'),
 
-    path('task/<id>', task, name='task'),
-    path('task/remove/<id>', remove_task, name='remove-task'),
+    path('task/remove/<task_id>', remove_task, name='remove-task'),
 
     path('groups/', groups_index, name='groups-index'),
-    path('groups/detail/<id>', detail_group, name='detail-group'),
-    path('groups/edit/<id>', edit_group, name='edit-group'),
-    path('groups/delete/<id>', remove_group, name='delete-group'),
+    path('groups/detail/<group_id>', detail_group, name='detail-group'),
+    path('groups/edit/<group_id>', edit_group, name='edit-group'),
+    path('groups/delete/<group_id>', remove_group, name='delete-group'),
     path('groups/new/register-form/', new_group, name='new-group'),
-    path('groups/publisher/<id>', list_publisher_group, name='publisher-group'),
+    path('groups/publisher/<group_id>', list_publisher_group, name='publisher-group'),
 
     path('publish-request/<request_id>/accept/', accept_publish_request, name='accept-publish-request'),
 

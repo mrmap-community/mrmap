@@ -15,7 +15,9 @@
         </button>
         {% with form=new_organization_form %}
             {% with 'new_organization_modal' as id_modal %}
-                {% include 'modals/new_organization.html' %}
+                {% with show_new_organization_form as show_modal %}
+                    {% include 'modals/new_organization.html' %}
+                {% endwith %}
             {% endwith %}
         {% endwith %}
     {% endif %}

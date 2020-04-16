@@ -19,7 +19,9 @@
                 </div>
                 {% with form=edit_organization_form %}
                     {% with 'edit_organization_modal' as id_modal %}
-                        {% include 'modals/edit_organization.html' %}
+                        {% with show_edit_organization_form as show_modal %}
+                            {% include 'modals/edit_organization.html' %}
+                        {% endwith %}
                     {% endwith %}
                 {% endwith %}
             {% endif %}
@@ -32,7 +34,9 @@
                 </div>
                 {% with form=publisher_form %}
                     {% with 'request_publishing_modal' as id_modal %}
-                        {% include 'modals/request_publishing_for_organization.html' %}
+                        {% with show_publisher_form as show_modal %}
+                            {% include 'modals/request_publishing_for_organization.html' %}
+                        {% endwith %}
                     {% endwith %}
                 {% endwith %}
             {% endif %}
@@ -45,7 +49,9 @@
                 </div>
                 {% with form=delete_organization_form %}
                     {% with 'delete_organization_modal' as id_modal %}
-                        {% include 'modals/delete_organization.html' %}
+                        {% with show_delete_organization_form as show_modal %}
+                            {% include 'modals/delete_organization.html' %}
+                        {% endwith %}
                     {% endwith %}
                 {% endwith %}
             {% endif %}

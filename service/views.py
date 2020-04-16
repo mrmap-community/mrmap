@@ -1073,7 +1073,6 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id:
                 response,
                 operation_handler.request_param,
                 operation_handler.format_param,
-                operation_handler.type_name_param
             )
 
         len_response = len(response)

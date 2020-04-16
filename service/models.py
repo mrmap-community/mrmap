@@ -1,11 +1,14 @@
 import csv
 import io
+import json
 import uuid
 
 import os
 from collections import OrderedDict
 
 import time
+from json import JSONDecodeError
+
 from PIL import Image
 from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
@@ -71,7 +74,7 @@ class ProxyLog(models.Model):
         return str(self.id)
 
     @transaction.atomic
-    def log_response(self, response, request_param: str, output_format: str, type_name: str):
+    def log_response(self, response, request_param: str, output_format: str):
         """ Evaluate the response.
 
         In case of a WFS response, the number of returned features will be counted.
@@ -88,7 +91,7 @@ class ProxyLog(models.Model):
 
         start_time = time.time()
         if service_type == OGCServiceEnum.WFS.value:
-            self._log_wfs_response(response, output_format, type_name)
+            self._log_wfs_response(response, output_format)
         elif service_type == OGCServiceEnum.WMS.value:
             self._log_wms_response(response)
         else:
@@ -98,7 +101,7 @@ class ProxyLog(models.Model):
         self.save()
         print_debug_mode(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
 
-    def _log_wfs_response_xml(self, xml: str, type_name: str):
+    def _log_wfs_response_xml(self, xml: str):
         """ Evaluate the wfs response.
 
         For KML:
@@ -166,19 +169,47 @@ class ProxyLog(models.Model):
         Returns:
              nothing
         """
-        # CSV responses might be wrongly encoded. So UTF-8 will fail and we need to try latin-1
+        response_maybe_csv = True
+
+        # Make sure no non-csv has been returned as response
+        # Check if we can create XML from it
+        test_xml = xml_helper.parse_xml(response)
+        if test_xml is not None:
+            # This is not CSV! maybe an error message of the server
+            response_maybe_csv = False
+
         try:
-            response = response.decode("utf-8")
-        except UnicodeDecodeError:
-            response = response.decode("latin-1")
+            test_json = json.loads(response)
+            # If we can raise the ValueError, the response could be transformed into json -> no csv!
+            raise ValueError
+        except JSONDecodeError:
+            # Could not create JSON -> might be regular csv
+            pass
+        except ValueError:
+            # It is JSON, no csv
+            response_maybe_csv = False
 
-        _input = io.StringIO(response)
-        reader = csv.reader(_input, delimiter=",")
+        # If csv is not supported by the responding server, we are not able to read csv values.
+        # In this case, set the initial number of features to 0, since there are no features inside.
+        num_features = 0
+        if response_maybe_csv:
+            # CSV responses might be wrongly encoded. So UTF-8 will fail and we need to try latin-1
+            try:
+                response = response.decode("utf-8")
+            except UnicodeDecodeError:
+                response = response.decode("latin-1")
 
-        # Set initial of num_features to -1 so we don't need to subtract the headline row afterwards
-        num_features = -1
-        for line in reader:
-            num_features += 1
+            try:
+                _input = io.StringIO(response)
+                reader = csv.reader(_input, delimiter=",")
+
+                # Set initial of num_features to -1 so we don't need to subtract the headline row afterwards
+                num_features = -1
+                for line in reader:
+                    num_features += 1
+
+            except Exception as e:
+                pass
 
         self.response_wfs_num_features = num_features
 
@@ -190,7 +221,15 @@ class ProxyLog(models.Model):
         Returns:
              nothing
         """
-        num_features = -1
+        # Initial is 0. It is possible, that the server does not support geojson. Then 0 features are delivered.
+        num_features = 0
+        try:
+            response = json.loads(response)
+            # If 'numberMatched' could not be found, we need to set an error value in here
+            num_features = response.get("numberMatched", -1)
+        except JSONDecodeError:
+            pass
+
         self.response_wfs_num_features = num_features
 
     def _log_wfs_response_kml(self, response: str):
@@ -205,21 +244,25 @@ class ProxyLog(models.Model):
         Returns:
              nothing
         """
-        xml = xml_helper.parse_xml(response)
-        root = xml.getroot()
+        num_features = 0
+        try:
+            xml = xml_helper.parse_xml(response)
+            root = xml.getroot()
 
-        # Count <Placemark> elements
-        identifier = "Placemark"
+            # Count <Placemark> elements
+            identifier = "Placemark"
 
-        feature_elems = xml_helper.try_get_element_from_xml(
-            "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
-            root
-        )
-        num_features = len(feature_elems)
+            feature_elems = xml_helper.try_get_element_from_xml(
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
+                root
+            )
+            num_features = len(feature_elems)
+        except AttributeError as e:
+            pass
 
         self.response_wfs_num_features = num_features
 
-    def _log_wfs_response(self, response: str, output_format: str, type_name: str):
+    def _log_wfs_response(self, response: str, output_format: str):
         """ Evaluate the wfs response.
 
         Args:
@@ -238,7 +281,7 @@ class ProxyLog(models.Model):
 
         if used_format is None and output_format is None:
             # Default case - no outputformat parameter was given. We assume a xml representation
-            self._log_wfs_response_xml(response, type_name)
+            self._log_wfs_response_xml(response)
         elif used_format is None:
             raise ValueError("Not logable output format used. Logable formats are {}".format(",".join(LOGABLE_FEATURE_RESPONSE_FORMATS)))
         elif used_format == "csv":

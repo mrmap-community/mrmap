@@ -411,39 +411,6 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
     return HttpResponse(document, content_type='application/xml')
 
 
-def check_for_dataset_metadata(request: HttpRequest, metadata_id: int):
-    """ Checks whether an element (layer or featuretype) has a dataset metadata record.
-
-    This function is used for ajax calls from the client, to check dynamically on an opened subelement if there
-    are dataset metadata to get.
-
-    Args:
-        request (HttpRequest): The incoming request
-        metadata_id (int): The element id
-    Returns:
-         A BackendAjaxResponse, containing a boolean, whether the requested element has a dataset metadata record or not
-    """
-    element_type = request.GET.get("serviceType")
-    if element_type == OGCServiceEnum.WMS.value:
-        element = Layer.objects.get(metadata__id=metadata_id)
-    elif element_type == OGCServiceEnum.WFS.value:
-        element = FeatureType.objects.get(metadata__id=metadata_id)
-    else:
-        return
-    md = element.metadata
-    try:
-        # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
-        md_2 = md.get_related_dataset_metadata()
-        doc = Document.objects.get(
-            related_metadata=md_2
-        )
-        has_dataset_doc = doc.dataset_metadata_document is not None
-    except ObjectDoesNotExist:
-        has_dataset_doc = False
-
-    return BackendAjaxResponse(html="", has_dataset_doc=has_dataset_doc).get_response()
-
-
 # TODO: currently the preview is not pretty. Refactor this method to get a pretty preview img by consider the right scale of the layers
 def get_service_metadata_preview(request: HttpRequest, metadata_id: int):
     """ Returns the service metadata previe als png for a given metadata id
@@ -888,6 +855,24 @@ def wfs_index(request: HttpRequest):
     return render(request=request, template_name=template, context=context.get_context())
 
 
+def _check_for_dataset_metadata(metadata: Metadata,):
+    """ Checks whether an metadata object has a dataset metadata record.
+
+    Args:
+        metadata:
+    Returns:
+         A boolean, whether the requested element has a dataset metadata record or not
+    """
+    try:
+        md_2 = metadata.get_related_dataset_metadata()
+        Document.objects.get(
+            related_metadata=md_2
+        )
+        return True
+    except ObjectDoesNotExist:
+        return False
+
+
 @login_required
 def detail(request: HttpRequest, metadata_id: int, update_params=None, status_code=None):
     """ Renders a detail view of the selected service
@@ -911,6 +896,7 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
         template = "views/featuretype_detail_no_base.html" if 'no-base' in request.GET else "views/featuretype_detail.html"
         service = service_md.featuretype
         layers_md_list = {}
+        params.update({'has_dataset_metadata': _check_for_dataset_metadata(service.metadata)})
     else:
         if service_md.service.is_root:
             params.update({'caption': _("Shows informations about the service which you are selected.")})
@@ -927,18 +913,7 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
             layers_md_list = Layer.objects.filter(
                 parent_layer=service_md.service
             )
-
-    try:
-        related_md = MetadataRelation.objects.get(
-            metadata_from=service_md,
-            metadata_to__metadata_type__type='dataset',
-        )
-        document = Document.objects.get(
-            related_metadata=related_md.metadata_to
-        )
-        has_dataset_metadata = document.dataset_metadata_document is not None
-    except ObjectDoesNotExist:
-        has_dataset_metadata = False
+            params.update({'has_dataset_metadata': _check_for_dataset_metadata(service.metadata)})
 
     mime_types = {}
     for mime in service.formats.all():
@@ -966,7 +941,6 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
     update_service_check_form.action_url = reverse('service:update', args=[metadata_id])
 
     params.update({
-        "has_dataset_metadata": has_dataset_metadata,
         "service_md": service_md,
         "service": service,
         "layers": layers_md_list,

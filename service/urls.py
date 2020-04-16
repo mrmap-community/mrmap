@@ -8,7 +8,6 @@ urlpatterns = [
 
     path('metadata/<metadata_id>', get_service_metadata, name='get-service-metadata'),
     path('metadata/dataset/<metadata_id>', get_dataset_metadata, name='get-dataset-metadata'),
-    path('metadata/dataset/check/<metadata_id>', check_for_dataset_metadata, name='check-for-dataset-metadata'),
     path('metadata/preview/<metadata_id>', get_service_metadata_preview, name='get-service-metadata-preview'),
     path('metadata/html/<metadata_id>', get_metadata_html, name='get-metadata-html'),
 

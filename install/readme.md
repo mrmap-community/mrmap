@@ -1,12 +1,12 @@
 Brief description of files and scripts found in the install folder.
 
-I.  mapskinner_production_setup.bash
+I.    mapskinner_production_setup.bash
 
-This script will install mapskinner with production settings on your blank debian10 server.  
+This script will install MapSkinner with production settings on your blank debian10 server.  
 
 Get it with:
 ```
-wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_setup/install/mapskinner_production_setup.bash
+wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/pre_master/install/mapskinner_production_setup.bash
 ```  
 
 Change your hostname and desired database credentials at the beginning of the script.  
@@ -40,7 +40,7 @@ stronger encryption keys, this is absolutely recommended for a real production s
 facing the threats of the www, it can take up to an hour though! Can be skipped for testing and intranet only servers.  
 
 
-II.  update_mapskinner.bash
+II.   update_mapskinner.bash
 
 This updates your MapSkinner installation.  
 In the first step this will check if there are differences between your local  
@@ -51,24 +51,19 @@ In the next step it will backup these files:
 - MapSkinner/settings.py   
 - service/settings.py  
 
-Afterwards your local copy will be reset with "git reset --hard" (this will delete   
-all local changes made to the code!), updated to the newest master status and puts  
+Afterwards it will reset your local copy with "git reset --hard" (this will delete   
+all local changes made to the code!), update it to the newest master status and puts  
 configurations back to where they belong.  
 In the end the script will collect all new static files and translations and  
 tries to apply global migrations if there are any. Specific migrations to certain  
-apps need to be done manually!  
-
-Get it with:
-```
-wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_setup/install/update_mapskinner.bash
-```  
+apps need to be done manually!   
 
 Usage:  
 ```
-bash update_mapskinner.bash
+bash /opt/MapSkinner/install/update_mapskinner.bash
 ```  
 
-III. mass_register.py
+III.  mass_register.py
 
 Used to register a list of services at once via the mapskinner api.
 
@@ -78,5 +73,15 @@ Adjust the rest of the parameters in mass_register.py to your needs.
 
 Usage:    
 ```
-python3 mass_register.py WMSLIST
+python3 /opt/MapSkinner/install/mass_register.py WMSLIST
+```    
+
+IIII.  Some notes on ModSecurity
+
+- If you get blocked while making a legitimate request, please write an issue   
+or email the request to me: andre.holl@vermkv.rlp.de  
+- You can disable it with:  
+```
+sed -i 's/SecRuleEngine On/SecRuleEngine DetectionOnly/' /etc/nginx/modsec/modsecurity.conf
+/etc/init.d/nginx restart
 ```    

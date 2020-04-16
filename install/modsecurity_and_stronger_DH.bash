@@ -83,3 +83,5 @@ include ../owasp-modsecurity-crs/rules/RESPONSE-959-BLOCKING-EVALUATION.conf
 include ../owasp-modsecurity-crs/rules/RESPONSE-980-CORRELATION.conf
 include ../owasp-modsecurity-crs/rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf
 EOF
+
+/etc/init.d/nginx restart

@@ -4,23 +4,24 @@ installation_folder="/opt/"
 check_django_settings(){
    missing_items=()
 
-   rm /tmp/settings.py
    cd /tmp/
-   wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/pre_master/MapSkinner/settings.py
+   dottedname=`echo $1 | sed s/"\/"/"."/g`
+   rm $dottedname
+   wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/pre_master/$1 -O $dottedname
 
    while IFS="" read -r p || [ -n "$p" ]
      do
         h=`printf '%s\n' "$p" | cut -d = -f 1`
         h_full=`printf '%s\n' "$p"`
-        if ! grep -Fq "$h" ${installation_folder}/MapSkinner/MapSkinner/settings.py
+        if ! grep -Fq "$h" ${installation_folder}/MapSkinner/$1
         then
             missing_items+=("$h_full")
          fi
 
-   done < /tmp/settings.py
+   done < /tmp/$dottedname
 
    if [ ${#missing_items[@]} -ne 0 ]; then
-     echo "The following items are present in the masters settings.py but are missing in your local settings.py!"
+     echo "The following items are present in the masters $1 but are missing in your local $1"
      printf '%s\n' "${missing_items[@]}"
 
      while true; do
@@ -56,8 +57,16 @@ custom_update(){
       fi
     fi
 }
+echo "!!!!!!!!!!!!!!!!!!!!!!!!!!
+Checking MapSkinner/settings.py
+!!!!!!!!!!!!!!!!!!!!!!!!!!"
+check_django_settings "MapSkinner/settings.py"
 
-check_django_settings
+echo "!!!!!!!!!!!!!!!!!!!!!!!!!!
+Checking service/settings.py
+!!!!!!!!!!!!!!!!!!!!!!!!!!"
+check_django_settings "service/settings.py"
+
 cd ${installation_folder}MapSkinner/
 echo "Backing up Django Configs"
 cp -av ${installation_folder}MapSkinner/MapSkinner/settings.py /tmp/settings.py_$(date +"%m_%d_%Y")

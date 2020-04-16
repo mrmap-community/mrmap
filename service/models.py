@@ -17,7 +17,7 @@ from django.contrib.gis.db import models
 from django.utils import timezone
 
 from MapSkinner.cacher import DocumentCacher
-from MapSkinner.messages import PARAMETER_ERROR
+from MapSkinner.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MapSkinner import utils
 from MapSkinner.utils import print_debug_mode
@@ -116,45 +116,48 @@ class ProxyLog(models.Model):
         Returns:
              nothing
         """
-        xml = xml_helper.parse_xml(xml)
+        num_features = 0
+        try:
+            xml = xml_helper.parse_xml(xml)
 
-        # Due to different versions of wfs, the member name changes. Since we do not know in which version the
-        # GetFeature request was performed, we simply check on both possibilites and continue with the one that
-        # delivers more features than 0. If no features are returned anyway, the value 0 will fit as well.
-        identifiers = [
-            "member",
-            "featureMember",
-        ]
-        root = xml.getroot()
-
-        num_features = -1
-        for identifier in identifiers:
-            feature_elems = xml_helper.try_get_element_from_xml(
-                "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
-                root
-            )
-            num_features = len(feature_elems)
-            if num_features > 0:
-                break
-
-        if num_features == 0:
-            # Special case:
-            # There are services which do not follow the specification for WFS and wrap all their features in
-            # <members> or <featureMembers> elements. So we have to check if there might be one of these identifiers
-            # inside the response.
+            # Due to different versions of wfs, the member name changes. Since we do not know in which version the
+            # GetFeature request was performed, we simply check on both possibilites and continue with the one that
+            # delivers more features than 0. If no features are returned anyway, the value 0 will fit as well.
             identifiers = [
-                "members",
-                "featureMembers"
+                "member",
+                "featureMember",
             ]
+            root = xml.getroot()
+
+            num_features = -1
             for identifier in identifiers:
-                feature_elem = xml_helper.try_get_single_element_from_xml(
+                feature_elems = xml_helper.try_get_element_from_xml(
                     "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
                     root
                 )
-                if feature_elem is not None:
-                    num_features = len(feature_elem.getchildren())
+                num_features = len(feature_elems)
+                if num_features > 0:
                     break
 
+            if num_features == 0:
+                # Special case:
+                # There are services which do not follow the specification for WFS and wrap all their features in
+                # <members> or <featureMembers> elements. So we have to check if there might be one of these identifiers
+                # inside the response.
+                identifiers = [
+                    "members",
+                    "featureMembers"
+                ]
+                for identifier in identifiers:
+                    feature_elem = xml_helper.try_get_single_element_from_xml(
+                        "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
+                        root
+                    )
+                    if feature_elem is not None:
+                        num_features = len(feature_elem.getchildren())
+                        break
+        except AttributeError:
+            pass
         self.response_wfs_num_features = num_features
 
     def _log_wfs_response_csv(self, response: str):
@@ -271,25 +274,29 @@ class ProxyLog(models.Model):
         Returns:
              nothing
         """
-        used_format = None
+        used_logable_format = None
+
         # Output_format might be None if no parameter was specified. We assume the default xml response in this case
         if output_format is not None:
-            for format in LOGABLE_FEATURE_RESPONSE_FORMATS:
-                if format in output_format.lower():
-                    used_format = format
+            for _format in LOGABLE_FEATURE_RESPONSE_FORMATS:
+                if _format in output_format.lower():
+                    used_logable_format = _format
                     break
 
-        if used_format is None and output_format is None:
+        if used_logable_format is None and output_format is None:
             # Default case - no outputformat parameter was given. We assume a xml representation
             self._log_wfs_response_xml(response)
-        elif used_format is None:
-            raise ValueError("Not logable output format used. Logable formats are {}".format(",".join(LOGABLE_FEATURE_RESPONSE_FORMATS)))
-        elif used_format == "csv":
+        elif used_logable_format is None:
+            raise ValueError(LOGGING_INVALID_OUTPUTFORMAT.format(",".join(LOGABLE_FEATURE_RESPONSE_FORMATS)))
+        elif used_logable_format == "csv":
             self._log_wfs_response_csv(response)
-        elif used_format == "geojson":
+        elif used_logable_format == "geojson":
             self._log_wfs_response_geojson(response)
-        elif used_format == "kml":
+        elif used_logable_format == "kml":
             self._log_wfs_response_kml(response)
+        elif "gml" in used_logable_format:
+            # Specifies the default gml xml response
+            self._log_wfs_response_xml(response)
         else:
             # Should not happen!
             raise ValueError(PARAMETER_ERROR.format("outputformat"))

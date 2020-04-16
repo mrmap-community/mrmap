@@ -131,4 +131,6 @@ LOGABLE_FEATURE_RESPONSE_FORMATS = [
     "csv",
     "geojson",
     "kml",
+    "gml2",
+    "gml3",
 ]

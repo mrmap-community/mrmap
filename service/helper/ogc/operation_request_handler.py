@@ -172,7 +172,7 @@ class OGCOperationRequestHandler:
             elif key == "VERSION":
                 self.version_param = val
             elif key == "FORMAT" or key == "OUTPUTFORMAT":
-                self.format_param = val
+                self.format_param = val or None
             elif key == "SRS" or key == "CRS" or key == "SRSNAME":
                 self.srs_param = val
                 self.srs_code = int(self.srs_param.split(":")[-1])  # get the last element of the ':' splitted string

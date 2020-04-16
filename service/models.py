@@ -22,7 +22,8 @@ from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, Metadata
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.iso.service_metadata_builder import ServiceMetadataBuilder
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
-    SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY
+    SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
+    LOGABLE_FEATURE_RESPONSE_FORMATS
 from structure.models import MrMapGroup, Organization
 from service.helper import xml_helper
 
@@ -69,7 +70,7 @@ class ProxyLog(models.Model):
         return str(self.id)
 
     @transaction.atomic
-    def log_response(self, response, request_param: str):
+    def log_response(self, response, request_param: str, output_format: str, type_name: str):
         """ Evaluate the response.
 
         In case of a WFS response, the number of returned features will be counted.
@@ -78,6 +79,7 @@ class ProxyLog(models.Model):
         Args:
             response: The response, could be xml or bytes
             request_param (str): The operation that has been performed
+            output_format (str): The output format for the response
         Returns:
              nothing
         """
@@ -85,7 +87,7 @@ class ProxyLog(models.Model):
 
         start_time = time.time()
         if service_type == OGCServiceEnum.WFS.value:
-            self._log_wfs_response(response)
+            self._log_wfs_response(response, output_format, type_name)
         elif service_type == OGCServiceEnum.WMS.value:
             self._log_wms_response(response)
         else:
@@ -95,11 +97,18 @@ class ProxyLog(models.Model):
         self.save()
         print_debug_mode(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
 
-    def _log_wfs_response(self, xml: str):
+    def _log_wfs_response_xml(self, xml: str, type_name: str):
         """ Evaluate the wfs response.
 
+        For KML:
+        KML specification can be found here:
+        http://schemas.opengis.net/kml/
+
+        Another informative page:
+        https://developers.google.com/kml/documentation/kml_tut?hl=de#placemarks
+
         Args:
-            xml: The response xml
+            xml (str): The response xml
         Returns:
              nothing
         """
@@ -114,6 +123,7 @@ class ProxyLog(models.Model):
         ]
         root = xml.getroot()
 
+        num_features = -1
         for identifier in identifiers:
             feature_elems = xml_helper.try_get_element_from_xml(
                 "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
@@ -123,7 +133,105 @@ class ProxyLog(models.Model):
             if num_features > 0:
                 break
 
+        if num_features == 0:
+            # Special case:
+            # There are services which do not follow the specification for WFS and wrap all their features in
+            # <members> or <featureMembers> elements. So we have to check if there might be one of these identifiers
+            # inside the response.
+            identifiers = [
+                "members",
+                "featureMembers"
+            ]
+            for identifier in identifiers:
+                feature_elem = xml_helper.try_get_single_element_from_xml(
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
+                    root
+                )
+                if feature_elem is not None:
+                    num_features = len(feature_elem.getchildren())
+                    break
+
         self.response_wfs_num_features = num_features
+
+    def _log_wfs_response_csv(self, response: str):
+        """ Evaluate the wfs response.
+
+        Args:
+            response (str): The response csv
+        Returns:
+             nothing
+        """
+        num_features = -1
+        self.response_wfs_num_features = num_features
+
+    def _log_wfs_response_geojson(self, response: str):
+        """ Evaluate the wfs response.
+
+        Args:
+            response (str): The response geojson
+        Returns:
+             nothing
+        """
+        num_features = -1
+        self.response_wfs_num_features = num_features
+
+    def _log_wfs_response_kml(self, response: str):
+        """ Evaluate the wfs response.
+
+        References:
+            https://www.ogc.org/standards/kml
+            https://developers.google.com/kml/documentation/kml_tut?hl=de#placemarks
+
+        Args:
+            response (str): The response kml
+        Returns:
+             nothing
+        """
+        xml = xml_helper.parse_xml(response)
+        root = xml.getroot()
+
+        # Count <Placemark> elements
+        identifier = "Placemark"
+
+        feature_elems = xml_helper.try_get_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
+            root
+        )
+        num_features = len(feature_elems)
+
+        self.response_wfs_num_features = num_features
+
+    def _log_wfs_response(self, response: str, output_format: str, type_name: str):
+        """ Evaluate the wfs response.
+
+        Args:
+            xml (str): The response xml
+            output_format (str): The output format of the response
+        Returns:
+             nothing
+        """
+        used_format = None
+        # Output_format might be None if no parameter was specified. We assume the default xml response in this case
+        if output_format is not None:
+            for format in LOGABLE_FEATURE_RESPONSE_FORMATS:
+                if format in output_format.lower():
+                    used_format = format
+                    break
+
+        if used_format is None and output_format is None:
+            # Default case - no outputformat parameter was given. We assume a xml representation
+            self._log_wfs_response_xml(response, type_name)
+        elif used_format is None:
+            raise ValueError("Not logable output format used. Logable formats are {}".format(",".join(LOGABLE_FEATURE_RESPONSE_FORMATS)))
+        elif used_format == "csv":
+            self._log_wfs_response_csv(response)
+        elif used_format == "geojson":
+            self._log_wfs_response_geojson(response)
+        elif used_format == "kml":
+            self._log_wfs_response_kml(response)
+        else:
+            # Should not happen!
+            raise Exception(PARAMETER_ERROR.format("outputformat"))
 
     def _log_wms_response(self, img):
         """ Evaluate the wms response.

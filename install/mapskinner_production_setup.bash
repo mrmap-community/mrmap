@@ -41,6 +41,10 @@ python /opt/MapSkinner/manage.py collectstatic
 sed -i s/"DEBUG = True"/"DEBUG = False"/g /opt/MapSkinner/MapSkinner/settings.py
 sed -i s/"HOST_NAME = \"127.0.0.1:8000\""/"HOST_NAME = \"$hostname\""/g /opt/MapSkinner/MapSkinner/settings.py
 sed -i s/"HTTP_OR_SSL = \"http:\/\/\""/"HTTP_OR_SSL = \"https:\/\/\""/g /opt/MapSkinner/MapSkinner/settings.py
+# generate new secret key
+skey=`python /opt/MapSkinner/manage.py shell -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`
+sed -i '/^SECRET_KEY/d' /opt/MapSkinner/MapSkinner/settings.py
+sed -i "/# SECURITY WARNING: keep the secret key used in production secret\!/a SECRET_KEY = '$skey'" /opt/MapSkinner/MapSkinner/settings.py
 # remove postgres trust, replace with mr map database user
 sed -i s/"host    all             all             127.0.0.1\/32            trust"/"host    MrMap             $mrmap_db_user             127.0.0.1\/32            md5"/g /etc/postgresql/11/main/pg_hba.conf
 

@@ -1,6 +1,6 @@
 Brief description of files and scripts found in the install folder.
 
-I.    mapskinner_production_setup.bash
+**I.    mapskinner_production_setup.bash**
 
 This script will install MapSkinner with production settings on your blank debian10 server.  
 
@@ -40,7 +40,7 @@ stronger encryption keys, this is absolutely recommended for a real production s
 facing the threats of the www, it can take up to an hour though! Can be skipped for testing and intranet only servers.  
 
 
-II.   update_mapskinner.bash
+**II.   update_mapskinner.bash**
 
 This updates your MapSkinner installation.  
 In the first step this will check if there are differences between your local  
@@ -63,7 +63,7 @@ Usage:
 bash /opt/MapSkinner/install/update_mapskinner.bash
 ```  
 
-III.  mass_register.py
+**III.  mass_register.py**
 
 Used to register a list of services at once via the mapskinner api.
 
@@ -76,12 +76,13 @@ Usage:
 python3 /opt/MapSkinner/install/mass_register.py WMSLIST
 ```    
 
-IIII.  Some notes on ModSecurity
+**IIII.  Some notes on ModSecurity**
 
 - If you get blocked while making a legitimate request, please write an issue   
 or email the request to me: andre.holl@vermkv.rlp.de  
 - You can disable it with:  
+
 ```
-sed -i 's/SecRuleEngine On/SecRuleEngine DetectionOnly/' /etc/nginx/modsec/modsecurity.conf
+sed -i 's/SecRuleEngine On/SecRuleEngine DetectionOnly/' /etc/nginx/modsec/modsecurity.conf   
 /etc/init.d/nginx restart
 ```    

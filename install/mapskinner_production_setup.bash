@@ -37,10 +37,10 @@ python /opt/MapSkinner/manage.py makemigrations structure
 python /opt/MapSkinner/manage.py migrate
 python /opt/MapSkinner/manage.py collectstatic
 
-# changes to settings.py, set Django debug to false, set hostname
+# changes to settings.py, set Django debug to false, set hostname, enable ssl
 sed -i s/"DEBUG = True"/"DEBUG = False"/g /opt/MapSkinner/MapSkinner/settings.py
 sed -i s/"HOST_NAME = \"127.0.0.1:8000\""/"HOST_NAME = \"$hostname\""/g /opt/MapSkinner/MapSkinner/settings.py
-
+sed -i s/"HTTP_OR_SSL = \"http:\/\/\""/"HTTP_OR_SSL = \"https:\/\/\""/g /opt/MapSkinner/MapSkinner/settings.py
 # remove postgres trust, replace with mr map database user
 sed -i s/"host    all             all             127.0.0.1\/32            trust"/"host    MrMap             $mrmap_db_user             127.0.0.1\/32            md5"/g /etc/postgresql/11/main/pg_hba.conf
 

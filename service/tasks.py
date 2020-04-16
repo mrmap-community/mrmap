@@ -46,6 +46,7 @@ def async_activate_service(service_id: int, user_id: int, is_active: bool):
     Args:
         service_id (int): The service parameter
         user_id (int): The user id of the performing user
+
     Returns:
         nothing
     """

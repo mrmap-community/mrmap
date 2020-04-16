@@ -169,11 +169,8 @@ class ProxyLog(models.Model):
         # CSV responses might be wrongly encoded. So UTF-8 will fail and we need to try latin-1
         try:
             response = response.decode("utf-8")
-        except Exception:
-            try:
-                response = response.decode("latin-1")
-            except Exception:
-                raise UnicodeDecodeError("not supported")
+        except UnicodeDecodeError:
+            response = response.decode("latin-1")
 
         _input = io.StringIO(response)
         reader = csv.reader(_input, delimiter=",")

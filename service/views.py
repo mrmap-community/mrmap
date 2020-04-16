@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -15,8 +15,7 @@ from MapSkinner import utils
 from MapSkinner.cacher import PreviewImageCacher
 from MapSkinner.consts import *
 from MapSkinner.decorator import check_permission, log_proxy
-from MapSkinner.messages import SERVICE_UPDATE_WRONG_TYPE, \
-    SERVICE_REMOVED, SERVICE_UPDATED, \
+from MapSkinner.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED
@@ -146,15 +145,16 @@ def _new_service_wizard_page1(request: HttpRequest):
             "new_service_form": RegisterNewServiceWizardPage2(initial=init_data,
                                                               user=user,
                                                               selected_group=user.get_groups().first()),
-            "show_modal": True,
+            "show_new_service_form": True,
         }
+        return index(request=request, update_params=params, status_code=202)
     else:
         # Form is not valid --> response with page 1 and show errors
         params = {
             "new_service_form": form,
-            "show_modal": True,
+            "show_new_service_form": True,
         }
-    return index(request=request, update_params=params)
+        return index(request=request, update_params=params, status_code=422)
 
 
 def _new_service_wizard_page2(request: HttpRequest):
@@ -185,8 +185,9 @@ def _new_service_wizard_page2(request: HttpRequest):
         # it's just a updated form state. return the new state as view
         params = {
             "new_service_form": form,
-            "show_modal": True,
+            "show_new_service_form": True,
         }
+        return index(request=request, update_params=params,)
     else:
         # it's not a update. we have to validate the fields now
         # and if all is fine generate a new pending task object
@@ -200,26 +201,25 @@ def _new_service_wizard_page2(request: HttpRequest):
             try:
                 # Run creation async!
                 # Function returns the pending task object
-                pending_task = service_helper.create_new_service(form, user)
+                service_helper.create_new_service(form, user)
 
                 # everthing works well. Redirect to index page.
-                return redirect(SERVICE_INDEX)
-
+                return HttpResponseRedirect(reverse("service:index",), status=303)
             except Exception as e:
                 # Form is not valid --> response with page 2 and show errors
                 form.add_error(None, e)
                 params = {
                     "new_service_form": form,
-                    "show_modal": True,
+                    "show_new_service_form": True,
                 }
+                return index(request=request, update_params=params, status_code=422)
         else:
             # Form is not valid --> response with page 2 and show errors
             params = {
                 "new_service_form": form,
-                "show_modal": True,
+                "show_new_service_form": True,
             }
-
-    return index(request=request, update_params=params)
+            return index(request=request, update_params=params, status_code=422)
 
 
 @login_required
@@ -240,16 +240,17 @@ def add(request: HttpRequest):
         if page == 2:
             return _new_service_wizard_page2(request)
 
-    return redirect(SERVICE_INDEX)
+    return HttpResponseRedirect(reverse("service:index", ), status=303)
 
 
 @login_required
-def index(request: HttpRequest, update_params=None):
+def index(request: HttpRequest, update_params=None, status_code=None):
     """ Renders an overview of all wms and wfs
 
     Args:
         request (HttpRequest): The incoming request
         update_params: (Optional) the update_params dict
+        status_code:
     Returns:
          A view
     """
@@ -276,7 +277,10 @@ def index(request: HttpRequest, update_params=None):
         params.update(update_params)
 
     context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context())
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=200 if status_code is None else status_code)
 
 
 @login_required
@@ -320,21 +324,20 @@ def remove(request: HttpRequest, metadata_id: int):
         Redirect to service:index
     """
     user = user_helper.get_user(request)
-
+    metadata = get_object_or_404(Metadata, id=metadata_id)
     remove_form = RemoveServiceForm(request.POST)
     if request.method == 'POST':
         if remove_form.is_valid() and request.POST.get("is_confirmed") == 'on':
-            metadata = get_object_or_404(Metadata, id=metadata_id)
             service_helper.remove_service(metadata, user)
-            return redirect(SERVICE_INDEX)
+            return HttpResponseRedirect(reverse("service:index", ), status=303)
         else:
             params = {
                 "remove_service_form": remove_form,
                 "show_modal": True,
             }
-            return detail(request=request, metadata_id=metadata_id, update_params=params)
+            return detail(request=request, metadata_id=metadata_id, update_params=params, status_code=422)
     else:
-        return redirect("service:detail", metadata_id)
+        return HttpResponseRedirect(reverse("service:index", ), status=303)
 
 
 @login_required
@@ -364,7 +367,7 @@ def activate(request: HttpRequest, service_id: int):
         msg = SERVICE_DEACTIVATED.format(md.title)
     messages.success(request, msg)
 
-    return redirect("service:index")
+    return HttpResponseRedirect(reverse("service:detail", args=(md.id,)), status=303)
 
 
 def get_service_metadata(request: HttpRequest, metadata_id: int):
@@ -748,7 +751,7 @@ def update_service(request: HttpRequest, metadata_id: int):
                 "update_service_form": update_form,
                 "show_update_form": True,
             }
-            return detail(request, metadata_id, params)
+            return detail(request=request, metadata_id=metadata_id, update_params=params, status_code=422)
 
         # Get variables from form
         uri = update_form.cleaned_data.get("get_capabilities_uri", None)
@@ -765,7 +768,7 @@ def update_service(request: HttpRequest, metadata_id: int):
                 "update_service_form": update_form,
                 "show_update_form": True,
             }
-            return detail(request, metadata_id, params)
+            return detail(request=request, metadata_id=metadata_id, update_params=params, status_code=422)
 
         # Create db model from new service information (no persisting, yet)
         registrating_group = current_service.created_by
@@ -798,7 +801,7 @@ def update_service(request: HttpRequest, metadata_id: int):
             "update_confirmation_form": update_confirmation_form,
         }
         context = DefaultContext(request, params, user)
-        return render(request, template, context.get_context())
+        return render(request=request, template_name=template, context=context.get_context(), status=202)
 
     elif page == 2:
         # Update perform form!
@@ -814,7 +817,7 @@ def update_service(request: HttpRequest, metadata_id: int):
 
         if uri is None:
             messages.error(request, PARAMETER_ERROR.format("Get capabilities uri"))
-            return redirect("service:detail", metadata_id)
+            return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
 
         url_dict = service_helper.split_service_uri(uri)
         current_service = Service.objects.get(metadata__id=metadata_id)
@@ -873,7 +876,7 @@ def update_service(request: HttpRequest, metadata_id: int):
         )
 
         messages.success(request, SERVICE_UPDATED)
-        return redirect("service:detail", metadata_id)
+        return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
 
 
 @login_required
@@ -908,13 +911,14 @@ def wfs_index(request: HttpRequest):
 
 
 @login_required
-def detail(request: HttpRequest, metadata_id: int, update_params=None):
+def detail(request: HttpRequest, metadata_id: int, update_params=None, status_code=None):
     """ Renders a detail view of the selected service
 
     Args:
         request: The incoming request
         metadata_id: The id of the selected metadata
         update_params: dict with params we will update before we return the context
+        status_code
     Returns:
     """
     user = user_helper.get_user(request)
@@ -998,7 +1002,10 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None):
         params.update(update_params)
 
     context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context())
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=200 if status_code is None else status_code)
 
 
 @csrf_exempt

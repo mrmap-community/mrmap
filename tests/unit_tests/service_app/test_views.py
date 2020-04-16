@@ -104,7 +104,7 @@ class ServiceAddViewTestCase(TestCase):
 
     def test_redirect_if_http_get(self):
         response = self.client.get(reverse('service:add'))
-        self.assertEqual(response.status_code, 302, msg="No redirect was done")
+        self.assertEqual(response.status_code, 303, msg="No redirect was done")
         self.assertEqual(response.url, reverse('service:index'), msg="Redirect wrong")
 
     def test_permission_denied_page1(self):
@@ -131,7 +131,7 @@ class ServiceAddViewTestCase(TestCase):
 
         response = self.client.post(reverse('service:add'), data=post_params)
 
-        self.assertEqual(response.status_code, 200,)
+        self.assertEqual(response.status_code, 202,)
         self.assertIsInstance(response.context['new_service_form'], RegisterNewServiceWizardPage2)
 
     def test_post_new_service_wizard_page1_invalid_version(self):
@@ -142,7 +142,7 @@ class ServiceAddViewTestCase(TestCase):
 
         response = self.client.post(reverse('service:add'), data=post_params)
 
-        self.assertEqual(response.status_code, 200, )
+        self.assertEqual(response.status_code, 422, )
         self.assertIsInstance(response.context['new_service_form'], RegisterNewServiceWizardPage1)
         self.assertFormError(response, 'new_service_form', 'get_request_uri', 'The given {} version {} is not supported from Mr. Map.'.format(OGCServiceEnum.WMS.value, '9.4.0'))
 
@@ -154,7 +154,7 @@ class ServiceAddViewTestCase(TestCase):
 
         response = self.client.post(reverse('service:add'), data=post_params)
 
-        self.assertEqual(response.status_code, 200, )
+        self.assertEqual(response.status_code, 422, )
         self.assertIsInstance(response.context['new_service_form'], RegisterNewServiceWizardPage1)
         self.assertFormError(response, 'new_service_form', 'get_request_uri', 'The given uri is not valid cause there is no service parameter.')
 
@@ -166,7 +166,7 @@ class ServiceAddViewTestCase(TestCase):
 
         response = self.client.post(reverse('service:add'), data=post_params)
 
-        self.assertEqual(response.status_code, 200, )
+        self.assertEqual(response.status_code, 422, )
         self.assertIsInstance(response.context['new_service_form'], RegisterNewServiceWizardPage1)
         self.assertFormError(response, 'new_service_form', 'get_request_uri', 'The given uri is not valid cause there is no version parameter.')
 
@@ -178,7 +178,7 @@ class ServiceAddViewTestCase(TestCase):
 
         response = self.client.post(reverse('service:add'), data=post_params)
 
-        self.assertEqual(response.status_code, 200, )
+        self.assertEqual(response.status_code, 422, )
         self.assertIsInstance(response.context['new_service_form'], RegisterNewServiceWizardPage1)
         self.assertFormError(response, 'new_service_form', 'get_request_uri', 'The given uri is not valid cause there is no request parameter.')
 
@@ -190,7 +190,7 @@ class ServiceAddViewTestCase(TestCase):
 
         response = self.client.post(reverse('service:add'), data=post_params)
 
-        self.assertEqual(response.status_code, 200, )
+        self.assertEqual(response.status_code, 422, )
         self.assertIsInstance(response.context['new_service_form'], RegisterNewServiceWizardPage1)
         self.assertFormError(response, 'new_service_form', 'get_request_uri', 'The given service typ is not supported from Mr. Map.')
 
@@ -206,7 +206,7 @@ class ServiceAddViewTestCase(TestCase):
         }
 
         response = self.client.post(reverse('service:add'), data=post_params)
-        self.assertEqual(response.status_code, 302, )
+        self.assertEqual(response.status_code, 303, )
         self.assertEqual(response.url, reverse('service:index'), msg="Redirect wrong")
         self.assertEqual(PendingTask.objects.all().count(), 1)
 
@@ -242,7 +242,7 @@ class ServiceRemoveViewTestCase(TestCase):
         }
         metadata = self.wms_service_metadatas[0]
         response = self.client.post(reverse('service:remove', args=[metadata.id]), data=post_data)
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 303)
 
         metadata.refresh_from_db()
         self.assertTrue(metadata.is_deleted, msg="Metadata is not marked as deleted.")
@@ -260,7 +260,7 @@ class ServiceRemoveViewTestCase(TestCase):
         }
         metadata = self.wfs_service_metadatas[0]
         response = self.client.post(reverse('service:remove', args=[self.wfs_service_metadatas[0].id]), data=post_data)
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 303)
 
         metadata.refresh_from_db()
         self.assertTrue(metadata.is_deleted, msg="Metadata is not marked as deleted.")
@@ -275,7 +275,7 @@ class ServiceRemoveViewTestCase(TestCase):
     def test_remove_service_invalid_form(self):
 
         response = self.client.post(reverse('service:remove', args=[self.wms_service_metadatas[0].id]),)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 422)
         self.assertFalse(response.context['remove_service_form'].is_valid())
 
     def test_permission_denied_remove(self):
@@ -306,7 +306,7 @@ class ServiceActivateViewTestCase(TestCase):
 
         service = self.wms_service_metadatas[0].service
         response = self.client.post(reverse('service:activate', args=[service.id]),)
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 303)
         messages = [m.message for m in get_messages(response.wsgi_request)]
 
         activated_status = service.metadata.is_active

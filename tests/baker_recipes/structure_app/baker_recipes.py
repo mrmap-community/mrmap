@@ -142,5 +142,6 @@ pending_request = Recipe(
 
 pending_task = Recipe(
     PendingTask,
-    description='{"description": "test task"}'
+    description='{"description": "test task"}',
+    task_id=1
 )

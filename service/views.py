@@ -299,10 +299,8 @@ def pending_tasks(request: HttpRequest):
 
     # get pending tasks
     pt = PendingTask.objects.filter(created_by__in=user.get_groups())
-
     pt_table = PendingTasksTable(pt,
                                  orderable=False, user=user,)
-
     params = {
         "pt_table": pt_table,
         "user": user,

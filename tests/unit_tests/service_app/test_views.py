@@ -395,3 +395,20 @@ class ServiceDetailViewTestCase(TestCase):
         self.assertIsInstance(response.context['remove_service_form'], RemoveServiceForm)
         self.assertEqual(response.context['remove_service_form'].action_url, reverse('service:remove', args=[self.wms_service_metadatas[0].id]))
         self.assertIsInstance(response.context['service_md'], Metadata)
+
+
+class ServicePendingTaskViewTestCase(TestCase):
+    def setUp(self):
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
+        create_pending_task(self.user.get_groups().first(), 10)
+
+    def test_get_pending_tasks_view(self):
+        response = self.client.get(
+            reverse('service:pending-tasks', ),
+        )
+        self.assertEqual(response.status_code, 200, )
+        self.assertTemplateUsed(response=response, template_name="includes/pending_tasks.html")
+        self.assertIsInstance(response.context["pt_table"], PendingTasksTable)
+        self.assertEqual(len(response.context["pt_table"].rows), 10)

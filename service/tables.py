@@ -223,19 +223,15 @@ class PendingTasksTable(MapSkinnerTable):
     @staticmethod
     def render_pt_service(record):
         # TODO: remove this sticky json
-        return str(json.loads(record.description)['service'])
+        return str(json.loads(record.description)['service']) if 'service' in json.loads(record.description) else _('unknown')
 
     @staticmethod
     def render_pt_phase(record):
         # TODO: remove this sticky json
-        try:
-            return str(json.loads(record.description)['phase'])
-        except KeyError as e:
-            return str(e)
+        return str(json.loads(record.description)['phase']) if 'phase' in json.loads(record.description) else _('unknown')
 
     @staticmethod
     def render_pt_progress(record):
-
         task = AsyncResult(record.task_id, app=app)
         try:
             info_dict = task.info

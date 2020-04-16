@@ -149,7 +149,8 @@ htpasswd -c /etc/nginx/.htpasswd root
 wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/214_Production_setup/install/modsecurity_and_stronger_DH.bash -O /opt/modsecurity_and_stronger_DH.bash
 
 while true; do
-    read -p "Do you want to install Modsecurity and generate stronger Key Exchange Algorithm? This can take up to 30mins, recommended for production!y/n? \
+    read -p "Do you want to install Modsecurity and generate stronger Key Exchange Algorithm? \
+This can take up to 1 hour, recommended for production!y/n? \
 You can do this later with bash /opt/MapSkinner/install/modsecurity_and_stronger_DH.bash " yn
     case $yn in
         [Yy]* )

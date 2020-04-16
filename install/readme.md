@@ -76,7 +76,7 @@ Usage:
 python3 /opt/MapSkinner/install/mass_register.py WMSLIST
 ```    
 
-**IIII.  Some notes on ModSecurity**
+**IV.  Some notes on ModSecurity**
 
 - If you get blocked while making a legitimate request, please write an issue   
 or email the request to me: andre.holl@vermkv.rlp.de  

@@ -182,7 +182,6 @@ def collect_wfs_root_data(md: Metadata, request: HttpRequest):
     featuretype_table.configure_pagination(request, 'ft-t')
     featuretype_table.filter = featuretypes_filtered
 
-
     params['featuretypes'] = featuretype_table
 
     return params

@@ -414,7 +414,7 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
 
 # TODO: currently the preview is not pretty. Refactor this method to get a pretty preview img by consider the right scale of the layers
 def get_service_metadata_preview(request: HttpRequest, metadata_id: int):
-    """ Returns the service metadata previe als png for a given metadata id
+    """ Returns the service metadata preview as png for a given metadata id
 
     Args:
         request (HttpRequest): The incoming request
@@ -426,11 +426,8 @@ def get_service_metadata_preview(request: HttpRequest, metadata_id: int):
     md = get_object_or_404(Metadata, id=metadata_id)
 
     if md.service.servicetype.name == OGCServiceEnum.WMS.value and md.service.is_root:
-        layer = Layer.objects.get(
-            parent_service=Service.objects.get(id=md.service.id),
-            parent_layer=None,
-        )
-
+        service = get_object_or_404(Service, id=md.service.id)
+        layer = get_object_or_404(Layer, parent_service=service, parent_layer=None,)
     elif md.service.servicetype.name == OGCServiceEnum.WMS.value and not md.service.is_root:
         layer = md.service.layer
 
@@ -578,8 +575,7 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
     """ Returns the metadata as html rendered view
         Args:
             request (HttpRequest): The incoming request
-            proxy_log (ProxyLog): The logging object
-            id (int): The metadata id
+            metadata_id (int): The metadata id
         Returns:
              A HttpResponse containing the html formated metadata
     """
@@ -629,11 +625,6 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
         # wfs root object
         base_template = 'metadata/base/wfs/root_metadata_as_html.html'
         params.update(collect_wfs_root_data(md, request))
-
-    elif md.service.servicetype.name == OGCServiceEnum.WMC.value:
-        base_template = 'metadata/base/wmc/root_metadata_as_html.html'
-        # TODO: implement the logic to collect all data
-        None
 
     context = DefaultContext(request, params, None)
     return render(request=request, template_name=base_template, context=context.get_context())

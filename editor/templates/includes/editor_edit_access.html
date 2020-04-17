@@ -1,0 +1,118 @@
+{% extends 'sceletons/card.html' %}
+{% load i18n static %}
+
+{% block card-header-title-left %}
+<h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.ACCESS}}{% endautoescape %} {% trans 'Access Editor' %}</h4>
+{% endblock %}
+
+{% block card-header-subtitle-left %}
+<h5 class="text-muted">
+    {% if service_metadata.is_root %}
+        {% trans 'Service:' %}
+    {% elif service_metadata.metadata_type.type == 'featuretype' %}
+        {% trans 'Featuretype:' %}
+    {% elif service_metadata.metadata_type.type == 'layer' %}
+        {% trans 'Layer:' %}
+    {% endif %}
+    {{ service_metadata.title }}
+</h5>
+
+{% endblock %}
+
+{% block card-header-title-right %}
+{% endblock %}
+
+{% block card-header-subtitle-right %}
+    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'service:detail' service_metadata.id %}">
+    <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Service Detail View' %}</span>
+    </a>
+{% endblock %}
+
+
+{% block card-body %}
+
+{% with 'leaflet_modal' as id_modal %}
+    {% include 'modals/access_geometry_form.html'%}
+{% endwith %}
+
+<form id="metadata-form" action="{{ action_url }}" method="post" >
+    {% csrf_token %}
+    <table class="table table-hover">
+        {% if service_metadata.is_root %}
+        <tr class="field-label metadata-editor-label" {% if has_ext_auth %}title="{% trans 'You can not deactivate the proxy setting on this service!' %}"{% endif %}>
+            <th scope="row">{% trans 'Use proxy:' %}</th>
+            <td><input id="checkbox-use-proxy" type="checkbox" name="use_proxy" {% if service_metadata.use_proxy_uri %}checked{% endif %} title="{% trans 'Use proxy' %}"></td>
+        </tr>
+        <tr class="field-label metadata-editor-label">
+            <th scope="row">{% trans 'Log proxy:' %}</th>
+            <td><input id="checkbox-log-proxy" type="checkbox" name="log_proxy" {% if service_metadata.log_proxy_access %}checked{% endif %} title="{% trans 'Log proxy' %}"></td>
+        </tr>
+        {% endif %}
+        <tr class="field-label metadata-editor-label" {% if has_ext_auth %}title="{% trans 'You can not deactivate the security setting on this service!' %}"{% endif %}>
+            <th scope="row">{% trans 'Restrict access:' %}</th>
+            <td><input id="checkbox-restrict-access" type="checkbox" name="is_secured" {% if service_metadata.is_secured %}checked{% endif %} title="{% trans 'Restrict access' %}"></td>
+        </tr>
+        {% for operation in operations %}
+        <tr class="operation-row">
+            <th class="field-label metadata-editor-label" scope="row">
+                {{ operation.operation.operation_name }}:
+            </th>
+            <td class="secured-operation-group-view">
+                <input class="search-field" type="text" data-type="{{ operation.operation.id }}" placeholder="{% trans 'Enter text to filter' %}">
+                <table class="table text-center" data-operation="{{ operation.operation.operation_name }}">
+                    <tr>
+                        <th scope="col">{% trans 'Allow access' %}</th>
+                        <th scope="col">{% trans 'Group name' %}</th>
+                        <th scope="col">{% trans 'Access restricted spatially' %}</th>
+                        <th scope="col">{% trans 'Edit spatial access' %}</th>
+                    </tr>
+                {% for group in operation.groups %}
+                    <tr class="{{ operation.operation.id }} secured-group-operation">
+                        <td>
+                            <input id="checkbox-sec-{{ group.group.id }}-{{ operation.operation.id }}"
+                                   class="group-permission"
+                                   {% if group.allowed %}checked{% endif %}
+                                   type="checkbox"
+                                   title="{{ group.group.name }}"
+                                   data-operation="{{ operation.operation.operation_name }}"
+                                   data-group="{{ group.group.id }}"
+                                   data-remove="false"
+                                   data-polygons='{{ group.geo_json_geometry|safe }}'
+                                   data-sec-id="{{ group.sec_id }}">
+                        </td>
+                        <td>
+                            <label for="checkbox-sec-{{ group.group.id }}-{{ operation.operation.id }}">{{ group.group.name }} ({{ group.group.organization.organization_name }}) </label>
+                        </td>
+                        <td>
+                            {% if group.geo_json_geometry is None %}
+                            <h4 class="text-danger">
+                                    {% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}
+                            </h4>
+                            {% else %}
+                            <h4 class="text-success">
+                                    {% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}
+                            </h4>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if operation.operation.operation_name in spatial_restrictable_operations and service_metadata.is_root %}
+                                <button type="button" class="btn {{THEME.CARD.BTN_INFO_COLOR}} add-geometry_" data-id="{{ service_metadata.id }}" title="{% trans 'Edit access' %}">
+                                    <span>{% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} </span>
+                                </button>
+                            {% endif %}
+                        </td>
+
+                    </tr>
+                {% endfor %}
+                </table>
+            </tr>
+        </tr>
+        {% endfor %}
+    </table>
+    <input name="secured-operation-groups" type="text" class="d-none hidden">
+    <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}} secured-operations submit-button" data-id="{{ service_metadata.id }}">
+        {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
+    </button>
+</form>
+
+{% endblock %}

@@ -1,0 +1,32 @@
+{% load l10n static %}
+<link rel="stylesheet" type="text/css" href="{% static '/css/leaflet.min.css' %}" media="all"/>
+<script type="text/javascript" src="{% static '/js/leaflet.js' %}"></script>
+{% localize off %}
+<script type="application/javascript">
+var map_{{ id_map }};
+var initialized = false;
+function initializeLeafletClient(){
+    if (!initialized) {
+        map_{{ id_map }} = L.map('{{ id_map }}_map', {
+            center: [{{ bbox.centroid.y }}, {{ bbox.centroid.x }}],
+            zoom: {{ bbox.area }},
+            layers: [
+                new L.TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                })
+            ],
+        }).fitBounds(
+            [
+                [{{ bbox.boundary.extent.1 }}, {{ bbox.boundary.extent.0 }}],
+                [{{ bbox.boundary.extent.3 }}, {{ bbox.boundary.extent.2 }}],
+            ]
+            );
+
+        {% if leaflet_add_bbox %}
+            map_{{ id_map }}.addLayer(new L.geoJSON({{ bbox.geojson|safe }}));
+        {% endif %}
+        initialized = true;
+    }
+}
+</script>
+{% endlocalize %}

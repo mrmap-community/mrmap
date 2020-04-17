@@ -1,0 +1,25 @@
+{% extends 'sceletons/card.html' %}
+{% load i18n static tz %}
+{% load django_tables2 %}
+{% load fontawesome_5 %}
+{% load bootstrap4 %}
+
+{% block card-header-title-left %}
+    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %} {% trans 'WMS' %}</h4>
+{% endblock %}
+
+{% block card-header-title-center%}
+{% endblock %}
+
+{% block card-header-title-right %}
+    {% if 'can_register_service' in user_permissions %}
+        <button type="button" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_service">
+            {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New Service' %}
+        </button>
+    {% endif %}
+{% endblock %}
+{% block card-body %}
+
+{% render_table wms_table %}
+
+{% endblock %}

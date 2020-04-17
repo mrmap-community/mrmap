@@ -1,11 +1,11 @@
 certifi==2019.3.9
 chardet==3.0.4
-Django==2.2.1
+Django==2.2.10
 django-extensions==2.1.6
 django-simple-captcha
 idna==2.8
 lxml==4.3.3
-psycopg2==2.8.2
+psycopg2-binary
 pycurl==7.43.0.2
 pytz==2019.1
 requests==2.21.0
@@ -14,10 +14,24 @@ sqlparse==0.3.0
 urllib3==1.24.3
 
 argon2-cffi
-Werkzeug
+Werkzeug==0.16.1
 pysxm
 celery==4.3.0
+redis
+django_redis
 
 djangorestframework
 markdown
 django-filter
+Pillow
+cryptography
+
+django-bootstrap4
+django-fontawesome-5
+django-tables2
+django-query-parameters
+django-autocomplete-light
+
+coverage==5.0.3
+django-nose==1.4.6
+model-bakery==1.1.0

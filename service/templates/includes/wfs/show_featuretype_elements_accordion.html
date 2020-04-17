@@ -1,0 +1,18 @@
+{% extends 'sceletons/accordion.html' %}
+
+{% load static i18n %}
+{% if service.elements.all|length > 0 %}
+    {% block accordion-button-title %}
+        <i class="fa" aria-hidden="true"></i> {% trans 'Show elements' %} <span class="badge {{THEME.ACCORDION.PILL_BADGE_INFO_COLOR}}">{{  service.elements.all|length }}</span>
+    {% endblock %}
+
+    {% block accordion-body %}
+        {% for element in service.elements.all %}
+            {% with element.name as id_accordion  %}
+                {% with "sub_element" as id_accordion_combined %}
+                    {% include 'includes/wfs/element_accordion.html' %}
+                {% endwith %}
+            {% endwith %}
+        {% endfor %}
+    {% endblock %}
+{% endif %}

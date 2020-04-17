@@ -1,0 +1,30 @@
+{% extends 'sceletons/card.html' %}
+{% load static i18n %}
+{% load bootstrap4 %}
+{% block card-header-title-left %}
+    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %} <strong>{{ user.username }}</strong></h4>
+{% endblock %}
+{% block card-header-title-right %}
+
+<button type="button" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" data-toggle="modal" data-target="#id_modal_change_password">
+    {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Change password' %}
+</button>
+{% with 'change_password' as id_modal %}
+{% with password_change_form as form %}
+{% with show_password_change_form as show_modal %}
+    {% include 'modals/change_password.html' %}
+{% endwith %}
+{% endwith %}
+{% endwith %}
+
+
+{% endblock %}
+{% block card-body %}
+
+<form id="id_edit_account_form" action="{{edit_account_form.action_url}}" method="post">
+    {% csrf_token %}
+    {% bootstrap_form edit_account_form  %}
+    <button type="button submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">{% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}</button>
+</form>
+
+{% endblock %}

@@ -1,12 +1,13 @@
 import datetime
-from django.contrib.auth.hashers import check_password
+
+from django.contrib.auth.models import AbstractUser, Group
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils import timezone
 
-from MapSkinner.utils import sha256
-from service.helper.enums import ServiceEnum
-from structure.config import USER_ACTIVATION_TIME_WINDOW
+from service.helper.crypto_handler import CryptoHandler
+from service.helper.enums import OGCServiceEnum
+from structure.settings import USER_ACTIVATION_TIME_WINDOW
 
 
 class PendingTask(models.Model):
@@ -14,7 +15,7 @@ class PendingTask(models.Model):
     description = models.TextField()
     progress = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)])
     is_finished = models.BooleanField(default=False)
-    created_by = models.ForeignKey('Group', null=True, blank=True, on_delete=models.DO_NOTHING)
+    created_by = models.ForeignKey('MrMapGroup', null=True, blank=True, on_delete=models.DO_NOTHING)
 
     def __str__(self):
         return self.task_id
@@ -32,7 +33,7 @@ class Permission(models.Model):
     can_add_user_to_group = models.BooleanField(default=False)
     can_remove_user_from_group = models.BooleanField(default=False)
 
-    can_change_group_role = models.BooleanField(default=False)
+    can_edit_group_role = models.BooleanField(default=False)
 
     can_activate_service = models.BooleanField(default=False)
     can_update_service = models.BooleanField(default=False)
@@ -41,8 +42,11 @@ class Permission(models.Model):
     can_edit_metadata_service = models.BooleanField(default=False)
 
     can_toggle_publish_requests = models.BooleanField(default=False)
-    can_remove_publisher = models.BooleanField(default=True)
-    can_request_to_become_publisher = models.BooleanField(default=True)
+    can_remove_publisher = models.BooleanField(default=False)
+    can_request_to_become_publisher = models.BooleanField(default=False)
+
+    can_generate_api_token = models.BooleanField(default=False)
+
     # more permissions coming
 
     def __str__(self):
@@ -94,7 +98,8 @@ class Organization(Contact):
     description = models.TextField(null=True, blank=True)
     parent = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True)
     is_auto_generated = models.BooleanField(default=True)
-    created_by = models.ForeignKey('User', related_name='created_by', on_delete=models.DO_NOTHING, null=True, blank=True)
+    created_by = models.ForeignKey('MrMapUser', related_name='created_by', on_delete=models.SET_NULL, null=True,
+                                   blank=True)
 
     def __str__(self):
         if self.organization_name is None:
@@ -102,63 +107,94 @@ class Organization(Contact):
         return self.organization_name
 
 
-class Group(models.Model):
-    name = models.CharField(max_length=255)
+class MrMapGroup(Group):
     description = models.TextField(blank=True, null=True)
-    parent = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True, related_name="children")
-    organization = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, null=True, blank=True, related_name="groups")
+    parent_group = models.ForeignKey('self', on_delete=models.DO_NOTHING, blank=True, null=True,
+                                     related_name="children_groups")
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, null=True, blank=True,
+                                     related_name="organization_groups")
     role = models.ForeignKey(Role, on_delete=models.CASCADE, null=True)
     publish_for_organizations = models.ManyToManyField('Organization', related_name='can_publish_for', blank=True)
-    created_by = models.ForeignKey('User', on_delete=models.DO_NOTHING)
+    created_by = models.ForeignKey('MrMapUser', on_delete=models.DO_NOTHING)
+    is_public_group = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
 
 
-class User(Contact):
-    username = models.CharField(max_length=50)
-    logged_in = models.BooleanField(default=False)
+class Theme(models.Model):
+    name = models.CharField(max_length=10, unique=True)
+
+    def __str__(self):
+        return self.name
+
+
+class MrMapUser(AbstractUser):
     salt = models.CharField(max_length=500)
-    password = models.CharField(max_length=500)
-    last_login = models.DateTimeField(null=True)
-    created_on = models.DateTimeField(auto_now_add=True)
-    groups = models.ManyToManyField('Group', related_name='users')
-    organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.DO_NOTHING, null=True, blank=True)
+    organization = models.ForeignKey('Organization', related_name='primary_users', on_delete=models.SET_NULL, null=True,
+                                     blank=True)
     confirmed_newsletter = models.BooleanField(default=False)
     confirmed_survey = models.BooleanField(default=False)
-    confirmed_dsgvo = models.DateTimeField(null=True, blank=True) # ToDo: For production this is not supposed to be nullable!!!
-    is_active = models.BooleanField(default=False)
+    confirmed_dsgvo = models.DateTimeField(auto_now_add=True, null=True,
+                                           blank=True)  # ToDo: For production this is not supposed to be nullable!!!
+    theme = models.ForeignKey('Theme', related_name='user_theme', on_delete=models.DO_NOTHING, null=True, blank=True)
 
     def __str__(self):
         return self.username
 
-    def get_services(self, type: ServiceEnum = None):
+    def get_services(self, type: OGCServiceEnum = None):
         """ Returns all services which are related to the user
 
         Returns:
              md_list (list): A list containing all services related to the user
         """
+        return list(self.get_services_as_qs(type))
+
+    def get_services_as_qs(self, type: OGCServiceEnum = None):
+        """ Returns all services which are related to the user
+
+        Returns:
+             md_list:
+        """
         from service.models import Metadata
         md_list = Metadata.objects.filter(
             service__is_root=True,
-            created_by__in=self.groups.all(),
+            created_by__in=self.get_groups(),
             service__is_deleted=False,
         ).order_by("title")
         if type is not None:
             md_list = md_list.filter(service__servicetype__name=type.name.lower())
-        # convert to list
-        md_list = list(md_list)
         return md_list
 
+    def get_groups(self, filter_by: dict = {}):
+        """ Returns a queryset of all MrMapGroups related to the user
 
-    def get_permissions(self, group: Group = None):
-        """ Overloaded function. Returns a list containing all permission identifiers as strings in a list.
+        filter_by takes the same attributes and properties as a regular queryset filter call.
+        So 'name__icontains=test' becomes 'name__icontains: test'
+
+        Example filter_by:
+            filter_by = {
+                "name__icontains": "test",
+            }
+
+        Returns:
+             list
+        """
+
+        groups = MrMapGroup.objects.filter(
+            id__in=self.groups.all().values('id')
+        ).filter(
+            **filter_by
+        )
+        return groups
+
+    def get_permissions(self, group: MrMapGroup = None):
+        """Returns a list containing all permission identifiers as strings in a list.
 
         The list is generated by fetching all permissions from all groups the user is part of.
         Alternatively the list is generated by fetching all permissions from a special group.
 
         Args:
-            user: The user object
             group: The group object
         Returns:
              A list of permission strings
@@ -167,8 +203,9 @@ class User(Contact):
         groups = []
         if group is not None:
             groups = [group]
-        else :
-            groups = self.groups.all()
+        else:
+
+            groups = self.get_groups()
 
         for group in groups:
             perm = group.role.permission
@@ -193,17 +230,6 @@ class User(Contact):
                 return False
         return True
 
-    def is_password_valid(self, password: str):
-        """ Checks if the incoming password is valid for the user
-
-        Args:
-            user: The user object which needs to be checked against
-            password: The password that might match to the user
-        Returns:
-             True or False
-        """
-        return check_password(password, self.password)
-
     def create_activation(self):
         """ Create an activation object
 
@@ -214,13 +240,14 @@ class User(Contact):
         user_activation = UserActivation()
         user_activation.user = self
         user_activation.activation_until = timezone.now() + datetime.timedelta(hours=USER_ACTIVATION_TIME_WINDOW)
-        user_activation.activation_hash = sha256(self.username + self.salt + str(user_activation.activation_until))
+        sec_handler = CryptoHandler()
+        user_activation.activation_hash = sec_handler.sha256(
+            self.username + self.salt + str(user_activation.activation_until))
         user_activation.save()
 
 
-
 class UserActivation(models.Model):
-    user = models.ForeignKey(User, null=False, blank=False, on_delete=models.DO_NOTHING)
+    user = models.ForeignKey(MrMapUser, null=False, blank=False, on_delete=models.CASCADE)
     activation_until = models.DateTimeField(null=True)
     activation_hash = models.CharField(max_length=500, null=False, blank=False)
 
@@ -229,9 +256,9 @@ class UserActivation(models.Model):
 
 
 class GroupActivity(models.Model):
-    group = models.ForeignKey(Group, on_delete=models.CASCADE)
+    group = models.ForeignKey(MrMapGroup, on_delete=models.CASCADE)
     description = models.CharField(max_length=255, blank=True, null=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, blank=True, null=True)
+    user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, blank=True, null=True)
     metadata = models.CharField(max_length=255, blank=True, null=True)
     created_on = models.DateTimeField(auto_now_add=True)
 
@@ -240,9 +267,9 @@ class GroupActivity(models.Model):
 
 
 class PendingRequest(models.Model):
-    type = models.CharField(max_length=255) # defines what type of request this is
-    group = models.ForeignKey(Group, related_name="pending_publish_requests", on_delete=models.DO_NOTHING)
-    organization = models.ForeignKey(Organization, related_name="pending_publish_requests", on_delete=models.DO_NOTHING)
+    type = models.CharField(max_length=255)  # defines what type of request this is
+    group = models.ForeignKey(MrMapGroup, related_name="pending_publish_requests", on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, related_name="pending_publish_requests", on_delete=models.CASCADE)
     message = models.TextField(null=True, blank=True)
     activation_until = models.DateTimeField(null=True)
     created_on = models.DateTimeField(auto_now_add=True)

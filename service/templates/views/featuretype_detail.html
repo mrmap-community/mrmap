@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block head %}
+
+{% endblock %}
+
+{% block body %}
+<div class="container">
+    {% include 'sceletons/breadcrumb.html'%}
+    {% include 'includes/wfs/featuretype_detail.html' %}
+</div>
+{% endblock %}

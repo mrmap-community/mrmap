@@ -1,104 +1,29 @@
 <!DOCTYPE html>
 {% load i18n static %}
+
 <html lang="{{ LANGUAGE_CODE }}">
 <head>
-    <meta charset="UTF-8">
-    <title>
-        MapSkinner {% block title %}{% endblock %}
-    </title>
-    <link rel="shortcut icon" href="{% static 'structure/images/favicon.ico' %}" type="image/x-icon">
-    <link rel="icon" href="{% static 'structure/images/favicon.ico' %}" type="image/x-icon">
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base.css' %}" media="all" />
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/overview.css' %}" media="all" />
-    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
-        <script>
-            var rootUrl = '{{ ROOT_URL }}'
-        </script>
-    <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
-    <script type="text/javascript" src="{% static '/structure/js/base.js' %}"></script>
+    {% include 'includes/default-head.html' %}
+
     {% block head %}
-    
     {% endblock %}
 </head>
 <header>
-    {% include 'messages.html' %}
-    <nav class="navigation-bar">
-        <div class="navigation-bar-left">
-            <a href="{% url 'home' %}" title="{% trans 'Dashboard' %}">
-                <img class="navbar-logo" src="{% static 'structure/images/mr_map.png' %}" title="Map your s*** together!">
-            </a>
+    {% block header%}
+    {% endblock %}
 
-            <div class="navigation-menu {% if PATH == 'home' %}active-menu{% endif %}">
-                <a class="navigation-title" href="{% url 'home' %}" title="{% trans 'Dashboard' %}">
-                    {% trans 'Home' %}
-                </a>
-            </div>
-            <div class="navigation-menu {% if PATH == 'structure' %}active-menu{% endif %}">
-                <a class="navigation-title" href="{% url 'structure:index' %}">
-                    {% trans 'Structure' %}
-                </a>
-                <div class="navigation-element-list">
-                    <a href="{% url 'structure:groups' %}">
-                        <div class="navigation-element">
-                            {% trans 'Groups' %}
-                        </div>
-                    </a>
-                    <a href="{% url 'structure:organizations' %}">
-                        <div class="navigation-element">
-                            {% trans 'Organizations' %}
-                        </div>
-                    </a>
-                </div>
-            </div>
-            <div class="navigation-menu {% if PATH == 'service' %}active-menu{% endif %}">
-                <a class="navigation-title" href="{% url 'service:index' %}">
-                    {% trans 'Services' %}
-                </a>
-                <div class="navigation-element-list">
-                    <a href="{% url 'service:wms' %}">
-                        <div class="navigation-element">
-                            {% trans 'WMS' %}
-                        </div>
-                    </a>
-                    <a href="{% url 'service:wfs' %}">
-                        <div class="navigation-element">
-                            {% trans 'WFS' %}
-                        </div>
-                    </a>
-                </div>
-            </div>
-            <div class="navigation-menu {% if PATH == 'editor' %}active-menu{% endif %}">
-                <a class="navigation-title" href="{% url 'editor:index' %}">
-                    {% trans 'Metadata Editor' %}
-                </a>
-            </div>
-        </div>
-        <div class="navigation-bar-right">
-            <a id="account-button" class="navigation-button" href="{% url 'account' %}" title="{% trans 'Account' %}">
-                <img src="{% static '/structure/images/icn_user.png' %}">
-                <span class="account-name">{{ user.username }}</span>
-            </a>
-            <a id="logout-button" class="navigation-button" href="{% url 'logout' %}" title="{% trans 'Logout' %}">
-                <img id="logout-img" src="{% static '/structure/images/logout.png' %}">
-            </a>
-        </div>
-    </nav>
+    {% include 'includes/navbar.html' %}
 </header>
 
-<body>
-<div id="body-content">
-    <audio id="ee-audio">
-        <source src="{% static 'structure/audio/ee_audio.mp3' %}" type="audio/mpeg">
-    </audio>
-    <div id="overlay">
+<body class="{{THEME.BACKGROUND}} {{THEME.BACKGROUND_IMG}}">
+    {% include 'includes/messages.html' %}
+    <div id="body-content" class="mt-3">
+        {% include 'includes/ee-overlay.html' %}
+        {% block body %}
+        {% endblock %}
     </div>
-{% block body %}
-
-{% endblock %}
-
-</div>
 </body>
 
-{% include 'footer.html' %}
+{% include 'includes/footer.html' %}
 
 </html>

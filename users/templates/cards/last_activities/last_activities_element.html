@@ -1,0 +1,13 @@
+{% extends 'sceletons/well.html' %}
+{% load i18n %}
+{% block card-body %}
+<h5 class="mb-1 mr-3">
+    <strong>{% trans group_activity.description %}</strong>
+</h5>
+<p class="mb-1">{{ group_activity.metadata }}</p>
+<small class="text-muted">
+    {% trans 'Activity performed by' %}
+    <strong>{{ group_activity.user}}</strong>
+    {{ group_activity.created_on|date:"d.m.Y, H:i" }}
+</small>
+{% endblock %}

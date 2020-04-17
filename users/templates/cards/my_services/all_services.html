@@ -1,0 +1,23 @@
+{% extends 'sceletons/card.html' %}
+{% load i18n %}
+
+{% block card-header-title-left %}
+<h5 class="card-title">{% autoescape off %}{{THEME.ICONS.GLOBE}}{% endautoescape %}</h5>
+{% endblock %}
+
+{% block card-header-title-center %}
+<h5 class="card-title">{% trans 'All' %}</h5>
+{% endblock%}
+
+{% block card-header-title-right %}
+<h5><span class="badge badge-pill {{THEME.CARD.BADGE_LIGHT}}">{{ all_count }}</span></h5>
+{% endblock %}
+
+{% block card-body %}
+<p class="card-text">
+    {% trans 'All registered Web Map and Web Feature Services.' %}
+</p>
+<a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'service:index' %}" role="button">
+    {% trans 'Show'%}
+</a>
+{% endblock %}

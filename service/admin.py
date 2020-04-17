@@ -7,15 +7,23 @@ from service.models import *
 
 
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('type', 'title_EN', 'online_link', 'origin')
+    list_display = ('id', 'type', 'title_EN', 'online_link', 'origin')
 
 
 class CategoryOriginAdmin(admin.ModelAdmin):
     pass
 
 
+class RequestOperationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'operation_name',)
+
+
+class SecuredOperationAdmin(admin.ModelAdmin):
+    list_display = ("id", 'secured_metadata', 'allowed_group', "operation")
+
+
 class ServiceTypeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'version')
+    list_display = ('id', 'name', 'version')
 
 
 class ModuleAdmin(admin.ModelAdmin):
@@ -27,23 +35,27 @@ class DatasetAdmin(admin.ModelAdmin):
 
 
 class KeywordAdmin(admin.ModelAdmin):
-    pass
+    list_display = ('id', "keyword")
 
 
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ('related_metadata', 'is_active', 'created')
+    list_display = ('id', 'related_metadata', 'is_active', 'created')
 
 
 class MetadataOriginAdmin(admin.ModelAdmin):
-    list_display = ('name',)
+    list_display = ('id', 'name',)
+
+
+class MetadataTypeAdmin(admin.ModelAdmin):
+    list_display = ('id', 'type',)
 
 
 class MetadataAdmin(admin.ModelAdmin):
-    list_display = ('title', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact', 'uuid')
+    list_display = ('id', 'title', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact', 'uuid')
 
 
 class MetadataRelationAdmin(admin.ModelAdmin):
-    list_display = ('metadata_from', 'relation_type', 'metadata_to', 'origin')
+    list_display = ('id', 'metadata_from', 'relation_type', 'metadata_to', 'origin')
 
 
 class TermsOfUseAdmin(admin.ModelAdmin):
@@ -56,26 +68,45 @@ class ServiceAdmin(admin.ModelAdmin):
 
 
 class ReferenceSystemAdmin(admin.ModelAdmin):
-    list_display = ('code', 'prefix', 'version')
+    list_display = ('id', 'code', 'prefix', 'version')
     pass
+
 
 class FeatureTypeAdmin(admin.ModelAdmin):
-    list_display = ('metadata', 'service')
+    list_display = ('id', 'metadata', 'parent_service')
+
 
 class FeatureTypeElementAdmin(admin.ModelAdmin):
-    list_display = ('name', 'type')
+    list_display = ('id', 'name', 'type')
+
 
 class LayerAdmin(admin.ModelAdmin):
-    list_display = ('identifier', 'parent_service', 'parent_layer', 'last_modified')
+    list_display = ('id', 'identifier', 'parent_service', 'parent_layer', 'last_modified')
+
 
 class MimeTypeAdmin(admin.ModelAdmin):
-    pass
+    list_display = ('id', 'operation', 'mime_type')
+
 
 class NamespaceAdmin(admin.ModelAdmin):
-    list_display = ('name', 'uri', 'version')
+    list_display = ('id', 'name', 'uri', 'version')
+
+
+class ProxyLogAdmin(admin.ModelAdmin):
+    list_display = ('id', 'metadata', 'operation', 'user', 'response_wms_megapixel', 'response_wfs_num_features', 'timestamp')
+
+
+class ExternalAuthenticationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'metadata', 'auth_type')
+
+
+class StyleAdmin(admin.ModelAdmin):
+    list_display = ('id', 'layer',)
 
 
 admin.site.register(Document, DocumentAdmin)
+admin.site.register(RequestOperation, RequestOperationAdmin)
+admin.site.register(SecuredOperation, SecuredOperationAdmin)
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(CategoryOrigin, CategoryOriginAdmin)
 admin.site.register(ServiceType, ServiceTypeAdmin)
@@ -83,6 +114,7 @@ admin.site.register(Module, ModuleAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(Keyword, KeywordAdmin)
 admin.site.register(MetadataOrigin, MetadataOriginAdmin)
+admin.site.register(MetadataType, MetadataTypeAdmin)
 admin.site.register(Metadata, MetadataAdmin)
 admin.site.register(MetadataRelation, MetadataRelationAdmin)
 admin.site.register(TermsOfUse, TermsOfUseAdmin)
@@ -93,3 +125,6 @@ admin.site.register(Layer, LayerAdmin)
 admin.site.register(FeatureType, FeatureTypeAdmin)
 admin.site.register(FeatureTypeElement, FeatureTypeElementAdmin)
 admin.site.register(Namespace, NamespaceAdmin)
+admin.site.register(ProxyLog, ProxyLogAdmin)
+admin.site.register(ExternalAuthentication, ExternalAuthenticationAdmin)
+admin.site.register(Style, StyleAdmin)

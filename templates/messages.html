@@ -1,8 +1,0 @@
-{% load static i18n %}
-{% if messages %}
-<div class="messages" title="{% trans 'Click to hide' %}">
-    {% for message in messages %}
-    <div{% if message.tags %} class="message {{ message.tags }}"{% endif %}>{{ message }}</div>
-    {% endfor %}
-</div>
-{% endif %}

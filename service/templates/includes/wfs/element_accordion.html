@@ -1,0 +1,22 @@
+{% extends 'sceletons/accordion.html' %}
+{% load static i18n %}
+{% block accordion-button-title %}
+<i class="fa" aria-hidden="true"></i> {{ element.name }}
+{% endblock %}
+
+{% block accordion-body %}
+    <table class="table {{THEME.TABLE.HOVER}} {{THEME.TABLE.STRIPED}} {{THEME.TABLE.BG}} {{THEME.TABLE.BORDER}} {{THEME.TABLE.BORDERED}}">
+        <tr>
+            <th scope="row">{% trans 'Uuid' %}</th>
+            <td>{{ element.uuid }}</td>
+        </tr>
+        <tr>
+            <th scope="row">{% trans 'Name' %}</th>
+            <td>{{ element.name }}</td>
+        </tr>
+        <tr>
+            <th scope="row">{% trans 'Type' %}</th>
+            <td>{{ element.type }}</td>
+        </tr>
+    </table>
+{% endblock %}

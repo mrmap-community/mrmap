@@ -1,0 +1,24 @@
+{% extends 'sceletons/card.html' %}
+{% load i18n %}
+
+{% block card-header-title-left %}
+<h5 class="card-title">{% autoescape off %}{{THEME.ICONS.ORGANIZATION}}{% endautoescape %}</h5>
+{% endblock %}
+
+{% block card-header-title-center %}
+<h5 class="card-title">{% trans 'Organizations' %}</h5>
+{% endblock%}
+
+{% block card-header-title-right %}
+<h5><span class="badge badge-pill {{THEME.CARD.BADGE_LIGHT}}">{{ organizations.count }}</span></h5>
+{% endblock %}
+
+{% block card-body %}
+<p class="card-text">
+    {% trans 'All known organizations, which provide the registered services.' %}
+</p>
+<a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'structure:organizations-index' %}" role="button">
+    {% trans 'Show'%}
+</a>
+{% endblock %}
+

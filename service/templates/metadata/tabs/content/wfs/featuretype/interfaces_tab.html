@@ -1,0 +1,53 @@
+{% load i18n %}
+{% load fontawesome_5 %}
+<table class="table">
+    <caption class="d-none">{% trans 'Interfaces of the featuretype for ' %}{{ title }}</caption>
+    <tbody>
+    <tr>
+        <th scope="row">{% trans 'Capabilities' %}</th>
+        <td>
+            <p>
+                <a itemprop="url" class="btn btn-info" href="{{ capabilities_uri }}">
+                    {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Show document' %}
+                </a>
+            </p>
+
+            <p>
+                <a class="btn btn-info" data-toggle="collapse" href="#collapseCapsLink" role="button"
+                   aria-expanded="false" aria-controls="collapseCapsLink">
+                   {% autoescape off %}{{THEME.ICONS.LINK}}{% endautoescape %} {% trans 'Show link' %}
+                </a>
+            </p>
+            <div class="collapse" id="collapseCapsLink">
+                <div class="card card-body">
+                    <a itemprop="url" href="{{ capabilities_uri }}">{{ capabilities_uri }}</a>
+                </div>
+            </div>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">Original Capabilities</th>
+        <td>
+            <p>
+                <a itemprop="url" class="btn btn-info" href="{{ capabilities_original_uri }}">
+                    {% autoescape off %}{{THEME.ICONS.EXTERNAL_LINK}}{% endautoescape %} {% trans 'Show document' %}
+                </a>
+            </p>
+
+            <p>
+                <a class="btn btn-info" data-toggle="collapse" href="#collapseCapsOriginalLink"
+                   role="button"
+                   aria-expanded="false" aria-controls="collapseCapsOriginalLink">
+                    {% autoescape off %}{{THEME.ICONS.EXTERNAL_LINK}}{% endautoescape %} {% trans 'Show link' %}
+                </a>
+            </p>
+            <div class="collapse" id="collapseCapsOriginalLink">
+                <div class="card card-body">
+                    <a itemprop="url" href="{{ capabilities_original_uri }}">
+                        {{ capabilities_original_uri }}</a>
+                </div>
+            </div>
+        </td>
+    </tr>
+    </tbody>
+</table>

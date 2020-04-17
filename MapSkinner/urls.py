@@ -32,3 +32,6 @@ urlpatterns = [
     path("i18n/", include("django.conf.urls.i18n")),
     path('api/', include('api.urls'))
 ]
+
+handler404 = "structure.views.handler404"
+handler500 = "structure.views.handler500"

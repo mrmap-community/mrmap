@@ -1,0 +1,99 @@
+{% extends 'sceletons/table.html' %}
+{% load i18n static %}
+{% block table %}
+    <tr>
+        <th scope="row">{% trans 'Uuid' %}</th>
+        <td>{{ service.uuid }}</td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Parent service' %}</th>
+        <td>
+            <a class="{{THEME.TABLE.LINK_COLOR}}" href="{% url 'service:detail' service.parent_service.metadata.id %}" title="{{ service.parent_service.metadata.uuid }}">
+                {{ service.parent_service.metadata.title }}
+            </a>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Title' %}</th>
+        <td>{{ service.metadata.title }}</td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Abstract' %}</th>
+        <td>{{ service.metadata.abstract }}</td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Keywords' %}</th>
+        <td class="listable-container">
+            {% for kw in service.metadata.keywords.all %}
+                    <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ kw }}</span>
+            {% empty %}
+                {% trans 'No keywords provided' %}
+            {% endfor %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Is searchable' %}</th>
+        <td>
+            {% if service.searchable %}
+            <em class='fas fa-check text-success'></em>
+            {% else %}
+            <em class='fas fa-times text-danger'></em>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Access secured' %}</th>
+        <td>
+            {% if service.metadata.is_secured %}
+            <em class='fas fa-check text-success'></em>
+            {% else %}
+            <em class='fas fa-times text-danger'></em>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Bounding box' %}</th>
+        <td>
+            {% if service.bbox_lat_lon.area > 0.0 %}
+            <div id="{{ service.id }}_map" class="map-view" style="height: 40vh; min-height: 200px;"></div>
+            {% with id_map=service.id bbox=service.bbox_lat_lon  %}
+                {% include 'leaflet/leaflet-client.html' %}
+                <script type="text/javascript">
+                    initializeLeafletClient();
+                </script>
+            {% endwith %}
+
+            {% else %}
+                {% trans 'No spatial data provided!' %}
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Default reference system:' %}</th>
+        <td>
+            <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ service.default_srs.prefix }}{{ service.default_srs.code }}</span>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Additional reference systems:' %}</th>
+        <td class="listable-container">
+            {% for rs in service.metadata.reference_system.all %}
+                <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ rs.prefix }}{{ rs.code }}</span>
+            {% empty %}
+                {% trans 'No additional reference systems provided' %}
+            {% endfor %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Mime types:' %}</th>
+        <td>
+            {% with service.id as id_accordion %}
+                {% for key, values in mime_types.items %}
+                    {% with key as id_accordion_combined and 'btn-link' as button_type %}
+                        {% include 'includes/wms/sublayer_mime_type_table.html' %}
+                    {% endwith %}
+                {% endfor %}
+            {% endwith %}
+        </td>
+    </tr>
+{% endblock %}

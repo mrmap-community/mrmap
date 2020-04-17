@@ -1,0 +1,62 @@
+{% extends 'sceletons/card.html' %}
+{% load i18n static tz %}
+{% load django_tables2 %}
+{% load fontawesome_5 %}
+{% load query_parameters %}
+{% load bootstrap4 %}
+
+
+{% block card-header-title-left %}
+    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata editor' %}</h4>
+{% endblock %}
+
+{% block card-header-title-right %}
+{% endblock %}
+
+{% block card-header-subtitle-left %}
+    <h5 class="text-muted">
+        {% if service_metadata.is_root %}
+            Service:
+        {% elif service_metadata.metadata_type.type == 'featuretype' %}
+            Featuretype:
+        {% elif service_metadata.metadata_type.type == 'layer' %}
+            Layer:
+        {% endif %}
+        {{ service_metadata.title }}
+    </h5>
+{% endblock %}
+{% block card-header-subtitle-right %}
+        <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'service:detail' service_metadata.id %}">
+            <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Service detail view' %}</span>
+        </a>
+{% endblock %}
+
+
+{% block card-body %}
+
+<div class="row">
+   <div class="col">
+       <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service_metadata.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
+   </div>
+</div>
+
+<div class="row mt-2">
+   <div class="col">
+       <form action={{form.action_url}} method="post" class="form">
+           {% csrf_token %}
+           <div class="row">
+                <div class="col">
+                    {% bootstrap_form form %}
+                    {% include 'includes/editor_metadata_autocompletes.html' %}
+                </div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">{% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save'%}</button>
+                </div>
+            </div>
+       </form>
+   </div>
+</div>
+
+{% endblock %}

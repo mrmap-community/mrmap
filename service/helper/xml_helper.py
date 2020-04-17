@@ -11,6 +11,7 @@ from requests.exceptions import ProxyError
 
 from MapSkinner.settings import XML_NAMESPACES
 from service.helper.common_connector import CommonConnector
+from service.helper.enums import OGCServiceVersionEnum
 
 
 def parse_xml(xml: str, encoding=None):
@@ -40,19 +41,46 @@ def parse_xml(xml: str, encoding=None):
     return xml_obj
 
 
-def xml_to_string(xml_obj):
+def xml_to_string(xml_obj, pretty_print: bool = False):
+    """ Creates a string representation of a xml element
+
+    Args:
+        xml_obj: The xml element
+    Returns:
+         _str (str): The string or None if something failed
+    """
     enc = "UTF-8"
-    return etree.tostring(xml_obj, encoding=enc, method="xml").decode()
+    try:
+        _str = etree.tostring(xml_obj, encoding=enc, method="xml", pretty_print=pretty_print).decode()
+    except TypeError:
+        _str = None
+    return _str
 
 
-def get_feature_type_elements_xml(title, service_type_version, service_type, uri):
-    connector = CommonConnector(url=uri)
+def get_feature_type_elements_xml(title, service_type_version, service_type, uri, external_auth):
+    """ Requests a DescribeFeatureType document
+
+    Args:
+        title (str):
+        service_type_version (str):
+        service_type (str):
+        uri (str):
+        external_auth (ExternalAuthentication):
+    Returns:
+         None | str
+    """
+    connector = CommonConnector(url=uri, external_auth=external_auth)
+    type_name = "typeName"
+    if service_type_version == OGCServiceVersionEnum.V_2_0_0 or service_type_version == OGCServiceVersionEnum.V_2_0_2:
+        type_name = "typeNames"
+
     params = {
         "service": service_type,
         "version": service_type_version,
         "request": "DescribeFeatureType",
-        "typeNames": title
+        type_name: title
     }
+
     try:
         connector.load(params=params)
         response = connector.content
@@ -62,6 +90,30 @@ def get_feature_type_elements_xml(title, service_type_version, service_type, uri
     except ProxyError:
         return None
     return response
+
+
+def get_href_attribute(xml_elem):
+    """ Helping function which returns None or the href attribute.
+
+    Since some xml documents use https for the w3.org reference,
+    it is nicer to encapsulate the logic inside this separate function.
+
+    Args:
+        xml_elem: The xml element
+    Returns:
+         None | the attribute
+    """
+    xlink = None
+    if xml_elem is not None:
+        possible_tags = [
+            "{http://www.w3.org/1999/xlink}href",
+            "{https://www.w3.org/1999/xlink}href",
+        ]
+        for tag in possible_tags:
+            xlink = xml_elem.get(tag)
+            if xlink is not None:
+                break
+    return xlink
 
 
 def try_get_single_element_from_xml(elem: str, xml_elem):
@@ -120,7 +172,33 @@ def try_get_attribute_from_xml_element(xml_elem, attribute: str, elem: str = Non
     except (IndexError, AttributeError) as e:
         return None
 
+def get_children_with_attribute(xml_elem, attribute: str, nearest_only: bool=False):
+    """ Returns the next or all children which hold a specific attribute name
+
+    Args:
+        xml_elem: The xml element
+        attribute: The requested attribute name
+        nearest_only: Whether to return only the next children or all found
+    Returns:
+         children (list|_Element): The child or a list of children
+    """
+    children = xml_elem.xpath(".//*[@" + attribute + "]")
+
+    if nearest_only and len(children) > 0:
+        return children[0]
+    else:
+        return children
+
 def set_attribute(xml_elem, attribute: str, value: str):
+    """ Set an attribute for a xml element
+
+    Args:
+        xml_elem (Element): The xml element object
+        attribute (str):  The attribute name
+        value (str): The new attribute value
+    Returns:
+        nothing
+    """
     xml_elem.set(attribute, value)
 
 
@@ -166,6 +244,27 @@ def find_element_where_attr(xml_obj, attr_name, attr_val):
     return xml_obj.xpath("//*[@{}='{}']/parent::*".format(attr_name, attr_val), namespaces=XML_NAMESPACES)
 
 
+def write_attribute(xml_elem, elem: str=None, attrib: str=None, txt: str=None):
+    """ Write new text to a xml attribute.
+
+    Elem can be used to refer to a subelement of the current xml_elem
+
+    Args:
+        xml_elem: The current xml element
+        elem (str): The requested element tag name
+        attrib (str): The attribute name
+        txt (str): The new text for the element
+    Returns:
+         xml_elem: The modified xml element
+    """
+    if xml_elem is not None:
+        if elem is not None:
+            xml_elem = try_get_single_element_from_xml(elem=elem, xml_elem=xml_elem)
+        if xml_elem is not None:
+            xml_elem.set(attrib, txt)
+    return xml_elem
+
+
 def write_text_to_element(xml_elem, elem: str=None, txt: str=None):
     """ Write new text to a xml element.
 
@@ -197,17 +296,18 @@ def remove_element(xml_child):
     parent.remove(xml_child)
 
 
-def create_subelement(xml_elem: _Element, tag_name, after: str = None):
+def create_subelement(xml_elem: _Element, tag_name, after: str = None, attrib: dict = None, nsmap: dict = {}):
     """ Creates a new xml element as a child of xml_elem with the name tag_name
 
     Args:
         xml_elem: The xml element
         tag_name: The tag name for the new element
         after (str): The tag name of the element after which the new one should be inserted
+        attrib: The attribute dict for the new element
     Returns:
          A new subelement of xml_elem
     """
-    ret_element = etree.Element(tag_name)
+    ret_element = etree.Element(tag_name, attrib=attrib, nsmap=nsmap)
     if after is not None:
         after_element = try_get_single_element_from_xml("./{}".format(after), xml_elem)
         after_element_index = xml_elem.index(after_element) + 1
@@ -258,5 +358,13 @@ def add_iso_md_element(xml_obj: _Element, new_link: str):
     else:
         xml_obj.append(iso_elem)
 
+
 def get_parent(xml_obj: _Element):
+    """ Returns the parent of the current xml object
+
+    Args:
+        xml_obj (Element): The xml element
+    Returns:
+         The xml element's parent
+    """
     return xml_obj.getparent()

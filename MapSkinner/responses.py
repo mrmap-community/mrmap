@@ -7,9 +7,9 @@ Created on: 15.04.19
 """
 from django.http import JsonResponse, HttpRequest
 
-from MapSkinner.settings import ROOT_URL, VERSION, GIT_REPO_URI
-from structure.models import User
-from users.helper import user_helper
+from MapSkinner.settings import ROOT_URL, GIT_REPO_URI, GIT_GRAPH_URI
+from structure.models import MrMapUser
+from MapSkinner.utils import get_theme
 
 
 class DefaultContext:
@@ -17,19 +17,44 @@ class DefaultContext:
 
     """
 
-    def __init__(self, request: HttpRequest, context: dict, user: User = None):
+    def __init__(self, request: HttpRequest, context: dict, user: MrMapUser = None):
         if user is not None:
             permissions = user.get_permissions()
         else:
             permissions = []
+
+        breadcrumb = []
+        breadcrumb_items = request.path.split("/")
+        breadcrumb_items.pop(0)   # pop the first / item
+
+        index = 0
+        while index < len(breadcrumb_items):
+            item = {'item': breadcrumb_items[index]}
+            if index != 0:
+                path = breadcrumb[index-1]["path"] + '/' + breadcrumb_items[index]
+                item.update({'path': path})
+            else:
+                item.update({'path': breadcrumb_items[index]})
+
+            if index == len(breadcrumb_items)-1:
+                item.update({'is_last': True})
+
+            if index == len(breadcrumb_items)-2:
+                item.update({'is_penultimate': True})
+
+            breadcrumb.append(item)
+            index += 1
+
         self.context = {
             "ROOT_URL": ROOT_URL,
             "PATH": request.path.split("/")[1],
             "LANGUAGE_CODE": request.LANGUAGE_CODE,
             "user_permissions": permissions,  #user_helper.get_permissions(user)
             "user": user,
-            "VERSION": VERSION,
             "GIT_REPO_URI": GIT_REPO_URI,
+            "GIT_GRAPH_URI": GIT_GRAPH_URI,
+            "THEME": get_theme(user),
+            "BREADCRUMB": breadcrumb,
         }
         self.add_context(context)
 
@@ -51,6 +76,12 @@ class DefaultContext:
         for key, val in context.items():
             self.context[key] = val
 
+class APIResponse:
+    def __init__(self):
+        self.data = {
+            "success": False,
+            "msg": "",
+        }
 
 class BackendAjaxResponse:
     """ Generic JsonResponse wrapper for Backend->Frontend(AJAX) communication

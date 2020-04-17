@@ -49,7 +49,7 @@ class Command(BaseCommand):
         uri_lang = origin.uri.format(language)
         connector = CommonConnector(uri_lang)
         connector.load()
-        return connector.text
+        return connector.content
 
     def check_category_origins(self):
         """ Checks if the category origins exist and creates them if not.
@@ -98,7 +98,7 @@ class Command(BaseCommand):
 
         ret_list = []
         # iterate for another language over all categories and set the correct translated attributes
-        items = json.loads(raw_categories)
+        items = json.loads(raw_categories.decode("utf-8"))
         if origin.name == "iso":
             items = items["metadata-codelist"]["containeditems"]
         for item in items:
@@ -143,7 +143,7 @@ class Command(BaseCommand):
             link = "uri"
 
         ret_list = []
-        items = json.loads(raw_categories)
+        items = json.loads(raw_categories.decode("utf-8"))
         if origin.name == "iso":
             items = items["metadata-codelist"]["containeditems"]
         for item in items:

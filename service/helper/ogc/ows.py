@@ -6,24 +6,28 @@ from abc import abstractmethod
 from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
+from requests.exceptions import ReadTimeout
 
+from MapSkinner.messages import CONNECTION_TIMEOUT
+from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ConnectionEnum, VersionEnum, ServiceEnum
+from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, OGCServiceEnum
 from service.helper.iso.iso_metadata import ISOMetadata
-from structure.models import User
+from service.models import RequestOperation, ExternalAuthentication
+from structure.models import MrMapUser
 
 
 class OGCWebService:
     """ The base class for all derived web services
 
     """
-    def __init__(self, service_connect_url=None, service_type=ServiceEnum.WMS, service_version=VersionEnum.V_1_1_1, auth=None, service_capabilities_xml=None):
+    def __init__(self, service_connect_url=None, service_type=OGCServiceEnum.WMS, service_version=OGCServiceVersionEnum.V_1_1_1, service_capabilities_xml=None, external_auth: ExternalAuthentication=None):
         self.service_connect_url = service_connect_url
         self.service_type = service_type  # wms, wfs, wcs, ...
         self.service_version = service_version  # 1.0.0, 1.1.0, ...
         self.service_capabilities_xml = service_capabilities_xml
-        self.auth = auth
+        self.external_authentification = external_auth
         self.descriptive_document_encoding = None
         self.connect_duration = None
         self.service_object = None
@@ -68,18 +72,22 @@ class OGCWebService:
         # other
         self.linked_service_metadata = None
 
-
-        # initialize service from url
-        # if service_capabilities_xml is not None:
-        #     # load from given xml
-        #     print("try to load from given xml document")
-        # else:
-        #     # load from url
-        #     self.get_capabilities()
+        # Capability
+        self.get_capabilities_uri_GET = None
+        self.get_capabilities_uri_POST = None
+        self.get_map_uri_GET = None
+        self.get_map_uri_POST = None
+        self.get_feature_info_uri_GET = None
+        self.get_feature_info_uri_POST = None
+        self.describe_layer_uri_GET = None
+        self.describe_layer_uri_POST = None
+        self.get_legend_graphic_uri_GET = None
+        self.get_legend_graphic_uri_POST = None
+        self.get_styles_uri_GET = None
+        self.get_styles_uri_POST = None
 
         class Meta:
             abstract = True
-
 
     def get_capabilities(self):
         """ Start a network call to retrieve the original capabilities xml document.
@@ -90,55 +98,71 @@ class OGCWebService:
         Returns:
              nothing
         """
-        # if (self.auth != None and self.auth.auth_user != None and self.auth.auth_password != None):
-        #    auth = {"auth_user":self.auth_user, "auth_password":self.auth_password, "auth_type":self.auth_type}
-        # auth = self.auth
-        # else:
-        #    auth = None
         self.service_connect_url = self.service_connect_url + \
                                    '&REQUEST=GetCapabilities' + '&VERSION=' + self.service_version.value + \
                                    '&SERVICE=' + self.service_type.value
         ows_connector = CommonConnector(url=self.service_connect_url,
-                                        auth=self.auth,
+                                        external_auth=self.external_authentification,
                                         connection_type=ConnectionEnum.REQUESTS)
         ows_connector.http_method = 'GET'
-        ows_connector.load()
-        if ows_connector.status_code != 200:
-            raise ConnectionError(ows_connector.status_code)
+        try:
+            ows_connector.load()
+            if ows_connector.status_code != 200:
+                raise ConnectionError(ows_connector.status_code)
+        except ReadTimeout:
+            raise ConnectionError(CONNECTION_TIMEOUT.format(self.service_connect_url))
 
-        if ows_connector.encoding is not None:
-            self.service_capabilities_xml = ows_connector.content.decode(ows_connector.encoding)
-        else:
-            self.service_capabilities_xml = ows_connector.text
-            
-        self.connect_duration = ows_connector.load_time
+        tmp = ows_connector.content.decode("UTF-8")
+        # check if tmp really contains an xml file
+        xml = xml_helper.parse_xml(tmp)
+
+        if xml is None:
+            raise Exception(tmp)
+
+        self.service_capabilities_xml = tmp
+        self.connect_duration = ows_connector.run_time
         self.descriptive_document_encoding = ows_connector.encoding
-    # def invoke_operation(self, operation_name, dcp_type, dcp_method):
-    #    pass
-    
-    # def list_operations(self, dcp_type='http'):
-    #    pass
     
     def check_ogc_exception(self):
         pass
 
-    def has_iso_metadata(self, xml):
-        """ Checks whether the xml element has an iso 19115 metadata record or not
+    def has_dataset_metadata(self, xml):
+        """ Checks whether the xml element has an iso 19115 dataset metadata record or not
 
         Args:
             xml: The xml etree object
         Returns:
-             True if element has iso metadata, false otherwise
+             True if element has dataset metadata, false otherwise
         """
-        iso_metadata = xml_helper.try_get_element_from_xml(xml_elem=xml, elem="./MetadataURL")
-        if len(iso_metadata) == 0:
-            iso_metadata = xml_helper.try_get_element_from_xml(xml_elem=xml, elem="./wfs:MetadataURL")
+        iso_metadata = xml_helper.try_get_element_from_xml(
+            xml_elem=xml,
+            elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL")
+        )
         return len(iso_metadata) != 0
-
 
     """
     Methods that have to be implemented in the sub classes
     """
+    @abstractmethod
+    def get_service_operations(self, xml_obj):
+        """ Creates table records from <Capability><Request></Request></Capability contents
+
+        Args:
+            xml_obj: The xml document object
+        Returns:
+
+        """
+        cap_request = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request"),
+            xml_obj
+        )
+        operations = cap_request.getchildren()
+        for operation in operations:
+            RequestOperation.objects.get_or_create(
+                operation_name=operation.tag,
+            )
+
     @abstractmethod
     def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None):
         pass
@@ -178,7 +202,7 @@ class OGCWebService:
         """
         # Must parse metadata document and merge metadata into this metadata object
         elem = "//inspire_common:URL"  # for wms by default
-        if self.service_type is ServiceEnum.WFS:
+        if self.service_type is OGCServiceEnum.WFS:
             elem = "//wfs:MetadataURL"
         service_md_link = xml_helper.try_get_text_from_xml_element(elem=elem, xml_elem=xml_obj)
         # get iso metadata xml object
@@ -207,25 +231,10 @@ class OGCWebService:
         self.service_bounding_box = bbox
 
     @abstractmethod
-    def create_service_model_instance(self, user: User, register_group, register_for_organization):
+    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization):
         pass
 
     @transaction.atomic
     @abstractmethod
-    def persist_service_model(self, service):
+    def persist_service_model(self, service, external_auth):
         pass
-
-
-class OWSRequestHandler:
-    def built_request(self):
-        pass
-
-    def do_request(self):
-        pass
-
-    def parse_result(self):
-        pass
-
-    # def get_section(self):
-    #    pass
-

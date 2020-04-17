@@ -1,0 +1,19 @@
+{% extends 'sceletons/card-dash.html' %}
+{% load i18n %}
+
+{% block card-header %}
+    <div class="text-center">
+        <h4 class="card-title">{% trans 'Groups and organizations' %}</h4>
+    </div>
+{% endblock %}
+
+{% block card-body %}
+    <div class="row">
+        <div class="col-sm">
+            {% include 'cards/groups_and_organizations/groups.html' %}
+        </div>
+        <div class="col-sm">
+            {% include 'cards/groups_and_organizations/organizations.html' %}
+        </div>
+    </div>
+{% endblock %}

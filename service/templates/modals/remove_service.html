@@ -1,0 +1,14 @@
+{% extends 'sceletons/modal-form.html' %}
+{% load i18n %}
+{% load bootstrap4 %}
+
+{% block modal-title %}
+{% trans 'Remove service' %}
+{% endblock %}
+
+{% block modal-footer %}
+<button type="button" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" data-dismiss="modal">{% trans 'Cancel' %}</button>
+<button type="button submit" class="btn {{ THEME.MODAL.BTN_DANGER_COLOR }}">
+    {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Remove' %}
+</button>
+{% endblock %}

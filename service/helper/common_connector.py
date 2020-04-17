@@ -1,7 +1,14 @@
-import time    
+"""
+Author: Armin Retterath
+Organization: Spatial data infrastructure Rhineland-Palatinate, Germany
+Contact: armin.retterath@vermkv.rlp.de
+
+"""
+import time
 
 # Problem of unresolved python c extensions: https://stackoverflow.com/questions/41598399/pydev-tags-import-as-unresolved-import-all-compiled-extensions
 import pycurl
+import urllib
 from urllib.parse import urlencode
 
 import requests
@@ -9,9 +16,11 @@ import types
 
 import re
 
-from requests.exceptions import InvalidURL
+from django.http import HttpResponse
+from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
-from service.settings import DEFAULT_CONNECTION_TYPE
+from MapSkinner.utils import print_debug_mode
+from service.settings import DEFAULT_CONNECTION_TYPE, REQUEST_TIMEOUT
 from MapSkinner.settings import HTTP_PROXY, PROXIES
 from service.helper.enums import ConnectionEnum
 
@@ -21,13 +30,13 @@ except ImportError:
     import StringIO as BytesIO
 
 
-class CommonConnector():
-    def __init__(self, url=None, auth=None, connection_type=None):
-        self.url = url
-        self.auth = auth
+class CommonConnector:
+    def __init__(self, url=None, external_auth=None, connection_type=None):
+        self._url = None
+        self.external_auth = external_auth
         self.connection_type = connection_type if connection_type is not None else DEFAULT_CONNECTION_TYPE
         self.init_time = time.time()
-        self.load_time = None
+        self.run_time = None
         self.timeout = 5
         self.http_method = 'GET'
         self.http_version = '1.0'
@@ -39,25 +48,39 @@ class CommonConnector():
         self.http_cookie_session = None
         self.content = None
         self.encoding = None
-        self.text = None
         self.status_code = None
-        
+        self.is_local_request = False
+
+        if url is not None:
+            self.set_url(url)
+
+    def set_url(self, url: str):
+        """ Setter for url parameter
+
+        Args:
+            url (str):
+        Returns:
+             nothing
+        """
+        url_obj = urllib.parse.urlparse(url)
+        if "127.0.0.1" in url_obj.hostname or "localhost" in url_obj.hostname:
+            self.is_local_request = True
+        self._url = url
+
     def load(self, params: dict = None):
         self.init_time = time.time()
-        # print(self.http_method)
-        c = ConnectionEnum.CURL
         if self.connection_type is ConnectionEnum.CURL:
             response = self.__load_curl(params)
         elif self.connection_type is ConnectionEnum.REQUESTS:
             response = self.__load_requests(params)
+            self.status_code = response.status_code
         else:
             response = self.__load_urllib()
         # parse response
-        self.status_code = response.status_code
         self.content = response.content
+        self.http_external_headers = response.headers._store
         self.encoding = response.encoding
-        self.text = response.text
-        self.load_time = time.time() - self.init_time
+        self.run_time = time.time() - self.init_time
 
     def __load_curl(self, params: dict = None):
         response = types.SimpleNamespace()
@@ -105,7 +128,7 @@ class CommonConnector():
 
         buffer = BytesIO()
         c = pycurl.Curl()
-        c.setopt(c.URL, self.url + url_args)
+        c.setopt(c.URL, self._url + url_args)
         c.setopt(c.WRITEFUNCTION, buffer.write)
         # Set our header function.
         c.setopt(c.HEADERFUNCTION, header_function)
@@ -123,40 +146,87 @@ class CommonConnector():
             match = re.search('charset=(\S+)', content_type)
             if match:
                 encoding = match.group(1)
-                print('Decoding using %s' % encoding)
+                print_debug_mode('Decoding using %s' % encoding)
                 
         if encoding is None:
             # Default encoding for HTML is iso-8859-1.
             # Other content types may have different default encoding,
             # or in case of binary data, may have no encoding at all.
             encoding = 'iso-8859-1'
-            print('Assuming encoding is %s' % encoding)
+            print_debug_mode('Assuming encoding is %s' % encoding)
 
         response.content = buffer.getvalue()
         response.encoding = encoding
         response.text = response.content.decode(encoding)
         return response
     
-    def __load_requests(self, params:dict = None):
+    def __load_requests(self, params: dict = None):
         response = None
         proxies = None
-        if len(PROXIES) > 0:
+        if len(PROXIES) > 0 and not self.is_local_request:
             proxies = PROXIES
-        if self.auth is not None:
-            if self.auth["auth_type"] == 'none':
-                response = requests.request(self.http_method, self.url, params=params, proxies=proxies)
-            elif self.auth["auth_type"] == 'http_basic':
-                from requests.auth import HTTPBasicAuth
-                response = requests.request(self.http_method, self.url, params=params, auth=HTTPBasicAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies)
-            elif self.auth["auth_type"] == 'http_digest':   
-                from requests.auth import HTTPDigestAuth
-                response = requests.request(self.http_method, self.url, params=params, auth=HTTPDigestAuth(self.auth["auth_user"], self.auth["auth_password"]), proxies=proxies)
+        if self.external_auth is not None:
+            if self.external_auth.auth_type is None:
+                response = requests.request(self.http_method, self._url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
+            elif self.external_auth.auth_type == 'http_basic':
+                response = requests.request(self.http_method, self._url, params=params, auth=HTTPBasicAuth(self.external_auth.username, self.external_auth.password), proxies=proxies, timeout=REQUEST_TIMEOUT)
+            elif self.external_auth.auth_type == 'http_digest':
+                response = requests.request(self.http_method, self._url, params=params, auth=HTTPDigestAuth(self.external_auth.username, self.external_auth.password), proxies=proxies, timeout=REQUEST_TIMEOUT)
             else:
-                response = requests.request(self.http_method, self.url, params=params, proxies=proxies)
+                response = requests.request(self.http_method, self._url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
         else:
-            response = requests.request(self.http_method, self.url, params=params, proxies=proxies)
+            response = requests.request(self.http_method, self._url, params=params, proxies=proxies, timeout=REQUEST_TIMEOUT)
 
         return response   
     
     def __load_urllib(self):
         pass
+
+    def post(self, data):
+        """ Wraps the post functionality of different request implementations (CURL, Requests).
+
+        The response is written to self.content.
+
+        Args:
+            data (dict|byte): The post data body
+        Returns:
+             nothing
+        """
+        self.init_time = time.time()
+
+        if self.connection_type is ConnectionEnum.CURL:
+            # perform curl post
+            pass
+        elif self.connection_type is ConnectionEnum.REQUESTS:
+            response = HttpResponse()
+            # perform requests post
+            if self.external_auth is None:
+                response = requests.post(
+                    self._url,
+                    data,
+                    timeout=REQUEST_TIMEOUT,
+                    proxies=PROXIES,
+                )
+            elif self.external_auth.auth_type == "http_basic":
+                response = requests.post(
+                    self._url,
+                    data,
+                    timeout=REQUEST_TIMEOUT,
+                    proxies=PROXIES,
+                    auth=HTTPBasicAuth(self.external_auth.username, self.external_auth.password)
+                )
+            elif self.external_auth.auth_type == "http_digest":
+                response = requests.post(
+                    self._url,
+                    data,
+                    timeout=REQUEST_TIMEOUT,
+                    proxies=PROXIES,
+                    auth=HTTPDigestAuth(self.external_auth.username, self.external_auth.password)
+                )
+            self.status_code = response.status_code
+            self.content = response.content
+            self.http_external_headers = response.headers._store
+        else:
+            # Should not happen - we only accept REQUEST or CURL
+            pass
+        self.run_time = time.time() - self.init_time

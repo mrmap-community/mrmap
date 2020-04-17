@@ -16,46 +16,134 @@ from requests.exceptions import InvalidURL
 from MapSkinner import utils
 from MapSkinner.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
-from service.models import Service, Layer
-from structure.models import User, Group, Organization, PendingTask
+from MapSkinner.utils import print_debug_mode
+from service.helper.enums import MetadataEnum, OGCServiceEnum
+from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
+    MetadataRelation, ProxyLog
+from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
 from users.helper import user_helper
 
 
+@shared_task(name="async_increase_hits")
+def async_increase_hits(metadata_id: int):
+    """ Async call for increasing the hit counter of a metadata record
+
+    Args:
+        metadata_id (int): The metadata record id
+    Returns:
+         nothing
+    """
+    md = Metadata.objects.get(id=metadata_id)
+    md.increase_hits()
+
+
 @shared_task(name="async_activate_service")
-def async_activate_service(param_POST: dict, user_id: int):
+def async_activate_service(service_id: int, user_id: int, is_active: bool):
     """ Async call for activating a service, its subelements and all of their related metadata
 
     Args:
-        param_POST (dict): The post parameter of the incoming request
+        service_id (int): The service parameter
         user_id (int): The user id of the performing user
+
     Returns:
         nothing
     """
-    user = User.objects.get(id=user_id)
-    service_id = param_POST.get("id", -1)
-    new_status = utils.resolve_boolean_attribute_val(param_POST.get("active", False))
+    user = MrMapUser.objects.get(id=user_id)
 
     # get service and change status
     service = Service.objects.get(id=service_id)
+    new_status = is_active
     service.metadata.is_active = new_status
     service.metadata.save(update_last_modified=False)
+    service.is_active = new_status
     service.save(update_last_modified=False)
+
+    service.metadata.set_documents_active_status(new_status)
 
     # get root_layer of service and start changing of all statuses
     # also check all related metadata and activate them too
-    if service.servicetype.name == "wms":
+    if service.servicetype.name == OGCServiceEnum.WMS.value:
         service.activate_service(new_status)
         root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
         root_layer.activate_layer_recursive(new_status)
 
+    # activate features/related dataset metadata
+    elif service.servicetype.name == OGCServiceEnum.WFS.value:
+        featuretypes = service.featuretypes.all()
+
+        for featuretype in featuretypes:
+            ft_metadata = featuretype.metadata
+            ft_metadata.set_documents_active_status(new_status)
+            ft_metadata.is_active = new_status
+
+            # activate related metadata (if it exists)
+            md_relations = MetadataRelation.objects.filter(
+                metadata_from=ft_metadata
+            )
+            for relation in md_relations:
+                related_md = relation.metadata_to
+                related_md.set_documents_active_status(new_status)
+                related_md.is_active = new_status
+                related_md.save()
+            ft_metadata.save()
+
+    # Formating using an empty string here is correct, since these are the messages we show in
+    # the group activity list. We reuse a message template, which uses a '{}' placeholder.
+    # Since we do not show the title in here, we remove the placeholder with an empty string.
     if service.metadata.is_active:
-        msg = SERVICE_ACTIVATED
+        msg = SERVICE_ACTIVATED.format("")
     else:
-        msg = SERVICE_DEACTIVATED
+        msg = SERVICE_DEACTIVATED.format("")
 
     user_helper.create_group_activity(service.metadata.created_by, user, msg, service.metadata.title)
+
+
+@shared_task(name="async_secure_service_task")
+def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int, operation_id: int, group_polygons: dict, secured_operation_id: int):
+    """ Async call for securing a service
+
+    Since this is something that can happen in the background, we should push it to the background!
+
+    Args;
+        metadata_id (int): The service that shall be secured
+        is_secured (bool): Whether to secure the service or not
+        groups (list): The groups which are allowed to perform the RequestOperation
+        operation (RequestOperation): The operation that shall be secured or not
+    Returns:
+         nothing
+    """
+    md = Metadata.objects.get(id=metadata_id)
+    if secured_operation_id is not None:
+        secured_operation = SecuredOperation.objects.get(
+            id=secured_operation_id
+        )
+    else:
+        secured_operation = None
+    if group_id is None:
+        group = None
+    else:
+        group = MrMapGroup.objects.get(
+            id=group_id
+        )
+    if operation_id is not None:
+        operation = RequestOperation.objects.get(id=operation_id)
+    else:
+        operation = None
+
+    md_type = md.metadata_type.type
+
+    # if whole service (wms AND wfs) shall be secured, create SecuredOperations for service object
+    if md_type == MetadataEnum.SERVICE.value:
+        md.service.perform_single_element_securing(md.service, is_secured, group, operation, group_polygons, secured_operation)
+
+    # secure subelements afterwards
+    if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
+        md.service.secure_sub_elements(is_secured, group, operation, group_polygons, secured_operation)
+
+    elif md_type == MetadataEnum.FEATURETYPE.value:
+        md.featuretype.secure_feature_type(is_secured, group, operation, group_polygons, secured_operation)
 
 
 @shared_task(name="async_remove_service_task")
@@ -74,7 +162,7 @@ def async_remove_service_task(service_id: int):
 
 
 @shared_task(name="async_new_service_task")
-def async_new_service(url_dict: dict, user_id: int, register_group_id: int, register_for_organization_id: int):
+def async_new_service(url_dict: dict, user_id: int, register_group_id: int, register_for_organization_id: int, external_auth: dict):
     """ Async call of new service creation
 
     Since redis is used as broker, the objects can not be passed directly into the function. They have to be resolved using
@@ -88,6 +176,14 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
     Returns:
         nothing
     """
+    # create ExternalAuthentication object
+    if external_auth is not None:
+        external_auth = ExternalAuthentication(
+            username=external_auth["username"],
+            password=external_auth["password"],
+            auth_type=external_auth["auth_type"],
+        )
+
     # get current task id
     curr_task_id = async_new_service.request.id
 
@@ -96,12 +192,12 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         task_helper.update_progress(async_new_service, 0)
 
     # restore objects from ids
-    user = User.objects.get(id=user_id)
+    user = MrMapUser.objects.get(id=user_id)
     url_dict["service"] = service_helper.resolve_service_enum(url_dict["service"])
     url_dict["version"] = service_helper.resolve_version_enum(url_dict["version"])
 
-    register_group = Group.objects.get(id=register_group_id)
-    if utils.resolve_none_string(register_for_organization_id) is not None:
+    register_group = MrMapGroup.objects.get(id=register_group_id)
+    if utils.resolve_none_string(str(register_for_organization_id)) is not None:
         register_for_organization = Organization.objects.get(id=register_for_organization_id)
     else:
         register_for_organization = None
@@ -116,6 +212,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             register_group,
             register_for_organization,
             async_task=async_new_service,
+            external_auth=external_auth
         )
 
         ## update progress
@@ -132,22 +229,26 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             # update db pending task information
             pending_task.description = json.dumps({
                 "service": service.metadata.title,
-                "phase": "persisting",
+                "phase": "Persisting",
             })
             pending_task.save()
 
         xml = raw_service.service_capabilities_xml
 
         # persist everything
-        service_helper.persist_service_model_instance(service)
+        service_helper.persist_service_model_instance(service, external_auth)
 
         # update progress
         if curr_task_id is not None:
             task_helper.update_progress(async_new_service, 95)
 
-        service_helper.persist_capabilities_doc(service, xml)
+        service.persist_capabilities_doc(xml)
 
-        print(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
+        # after service AND documents have been persisted, we can now set the service being secured
+        if external_auth is not None:
+            service.metadata.set_proxy(True)
+
+        print_debug_mode(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
         user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
 
         if curr_task_id is not None:
@@ -158,13 +259,15 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             pending_task = PendingTask.objects.get(task_id=curr_task_id)
             pending_task.delete()
 
-    except (ConnectionError, InvalidURL) as e:
-        raise e
-    except (BaseException, XMLSyntaxError, XPathEvalError) as e:
+    except (BaseException, XMLSyntaxError, XPathEvalError, InvalidURL, ConnectionError) as e:
         if curr_task_id is not None:
             pending_task = PendingTask.objects.get(task_id=curr_task_id)
+            descr = json.loads(pending_task.description)
             pending_task.description = json.dumps({
-                "current": "0",
+                "service": descr.get("service", None),
+                "info": {
+                    "current": "0",
+                },
                 "exception": e.__str__(),
             })
             pending_task.save()

@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% load i18n static %}
+{% load fontawesome_5 %}
+
+{% block body %}
+<div class="container-fluid px-5">
+    <div class="row w-100">
+        <div class="col-md-3">
+                <div class="row">
+                    <div class="col">
+                    {% include 'cards/pending_requests.html' %}
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col">
+                    {% include 'cards/last_activities.html' %}
+                        </div>
+                </div>
+        </div>
+        <div class="col w-100">
+                <div class="row">
+                    {% include 'cards/my_services.html' %}
+                </div>
+                <div class="row mt-2">
+                    {% include 'cards/groups_and_organizations.html' %}
+                </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

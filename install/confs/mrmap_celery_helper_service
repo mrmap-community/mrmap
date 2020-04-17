@@ -1,0 +1,13 @@
+[Unit]
+Description=Celery Helper Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStartPre=-/usr/bin/mkdir /var/run/celery
+ExecStart=/usr/bin/chown www-data /var/run/celery/
+Restart=on-abort
+
+
+[Install]
+WantedBy=multi-user.target

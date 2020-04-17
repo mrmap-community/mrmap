@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+{% load i18n static %}
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+    {% include 'includes/default-head.html' %}
+</head>
+<body class="{{THEME.BACKGROUND}} {{THEME.BACKGROUND_IMG}}">
+    {% include 'includes/messages.html' %}
+    {% include 'includes/ee-overlay.html' %}
+    <div class="container">
+        <div class="card {{THEME.CARD.TXT_COLOR}} {{THEME.CARD.BG}} mt-3 {{THEME.CARD.BOARDER}}">
+            <div class="card-header">
+                <h1 class="card-title text-center">500</h1>
+            </div><!--</card-header-->
+            <div class="card-body">
+                <div class="media ">
+                        <img class="align-self-start w-25 mr-3" src="{% static 'images/mr_map_500.png' %}" title="{% trans 'Mr. Map seems to be ill!' %}" alt="{% trans 'Ill Mr. Map' %}">
+                        <div class="media-body w-75">
+                            <article class="article-txt">
+                            <h1>{% trans 'Oh dear!' %}</h1>
+                            <div>{% trans 'Mr. Map seems to be ill and can`t work at the moment.' %}</div>
+                            <hr>
+                            <div>{% trans 'We are doing our best to get him healthy again!' %}</div>
+                        </article>
+                        </div>
+                    </div>
+            </div>
+            <div class="card-footer text-center">
+                <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'home' %}">{% autoescape off %}{{THEME.ICONS.HOME}}{% endautoescape %} {% trans 'Back to home' %}</a><br>
+            </div>
+        </div> <!-- card-body.// -->
+    </div>
+{% include 'includes/footer.html' %}
+</body>
+</html>

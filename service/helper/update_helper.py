@@ -5,12 +5,15 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 05.06.19
 
 """
-from copy import copy
+from copy import copy, deepcopy
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
+from django.utils import timezone
 
-from service.models import Service, Layer, FeatureType, Metadata
+from editor.forms import MetadataEditorForm
+from service.models import Service, Layer, FeatureType, Metadata, ReferenceSystem, MimeType, MetadataType, Document
+
 
 @transaction.atomic
 def transform_lists_to_m2m_collections(element):
@@ -30,15 +33,6 @@ def transform_lists_to_m2m_collections(element):
          element: The element
     """
     if isinstance(element, FeatureType):
-        # featuretype transforming of lists
-        # additional srs
-        for srs in element.additional_srs_list:
-            element.additional_srs.add(srs)
-
-        # keywords
-        for kw in element.keywords_list:
-            element.keywords.add(kw)
-
         # formats
         for _format in element.formats_list:
             element.formats.add(_format)
@@ -51,19 +45,29 @@ def transform_lists_to_m2m_collections(element):
         for ns in element.namespaces_list:
             element.namespaces.add(ns)
 
+        # additional srs
+        for srs in element.additional_srs_list:
+            element.metadata.reference_system.add(srs)
+
     elif isinstance(element, Metadata):
         # metadata transforming of lists
         # keywords
         for kw in element.keywords_list:
             element.keywords.add(kw)
-        # reference systems
+
+        # Reference systems
         for srs in element.reference_system_list:
+            srs = ReferenceSystem.objects.get_or_create(code=srs.code, prefix=srs.prefix)[0]
             element.reference_system.add(srs)
 
     elif isinstance(element, Service):
         # service transforming of lists
         # formats
         for _format in element.formats_list:
+            _format = MimeType.objects.get_or_create(
+                operation=_format.operation,
+                mime_type=_format.mime_type,
+            )[0]
             element.formats.add(_format)
 
         # categories
@@ -74,8 +78,30 @@ def transform_lists_to_m2m_collections(element):
         raise Exception("UNKNOWN INSTANCE!")
     return element
 
+
+def update_capability_document(current_service: Service, new_capabilities: str):
+    """ Updates the Document object, related to the service/metadata
+
+    Args:
+        current_service (Service):
+        new_capabilities (str):
+    Returns:
+         nothing
+    """
+    cap_document = Document.objects.get(related_metadata=current_service.metadata)
+    cap_document.original_capability_document = new_capabilities
+
+    # Remove cached document
+    current_service.metadata.clear_cached_documents()
+
+    # By deleting the current_capability_document, the system is forced to create a current capability document from the
+    # state at this time
+    cap_document.current_capability_document = None
+    cap_document.save()
+
+
 @transaction.atomic
-def update_metadata(old: Metadata, new: Metadata):
+def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
     """ Overwrites existing metadata (old) with newer content (new).
 
     Database related information like id, created_by, and so on is saved before and written back after overwriting.
@@ -86,29 +112,67 @@ def update_metadata(old: Metadata, new: Metadata):
     Returns:
          old (Metadata): The overwritten metadata
     """
-    # save important persistance information
+    # Save important persistance information
     uuid = old.uuid
     _id = old.id
     created_by = old.created_by
     created_on = old.created
+    activated = old.is_active
+    metadata_type = old.metadata_type
+    metadata_is_custom = old.is_custom
 
-    # overwrite old information with new one
-    old = copy(new)
+    # If needed, cache custom metadata
+    custom_md = {}
+    if keep_custom_md:
+        custom_md_fields = MetadataEditorForm._meta.fields
+        for field in custom_md_fields:
+            custom_md[field] = old.__getattribute__(field)
+        del custom_md_fields
+
+    # Overwrite old information with new one
+    old = deepcopy(new)
     old.id = _id
     old.uuid = uuid
     old.created = created_on
     old.created_by = created_by
+    old.is_active = activated
+    old.metadata_type = metadata_type
 
-    # keywords
-    old.keywords.clear()
-    for kw in new.keywords_list:
-        old.keywords.add(kw)
     # reference systems
     old.reference_system.clear()
     for srs in new.reference_system_list:
+        srs = ReferenceSystem.objects.get_or_create(
+            code=srs.code,
+            prefix=srs.prefix
+        )[0]
         old.reference_system.add(srs)
 
+    # Restore custom metadata if needed
+    if keep_custom_md:
+        old.is_custom = metadata_is_custom
+        for key, val in custom_md.items():
+            # ManyRelatedManagers have to be handled differently
+            try:
+                old.__setattr__(key, val)
+            except TypeError:
+                # If the above simple attribute setter fails, we are dealing with a ManyRelatedManager, that has to be
+                # handled differently
+                field = val.prefetch_cache_name
+                old_manager = old.__getattribute__(field)
+                old_manager_elems = old_manager.all()
+                custom_m2m_elements = val.all()
+                for elem in custom_m2m_elements:
+                    if elem not in old_manager_elems:
+                        old_manager.add(elem)
+    else:
+        # Keywords updating without keeping custom md
+        old.keywords.clear()
+        for kw in new.keywords_list:
+            old.keywords.add(kw)
+
+    old.last_modified = timezone.now()
     return old
+
 
 @transaction.atomic
 def update_service(old: Service, new: Service):
@@ -129,6 +193,7 @@ def update_service(old: Service, new: Service):
     created_on = old.created
     published_for = old.published_for
     md = old.metadata  # metadata is expected to be updated already at this point. Therefore we need to keep it!
+    activated = old.is_active
 
     # overwrite old information with new one
     old = copy(new)
@@ -138,6 +203,7 @@ def update_service(old: Service, new: Service):
     old.created_by = created_by
     old.published_for = published_for
     old.metadata = md
+    old.is_active = activated
 
     # formats
     old.formats.clear()
@@ -149,7 +215,9 @@ def update_service(old: Service, new: Service):
     for category in new.categories_list:
         old.categories.add(category)
 
+    old.last_modified = timezone.now()
     return old
+
 
 @transaction.atomic
 def update_feature_type(old: FeatureType, new: FeatureType, keep_custom_metadata: bool = False):
@@ -169,53 +237,21 @@ def update_feature_type(old: FeatureType, new: FeatureType, keep_custom_metadata
     _id = old.id
     created_by = old.created_by
     created_on = old.created
-    title = old.title
-    abstract = old.abstract
-    service = old.service
-    custom_md = old.is_custom
+    service = old.parent_service
+    metadata = old.metadata
 
     # overwrite old information with new one
-    old = copy(new)
+    old = deepcopy(new)
     old.id = _id
     old.uuid = uuid
     old.created = created_on
     old.created_by = created_by
-    old.service = service
-    if keep_custom_metadata:
-        # save custom title and abstract
-        old.title = title
-        old.abstract = abstract
-        old.is_custom = custom_md
+    old.parent_service = service
 
-
-    # additional srs
-    old.additional_srs.clear()
-    for srs in new.additional_srs_list:
-        old.additional_srs.add(srs)
-
-    if not keep_custom_metadata:
-        # overwrite all keywords
-        # keywords
-        old.keywords.clear()
-        for kw in new.keywords_list:
-            old.keywords.add(kw)
-
-    # formats
-    old.formats.clear()
-    for _format in new.formats_list:
-        old.formats.add(_format)
-
-    # elements
-    old.elements.clear()
-    for element in new.elements_list:
-        old.elements.add(element)
-
-    # namespaces
-    old.namespaces.clear()
-    for ns in new.namespaces_list:
-        old.namespaces.add(ns)
+    old.metadata = update_metadata(metadata, new.metadata, keep_custom_metadata)
 
     return old
+
 
 @transaction.atomic
 def update_single_layer(old: Layer, new: Layer, keep_custom_metadata: bool = False):
@@ -233,42 +269,35 @@ def update_single_layer(old: Layer, new: Layer, keep_custom_metadata: bool = Fal
     # save important persistance information
     uuid = old.uuid
     _id = old.id
-    identifier = old.identifier
     created_by = old.created_by
     created_on = old.created
     parent_service = old.parent_service
     parent_layer = old.parent_layer
-    custom_md = None
-    if keep_custom_metadata and old.metadata.is_custom:
-        custom_md = old.metadata
+    metadata = old.metadata
+    active = old.is_active
 
+    # Overwrite old information with new one
+    old = deepcopy(new)
 
-    # overwrite old information with new one
-    old = copy(new)
+    # Restore important information
     old.id = _id
-    old.identifier = identifier
     old.uuid = uuid
     old.created = created_on
     old.created_by = created_by
     old.parent_service = parent_service
     old.parent_layer = parent_layer
+    old.metadata = metadata
+    old.is_active = active
 
-    if keep_custom_metadata and custom_md is not None:
-        old.metadata = custom_md
-    else:
-        # save metadata
-        md = old.metadata
-        md.save()
-        md = transform_lists_to_m2m_collections(md)
-        old.metadata = md
-        old.save()
-        old = transform_lists_to_m2m_collections(old)
+    old.metadata = update_metadata(metadata, new.metadata, keep_custom_metadata)
 
+    old.metadata.save()
     old.save()
     return old
 
+
 @transaction.atomic
-def update_wfs(old: Service, new: Service, diff: dict, links: dict, keep_custom_metadata: bool = False):
+def update_wfs_elements(old: Service, new: Service, diff: dict, links: dict, keep_custom_metadata: bool = False):
     """ Updates the whole wfs service
 
     Goes through all data, starting at metadata, down to feature types and it's elements to update the current status.
@@ -285,43 +314,59 @@ def update_wfs(old: Service, new: Service, diff: dict, links: dict, keep_custom_
     """
     # update, add and remove feature types
     # feature types
-    old_service_feature_types = FeatureType.objects.filter(service=old)
+    old_service_feature_types = FeatureType.objects.filter(parent_service=old)
     for feature_type in new.feature_type_list:
-        name = feature_type.identifier
-        rename = False
+        id = None
+        existing_f_t = None
 
-        if feature_type.identifier in links.keys():
-            # aha! This layer is just a renamed one, that already exists. It must be updated and renamed!
-            name = links[feature_type.identifier]
-            rename = True
+        if feature_type.metadata.identifier in links.keys():
+            # This FeatureType is just a renamed one, that already exists. It must be updated and renamed!
+            # Get the id, from the FeatureType that already exist
+            id = links[feature_type.metadata.identifier]
+        else:
+            existing_f_t = FeatureType.objects.get(
+                parent_service=old,
+                metadata__identifier=feature_type.metadata.identifier,
+            )
 
-        existing_f_t = old_service_feature_types.filter(identifier=name)
-        if existing_f_t.count() == 0:
-            # does not exist -> must be new
-            # add the new feature type
-            feature_type.service = old
-            feature_type.save()
-            transform_lists_to_m2m_collections(feature_type)
-            old.featuretypes.add(feature_type)
-        elif existing_f_t.count() == 1:
-            # exists already and needs to be overwritten
-            existing_f_t = existing_f_t[0]
-            if rename:
-                existing_f_t.identifier = feature_type.identifier
-            existing_f_t.save()
-            #transform_lists_to_m2m_collections(existing_f_t)
+        try:
+            if existing_f_t is None:
+                # Try to get this FeatureType (will fail for id=-1 -> indicates new FeatureType
+                # but no linking to old FeatureType)
+                existing_f_t = old_service_feature_types.get(metadata__id=id)
+
             existing_f_t = update_feature_type(existing_f_t, feature_type, keep_custom_metadata)
+
+            # Write non-persisted lists to many-to-many collections
+            existing_f_t = transform_lists_to_m2m_collections(existing_f_t)
             existing_f_t.save()
+
+        except ObjectDoesNotExist:
+            # FeatureType could not be found with the given information.
+            # FeatureType must be new  -> add it!
+            feature_type.parent_service = old
+            feature_type.is_active = old.is_active
+            md = feature_type.metadata
+            md.is_active = old.is_active
+            md.metadata_type = MetadataType.objects.get_or_create(type=md.metadata_type.type)[0]
+            md.save()
+
+            transform_lists_to_m2m_collections(md)
+            feature_type.metadata = md
+            feature_type.save()
+            feature_type = transform_lists_to_m2m_collections(feature_type)
+            feature_type.save()
+
     # remove old featuretypes
     for removable in diff["feature_types"]["removed"]:
-        #old.featuretypes.remove(removable)
         try:
-            pers_feature_type = FeatureType.objects.get(service=old, identifier=removable.identifier)
+            pers_feature_type = FeatureType.objects.get(parent_service=old, metadata__identifier=removable.metadata.identifier)
             pers_feature_type.delete()
         except ObjectDoesNotExist:
             pass
 
     return old
+
 
 @transaction.atomic
 def _update_wms_layers_recursive(old: Service, new: Service, layers: list, links: dict, parent: Layer = None, keep_custom_metadata: bool = False):
@@ -339,47 +384,62 @@ def _update_wms_layers_recursive(old: Service, new: Service, layers: list, links
          old (Service): The updated existing service
     """
     for layer in layers:
-        identifier = layer.identifier
-        rename = False
+        keys = links.keys()
+        existing_layer = None
+        id = None
+        if layer.identifier in keys:
+            # Get the id, from the layer that already exist
+            id = links[layer.identifier]
+        else:
+            # if the layer is not new, we just want to update it
+            existing_layer = Layer.objects.get(
+                parent_service=old,
+                identifier=layer.identifier
+            )
 
-        if layer.identifier in links.keys():
-            # aha! This layer is just a renamed one, that already exists. It must be updated and renamed!
-            identifier = links[layer.identifier]
-            rename = True
-        # check if layer already exists
-        existing_layer = Layer.objects.filter(parent_service=old, identifier=identifier)
-        if existing_layer.count() == 0:
-            # not existing yet -> add it!
+        # Update layer
+        try:
+            # If no existing_layer could be found until now, we assume the id variable to be set. This means, that
+            # the user knows, that an existing layer has been renamed to the new one. We fetch the "old" layer now...
+            if existing_layer is None:
+                existing_layer = Layer.objects.get(metadata__id=id)
+
+            # ... and perform the update on it.
+            existing_layer = update_single_layer(existing_layer, layer, keep_custom_metadata)
+
+            # To retrieve the children of existing_layer, we overwrite the layer variable to match the recursion style
+            layer = existing_layer
+
+        except ObjectDoesNotExist:
+            # Layer could not be found with the given information.
+            # Layer must be new  -> add it!
             layer.parent_service = old
             layer.parent_layer = parent
+            layer.is_active = old.is_active
             md = layer.metadata
+            md.is_active = old.is_active
+            md.metadata_type = MetadataType.objects.get_or_create(type=md.metadata_type.type)[0]
             md.save()
+
             transform_lists_to_m2m_collections(md)
             layer.metadata = md
             layer.save()
             layer = transform_lists_to_m2m_collections(layer)
-        elif existing_layer.count() == 1:
-            # existing -> update it!
-            existing_layer = existing_layer[0]
-            if rename:
-                existing_layer.identifier = layer.identifier
-            existing_layer.save()
-            existing_layer = update_single_layer(existing_layer, layer, keep_custom_metadata)
-            # for parent-child connection we need to put the existing layer into the running variable layer
-            layer = existing_layer
+            layer.save()
 
         children = layer.children_list
         if len(children) > 0:
             _update_wms_layers_recursive(old, new, children, links, layer, keep_custom_metadata)
 
+
 @transaction.atomic
-def update_wms(old: Service, new: Service, diff: dict, links: dict, keep_custom_metadata: bool = False):
+def update_wms_elements(old: Service, new: Service, diff: dict, links: dict, keep_custom_metadata: bool = False):
     """ Updates a whole wms service
 
     Handles all metadata and layers.
 
     Args:
-        old (Service): The existing service that nees to be updated
+        old (Service): The existing service that needs to be updated
         new (Service): The newer version from where the new data is taken
         diff (dict): The differences that have been found before between the old and new service
         links (dict): Contains key/value pairs of old_identifier->new_identifier (needed for renamed layers or feature types)

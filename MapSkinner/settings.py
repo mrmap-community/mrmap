@@ -14,9 +14,10 @@ import os
 
 import sys
 from django.utils.translation import gettext_lazy as _
+from django.contrib.messages import constants as messages
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-from service.helper.enums import ConnectionEnum, VersionEnum
+from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -24,8 +25,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.1/howto/deployment/checklist/
 
-VERSION = "0.3.0"
 GIT_REPO_URI = "https://git.osgeo.org/gitea/hollsandre/MapSkinner/src/branch/pre_master"
+GIT_GRAPH_URI = "https://git.osgeo.org/gitea/GDI-RP/MapSkinner/graph"
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
@@ -43,6 +44,10 @@ ROOT_URL = HTTP_OR_SSL + HOST_NAME
 
 EXEC_TIME_PRINT = "Exec time for %s: %1.5fs"
 
+PAGE_SIZE_OPTIONS = [1, 3, 5, 10, 15, 20, 25, 30, 50, 75, 100, 200, 500]
+PAGE_SIZE_DEFAULT = 5
+PAGE_SIZE_MAX = 100
+PAGE_DEFAULT = 1
 
 CATEGORIES = {
     "inspire": "https://www.eionet.europa.eu/gemet/getTopmostConcepts?thesaurus_uri=http://inspire.ec.europa.eu/theme/&language={}",
@@ -71,13 +76,12 @@ XML_NAMESPACES = {
     "inspire_dls": "http://inspire.ec.europa.eu/schemas/inspire_dls/1.0",
     "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset",
     "ms": "http://mapserver.gis.umn.edu/mapserver",
+    "se": "http://www.opengis.net/se",
     "xsd": "http://www.w3.org/2001/XMLSchema",
     "sld": "http://www.opengis.net/sld",
+    "fes": "http://www.opengis.net/fes/2.0",
 }
-
-# Session refreshes on every request!
-SESSION_EXPIRATION = 1800 # seconds
-SESSION_SAVE_EVERY_REQUEST = True
+GENERIC_NAMESPACE_TEMPLATE = "*[local-name()='{}']"
 
 # Home/Dashboard settings
 LAST_ACTIVITY_DATE_RANGE = 7
@@ -85,7 +89,10 @@ LAST_ACTIVITY_DATE_RANGE = 7
 # Threshold which indicates when to use multithreading instead of iterative approaches
 MULTITHREADING_THRESHOLD = 2000
 
-HTTP_PROXY = "http://10.240.20.164:8080"
+# configure your proxy like "http://10.0.0.1:8080"
+# or with username and password: "http://username:password@10.0.0.1:8080"
+HTTP_PROXY = ""
+
 PROXIES = {
     "http": HTTP_PROXY,
     "https": HTTP_PROXY,
@@ -100,6 +107,8 @@ ALLOWED_HOSTS = [
 # Application definition
 
 INSTALLED_APPS = [
+    'dal',
+    'dal_select2',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -115,15 +124,28 @@ INSTALLED_APPS = [
     'editor',
     'captcha',
     'rest_framework',
+    'rest_framework.authtoken',
+    'api',
+    'bootstrap4',
+    'fontawesome_5',
+    'django_tables2',
+    'query_parameters',
+    'django_nose'
 ]
+
+TEMPLATE_LOADERS = (
+    'django.template.loaders.structure.django_tables2_extras.py',
+)
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.gzip.GZipMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.auth.middleware.RemoteUserMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -151,10 +173,13 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'dealer.contrib.django.context_processor',
             ],
         },
     },
 ]
+
+
 
 WSGI_APPLICATION = 'MapSkinner.wsgi.application'
 
@@ -163,19 +188,34 @@ WSGI_APPLICATION = 'MapSkinner.wsgi.application'
 
 DATABASES = {
     'default': {
-        #'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'mapskinner',
-        'USER':'postgres',
-        'PASSWORD':'postgres',
-        'HOST' : '127.0.0.1',
-        'PORT' : ''
+        'NAME': 'MrMap',
+        'USER': 'postgres',
+        'HOST': '127.0.0.1',
+        'PORT': '5432'
     }
 }
 
+# Cache
+# Use local redis installation as cache
+# The "regular" redis cache will be set to work in redis table 1 (see LOCATION)
+# The default table (0) is preserved for celery task management
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://localhost:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "COMPRESSOR": "django_redis.compressors.zlib.ZlibCompressor",
+        }
+    }
+}
 
-# Password validation
+# Session settings and password validation
 # https://docs.djangoproject.com/en/2.1/ref/settings/#auth-password-validators
+
+MIN_PASSWORD_LENGTH = 9
+MIN_USERNAME_LENGTH = 5  # ToDo: For production use another, more appropriate length!
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -183,6 +223,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            "min_length": MIN_PASSWORD_LENGTH,
+        }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -191,7 +234,10 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-
+AUTH_USER_MODEL = 'structure.MrMapUser'
+SESSION_COOKIE_AGE = 30 * 60  # Defines how many seconds can pass until the session expires, default is 30 * 60
+SESSION_SAVE_EVERY_REQUEST = True  # Whether the session age will be refreshed on every request or only if data has been modified
+LOGIN_URL = "/"  # Defines where to redirect a user, that has to be logged in for a certain route
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
@@ -232,6 +278,16 @@ from api.settings import REST_FRAMEWORK
 if 'test' in sys.argv:
     CAPTCHA_TEST_MODE = True
 
+TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
+NOSE_ARGS = [
+    '--with-xunit',
+    '--xunit-file=tests/nosetests.xml',
+    '--with-coverage',
+    '--cover-erase',
+    '--cover-xml',
+    '--cover-xml-file=nosecover.xml',
+]
+
 
 # Progress bar
 PROGRESS_STATUS_AFTER_PARSING = 90  # indicates at how much % status we are after the parsing
@@ -241,3 +297,17 @@ PROGRESS_STATUS_AFTER_PARSING = 90  # indicates at how much % status we are afte
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR + "/static/"
+STATICFILES_DIRS = [
+            BASE_DIR + '/MapSkinner/static',
+]
+
+# define the message tags for bootstrap4
+MESSAGE_TAGS = {
+    messages.DEBUG: 'alert-info',
+    messages.INFO: 'alert-info',
+    messages.SUCCESS: 'alert-success',
+    messages.WARNING: 'alert-warning',
+    messages.ERROR: 'alert-danger',
+}
+
+

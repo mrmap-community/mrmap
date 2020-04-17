@@ -1,0 +1,14 @@
+[Unit]
+Description=Celery Flower Statistics Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=celery -A MapSkinner --workdir=/opt/MapSkinner --url_prefix=flower flower
+ExecReload="/usr/bin/pkill -f flower;/usr/local/bin/celery -A MapSkinner --workdir=/opt/MapSkinner --url_prefix=flower flower"
+ExecStop="/usr/bin/pkill -f flower"
+Restart=on-abort
+
+
+[Install]
+WantedBy=multi-user.target

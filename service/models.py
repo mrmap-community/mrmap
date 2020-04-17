@@ -1,25 +1,41 @@
+import csv
+import io
+import json
 import uuid
 
-from django.contrib.gis.geos import Polygon
-from django.db import models, transaction
+import os
+from collections import OrderedDict
+
+import time
+from json import JSONDecodeError
+
+from PIL import Image
+from django.contrib.gis.geos import Polygon, GeometryCollection
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
-from service.helper.enums import ServiceEnum
-from structure.models import Group, Organization
+
+from MapSkinner.cacher import DocumentCacher
+from MapSkinner.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
+from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
+from MapSkinner import utils
+from MapSkinner.utils import print_debug_mode
+from service.helper.common_connector import CommonConnector
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
+from service.helper.crypto_handler import CryptoHandler
+from service.helper.iso.service_metadata_builder import ServiceMetadataBuilder
+from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
+    SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
+    LOGABLE_FEATURE_RESPONSE_FORMATS
+from structure.models import MrMapGroup, Organization
 from service.helper import xml_helper
-
-
-class Keyword(models.Model):
-    keyword = models.CharField(max_length=255)
-
-    def __str__(self):
-        return self.keyword
 
 
 class Resource(models.Model):
     uuid = models.CharField(max_length=255, default=uuid.uuid4())
     created = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(Group, on_delete=models.DO_NOTHING, null=True, blank=True)
+    created_by = models.ForeignKey(MrMapGroup, on_delete=models.DO_NOTHING, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)
     is_deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
@@ -34,6 +50,392 @@ class Resource(models.Model):
 
     class Meta:
         abstract = True
+
+
+class Keyword(models.Model):
+    keyword = models.CharField(max_length=255, unique=True)
+
+    def __str__(self):
+        return self.keyword
+
+
+class ProxyLog(models.Model):
+    from structure.models import MrMapUser
+    metadata = models.ForeignKey('Metadata', on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(MrMapUser, on_delete=models.CASCADE, null=True, blank=True)
+    operation = models.CharField(max_length=100, null=True, blank=True)
+    uri = models.CharField(max_length=1000, null=True, blank=True)
+    post_body = models.TextField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    response_wfs_num_features = models.IntegerField(null=True, blank=True)
+    response_wms_megapixel = models.FloatField(null=True, blank=True)
+
+    def __str__(self):
+        return str(self.id)
+
+    @transaction.atomic
+    def log_response(self, response, request_param: str, output_format: str):
+        """ Evaluate the response.
+
+        In case of a WFS response, the number of returned features will be counted.
+        In case of a WMS response, the megapixel will be computed.
+
+        Args:
+            response: The response, could be xml or bytes
+            request_param (str): The operation that has been performed
+            output_format (str): The output format for the response
+        Returns:
+             nothing
+        """
+        service_type = self.metadata.get_service_type()
+
+        start_time = time.time()
+        if service_type == OGCServiceEnum.WFS.value:
+            self._log_wfs_response(response, output_format)
+        elif service_type == OGCServiceEnum.WMS.value:
+            self._log_wms_response(response)
+        else:
+            # For future implementation
+            pass
+        self.operation = request_param
+        self.save()
+        print_debug_mode(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
+
+    def _log_wfs_response_xml(self, xml: str):
+        """ Evaluate the wfs response.
+
+        For KML:
+        KML specification can be found here:
+        http://schemas.opengis.net/kml/
+
+        Another informative page:
+        https://developers.google.com/kml/documentation/kml_tut?hl=de#placemarks
+
+        Args:
+            xml (str): The response xml
+        Returns:
+             nothing
+        """
+        num_features = 0
+        try:
+            xml = xml_helper.parse_xml(xml)
+
+            # Due to different versions of wfs, the member name changes. Since we do not know in which version the
+            # GetFeature request was performed, we simply check on both possibilites and continue with the one that
+            # delivers more features than 0. If no features are returned anyway, the value 0 will fit as well.
+            identifiers = [
+                "member",
+                "featureMember",
+            ]
+            root = xml.getroot()
+
+            num_features = -1
+            for identifier in identifiers:
+                feature_elems = xml_helper.try_get_element_from_xml(
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
+                    root
+                )
+                num_features = len(feature_elems)
+                if num_features > 0:
+                    break
+
+            if num_features == 0:
+                # Special case:
+                # There are services which do not follow the specification for WFS and wrap all their features in
+                # <members> or <featureMembers> elements. So we have to check if there might be one of these identifiers
+                # inside the response.
+                identifiers = [
+                    "members",
+                    "featureMembers"
+                ]
+                for identifier in identifiers:
+                    feature_elem = xml_helper.try_get_single_element_from_xml(
+                        "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
+                        root
+                    )
+                    if feature_elem is not None:
+                        num_features = len(feature_elem.getchildren())
+                        break
+        except AttributeError:
+            pass
+        self.response_wfs_num_features = num_features
+
+    def _log_wfs_response_csv(self, response: str):
+        """ Evaluate the wfs response as csv.
+
+        It's assumed, that the first line of a csv formatted wfs response contains the headlines
+        of each column.
+        All following lines are features.
+
+        Args:
+            response (str): The response csv
+        Returns:
+             nothing
+        """
+        response_maybe_csv = True
+
+        # Make sure no non-csv has been returned as response
+        # Check if we can create XML from it
+        test_xml = xml_helper.parse_xml(response)
+        if test_xml is not None:
+            # This is not CSV! maybe an error message of the server
+            response_maybe_csv = False
+
+        try:
+            test_json = json.loads(response)
+            # If we can raise the ValueError, the response could be transformed into json -> no csv!
+            raise ValueError
+        except JSONDecodeError:
+            # Could not create JSON -> might be regular csv
+            pass
+        except ValueError:
+            # It is JSON, no csv
+            response_maybe_csv = False
+
+        # If csv is not supported by the responding server, we are not able to read csv values.
+        # In this case, set the initial number of features to 0, since there are no features inside.
+        num_features = 0
+        if response_maybe_csv:
+            # CSV responses might be wrongly encoded. So UTF-8 will fail and we need to try latin-1
+            try:
+                response = response.decode("utf-8")
+            except UnicodeDecodeError:
+                response = response.decode("latin-1")
+
+            try:
+                _input = io.StringIO(response)
+                reader = csv.reader(_input, delimiter=",")
+
+                # Set initial of num_features to -1 so we don't need to subtract the headline row afterwards
+                num_features = -1
+                for line in reader:
+                    num_features += 1
+
+            except Exception as e:
+                pass
+
+        self.response_wfs_num_features = num_features
+
+    def _log_wfs_response_geojson(self, response: str):
+        """ Evaluate the wfs response.
+
+        Args:
+            response (str): The response geojson
+        Returns:
+             nothing
+        """
+        # Initial is 0. It is possible, that the server does not support geojson. Then 0 features are delivered.
+        num_features = 0
+        try:
+            response = json.loads(response)
+            # If 'numberMatched' could not be found, we need to set an error value in here
+            num_features = response.get("numberMatched", -1)
+        except JSONDecodeError:
+            pass
+
+        self.response_wfs_num_features = num_features
+
+    def _log_wfs_response_kml(self, response: str):
+        """ Evaluate the wfs response.
+
+        References:
+            https://www.ogc.org/standards/kml
+            https://developers.google.com/kml/documentation/kml_tut?hl=de#placemarks
+
+        Args:
+            response (str): The response kml
+        Returns:
+             nothing
+        """
+        num_features = 0
+        try:
+            xml = xml_helper.parse_xml(response)
+            root = xml.getroot()
+
+            # Count <Placemark> elements
+            identifier = "Placemark"
+
+            feature_elems = xml_helper.try_get_element_from_xml(
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier),
+                root
+            )
+            num_features = len(feature_elems)
+        except AttributeError as e:
+            pass
+
+        self.response_wfs_num_features = num_features
+
+    def _log_wfs_response(self, response: str, output_format: str):
+        """ Evaluate the wfs response.
+
+        Args:
+            xml (str): The response xml
+            output_format (str): The output format of the response
+        Returns:
+             nothing
+        """
+        used_logable_format = None
+
+        # Output_format might be None if no parameter was specified. We assume the default xml response in this case
+        if output_format is not None:
+            for _format in LOGABLE_FEATURE_RESPONSE_FORMATS:
+                if _format in output_format.lower():
+                    used_logable_format = _format
+                    break
+
+        if used_logable_format is None and output_format is None:
+            # Default case - no outputformat parameter was given. We assume a xml representation
+            self._log_wfs_response_xml(response)
+        elif used_logable_format is None:
+            raise ValueError(LOGGING_INVALID_OUTPUTFORMAT.format(",".join(LOGABLE_FEATURE_RESPONSE_FORMATS)))
+        elif used_logable_format == "csv":
+            self._log_wfs_response_csv(response)
+        elif used_logable_format == "geojson":
+            self._log_wfs_response_geojson(response)
+        elif used_logable_format == "kml":
+            self._log_wfs_response_kml(response)
+        elif "gml" in used_logable_format:
+            # Specifies the default gml xml response
+            self._log_wfs_response_xml(response)
+        else:
+            # Should not happen!
+            raise ValueError(PARAMETER_ERROR.format("outputformat"))
+
+    def _log_wms_response(self, img):
+        """ Evaluate the wms response.
+
+        Args:
+            img: The response image (probably masked)
+        Returns:
+             nothing
+        """
+        # Catch case where image might be bytes and transform it into a RGBA image
+        if isinstance(img, bytes):
+            img = Image.open(io.BytesIO(img))
+            tmp = Image.new("RGBA", img.size, (255, 255, 255, 255))
+            tmp.paste(img)
+            img = tmp
+
+        if COUNT_DATA_PIXELS_ONLY:
+            pixels = self._count_data_pixels_only(img)
+        else:
+            h = img.height
+            w = img.width
+            pixels = h * w
+
+        # Calculation of megapixels, round up to 2 digits
+        # megapixels = width*height / 1,000,000
+        self.response_wms_megapixel = round(pixels / 1000000, 4)
+
+    def _count_data_pixels_only(self, img: Image):
+        """ Counts all pixels, besides the pure-alpha-pixels
+
+        Args:
+            img (Image): The image
+        Returns:
+             pixels (int): Amount of non-alpha pixels
+        """
+        # Get alpha channel pixel values as list
+        all_pixel_vals = list(img.getdata(3))
+
+        # Count all alpha pixel (value == 0)
+        num_alpha_pixels = all_pixel_vals.count(0)
+
+        # Compute difference
+        pixels = len(all_pixel_vals) - num_alpha_pixels
+
+        return pixels
+
+
+class RequestOperation(models.Model):
+    operation_name = models.CharField(max_length=255, null=True, blank=True)
+
+    def __str__(self):
+        return self.operation_name
+
+
+class SecuredOperation(models.Model):
+    operation = models.ForeignKey(RequestOperation, on_delete=models.CASCADE, null=True, blank=True)
+    allowed_group = models.ForeignKey(MrMapGroup, related_name="allowed_operations", on_delete=models.CASCADE, null=True, blank=True)
+    bounding_geometry = models.GeometryCollectionField(blank=True, null=True)
+    secured_metadata = models.ForeignKey('Metadata', related_name="secured_operations", on_delete=models.CASCADE, null=True, blank=True)
+
+    def __str__(self):
+        return str(self.id)
+
+    def delete(self, using=None, keep_parents=False):
+        """ Overwrites builtin delete() method with model specific logic.
+
+        If a SecuredOperation will be deleted, all related subelements of the secured_metadata have to be freed from
+        existing SecuredOperation records as well.
+
+        Args:
+            using:
+            keep_parents:
+        Returns:
+
+        """
+        md = self.secured_metadata
+        operation = self.operation
+        group = self.allowed_group
+
+        md_type = md.metadata_type.type
+
+        # continue with possibly existing children
+        if md_type == MetadataEnum.FEATURETYPE.value:
+            sec_ops = SecuredOperation.objects.filter(
+                secured_metadata=md,
+                operation=operation,
+                allowed_group=group
+            )
+            sec_ops.delete()
+
+        elif md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
+            service_type = md.service.servicetype.name
+            if service_type == OGCServiceEnum.WFS.value:
+                # find all wfs featuretypes
+                featuretypes = md.service.featuretypes.all()
+                for featuretype in featuretypes:
+                    sec_ops = SecuredOperation.objects.filter(
+                        secured_metadata=featuretype.metadata,
+                        operation=operation,
+                        allowed_group=group,
+                    )
+                    sec_ops.delete()
+
+            elif service_type == OGCServiceEnum.WMS.value:
+                if md.service.is_root:
+                    # find root layer
+                    layer = Layer.objects.get(
+                        parent_layer=None,
+                        parent_service=md.service
+                    )
+                else:
+                    # find layer which is described by this metadata
+                    layer = Layer.objects.get(
+                        metadata=md
+                    )
+
+                # remove root layer secured operation
+                sec_op = SecuredOperation.objects.filter(
+                    secured_metadata=layer.metadata,
+                    operation=operation,
+                    allowed_group=group
+                )
+                sec_op.delete()
+
+                # remove secured operations of root layer children
+                for child_layer in layer.child_layer.all():
+                    sec_ops = SecuredOperation.objects.filter(
+                        secured_metadata=child_layer.metadata,
+                        operation=operation,
+                        allowed_group=group,
+                    )
+                    sec_ops.delete()
+                    child_layer.delete_children_secured_operations(child_layer, operation, group)
+
+        # delete current object
+        super().delete(using, keep_parents)
 
 
 class MetadataOrigin(models.Model):
@@ -53,14 +455,97 @@ class MetadataRelation(models.Model):
     def __str__(self):
         return "{} {} {}".format(self.metadata_from.title, self.relation_type, self.metadata_to.title)
 
+    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        """ Overwrites default save function
+
+        Saves the relation and stores information about relation in both related metadata records
+
+        Args:
+            force_insert: Default save parameter
+            force_update: Default save parameter
+            using: Default save parameter
+            update_fields: Default save parameter
+        Returns:
+
+        """
+        super().save(force_insert, force_update, using, update_fields)
+        self.metadata_to.related_metadata.add(self)
+        self.metadata_from.related_metadata.add(self)
+
+
+class ExternalAuthentication(models.Model):
+    username = models.CharField(max_length=255)
+    password = models.CharField(max_length=500)
+    auth_type = models.CharField(max_length=100)
+    metadata = models.OneToOneField('Metadata', on_delete=models.DO_NOTHING, null=True, blank=True, related_name="external_authentication")
+
+    def delete(self, using=None, keep_parents=False):
+        """ Overwrites default delete function
+
+        Removes local stored file if it exists!
+
+        Args;
+            using:
+            keep_parents:
+        Returns:
+        """
+        # remove local stored key
+        filepath = "{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, self.metadata.id)
+        try:
+            os.remove(filepath)
+        except FileNotFoundError:
+            pass
+        super().delete(using, keep_parents)
+
+    def encrypt(self, key: str):
+        """ Encrypts the login credentials using a given key
+
+        Args:
+            key (str):
+        Returns:
+
+        """
+        crypto_handler = CryptoHandler(msg=self.username, key=key)
+        crypto_handler.encrypt()
+        self.username = crypto_handler.crypt_message.decode("ascii")
+
+        crypto_handler.message = self.password
+        crypto_handler.encrypt()
+        self.password = crypto_handler.crypt_message.decode("ascii")
+
+    def decrypt(self, key):
+        """ Decrypts the login credentials using a given key
+
+        Args:
+            key:
+        Returns:
+
+        """
+        crypto_handler = CryptoHandler()
+        crypto_handler.key = key
+
+        crypto_handler.crypt_message = self.password.encode("ascii")
+        crypto_handler.decrypt()
+        self.password = crypto_handler.message.decode("ascii")
+
+        crypto_handler.crypt_message = self.username.encode("ascii")
+        crypto_handler.decrypt()
+        self.username = crypto_handler.message.decode("ascii")
+
 
 class Metadata(Resource):
     identifier = models.CharField(max_length=255, null=True)
     title = models.CharField(max_length=255)
     abstract = models.TextField(null=True, blank=True)
     online_resource = models.CharField(max_length=500, null=True, blank=True)  # where the service data can be found
+
     capabilities_original_uri = models.CharField(max_length=500, blank=True, null=True)
+    capabilities_uri = models.CharField(max_length=500, blank=True, null=True)
+
     service_metadata_original_uri = models.CharField(max_length=500, blank=True, null=True)
+    service_metadata_uri = models.CharField(max_length=500, blank=True, null=True)
+
+    html_metadata_uri = models.CharField(max_length=500, blank=True, null=True)
 
     contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, blank=True, null=True)
     terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, null=True)
@@ -69,15 +554,18 @@ class Metadata(Resource):
 
     last_remote_change = models.DateTimeField(null=True, blank=True)  # the date time, when the metadata was changed where it comes from
     status = models.IntegerField(null=True)
-    inherit_proxy_uris = models.BooleanField(default=False)
+    use_proxy_uri = models.BooleanField(default=False)
+    log_proxy_access = models.BooleanField(default=False)
     spatial_res_type = models.CharField(max_length=100, null=True)
     spatial_res_value = models.CharField(max_length=100, null=True)
     is_broken = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=False)
     is_custom = models.BooleanField(default=False)
     is_inspire_conform = models.BooleanField(default=False)
     has_inspire_downloads = models.BooleanField(default=False)
     bounding_geometry = models.PolygonField(null=True, blank=True)
+
+    # security
+    is_secured = models.BooleanField(default=False)
 
     # capabilities
     dimension = models.CharField(max_length=100, null=True)
@@ -89,6 +577,7 @@ class Metadata(Resource):
     categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
     metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
+    hits = models.IntegerField(default=0)
 
     ## for ISO metadata
     dataset_id = models.CharField(max_length=255, null=True, blank=True)
@@ -106,6 +595,283 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    def clear_cached_documents(self):
+        """ Sets the content of all possibly auto-generated documents to None
+
+        Returns:
+
+        """
+        self._clear_current_capability_document()
+        self._clear_service_metadata_document()
+
+    def _clear_service_metadata_document(self):
+        """ Sets the service_metadata_document content to None
+
+        Returns:
+
+        """
+        # Clear cached documents
+        cacher = DocumentCacher("SERVICE_METADATA", "0")
+        cacher.remove(str(self.id))
+
+    def _clear_current_capability_document(self):
+        """ Sets the current_capability_document content to None
+
+        Returns:
+
+        """
+        # Clear cached documents
+        for version in OGCServiceVersionEnum:
+            cacher = DocumentCacher(OGCOperationEnum.GET_CAPABILITIES.value, version.value)
+            cacher.remove(str(self.id))
+
+    def get_subelements_metadatas(self):
+        """ Returns a list containing all subelement metadata records
+
+
+        Returns:
+             ret_list (list)
+        """
+        md_type = self.metadata_type.type
+        is_service = md_type == MetadataEnum.SERVICE.value
+        is_layer = md_type == MetadataEnum.LAYER.value
+
+        ret_list = []
+        if is_service:
+            subelement_metadatas = Metadata.objects.filter(
+                service__parent_service__metadata=self,
+            )
+            ret_list = list(subelement_metadatas)
+        elif is_layer:
+            # Collect further sublayers!
+            layer = Layer.objects.get(metadata=self)
+            sub_layers = layer.get_children(all=True)
+            ret_list = [layer.metadata for layer in sub_layers]
+
+        return ret_list
+
+
+    def get_service_metadata_xml(self):
+        """ Getter for the service metadata.
+
+        If no service metadata is persisted in the database, we generate one.
+
+        Returns:
+            service_metadata_document (str): The xml document
+        """
+        doc = None
+        cacher = DocumentCacher(title="SERVICE_METADATA", version="0")
+        try:
+            # Before we access the database (slow), we try to find a cached document from redis (memory -> faster)
+            doc = cacher.get(self.id)
+            if doc is not None:
+                return doc
+
+            # If we reach this point, we found no cached document. Check the db!
+            # Try to fetch an existing Document record from the db
+            cap_doc = Document.objects.get_or_create(related_metadata=self)[0]
+            doc = cap_doc.service_metadata_document
+
+            if doc is None or len(doc) == 0:
+                # Well, there is one but no service_metadata_document is found inside
+                raise ObjectDoesNotExist
+
+        except ObjectDoesNotExist as e:
+            # There is no service metadata document in the database, we need to create it
+            builder = ServiceMetadataBuilder(self.id, MetadataEnum.SERVICE)
+            doc = builder.generate_service_metadata()
+
+            # Write new creates service metadata to cache
+            cacher.set(str(self.id), doc)
+
+            # Write metadata to db as well
+            cap_doc = Document.objects.get_or_create(related_metadata=self)[0]
+            cap_doc.service_metadata_document = doc
+            cap_doc.save()
+
+        return doc
+
+    def get_current_capability_xml(self, version_param: str):
+        """ Getter for the capability xml of the current status of this metadata object.
+
+        If there is no capability document available (maybe the capabilities of a subelement of a service are requested),
+        the capabilities xml will be generated and persisted to the database to increase the speed of another request.
+
+        Args:
+            version_param (str): The version parameter for which the capabilities shall be built
+        Returns:
+            current_capability_document (str): The xml document
+        """
+        from service.helper import service_helper
+        cap_doc = None
+
+        cacher = DocumentCacher(title=OGCOperationEnum.GET_CAPABILITIES.value, version=version_param)
+        try:
+            # Before we access the database (slow), we try to find a cached document from redis (memory -> faster)
+            cap_xml = cacher.get(self.id)
+            if cap_xml is not None:
+                return cap_xml
+
+            # If we reach this point, we found no cached document. Check the db!
+            # Try to fetch an existing Document record from the db
+            cap_doc = Document.objects.get(related_metadata=self)
+
+            cap_xml = cap_doc.current_capability_document
+
+            if cap_xml is None or len(cap_xml) == 0:
+                # Well, there is a Document record but no current_capability_document is found inside
+                raise ObjectDoesNotExist
+            else:
+                # There is a capability_document in the db. Let's write it to cache, so it can be returned even faster
+                cacher.set(self.id, cap_xml)
+
+        except ObjectDoesNotExist as e:
+            # This means we have no Document record or the current_capability value is None.
+            # This is possible for subelements of a service, which (usually) do not have an own capability document or
+            # if a service has been updated.
+
+            # We create a capability document on the fly for this metadata object and use the set_proxy functionality
+            # of the Document class for automatically setting all proxied links according to the user's setting.
+            cap_xml = self._create_capability_xml(version_param)
+
+            # Write the new capability document to the cache!
+            cacher.set(self.id, cap_xml)
+
+            # If no Document record existed, we create it now!
+            if cap_doc is None:
+                cap_doc = Document(
+                    related_metadata=self,
+                    original_capability_document=cap_xml,
+                    current_capability_document=cap_xml,
+                )
+            else:
+                # There is a Document record but the current_capability was None. We set this value now
+                cap_doc.current_capability_document = cap_xml
+
+            # Do not forget to proxy the links inside the document, if needed
+            if self.use_proxy_uri:
+                version_param_enum = service_helper.resolve_version_enum(version=version_param)
+                cap_doc.set_proxy(use_proxy=True, force_version=version_param_enum, auto_save=False)
+
+            cap_doc.save()
+
+        return cap_doc.current_capability_document
+
+    def _create_capability_xml(self, force_version: str = None):
+        """ Creates a capability xml from the current state of the service object
+
+        Args:
+            force_version (str): The OGC standard version that has to be used for xml generating
+        Returns:
+             xml (str): The xml document as string
+        """
+        from service.helper.ogc.capabilities_builder import CapabilityXMLBuilder
+
+        capabilty_builder = CapabilityXMLBuilder(metadata=self, force_version=force_version)
+        xml = capabilty_builder.generate_xml()
+        return xml
+
+    def get_external_authentication_object(self):
+        """ Returns the external authentication object, if one exists
+
+        If none exists, None will be returned
+
+        Returns:
+             ext_auth (ExternalAuthentication) | None
+        """
+        ext_auth = None
+        try:
+            ext_auth = self.external_authentication
+        except ObjectDoesNotExist:
+            pass
+        return ext_auth
+
+    def get_related_dataset_metadata(self):
+        """ Returns a related dataset metadata record.
+
+        If none exists, None is returned
+
+        Returns:
+             dataset_md (Metadata) | None
+        """
+        try:
+            dataset_md = MetadataRelation.objects.get(
+                metadata_from=self,
+                metadata_to__metadata_type__type=OGCServiceEnum.DATASET.value
+            )
+            dataset_md = dataset_md.metadata_to
+            return dataset_md
+        except ObjectDoesNotExist as e:
+            return None
+
+    def get_remote_original_capabilities_document(self, version: str):
+        """ Fetches the original capabilities document from the remote server.
+
+        Returns:
+             doc (str): The xml document as string
+        """
+        if version is None or len(version) == 0:
+            raise ValueError()
+
+        doc = None
+        if self.has_external_authentication():
+            ext_auth = self.external_authentication
+            crypto_handler = CryptoHandler()
+            key = crypto_handler.get_key_from_file(self.id)
+            ext_auth.decrypt(key)
+        else:
+            ext_auth = None
+
+        uri = self.capabilities_original_uri
+        uri = utils.set_uri_GET_param(uri, "version", version)
+        conn = CommonConnector(url=uri, external_auth=ext_auth)
+        conn.load()
+        if conn.status_code == 200:
+            doc = conn.content
+        else:
+            raise ConnectionError()
+        return doc
+
+    def has_external_authentication(self):
+        """ Checks whether the metadata has a related ExternalAuthentication set
+
+        Returns:
+             True | False
+        """
+        try:
+            tmp = self.external_authentication
+            return True
+        except ObjectDoesNotExist:
+            return False
+
+    @transaction.atomic
+    def increase_hits(self):
+        """ Increases the hit counter of the metadata
+
+        Returns:
+             Nothing
+        """
+        # increase itself
+        self.hits += 1
+
+        # Only if whole service was called, increase the children hits as well
+        if self.metadata_type.type == MetadataEnum.SERVICE.value:
+
+            # wms children
+            if self.service.servicetype.name == 'wms':
+                children = self.service.child_service.all()
+                for child in children:
+                    child.metadata.hits += 1
+                    child.metadata.save()
+
+            elif self.service.servicetype.name == 'wfs':
+                featuretypes = self.service.featuretypes.all()
+                for f_t in featuretypes:
+                    f_t.metadata.hits += 1
+                    f_t.metadata.save()
+
+        self.save()
+
     def delete(self, using=None, keep_parents=False):
         """ Overwriting of the regular delete function
 
@@ -119,6 +885,17 @@ class Metadata(Resource):
         Returns:
             nothing
         """
+        # check for SecuredOperations
+        if self.is_secured:
+            sec_ops = self.secured_operations.all()
+            sec_ops.delete()
+
+        # remove externalAuthentication object if it exists
+        try:
+            self.external_authentication.delete()
+        except ObjectDoesNotExist:
+            pass
+
         # check if there are MetadataRelations on this metadata record
         # if so, we can not remove it until these relations aren't used anymore
         dependencies = MetadataRelation.objects.filter(
@@ -147,6 +924,31 @@ class Metadata(Resource):
             service_type = 'wfs'
         return service_type
 
+    def get_service_version(self):
+        """ Returns the service version
+
+        Returns:
+             The service version
+        """
+        # Non root elements have to be handled differently, since FeatureTypes are not Service instances and always use
+        # their parent_service as Service information holder
+        if not self.is_root():
+            if self.get_service_type() == OGCServiceEnum.WFS.value:
+                service = FeatureType.objects.get(
+                    metadata=self
+                ).parent_service
+            elif self.get_service_type() == OGCServiceEnum.WMS.value:
+                service = self.service.parent_service
+            else:
+                raise TypeError(PARAMETER_ERROR.format("SERVICE"))
+        else:
+            service = self.service
+        service_version = service.servicetype.version
+        for v in OGCServiceVersionEnum:
+            if v.value == service_version:
+                return v
+        return service_version
+
     def find_max_bounding_box(self):
         """ Returns the largest bounding box of all children
 
@@ -156,7 +958,7 @@ class Metadata(Resource):
 
         """
         children = self.service.child_service.all()
-        max_box = None
+        max_box = self.bounding_geometry
         for child in children:
             bbox = child.layer.bbox_lat_lon
             if max_box is None:
@@ -166,8 +968,13 @@ class Metadata(Resource):
                 ma = max_box.area
                 if ba > ma:
                     max_box = bbox
-        self.bounding_geometry = max_box
-        self.save()
+
+        if max_box is None:
+            max_box = DEFAULT_SERVICE_BOUNDING_BOX
+        if max_box.area == 0:
+            # if this element and it's children does not provide a bounding geometry, we simply take the one from the
+            # whole service to avoid the map flipping somewhere else on the planet
+            return self.service.parent_service.metadata.find_max_bounding_box()
         return max_box
 
     def is_root(self):
@@ -178,12 +985,11 @@ class Metadata(Resource):
         """
         return self.metadata_type.type == 'service'
 
-    def _restore_layer_md(self, service, identifier: str = None):
+    def _restore_layer_md(self, service,):
         """ Private function for retrieving single layer metadata
 
         Args:
             service (OGCWebMapService): An empty OGCWebMapService object to load and parse the metadata
-            identifier (str): The identifier string of the layer
         Returns:
              nothing, it changes the Metadata object itself
         """
@@ -214,18 +1020,17 @@ class Metadata(Resource):
         cap_doc.restore_subelement(identifier)
         return
 
-    def _restore_feature_type_md(self, service, identifier: str = None):
+    def _restore_feature_type_md(self, service, external_auth: ExternalAuthentication = None):
         """ Private function for retrieving single featuretype metadata
 
         Args:
             service (OGCWebMapService): An empty OGCWebMapService object to load and parse the metadata
-            identifier (str): The identifier string of the layer
         Returns:
              nothing, it changes the Metadata object itself
         """
         # parse single layer
         identifier = self.identifier
-        f_t = service.get_feature_type_by_identifier(identifier)
+        f_t = service.get_feature_type_by_identifier(identifier, external_auth=external_auth)
         f_t_obj = f_t.get("feature_type", None)
         f_t_iso_links = f_t.get("dataset_md_list", [])
         self.title = f_t_obj.metadata.title
@@ -246,12 +1051,12 @@ class Metadata(Resource):
         if self.is_root():
             rel_md = self
         else:
-            rel_md = self.featuretype.service.metadata
+            rel_md = self.featuretype.parent_service.metadata
         cap_doc = Document.objects.get(related_metadata=rel_md)
         cap_doc.restore_subelement(identifier)
         return
 
-    def _restore_wms(self, identifier: str = None):
+    def _restore_wms(self, external_auth: ExternalAuthentication = None):
         """ Restore the metadata of a wms service
 
         Args;
@@ -266,11 +1071,11 @@ class Metadata(Resource):
         service = OGCWebMapServiceFactory()
         service = service.get_ogc_wms(version=service_version, service_connect_url=self.capabilities_original_uri)
         service.get_capabilities()
-        service.create_from_capabilities(metadata_only=True)
+        service.create_from_capabilities(metadata_only=True, external_auth=external_auth)
 
         # check if whole service shall be restored or single layer
         if not self.is_root():
-            return self._restore_layer_md(service, identifier)
+            return self._restore_layer_md(service)
 
         self.title = service.service_identification_title
         self.abstract = service.service_identification_abstract
@@ -284,12 +1089,12 @@ class Metadata(Resource):
         # by default no categories
         self.categories.clear()
         self.is_custom = False
-        self.inherit_proxy_uris = False
+        self.use_proxy_uri = False
 
         cap_doc = Document.objects.get(related_metadata=self)
         cap_doc.restore()
 
-    def _restore_wfs(self, identifier: str = None):
+    def _restore_wfs(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Restore the metadata of a wfs service
 
         Args;
@@ -316,7 +1121,7 @@ class Metadata(Resource):
         service_tmp.create_from_capabilities(metadata_only=True)
         # check if whole service shall be restored or single layer
         if not self.is_root():
-            return self._restore_feature_type_md(service_tmp, identifier)
+            return self._restore_feature_type_md(service_tmp, external_auth=external_auth)
 
         self.title = service_tmp.service_identification_title
         self.abstract = service_tmp.service_identification_abstract
@@ -330,12 +1135,12 @@ class Metadata(Resource):
         # by default no categories
         self.categories.clear()
         self.is_custom = False
-        self.inherit_proxy_uris = False
+        self.use_proxy_uri = False
 
         cap_doc = Document.objects.get(related_metadata=service.metadata)
         cap_doc.restore()
 
-    def restore(self, identifier: str = None):
+    def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Load original metadata from capabilities and ISO metadata
 
         Args:
@@ -346,10 +1151,13 @@ class Metadata(Resource):
 
         # identify whether this is a wfs or wms (we need to handle them in different ways)
         service_type = self.get_service_type()
-        if service_type == 'wfs':
-            self._restore_wfs(identifier)
-        elif service_type == 'wms':
-            self._restore_wms(identifier)
+        if service_type == OGCServiceEnum.WFS.value:
+            self._restore_wfs(identifier, external_auth=external_auth)
+        elif service_type == OGCServiceEnum.WMS.value:
+            self._restore_wms(external_auth=external_auth)
+
+        # Subelements like layers or featuretypes might have own capabilities documents. Delete them on restore!
+        self.clear_cached_documents()
 
     def get_related_metadata_uris(self):
         """ Generates a list of all related metadata online links and returns them
@@ -363,9 +1171,144 @@ class Metadata(Resource):
             links.append(md.metadata_to.metadata_url)
         return links
 
+    def _set_document_secured(self, is_secured: bool):
+        """ Fetches the metadata documents and sets the secured uris for all operations
+
+        Args:
+            is_secured (bool): Whether the operations should be secured or not
+        Returns:
+            nothing
+        """
+        try:
+            cap_doc = Document.objects.get(
+                related_metadata=self
+            )
+            cap_doc.set_proxy(is_secured)
+        except ObjectDoesNotExist:
+            pass
+
+    def set_documents_active_status(self, is_active: bool):
+        """ Sets the active status for related documents
+
+        Args:
+            is_active (bool): Whether the documents are active or not
+        Returns:
+
+        """
+        docs = Document.objects.filter(
+            related_metadata=self
+        )
+        for doc in docs:
+            doc.is_active = is_active
+            doc.save()
+
+    def set_logging(self, logging: bool):
+        """ Set the metadata logging flag to a new value
+
+        Args:
+            logging (bool): Whether the metadata shall be logged or not
+        Returns:
+        """
+        # Only change if the proxy setting is activated or the logging shall be deactivated anyway
+        if self.use_proxy_uri or not logging:
+            self.log_proxy_access = logging
+
+            # If the metadata shall be logged, all of it's subelements shall be logged as well!
+            child_mds = Metadata.objects.filter(service__parent_service=self.service)
+            for child_md in child_mds:
+                child_md.log_proxy_access = logging
+                child_md.save()
+
+            self.save()
+
+    def set_proxy(self, use_proxy: bool):
+        """ Set the metadata proxy to a new value.
+
+        Iterates over subelements.
+
+        Args:
+            use_proxy (bool): Whether to use a proxy or not
+        Returns:
+        """
+        if not self.is_root():
+            root_md = self.service.parent_service.metadata
+        else:
+            root_md = self
+
+        # change capabilities document
+        root_md_doc = Document.objects.get(related_metadata=root_md)
+        root_md_doc.set_proxy(use_proxy)
+
+        # Clear cached documents
+        self.clear_cached_documents()
+
+        self.use_proxy_uri = use_proxy
+
+        # If md uris shall be tunneled using the proxy, we need to make sure that all metadata elements of the service are aware of this!
+        service_type = self.get_service_type()
+        subelements = []
+        if service_type == OGCServiceEnum.WFS.value:
+            subelements = self.service.featuretypes.all()
+        elif service_type == OGCServiceEnum.WMS.value:
+            subelements = Layer.objects.filter(parent_service=self.service)
+
+        for subelement in subelements:
+            subelement_md = subelement.metadata
+            subelement_md.use_proxy_uri = self.use_proxy_uri
+            subelement_md.save()
+
+            subelement_md.clear_cached_documents()
+
+        self.save()
+
+    def set_secured(self, is_secured: bool):
+        """ Set is_secured to a new value.
+
+        Iterates over all children for the same purpose.
+        Activates use_proxy automatically!
+
+        Args:
+            is_secured (bool): The new value for is_secured
+        Returns:
+
+        """
+        self.is_secured = is_secured
+        if not is_secured and self.use_proxy_uri:
+            # secured access shall be disabled, but use_proxy is still enabled
+            # we keep the use_proxy_uri on True!
+            self.use_proxy_uri = True
+        else:
+            self.use_proxy_uri = is_secured
+        self._set_document_secured(self.use_proxy_uri)
+
+        md_type = self.metadata_type.type
+
+        children = []
+        if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
+            if self.service.servicetype.name == OGCServiceEnum.WMS.value:
+                parent_service = self.service
+                children = Metadata.objects.filter(
+                    service__parent_service=parent_service
+                )
+                for child in children:
+                    child._set_document_secured(self.use_proxy_uri)
+
+            elif self.service.servicetype.name == OGCServiceEnum.WFS.value:
+                children = [ft.metadata for ft in self.service.featuretypes.all()]
+
+            for child in children:
+                child.is_secured = is_secured
+                child.use_proxy_uri = self.use_proxy_uri
+                child.save()
+
+        elif md_type == MetadataEnum.FEATURETYPE.value:
+            # a featuretype does not have children - we can skip this case!
+            pass
+        self.save()
+
 
 class MetadataType(models.Model):
-    type = models.CharField(max_length=255, blank=True, null=True)
+    type = models.CharField(max_length=255, blank=True, null=True, unique=True)
 
     def __str__(self):
         return self.type
@@ -381,7 +1324,686 @@ class Document(Resource):
     def __str__(self):
         return self.related_metadata.title
 
+    def get_dataset_metadata_as_dict(self):
+        """ Parses the persisted dataset_metadata_document into a dict
 
+        Parses only values which are important for the HTML representation rendering.
+        Useful resource: https://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml
+
+        Returns:
+             ret_dict (dict): The dict
+        """
+        ret_dict = {}
+
+        if self.dataset_metadata_document is None:
+            return ret_dict
+
+        xml = xml_helper.parse_xml(self.dataset_metadata_document)
+
+        # Date
+        date_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp"), xml)
+        ret_dict["date"] = xml_helper.try_get_text_from_xml_element(date_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Date"))
+        del date_elem
+
+        # Organization
+        org_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("organisationName"), xml)
+        ret_dict["organization_name"] = xml_helper.try_get_text_from_xml_element(org_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"))
+        del org_elem
+
+        # Language
+        ret_dict["language"] = xml_helper.try_get_text_from_xml_element(xml, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode"))
+
+        # Topic category
+        ret_dict["topic_category"] = xml_helper.try_get_text_from_xml_element(xml, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_TopicCategoryCode"))
+
+        # Keywords
+        keyword_elems = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("keyword"), xml)
+        keywords = [xml_helper.try_get_text_from_xml_element(elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")) for elem in keyword_elems]
+        ret_dict["keywords"] = keywords
+        del keyword_elems
+        del keywords
+
+        # Spatial reference systems
+        srs_elems = xml_helper.try_get_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("RS_Identifier"),
+            xml
+        )
+        reference_systems = [xml_helper.try_get_text_from_xml_element(
+            elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("code") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        ) for elem in srs_elems]
+        ret_dict["reference_systems"] = reference_systems
+        del srs_elems
+        del reference_systems
+
+        # Extent coordinates
+        extent_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("EX_GeographicBoundingBox"),
+            xml
+        )
+        extent_coords = [xml_helper.try_get_text_from_xml_element(
+            elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+        ) for elem in extent_elem.getchildren()]
+        # Switch coords[1] and coords[2] to match the common order of minx,miny,maxx,maxy
+        tmp = extent_coords[1]
+        extent_coords[1] = extent_coords[2]
+        extent_coords[2] = tmp
+        ret_dict["extent_coords"] = extent_coords
+        del extent_elem
+        del extent_coords
+        del tmp
+
+        # Temporal extent
+        temporal_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("EX_TemporalExtent"),
+            xml
+        )
+        ret_dict["temporal_extent_begin"] =  xml_helper.try_get_text_from_xml_element(
+            temporal_elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("beginPosition")
+        )
+        ret_dict["temporal_extent_end"] =  xml_helper.try_get_text_from_xml_element(
+            temporal_elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("endPosition")
+        )
+        del temporal_elem
+
+        # Date of creation|revision|publication
+        date_additionals = OrderedDict({
+            "creation": [],
+            "revision": [],
+            "publication": [],
+        })
+        md_elem = xml_helper.try_get_single_element_from_xml(
+            ".//"  + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("citation"),
+            xml
+        )
+        date_elems = xml_helper.try_get_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Date"),
+            md_elem
+        )
+        for identifier, _list in date_additionals.items():
+            for elem in date_elems:
+                date_type_elem = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_DateTypeCode"),
+                    elem
+                )
+                date_txt = xml_helper.try_get_text_from_xml_element(
+                    elem,
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Date"),
+                )
+                date_type_txt = xml_helper.try_get_text_from_xml_element(date_type_elem) or ""
+                date_type_attr = xml_helper.try_get_attribute_from_xml_element(date_type_elem, "codeListValue") or ""
+                if identifier in date_type_txt or identifier in date_type_attr:
+                    # Found one!
+                    _list.append(date_txt)
+        ret_dict["dates_additional"] = date_additionals
+        del elem
+        del _list
+        del md_elem
+        del date_txt
+        del date_elems
+        del identifier
+        del date_type_txt
+        del date_type_attr
+        del date_type_elem
+        del date_additionals
+
+        # Encoding
+        ret_dict["encoding"] = xml_helper.try_get_attribute_from_xml_element(
+            xml,
+            "codeListValue",
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_CharacterSetCode")
+        )
+
+        return ret_dict
+
+    def set_proxy(self, use_proxy: bool, force_version: OGCServiceVersionEnum=None, auto_save: bool=True):
+        """ Sets different elements inside the document on a secured level
+
+        Args:
+            use_proxy (bool): Whether to use a proxy or not
+            auto_save (bool): Whether to directly save the modified document or not
+        Returns:
+        """
+        self.set_dataset_metadata_secured(use_proxy, force_version=force_version, auto_save=auto_save)
+        self.set_legend_url_secured(use_proxy, force_version=force_version, auto_save=auto_save)
+        self.set_operations_secured(use_proxy, force_version=force_version, auto_save=auto_save)
+
+    def _set_wms_operations_secured(self, xml_obj, uri: str, is_secured: bool):
+        """ Change external links to internal for wms operations
+
+        Args:
+            xml_obj: The xml document object
+            uri: The new uri to be set, if secured
+            is_secured: Whether the document shall be secured or not
+        Returns:
+             Nothing, directly works on the xml_obj
+        """
+        request_objs = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request")
+            , xml_obj
+        )
+        request_objs = request_objs.getchildren()
+        service = self.related_metadata.service
+        op_uri_dict = {
+            "GetMap": {
+                "Get": service.get_map_uri_GET,
+                "Post": service.get_map_uri_POST,
+            },
+            "GetFeatureInfo": {
+                "Get": service.get_feature_info_uri_GET,
+                "Post": service.get_feature_info_uri_POST,
+            },
+            "DescribeLayer": {
+                "Get": service.describe_layer_uri_GET,
+                "Post": service.describe_layer_uri_POST,
+            },
+            "GetLegendGraphic": {
+                "Get": service.get_legend_graphic_uri_GET,
+                "Post": service.get_legend_graphic_uri_POST,
+            },
+            "GetStyles": {
+                "Get": service.get_styles_uri_GET,
+                "Post": service.get_styles_uri_POST,
+            },
+        }
+
+        for op in request_objs:
+
+            # skip GetCapabilities - it is already set to another internal link
+            if OGCOperationEnum.GET_CAPABILITIES.value in op.tag:
+                continue
+
+            uri_dict = op_uri_dict.get(op.tag, "")
+            http_operations = ["Get", "Post"]
+
+            for http_operation in http_operations:
+                res_objs = xml_helper.try_get_element_from_xml(
+                    ".//{}/".format(GENERIC_NAMESPACE_TEMPLATE.format(http_operation)) + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
+                    , op
+                )
+
+                if not is_secured:
+                    # overwrite uri
+                    uri = uri_dict.get(http_operation, "")
+
+                for res_obj in res_objs:
+                    xml_helper.write_attribute(
+                        res_obj,
+                        attrib="{http://www.w3.org/1999/xlink}href",
+                        txt=uri
+                    )
+
+    def _set_wfs_1_0_0_operations_secured(self, xml_obj, uri: str, is_secured: bool):
+        """ Change external links to internal for wfs 1.0.0 operations
+
+        Args:
+            xml_obj: The xml document object
+            uri: The new uri to be set, if secured
+            is_secured: Whether the document shall be secured or not
+        Returns:
+             Nothing, directly works on the xml_obj
+        """
+        operation_objs = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request")
+            , xml_obj
+        )
+        try:
+            service = self.related_metadata.service
+        except ObjectDoesNotExist:
+            service = FeatureType.objects.get(
+                metadata=self.related_metadata
+            ).parent_service
+        op_uri_dict = {
+            OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: {
+                "Get": service.describe_layer_uri_GET,
+                "Post": service.describe_layer_uri_POST,
+            },
+            OGCOperationEnum.GET_FEATURE.value: {
+                "Get": service.get_feature_info_uri_GET,
+                "Post": service.get_feature_info_uri_POST,
+            },
+            OGCOperationEnum.GET_PROPERTY_VALUE.value: {
+                "Get": service.get_property_value_uri_GET,
+                "Post": service.get_property_value_uri_POST,
+            },
+            OGCOperationEnum.LIST_STORED_QUERIES.value: {
+                "Get": service.list_stored_queries_uri_GET,
+                "Post": service.list_stored_queries_uri_POST,
+            },
+            OGCOperationEnum.DESCRIBE_STORED_QUERIES.value: {
+                "Get": service.describe_stored_queries_uri_GET,
+                "Post": service.describe_stored_queries_uri_POST,
+            },
+        }
+
+        for op in operation_objs:
+            # skip GetCapabilities - it is already set to another internal link
+            name = op.tag
+            if OGCOperationEnum.GET_CAPABILITIES.value in name:
+                continue
+            if not is_secured:
+                uri = op_uri_dict.get(name, {"Get": None, "Post": None})
+            http_objs = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP"), op)
+            for http_obj in http_objs:
+                requ_objs = http_obj.getchildren()
+                for requ_obj in requ_objs:
+                    xml_helper.write_attribute(
+                        requ_obj,
+                        attrib="onlineResource",
+                        txt=uri
+                    )
+
+    def _set_wfs_operations_secured(self, xml_obj, uri: str, is_secured: bool):
+        """ Change external links to internal for wfs operations
+
+        Args:
+            xml_obj: The xml document object
+            uri: The new uri to be set, if secured
+            is_secured: Whether the document shall be secured or not
+        Returns:
+             Nothing, directly works on the xml_obj
+        """
+        operation_objs = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation"), xml_obj)
+
+        try:
+            service = self.related_metadata.service
+        except ObjectDoesNotExist:
+            service = FeatureType.objects.get(
+                metadata=self.related_metadata
+            ).parent_service
+
+        op_uri_dict = {
+            "DescribeFeatureType": {
+                "Get": service.describe_layer_uri_GET,
+                "Post": service.describe_layer_uri_POST,
+            },
+            "GetFeature": {
+                "Get": service.get_feature_info_uri_GET,
+                "Post": service.get_feature_info_uri_POST,
+            },
+            "GetPropertyValue": {
+                "Get": service.get_property_value_uri_GET,
+                "Post": service.get_property_value_uri_POST,
+            },
+            "ListStoredQueries": {
+                "Get": service.list_stored_queries_uri_GET,
+                "Post": service.list_stored_queries_uri_POST,
+            },
+            "DescribeStoredQueries": {
+                "Get": service.describe_stored_queries_uri_GET,
+                "Post": service.describe_stored_queries_uri_POST,
+            },
+            "GetGmlObject": {
+                "Get": service.get_gml_objct_uri_GET,
+                "Post": service.get_gml_objct_uri_POST,
+            },
+        }
+
+        fallback_uri = service.get_feature_info_uri_GET
+
+        for op in operation_objs:
+            # skip GetCapabilities - it is already set to another internal link
+            name = xml_helper.try_get_attribute_from_xml_element(op, "name")
+            if name == OGCOperationEnum.GET_CAPABILITIES.value or name is None:
+                continue
+
+            http_operations = ["Get", "Post"]
+
+            for http_operation in http_operations:
+
+                if not is_secured:
+                    uri = op_uri_dict.get(name, {}).get(http_operation, None) or fallback_uri
+
+                http_objs = xml_helper.try_get_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") + "/" + GENERIC_NAMESPACE_TEMPLATE.format(http_operation), op)
+
+                for http_obj in http_objs:
+                    xml_helper.write_attribute(
+                        http_obj,
+                        attrib="{http://www.w3.org/1999/xlink}href",
+                        txt=uri
+                    )
+
+    def _set_wms_1_0_0_operation_secured(self, xml_obj, uri: str, is_secured: bool):
+        """ Change external links to internal for wms 1.0.0 operations
+
+        Args:
+            xml_obj: The xml document object
+            uri: The new uri to be set, if secured
+            is_secured: Whether the document shall be secured or not
+        Returns:
+             Nothing, directly works on the xml_obj
+        """
+        request_objs = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capability") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("Request")
+            , xml_obj
+        )
+        request_objs = request_objs.getchildren()
+        service = self.related_metadata.service
+        op_uri_dict = {
+            "GetMap": {
+                "Get": service.get_map_uri_GET,
+                "Post": service.get_map_uri_POST,
+            },
+            "GetFeatureInfo": {
+                "Get": service.get_feature_info_uri_GET,
+                "Post": service.get_feature_info_uri_POST,
+            },
+            "DescribeLayer": {
+                "Get": service.describe_layer_uri_GET,
+                "Post": service.describe_layer_uri_POST,
+            },
+            "GetLegendGraphic": {
+                "Get": service.get_legend_graphic_uri_GET,
+                "Post": service.get_legend_graphic_uri_POST,
+            },
+            "GetStyles": {
+                "Get": service.get_styles_uri_GET,
+                "Post": service.get_styles_uri_POST,
+            },
+        }
+
+        for op in request_objs:
+
+            # skip GetCapabilities - it is already set to another internal link
+            if OGCOperationEnum.GET_CAPABILITIES.value in op.tag:
+                continue
+
+            uri_dict = op_uri_dict.get(op.tag, "")
+            http_operations = ["Get", "Post"]
+
+            for http_operation in http_operations:
+                res_objs = xml_helper.try_get_element_from_xml(".//{}".format(http_operation), op)
+
+                if not is_secured:
+                    # overwrite uri
+                    uri = uri_dict.get(http_operation, "")
+
+                for res_obj in res_objs:
+                    xml_helper.write_attribute(
+                        res_obj,
+                        attrib="onlineResource",
+                        txt=uri
+                    )
+
+    def set_capabilities_secured(self, auto_save: bool=True):
+        """ Change external links to internal for service capability document call
+
+        Args:
+            auto_save (bool): Whether the document shall be directly saved or not
+        Returns:
+
+        """
+
+        # change some external linkage to internal links for the current_capability_document
+        uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.related_metadata.id)
+        xml = xml_helper.parse_xml(self.original_capability_document)
+
+        # wms and wfs have to be handled differently!
+        # Furthermore each standard has a different handling of attributes and elements ...
+        service_type = self.related_metadata.get_service_type()
+        service_version = self.related_metadata.get_service_version().value
+
+        if service_type == OGCServiceEnum.WMS.value:
+
+            if service_version == "1.0.0":
+                # additional things to change for WMS 1.0.0
+                xml_helper.write_text_to_element(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    uri
+                )
+                http_methods = ["Get", "Post"]
+                for method in http_methods:
+                    xml_helper.write_attribute(
+                        xml,
+                        "//" + GENERIC_NAMESPACE_TEMPLATE.format("Capabilities") +
+                        "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
+                        "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                        "/" + GENERIC_NAMESPACE_TEMPLATE.format(method),
+                        "onlineResource",
+                        uri)
+
+            else:
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    "{http://www.w3.org/1999/xlink}href", uri)
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    "{http://www.w3.org/1999/xlink}href",
+                    uri)
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("GetCapabilities") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCPType") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Post") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    "{http://www.w3.org/1999/xlink}href",
+                    uri)
+
+        elif service_type == OGCServiceEnum.WFS.value:
+            if service_version == "1.0.0":
+                xml_helper.write_text_to_element(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Service") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    uri
+                )
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='GetCapabilities']" +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
+                    "onlineResource",
+                    uri
+                )
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='GetCapabilities']" +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
+                    "onlineResource",
+                    uri
+                )
+            else:
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("ContactInfo") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    "{http://www.w3.org/1999/xlink}href",
+                    uri
+                )
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='GetCapabilities']" +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Get"),
+                    "{http://www.w3.org/1999/xlink}href",
+                    uri
+                )
+                xml_helper.write_attribute(
+                    xml,
+                    "//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='GetCapabilities']" +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("DCP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("HTTP") +
+                    "/" + GENERIC_NAMESPACE_TEMPLATE.format("Post"),
+                    "{http://www.w3.org/1999/xlink}href",
+                    uri
+                )
+
+        xml = xml_helper.xml_to_string(xml)
+        self.current_capability_document = xml
+
+        if auto_save:
+            self.save()
+
+    def set_operations_secured(self, is_secured: bool, force_version: OGCServiceVersionEnum, auto_save: bool=True):
+        """ Change external links to internal for service operations
+
+        Args:
+            is_secured (bool): Whether the service is secured or not
+            force_version (OGCServiceVersionEnum): Which version processing shall be forced
+            auto_save (bool): Whether to directly save at the end of the function or not
+        Returns:
+
+        """
+        xml_obj = xml_helper.parse_xml(self.current_capability_document)
+        if is_secured:
+            uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.related_metadata.id)
+        else:
+            uri = ""
+        _type = self.related_metadata.get_service_type()
+        _version = force_version or self.related_metadata.get_service_version()
+        if _type == OGCServiceEnum.WMS.value:
+            if _version is OGCServiceVersionEnum.V_1_0_0:
+                self._set_wms_1_0_0_operation_secured(xml_obj, uri, is_secured)
+            else:
+                self._set_wms_operations_secured(xml_obj, uri, is_secured)
+        elif _type == OGCServiceEnum.WFS.value:
+            if _version is OGCServiceVersionEnum.V_1_0_0:
+                self._set_wfs_1_0_0_operations_secured(xml_obj, uri, is_secured)
+            else:
+                self._set_wfs_operations_secured(xml_obj, uri, is_secured)
+
+        self.current_capability_document = xml_helper.xml_to_string(xml_obj)
+
+        if auto_save:
+            self.save()
+
+    def set_dataset_metadata_secured(self, is_secured: bool, force_version: OGCServiceVersionEnum=None, auto_save: bool=True):
+        """ Set or unsets the proxy for the dataset metadata uris
+
+        Args:
+            is_secured (bool): Whether the proxy shall be activated or deactivated
+            force_version (OGCServiceVersionEnum): Which version processing shall be forced
+            auto_save (bool): Whether to directly save at the end of the function or not
+        Returns:
+             nothing
+        """
+        cap_doc_curr = self.current_capability_document
+        xml_obj = xml_helper.parse_xml(cap_doc_curr)
+        service_version = force_version or self.related_metadata.get_service_version()
+        service_type = self.related_metadata.get_service_type()
+
+        is_wfs = service_type == OGCServiceEnum.WFS.value
+        is_wfs_1_0_0 = is_wfs and service_version == OGCServiceVersionEnum.V_1_0_0.value
+        is_wfs_1_1_0 = is_wfs and service_version == OGCServiceVersionEnum.V_1_1_0.value
+
+        # get <MetadataURL> xml elements
+        if is_wfs:
+            xml_metadata_elements = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL"), xml_obj)
+        else:
+            xml_metadata_elements = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MetadataURL") + "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"), xml_obj)
+
+        # iterate over elements and change the uris
+        for xml_metadata in xml_metadata_elements:
+            attr = "{http://www.w3.org/1999/xlink}href"
+
+            # get metadata url
+            if is_wfs_1_0_0 or is_wfs_1_1_0:
+                metadata_uri = xml_helper.try_get_text_from_xml_element(xml_metadata)
+            else:
+                metadata_uri = xml_helper.get_href_attribute(xml_metadata)
+            own_uri_prefix = "{}{}".format(HTTP_OR_SSL, HOST_NAME)
+
+            if not metadata_uri.startswith(own_uri_prefix):
+                # find metadata record which matches the metadata uri
+                try:
+                    dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
+                    uri = SERVICE_DATASET_URI_TEMPLATE.format(dataset_md_record.id)
+                except ObjectDoesNotExist:
+                    # This is a bad situation... Only possible if the registered service has not been updated BUT the
+                    # original remote service changed and maybe has a new - for us - unknown MetadataURL object.
+                    # This is why we can't find it in our db. We simply have to set it to some placeholder, since the
+                    # user has to update the service.
+                    uri = "unknown"
+            else:
+                # this means we have our own proxy uri in here and want to restore the original one
+                # metadata uri contains the proxy uri
+                # so we need to extract the id from the uri!
+                md_uri_list = metadata_uri.split("/")
+                md_id = md_uri_list[len(md_uri_list) - 1]
+                dataset_md_record = Metadata.objects.get(id=md_id)
+                uri = dataset_md_record.metadata_url
+            if is_wfs_1_0_0 or is_wfs_1_1_0:
+                xml_helper.write_text_to_element(xml_metadata, txt=uri)
+            else:
+                xml_helper.set_attribute(xml_metadata, attr, uri)
+        xml_obj_str = xml_helper.xml_to_string(xml_obj)
+        self.current_capability_document = xml_obj_str
+
+        if auto_save:
+            self.save()
+
+    def set_legend_url_secured(self, is_secured: bool, force_version:OGCServiceVersionEnum=None, auto_save: bool=True):
+        """ Set or unsets the proxy for the style legend uris
+
+        Args:
+            is_secured (bool): Whether the proxy shall be activated or deactivated
+            force_version (OGCServiceVersionEnum): Which version processing shall be forced
+            auto_save (bool): Whether to directly save at the end of the function or not
+        Returns:
+             nothing
+        """
+        cap_doc_curr = self.current_capability_document
+        xml_doc = xml_helper.parse_xml(cap_doc_curr)
+
+        # get <LegendURL> elements
+        xml_legend_elements = xml_helper.try_get_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("LegendURL") +
+            "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+            xml_doc
+        )
+        attr = "{http://www.w3.org/1999/xlink}href"
+        for xml_elem in xml_legend_elements:
+            legend_uri = xml_helper.get_href_attribute(xml_elem)
+
+            uri = None
+
+            if is_secured and not legend_uri.startswith(ROOT_URL):
+                parent_md = self.related_metadata
+
+                if not self.related_metadata.is_root():
+                    parent_md = self.related_metadata.service.parent_service.metadata
+
+                style_id = Style.objects.get(
+                    legend_uri=legend_uri,
+                    layer__parent_service__metadata=parent_md,
+                ).id
+                uri = SERVICE_LEGEND_URI_TEMPLATE.format(self.related_metadata.id, style_id)
+
+            elif not is_secured and legend_uri.startswith(ROOT_URL):
+                # restore the original legend uri by using the layer identifier
+                style_id = legend_uri.split("/")[-1]
+                uri = Style.objects.get(id=style_id).legend_uri
+
+            if uri is not None:
+                xml_helper.set_attribute(xml_elem, attr, uri)
+
+        xml_doc_str = xml_helper.xml_to_string(xml_doc)
+        self.current_capability_document = xml_doc_str
+
+        if auto_save:
+            self.save()
 
     def restore(self):
         """ We overwrite the current metadata xml with the original
@@ -470,12 +2092,40 @@ class Service(Resource):
     is_root = models.BooleanField(default=False)
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
-    get_capabilities_uri = models.CharField(max_length=1000, null=True, blank=True)
-    get_map_uri = models.CharField(max_length=1000, null=True, blank=True)
-    get_feature_info_uri = models.CharField(max_length=1000, null=True, blank=True)
-    describe_layer_uri = models.CharField(max_length=1000, null=True, blank=True)
-    get_legend_graphic_uri = models.CharField(max_length=1000, null=True, blank=True)
-    get_styles_uri = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_capabilities_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_capabilities_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_map_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_map_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_feature_info_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_feature_info_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    describe_layer_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    describe_layer_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_legend_graphic_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_legend_graphic_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_styles_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_styles_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    transaction_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    transaction_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_property_value_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_property_value_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    list_stored_queries_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    list_stored_queries_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    describe_stored_queries_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    describe_stored_queries_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    get_gml_objct_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_gml_objct_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
     formats = models.ManyToManyField('MimeType', blank=True)
 
     # used to store ows linked_service_metadata until parsing
@@ -492,6 +2142,134 @@ class Service(Resource):
 
     def __str__(self):
         return str(self.id)
+
+    def get_supported_formats(self):
+        """ Returns a list of supported formats.
+
+        If this is called for a top-level-service record, which does not provide a list of formats, the call will be
+        reached to the next child.
+
+        Returns:
+             formats (QuerySet): A query set of available formats
+        """
+        if self.metadata.is_root() and self.formats.all().count() == 0:
+            child = self.child_service.first()
+            return child.get_supported_formats()
+        return self.formats.all()
+
+    def perform_single_element_securing(self, element, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation):
+        """ Secures a single element
+
+        Args:
+            element: The element which shall be secured
+            is_secured (bool): Whether to secure the element or not
+            group (MrMapGroup): The group which is allowed to perform an operation
+            operation (RequestOperation): The operation which can be performed by the groups
+            group_polygons (dict): The polygons which restrict the access for the group
+        Returns:
+
+        """
+        element.metadata.is_secured = is_secured
+        if is_secured:
+
+            if sec_op is None:
+                sec_op = SecuredOperation()
+                sec_op.operation = operation
+                sec_op.allowed_group = group
+            else:
+                sec_op = SecuredOperation.objects.get(
+                    secured_metadata=element.metadata,
+                    operation=operation,
+                    allowed_group=group
+                )
+
+            poly_list = []
+            for group_polygon in group_polygons:
+                poly_str = group_polygon.get("geometry", group_polygon).get("coordinates", [None])[0]
+                tmp_poly = Polygon(poly_str)
+                poly_list.append(tmp_poly)
+
+            sec_op.bounding_geometry = GeometryCollection(poly_list)
+            sec_op.save()
+            element.metadata.secured_operations.add(sec_op)
+        else:
+            for sec_op in element.metadata.secured_operations.all():
+                sec_op.delete()
+            element.metadata.secured_operations.clear()
+        element.metadata.save()
+        element.save()
+
+    def _recursive_secure_sub_layers(self, current, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+        """ Recursive implementation of securing all sub layers of a current layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            group (MrMapGroup): The group which is allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+            group_polygons (dict): The polygons which restrict the access for the group
+        Returns:
+             nothing
+        """
+        self.perform_single_element_securing(current, is_secured, group, operation, group_polygons, secured_operation)
+
+        for layer in current.child_layer.all():
+            self._recursive_secure_sub_layers(layer, is_secured, group, operation, group_polygons, secured_operation)
+
+    def _secure_sub_layers(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+        """ Secures all sub layers of this layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            group (MrMapGroup): The group which is allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+            group_polygons (dict): The polygons which restrict the access for the group
+        Returns:
+             nothing
+        """
+        if self.is_root:
+            # get the first layer in this service
+            start_element = Layer.objects.get(
+                parent_service=self,
+                parent_layer=None,
+            )
+        else:
+            # simply get the layer which is described by the given metadata
+            start_element = Layer.objects.get(
+                metadata=self.metadata
+            )
+        self._recursive_secure_sub_layers(start_element, is_secured, group, operation, group_polygons, secured_operation)
+
+    def _secure_feature_types(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+        """ Secures all sub layers of this layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            group (MrMapGroup): The group which is allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+            group_polygons (dict): The polygons which restrict the access for the group
+        Returns:
+             nothing
+        """
+        if self.is_root:
+            elements = self.featuretypes.all()
+            for element in elements:
+                self.perform_single_element_securing(element, is_secured, group, operation, group_polygons, secured_operation)
+
+    def secure_sub_elements(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+        """ Secures all sub elements of this layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            group (MrMapGroup): The group which is allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+            group_polygons (dict): The polygons which restrict the access for the group
+        Returns:
+             nothing
+        """
+        if self.servicetype.name == OGCServiceEnum.WMS.value:
+            self._secure_sub_layers(is_secured, group, operation, group_polygons, secured_operation)
+        elif self.servicetype.name == OGCServiceEnum.WFS.value:
+            self._secure_feature_types(is_secured, group, operation, group_polygons, secured_operation)
 
     @transaction.atomic
     def delete_child_data(self, child):
@@ -540,6 +2318,7 @@ class Service(Resource):
             feature_types = self.featuretypes.all()
             for f_t in feature_types:
                 self.delete_child_data(f_t)
+
         self.metadata.delete()
         super().delete()
 
@@ -590,12 +2369,25 @@ class Service(Resource):
         self.metadata.save(update_last_modified=False)
         self.save(update_last_modified=False)
 
+    def persist_capabilities_doc(self, xml: str):
+        """ Persists the capabilities document
+
+        Args:
+            xml (str): The xml document as string
+        Returns:
+             nothing
+        """
+        # save original capabilities document
+        cap_doc = Document()
+        cap_doc.original_capability_document = xml
+        cap_doc.related_metadata = self.metadata
+        cap_doc.set_capabilities_secured()
+
 
 class Layer(Service):
     class Meta:
         ordering = ["position"]
     identifier = models.CharField(max_length=500, null=True)
-    hits = models.IntegerField(default=0)
     preview_image = models.CharField(max_length=100, blank=True, null=True)
     preview_extent = models.CharField(max_length=100, blank=True, null=True)
     preview_legend = models.CharField(max_length=100)
@@ -622,9 +2414,116 @@ class Layer(Service):
         # non persisting attributes
         self.children_list = []
         self.dimension = None
+        self.tmp_style = None  # holds the style before persisting
 
     def __str__(self):
         return str(self.identifier)
+
+    def delete(self, using=None, keep_parents=False):
+        """ Deletes layer and all of it's children
+
+        Args:
+            using:
+            keep_parents:
+        Returns:
+
+        """
+        children = self.get_children()
+        for child in children:
+            child.delete(using, keep_parents)
+        super().delete(using, keep_parents)
+
+    def get_inherited_reference_systems(self):
+        ref_systems = []
+        ref_systems += list(self.metadata.reference_system.all())
+
+        parent_layer = self.parent_layer
+        while parent_layer is not None:
+            parent_srs = parent_layer.metadata.reference_system.all()
+            for srs in parent_srs:
+                if srs not in ref_systems:
+                    ref_systems.append(srs)
+            parent_layer = parent_layer.parent_layer
+
+        return ref_systems
+
+    def get_inherited_bounding_geometry(self):
+        """ Returns the biggest bounding geometry of the service.
+
+        Bounding geometries shall be inherited. We do not persist them directly into the layer objects, since we might
+        lose the geometry, that is specified by the single layer object.
+        This function walks all the way up to the root layer of the service and returns the biggest bounding geometry.
+        Since upper layer geometries must cover the ones of their children, these big geometry includes the children ones.
+
+        Returns:
+             bounding_geometry (Polygon): A geometry object
+        """
+        bounding_geometry = self.metadata.bounding_geometry
+        parent_layer = self.parent_layer
+        while parent_layer is not None:
+            parent_geometry = parent_layer.metadata.bounding_geometry
+            if bounding_geometry.area > 0:
+                if parent_geometry.covers(bounding_geometry):
+                    bounding_geometry = parent_geometry
+            else:
+                bounding_geometry = parent_geometry
+            parent_layer = parent_layer.parent_layer
+        return bounding_geometry
+
+    def get_style(self):
+        """ Simple getter for the style of the current layer
+
+        Returns:
+             styles (QuerySet): A query set containing all styles
+        """
+        return self.style.all()
+
+    def _get_all_children_recursive(self, layer_list: list):
+        """ Returns a list of all children of the current layer
+
+        Args:
+            layer_list (list): The list of collected layers so far
+        Returns:
+            layer_list (list)
+        """
+        children = self.get_children()
+        for child in children:
+            layer_list.append(child)
+            child._get_all_children_recursive(layer_list)
+        return layer_list
+
+    def get_children(self, all=False):
+        """ Simple getter for the direct children of the current layer
+
+        Returns:
+             children (QuerySet): A query set containing all direct children layer of this layer
+        """
+        if all:
+            return self._get_all_children_recursive([])
+        else:
+            return self.child_layer.all()
+
+
+    def delete_children_secured_operations(self, layer, operation, group):
+        """ Walk recursive through all layers of wms and remove their secured operations
+
+        The 'layer' will not be affected!
+
+        Args:
+            layer: The layer, which children shall be changed.
+            operation: The RequestOperation of the SecuredOperation
+            group: The group
+        Returns:
+
+        """
+        for child_layer in layer.child_layer.all():
+            sec_ops = SecuredOperation.objects.filter(
+                secured_metadata=child_layer.metadata,
+                operation=operation,
+                allowed_group=group,
+            )
+            sec_ops.delete()
+            self.delete_children_secured_operations(child_layer, operation, group)
 
     def activate_layer_recursive(self, new_status):
         """ Walk recursive through all layers of a wms and set the activity status new
@@ -637,7 +2536,10 @@ class Layer(Service):
         """
         self.metadata.is_active = new_status
         self.metadata.save()
+        self.metadata.set_documents_active_status(new_status)
+        self.is_active = new_status
         self.save()
+
 
         # check for all related metadata, we need to toggle their active status as well
         rel_md = self.metadata.related_metadata.all()
@@ -658,6 +2560,37 @@ class Layer(Service):
         for layer in self.child_layer.all():
             layer.activate_layer_recursive(new_status)
 
+    def _get_bottom_layers_recursive(self, leaf_list: list):
+        """ Runs a recursive search for all leaf layers.
+
+        If a leaf layer is found, it will be added to layer_list
+
+        Args:
+            parent: The parent layer object
+            leaf_list (list): The leafs
+        Returns:
+             nothing, directly changes leaf_list
+        """
+        layer_obj_children = self.child_layer.all()
+        for child in layer_obj_children:
+            child._get_bottom_layers_recursive(leaf_list)
+        if layer_obj_children.count() == 0:
+            leaf_list.append(self.identifier)
+
+    def get_leaf_layers(self):
+        """ Returns a list of all leaf layers.
+
+        Leaf layers are the layers, which have no further children.
+
+        Returns:
+             leaf_layers (list): The leaf layers of a layer
+        """
+        leaf_layers = []
+        layer_obj_children = self.child_layer.all()
+        for child in layer_obj_children:
+            child._get_bottom_layers_recursive(leaf_layers)
+        return leaf_layers
+
 
 class Module(Service):
     type = models.CharField(max_length=100)
@@ -671,8 +2604,11 @@ class ReferenceSystem(models.Model):
     prefix = models.CharField(max_length=255, default="EPSG:")
     version = models.CharField(max_length=50, default="9.6.1")
 
+    class Meta:
+        unique_together = ("code", "prefix")
+
     def __str__(self):
-        return self.code
+        return str(self.code)
 
 
 class Dataset(Resource):
@@ -681,7 +2617,7 @@ class Dataset(Resource):
 
 
 class MimeType(Resource):
-    action = models.CharField(max_length=255, null=True)
+    operation = models.CharField(max_length=255, null=True)
     mime_type = models.CharField(max_length=500)
 
     def __str__(self):
@@ -703,24 +2639,27 @@ class Dimension(models.Model):
 
 
 class Style(models.Model):
-    layer = models.ForeignKey(Layer, on_delete=models.CASCADE)
-    name = models.CharField(max_length=255)
-    title = models.CharField(max_length=255)
-    uri = models.CharField(max_length=500)
-    height = models.IntegerField()
-    width = models.IntegerField()
-    mime_type = models.CharField(max_length=500)
+    layer = models.ForeignKey(Layer, on_delete=models.CASCADE, related_name="style")
+    name = models.CharField(max_length=255, null=True, blank=True)
+    title = models.CharField(max_length=255, null=True, blank=True)
+    legend_uri = models.CharField(max_length=500, null=True, blank=True)
+    height = models.IntegerField(null=True, blank=True)
+    width = models.IntegerField(null=True, blank=True)
+    mime_type = models.CharField(max_length=500, null=True, blank=True)
 
     def __str__(self):
-        return self.layer.name + ": " + self.name
+        return self.layer.identifier + ": " + self.name
 
 
 class FeatureType(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="featuretype")
-    service = models.ForeignKey(Service, null=True,  blank=True, on_delete=models.CASCADE, related_name="featuretypes")
+    parent_service = models.ForeignKey(Service, null=True, blank=True, on_delete=models.CASCADE, related_name="featuretypes")
     is_searchable = models.BooleanField(default=False)
     default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True, related_name="default_srs")
     inspire_download = models.BooleanField(default=False)
+    formats = models.ManyToManyField(MimeType)
+    elements = models.ManyToManyField('FeatureTypeElement')
+    namespaces = models.ManyToManyField('Namespace')
     bbox_lat_lon = models.PolygonField(default=Polygon(
         (
             (-90.0, -180.0),
@@ -730,9 +2669,6 @@ class FeatureType(Resource):
             (-90.0, -180.0),
         )
     ))
-    formats = models.ManyToManyField(MimeType)
-    elements = models.ManyToManyField('FeatureTypeElement')
-    namespaces = models.ManyToManyField('Namespace')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -747,6 +2683,31 @@ class FeatureType(Resource):
     def __str__(self):
         return self.metadata.identifier
 
+    def secure_feature_type(self, is_secured: bool, groups: list, operation: RequestOperation, secured_operation: SecuredOperation):
+        """ Secures the feature type or removes the secured constraints
+
+        Args:
+            is_secured (bool): Whether to secure the feature type or not
+            groups (list): The list of groups which are allowed to perform an operation
+            operation (RequestOperation): The operation which can be allowed
+        Returns:
+
+        """
+        self.metadata.is_secured = is_secured
+        if is_secured:
+            sec_op = SecuredOperation()
+            sec_op.operation = operation
+            sec_op.save()
+            for g in groups:
+                sec_op.allowed_groups.add(g)
+            self.metadata.secured_operations.add(sec_op)
+        else:
+            for sec_op in self.metadata.secured_operations.all():
+                sec_op.delete()
+            self.metadata.secured_operations.clear()
+        self.metadata.save()
+        self.save()
+
     def restore(self):
         """ Reset the metadata to it's original capabilities content
 
@@ -755,13 +2716,13 @@ class FeatureType(Resource):
         """
         from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
         from service.helper import service_helper
-        if self.service is None:
+        if self.parent_service is None:
             return
-        service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
+        service_version = service_helper.resolve_version_enum(self.parent_service.servicetype.version)
         service = None
-        if self.service.servicetype.name == ServiceEnum.WFS.value:
+        if self.parent_service.servicetype.name == OGCServiceEnum.WFS.value:
             service = OGCWebFeatureServiceFactory()
-            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.service.metadata.capabilities_original_uri)
+            service = service.get_ogc_wfs(version=service_version, service_connect_url=self.parent_service.metadata.capabilities_original_uri)
         if service is None:
             return
         service.get_capabilities()

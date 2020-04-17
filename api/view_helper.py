@@ -5,7 +5,11 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 10.09.19
 
 """
+from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.db.models import Q
+
+from MapSkinner.messages import PARAMETER_ERROR
+from service.settings import DEFAULT_SRS
 
 
 def filter_queryset_service_pid(queryset, pid):
@@ -38,11 +42,32 @@ def filter_queryset_service_query(queryset, query):
         queryset: The given queryset which only contains matching elements
     """
     if query is not None:
-        queryset = queryset.filter(
-            Q(metadata__title__icontains=query) |
-            Q(metadata__abstract__icontains=query) |
-            Q(metadata__keywords__keyword__icontains=query)
-        ).distinct()
+        # DRF automatically replaces '+' to ' ' whitespaces, so we work with this
+        query_list = query.split(" ")
+        q = Q()
+        for query_elem in query_list:
+            q &= Q(metadata__title__icontains=query_elem)\
+                 | Q(metadata__abstract__icontains=query_elem)\
+                 | Q(metadata__keywords__keyword__icontains=query_elem)
+
+        queryset = queryset.filter(q).distinct()
+    return queryset
+
+
+def order_queryset(queryset, order_by):
+    """ Orders a given REST framework queryset by a given order parameter.
+
+
+    Args:
+        queryset: A queryset containing elements
+        order_by: A ordering identifier
+    Returns:
+        queryset: The given queryset which is ordered
+    """
+    if queryset is not None:
+        queryset = queryset.order_by(
+            order_by
+        )
     return queryset
 
 
@@ -58,15 +83,80 @@ def filter_queryset_metadata_query(queryset, query):
         queryset: The given queryset which only contains matching elements
     """
     if query is not None:
-        queryset = queryset.filter(
-            Q(title__icontains=query) |
-            Q(abstract__icontains=query) |
-            Q(keywords__keyword__icontains=query)
-        ).distinct()
+        # DRF automatically replaces '+' to ' ' whitespaces, so we work with this
+        query_list = query.split(" ")
+        q = Q()
+        for query_elem in query_list:
+            q &= Q(title__icontains=query_elem)\
+                 | Q(abstract__icontains=query_elem)\
+                 | Q(keywords__keyword__icontains=query_elem)
+
+        queryset = queryset.filter(q).distinct()
     return queryset
 
 
-def filter_queryset_metadata_service_type(queryset, type: str):
+def filter_queryset_metadata_category(queryset, category, category_strict):
+    """ Filters a given REST framework queryset by a given query.
+
+    Only keeps elements which title, abstract or keyword can be matched to the given query.
+
+    Args:
+        queryset: A queryset containing elements
+        category: A list of ids
+        category_strict: Whether to evaluate multiple ids using AND or OR
+    Returns:
+        queryset: The given queryset which only contains matching elements
+    """
+    if category is not None:
+        # DRF automatically replaces '+' to ' ' whitespaces, so we work with this
+        category_list = category.split(" ")
+
+        queryset = queryset.filter(
+            categories__id__in=category_list
+        ).distinct()
+        if category_strict:
+            for category in category_list:
+                queryset = queryset.filter(categories__id=category)
+
+    return queryset
+
+
+def filter_queryset_metadata_bbox(queryset, bbox: str, bbox_srs: str, bbox_strict: bool):
+    """ Filters a given REST framework queryset by a given bbox.
+
+    Args:
+        queryset: A queryset containing elements
+        bbox: A bbox string (four coordinates)
+        bbox_srs: Defines the reference system for the bbox
+        bbox_strict: Defines whether only results fully inside or intersected as well shall be returned
+    Returns:
+        queryset: The given queryset which only contains matching elements
+    """
+    if bbox is not None:
+        try:
+            srs = int(bbox_srs.split(":")[-1])
+        except ValueError:
+            # The srs is not valid
+            raise Exception(PARAMETER_ERROR.format("bbox-srs"))
+
+        if not isinstance(bbox, list):
+            bbox = bbox.split(",")
+
+        bbox = GEOSGeometry(Polygon.from_bbox(bbox), srid=srs)
+        bbox.transform(DEFAULT_SRS)
+
+        if bbox_strict:
+            filter_identifier = "bounding_geometry__contained"
+        else:
+            filter_identifier = "bounding_geometry__bboverlaps"
+
+        queryset = queryset.filter(
+            **{filter_identifier: bbox}
+        )
+    return queryset
+
+
+def filter_queryset_metadata_type(queryset, type: str):
     """ Filters a given REST framework queryset by a given service type as string
 
     Args:
@@ -75,9 +165,18 @@ def filter_queryset_metadata_service_type(queryset, type: str):
     Returns:
         queryset: The given queryset which only contains matching elements
     """
+    filter_identifier = "service__servicetype__name"
+    single_types = [
+        "dataset",
+        "feature",
+        "layer",
+        "service"
+    ]
+    if type in single_types:
+        filter_identifier = "metadata_type__type"
     if type is not None:
         queryset = queryset.filter(
-            service__servicetype__name=type
+            **{filter_identifier: type},
         )
     return queryset
 

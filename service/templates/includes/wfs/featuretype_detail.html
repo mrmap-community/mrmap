@@ -1,0 +1,68 @@
+{% extends 'sceletons/card.html' %}
+{% load i18n %}
+
+{% block card-header-title-left %}
+<h4 class="mb-1 mr-3">
+    {% autoescape off %}{{THEME.ICONS.LAYER}}{% endautoescape %}
+    <strong>{{ service.metadata.title }}</strong>
+</h4>
+{% endblock %}
+{% block card-header-title-right %}
+
+{% endblock %}
+
+{% load i18n %}
+{% block card-body %}
+    <div class="row mb-2 ">
+        <div class="col-sm mb-2 text-center">
+            {% if 'can_edit_metadata_service' in user_permissions %}
+                <div class="dropdown">
+                  <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="id_edit_service_{{service.id}}_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit layer' %}
+                  </button>
+                  <div class="dropdown-menu" aria-labelledby="id_edit_service_{{service.id}}_dropdown">
+                    <a class="dropdown-item" href="{% url 'editor:edit' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}</a>
+                    <a class="dropdown-item" href="{% url 'editor:edit_access' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.ACCESS}}{% endautoescape %} {% trans 'Access' %}</a>
+                  </div>
+                </div>
+            {% endif %}
+            </div><!--</col>-->
+            <div class="col-sm mb-2 text-center">
+                <a id="dataset-metadata-button-{{ service.metadata.id }}" target="_blank" class="btn {{THEME.CARD.BTN_INFO_COLOR}} invisible" href="{% url 'service:get-dataset-metadata' service.metadata.id %}">
+                    {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Dataset Metadata' %}
+                </a>
+            </div><!--</col>-->
+
+            <div class="col-sm mb-2 text-center">
+                <div class="dropdown">
+                  <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="id_metadata_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Service Metadata' %}
+                  </button>
+                  <div class="dropdown-menu" aria-labelledby="id_metadata_dropdown">
+                      <a class="dropdown-item" target="_blank" href="{% url 'service:get-metadata-html' service_md.id %}">{% trans 'HTML' %}</a>
+                      <a class="dropdown-item" target="_blank" href="{% url 'service:get-service-metadata' service_md.id %}">{% trans 'XML' %}</a>
+                  </div>
+                </div>
+            </div>
+            <div class="col-sm mb-2 text-center">
+            {% if 'can_edit_metadata_service' in user_permissions %}
+                <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
+            {% endif %}
+            </div><!--</col>-->
+        </div><!--</row>-->
+        <div class="row mb-2 ">
+        <div class="col">
+
+
+        {% include 'includes/wfs/featuretype_detail_table.html' %}
+        {% with service as featuretype %}
+            {% with service.id as id_accordion  %}
+                {% with id_accordion_combined='elements' %}
+                    {% include 'includes/wfs/show_featuretype_elements_accordion.html' %}
+                {% endwith %}
+            {% endwith %}
+        {% endwith %}
+
+        </div><!--</col>-->
+</div><!--</row>-->
+{% endblock %}

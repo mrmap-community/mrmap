@@ -5,8 +5,29 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 17.04.19
 
 """
-import hashlib
+import urllib
+import django_tables2
+from django.http import HttpRequest
 
+from MapSkinner.consts import URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
+from MapSkinner.themes import DARK_THEME, LIGHT_THEME
+from MapSkinner.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
+from django.utils.html import format_html
+from structure.models import MrMapUser
+
+from MapSkinner.settings import DEBUG
+
+
+def print_debug_mode(string: str):
+    """ Only prints the string if the project runs in DEBUG mode (e.g. for development)
+
+    Args:
+        string (str): The string which shall be printed
+    Returns:
+
+    """
+    if DEBUG:
+        print(string)
 
 def execute_threads(thread_list):
     """ Executes a list of threads
@@ -19,12 +40,6 @@ def execute_threads(thread_list):
         thread.start()
     for thread in thread_list:
         thread.join()
-
-
-def sha256(_input: str):
-    m = hashlib.sha256()
-    m.update(_input.encode("UTF-8"))
-    return m.hexdigest()
 
 
 def resolve_none_string(val: str):
@@ -62,3 +77,64 @@ def resolve_boolean_attribute_val(val):
             if val_tmp == "TRUE":
                 return True
     return val
+
+
+def set_uri_GET_param(uri: str, param: str, val):
+    """ Changes a parameter in an uri to a given value.
+
+    If the parameter does not exist, it will be added
+
+    Args:
+        uri (str): The uri
+        param (str): The parameter that shall be changed
+        val: The new value
+    Returns:
+        uri (str): The changed uri
+    """
+    val = str(val)
+    base_uri = urllib.parse.urlsplit(uri)
+    query_dict = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(uri).query))
+
+    if "http" not in base_uri[0]:
+        # the given 'uri' parameter is not a full uri, but rather the query part
+        query_dict = dict(urllib.parse.parse_qsl(uri))
+        if len(query_dict) == 0:
+            raise ValueError("Uri parameter could not be resolved")
+
+    changed = False
+
+    for key, key_val in query_dict.items():
+        if key.upper() == param.upper():
+            query_dict[key] = val
+            changed = True
+            break
+
+    if not changed:
+        # the parameter didn't exist yet
+        query_dict[param] = val
+
+    query = urllib.parse.urlencode(query_dict, safe=", :")
+    base_uri = base_uri._replace(query=query)
+    uri = urllib.parse.urlunsplit(base_uri)
+
+    return uri
+
+
+def get_theme(user: MrMapUser):
+    if user is None or user.theme is None:
+        return LIGHT_THEME
+    elif user.theme.name == 'DARK':
+        return DARK_THEME
+    else:
+        return LIGHT_THEME
+
+
+def get_default_theme():
+    return LIGHT_THEME
+
+
+def get_ok_nok_icon(value):
+    if value:
+        return format_html("<i class='fas fa-check text-success'></i>")
+    else:
+        return format_html("<i class='fas fa-times text-danger'></i>")

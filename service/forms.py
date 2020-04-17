@@ -9,8 +9,11 @@ from django import forms
 from django.urls import reverse_lazy
 
 from MapSkinner.consts import SERVICE_ADD
+from MapSkinner.messages import SERVICE_UPDATE_WRONG_TYPE
 from MapSkinner.validators import validate_get_request_uri
 from django.utils.translation import gettext_lazy as _
+
+from service.helper import service_helper
 
 
 class ServiceURIForm(forms.Form):
@@ -76,6 +79,7 @@ class RemoveServiceForm(forms.Form):
 
 class UpdateServiceCheckForm(forms.Form):
     action_url = ''
+    url_dict = ''
     page = forms.IntegerField(widget=forms.HiddenInput(), initial=1)
     get_capabilities_uri = forms.URLField(
         validators=[validate_get_request_uri]
@@ -85,6 +89,23 @@ class UpdateServiceCheckForm(forms.Form):
         initial=True,
         required=False
     )
+
+    def __init__(self, *args, **kwargs):
+        self.current_service = None if 'current_service' not in kwargs else kwargs.pop('current_service')
+        super(UpdateServiceCheckForm, self).__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super(UpdateServiceCheckForm, self).clean()
+
+        if "get_capabilities_uri" in cleaned_data:
+            uri = cleaned_data.get("get_capabilities_uri")
+            self.url_dict = service_helper.split_service_uri(uri)
+            new_service_type = self.url_dict.get("service")
+
+            if self.current_service.servicetype.name != new_service_type.value:
+                self.add_error(None, SERVICE_UPDATE_WRONG_TYPE)
+
+        return cleaned_data
 
 
 class UpdateOldToNewElementsForm(forms.Form):

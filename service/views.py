@@ -675,71 +675,52 @@ def update_service(request: HttpRequest, metadata_id: int):
     """
     template = "views/service_update.html"
     user = user_helper.get_user(request)
+    current_service = get_object_or_404(Service, metadata__id=metadata_id)
 
     # Check if update check form has been retrieved or an update perform form
     page = int(request.POST.get("page", -1))
     if page == 1:
         # Update check form!
-        update_form = UpdateServiceCheckForm(request.POST or None)
-
+        update_form = UpdateServiceCheckForm(request.POST, current_service=current_service,)
         # Check if update form is valid
-        if not update_form.is_valid():
-            # Form is not valid --> response with page 1 and show errors
+        if update_form.is_valid():
+            # Create db model from new service information (no persisting, yet)
+            new_service = service_helper.get_service_model_instance(
+                service_type=update_form.url_dict.get("service"),
+                version=service_helper.resolve_version_enum(update_form.url_dict.get("version")),
+                base_uri=update_form.url_dict.get("base_uri"),
+                user=user,
+                register_group=current_service.created_by
+            )
+            new_service = new_service["service"]
+
+            # Collect differences
+            comparator = ServiceComparator(service_a=new_service, service_b=current_service)
+            diff = comparator.compare_services()
+
+            diff_elements = diff.get("layers", None) or diff.get("feature_types", {})
+            update_confirmation_form = UpdateOldToNewElementsForm(
+                new_elements=diff_elements.get("new"),
+                removed_elements=diff_elements.get("removed"),
+                keep_custom_md=update_form.cleaned_data.get("keep_custom_md", False),
+                get_capabilities_uri=update_form.url_dict
+            )
+            update_confirmation_form.action_url = reverse("service:update", args=[metadata_id])
+
+            params = {
+                "current_service": current_service,
+                "update_service": new_service,
+                "diff_elements": diff_elements,
+                "update_confirmation_form": update_confirmation_form,
+            }
+            context = DefaultContext(request, params, user)
+            return render(request=request, template_name=template, context=context.get_context(), status=202)
+        else:
             params = {
                 "update_service_form": update_form,
                 "show_update_form": True,
             }
             return detail(request=request, metadata_id=metadata_id, update_params=params, status_code=422)
-
-        # Get variables from form
-        uri = update_form.cleaned_data.get("get_capabilities_uri", None)
-        keep_custom_md = update_form.cleaned_data.get("keep_custom_md", None)
-
-        url_dict = service_helper.split_service_uri(uri)
-        new_service_type = url_dict.get("service")
-        current_service = get_object_or_404(Service, metadata__id=metadata_id)
-
-        # Check cross service update attempt
-        if current_service.servicetype.name != new_service_type.value:
-            update_form.add_error("get_capabilities_uri", SERVICE_UPDATE_WRONG_TYPE)
-            params = {
-                "update_service_form": update_form,
-                "show_update_form": True,
-            }
-            return detail(request=request, metadata_id=metadata_id, update_params=params, status_code=422)
-
-        # Create db model from new service information (no persisting, yet)
-        registrating_group = current_service.created_by
-        new_service = service_helper.get_service_model_instance(
-            service_type=url_dict.get("service"),
-            version=service_helper.resolve_version_enum(url_dict.get("version")),
-            base_uri=url_dict.get("base_uri"),
-            user=user,
-            register_group=registrating_group
-        )
-        new_service = new_service["service"]
-
-        # Collect differences
-        comparator = ServiceComparator(service_a=new_service, service_b=current_service)
-        diff = comparator.compare_services()
-
-        diff_elements = diff.get("layers", None) or diff.get("feature_types", {})
-        update_confirmation_form = UpdateOldToNewElementsForm(
-            new_elements=diff_elements.get("new"),
-            removed_elements=diff_elements.get("removed"),
-            keep_custom_md=keep_custom_md,
-            get_capabilities_uri=uri
-        )
-        update_confirmation_form.action_url = reverse("service:update", args=[metadata_id])
-
-        params = {
-            "current_service": current_service,
-            "update_service": new_service,
-            "diff_elements": diff_elements,
-            "update_confirmation_form": update_confirmation_form,
-        }
-        context = DefaultContext(request, params, user)
-        return render(request=request, template_name=template, context=context.get_context(), status=202)
 
     elif page == 2:
         # Update perform form!
@@ -758,7 +739,6 @@ def update_service(request: HttpRequest, metadata_id: int):
             return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
 
         url_dict = service_helper.split_service_uri(uri)
-        current_service = get_object_or_404(Service, metadata__id=metadata_id)
 
         # Create db model from new service information (no persisting, yet)
         registrating_group = current_service.created_by
@@ -815,6 +795,8 @@ def update_service(request: HttpRequest, metadata_id: int):
 
         messages.success(request, SERVICE_UPDATED)
         return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
+
+    return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
 
 
 @login_required

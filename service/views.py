@@ -349,7 +349,7 @@ def activate(request: HttpRequest, service_id: int):
     """
     user = user_helper.get_user(request)
 
-    md = Metadata.objects.get(service__id=service_id)
+    md = get_object_or_404(Metadata, service__id=service_id)
     md.is_active = not md.is_active
     md.save()
 
@@ -374,7 +374,8 @@ def get_service_metadata(request: HttpRequest, metadata_id: int):
     Returns:
          A HttpResponse containing the xml file
     """
-    metadata = Metadata.objects.get(id=metadata_id)
+
+    metadata = get_object_or_404(Metadata, id=metadata_id)
 
     if not metadata.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
@@ -392,7 +393,7 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
     Returns:
          A HttpResponse containing the xml file
     """
-    md = Metadata.objects.get(id=metadata_id)
+    md = get_object_or_404(Metadata, id=metadata_id)
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
     try:
@@ -421,7 +422,8 @@ def get_service_metadata_preview(request: HttpRequest, metadata_id: int):
     Returns:
          A HttpResponse containing the png preview
     """
-    md = Metadata.objects.get(id=metadata_id)
+
+    md = get_object_or_404(Metadata, id=metadata_id)
 
     if md.service.servicetype.name == OGCServiceEnum.WMS.value and md.service.is_root:
         layer = Layer.objects.get(
@@ -494,7 +496,7 @@ def get_capabilities(request: HttpRequest, metadata_id: int):
          A HttpResponse containing the xml file
     """
 
-    md = Metadata.objects.get(id=metadata_id)
+    md = get_object_or_404(Metadata, id=metadata_id)
     stored_version = md.get_service_version().value
     # move increasing hits to background process to speed up response time!
     async_increase_hits.delay(metadata_id)
@@ -585,7 +587,7 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
     base_template = '404.html'
     # ----
 
-    md = Metadata.objects.get(id=metadata_id)
+    md = get_object_or_404(Metadata, id=metadata_id)
 
     # collect global data for all cases
     params = {
@@ -704,7 +706,7 @@ def update_service(request: HttpRequest, metadata_id: int):
 
         url_dict = service_helper.split_service_uri(uri)
         new_service_type = url_dict.get("service")
-        current_service = Service.objects.get(metadata__id=metadata_id)
+        current_service = get_object_or_404(Service, metadata__id=metadata_id)
 
         # Check cross service update attempt
         if current_service.servicetype.name != new_service_type.value:
@@ -765,7 +767,7 @@ def update_service(request: HttpRequest, metadata_id: int):
             return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
 
         url_dict = service_helper.split_service_uri(uri)
-        current_service = Service.objects.get(metadata__id=metadata_id)
+        current_service = get_object_or_404(Service, metadata__id=metadata_id)
 
         # Create db model from new service information (no persisting, yet)
         registrating_group = current_service.created_by
@@ -1065,7 +1067,8 @@ def get_metadata_legend(request: HttpRequest, metadata_id: int, style_id: int):
     Returns:
         HttpResponse
     """
-    uri = Style.objects.get(id=style_id).legend_uri
+    style = get_object_or_404(Style, id=style_id)
+    uri = style.legend_uri
     con = CommonConnector(uri)
     con.load()
     response = con.content

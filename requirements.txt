@@ -35,3 +35,6 @@ django-autocomplete-light
 coverage==5.0.3
 django-nose==1.4.6
 model-bakery==1.1.0
+
+# For git revision rendering
+dealer

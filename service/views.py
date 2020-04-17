@@ -677,124 +677,125 @@ def update_service(request: HttpRequest, metadata_id: int):
     user = user_helper.get_user(request)
     current_service = get_object_or_404(Service, metadata__id=metadata_id)
 
-    # Check if update check form has been retrieved or an update perform form
-    page = int(request.POST.get("page", -1))
-    if page == 1:
-        # Update check form!
-        update_form = UpdateServiceCheckForm(request.POST, current_service=current_service,)
-        # Check if update form is valid
-        if update_form.is_valid():
+    if request.method == 'POST':
+        # Check if update check form has been retrieved or an update perform form
+        page = int(request.POST.get("page", -1))
+        if page == 1:
+            # Update check form!
+            update_form = UpdateServiceCheckForm(request.POST, current_service=current_service,)
+            # Check if update form is valid
+            if update_form.is_valid():
+                # Create db model from new service information (no persisting, yet)
+                new_service = service_helper.get_service_model_instance(
+                    service_type=update_form.url_dict.get("service"),
+                    version=service_helper.resolve_version_enum(update_form.url_dict.get("version")),
+                    base_uri=update_form.url_dict.get("base_uri"),
+                    user=user,
+                    register_group=current_service.created_by
+                )
+                new_service = new_service["service"]
+
+                # Collect differences
+                comparator = ServiceComparator(service_a=new_service, service_b=current_service)
+                diff = comparator.compare_services()
+
+                diff_elements = diff.get("layers", None) or diff.get("feature_types", {})
+                update_confirmation_form = UpdateOldToNewElementsForm(
+                    new_elements=diff_elements.get("new"),
+                    removed_elements=diff_elements.get("removed"),
+                    keep_custom_md=update_form.cleaned_data.get("keep_custom_md", False),
+                    get_capabilities_uri=update_form.cleaned_data.get("get_capabilities_uri", None)
+                )
+                update_confirmation_form.action_url = reverse("service:update", args=[metadata_id])
+
+                params = {
+                    "current_service": current_service,
+                    "update_service": new_service,
+                    "diff_elements": diff_elements,
+                    "update_confirmation_form": update_confirmation_form,
+                }
+                context = DefaultContext(request, params, user)
+                return render(request=request, template_name=template, context=context.get_context(), status=202)
+            else:
+                params = {
+                    "update_service_form": update_form,
+                    "show_update_form": True,
+                }
+                return detail(request=request, metadata_id=metadata_id, update_params=params, status_code=422)
+
+        elif page == 2:
+            # Update perform form!
+            # We need to extract the linkage of new->old elements from the request by hand
+            links = {}
+            prefix = "new_elem_"
+            for key, val in request.POST.items():
+                if prefix in key:
+                    links[key.replace(prefix, "")] = int(val)
+
+            uri = request.POST.get("capabilities_url", None)
+            keep_custom_md = utils.resolve_boolean_attribute_val(request.POST.get("keep_custom_md", True))
+
+            if uri is None:
+                messages.error(request, PARAMETER_ERROR.format("Get capabilities uri"))
+                return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
+
+            url_dict = service_helper.split_service_uri(uri)
+
             # Create db model from new service information (no persisting, yet)
+            registrating_group = current_service.created_by
             new_service = service_helper.get_service_model_instance(
-                service_type=update_form.url_dict.get("service"),
-                version=service_helper.resolve_version_enum(update_form.url_dict.get("version")),
-                base_uri=update_form.url_dict.get("base_uri"),
+                service_type=url_dict.get("service"),
+                version=service_helper.resolve_version_enum(url_dict.get("version")),
+                base_uri=url_dict.get("base_uri"),
                 user=user,
-                register_group=current_service.created_by
+                register_group=registrating_group
             )
+            new_service_capabilities_xml = new_service["raw_data"].service_capabilities_xml
             new_service = new_service["service"]
 
             # Collect differences
             comparator = ServiceComparator(service_a=new_service, service_b=current_service)
             diff = comparator.compare_services()
 
-            diff_elements = diff.get("layers", None) or diff.get("feature_types", {})
-            update_confirmation_form = UpdateOldToNewElementsForm(
-                new_elements=diff_elements.get("new"),
-                removed_elements=diff_elements.get("removed"),
-                keep_custom_md=update_form.cleaned_data.get("keep_custom_md", False),
-                get_capabilities_uri=update_form.url_dict
+            # UPDATE
+            # First update the metadata of the whole service
+            md = update_helper.update_metadata(current_service.metadata, new_service.metadata, keep_custom_md)
+            md.save()
+            current_service.metadata = md
+
+            # Then update the service object
+            current_service = update_helper.update_service(current_service, new_service)
+
+            # Update the subelements
+            if new_service.servicetype.name == OGCServiceEnum.WFS.value:
+                current_service = update_helper.update_wfs_elements(
+                    current_service,
+                    new_service,
+                    diff,
+                    links,
+                    keep_custom_md
+                )
+            elif new_service.servicetype.name == OGCServiceEnum.WMS.value:
+                current_service = update_helper.update_wms_elements(
+                    current_service,
+                    new_service,
+                    diff,
+                    links,
+                    keep_custom_md
+                )
+
+            update_helper.update_capability_document(current_service, new_service_capabilities_xml)
+
+            current_service.save()
+            user_helper.create_group_activity(
+                current_service.metadata.created_by,
+                user,
+                SERVICE_UPDATED,
+                current_service.metadata.title
             )
-            update_confirmation_form.action_url = reverse("service:update", args=[metadata_id])
 
-            params = {
-                "current_service": current_service,
-                "update_service": new_service,
-                "diff_elements": diff_elements,
-                "update_confirmation_form": update_confirmation_form,
-            }
-            context = DefaultContext(request, params, user)
-            return render(request=request, template_name=template, context=context.get_context(), status=202)
-        else:
-            params = {
-                "update_service_form": update_form,
-                "show_update_form": True,
-            }
-            return detail(request=request, metadata_id=metadata_id, update_params=params, status_code=422)
-
-    elif page == 2:
-        # Update perform form!
-        # We need to extract the linkage of new->old elements from the request by hand
-        links = {}
-        prefix = "new_elem_"
-        for key, val in request.POST.items():
-            if prefix in key:
-                links[key.replace(prefix, "")] = int(val)
-
-        uri = request.POST.get("capabilities_url", None)
-        keep_custom_md = utils.resolve_boolean_attribute_val(request.POST.get("keep_custom_md", True))
-
-        if uri is None:
-            messages.error(request, PARAMETER_ERROR.format("Get capabilities uri"))
+            messages.success(request, SERVICE_UPDATED)
             return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
-
-        url_dict = service_helper.split_service_uri(uri)
-
-        # Create db model from new service information (no persisting, yet)
-        registrating_group = current_service.created_by
-        new_service = service_helper.get_service_model_instance(
-            service_type=url_dict.get("service"),
-            version=service_helper.resolve_version_enum(url_dict.get("version")),
-            base_uri=url_dict.get("base_uri"),
-            user=user,
-            register_group=registrating_group
-        )
-        new_service_capabilities_xml = new_service["raw_data"].service_capabilities_xml
-        new_service = new_service["service"]
-
-        # Collect differences
-        comparator = ServiceComparator(service_a=new_service, service_b=current_service)
-        diff = comparator.compare_services()
-
-        # UPDATE
-        # First update the metadata of the whole service
-        md = update_helper.update_metadata(current_service.metadata, new_service.metadata, keep_custom_md)
-        md.save()
-        current_service.metadata = md
-
-        # Then update the service object
-        current_service = update_helper.update_service(current_service, new_service)
-
-        # Update the subelements
-        if new_service.servicetype.name == OGCServiceEnum.WFS.value:
-            current_service = update_helper.update_wfs_elements(
-                current_service,
-                new_service,
-                diff,
-                links,
-                keep_custom_md
-            )
-        elif new_service.servicetype.name == OGCServiceEnum.WMS.value:
-            current_service = update_helper.update_wms_elements(
-                current_service,
-                new_service,
-                diff,
-                links,
-                keep_custom_md
-            )
-
-        update_helper.update_capability_document(current_service, new_service_capabilities_xml)
-
-        current_service.save()
-        user_helper.create_group_activity(
-            current_service.metadata.created_by,
-            user,
-            SERVICE_UPDATED,
-            current_service.metadata.title
-        )
-
-        messages.success(request, SERVICE_UPDATED)
-        return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
 
     return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
 

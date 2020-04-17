@@ -264,10 +264,14 @@ class OGCOperationRequestHandler:
 
         """
         if self.request_param.upper() == OGCOperationEnum.GET_FEATURE.value.upper() and self.type_name_param is not None:
+            # It might be possible, that type_name_param contains an unwanted namespace. Get rid of it!
+            type_name_list = self.type_name_param.split(":")
+            type_name_suffix = type_name_list[-1]
+
             # for WFS we need to check a few things in here!
             # first get the featuretype object, that is requested
             featuretype = FeatureType.objects.get(
-                metadata__identifier=self.type_name_param,
+                metadata__identifier__contains=type_name_suffix,
                 parent_service__metadata=metadata
             )
 

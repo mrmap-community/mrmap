@@ -39,9 +39,11 @@
         <div class="col text-right">
             <div class="col-sm">
                 <div class="row-auto">
-                    <div id="ee-trggr" class="d-inline-flex">Mr. Map</div>
+                    <a href="{{ GIT_REPO_URI }}" target="_blank">
+                        <div id="ee-trggr" class="d-inline-flex">Mr. Map</div>
+                    </a>
                 </div>
-                <a href="{{ GIT_REPO_URI }}" target="_blank" class="row-auto {{THEME.FOOTER.LINK_COLOR}}">v{{ VERSION }}</a>
+                <a href="{{ GIT_GRAPH_URI }}#{{ REVISION }}" target="_blank" class="row-auto {{THEME.FOOTER.LINK_COLOR}}">rev. {{ REVISION }}</a>
 
             </div>
         </div>

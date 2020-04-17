@@ -25,8 +25,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.1/howto/deployment/checklist/
 
-VERSION = "0.3.0"
 GIT_REPO_URI = "https://git.osgeo.org/gitea/hollsandre/MapSkinner/src/branch/pre_master"
+GIT_GRAPH_URI = "https://git.osgeo.org/gitea/GDI-RP/MapSkinner/graph"
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
@@ -173,6 +173,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'dealer.contrib.django.context_processor',
             ],
         },
     },

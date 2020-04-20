@@ -28,7 +28,7 @@
                                 <label class="sr-only" for="{{ field.id_for_label }}">{{ field.label }}</label>
                                 <div class="form-group input-group">
 
-                                    {% if 'Username' in field.label or 'Benutzername' or 'Nutzername' in field.label %}
+                                    {% if 'Username' in field.label or 'Benutzername' in field.label %}
                                     <div class="input-group-prepend">
                                         <div class="input-group-text">{% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %}</div>
                                     </div>

@@ -5,6 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 10.09.19
 
 """
+from dateutil.parser import parse
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.db.models import Q
 
@@ -154,6 +155,61 @@ def filter_queryset_metadata_category(queryset, category, category_strict):
         if category_strict:
             for category in category_list:
                 queryset = queryset.filter(categories__id=category)
+
+    return queryset
+
+
+def filter_queryset_metadata_dimension_time(queryset, time_min: str, time_max: str):
+    """ Filters a given REST framework queryset by a time_min and time_max boundary.
+
+    Only keeps the element which can be found in this temporal span.
+
+    Args:
+        queryset: A queryset containing elements
+        time_min (str): The date in ISO format YYYY-mm-dd
+        time_max (str): The date in ISO format YYYY-mm-dd
+    Returns:
+        queryset: The given queryset which only contains matching elements
+    """
+    if time_min:
+        time_min = parse(timestr=time_min)
+        queryset = queryset.filter(
+            dimensions__time_extent_min__gte=time_min
+        )
+    if time_max:
+        time_max = parse(timestr=time_max)
+        queryset = queryset.filter(
+            dimensions__time_extent_max__lte=time_max
+        )
+
+    return queryset
+
+
+def filter_queryset_metadata_dimension_elevation(queryset, elev_min: str, elev_max: str, elevation_unit: str):
+    """ Filters a given REST framework queryset by a time_min and time_max boundary.
+
+    Only keeps the element which can be found in this temporal span.
+
+    Args:
+        queryset: A queryset containing elements
+        elev_min (str): The date in ISO format YYYY-mm-dd
+        elev_max (str): The date in ISO format YYYY-mm-dd
+        elevation_unit (str): The elevation unit looking for
+    Returns:
+        queryset: The given queryset which only contains matching elements
+    """
+    if not elevation_unit:
+        elevation_unit = ""
+    if elev_min:
+        queryset = queryset.filter(
+            dimensions__units__icontains=elevation_unit,
+            dimensions__elev_extent_min__lte=elev_min,
+        )
+    if elev_max:
+        queryset = queryset.filter(
+            dimensions__units__icontains=elevation_unit,
+            dimensions__elev_extent_max__gte=elev_max,
+        )
 
     return queryset
 

@@ -660,6 +660,22 @@ class CatalogueViewSet(viewsets.GenericViewSet):
                                     * Type: bool
                                     * If not set, overlapping results will be returned as well.
 
+            -----   DIMENSION    -----
+            time-min:           optional, specifies a date in ISO format (YYYY-mm-dd)
+                                    * Type: str
+                                    * only results with a time dimension on or after time-min will be returned
+            time-max:           optional, specifies a date in ISO format (YYYY-mm-dd)
+                                    * Type: str
+                                    * only results with a time dimension on or before time-max will be returned
+            elevation-unit:     optional, specifies a unit, that evaluates the evalution-min/-max parameters
+                                    * Type: str
+            elevation-min:      optional, specifies a numerical value
+                                    * Type: float
+                                    * only results with an elevation dimension larger or equal to elevation-min will be returned
+            elevation-max:      optional, specifies a numerical value
+                                    * Type: float
+                                    * only results with an elevation dimension smaller or equal to elevation-min will be returned
+
     """
     serializer_class = CatalogueMetadataSerializer
     http_method_names = API_ALLOWED_HTTP_METHODS
@@ -677,6 +693,20 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         """
         self.queryset = Metadata.objects.filter(
             is_active=True,
+        )
+
+        # filter by dimensions
+        time_min = self.request.query_params.get("time-min", None) or None
+        time_max = self.request.query_params.get("time-max", None) or None
+        elevation_unit = self.request.query_params.get("elevation-unit", None) or None
+        elevation_min = self.request.query_params.get("elevation-min", None) or None
+        elevation_max = self.request.query_params.get("elevation-max", None) or None
+        self.queryset = view_helper.filter_queryset_metadata_dimension_time(self.queryset, time_min, time_max)
+        self.queryset = view_helper.filter_queryset_metadata_dimension_elevation(
+            self.queryset,
+            elevation_min,
+            elevation_max,
+            elevation_unit
         )
 
         # filter by bbox extent. fully-inside and partially-inside are mutually exclusive

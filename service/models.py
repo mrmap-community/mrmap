@@ -2627,10 +2627,11 @@ class MimeType(Resource):
 class Dimension(models.Model):
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name="dimensions")
     type = models.CharField(max_length=255, choices=DIMENSION_TYPE_CHOICES, null=True, blank=True)
-    value = models.CharField(max_length=255, null=True, blank=True)
+    units = models.CharField(max_length=255, null=True, blank=True)
+    extent = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return "{}:{}".format(self.type, str(self.value))
+        return "{}:{}".format(self.type, str(self.extent))
 
 
 class Style(models.Model):

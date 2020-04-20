@@ -32,7 +32,7 @@ from service.helper.ogc.layer import OGCLayer
 
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
-    MetadataRelation, MetadataOrigin, MetadataType, Style, ExternalAuthentication
+    MetadataRelation, MetadataOrigin, MetadataType, Style, ExternalAuthentication, Dimension
 from service.settings import MD_RELATION_TYPE_VISUALIZES, MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
 from structure.models import Organization, MrMapGroup
 from structure.models import MrMapUser
@@ -355,7 +355,7 @@ class OGCWebMapService(OGCWebService):
 
     ### DIMENSIONS ###
     def parse_dimension(self, layer, layer_obj):
-        dims_list = []
+        dim_dict = None
         try:
             dim = xml_helper.try_get_single_element_from_xml(
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
@@ -366,15 +366,13 @@ class OGCWebMapService(OGCWebService):
                 xml_elem=layer
             )
             dim_dict = {
-                "name": dim.get("name"),
+                "type": dim.get("name"),
                 "units": dim.get("units"),
-                "default": ext.get("default"),
                 "extent": ext.text,
             }
-            dims_list.append(dim_dict)
         except (IndexError, AttributeError) as error:
             pass
-        layer_obj.dimension = dims_list
+        layer_obj.dimension = dim_dict
 
     ### STYLES ###
     def parse_style(self, layer, layer_obj):
@@ -783,19 +781,14 @@ class OGCWebMapService(OGCWebService):
 
         layer.iso_metadata = layer_obj.iso_metadata
 
-        if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
-            # ToDo: Rework dimension persisting! Currently simply ignore it...
-            pass
-            # for dimension in layer_obj.dimension:
-            #     dim = Dimension()
-            #     # dim.layer = layer
-            #     dim.name = layer_obj.dimension.get("name")
-            #     dim.units = layer_obj.dimension.get("units")
-            #     dim.default = layer_obj.dimension.get("default")
-            #     dim.extent = layer_obj.dimension.get("extent")
-            #     # ToDo: Refine for inherited and nearest_value and so on
-            #     layer.dimension = dim
-            #     #dim.save()
+        # Dimensions
+        if layer_obj.dimension is not None:
+            dim = Dimension()
+            dim.metadata = layer.metadata
+            dim.type = layer_obj.dimension.get("type")
+            dim.units = layer_obj.dimension.get("units")
+            dim.extent = layer_obj.dimension.get("extent")
+            layer.dimension = dim
 
         if wms.root_layer is None:
             # no root layer set yet
@@ -1042,8 +1035,8 @@ class OGCWebMapService(OGCWebService):
 
             if layer.dimension is not None:
                 dim = layer.dimension
+                dim.metadata = layer.metadata
                 dim.save()
-                layer.dimension = dim
 
             layer.parent_layer = parent_layer
             layer.parent_service = parent_service
@@ -1226,24 +1219,21 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         Returns:
              nothing
         """
-        dims_list = []
+        dim_dict = None
         try:
-            dims = xml_helper.try_get_element_from_xml(
+            dim = xml_helper.try_get_single_element_from_xml(
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
                 xml_elem=layer
             )
-            for dim in dims:
+            if dim is not None:
                 dim_dict = {
-                    "name": dim.get("name"),
+                    "type": dim.get("name"),
                     "units": dim.get("units"),
-                    "default": dim.get("default"),
                     "extent": dim.text,
-                    "nearestValue": dim.get("nearestValue"),
                 }
-                dims_list.append(dim_dict)
         except (IndexError, AttributeError) as error:
             pass
-        layer_obj.dimension = dims_list
+        layer_obj.dimension = dim_dict
 
     def get_version_specific_service_metadata(self, xml_obj):
         """ The version specific implementation of service metadata parsing

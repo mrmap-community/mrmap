@@ -30,14 +30,7 @@ def _prepare_group_table(request: HttpRequest, user: MrMapUser, ):
     user_groups = user.get_groups()
     user_groups_filtered = GroupFilter(request.GET, queryset=user_groups)
 
-    groups = []
-    for user_group in user_groups_filtered.qs:
-        groups.append(user_group)
-        groups.extend(MrMapGroup.objects.filter(
-            parent_group=user_group
-        ))
-
-    groups_table = GroupTable(groups,
+    groups_table = GroupTable(user_groups_filtered.qs,
                               order_by_field='sg',  # sg = sort groups
                               user=user, )
     groups_table.filter = user_groups_filtered

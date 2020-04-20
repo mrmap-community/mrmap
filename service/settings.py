@@ -134,3 +134,10 @@ LOGABLE_FEATURE_RESPONSE_FORMATS = [
     "gml2",
     "gml3",
 ]
+
+# DIMENSION
+DIMENSION_TYPE_CHOICES = [
+    (1, "time"),
+    (2, "elevation"),
+    (3, "other"),
+]

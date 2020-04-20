@@ -27,7 +27,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.iso.service_metadata_builder import ServiceMetadataBuilder
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
-    LOGABLE_FEATURE_RESPONSE_FORMATS
+    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES
 from structure.models import MrMapGroup, Organization
 from service.helper import xml_helper
 
@@ -2625,17 +2625,12 @@ class MimeType(Resource):
 
 
 class Dimension(models.Model):
-    layer = models.ForeignKey(Layer, on_delete=models.CASCADE)
-    name = models.CharField(max_length=255)
-    units = models.CharField(max_length=255)
-    default = models.CharField(max_length=255)
-    nearest_value = models.CharField(max_length=255)
-    current = models.CharField(max_length=255)
-    extent = models.CharField(max_length=500)
-    inherited = models.BooleanField()
+    metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name="dimensions")
+    type = models.CharField(max_length=255, choices=DIMENSION_TYPE_CHOICES, null=True, blank=True)
+    value = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
-        return self.layer.name + ": " + self.name
+        return "{}:{}".format(self.type, str(self.value))
 
 
 class Style(models.Model):

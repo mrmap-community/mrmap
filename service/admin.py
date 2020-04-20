@@ -14,6 +14,10 @@ class CategoryOriginAdmin(admin.ModelAdmin):
     pass
 
 
+class DimensionAdmin(admin.ModelAdmin):
+    list_display = ("id", "type", "value", "metadata")
+
+
 class RequestOperationAdmin(admin.ModelAdmin):
     list_display = ('id', 'operation_name',)
 
@@ -104,6 +108,7 @@ class StyleAdmin(admin.ModelAdmin):
     list_display = ('id', 'layer',)
 
 
+admin.site.register(Dimension, DimensionAdmin)
 admin.site.register(Document, DocumentAdmin)
 admin.site.register(RequestOperation, RequestOperationAdmin)
 admin.site.register(SecuredOperation, SecuredOperationAdmin)

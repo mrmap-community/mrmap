@@ -48,7 +48,7 @@ def _prepare_group_table(request: HttpRequest, user: MrMapUser, ):
 
 
 def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, ):
-    all_orgs = Organization.objects.all().order_by(Case(When(id=user.organization.id, then=0), default=1),
+    all_orgs = Organization.objects.all().order_by(Case(When(id=user.organization.id if user.organization is not None else 0, then=0), default=1),
                                                    'organization_name')
 
     all_orgs_filtered = OrganizationFilter(request.GET, queryset=all_orgs)

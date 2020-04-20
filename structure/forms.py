@@ -41,7 +41,7 @@ class GroupForm(ModelForm):
             "parent_group"
         ]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self,  *args, **kwargs):
         self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
         self.is_edit = False if 'is_edit' not in kwargs else kwargs.pop('is_edit')
         super(GroupForm, self).__init__(*args, **kwargs)
@@ -59,6 +59,16 @@ class GroupForm(ModelForm):
 
         if self.instance.created_by_id is not None and self.instance.created_by != self.requesting_user:
             self.add_error(None, GROUP_IS_OTHERS_PROPERTY)
+
+        parent_group = None if 'parent_group' not in cleaned_data else cleaned_data['parent_group']
+
+        if parent_group is not None:
+            while parent_group.parent_group is not None:
+                if self.instance == parent_group.parent_group:
+                    self.add_error('parent_group', "Circular configuration of parent groups detected.")
+                    break
+                else:
+                    parent_group = parent_group.parent_group
 
         return cleaned_data
 

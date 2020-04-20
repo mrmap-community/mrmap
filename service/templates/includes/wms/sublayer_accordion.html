@@ -18,17 +18,6 @@
             $.get( '{% url 'service:detail' layer.metadata.id %}?no-base', function( data ) {
                 // Insert subelement detail table
                 $( "#id_content_service_{{layer.metadata.id}}" ).html( data );
-
-                // Check for dataset metadata of subelement
-                var url = "{% url 'service:check-for-dataset-metadata' layer.metadata.id %}?serviceType=wms";
-                var datasetButton = $("#dataset-metadata-button-{{ layer.metadata.id }}");
-                $.get(url, function(data){
-                    var hasDatasetDoc = data["has_dataset_doc"];
-                    console.log(hasDatasetDoc);
-                    if(hasDatasetDoc){
-                        datasetButton.removeClass("invisible");
-                    }
-                });
             });
           }
         });

@@ -139,5 +139,5 @@ LOGABLE_FEATURE_RESPONSE_FORMATS = [
 DIMENSION_TYPE_CHOICES = [
     ("time", "time"),
     ("elevation", "elevation"),
-    ("elevation", "other"),
+    ("other", "other"),
 ]

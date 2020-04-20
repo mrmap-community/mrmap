@@ -355,24 +355,26 @@ class OGCWebMapService(OGCWebService):
 
     ### DIMENSIONS ###
     def parse_dimension(self, layer, layer_obj):
-        dim_dict = None
+        dim_list = []
         try:
-            dim = xml_helper.try_get_single_element_from_xml(
+            dims = xml_helper.try_get_element_from_xml(
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
                 xml_elem=layer
             )
-            ext = xml_helper.try_get_single_element_from_xml(
-                elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Extent"),
-                xml_elem=layer
-            )
-            dim_dict = {
-                "type": dim.get("name"),
-                "units": dim.get("units"),
-                "extent": ext.text,
-            }
+            for dim in dims:
+                ext = xml_helper.try_get_single_element_from_xml(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Extent")+ '[@name="' + dim.get('name') + '"]',
+                    xml_elem=layer
+                )
+                dim_dict = {
+                    "type": dim.get("name"),
+                    "units": dim.get("units"),
+                    "extent": ext.text,
+                }
+                dim_list.append(dim_dict)
         except (IndexError, AttributeError) as error:
             pass
-        layer_obj.dimension = dim_dict
+        layer_obj.dimension_list = dim_list
 
     ### STYLES ###
     def parse_style(self, layer, layer_obj):
@@ -782,13 +784,13 @@ class OGCWebMapService(OGCWebService):
         layer.iso_metadata = layer_obj.iso_metadata
 
         # Dimensions
-        if layer_obj.dimension is not None:
+        for dimension in layer_obj.dimension_list:
             dim = Dimension()
             dim.metadata = layer.metadata
-            dim.type = layer_obj.dimension.get("type")
-            dim.units = layer_obj.dimension.get("units")
-            dim.extent = layer_obj.dimension.get("extent")
-            layer.dimension = dim
+            dim.type = dimension.get("type")
+            dim.units = dimension.get("units")
+            dim.extent = dimension.get("extent")
+            layer.dimension_list.append(dim)
 
         if wms.root_layer is None:
             # no root layer set yet
@@ -1033,10 +1035,9 @@ class OGCWebMapService(OGCWebService):
                 sys = ReferenceSystem.objects.get_or_create(code=sys.code, prefix=sys.prefix)[0]
                 layer.metadata.reference_system.add(sys)
 
-            if layer.dimension is not None:
-                dim = layer.dimension
-                dim.metadata = layer.metadata
-                dim.save()
+            for dimension in layer.dimension_list:
+                dimension.metadata = layer.metadata
+                dimension.save()
 
             layer.parent_layer = parent_layer
             layer.parent_service = parent_service
@@ -1219,21 +1220,23 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         Returns:
              nothing
         """
-        dim_dict = None
+        dim_list = []
         try:
-            dim = xml_helper.try_get_single_element_from_xml(
+            dims = xml_helper.try_get_element_from_xml(
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
                 xml_elem=layer
             )
-            if dim is not None:
+            for dim in dims:
                 dim_dict = {
                     "type": dim.get("name"),
                     "units": dim.get("units"),
                     "extent": dim.text,
                 }
+                dim_list.append(dim_dict)
+
         except (IndexError, AttributeError) as error:
             pass
-        layer_obj.dimension = dim_dict
+        layer_obj.dimension_list = dim_list
 
     def get_version_specific_service_metadata(self, xml_obj):
         """ The version specific implementation of service metadata parsing

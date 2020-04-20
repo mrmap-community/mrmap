@@ -734,7 +734,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
 
         # Dimension
         elem = xml_helper.create_subelement(layer_elem, "{}Dimension".format(self.default_ns))
-        xml_helper.write_text_to_element(elem, txt=md.dimension)
+        xml_helper.write_text_to_element(elem, txt=md.dimension_list)
 
         # Attribution
         elem = xml_helper.create_subelement(layer_elem, "{}Attribution".format(self.default_ns))

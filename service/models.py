@@ -570,7 +570,6 @@ class Metadata(Resource):
     is_secured = models.BooleanField(default=False)
 
     # capabilities
-    dimension = models.CharField(max_length=100, null=True)
     authority_url = models.CharField(max_length=255, null=True)
     metadata_url = models.CharField(max_length=255, null=True)
 
@@ -593,6 +592,7 @@ class Metadata(Resource):
         # non persisting attributes
         self.keywords_list = []
         self.reference_system_list = []
+        self.dimension_list = []
 
     def __str__(self):
         return self.title
@@ -2415,7 +2415,6 @@ class Layer(Service):
         super().__init__(*args, **kwargs)
         # non persisting attributes
         self.children_list = []
-        self.dimension_list = []
         self.tmp_style = None  # holds the style before persisting
 
     def __str__(self):

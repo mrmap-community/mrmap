@@ -151,6 +151,16 @@ class OrganizationForm(ModelForm):
         if self.instance.created_by is not None and self.instance.created_by != self.requesting_user:
             self.add_error(None, ORGANIZATION_IS_OTHERS_PROPERTY)
 
+        parent = None if 'parent' not in cleaned_data else cleaned_data['parent']
+
+        if parent is not None:
+            while parent.parent is not None:
+                if self.instance == parent.parent:
+                    self.add_error('parent', "Circular configuration of parent organization detected.")
+                    break
+                else:
+                    parent = parent.parent
+
         return cleaned_data
 
 

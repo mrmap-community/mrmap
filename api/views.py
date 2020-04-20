@@ -759,7 +759,7 @@ class SuggestionViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    #@method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         data = {

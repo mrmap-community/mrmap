@@ -240,28 +240,31 @@ class CategorySerializer(serializers.ModelSerializer):
             "symbol",
             "online_link",
         ]
+        read_only_fields = fields
 
 class CatalogueMetadataSerializer(serializers.Serializer):
     """ Serializer for Metadata model
 
     """
-    id = serializers.IntegerField()
-    identifier = serializers.CharField()
-    metadata_type = serializers.CharField(label="type")
-    title = serializers.CharField()
-    abstract = serializers.CharField()
+    id = serializers.IntegerField(read_only=True)
+    identifier = serializers.CharField(read_only=True)
+    metadata_type = serializers.CharField(read_only=True, label="type")
+    title = serializers.CharField(read_only=True)
+    abstract = serializers.CharField(read_only=True)
     spatial_extent_geojson = serializers.CharField(read_only=True, source="bounding_geometry.geojson")
-    capabilities_uri = serializers.CharField()
-    xml_metadata_uri = serializers.CharField(source="service_metadata_uri")
-    html_metadata_uri = serializers.CharField()
-    fees = serializers.CharField()
-    access_constraints = serializers.CharField()
+    capabilities_uri = serializers.CharField(read_only=True)
+    xml_metadata_uri = serializers.CharField(read_only=True, source="service_metadata_uri")
+    html_metadata_uri = serializers.CharField(read_only=True)
+    fees = serializers.CharField(read_only=True)
+    access_constraints = serializers.CharField(read_only=True)
     terms_of_use = serializers.PrimaryKeyRelatedField(read_only=True)
     parent_service = serializers.IntegerField(read_only=True, source="service.parent_service.metadata.id")
     organization = OrganizationSerializer(read_only=True, source="contact")
-    related_metadata = MetadataRelationSerializer(many=True)
+    related_metadata = MetadataRelationSerializer(read_only=True, many=True)
     keywords = serializers.StringRelatedField(read_only=True, many=True)
     categories = CategorySerializer(read_only=True, many=True)
 
     class Meta:
         model = Metadata
+
+

@@ -1,7 +1,7 @@
 <!-- Modal -->
 {% load bootstrap4 %}
 {# Usage: use with parameter on expanding template to declare show_modal, id_modal and form variable  #}
-<div class="modal {% if not show_modal %} fade {% endif %}" id="id_modal_{{id_modal}}" data-backdrop="static" tabindex="-1" role="dialog"
+<div class="modal {% if form.errors|length > 0  %} animated shake {% endif %} {% if not show_modal %} fade {% endif %}" id="id_modal_{{id_modal}}" data-backdrop="static" tabindex="-1" role="dialog"
      aria-labelledby="id_modal_title_{{id_modal}}" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content {{THEME.MODAL.BG_COLOR}} {{THEME.MODAL.TXT_COLOR}}">

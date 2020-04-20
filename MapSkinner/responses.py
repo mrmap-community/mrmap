@@ -7,7 +7,7 @@ Created on: 15.04.19
 """
 from django.http import JsonResponse, HttpRequest
 
-from MapSkinner.settings import ROOT_URL, VERSION, GIT_REPO_URI
+from MapSkinner.settings import ROOT_URL, GIT_REPO_URI, GIT_GRAPH_URI
 from structure.models import MrMapUser
 from MapSkinner.utils import get_theme
 
@@ -51,8 +51,8 @@ class DefaultContext:
             "LANGUAGE_CODE": request.LANGUAGE_CODE,
             "user_permissions": permissions,  #user_helper.get_permissions(user)
             "user": user,
-            "VERSION": VERSION,
             "GIT_REPO_URI": GIT_REPO_URI,
+            "GIT_GRAPH_URI": GIT_GRAPH_URI,
             "THEME": get_theme(user),
             "BREADCRUMB": breadcrumb,
         }

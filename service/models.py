@@ -1905,8 +1905,8 @@ class Document(Resource):
         service_type = self.related_metadata.get_service_type()
 
         is_wfs = service_type == OGCServiceEnum.WFS.value
-        is_wfs_1_0_0 = is_wfs and service_version is OGCServiceVersionEnum.V_1_0_0
-        is_wfs_1_1_0 = is_wfs and service_version is OGCServiceVersionEnum.V_1_1_0
+        is_wfs_1_0_0 = is_wfs and service_version == OGCServiceVersionEnum.V_1_0_0.value
+        is_wfs_1_1_0 = is_wfs and service_version == OGCServiceVersionEnum.V_1_1_0.value
 
         # get <MetadataURL> xml elements
         if is_wfs:

@@ -1075,7 +1075,7 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
         self.service_version = OGCServiceVersionEnum.V_1_0_0
         XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.0.0/capabilities_1_0_0.xml"
 
-    def __parse_formats(self, layer, layer_obj):
+    def parse_formats(self, layer, layer_obj):
         actions = ["Map", "Capabilities", "FeatureInfo"]
         results = {}
         for action in actions:
@@ -1132,6 +1132,7 @@ class OGCWebMapService_1_1_0(OGCWebMapService):
         XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.1.0/capabilities_1_1_0.xml"
 
     def get_version_specific_metadata(self, xml_obj):
+        # No version specific implementation needed
         pass
 
 
@@ -1146,6 +1147,7 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
         XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.1.1/capabilities_1_1_1.xml"
 
     def get_version_specific_metadata(self, xml_obj):
+        # No version specific implementation needed
         pass
 
 

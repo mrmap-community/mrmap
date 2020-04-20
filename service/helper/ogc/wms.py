@@ -786,7 +786,6 @@ class OGCWebMapService(OGCWebService):
         # Dimensions
         for dimension in layer_obj.dimension_list:
             dim = Dimension()
-            dim.metadata = layer.metadata
             dim.type = dimension.get("type")
             dim.units = dimension.get("units")
             dim.extent = dimension.get("extent")
@@ -1036,8 +1035,8 @@ class OGCWebMapService(OGCWebService):
                 layer.metadata.reference_system.add(sys)
 
             for dimension in layer.metadata.dimension_list:
-                dimension.metadata = layer.metadata
                 dimension.save()
+                layer.metadata.dimensions.add(dimension)
 
             layer.parent_layer = parent_layer
             layer.parent_service = parent_service

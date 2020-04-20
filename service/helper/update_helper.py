@@ -150,7 +150,6 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
     # Dimensions
     old.dimensions.clear()
     for dim in new.dimension_list:
-        dim.metadata = old
         dim.save()
         old.dimensions.add(dim)
 

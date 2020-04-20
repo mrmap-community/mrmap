@@ -577,6 +577,7 @@ class Metadata(Resource):
     keywords = models.ManyToManyField(Keyword)
     categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
+    dimensions = models.ManyToManyField('Dimension')
     metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
     hits = models.IntegerField(default=0)
 
@@ -2626,7 +2627,7 @@ class MimeType(Resource):
 
 
 class Dimension(models.Model):
-    metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name="dimensions")
+    #metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name="dimensions")
     type = models.CharField(max_length=255, choices=DIMENSION_TYPE_CHOICES, null=True, blank=True)
     units = models.CharField(max_length=255, null=True, blank=True)
     extent = models.TextField(null=True, blank=True)

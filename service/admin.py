@@ -15,7 +15,7 @@ class CategoryOriginAdmin(admin.ModelAdmin):
 
 
 class DimensionAdmin(admin.ModelAdmin):
-    list_display = ("id", "type", "extent", "metadata")
+    list_display = ("id", "type", "extent")
 
 
 class RequestOperationAdmin(admin.ModelAdmin):

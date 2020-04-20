@@ -9,6 +9,7 @@ from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.db.models import Q
 
 from MapSkinner.messages import PARAMETER_ERROR
+from api.settings import SUGGESTIONS_MAX_RESULTS
 from service.settings import DEFAULT_SRS
 
 
@@ -68,6 +69,42 @@ def order_queryset(queryset, order_by):
         queryset = queryset.order_by(
             order_by
         )
+    return queryset
+
+
+def create_keyword_query_filter(query):
+    """ Creates a filter for the ORM
+
+    Args:
+        query: A text snippet which is used for a search
+    Returns:
+        filter (Q): A filter object
+    """
+    filter = Q()
+    if query is not None:
+        filter = Q(
+            keyword__icontains=query
+        )
+    return filter
+
+
+def filter_queryset_keyword_max_results(queryset, max):
+    """ Filters a given REST framework queryset by a given query.
+
+    Args:
+        queryset: A queryset containing elements
+        max: A text snippet which is used for a search
+    Returns:
+        queryset: The given queryset which only contains matching elements
+    """
+    if max is not None:
+        if not isinstance(max, int):
+            try:
+                max = int(max)
+            except ValueError:
+                # If wrong input was given, take default value
+                max = SUGGESTIONS_MAX_RESULTS
+        queryset = queryset[:max]
     return queryset
 
 

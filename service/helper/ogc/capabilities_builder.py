@@ -84,11 +84,24 @@ class CapabilityXMLBuilder:
         self.schema_location = ""
 
         self.original_doc = None
-        self.original_doc = xml_helper.parse_xml(
-            metadata.get_remote_original_capabilities_document(
-                version=force_version
+        try:
+            doc = Document.objects.get(
+                related_metadata=parent_service.metadata
             )
-        )
+            self.original_doc = doc.original_capability_document
+            if self.original_doc is None:
+                raise ObjectDoesNotExist
+            else:
+                self.original_doc = xml_helper.parse_xml(
+                    self.original_doc
+                )
+        except ObjectDoesNotExist:
+            # If no document can be found in the databse, we have to fetch the original remote document
+            self.original_doc = xml_helper.parse_xml(
+                metadata.get_remote_original_capabilities_document(
+                    version=force_version
+                )
+            )
 
     def generate_xml(self):
         """ Generates the capability xml
@@ -429,7 +442,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = self.metadata
         contact = md.contact
-        contact: Contact
 
         contact_info_elem = xml_helper.create_subelement(
             service_elem,
@@ -470,7 +482,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = self.metadata
         contact = md.contact
-        contact: Contact
 
         contents = OrderedDict({
             "{}ContactPerson": contact.person_name,
@@ -488,7 +499,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = self.metadata
         contact = md.contact
-        contact: Contact
 
         contents = {
             "{}AddressType": contact.address_type,
@@ -568,7 +578,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = self.metadata
         service = md.service
-        service: Service
 
         contents = OrderedDict({
             "{}GetCapabilities": "",
@@ -980,7 +989,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
 
             uri = style.legend_uri
 
-            elem = xml_helper.create_subelement(
+            xml_helper.create_subelement(
                 legend_url_elem,
                 "{}OnlineResource".format(self.default_ns),
                 attrib={
@@ -1689,7 +1698,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             self._generate_feature_type_list_feature_type_bbox_xml(feature_type_elem, feature_type_obj)
 
             # MetadataURL
-            self._generate_feature_type_list_feature_type_metadata_url(feature_type_elem)
+            self._generate_feature_type_list_feature_type_metadata_url(feature_type_elem, feature_type_obj)
 
     def _generate_feature_type_list_feature_type_srs_xml(self, upper_elem, feature_type_obj: FeatureType):
         """ Generate the 'DefaultSRS|OtherSRS' subelement of a xml service object
@@ -2148,7 +2157,7 @@ class CapabilityWFS110Builder(CapabilityWFSBuilder):
         super().__init__(metadata=metadata, force_version=force_version)
         self.schema_location = "http://schemas.opengis.net/wfs/1.1.0/wfs.xsd"
 
-    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem, feature_type_obj: FeatureType):
         """ Generate the 'MetadataURL' subelement of a xml feature type list object
 
         Args:
@@ -2223,7 +2232,7 @@ class CapabilityWFS200Builder(CapabilityWFSBuilder):
         """
         pass
 
-    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem, feature_type_obj: FeatureType = None):
         """ Generate the 'MetadataURL' subelement of a xml feature type list object
 
         Args:
@@ -2294,7 +2303,7 @@ class CapabilityWFS202Builder(CapabilityWFSBuilder):
         """
         pass
 
-    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem, feature_type_obj: FeatureType = None):
         """ Generate the 'MetadataURL' subelement of a xml feature type list object
 
         Args:

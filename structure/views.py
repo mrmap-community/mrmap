@@ -490,9 +490,21 @@ def detail_group(request: HttpRequest, group_id: int, update_params=None, status
 
     subgroups = MrMapGroup.objects.filter(parent_group=group)
 
+    inherited_permission = []
+    parent = group.parent_group
+    while parent is not None:
+        permissions = user.get_permissions(parent)
+        perm_dict = {
+            "group": parent,
+            "permissions": permissions,
+        }
+        inherited_permission.append(perm_dict)
+        parent = parent.parent_group
+
     params = {
         "group": group,
         "subgroups": subgroups,
+        "inherited_permission": inherited_permission,
         "group_permissions": user.get_permissions(group),
         "members": members,
         "show_registering_for": True,

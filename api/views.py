@@ -24,13 +24,13 @@ from api.forms import TokenForm
 from api.permissions import CanRegisterService, CanRemoveService, CanActivateService
 
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, \
-    MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer
+    MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer, CategorySerializer
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
     LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER, \
     SUGGESTIONS_MAX_RESULTS
 from service import tasks
 from service.helper import service_helper
-from service.models import Service, Layer, Metadata, Keyword
+from service.models import Service, Layer, Metadata, Keyword, Category
 from service.settings import DEFAULT_SRS_STRING
 from structure.models import Organization, MrMapGroup, Permission, PendingTask
 from users.helper import user_helper
@@ -759,6 +759,21 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
 
 class SuggestionViewSet(viewsets.GenericViewSet):
+    """ Returns suggestions based on the given input.
+
+    Suggestions are currently created using the existing keywords and their relevance.
+
+        Query parameters:
+
+            -----   REGULAR    -----
+            q:                  optional, query
+                                    * Type: str
+                                    * no multiple query arguments possible, only single
+            max:                optional, max number of returned suggestions
+                                    * Type: int
+                                    * if not set, the default is 10
+
+    """
     http_method_names = API_ALLOWED_HTTP_METHODS
     pagination_class = APIPagination
 
@@ -799,3 +814,46 @@ class SuggestionViewSet(viewsets.GenericViewSet):
                 ]
         }
         return self.get_paginated_response(data)
+
+
+class CategoryViewSet(viewsets.GenericViewSet):
+    """ Returns available categories and the number of related services.
+
+        Query parameters:
+
+            -----   REGULAR    -----
+            q:                  optional, query
+                                    * Type: str
+                                    * no multiple query arguments possible, only single
+
+    """
+    http_method_names = API_ALLOWED_HTTP_METHODS
+    pagination_class = APIPagination
+    serializer_class = CategorySerializer
+
+    def get_queryset(self):
+        """ Specifies if the queryset shall be filtered or not
+
+        Returns:
+             The queryset
+        """
+        # Prefilter search on database access to reduce amount of work
+        query = self.request.query_params.get("q", None)
+        filter = view_helper.create_category_query_filter(query)
+
+        # Get matching keywords, count the number of relations to metadata records and order accordingly (most on top)
+        self.queryset = Category.objects.filter(
+            filter
+        ).annotate(
+            metadata_count=Count('metadata')
+        )
+
+        return self.queryset
+
+    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
+    # Cache requested url for time t
+    #@method_decorator(cache_page(API_CACHE_TIME))
+    def list(self, request):
+        tmp = self.paginate_queryset(self.get_queryset())
+        serializer = CategorySerializer(tmp, many=True)
+        return self.get_paginated_response(serializer.data)

@@ -81,12 +81,34 @@ def create_keyword_query_filter(query):
     Returns:
         filter (Q): A filter object
     """
-    filter = Q()
+    _filter = Q()
     if query is not None:
-        filter = Q(
+        _filter = Q(
             keyword__icontains=query
         )
-    return filter
+    return _filter
+
+
+def create_category_query_filter(query):
+    """ Creates a filter for the ORM
+
+    Args:
+        query: A text snippet which is used for a search
+    Returns:
+        filter (Q): A filter object
+    """
+    _filter = Q()
+    if query is not None:
+        _filter = Q(
+            type__icontains=query
+        ) | Q(
+            title_locale_1__icontains=query
+        ) | Q(
+            title_locale_2__icontains=query
+        ) | Q(
+            title_EN__icontains=query
+        )
+    return _filter
 
 
 def filter_queryset_keyword_max_results(queryset, max):

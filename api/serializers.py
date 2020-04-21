@@ -229,6 +229,8 @@ class CategorySerializer(serializers.ModelSerializer):
     """ Serializer for Category model
 
     """
+    metadata_count = serializers.IntegerField(read_only=True, )
+
     class Meta:
         model = Category
         fields = [
@@ -242,6 +244,7 @@ class CategorySerializer(serializers.ModelSerializer):
             "description_locale_2",
             "symbol",
             "online_link",
+            "metadata_count",
         ]
         read_only_fields = fields
 

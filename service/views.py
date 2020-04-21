@@ -1,8 +1,10 @@
 import io
+import json
 from io import BytesIO
 from PIL import Image
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core import serializers
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
@@ -11,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from requests.exceptions import ReadTimeout
 from MapSkinner import utils
-from MapSkinner.cacher import PreviewImageCacher
+from MapSkinner.cacher import PreviewImageCacher, ServiceCacher
 from MapSkinner.consts import *
 from MapSkinner.decorator import check_permission, log_proxy
 from MapSkinner.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_UPDATED, \
@@ -693,6 +695,11 @@ def update_service(request: HttpRequest, metadata_id: int):
                     user=user,
                     register_group=current_service.created_by
                 )
+                cacher = ServiceCacher(metadata_id=metadata_id)
+                json_data = json.dumps(new_service["service"].__dict__, indent=2)
+                # ToDo: raw_data
+                cacher.set(update_form.url_dict, json_data,)
+
                 new_service = new_service["service"]
 
                 # Collect differences

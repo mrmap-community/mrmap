@@ -185,7 +185,7 @@ def detail_organizations(request: HttpRequest, org_id: int, update_params=None, 
     org = get_object_or_404(Organization, id=org_id)
     members = MrMapUser.objects.filter(organization=org)
     sub_orgs = Organization.objects.filter(parent=org)
-    template = "views/organizations_detail.html"
+    template = "views/organizations_detail_no_base.html" if 'no-base' in request.GET else "views/organizations_detail.html"
 
     # list publishers and requests
     pub_requests = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=org_id)
@@ -210,8 +210,11 @@ def detail_organizations(request: HttpRequest, org_id: int, update_params=None, 
     publisher_form.fields["group"].choices = user.get_groups().values_list('id', 'name')
     publisher_form.action_url = reverse('structure:publish-request', args=[org_id])
 
+    suborganizations = Organization.objects.filter(parent=org)
+
     params = {
         "organization": org,
+        "suborganizations": suborganizations,
         "members": members,
         "sub_organizations": sub_orgs,  # ToDo: nicht in template
         "pub_requests": pub_requests,

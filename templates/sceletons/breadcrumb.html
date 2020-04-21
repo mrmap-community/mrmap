@@ -7,7 +7,7 @@ Use this sceleton only on detail views. The two last items of the breadcrum are 
   <ol class="breadcrumb">
       {% for crumb in BREADCRUMB %}
         <li class="breadcrumb-item {% if crumb.is_last or crumb.is_penultimate %}active{% endif %}" {% if crumb.is_last %}aria-current="page"{% endif %}>
-            {% if crumb.is_last or crumb.is_penultimate %}
+            {% if crumb.is_penultimate %}
                 {{crumb.item}}
             {% else %}
                 <a href="{{ROOT_URL}}/{{crumb.path}}">

@@ -23,6 +23,7 @@ APP_XML = "application/xml"
 
 URL_PATTERN = "<a class={} href='{}'>{}</a>"
 URL_BTN_PATTERN = "<a class='{} {} {}' href='{}'>{}</a>"
+URL_ICON_PATTERN = "<a class={} href='{}'>{}{}</a>"
 
 BTN_CLASS = "btn"
 BTN_SM_CLASS = "btn-sm"

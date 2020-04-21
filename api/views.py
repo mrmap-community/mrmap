@@ -1,6 +1,7 @@
 # Create your views here.
 from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Count
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -25,10 +26,11 @@ from api.permissions import CanRegisterService, CanRemoveService, CanActivateSer
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, \
     MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
-    LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER
+    LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER, \
+    SUGGESTIONS_MAX_RESULTS
 from service import tasks
 from service.helper import service_helper
-from service.models import Service, Layer, Metadata
+from service.models import Service, Layer, Metadata, Keyword
 from service.settings import DEFAULT_SRS_STRING
 from structure.models import Organization, MrMapGroup, Permission, PendingTask
 from users.helper import user_helper
@@ -724,3 +726,46 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         if not tmp.is_active:
             return Response(status=423)
         return Response(CatalogueMetadataSerializer(tmp).data)
+
+
+class SuggestionViewSet(viewsets.GenericViewSet):
+    http_method_names = API_ALLOWED_HTTP_METHODS
+    pagination_class = APIPagination
+
+    def get_queryset(self):
+        """ Specifies if the queryset shall be filtered or not
+
+        Returns:
+             The queryset
+        """
+        # Prefilter search on database access to reduce amount of work
+        query = self.request.query_params.get("q", None)
+        filter = view_helper.create_keyword_query_filter(query)
+
+        # Get matching keywords, count the number of relations to metadata records and order accordingly (most on top)
+        self.queryset = Keyword.objects.filter(
+            filter
+        ).annotate(
+            metadata_count=Count('metadata')
+        ).order_by(
+            '-metadata_count'
+        )
+
+        # filter by max results
+        max_results = self.request.query_params.get("max", SUGGESTIONS_MAX_RESULTS)
+        self.queryset = view_helper.filter_queryset_keyword_max_results(self.queryset, max_results)
+
+        return self.queryset
+
+    # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
+    # Cache requested url for time t
+    @method_decorator(cache_page(API_CACHE_TIME))
+    def list(self, request):
+        tmp = self.paginate_queryset(self.get_queryset())
+        data = {
+            "suggestions":
+                [
+                    result.keyword for result in tmp
+                ]
+        }
+        return self.get_paginated_response(data)

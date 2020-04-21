@@ -5,7 +5,7 @@ from django.urls import reverse
 
 from MapSkinner.tables import MapSkinnerTable
 from MapSkinner.utils import get_theme, get_ok_nok_icon
-from MapSkinner.consts import URL_PATTERN
+from MapSkinner.consts import URL_PATTERN, URL_ICON_PATTERN
 from django.utils.translation import gettext_lazy as _
 
 
@@ -166,8 +166,14 @@ class OrganizationTable(MapSkinnerTable):
         super().__init__(*args, **kwargs)
 
     def render_orgs_organization_name(self, value, record):
+
         url = reverse('structure:detail-organization', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+        home_icon = ''
+        if self.user.organization is not None and self.user.organization.organization_name == value:
+            home_icon = get_theme(self.user)['ICONS']['HOME']
+
+        return format_html(URL_ICON_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, home_icon, ' ' + value, )
+
 
     @staticmethod
     def render_orgs_is_auto_generated(value):

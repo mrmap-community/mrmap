@@ -2,6 +2,7 @@ import datetime
 import json
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
@@ -29,14 +30,7 @@ def _prepare_group_table(request: HttpRequest, user: MrMapUser, ):
     user_groups = user.get_groups()
     user_groups_filtered = GroupFilter(request.GET, queryset=user_groups)
 
-    groups = []
-    for user_group in user_groups_filtered.qs:
-        groups.append(user_group)
-        groups.extend(MrMapGroup.objects.filter(
-            parent_group=user_group
-        ))
-
-    groups_table = GroupTable(groups,
+    groups_table = GroupTable(user_groups_filtered.qs,
                               order_by_field='sg',  # sg = sort groups
                               user=user, )
     groups_table.filter = user_groups_filtered
@@ -47,7 +41,17 @@ def _prepare_group_table(request: HttpRequest, user: MrMapUser, ):
 
 
 def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, ):
-    all_orgs = Organization.objects.all()
+    org_ids_of_groups = []
+    for group in user.get_groups():
+        org_ids_of_groups.append(group.id)
+
+    all_orgs = Organization.objects.filter(created_by=user) | \
+               Organization.objects.filter(id__in=org_ids_of_groups) | \
+               Organization.objects.filter(id=user.organization.id if user.organization is not None else None)
+
+    all_orgs = all_orgs.order_by(
+        Case(When(id=user.organization.id if user.organization is not None else 0, then=0), default=1),
+        'organization_name')
 
     all_orgs_filtered = OrganizationFilter(request.GET, queryset=all_orgs)
 
@@ -196,7 +200,7 @@ def detail_organizations(request: HttpRequest, org_id: int, update_params=None, 
         user=user,
     )
 
-    edit_form = OrganizationForm(instance=org, is_edit=True)
+    edit_form = OrganizationForm(instance=org, is_edit=True, requesting_user=user)
 
     delete_form = RemoveOrganizationForm()
     delete_form.action_url = reverse('structure:delete-organization', args=[org_id])
@@ -209,7 +213,7 @@ def detail_organizations(request: HttpRequest, org_id: int, update_params=None, 
     params = {
         "organization": org,
         "members": members,
-        "sub_organizations": sub_orgs, # ToDo: nicht in template
+        "sub_organizations": sub_orgs,  # ToDo: nicht in template
         "pub_requests": pub_requests,
         "pub_requests_table": pub_requests_table,
         "all_publisher_table": publisher_table,
@@ -320,7 +324,7 @@ def new_org(request: HttpRequest):
             }
             return organizations_index(request=request, update_params=params, status_code=422)
     else:
-        return HttpResponseRedirect(reverse("structure:organizations-index",), status=303)
+        return HttpResponseRedirect(reverse("structure:organizations-index", ), status=303)
 
 
 @login_required
@@ -436,7 +440,8 @@ def publish_request(request: HttpRequest, org_id: int):
             publish_request_obj.organization = org
             publish_request_obj.message = form.cleaned_data["request_msg"]
             publish_request_obj.group = form.cleaned_data["group"]
-            publish_request_obj.activation_until = timezone.now() + datetime.timedelta(hours=PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW)
+            publish_request_obj.activation_until = timezone.now() + datetime.timedelta(
+                hours=PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW)
             publish_request_obj.save()
             # create pending publish request for organization!
             messages.success(request, message=PUBLISH_REQUEST_SENT)
@@ -469,7 +474,7 @@ def detail_group(request: HttpRequest, group_id: int, update_params=None, status
     members = group.user_set.all()
     template = "views/groups_detail.html"
 
-    edit_form = GroupForm(instance=group, is_edit=True)
+    edit_form = GroupForm(instance=group, is_edit=True, requesting_user=user)
 
     delete_form = RemoveGroupForm()
     delete_form.action_url = reverse('structure:delete-group', args=[group_id])

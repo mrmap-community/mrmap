@@ -22,7 +22,7 @@ Please read [FUNCTIONALITY.md](FUNCTIONALITY.mc) for full list of Functions.
   
 
 ##Getting Started
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. Take a look at the [instructions](https://git.osgeo.org/gitea/GDI-RP/MapSkinner/src/branch/pre_master/install) in the install folder on how to deploy the project on a production system.
 
 ###Install dependencies
 * install dependencies on [debian 10](INSTALLDEB10.md)

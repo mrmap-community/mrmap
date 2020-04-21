@@ -17,6 +17,7 @@ from api.views import *
 router = routers.DefaultRouter()
 # catalogue api
 router.register('catalogue', CatalogueViewSet, basename="catalogue")
+router.register('suggestion', SuggestionViewSet, basename="suggestion")
 # modular parts of api
 router.register('organization', OrganizationViewSet, basename="organization")
 router.register('pending-task', PendingTaskViewSet, basename="pending-task")

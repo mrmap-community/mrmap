@@ -14,6 +14,8 @@ from structure.models import MrMapGroup, Organization, Role, PendingRequest
 from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
 
 
+
+
 class LoginForm(forms.Form):
     username = forms.CharField(max_length=255, label=_("Username"), label_suffix=" ")
     password = forms.CharField(max_length=255, label=_("Password"), label_suffix=" ", widget=forms.PasswordInput)
@@ -41,13 +43,23 @@ class GroupForm(ModelForm):
             "parent_group"
         ]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self,  *args, **kwargs):
         self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
         self.is_edit = False if 'is_edit' not in kwargs else kwargs.pop('is_edit')
         super(GroupForm, self).__init__(*args, **kwargs)
 
         if 'instance' in kwargs:
-            self.fields['parent_group'].queryset = MrMapGroup.objects.all().exclude(id=kwargs.get('instance').id)
+            groups = self.requesting_user.get_groups()
+            instance = kwargs.get('instance')
+            exclusions = [instance]
+            for group in groups:
+                group_ = group
+                while group_.parent_group is not None:
+                    if group_.parent_group == instance:
+                        exclusions.append(group)
+                    group_ = group_.parent_group
+
+            self.fields['parent_group'].queryset = MrMapGroup.objects.all().exclude(id__in=[o.id for o in exclusions])
 
         if self.is_edit:
             self.action_url = reverse('structure:edit-group', args=[self.instance.id])
@@ -59,6 +71,19 @@ class GroupForm(ModelForm):
 
         if self.instance.created_by_id is not None and self.instance.created_by != self.requesting_user:
             self.add_error(None, GROUP_IS_OTHERS_PROPERTY)
+
+        parent_group = None if 'parent_group' not in cleaned_data else cleaned_data['parent_group']
+
+        if parent_group is not None:
+            if self.instance == parent_group:
+                self.add_error('parent_group', "Circular configuration of parent groups detected.")
+            else:
+                while parent_group.parent_group is not None:
+                    if self.instance == parent_group.parent_group:
+                        self.add_error('parent_group', "Circular configuration of parent groups detected.")
+                        break
+                    else:
+                        parent_group = parent_group.parent_group
 
         return cleaned_data
 
@@ -128,7 +153,24 @@ class OrganizationForm(ModelForm):
         super(OrganizationForm, self).__init__(*args, **kwargs)
 
         if 'instance' in kwargs:
-            self.fields['parent'].queryset = Organization.objects.all().exclude(id=kwargs.get('instance').id)
+            org_ids_of_groups = []
+            for group in self.requesting_user.get_groups():
+                org_ids_of_groups.append(group.id)
+
+            all_orgs_of_requesting_user = Organization.objects.filter(created_by=self.requesting_user) | \
+                                          Organization.objects.filter(id=self.requesting_user.organization.id) | \
+                                          Organization.objects.filter(id__in=org_ids_of_groups)
+
+            instance = kwargs.get('instance')
+            exclusions = [instance]
+            for org in all_orgs_of_requesting_user:
+                org_ = org
+                while org_.parent is not None:
+                    if org_.parent == instance:
+                        exclusions.append(org)
+                    org_ = org_.parent
+
+            self.fields['parent'].queryset = all_orgs_of_requesting_user.exclude(id__in=[o.id for o in exclusions])
 
         if self.is_edit:
             self.action_url = reverse('structure:edit-organization', args=[self.instance.id])
@@ -140,6 +182,19 @@ class OrganizationForm(ModelForm):
 
         if self.instance.created_by is not None and self.instance.created_by != self.requesting_user:
             self.add_error(None, ORGANIZATION_IS_OTHERS_PROPERTY)
+
+        parent = None if 'parent' not in cleaned_data else cleaned_data['parent']
+
+        if parent is not None:
+            if self.instance == parent:
+                self.add_error('parent_group', "Circular configuration of parent organization detected.")
+            else:
+                while parent.parent is not None:
+                    if self.instance == parent.parent:
+                        self.add_error('parent', "Circular configuration of parent organization detected.")
+                        break
+                    else:
+                        parent = parent.parent
 
         return cleaned_data
 

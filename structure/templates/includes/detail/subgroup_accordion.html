@@ -1,0 +1,26 @@
+{% extends 'sceletons/accordion.html' %}
+{% load static i18n %}
+
+{% block accordion-button-title %}
+<i class="fa" aria-hidden="true"></i> {{ subgroup.name }} <span class="badge {{THEME.ACCORDION.PILL_BADGE_LIGHT_COLOR}}"></span>
+{% endblock %}
+
+{% block accordion-body %}
+    <div id="id_content_group_{{subgroup.id}}">
+        {% include 'includes/loading_spinner.html' %}
+    </div>
+
+    <script type="application/javascript">
+        var accordionButton = $('#id_accordion_btn_{{id_accordion}}_{{id_accordion_combined}}');
+
+        accordionButton.click(function() {
+          if ( accordionButton.hasClass('collapsed') ) {
+            $.get( '{% url 'structure:detail-group' subgroup.id %}?no-base', function( data ) {
+                // Insert subelement detail table
+                $( "#id_content_group_{{subgroup.id}}" ).html( data );
+            });
+          }
+        });
+    </script>
+
+{% endblock %}

@@ -475,7 +475,7 @@ def detail_group(request: HttpRequest, group_id: int, update_params=None, status
 
     group = get_object_or_404(MrMapGroup, id=group_id)
     members = group.user_set.all()
-    template = "views/groups_detail.html"
+    template = "views/groups_detail_no_base.html" if 'no-base' in request.GET else "views/groups_detail.html"
 
     edit_form = GroupForm(instance=group, is_edit=True, requesting_user=user)
 
@@ -488,8 +488,11 @@ def detail_group(request: HttpRequest, group_id: int, update_params=None, status
         user=user,
     )
 
+    subgroups = MrMapGroup.objects.filter(parent_group=group)
+
     params = {
         "group": group,
+        "subgroups": subgroups,
         "group_permissions": user.get_permissions(group),
         "members": members,
         "show_registering_for": True,

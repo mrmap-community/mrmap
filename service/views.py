@@ -1,5 +1,6 @@
 import io
 import json
+import time
 from io import BytesIO
 from PIL import Image
 from django.contrib import messages
@@ -696,9 +697,18 @@ def update_service(request: HttpRequest, metadata_id: int):
                     register_group=current_service.created_by
                 )
                 cacher = ServiceCacher(metadata_id=metadata_id)
-                json_data = json.dumps(new_service["service"].__dict__, indent=2)
+                data = {
+                    "metadata_id": metadata_id,
+                    "new_service": {
+                        "service_type": update_form.url_dict.get("service").value,
+                        "version": update_form.url_dict.get("version"),
+                        "base_uri": update_form.url_dict.get("base_uri"),
+                    },
+                    "time": time.time()
+                }
+
                 # ToDo: raw_data
-                cacher.set(update_form.url_dict, json_data,)
+                cacher.set(data, new_service["service"].__dict__,)
 
                 new_service = new_service["service"]
 

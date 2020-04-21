@@ -127,7 +127,7 @@ class ServiceCacher(SimpleCacher):
         self.crypto_handler = CryptoHandler()
         super().__init__(ttl, prefix)
 
-    def set(self, params_dict: dict, service: json, raw_data: xml, use_ttl: bool = True):
+    def set(self, params_dict: dict, service: dict, use_ttl: bool = True):
         """ Special setter for preview images.
 
         Takes a dict of parameter key-value pairs and an image as bytes and stores the image, using the hashed

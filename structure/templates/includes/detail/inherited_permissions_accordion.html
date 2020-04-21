@@ -1,0 +1,11 @@
+{% extends 'sceletons/accordion.html' %}
+
+{% block accordion-button-title %}
+<i class="fa" aria-hidden="true"></i>  {{perm_dict.group}}  <span class="badge {{THEME.ACCORDION.PILL_BADGE_LIGHT_COLOR}}">{{ perm_dict.permissions|length }}</span>
+{% endblock %}
+
+{% block accordion-body %}
+    {% for perm in perm_dict.permissions %}
+        <span class="badge {{THEME.ACCORDION.PILL_BADGE_INFO_COLOR}}">{{ perm }}</span>
+    {% endfor %}
+{% endblock %}

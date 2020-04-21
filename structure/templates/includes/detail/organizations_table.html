@@ -37,4 +37,8 @@
     <th scope="row">{% trans 'Country' %}</th>
     <td>{{ organization.country }}</td>
 </tr>
+<tr>
+    <th scope="row">{% trans 'Parent' %}</th>
+    <td>{% if organization.parent %}<a href="{% url 'structure:detail-organization' organization.parent.id %}">{{ organization.parent }}</a>{% else %} None {% endif %}</td>
+</tr>
 {% endblock %}

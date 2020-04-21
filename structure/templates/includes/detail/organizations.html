@@ -8,17 +8,18 @@
 
 {% endblock %}
 {% block card-body %}
+{% with organization.id|stringformat:"i" as organization_id %}
 <div class="row mb-2 ">
     <div class="col">
         <div class="row">
             {% if 'can_edit_organization' in user_permissions %}
                 <div class="col-sm mb-2 text-center">
-                    <button type="button" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" data-toggle="modal" data-target="#id_modal_edit_organization_modal">
+                    <button type="button" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" data-toggle="modal" data-target='#id_modal_edit_organization_modal_{{ organization.id }}'>
                         {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %}   {% trans 'Edit organization' %}
                     </button>
                 </div>
                 {% with form=edit_organization_form %}
-                    {% with 'edit_organization_modal' as id_modal %}
+                    {% with "edit_organization_modal_"|add:organization_id as id_modal %}
                         {% with show_edit_organization_form as show_modal %}
                             {% include 'modals/edit_organization.html' %}
                         {% endwith %}
@@ -28,12 +29,12 @@
 
             {% if 'can_request_to_become_publisher' in user_permissions %}
                 <div class="col-sm mb-2 text-center">
-                    <button type="button" class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}" data-toggle="modal" data-target="#id_modal_request_publishing_modal">
+                    <button type="button" class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}" data-toggle="modal" data-target="#id_modal_request_publishing_modal_{{ organization.id }}">
                         {% autoescape off %}{{THEME.ICONS.PUBLISHER}}{% endautoescape %}   {% trans 'Become publisher' %}
                     </button>
                 </div>
                 {% with form=publisher_form %}
-                    {% with 'request_publishing_modal' as id_modal %}
+                    {% with 'request_publishing_modal_'|add:organization_id as id_modal %}
                         {% with show_publisher_form as show_modal %}
                             {% include 'modals/request_publishing_for_organization.html' %}
                         {% endwith %}
@@ -43,12 +44,12 @@
 
             {% if 'can_delete_organization' in user_permissions %}
                 <div class="col-sm mb-2 text-center">
-                    <button type="button" class="btn {{THEME.CARD.BTN_DANGER_COLOR}}" data-toggle="modal" data-target="#id_modal_delete_organization_modal">
+                    <button type="button" class="btn {{THEME.CARD.BTN_DANGER_COLOR}}" data-toggle="modal" data-target="#id_modal_delete_organization_modal_{{ organization.id}}">
                         {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %}   {% trans 'Delete organization' %}
                     </button>
                 </div>
                 {% with form=delete_organization_form %}
-                    {% with 'delete_organization_modal' as id_modal %}
+                    {% with 'delete_organization_modal_'|add:organization_id as id_modal %}
                         {% with show_delete_organization_form as show_modal %}
                             {% include 'modals/delete_organization.html' %}
                         {% endwith %}
@@ -72,4 +73,16 @@
         </div><!--col-->
     </div><!--row-->
 {% endif %}
+{% if suborganizations|length > 0 %}
+<div class="row mb-2 ">
+    <div class="col">
+        {% with organization.id as id_accordion %}
+            {% with "accordion_sub_element" as id_accordion_combined %}
+                {% include 'includes/detail/show_suborganization_accordion.html' %}
+            {% endwith %}
+        {% endwith %}
+    </div><!--</col-->
+</div><!--</row-->
+{% endif %}
+{% endwith %}
 {% endblock %}

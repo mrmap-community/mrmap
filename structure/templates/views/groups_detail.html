@@ -1,7 +1,10 @@
 {% extends 'base.html' %}
-{% load i18n %}
+{% load static %}
+{% block head %}
+<link rel="stylesheet" type="text/css" href="{% static '/css/tree-style.css' %}" media="all"/>
+{% endblock %}
 {% block body %}
-    <div class="container">
+    <div class="container-fluid px-5">
         {% include 'sceletons/breadcrumb.html'%}
         {% include 'includes/detail/groups.html' %}
     </div>

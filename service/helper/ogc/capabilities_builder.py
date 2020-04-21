@@ -8,6 +8,7 @@ Created on: 31.07.19
 from collections import OrderedDict
 from time import time
 
+from django.contrib.gis.gdal import GDALException
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from lxml.etree import Element, QName
@@ -83,11 +84,24 @@ class CapabilityXMLBuilder:
         self.schema_location = ""
 
         self.original_doc = None
-        self.original_doc = xml_helper.parse_xml(
-            metadata.get_remote_original_capabilities_document(
-                version=force_version
+        try:
+            doc = Document.objects.get(
+                related_metadata=parent_service.metadata
             )
-        )
+            self.original_doc = doc.original_capability_document
+            if self.original_doc is None:
+                raise ObjectDoesNotExist
+            else:
+                self.original_doc = xml_helper.parse_xml(
+                    self.original_doc
+                )
+        except ObjectDoesNotExist:
+            # If no document can be found in the databse, we have to fetch the original remote document
+            self.original_doc = xml_helper.parse_xml(
+                metadata.get_remote_original_capabilities_document(
+                    version=force_version
+                )
+            )
 
     def generate_xml(self):
         """ Generates the capability xml
@@ -428,7 +442,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = self.metadata
         contact = md.contact
-        contact: Contact
 
         contact_info_elem = xml_helper.create_subelement(
             service_elem,
@@ -469,7 +482,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = self.metadata
         contact = md.contact
-        contact: Contact
 
         contents = OrderedDict({
             "{}ContactPerson": contact.person_name,
@@ -487,7 +499,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = self.metadata
         contact = md.contact
-        contact: Contact
 
         contents = {
             "{}AddressType": contact.address_type,
@@ -567,7 +578,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         """
         md = self.metadata
         service = md.service
-        service: Service
 
         contents = OrderedDict({
             "{}GetCapabilities": "",
@@ -674,20 +684,22 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         http_elem = xml_helper.create_subelement(dcp_elem, "{}HTTP".format(self.default_ns))
         get_elem = xml_helper.create_subelement(http_elem, "{}Get".format(self.default_ns))
         post_elem = xml_helper.create_subelement(http_elem, "{}Post".format(self.default_ns))
-        xml_helper.create_subelement(
-            get_elem,
-            "{}OnlineResource",
-            attrib={
-                "{}href".format(self.xlink_ns): get_uri
-            }
-        )
-        xml_helper.create_subelement(
-            post_elem,
-            "{}OnlineResource",
-            attrib={
-                "{}href".format(self.xlink_ns): post_uri
-            }
-        )
+        if get_elem is not None and get_uri is not None:
+            xml_helper.create_subelement(
+                get_elem,
+                "{}OnlineResource",
+                attrib={
+                    "{}href".format(self.xlink_ns): get_uri
+                }
+            )
+        if post_elem is not None and post_uri is not None:
+            xml_helper.create_subelement(
+                post_elem,
+                "{}OnlineResource",
+                attrib={
+                    "{}href".format(self.xlink_ns): post_uri
+                }
+            )
 
     def _generate_capability_layer_xml(self, layer_elem: Element, md: Metadata):
         """ Generate the 'Layer' subelement of a capability xml object
@@ -733,8 +745,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         self._generate_capability_layer_bounding_box_xml(layer_elem, layer)
 
         # Dimension
-        elem = xml_helper.create_subelement(layer_elem, "{}Dimension".format(self.default_ns))
-        xml_helper.write_text_to_element(elem, txt=md.dimension)
+        self._generate_capability_layer_dimension_xml(layer_elem, layer)
 
         # Attribution
         elem = xml_helper.create_subelement(layer_elem, "{}Attribution".format(self.default_ns))
@@ -844,15 +855,19 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         # client may transform a bounding box by itself.
         epsg_handler = EpsgApi()
         for reference_system in reference_systems:
-            bounding_geometry.transform(reference_system.code)
-            bbox = list(bounding_geometry.extent)
+            try:
+                bounding_geometry.transform(reference_system.code)
+                bbox = list(bounding_geometry.extent)
 
-            switch_axis = epsg_handler.check_switch_axis_order(self.service_type, self.service_version, reference_system.code)
-            if switch_axis:
-                for i in range(0, len(bbox), 2):
-                    tmp = bbox[i]
-                    bbox[i] = bbox[i+1]
-                    bbox[i+1] = tmp
+                switch_axis = epsg_handler.check_switch_axis_order(self.service_type, self.service_version, reference_system.code)
+                if switch_axis:
+                    for i in range(0, len(bbox), 2):
+                        tmp = bbox[i]
+                        bbox[i] = bbox[i+1]
+                        bbox[i+1] = tmp
+            except GDALException:
+                # Some srs can not be transformed, like EPSG:31467
+                bbox = list(bounding_geometry.extent)
 
             xml_helper.create_subelement(
                 layer_elem,
@@ -864,6 +879,43 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
                     "maxx": str(bbox[2]),
                     "maxy": str(bbox[3]),
                 })
+            )
+
+    def _generate_capability_layer_dimension_xml(self, layer_elem, layer: Layer):
+        """ Generate the 'Dimension' subelement of a xml capability layer object
+
+        Since not all information of the original Dimension object are persisted, we simply take the Dimension/Extent
+        elements from the original.
+
+        Args:
+            layer_elem (_Element): The layer xml element
+            layer (Layer): The layer object
+        Returns:
+            nothing
+        """
+
+        if self.original_doc is None:
+            return
+
+        original_layer_elem = xml_helper.try_get_single_element_from_xml(
+            "//Layer/Name[text()='{}']/parent::Layer".format(layer.identifier),
+            self.original_doc
+        )
+
+        original_dimension_elems = xml_helper.try_get_element_from_xml(
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
+            original_layer_elem
+        )
+        original_extent_elems = xml_helper.try_get_element_from_xml(
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Extent"),
+            original_layer_elem
+        )
+        elems = original_dimension_elems + original_extent_elems
+
+        for elem in elems:
+            xml_helper.add_subelement(
+                layer_elem,
+                elem
             )
 
     def _generate_capability_layer_metadata_url_xml(self, layer_elem, layer):
@@ -937,7 +989,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
 
             uri = style.legend_uri
 
-            elem = xml_helper.create_subelement(
+            xml_helper.create_subelement(
                 legend_url_elem,
                 "{}OnlineResource".format(self.default_ns),
                 attrib={
@@ -1646,7 +1698,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             self._generate_feature_type_list_feature_type_bbox_xml(feature_type_elem, feature_type_obj)
 
             # MetadataURL
-            self._generate_feature_type_list_feature_type_metadata_url(feature_type_elem)
+            self._generate_feature_type_list_feature_type_metadata_url(feature_type_elem, feature_type_obj)
 
     def _generate_feature_type_list_feature_type_srs_xml(self, upper_elem, feature_type_obj: FeatureType):
         """ Generate the 'DefaultSRS|OtherSRS' subelement of a xml service object
@@ -2105,7 +2157,7 @@ class CapabilityWFS110Builder(CapabilityWFSBuilder):
         super().__init__(metadata=metadata, force_version=force_version)
         self.schema_location = "http://schemas.opengis.net/wfs/1.1.0/wfs.xsd"
 
-    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem, feature_type_obj: FeatureType):
         """ Generate the 'MetadataURL' subelement of a xml feature type list object
 
         Args:
@@ -2180,7 +2232,7 @@ class CapabilityWFS200Builder(CapabilityWFSBuilder):
         """
         pass
 
-    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem, feature_type_obj: FeatureType = None):
         """ Generate the 'MetadataURL' subelement of a xml feature type list object
 
         Args:
@@ -2251,7 +2303,7 @@ class CapabilityWFS202Builder(CapabilityWFSBuilder):
         """
         pass
 
-    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem):
+    def _generate_feature_type_list_feature_type_metadata_url(self, upper_elem, feature_type_obj: FeatureType = None):
         """ Generate the 'MetadataURL' subelement of a xml feature type list object
 
         Args:

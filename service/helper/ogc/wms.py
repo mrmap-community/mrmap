@@ -32,7 +32,7 @@ from service.helper.ogc.layer import OGCLayer
 
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
-    MetadataRelation, MetadataOrigin, MetadataType, Style, ExternalAuthentication
+    MetadataRelation, MetadataOrigin, MetadataType, Style, ExternalAuthentication, Dimension
 from service.settings import MD_RELATION_TYPE_VISUALIZES, MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
 from structure.models import Organization, MrMapGroup
 from structure.models import MrMapUser
@@ -355,26 +355,26 @@ class OGCWebMapService(OGCWebService):
 
     ### DIMENSIONS ###
     def parse_dimension(self, layer, layer_obj):
-        dims_list = []
+        dim_list = []
         try:
-            dim = xml_helper.try_get_single_element_from_xml(
+            dims = xml_helper.try_get_element_from_xml(
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
                 xml_elem=layer
             )
-            ext = xml_helper.try_get_single_element_from_xml(
-                elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Extent"),
-                xml_elem=layer
-            )
-            dim_dict = {
-                "name": dim.get("name"),
-                "units": dim.get("units"),
-                "default": ext.get("default"),
-                "extent": ext.text,
-            }
-            dims_list.append(dim_dict)
+            for dim in dims:
+                ext = xml_helper.try_get_single_element_from_xml(
+                    elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Extent")+ '[@name="' + dim.get('name') + '"]',
+                    xml_elem=layer
+                )
+                dim_dict = {
+                    "type": dim.get("name"),
+                    "units": dim.get("units"),
+                    "extent": ext.text,
+                }
+                dim_list.append(dim_dict)
         except (IndexError, AttributeError) as error:
             pass
-        layer_obj.dimension = dims_list
+        layer_obj.dimension_list = dim_list
 
     ### STYLES ###
     def parse_style(self, layer, layer_obj):
@@ -783,19 +783,13 @@ class OGCWebMapService(OGCWebService):
 
         layer.iso_metadata = layer_obj.iso_metadata
 
-        if layer_obj.dimension is not None and len(layer_obj.dimension) > 0:
-            # ToDo: Rework dimension persisting! Currently simply ignore it...
-            pass
-            # for dimension in layer_obj.dimension:
-            #     dim = Dimension()
-            #     # dim.layer = layer
-            #     dim.name = layer_obj.dimension.get("name")
-            #     dim.units = layer_obj.dimension.get("units")
-            #     dim.default = layer_obj.dimension.get("default")
-            #     dim.extent = layer_obj.dimension.get("extent")
-            #     # ToDo: Refine for inherited and nearest_value and so on
-            #     layer.dimension = dim
-            #     #dim.save()
+        # Dimensions
+        for dimension in layer_obj.dimension_list:
+            dim = Dimension()
+            dim.type = dimension.get("type")
+            dim.units = dimension.get("units")
+            dim.extent = dimension.get("extent")
+            layer.metadata.dimension_list.append(dim)
 
         if wms.root_layer is None:
             # no root layer set yet
@@ -1040,10 +1034,9 @@ class OGCWebMapService(OGCWebService):
                 sys = ReferenceSystem.objects.get_or_create(code=sys.code, prefix=sys.prefix)[0]
                 layer.metadata.reference_system.add(sys)
 
-            if layer.dimension is not None:
-                dim = layer.dimension
-                dim.save()
-                layer.dimension = dim
+            for dimension in layer.metadata.dimension_list:
+                dimension.save()
+                layer.metadata.dimensions.add(dimension)
 
             layer.parent_layer = parent_layer
             layer.parent_service = parent_service
@@ -1081,7 +1074,7 @@ class OGCWebMapService_1_0_0(OGCWebMapService):
         self.service_version = OGCServiceVersionEnum.V_1_0_0
         XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.0.0/capabilities_1_0_0.xml"
 
-    def __parse_formats(self, layer, layer_obj):
+    def parse_formats(self, layer, layer_obj):
         actions = ["Map", "Capabilities", "FeatureInfo"]
         results = {}
         for action in actions:
@@ -1138,6 +1131,7 @@ class OGCWebMapService_1_1_0(OGCWebMapService):
         XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.1.0/capabilities_1_1_0.xml"
 
     def get_version_specific_metadata(self, xml_obj):
+        # No version specific implementation needed
         pass
 
 
@@ -1152,6 +1146,7 @@ class OGCWebMapService_1_1_1(OGCWebMapService):
         XML_NAMESPACES["schemaLocation"] = "http://schemas.opengis.net/wms/1.1.1/capabilities_1_1_1.xml"
 
     def get_version_specific_metadata(self, xml_obj):
+        # No version specific implementation needed
         pass
 
 
@@ -1226,7 +1221,7 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         Returns:
              nothing
         """
-        dims_list = []
+        dim_list = []
         try:
             dims = xml_helper.try_get_element_from_xml(
                 elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Dimension"),
@@ -1234,16 +1229,15 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
             )
             for dim in dims:
                 dim_dict = {
-                    "name": dim.get("name"),
+                    "type": dim.get("name"),
                     "units": dim.get("units"),
-                    "default": dim.get("default"),
                     "extent": dim.text,
-                    "nearestValue": dim.get("nearestValue"),
                 }
-                dims_list.append(dim_dict)
+                dim_list.append(dim_dict)
+
         except (IndexError, AttributeError) as error:
             pass
-        layer_obj.dimension = dims_list
+        layer_obj.dimension_list = dim_list
 
     def get_version_specific_service_metadata(self, xml_obj):
         """ The version specific implementation of service metadata parsing

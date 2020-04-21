@@ -9,7 +9,7 @@ from rest_framework import serializers
 
 from service.forms import RegisterNewServiceWizardPage2
 from service.helper import service_helper
-from service.models import ServiceType, Metadata, Category
+from service.models import ServiceType, Metadata, Category, Dimension
 from structure.models import MrMapGroup, Role, Permission
 
 
@@ -226,6 +226,11 @@ class LayerSerializer(ServiceSerializer):
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    """ Serializer for Category model
+
+    """
+    metadata_count = serializers.IntegerField(read_only=True, )
+
     class Meta:
         model = Category
         fields = [
@@ -239,8 +244,25 @@ class CategorySerializer(serializers.ModelSerializer):
             "description_locale_2",
             "symbol",
             "online_link",
+            "metadata_count",
         ]
         read_only_fields = fields
+
+
+class DimensionSerializer(serializers.ModelSerializer):
+    """ Serializer for Dimension model
+
+    """
+    class Meta:
+        model = Dimension
+        fields = [
+            "type",
+            "custom_name",
+            "units",
+            "extent",
+        ]
+        read_only_fields = fields
+
 
 class CatalogueMetadataSerializer(serializers.Serializer):
     """ Serializer for Metadata model
@@ -263,6 +285,7 @@ class CatalogueMetadataSerializer(serializers.Serializer):
     related_metadata = MetadataRelationSerializer(read_only=True, many=True)
     keywords = serializers.StringRelatedField(read_only=True, many=True)
     categories = CategorySerializer(read_only=True, many=True)
+    dimensions = DimensionSerializer(read_only=True, many=True)
 
     class Meta:
         model = Metadata

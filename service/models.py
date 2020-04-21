@@ -7,9 +7,11 @@ import os
 from collections import OrderedDict
 
 import time
+from datetime import datetime
 from json import JSONDecodeError
 
 from PIL import Image
+from dateutil.parser import parser, parse
 from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
@@ -27,7 +29,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.iso.service_metadata_builder import ServiceMetadataBuilder
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
-    LOGABLE_FEATURE_RESPONSE_FORMATS
+    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES
 from structure.models import MrMapGroup, Organization
 from service.helper import xml_helper
 
@@ -568,7 +570,6 @@ class Metadata(Resource):
     is_secured = models.BooleanField(default=False)
 
     # capabilities
-    dimension = models.CharField(max_length=100, null=True)
     authority_url = models.CharField(max_length=255, null=True)
     metadata_url = models.CharField(max_length=255, null=True)
 
@@ -576,6 +577,7 @@ class Metadata(Resource):
     keywords = models.ManyToManyField(Keyword)
     categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
+    dimensions = models.ManyToManyField('Dimension')
     metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
     hits = models.IntegerField(default=0)
 
@@ -591,6 +593,7 @@ class Metadata(Resource):
         # non persisting attributes
         self.keywords_list = []
         self.reference_system_list = []
+        self.dimension_list = []
 
     def __str__(self):
         return self.title
@@ -2413,7 +2416,6 @@ class Layer(Service):
         super().__init__(*args, **kwargs)
         # non persisting attributes
         self.children_list = []
-        self.dimension = None
         self.tmp_style = None  # holds the style before persisting
 
     def __str__(self):
@@ -2625,17 +2627,195 @@ class MimeType(Resource):
 
 
 class Dimension(models.Model):
-    layer = models.ForeignKey(Layer, on_delete=models.CASCADE)
-    name = models.CharField(max_length=255)
-    units = models.CharField(max_length=255)
-    default = models.CharField(max_length=255)
-    nearest_value = models.CharField(max_length=255)
-    current = models.CharField(max_length=255)
-    extent = models.CharField(max_length=500)
-    inherited = models.BooleanField()
+    #metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name="dimensions")
+    type = models.CharField(max_length=255, choices=DIMENSION_TYPE_CHOICES, null=True, blank=True)
+    units = models.CharField(max_length=255, null=True, blank=True)
+    extent = models.TextField(null=True, blank=True)
+    custom_name = models.CharField(max_length=500, null=True, blank=True)
+
+    time_extent_min = models.DateTimeField(null=True, blank=True)
+    time_extent_max = models.DateTimeField(null=True, blank=True)
+
+    elev_extent_min = models.FloatField(max_length=500, null=True, blank=True)
+    elev_extent_max = models.FloatField(max_length=500, null=True, blank=True)
 
     def __str__(self):
-        return self.layer.name + ": " + self.name
+        return self.type
+
+    def _set_min_max_time_intervals(self, values: list):
+        """ Sets the time_extent_min and time_extent_max values, parsed from many intervals
+
+        Args:
+            values (list): The list of values
+        Returns:
+
+        """
+        # each of structure 'start/end/resolution'
+        # Find min and max interval boundaries
+        intervals_min = datetime.now(timezone.utc)
+        intervals_max = datetime(1800, 1, 1, tzinfo=timezone.utc)
+        for interval in values:
+            interval_components = interval.split("/")
+            min = parse(timestr=interval_components[0])
+            max = parse(timestr=interval_components[1])
+            if min < intervals_min:
+                intervals_min = min
+            if max > intervals_max:
+                intervals_max = max
+        self.time_extent_min = intervals_min
+        self.time_extent_max = intervals_max
+
+    def _set_min_max_time_values(self, values: list):
+        """ Sets the time_extent_min and time_extent_max values
+
+        Args:
+            values (list): The list of values
+        Returns:
+
+        """
+        # each of structure 'start/end/resolution'
+        # Find min and max interval boundaries
+        intervals_min = datetime.now(timezone.utc)
+        intervals_max = datetime(1800, 1, 1, tzinfo=timezone.utc)
+        for value in values:
+            value = parse(timestr=value)
+            if value < intervals_min:
+                intervals_min = value
+            if value > intervals_max:
+                intervals_max = value
+        self.time_extent_min = intervals_min
+        self.time_extent_max = intervals_max
+
+    def _set_min_max_elevation_interval(self, values: list):
+        """ Sets the elev_extent_min and elev_extent_max values, parsed from many intervals
+
+        Args:
+            values (list): The list of values
+        Returns:
+
+        """
+        # each of structure 'start/end/resolution'
+        # Find min and max interval boundaries
+        intervals_min = float("inf")
+        intervals_max = -float("inf")
+        for interval in values:
+            interval_components = interval.split("/")
+            val_min = float(interval_components[0])
+            val_max = float(interval_components[1])
+            intervals_min = min(val_min, intervals_min)
+            intervals_max = max(val_max, intervals_max)
+        self.elev_extent_min = intervals_min
+        self.elev_extent_max = intervals_max
+
+    def _set_min_max_elevation_values(self, values: list):
+        """ Sets the elev_extent_min and elev_extent_max values
+
+        Args:
+            values (list): The list of values
+        Returns:
+
+        """
+        float_values = [float(val) for val in values]
+        self.elev_extent_max = max(float_values)
+        self.elev_extent_min = min(float_values)
+
+    def _evaluate_time_dimension(self, values: list):
+        """ Evaluates the given time dimension extent.
+
+        Instead of simply holding this giant string data, we try to find the range of it.
+
+        Args:
+            values (list): List holding all time values as values or intervals
+        Returns:
+
+        """
+        # We assume the values to be dateTime strings
+        if len(values) > 1:
+            # Multiple intervals or multiple values
+            if "/" in self.extent:
+                # Multiple intervals
+                self._set_min_max_time_intervals(values)
+            else:
+                # Multiple values
+                self._set_min_max_time_values(values)
+        else:
+            # Single interval or single value
+            if "/" in self.extent:
+                # Single interval
+                self._set_min_max_time_intervals(values)
+            else:
+                # Single value
+                for value in values:
+                    date = parse(timestr=value)
+                    self.time_extent_min = date
+                    self.time_extent_max = self.time_extent_min
+
+    def _evaluate_elevation_dimension(self, values: list):
+        """ Evaluates the given evaluation dimension extent.
+
+        Instead of simply holding this giant string data, we try to find the range of it.
+
+        Args:
+            values (list): List holding all time values as values or intervals
+        Returns:
+
+        """
+        # We assume the values to be numerical strings
+        if len(values) > 1:
+            # Multiple intervals or multiple values
+            if "/" in self.extent:
+                # Multiple intervals
+                self._set_min_max_elevation_interval(values)
+            else:
+                # Multiple values
+                self._set_min_max_elevation_values(values)
+        else:
+            # Single interval or single value
+            if "/" in self.extent:
+                # Single interval
+                self._set_min_max_elevation_interval(values)
+            else:
+                # Single value
+                for value in values:
+                    self.elev_extent_min = float(value)
+                    self.elev_extent_max = self.elev_extent_min
+
+    def save(self, *args, **kwargs):
+        """ Overwrites default saving
+
+        Checks whether the given type is valid according to the valid choices of the field. If not, it's assumed
+        to be a type 'other' and the given type will be moved to custom_name. The type will be set to the default
+        for unknown types: 'other'.
+
+        Args:
+            args:
+            kwargs:
+        Returns:
+
+        """
+        # Check whether the given type is an allowed type from the choices
+        if self.type != "time" and self.type != "elevation":
+            # If we could not find it, the type is a custom name and needs to be moved to the custom_name field
+            # The type is set to 'other'
+            self.custom_name = self.type
+            self.type = "other"
+
+        # Find min and max values of extent
+        try:
+            # Multiple values are given if they are comma separated
+            values = self.extent.split(",")
+            if self.type == "time":
+                self._evaluate_time_dimension(values)
+            elif self.type == "elevation":
+                self._evaluate_elevation_dimension(values)
+            else:
+                # In case of other - no way to understand automatically what the extent means
+                pass
+        except AttributeError:
+            # Might happen if Dimension does not contain any Extent
+            pass
+
+        super().save(*args, **kwargs)
 
 
 class Style(models.Model):

@@ -2,7 +2,8 @@
 {% load static i18n %}
 {% load fontawesome_5 %}
 {% block card-header-title-left %}
-    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.ORGANIZATION}}{% endautoescape %} <strong>{{ organization.organization_name }}</strong></h4>
+<h4 class="mb-1 mr-3" style="display: inline;">{% autoescape off %}{{THEME.ICONS.ORGANIZATION}}{% endautoescape %} <strong>{{ organization.organization_name }}</strong></h4>
+<h6 style="display: inline;"><a href="{% url 'structure:detail-organization' organization.id %}">{{THEME.ICONS.EXTERNAL_LINK}}</a></h6>
 {% endblock %}
 {% block card-header-title-right %}
 

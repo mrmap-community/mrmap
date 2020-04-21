@@ -2,10 +2,11 @@
 {% load i18n %}
 
 {% block card-header-title-left %}
-<h4 class="mb-1 mr-3">
+<h4 class="mb-1 mr-3" style="display: inline;">
     {% autoescape off %}{{THEME.ICONS.LAYER}}{% endautoescape %}
     <strong>{{ service.metadata.title }}</strong>
 </h4>
+<h6 style="display: inline;"><a href="{% url 'service:detail' service_md.id %}">{{THEME.ICONS.EXTERNAL_LINK}}</a></h6>
 {% endblock %}
 {% block card-header-title-right %}
 

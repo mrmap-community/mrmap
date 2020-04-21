@@ -40,7 +40,7 @@ class OGCLayer:
         self.get_legend_graphic_uri_POST = None
         self.get_styles_uri_GET = None
         self.get_styles_uri_POST = None
-        self.dimension = []
+        self.dimension_list = []
         self.style = None
         self.child_layer = []
 

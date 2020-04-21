@@ -11,7 +11,7 @@
             {% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}
         {% else %}
             {% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %}
-        {% endif %} <strong>{{ service_md.title }}</strong>
+        {% endif %} <strong><a href="{% url 'service:detail' service_md.id %}">{{ service_md.title }}</a></strong>
     </h4>
 {% endblock %}
 

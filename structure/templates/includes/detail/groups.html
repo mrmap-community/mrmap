@@ -3,23 +3,26 @@
 {% load fontawesome_5 %}
 
 {% block card-header-title-left %}
-    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} <strong>{{ group.name }}</strong></h4>
+<h4 class="mb-1 mr-3" style="display: inline;">{% autoescape off %}{{THEME.ICONS.GROUP}}{% endautoescape %} <strong>{{ group.name }}</strong></h4>
+<h6 style="display: inline;"><a href="{% url 'structure:detail-group' group.id %}">{{THEME.ICONS.EXTERNAL_LINK}}</a></h6>
 {% endblock %}
 {% block card-header-title-right %}
 
 {% endblock %}
 {% block card-body %}
+{% with group.id|stringformat:"i" as group_id %}
+
 <div class="row mb-2 ">
     <div class="col">
-        <div class="d-flex justify-content-between">
+        <div class="row">
             {% if 'can_edit_group' in user_permissions and group.created_by == user %}
-            <div>
-                <button type="button" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" data-toggle="modal" data-target="#id_modal_edit_group_modal">
+            <div class="col-sm mb-2 text-center">
+                <button type="button" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" data-toggle="modal" data-target="#id_modal_edit_group_modal_{{ group_id }}">
                     {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit group' %}
                 </button>
             </div>
             {% with form=edit_group_form %}
-                {% with 'edit_group_modal' as id_modal %}
+                {% with 'edit_group_modal_'|add:group_id as id_modal %}
                     {% with show_edit_group_form as show_modal %}
                         {% include 'modals/edit_group.html' %}
                     {% endwith %}
@@ -27,13 +30,13 @@
             {% endwith %}
             {% endif %}
             {% if 'can_delete_group' in user_permissions and group.created_by == user %}
-            <div class="ml-auto">
-                <button type="button" class="btn {{THEME.CARD.BTN_DANGER_COLOR}}" data-toggle="modal" data-target="#id_modal_delete_group_modal">
+            <div class="col-sm mb-2 text-center">
+                <button type="button" class="btn {{THEME.CARD.BTN_DANGER_COLOR}}" data-toggle="modal" data-target="#id_modal_delete_group_modal_{{ group_id }}">
                     {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Delete group' %}
                 </button>
             </div>
             {% with form=delete_group_form %}
-                {% with 'delete_group_modal' as id_modal %}
+                {% with 'delete_group_modal_'|add:group_id as id_modal %}
                     {% with show_remove_group_form as show_modal %}
                         {% include 'modals/delete_group.html' %}
                     {% endwith %}
@@ -60,4 +63,16 @@
 </div>
 {% endif %}
 
+{% if subgroups|length > 0 %}
+<div class="row mb-2 ">
+    <div class="col">
+        {% with group.id as id_accordion %}
+            {% with "accordion_sub_element" as id_accordion_combined %}
+                {% include 'includes/detail/show_subgroup_accordion.html' %}
+            {% endwith %}
+        {% endwith %}
+    </div><!--</col-->
+</div><!--</row-->
+{% endif %}
+{% endwith %}
 {% endblock %}

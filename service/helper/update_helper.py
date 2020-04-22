@@ -147,6 +147,12 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
         )[0]
         old.reference_system.add(srs)
 
+    # Dimensions
+    old.dimensions.clear()
+    for dim in new.dimension_list:
+        dim.save()
+        old.dimensions.add(dim)
+
     # Restore custom metadata if needed
     if keep_custom_md:
         old.is_custom = metadata_is_custom

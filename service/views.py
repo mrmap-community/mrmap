@@ -2,7 +2,7 @@ import io
 import json
 import time
 from io import BytesIO
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core import serializers
@@ -32,7 +32,7 @@ from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
-from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT
+from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style, ProxyLog
@@ -443,6 +443,8 @@ def get_service_metadata_preview(request: HttpRequest, metadata_id: int):
         mime_type__icontains="image/"
     ).first()
 
+    img_width = 200
+    img_heigt = 200
     data = {
         "request": OGCOperationEnum.GET_MAP.value,
         "version": OGCServiceVersionEnum.V_1_1_1.value,
@@ -450,8 +452,8 @@ def get_service_metadata_preview(request: HttpRequest, metadata_id: int):
         "srs": DEFAULT_SRS_STRING,
         "bbox": bbox,
         "format": png_format.mime_type,
-        "width": 200,
-        "height": 200,
+        "width": img_width,
+        "height": img_heigt,
         "service": "wms",
     }
 
@@ -477,8 +479,14 @@ def get_service_metadata_preview(request: HttpRequest, metadata_id: int):
     response = img.get("response", None)
     content_type = img.get("response_type", "")
 
-    # Make sure the image is returned as PREVIEW_MIME_TYPE_DEFAULT filetype
-    image_obj = Image.open(io.BytesIO(response))
+    try:
+        # Make sure the image is returned as PREVIEW_MIME_TYPE_DEFAULT filetype
+        image_obj = Image.open(io.BytesIO(response))
+    except UnidentifiedImageError:
+        # No preview image could be generated. We need to open a placeholder image!
+        image_obj = Image.open(PLACEHOLDER_IMG_PATH)
+        image_obj = image_obj.resize((img_width, img_heigt))
+
     out_bytes_stream = io.BytesIO()
     image_obj.save(out_bytes_stream, PREVIEW_MIME_TYPE_DEFAULT, optimize=True, quality=80)
     response = out_bytes_stream.getvalue()

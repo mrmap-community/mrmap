@@ -136,7 +136,7 @@ class PublisherRequestTable(MapSkinnerTable):
 class GroupTable(MapSkinnerTable):
     groups_name = tables.Column(accessor='name', verbose_name='Name', )
     groups_description = tables.Column(accessor='description', verbose_name='Description', )
-    groups_organization = tables.Column(accessor='organization', verbose_name='Organization', )
+    groups_organization = tables.Column(accessor='organization.organization_name', verbose_name='Organization', )
 
     caption = _("Shows all groups which are configured in your Mr. Map environment.")
 

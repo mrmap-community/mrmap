@@ -83,7 +83,7 @@ def check_table_filtering(table: MapSkinnerTable, filter_parameter: str, filter_
     # Filter each row for each value in each column and check if only matching elements stay there
     for row in table.rows:
         for col in table.columns:
-            filter_for = utils.get_nested_attribute(row.record, col.accessor)
+            filter_for = utils.get_nested_attribute(row.record, col.accessor).__str__()
 
             # Generic approach to filter on various types of tables
             table_filter = filter_class({filter_parameter: filter_for}, queryset)
@@ -91,7 +91,7 @@ def check_table_filtering(table: MapSkinnerTable, filter_parameter: str, filter_
 
             # Iterate over each row in the filtered table and check if all values inside the current column are valid
             for tmp_row in filtered_table.rows:
-                col_val = utils.get_nested_attribute(tmp_row.record, col.accessor)
-                filtering_results[filter_for] = filter_for in col_val
+                col_val = utils.get_nested_attribute(tmp_row.record, col.accessor).__str__()
+                filtering_results[filter_for] = filter_for in col_val.__str__()
 
     return filtering_results

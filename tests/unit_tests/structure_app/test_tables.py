@@ -8,7 +8,7 @@ Created on: 22.04.20
 from django.test import TestCase, RequestFactory
 
 from MapSkinner.consts import STRUCTURE_INDEX_GROUP, STRUCTURE_INDEX_ORGANIZATION
-from structure.filters import GroupFilter
+from structure.filters import GroupFilter, OrganizationFilter
 from structure.models import MrMapGroup, Organization
 from structure.tables import GroupTable, OrganizationTable
 from tests import utils
@@ -129,4 +129,31 @@ class StructureTablesTestCase(TestCase):
             self.assertTrue(val, msg="Organization table sorting not correct for column '{}'".format(key))
         for key, val in sorting_implementation_failed.items():
             self.assertFalse(val, msg="Organization table sorting leads to error for column '{}'".format(key))
+
+    def test_organization_table_filtering(self):
+        """ Run test to check the filtering functionality of the group tables
+
+        Return:
+
+        """
+        orgs = Organization.objects.all()
+        filter_param = "osearch"
+        sorting_param = "so"
+        table = OrganizationTable(
+            orgs,
+            order_by_field=sorting_param,
+            user=self.user
+        )
+
+        filter_results = utils.check_table_filtering(
+            table=table,
+            filter_parameter=filter_param,
+            queryset=orgs,
+            filter_class=OrganizationFilter,
+            table_class=OrganizationTable,
+            user=self.user,
+        )
+
+        for key, val in filter_results.items():
+            self.assertTrue(val, msg="Organization table filtering not correct for column '{}'".format(key))
 

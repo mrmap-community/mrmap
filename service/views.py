@@ -734,7 +734,7 @@ def new_pending_update_service(request: HttpRequest, metadata_id: int):
 @login_required
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic
-def update_service(request: HttpRequest, metadata_id: int):
+def run_update_service(request: HttpRequest, metadata_id: int):
     user = user_helper.get_user(request)
     current_service = get_object_or_404(Service, metadata__id=metadata_id)
     current_document = get_object_or_404(Document, related_metadata=current_service.metadata)
@@ -817,6 +817,9 @@ def pending_update_service(request: HttpRequest, metadata_id: int):
 
     new_service = get_object_or_404(Service, metadata__id=metadata_id)
     current_service = get_object_or_404(Service, has_update_candidate=new_service)
+
+    new_service.root_layer = Layer.objects.get(parent_service=new_service, parent_layer=None)
+    current_service.root_layer = Layer.objects.get(parent_service=current_service, parent_layer=None)
 
     # Collect differences
     comparator = ServiceComparator(service_a=new_service, service_b=current_service)

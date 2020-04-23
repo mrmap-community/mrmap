@@ -7,10 +7,10 @@ Created on: 22.04.20
 """
 from django.test import TestCase, RequestFactory
 
-from MapSkinner.consts import STRUCTURE_INDEX_GROUP
+from MapSkinner.consts import STRUCTURE_INDEX_GROUP, STRUCTURE_INDEX_ORGANIZATION
 from structure.filters import GroupFilter
-from structure.models import MrMapGroup
-from structure.tables import GroupTable
+from structure.models import MrMapGroup, Organization
+from structure.tables import GroupTable, OrganizationTable
 from tests import utils
 from tests.baker_recipes.db_setup import create_guest_groups, create_superadminuser, \
     create_public_organization, create_random_named_orgas
@@ -48,9 +48,8 @@ class StructureTablesTestCase(TestCase):
         self.user.refresh_from_db()
 
         self.request_factory = RequestFactory()
-        self.url_path_name = STRUCTURE_INDEX_GROUP
-        self.filter_param = "gsearch"
-        self.sorting_param = "sg"
+        self.groups_url_path_name = STRUCTURE_INDEX_GROUP
+        self.orgs_url_path_name = STRUCTURE_INDEX_ORGANIZATION
 
     def test_group_table_sorting(self):
         """ Run test to check the sorting functionality of the group tables
@@ -60,16 +59,17 @@ class StructureTablesTestCase(TestCase):
         """
         # Get all groups, make sure the initial set is ordered by random
         groups = MrMapGroup.objects.all().order_by("?")
+        sorting_param = "sg"
         table = GroupTable(
             groups,
-            order_by_field=self.sorting_param,
+            order_by_field=sorting_param,
             user=self.user
         )
         # Check table sorting
         sorting_implementation_failed, sorting_results = utils.check_table_sorting(
             table=table,
-            url_path_name=self.url_path_name,
-            sorting_parameter=self.sorting_param
+            url_path_name=self.groups_url_path_name,
+            sorting_parameter=sorting_param
         )
 
         for key, val in sorting_results.items():
@@ -84,15 +84,17 @@ class StructureTablesTestCase(TestCase):
 
         """
         groups = MrMapGroup.objects.all()
+        filter_param = "gsearch"
+        sorting_param = "sg"
         table = GroupTable(
             groups,
-            order_by_field=self.sorting_param,
+            order_by_field=sorting_param,
             user=self.user
         )
 
         filter_results = utils.check_table_filtering(
             table=table,
-            filter_parameter=self.filter_param,
+            filter_parameter=filter_param,
             queryset=groups,
             filter_class=GroupFilter,
             table_class=GroupTable,
@@ -101,3 +103,30 @@ class StructureTablesTestCase(TestCase):
 
         for key, val in filter_results.items():
             self.assertTrue(val, msg="Group table filtering not correct for column '{}'".format(key))
+
+    def test_organization_table_sorting(self):
+        """ Run test to check the sorting functionality of the group tables
+
+        Return:
+
+        """
+        # Get all groups, make sure the initial set is ordered by random
+        orgs = Organization.objects.all().order_by("?")
+        sorting_param = "so"
+        table = OrganizationTable(
+            orgs,
+            order_by_field=sorting_param,
+            user=self.user
+        )
+        # Check table sorting
+        sorting_implementation_failed, sorting_results = utils.check_table_sorting(
+            table=table,
+            url_path_name=self.orgs_url_path_name,
+            sorting_parameter=sorting_param
+        )
+
+        for key, val in sorting_results.items():
+            self.assertTrue(val, msg="Organization table sorting not correct for column '{}'".format(key))
+        for key, val in sorting_implementation_failed.items():
+            self.assertFalse(val, msg="Organization table sorting leads to error for column '{}'".format(key))
+

@@ -7,6 +7,7 @@ Created on: 15.04.19
 """
 from django import forms
 from django.urls import reverse_lazy
+from django.utils.html import format_html
 
 from MapSkinner.consts import SERVICE_ADD
 from MapSkinner.messages import SERVICE_UPDATE_WRONG_TYPE
@@ -14,6 +15,7 @@ from MapSkinner.validators import validate_get_request_uri
 from django.utils.translation import gettext_lazy as _
 
 from service.helper import service_helper
+from service.models import Service, Document
 
 
 class ServiceURIForm(forms.Form):
@@ -92,6 +94,8 @@ class UpdateServiceCheckForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.current_service = None if 'current_service' not in kwargs else kwargs.pop('current_service')
+        self.current_document = None if 'current_document' not in kwargs else kwargs.pop('current_document')
+        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
         super(UpdateServiceCheckForm, self).__init__(*args, **kwargs)
 
     def clean(self):
@@ -104,6 +108,25 @@ class UpdateServiceCheckForm(forms.Form):
 
             if self.current_service.servicetype.name != new_service_type.value:
                 self.add_error(None, SERVICE_UPDATE_WRONG_TYPE)
+
+        # Get service object from db
+        has_update_candidate_for_service = Service.objects.filter(is_update_candidate_for=self.current_service)
+        # Get Document object from db
+        has_update_candidate_for_document = Document.objects.filter(is_update_candidate_for=self.current_document)
+
+        if len(has_update_candidate_for_service) >= 1 or len(has_update_candidate_for_document) >= 1:
+            # There are multiple items --> pending update found
+            user = has_update_candidate_for_service[0].created_by_user \
+                   if has_update_candidate_for_service[0].created_by_user is not None \
+                   else has_update_candidate_for_document[0].created_by_user
+
+            self.add_error(None,
+                           _("There are still pending update requests from user '{}' for this service.").format(user))
+
+            if self.requesting_user == user:
+                self.add_error(None,
+                               format_html("See your pending update request <a href={}>here.</a>", "https://link"))
+                # ToDo: check if user is in group of created_by field of update_cadidate
 
         return cleaned_data
 

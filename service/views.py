@@ -7,21 +7,21 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core import serializers
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from requests.exceptions import ReadTimeout
 from MapSkinner import utils
-from MapSkinner.cacher import PreviewImageCacher, ServiceCacher
+from MapSkinner.cacher import PreviewImageCacher
 from MapSkinner.consts import *
 from MapSkinner.decorator import check_permission, log_proxy
-from MapSkinner.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_UPDATED, \
+from MapSkinner.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED
-from MapSkinner.responses import BackendAjaxResponse, DefaultContext
+from MapSkinner.responses import DefaultContext
 from service import tasks
 from service.helper import xml_helper
 from service.filters import WmsFilter, WfsFilter
@@ -35,7 +35,7 @@ from service.helper.service_comparator import ServiceComparator
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable
 from service.tasks import async_increase_hits
-from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style, ProxyLog
+from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
 from structure.models import MrMapUser, Permission, PendingTask, MrMapGroup
@@ -675,7 +675,7 @@ def wms_index(request: HttpRequest):
 @login_required
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic
-def update_service(request: HttpRequest, metadata_id: int):
+def new_update_service(request: HttpRequest, metadata_id: int):
     """ Compare old service with new service and collect differences
 
     Args:
@@ -687,13 +687,18 @@ def update_service(request: HttpRequest, metadata_id: int):
     template = "views/service_update.html"
     user = user_helper.get_user(request)
     current_service = get_object_or_404(Service, metadata__id=metadata_id)
+    current_metadata = get_object_or_404(Metadata, id=metadata_id)
+    current_document = get_object_or_404(Document, related_metadata=current_metadata)
 
     if request.method == 'POST':
         # Check if update check form has been retrieved or an update perform form
         page = int(request.POST.get("page", -1))
         if page == 1:
             # Update check form!
-            update_form = UpdateServiceCheckForm(request.POST, current_service=current_service,)
+            update_form = UpdateServiceCheckForm(request.POST,
+                                                 current_service=current_service,
+                                                 current_document=current_document,
+                                                 requesting_user=user)
             # Check if update form is valid
             if update_form.is_valid():
                 # Create db model from new service information (no persisting, yet)
@@ -704,21 +709,16 @@ def update_service(request: HttpRequest, metadata_id: int):
                     user=user,
                     register_group=current_service.created_by
                 )
-                cacher = ServiceCacher(metadata_id=metadata_id)
-                data = {
-                    "metadata_id": metadata_id,
-                    "new_service": {
-                        "service_type": update_form.url_dict.get("service").value,
-                        "version": update_form.url_dict.get("version"),
-                        "base_uri": update_form.url_dict.get("base_uri"),
-                    },
-                    "time": time.time()
-                }
-
-                # ToDo: raw_data
-                cacher.set(data, new_service["service"].__dict__,)
-
+                new_document = new_service["raw_data"]
                 new_service = new_service["service"]
+                new_service.is_update_candidate_for = current_service
+                new_service.created_by_user = user
+                new_service.metadata.is_update_candidate_for = current_service.metadata
+                new_service.metadata.created_by_user = user
+                # persist the service object
+                service_helper.persist_service_model_instance(new_service, None)
+                # get the current document object and persist the update candidate
+                new_service.persist_capabilities_doc(new_document.service_capabilities_xml, current_document, user)
 
                 # Collect differences
                 comparator = ServiceComparator(service_a=new_service, service_b=current_service)
@@ -757,26 +757,21 @@ def update_service(request: HttpRequest, metadata_id: int):
                 if prefix in key:
                     links[key.replace(prefix, "")] = int(val)
 
-            uri = request.POST.get("capabilities_url", None)
             keep_custom_md = utils.resolve_boolean_attribute_val(request.POST.get("keep_custom_md", True))
 
-            if uri is None:
-                messages.error(request, PARAMETER_ERROR.format("Get capabilities uri"))
-                return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
+            # Get service object from db
+            new_service = Service.objects.filter(is_update_candidate_for=current_service,
+                                                 created_by_user=user, )
+            # Get Document object from db
+            new_service_capabilities_xml = Document.objects.filter(is_update_candidate_for=current_document,
+                                                                   created_by_user=user, )
 
-            url_dict = service_helper.split_service_uri(uri)
-
-            # Create db model from new service information (no persisting, yet)
-            registrating_group = current_service.created_by
-            new_service = service_helper.get_service_model_instance(
-                service_type=url_dict.get("service"),
-                version=service_helper.resolve_version_enum(url_dict.get("version")),
-                base_uri=url_dict.get("base_uri"),
-                user=user,
-                register_group=registrating_group
-            )
-            new_service_capabilities_xml = new_service["raw_data"].service_capabilities_xml
-            new_service = new_service["service"]
+            if len(new_service) > 1 or len(new_service_capabilities_xml) > 1:
+                # There are multiple items --> pending update found
+                pass
+            else:
+                new_service = new_service[0]
+                new_service_capabilities_xml = new_service_capabilities_xml[0]
 
             # Collect differences
             comparator = ServiceComparator(service_a=new_service, service_b=current_service)
@@ -823,6 +818,14 @@ def update_service(request: HttpRequest, metadata_id: int):
             return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
 
     return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
+
+
+@login_required
+@check_permission(Permission(can_update_service=True))
+@transaction.atomic
+def pending_update_service(request: HttpRequest, metadata_id: int):
+    # ToDo:
+    pass
 
 
 @login_required

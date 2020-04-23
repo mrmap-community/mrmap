@@ -424,7 +424,7 @@ class ServiceUpdateServiceViewTestCase(TestCase):
 
     def test_get_update_service_view(self):
         response = self.client.get(
-            reverse('service:update', args=(self.wms_metadatas[0].id,))
+            reverse('service:new-update', args=(self.wms_metadatas[0].id,))
         )
         self.assertEqual(response.status_code, 303)
 
@@ -434,7 +434,7 @@ class ServiceUpdateServiceViewTestCase(TestCase):
             'get_capabilities_uri': get_capabilitites_url().get('valid'),
         }
         response = self.client.post(
-            reverse('service:update', args=(self.wms_metadatas[0].id,)),
+            reverse('service:new-update', args=(self.wms_metadatas[0].id,)),
             data=params
         )
 
@@ -447,7 +447,7 @@ class ServiceUpdateServiceViewTestCase(TestCase):
         }
 
         response = self.client.post(
-            reverse('service:update', args=(self.wms_metadatas[0].id,)),
+            reverse('service:new-update', args=(self.wms_metadatas[0].id,)),
             data=params
         )
 
@@ -462,7 +462,7 @@ class ServiceUpdateServiceViewTestCase(TestCase):
         }
 
         response = self.client.post(
-            reverse('service:update', args=(self.wms_metadatas[0].id,)),
+            reverse('service:new-update', args=(self.wms_metadatas[0].id,)),
             data=params
         )
 

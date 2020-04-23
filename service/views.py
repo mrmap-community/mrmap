@@ -731,7 +731,7 @@ def new_update_service(request: HttpRequest, metadata_id: int):
                     keep_custom_md=update_form.cleaned_data.get("keep_custom_md", False),
                     get_capabilities_uri=update_form.cleaned_data.get("get_capabilities_uri", None)
                 )
-                update_confirmation_form.action_url = reverse("service:update", args=[metadata_id])
+                update_confirmation_form.action_url = reverse("service:new-update", args=[metadata_id])
 
                 params = {
                     "current_service": current_service,
@@ -942,7 +942,7 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
             'service_needs_authentication': False,
         }
     )
-    update_service_check_form.action_url = reverse('service:update', args=[metadata_id])
+    update_service_check_form.action_url = reverse('service:new-update', args=[metadata_id])
 
     params.update({
         "service_md": service_md,

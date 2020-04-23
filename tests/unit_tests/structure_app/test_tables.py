@@ -6,6 +6,9 @@ Created on: 22.04.20
 
 """
 from django.test import TestCase, RequestFactory
+
+from MapSkinner.consts import STRUCTURE_INDEX_GROUP
+from structure.filters import GroupFilter
 from structure.models import MrMapGroup
 from structure.tables import GroupTable
 from tests import utils
@@ -45,6 +48,17 @@ class StructureTablesTestCase(TestCase):
         self.user.refresh_from_db()
 
         self.request_factory = RequestFactory()
+        self.url_path_name = STRUCTURE_INDEX_GROUP
+        self.filter_param = "gsearch"
+        self.sorting_param = "sg"
+
+        # Get all groups, make sure the initial set is ordered by random
+        self.groups = MrMapGroup.objects.all().order_by("?")
+        self.table = GroupTable(
+            self.groups,
+            order_by_field=self.sorting_param,
+            user=self.user
+        )
 
     def test_group_table_sorting(self):
         """ Run test to check the sorting functionality of the group tables
@@ -52,21 +66,11 @@ class StructureTablesTestCase(TestCase):
         Return:
 
         """
-        # Get all groups, make sure the initial set is ordered by random
-        groups = MrMapGroup.objects.all().order_by("?")
-
-        # Then create a table using the queryset, which orders by group description
-        group_table = GroupTable(
-            groups,
-            order_by_field="sg",
-            user=None
-        )
-
         # Check table sorting
         sorting_implementation_failed, sorting_results = utils.check_table_sorting(
-            table=group_table,
-            url_path_name="structure:groups-index",
-            sorting_parameter="sg"
+            table=self.table,
+            url_path_name=self.url_path_name,
+            sorting_parameter=self.sorting_param
         )
 
         for key, val in sorting_results.items():
@@ -74,3 +78,22 @@ class StructureTablesTestCase(TestCase):
         for key, val in sorting_implementation_failed.items():
             self.assertFalse(val, msg="Group table sorting leads to error for column '{}'".format(key))
 
+    def test_group_table_filtering(self):
+        """ Run test to check the filtering functionality of the group tables
+
+        Return:
+
+        """
+        groups = MrMapGroup.objects.all()
+
+        filter_results = utils.check_table_filtering(
+            table=self.table,
+            filter_parameter=self.filter_param,
+            queryset=groups,
+            filter_class=GroupFilter,
+            table_class=GroupTable,
+            user=self.user,
+        )
+
+        for key, val in filter_results.items():
+            self.assertTrue(val, msg="Group table filtering not correct for column '{}'".format(key))

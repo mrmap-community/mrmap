@@ -52,23 +52,22 @@ class StructureTablesTestCase(TestCase):
         self.filter_param = "gsearch"
         self.sorting_param = "sg"
 
-        # Get all groups, make sure the initial set is ordered by random
-        self.groups = MrMapGroup.objects.all().order_by("?")
-        self.table = GroupTable(
-            self.groups,
-            order_by_field=self.sorting_param,
-            user=self.user
-        )
-
     def test_group_table_sorting(self):
         """ Run test to check the sorting functionality of the group tables
 
         Return:
 
         """
+        # Get all groups, make sure the initial set is ordered by random
+        groups = MrMapGroup.objects.all().order_by("?")
+        table = GroupTable(
+            groups,
+            order_by_field=self.sorting_param,
+            user=self.user
+        )
         # Check table sorting
         sorting_implementation_failed, sorting_results = utils.check_table_sorting(
-            table=self.table,
+            table=table,
             url_path_name=self.url_path_name,
             sorting_parameter=self.sorting_param
         )
@@ -85,9 +84,14 @@ class StructureTablesTestCase(TestCase):
 
         """
         groups = MrMapGroup.objects.all()
+        table = GroupTable(
+            groups,
+            order_by_field=self.sorting_param,
+            user=self.user
+        )
 
         filter_results = utils.check_table_filtering(
-            table=self.table,
+            table=table,
             filter_parameter=self.filter_param,
             queryset=groups,
             filter_class=GroupFilter,

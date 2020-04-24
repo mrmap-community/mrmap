@@ -770,10 +770,11 @@ def pending_update_service(request: HttpRequest, metadata_id: int):
 def dismiss_pending_update_service(request: HttpRequest, metadata_id: int):
     user = user_helper.get_user(request)
 
-    new_service = get_object_or_404(Service, metadata__id=metadata_id)
-    current_service = get_object_or_404(Service, has_update_candidate=new_service)
+    current_service = get_object_or_404(Service, metadata__id=metadata_id)
+    new_service = current_service.has_update_candidate
 
     if new_service.created_by_user == user:
+        # ToDo: check if user is in group of created_by field of update_cadidate
         new_service.delete()
         messages.success(request, _("Pending update successfully dismissed."))
         return HttpResponseRedirect(reverse("service:detail", args=(current_service.metadata.id,)), status=303)

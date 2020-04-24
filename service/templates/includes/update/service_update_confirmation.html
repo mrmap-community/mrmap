@@ -98,7 +98,7 @@
         </div>
         <div class="row mb-2">
             <div class="col-auto">
-                <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'service:dismiss-pending-update' update_service.metadata.id %}" role="button">Dismiss</a>
+                <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'service:dismiss-pending-update' current_service.metadata.id %}" role="button">Dismiss</a>
             </div>
             <div class="col-auto">
                 <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">{% trans 'Continue'%}</button>

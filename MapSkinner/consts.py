@@ -19,6 +19,9 @@ SERVICE_ADD = "service:add"
 STRUCTURE_DETAIL_GROUP = "structure:detail-group"
 STRUCTURE_INDEX_GROUP = "structure:groups-index"
 
+STRUCTURE_DETAIL_ORGANIZATION = "structure:detail-organization"
+STRUCTURE_INDEX_ORGANIZATION = "structure:organizations-index"
+
 APP_XML = "application/xml"
 
 URL_PATTERN = "<a class={} href='{}'>{}</a>"

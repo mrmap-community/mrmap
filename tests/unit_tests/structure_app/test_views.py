@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from django.contrib.messages import get_messages
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.utils import timezone
 from model_bakery import baker
 
 from MapSkinner.messages import ORGANIZATION_CAN_NOT_BE_OWN_PARENT, REQUEST_ACTIVATION_TIMEOVER, \
@@ -626,7 +627,7 @@ class StructureAcceptPublishRequestViewTestCase(TestCase):
                                                       how_much_requests=10)
 
         for pending_request in self.pending_request:
-            pending_request.activation_until = date.today() + timedelta(days=10)
+            pending_request.activation_until = timezone.now() + timedelta(days=10)
             pending_request.save()
 
         self.pending_tasks = create_pending_task(group=self.groups[0], how_much_pending_tasks=10)
@@ -671,7 +672,7 @@ class StructureAcceptPublishRequestViewTestCase(TestCase):
         post_params = {'is_accepted': True, }
 
         pending_task = PendingRequest.objects.first()
-        pending_task.activation_until = date.today() - timedelta(days=1)
+        pending_task.activation_until = timezone.now() - timedelta(days=1)
         pending_task.save()
 
         response = self.client.post(

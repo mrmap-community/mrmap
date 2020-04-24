@@ -138,3 +138,22 @@ def get_ok_nok_icon(value):
         return format_html("<i class='fas fa-check text-success'></i>")
     else:
         return format_html("<i class='fas fa-times text-danger'></i>")
+
+
+def get_nested_attribute(obj, attrib_str: str):
+    """ Iterates over nested attributes of an object and returns the found attribute.
+
+    Supports '.' based nested attribute notation, e.g. 'object.nested_1.nested_2'
+
+    Args:
+        obj: The object
+        attrib_str (str): The nested attribute string
+    Returns:
+         val: The found attribute
+    """
+    attrs = attrib_str.split(".")
+    val = obj
+    for attr in attrs:
+        val = val.__getattribute__(attr)
+
+    return val

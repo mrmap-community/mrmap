@@ -57,7 +57,7 @@ class ServiceComparator:
         if self.service_a.servicetype.name == OGCServiceEnum.WMS.value:
             # Check layer metadata against each other
             # Always iterate over service_1 and check against service_2
-            layers = self.service_a.get_all_layers()
+            layers = [self.service_a.root_layer] + self.service_a.root_layer.get_children(all=True)
             diff["layers"] = self.compare_layers(layers)
 
         elif self.service_a.servicetype.name == OGCServiceEnum.WFS.value:

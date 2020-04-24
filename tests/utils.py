@@ -9,6 +9,7 @@ from django.core.exceptions import FieldError
 from django.db.models import QuerySet
 from django.test import RequestFactory
 from django.urls import reverse
+from django_filters import FilterSet
 from django_tables2 import RequestConfig
 
 from MapSkinner import utils
@@ -95,3 +96,31 @@ def check_table_filtering(table: MapSkinnerTable, filter_parameter: str, filter_
                 filtering_results[filter_for] = filter_for in col_val.__str__()
 
     return filtering_results
+
+
+def check_filtering(filter_class: FilterSet, filter_param: str, filter_attribute_name: str, queryset: QuerySet):
+    """ Checks if a given FilterSet implementation works fine.
+
+    Args:
+        filter_class (FilterSet): An implemented class, inheriting from FilterSet (e.g. GroupFilter)
+        filter_param (str): Identifier for the parameter (e.g. "gsearch")
+        filter_attribute_name (str): Identifier for the attribute of an element, which is used for filtering (e.g. "name" of MrMapGroup model)
+        queryset (QuerySet): A queryset containing test data
+    Returns:
+         filtering_successfull (bool)
+    """
+    cached_elements = list(queryset)
+    filtering_successfull = True
+    for elem in cached_elements:
+        filter_for = utils.get_nested_attribute(elem, filter_attribute_name)
+        filtered_queryset = filter_class(
+            {
+                filter_param: filter_for
+            },
+            queryset
+        ).qs
+        for filtered_elem in filtered_queryset:
+            if utils.get_nested_attribute(filtered_elem, filter_attribute_name) != filter_for:
+                filtering_successfull = False
+                break
+    return filtering_successfull

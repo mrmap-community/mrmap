@@ -22,9 +22,9 @@ class FeatureTypeFilter(django_filters.FilterSet):
         fields = []
 
 
-class WmsFilter(django_filters.FilterSet):
+class MetadataWmsFilter(django_filters.FilterSet):
     wms_search = django_filters.CharFilter(method='filter_search_over_all',
-                                           label='Search')
+                                         label='Search')
 
     @staticmethod
     def filter_search_over_all(queryset, name, value):  # parameter name is needed cause 3 values are expected
@@ -40,7 +40,7 @@ class WmsFilter(django_filters.FilterSet):
         fields = []
 
 
-class WfsFilter(django_filters.FilterSet):
+class MetadataWfsFilter(django_filters.FilterSet):
     wfs_search = django_filters.CharFilter(method='filter_search_over_all',
                                            label='Search')
 

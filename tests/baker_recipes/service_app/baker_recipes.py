@@ -1,3 +1,4 @@
+from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum
 from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType
@@ -21,6 +22,7 @@ service_metadatatype = Recipe(
 
 active_wms_service_metadata = Recipe(
     Metadata,
+    title=seq("metadata_wms_"),
     is_active=True,
     metadata_type=foreign_key(service_metadatatype),
     created_by=foreign_key(superadmin_group),
@@ -33,6 +35,7 @@ active_wms_layer_metadata = active_wms_service_metadata.extend(
 
 active_wfs_service_metadata = Recipe(
     Metadata,
+    title=seq("metadata_wfs_"),
     is_active=True,
     metadata_type=foreign_key(service_metadatatype),
     created_by=foreign_key(superadmin_group),

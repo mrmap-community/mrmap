@@ -5,6 +5,10 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 23.04.20
 
 """
+
+
+import random
+import string
 from django.core.exceptions import FieldError
 from django.db.models import QuerySet
 from django.test import RequestFactory
@@ -15,6 +19,17 @@ from django_tables2 import RequestConfig
 from MapSkinner import utils
 from MapSkinner.tables import MapSkinnerTable
 from structure.models import MrMapUser
+
+
+def generate_random_string(len: int):
+    """ Creates a randomly generated string of uppercase letters
+
+    Args:
+        len (int): The desired length
+    Returns:
+         random_string (str)
+    """
+    return ''.join(random.choices(string.ascii_uppercase, k=len))
 
 
 def check_table_sorting(table: MapSkinnerTable, url_path_name: str, sorting_parameter: str):
@@ -120,7 +135,7 @@ def check_filtering(filter_class: FilterSet, filter_param: str, filter_attribute
             queryset
         ).qs
         for filtered_elem in filtered_queryset:
-            if utils.get_nested_attribute(filtered_elem, filter_attribute_name) != filter_for:
+            if filter_for not in utils.get_nested_attribute(filtered_elem, filter_attribute_name):
                 filtering_successfull = False
                 break
     return filtering_successfull

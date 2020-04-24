@@ -21,7 +21,7 @@ from MapSkinner.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_UPDATED, \
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from service import tasks
 from service.helper import xml_helper
-from service.filters import WmsFilter, WfsFilter
+from service.filters import MetadataWmsFilter, MetadataWfsFilter
 from service.forms import RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, RemoveServiceForm, UpdateServiceCheckForm, UpdateOldToNewElementsForm
 from service.helper import service_helper, update_helper
@@ -65,7 +65,7 @@ def _prepare_wms_table(request: HttpRequest):
         is_deleted=False,
     ).order_by("title")
 
-    wms_table_filtered = WmsFilter(request.GET, queryset=md_list_wms)
+    wms_table_filtered = MetadataWmsFilter(request.GET, queryset=md_list_wms)
 
     if show_service:
         wms_table = WmsServiceTable(wms_table_filtered.qs,
@@ -108,7 +108,7 @@ def _prepare_wfs_table(request: HttpRequest):
         is_deleted=False,
     ).order_by("title")
 
-    wfs_table_filtered = WfsFilter(request.GET, queryset=md_list_wfs)
+    wfs_table_filtered = MetadataWfsFilter(request.GET, queryset=md_list_wfs)
     wfs_table = WfsServiceTable(wfs_table_filtered.qs,
                                 order_by_field='swfs',  # swms = sort wms
                                 user=user,)

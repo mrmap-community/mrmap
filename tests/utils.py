@@ -5,13 +5,12 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 23.04.20
 
 """
-
-
+import json
 import random
 import string
 from django.core.exceptions import FieldError
 from django.db.models import QuerySet
-from django.test import RequestFactory
+from django.test import RequestFactory, Client
 from django.urls import reverse
 from django_filters import FilterSet
 from django_tables2 import RequestConfig
@@ -139,3 +138,33 @@ def check_filtering(filter_class: FilterSet, filter_param: str, filter_attribute
                 filtering_successfull = False
                 break
     return filtering_successfull
+
+
+def check_autocompletion_response(elements_list: list, attrib_name: str, client: Client, url_path_name: str):
+    """ Checks autocompletion of editor app
+
+    Args:
+        elements_list (list|QuerySet): List or QuerySet, containing all elements
+        attrib_name (str): Name of the attribute that is used for autocompletion
+        client (Client): A logged in client object
+        url_path_name (str): The name of the url from urls.py
+    Returns:
+         ret_val (list): A list of return values, each a dict like {"val": bool, "elem": str}
+    """
+    ret_val = []
+    for element in elements_list:
+        response = client.get(
+            reverse(url_path_name),
+            {
+                "q": utils.get_nested_attribute(element, attrib_name),
+            }
+        )
+        found_elements = json.loads(response.content)["results"]
+        elem_attr = utils.get_nested_attribute(element, attrib_name)
+        for found_element in found_elements:
+            found = elem_attr in found_element["text"]
+            ret_val.append({
+                "val": found,
+                "elem": elem_attr
+            })
+    return ret_val

@@ -1,7 +1,7 @@
 from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum
-from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType
+from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType, Keyword, Category
 from tests.baker_recipes.structure_app.baker_recipes import superadmin_group
 
 
@@ -94,3 +94,16 @@ active_wfs_featuretype = Recipe(
     parent_service=foreign_key(active_root_wfs_service),
 )
 
+keyword = Recipe(
+    Keyword,
+    keyword=seq("keyword_")
+)
+
+category = Recipe(
+    Category,
+    type=seq("type_"),
+    title_locale_1=seq("title_"),
+    description_locale_1=seq("desc_"),
+    title_EN=seq("title_"),
+    description_EN=seq("desc_"),
+)

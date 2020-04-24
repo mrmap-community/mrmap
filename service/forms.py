@@ -6,6 +6,7 @@ Created on: 15.04.19
 
 """
 from django import forms
+from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse_lazy
 from django.utils.html import format_html
 
@@ -108,24 +109,27 @@ class UpdateServiceCheckForm(forms.Form):
             if self.current_service.servicetype.name != new_service_type.value:
                 self.add_error(None, SERVICE_UPDATE_WRONG_TYPE)
 
-        # Get service object from db
-        has_update_candidate_for_service = Service.objects.filter(is_update_candidate_for=self.current_service)
-        # Get Document object from db
-        has_update_candidate_for_document = Document.objects.filter(is_update_candidate_for=self.current_document)
+        try:
+            # Get service object from db
+            has_update_candidate_for_service = Service.objects.get(is_update_candidate_for=self.current_service)
+            has_update_candidate_for_document = Document.objects.get(is_update_candidate_for=self.current_document)
 
-        if len(has_update_candidate_for_service) >= 1 or len(has_update_candidate_for_document) >= 1:
-            # There are multiple items --> pending update found
-            user = has_update_candidate_for_service[0].created_by_user \
-                   if has_update_candidate_for_service[0].created_by_user is not None \
-                   else has_update_candidate_for_document[0].created_by_user
+            user = has_update_candidate_for_service.created_by_user \
+                if has_update_candidate_for_service.created_by_user is not None \
+                else has_update_candidate_for_document.created_by_user
 
             self.add_error(None,
                            _("There are still pending update requests from user '{}' for this service.").format(user))
 
             if self.requesting_user == user:
                 self.add_error(None,
-                               format_html("See your pending update request <a href={}>here.</a>", reverse_lazy('service:pending-update', args=(self.current_service.metadata.id,))))
+                               format_html("See your pending update request <a href={}>here.</a>",
+                                           reverse_lazy('service:pending-update',
+                                                        args=(self.current_service.metadata.id,))))
                 # ToDo: check if user is in group of created_by field of update_cadidate
+
+        except ObjectDoesNotExist:
+            pass
 
         return cleaned_data
 

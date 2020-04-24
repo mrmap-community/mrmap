@@ -41,7 +41,7 @@ class Resource(models.Model):
     last_modified = models.DateTimeField(null=True)
     is_deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
-    is_update_candidate_for = models.OneToOneField('self', on_delete=models.CASCADE, related_name="has_update_candidate", null=True, default=None, blank=True)
+    is_update_candidate_for = models.OneToOneField('self', on_delete=models.SET_NULL, related_name="has_update_candidate", null=True, default=None, blank=True)
     created_by_user = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True, blank=True)
     keep_custom_md = models.BooleanField(default=True)
 

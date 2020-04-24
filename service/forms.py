@@ -82,7 +82,6 @@ class RemoveServiceForm(forms.Form):
 class UpdateServiceCheckForm(forms.Form):
     action_url = ''
     url_dict = ''
-    page = forms.IntegerField(widget=forms.HiddenInput(), initial=1)
     get_capabilities_uri = forms.URLField(
         validators=[validate_get_request_uri]
     )
@@ -125,7 +124,7 @@ class UpdateServiceCheckForm(forms.Form):
 
             if self.requesting_user == user:
                 self.add_error(None,
-                               format_html("See your pending update request <a href={}>here.</a>", reverse_lazy('service:pending-update', args=(has_update_candidate_for_service[0].metadata.id,))))
+                               format_html("See your pending update request <a href={}>here.</a>", reverse_lazy('service:pending-update', args=(self.current_service.metadata.id,))))
                 # ToDo: check if user is in group of created_by field of update_cadidate
 
         return cleaned_data
@@ -133,13 +132,9 @@ class UpdateServiceCheckForm(forms.Form):
 
 class UpdateOldToNewElementsForm(forms.Form):
     action_url = ''
-    page = forms.IntegerField(widget=forms.HiddenInput(), initial=2)
-    keep_custom_md = forms.BooleanField(widget=forms.HiddenInput())
 
-    def __init__(self, new_elements: list, removed_elements: list, keep_custom_md: bool, *args, **kwargs):
+    def __init__(self, new_elements: list, removed_elements: list, *args, **kwargs):
         super(UpdateOldToNewElementsForm, self).__init__(*args, **kwargs)
-
-        self.fields["keep_custom_md"].initial = keep_custom_md
 
         # Prepare remove elements as choices
         remove_elements_choices = [(-1, _("---"))]

@@ -112,6 +112,9 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
     Returns:
          old (Metadata): The overwritten metadata
     """
+    # reset update candidate
+    new.is_update_candidate_for = None
+
     # Save important persistance information
     uuid = old.uuid
     _id = old.id
@@ -192,6 +195,9 @@ def update_service(old: Service, new: Service):
     Returns:
          old (Service): The overwritten metadata
     """
+    # reset update candidate
+    new.is_update_candidate_for = None
+
     # save important persistance information
     uuid = old.uuid
     _id = old.id

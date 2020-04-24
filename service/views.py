@@ -691,120 +691,40 @@ def new_pending_update_service(request: HttpRequest, metadata_id: int):
     current_document = get_object_or_404(Document, related_metadata=current_service.metadata)
 
     if request.method == 'POST':
-        # Check if update check form has been retrieved or an update perform form
-        page = int(request.POST.get("page", -1))
-        if page == 1:
-            # Update check form!
-            update_form = UpdateServiceCheckForm(request.POST,
-                                                 current_service=current_service,
-                                                 current_document=current_document,
-                                                 requesting_user=user)
-            # Check if update form is valid
-            if update_form.is_valid():
-                # Create db model from new service information (no persisting, yet)
-                new_service = service_helper.get_service_model_instance(
-                    service_type=update_form.url_dict.get("service"),
-                    version=service_helper.resolve_version_enum(update_form.url_dict.get("version")),
-                    base_uri=update_form.url_dict.get("base_uri"),
-                    user=user,
-                    register_group=current_service.created_by
-                )
-                new_document = new_service["raw_data"]
-                new_service = new_service["service"]
-                new_service.is_update_candidate_for = current_service
-                new_service.created_by_user = user
-                new_service.keep_custom_md = update_form.cleaned_data['keep_custom_md']
-                new_service.metadata.is_update_candidate_for = current_service.metadata
-                new_service.metadata.created_by_user = user
-                # persist the service object
-                service_helper.persist_service_model_instance(new_service, None)
-                # get the current document object and persist the update candidate
-                new_service.persist_capabilities_doc(new_document.service_capabilities_xml, current_document, user)
-                return HttpResponseRedirect(reverse("service:pending-update", args=(metadata_id,)), status=303)
-            else:
-                params = {
-                    "update_service_form": update_form,
-                    "show_update_form": True,
-                }
-                return detail(request=request, metadata_id=metadata_id, update_params=params, status_code=422)
+        # Update check form!
+        update_form = UpdateServiceCheckForm(request.POST,
+                                             current_service=current_service,
+                                             current_document=current_document,
+                                             requesting_user=user)
+        # Check if update form is valid
+        if update_form.is_valid():
+            # Create db model from new service information (no persisting, yet)
+            new_service = service_helper.get_service_model_instance(
+                service_type=update_form.url_dict.get("service"),
+                version=service_helper.resolve_version_enum(update_form.url_dict.get("version")),
+                base_uri=update_form.url_dict.get("base_uri"),
+                user=user,
+                register_group=current_service.created_by
+            )
+            new_document = new_service["raw_data"]
+            new_service = new_service["service"]
+            new_service.is_update_candidate_for = current_service
+            new_service.created_by_user = user
+            new_service.keep_custom_md = update_form.cleaned_data['keep_custom_md']
+            new_service.metadata.is_update_candidate_for = current_service.metadata
+            new_service.metadata.created_by_user = user
+            # persist the service object
+            service_helper.persist_service_model_instance(new_service, None)
+            # get the current document object and persist the update candidate
+            new_service.persist_capabilities_doc(new_document.service_capabilities_xml, current_document, user)
+            return HttpResponseRedirect(reverse("service:pending-update", args=(metadata_id,)), status=303)
+        else:
+            params = {
+                "update_service_form": update_form,
+                "show_update_form": True,
+            }
+            return detail(request=request, metadata_id=metadata_id, update_params=params, status_code=422)
 
-    return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
-
-
-@login_required
-@check_permission(Permission(can_update_service=True))
-@transaction.atomic
-def run_update_service(request: HttpRequest, metadata_id: int):
-    user = user_helper.get_user(request)
-    current_service = get_object_or_404(Service, metadata__id=metadata_id)
-    current_document = get_object_or_404(Document, related_metadata=current_service.metadata)
-
-    # Update perform form!
-    # We need to extract the linkage of new->old elements from the request by hand
-    links = {}
-    prefix = "new_elem_"
-    for key, val in request.POST.items():
-        if prefix in key:
-            links[key.replace(prefix, "")] = int(val)
-
-    keep_custom_md = utils.resolve_boolean_attribute_val(request.POST.get("keep_custom_md", True))
-
-    # Get service object from db
-    new_service = Service.objects.filter(is_update_candidate_for=current_service,
-                                         created_by_user=user, )
-    # Get Document object from db
-    new_service_capabilities_xml = Document.objects.filter(is_update_candidate_for=current_document,
-                                                           created_by_user=user, )
-
-    if len(new_service) > 1 or len(new_service_capabilities_xml) > 1:
-        # There are multiple items --> pending update found
-        pass
-    else:
-        new_service = new_service[0]
-        new_service_capabilities_xml = new_service_capabilities_xml[0]
-
-    # Collect differences
-    comparator = ServiceComparator(service_a=new_service, service_b=current_service)
-    diff = comparator.compare_services()
-
-    # UPDATE
-    # First update the metadata of the whole service
-    md = update_helper.update_metadata(current_service.metadata, new_service.metadata, keep_custom_md)
-    md.save()
-    current_service.metadata = md
-
-    # Then update the service object
-    current_service = update_helper.update_service(current_service, new_service)
-
-    # Update the subelements
-    if new_service.servicetype.name == OGCServiceEnum.WFS.value:
-        current_service = update_helper.update_wfs_elements(
-            current_service,
-            new_service,
-            diff,
-            links,
-            keep_custom_md
-        )
-    elif new_service.servicetype.name == OGCServiceEnum.WMS.value:
-        current_service = update_helper.update_wms_elements(
-            current_service,
-            new_service,
-            diff,
-            links,
-            keep_custom_md
-        )
-
-    update_helper.update_capability_document(current_service, new_service_capabilities_xml)
-
-    current_service.save()
-    user_helper.create_group_activity(
-        current_service.metadata.created_by,
-        user,
-        SERVICE_UPDATED,
-        current_service.metadata.title
-    )
-
-    messages.success(request, SERVICE_UPDATED)
     return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
 
 
@@ -815,11 +735,12 @@ def pending_update_service(request: HttpRequest, metadata_id: int):
     template = "views/service_update.html"
     user = user_helper.get_user(request)
 
-    new_service = get_object_or_404(Service, metadata__id=metadata_id)
-    current_service = get_object_or_404(Service, has_update_candidate=new_service)
+    current_service = get_object_or_404(Service, metadata__id=metadata_id)
+    new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
 
-    new_service.root_layer = Layer.objects.get(parent_service=new_service, parent_layer=None)
-    current_service.root_layer = Layer.objects.get(parent_service=current_service, parent_layer=None)
+    if current_service.metadata.metadata_type.type is not 'featuretype':
+        new_service.root_layer = Layer.objects.get(parent_service=new_service, parent_layer=None)
+        current_service.root_layer = Layer.objects.get(parent_service=current_service, parent_layer=None)
 
     # Collect differences
     comparator = ServiceComparator(service_a=new_service, service_b=current_service)
@@ -829,9 +750,8 @@ def pending_update_service(request: HttpRequest, metadata_id: int):
     update_confirmation_form = UpdateOldToNewElementsForm(
         new_elements=diff_elements.get("new"),
         removed_elements=diff_elements.get("removed"),
-        keep_custom_md=new_service.keep_custom_md,
     )
-    update_confirmation_form.action_url = reverse("service:pending-update", args=[metadata_id])
+    update_confirmation_form.action_url = reverse("service:run-update", args=[metadata_id])
 
     params = {
         "current_service": current_service,
@@ -842,6 +762,103 @@ def pending_update_service(request: HttpRequest, metadata_id: int):
 
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context(), status=202)
+
+
+@login_required
+@check_permission(Permission(can_update_service=True))
+@transaction.atomic
+def dismiss_pending_update_service(request: HttpRequest, metadata_id: int):
+    user = user_helper.get_user(request)
+
+    new_service = get_object_or_404(Service, metadata__id=metadata_id)
+    current_service = get_object_or_404(Service, has_update_candidate=new_service)
+
+    if new_service.created_by_user == user:
+        new_service.delete()
+        messages.success(request, _("Pending update successfully dismissed."))
+        return HttpResponseRedirect(reverse("service:detail", args=(current_service.metadata.id,)), status=303)
+    else:
+        messages.error(request, _("You are not the owner of this pending update. Rejected!"))
+        return pending_update_service(request, metadata_id)
+
+
+@login_required
+@check_permission(Permission(can_update_service=True))
+@transaction.atomic
+def run_update_service(request: HttpRequest, metadata_id: int):
+    user = user_helper.get_user(request)
+    current_service = get_object_or_404(Service, metadata__id=metadata_id)
+
+    if request.method == 'POST':
+        current_document = get_object_or_404(Document, related_metadata=current_service.metadata)
+        new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
+        new_document = get_object_or_404(Document, is_update_candidate_for=current_document)
+
+        if current_service.metadata.metadata_type.type is not 'featuretype':
+            new_service.root_layer = Layer.objects.get(parent_service=new_service, parent_layer=None)
+            current_service.root_layer = Layer.objects.get(parent_service=current_service, parent_layer=None)
+
+        try:
+            # Update perform form!
+            # We need to extract the linkage of new->old elements from the request by hand
+            links = {}
+            prefix = "new_elem_"
+            for key, val in request.POST.items():
+                if prefix in key:
+                    links[key.replace(prefix, "")] = int(val)
+
+            # Collect differences
+            comparator = ServiceComparator(service_a=new_service, service_b=current_service)
+            diff = comparator.compare_services()
+
+            # UPDATE
+            # First update the metadata of the whole service
+            md = update_helper.update_metadata(current_service.metadata, new_service.metadata, new_service.keep_custom_md)
+            md.save()
+            current_service.metadata = md
+
+            # Then update the service object
+            current_service = update_helper.update_service(current_service, new_service)
+
+            # Update the subelements
+            if new_service.servicetype.name == OGCServiceEnum.WFS.value:
+                current_service = update_helper.update_wfs_elements(
+                    current_service,
+                    new_service,
+                    diff,
+                    links,
+                    new_service.keep_custom_md
+                )
+            elif new_service.servicetype.name == OGCServiceEnum.WMS.value:
+                # dauer lange
+                current_service = update_helper.update_wms_elements(
+                    current_service,
+                    new_service,
+                    diff,
+                    links,
+                    new_service.keep_custom_md
+                )
+
+            new_document.is_update_candidate_for = None
+            update_helper.update_capability_document(current_service, new_document.original_capability_document)
+
+            current_service.save()
+            user_helper.create_group_activity(
+                current_service.metadata.created_by,
+                user,
+                SERVICE_UPDATED,
+                current_service.metadata.title
+            )
+
+            new_service.delete()
+
+            messages.success(request, SERVICE_UPDATED)
+            return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
+        except Exception as e:
+            messages.error(request, "Service update fails cause of the following error: {}".format(e))
+            return HttpResponseRedirect(reverse("service:pending-update", args=(current_service.metadata.id,)), status=303)
+    else:
+        return HttpResponseRedirect(reverse("service:pending-update", args=(current_service.metadata.id,)), status=303)
 
 
 @login_required

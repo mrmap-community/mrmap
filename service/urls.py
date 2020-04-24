@@ -16,6 +16,7 @@ urlpatterns = [
 
     path('new-update/<metadata_id>', new_pending_update_service, name='new-pending-update'),
     path('pending-update/<metadata_id>', pending_update_service, name='pending-update'),
+    path('dismiss-pending-update/<metadata_id>', dismiss_pending_update_service, name='dismiss-pending-update'),
     path('run-update/<metadata_id>', run_update_service, name='run-update'),
 
 

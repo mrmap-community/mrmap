@@ -175,3 +175,16 @@ def create_pending_task(group: MrMapGroup, how_much_pending_tasks: int = 1):
                              created_by=group,
                              _quantity=how_much_pending_tasks)
 
+
+def create_keywords(num: int = 1):
+    return baker.make_recipe(
+        "tests.baker_recipes.service_app.keyword",
+        _quantity=num
+    )
+
+
+def create_categories(num: int = 1):
+    return baker.make_recipe(
+        "tests.baker_recipes.service_app.category",
+        _quantity=num
+    )

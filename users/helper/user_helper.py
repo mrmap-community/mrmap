@@ -34,7 +34,7 @@ def get_user(request: HttpRequest=None, username: str=None, user_id: int=None):
         elif request is not None:
             try:
                 user = request.user
-            except ObjectDoesNotExist:
+            except AttributeError:
                 pass
             if user.is_anonymous and not user.is_authenticated:
                 # check for basic authentication

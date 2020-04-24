@@ -15,19 +15,19 @@ from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, 
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from editor.forms import MetadataEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
+from service.filters import MetadataWmsFilter, MetadataWfsFilter
 from service.helper.enums import OGCServiceEnum, MetadataEnum
-from service.models import RequestOperation, SecuredOperation
+from service.models import RequestOperation, SecuredOperation, Metadata
 from structure.models import MrMapUser, Permission, MrMapGroup
 from users.helper import user_helper
 from editor.helper import editor_helper
 from editor.tables import *
-from editor.filters import *
 
 
 def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
     # get all services that are registered by the user
     wms_services = user.get_services_as_qs(OGCServiceEnum.WMS)
-    wms_table_filtered = WmsServiceFilter(request.GET, queryset=wms_services)
+    wms_table_filtered = MetadataWmsFilter(request.GET, queryset=wms_services)
     wms_table = WmsServiceTable(wms_table_filtered.qs,
                                 user=user,)
     wms_table.filter = wms_table_filtered
@@ -39,7 +39,7 @@ def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
 
 def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
     wfs_services = user.get_services_as_qs(OGCServiceEnum.WFS)
-    wfs_table_filtered = WfsServiceFilter(request.GET, queryset=wfs_services)
+    wfs_table_filtered = MetadataWfsFilter(request.GET, queryset=wfs_services)
     wfs_table = WfsServiceTable(wfs_table_filtered.qs,
                                 user=user, )
     wfs_table.filter = wfs_table_filtered

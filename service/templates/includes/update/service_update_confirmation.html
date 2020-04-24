@@ -16,7 +16,7 @@
 
 {% block card-body %}
 <div class="container-fluid">
-    <form action="{{update_confirmation_form.action_url}}" method="post">
+    <form id="id_form_update_service" action="{{update_confirmation_form.action_url}}" method="post">
         {% csrf_token %}
         <div class="alert alert-info" role="alert">
             {% trans 'You are about to update this service.' %}
@@ -98,13 +98,28 @@
         </div>
         <div class="row mb-2">
             <div class="col-auto">
-                <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'service:dismiss-pending-update' current_service.metadata.id %}" role="button">Dismiss</a>
+                <a id="id_dismiss_update_service_btn" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'service:dismiss-pending-update' current_service.metadata.id %}" role="button">Dismiss</a>
             </div>
             <div class="col-auto">
-                <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">{% trans 'Continue'%}</button>
+                <button id="id_submit_update_service_btn" type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">
+                    <div id="id_loading_spinner_div" class="d-none">
+                        {% include 'includes/loading_spinner.html' %}
+                    </div>
+                    <div id="id_next_div">
+                        {% trans 'Continue'%}
+                    </div>
+                </button>
             </div>
 
         </div>
     </form>
 </div>
+<script type="application/javascript">
+    $( "#id_form_update_service" ).submit(function() {
+        $( "#id_loading_spinner_div" ).removeClass( "d-none" );
+        $( "#id_next_div" ).addClass( "d-none" );
+        $( "#id_dismiss_update_service_btn" ).addClass( "disabled" );
+        $( "#id_submit_update_service_btn" ).prop( "disabled", true);
+    });
+</script>
 {% endblock %}

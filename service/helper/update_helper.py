@@ -208,7 +208,7 @@ def update_service(old: Service, new: Service):
     activated = old.is_active
 
     # overwrite old information with new one
-    old = copy(new)
+    old = deepcopy(new)
     old.id = _id
     old.uuid = uuid
     old.created = created_on

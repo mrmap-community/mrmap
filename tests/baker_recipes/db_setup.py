@@ -53,6 +53,11 @@ def create_wms_service(group: MrMapGroup, how_much_services: int = 1, how_much_s
     )
 
     for root_service_metadata in root_service_metadatas:
+        baker.make_recipe(
+            'tests.baker_recipes.service_app.document',
+            related_metadata=root_service_metadata,
+        )
+
         root_service = baker.make_recipe(
             'tests.baker_recipes.service_app.active_root_wms_service',
             created_by=group,
@@ -94,6 +99,11 @@ def create_wfs_service(group: MrMapGroup, how_much_services: int = 1, how_much_f
     )
 
     for root_service_metadata in root_service_metadatas:
+        baker.make_recipe(
+            'tests.baker_recipes.service_app.document',
+            related_metadata=root_service_metadata,
+        )
+
         root_service = baker.make_recipe(
             'tests.baker_recipes.service_app.active_root_wfs_service',
             created_by=group,

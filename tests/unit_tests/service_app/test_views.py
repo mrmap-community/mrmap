@@ -438,7 +438,7 @@ class ServiceUpdateServiceViewTestCase(TestCase):
             data=params
         )
 
-        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.status_code, 303)
 
     def test_post_invalid_no_service_update_service_page1(self):
         params = {

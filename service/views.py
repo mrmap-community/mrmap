@@ -926,11 +926,18 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
 
     template = "views/detail.html"
     service_md = get_object_or_404(Metadata, id=metadata_id)
-    if service_md.service.is_root:
-        if service_md.service.is_update_candidate_for is not None:
+
+    # get service object
+    if service_md.metadata_type.type == 'featuretype':
+        service = service_md.featuretype.parent_service
+    else:
+        service = service_md.service
+    # proof if the requested metadata is a update_candidate --> 404
+    if service.is_root:
+        if service.is_update_candidate_for is not None:
             return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
     else:
-        if service_md.service.parent_service.is_update_candidate_for is not None:
+        if service.parent_service.is_update_candidate_for is not None:
             return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
     params = {}

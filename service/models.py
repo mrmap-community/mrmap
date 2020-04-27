@@ -2562,35 +2562,45 @@ class Layer(Service):
         for layer in self.child_layer.all():
             layer.activate_layer_recursive(new_status)
 
-    def _get_bottom_layers_recursive(self, leaf_list: list):
-        """ Runs a recursive search for all leaf layers.
+    def _get_bottom_layers_identifier_iterative(self):
+        """ Runs a iterative search for all leaf layers.
 
         If a leaf layer is found, it will be added to layer_list
 
-        Args:
-            parent: The parent layer object
-            leaf_list (list): The leafs
         Returns:
-             nothing, directly changes leaf_list
+             leaves (list): List of id sorted leaf layer identifiers
         """
         layer_obj_children = self.child_layer.all()
+        leaves = []
+        non_leaves = []
         for child in layer_obj_children:
-            child._get_bottom_layers_recursive(leaf_list)
-        if layer_obj_children.count() == 0:
-            leaf_list.append(self.identifier)
+            children = child.child_layer.all()
+            if children.count() == 0:
+                leaves.append(child)
+            else:
+                non_leaves.append(child)
 
-    def get_leaf_layers(self):
-        """ Returns a list of all leaf layers.
+        while len(non_leaves) > 0:
+            layer = non_leaves.pop()
+            children = layer.child_layer.all()
+            if children.count() == 0:
+                leaves.append(layer)
+            else:
+                non_leaves += children
+
+        leaves.sort(key=lambda elem: elem.id)
+        leaves = [leaf.identifier for leaf in leaves]
+        return leaves
+
+    def get_leaf_layers_identifier(self):
+        """ Returns a list of all leaf layer's identifiers.
 
         Leaf layers are the layers, which have no further children.
 
         Returns:
              leaf_layers (list): The leaf layers of a layer
         """
-        leaf_layers = []
-        layer_obj_children = self.child_layer.all()
-        for child in layer_obj_children:
-            child._get_bottom_layers_recursive(leaf_layers)
+        leaf_layers = self._get_bottom_layers_identifier_iterative()
         return leaf_layers
 
 

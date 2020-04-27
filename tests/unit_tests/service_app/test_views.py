@@ -5,7 +5,8 @@ from django.test import TestCase, Client
 from django.urls import reverse
 from MapSkinner.consts import SERVICE_ADD
 from MapSkinner.messages import SERVICE_ACTIVATED, SERVICE_DEACTIVATED, SERVICE_UPDATE_WRONG_TYPE
-from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2, RemoveServiceForm
+from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2, RemoveServiceForm, \
+    UpdateOldToNewElementsForm
 from service.helper.enums import OGCServiceEnum
 from service.models import Layer, FeatureType, Service, Metadata
 from service.tables import WmsServiceTable, WfsServiceTable, PendingTasksTable
@@ -414,7 +415,7 @@ class ServicePendingTaskViewTestCase(TestCase):
         self.assertEqual(len(response.context["pt_table"].rows), 10)
 
 
-class ServiceUpdateServiceViewTestCase(TestCase):
+class NewUpdateServiceViewTestCase(TestCase):
     def setUp(self):
         self.user = create_superadminuser()
         self.client = Client()
@@ -478,13 +479,33 @@ class ServiceUpdateServiceViewTestCase(TestCase):
             'page': '1',
             'get_capabilities_uri': get_capabilitites_url().get('valid'),
         }
-        self.client.post(
-            reverse('service:new-pending-update', args=(self.wms_metadatas[0].id,)),
-            data=params
-        )
+        create_wms_update_candidate(service=self.wms_metadatas[0].service, group=self.user.get_groups()[0], user=self.user)
+
         response = self.client.post(
             reverse('service:new-pending-update', args=(self.wms_metadatas[0].id,)),
             data=params
         )
         self.assertEqual(response.status_code, 422)
         self.assertFormError(response, 'update_service_form', None, "There are still pending update requests from user '{}' for this service.".format(self.user))
+
+
+class PendingUpdateServiceViewTestCase(TestCase):
+    def setUp(self):
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
+
+        self.wms_metadata = create_wms_service(self.user.get_groups().first(), 1)[0]
+        self.update_candidate = create_wms_update_candidate(service=self.wms_metadata.service, group=self.user.get_groups()[0], user=self.user)
+
+    def test_get_pending_update_service_view(self):
+        response = self.client.get(
+            reverse('service:pending-update', args=(self.wms_metadata.id,)),
+        )
+
+        self.assertTemplateUsed(response=response, template_name="views/service_update.html")
+        self.assertIsInstance(response.context["current_service"], Service)
+        self.assertIsInstance(response.context["update_service"], Service)
+        self.assertIsInstance(response.context["diff_elements"], dict)
+        self.assertIsInstance(response.context["update_confirmation_form"], UpdateOldToNewElementsForm)
+

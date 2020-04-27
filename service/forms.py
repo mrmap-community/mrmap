@@ -109,14 +109,19 @@ class UpdateServiceCheckForm(forms.Form):
             if self.current_service.servicetype.name != new_service_type.value:
                 self.add_error(None, SERVICE_UPDATE_WRONG_TYPE)
 
+        has_update_candidate_for_service = None
+        has_update_candidate_for_document = None
         try:
             # Get service object from db
             has_update_candidate_for_service = Service.objects.get(is_update_candidate_for=self.current_service)
             has_update_candidate_for_document = Document.objects.get(is_update_candidate_for=self.current_document)
+        except ObjectDoesNotExist:
+            pass
 
+        if has_update_candidate_for_service or has_update_candidate_for_document:
             user = has_update_candidate_for_service.created_by_user \
                 if has_update_candidate_for_service.created_by_user is not None \
-                else has_update_candidate_for_document.created_by_user
+                else 'unknown'
 
             self.add_error(None,
                            _("There are still pending update requests from user '{}' for this service.").format(user))
@@ -127,9 +132,6 @@ class UpdateServiceCheckForm(forms.Form):
                                            reverse_lazy('service:pending-update',
                                                         args=(self.current_service.metadata.id,))))
                 # ToDo: check if user is in group of created_by field of update_cadidate
-
-        except ObjectDoesNotExist:
-            pass
 
         return cleaned_data
 

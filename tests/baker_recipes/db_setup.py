@@ -5,7 +5,7 @@ from django.db.models import QuerySet
 from model_bakery import baker
 from structure.models import MrMapUser, Organization
 from service.helper.enums import MetadataEnum
-from service.models import MetadataType
+from service.models import MetadataType, Service
 from structure.models import MrMapGroup
 from tests.utils import generate_random_string
 
@@ -197,4 +197,69 @@ def create_categories(num: int = 1):
     return baker.make_recipe(
         "tests.baker_recipes.service_app.category",
         _quantity=num
+    )
+
+
+def create_wms_update_candidate(service: Service, group: MrMapGroup, user: MrMapUser, how_much_sublayers: int = 1):
+    update_candidate = baker.make_recipe(
+        "tests.baker_recipes.service_app.wms_update_candidate",
+        is_update_candidate_for=service,
+        metadata=baker.make_recipe(
+            'tests.baker_recipes.service_app.active_wms_service_metadata',
+            created_by=group,
+            metadata_type=service.metadata.metadata_type,
+        ),
+        servicetype=baker.make_recipe(
+            'tests.baker_recipes.service_app.wms_v100_servicetype'
+        ),
+        created_by=group,
+        created_by_user=user,
+    )
+
+    layer_md_type = MetadataType.objects.get_or_create(
+        type=MetadataEnum.LAYER.value
+    )[0]
+
+    sublayer_metadatas = baker.make_recipe(
+        'tests.baker_recipes.service_app.active_wms_layer_metadata',
+        created_by=group,
+        _quantity=how_much_sublayers,
+        metadata_type=layer_md_type,
+    )
+
+    i = 0
+    for sublayer_metadata in sublayer_metadatas:
+        if i == 0:
+            baker.make_recipe(
+                'tests.baker_recipes.service_app.active_wms_root_layer',
+                created_by=group,
+                parent_service=update_candidate,
+                metadata=sublayer_metadata,
+            )
+            i = 1
+        else:
+            baker.make_recipe(
+                'tests.baker_recipes.service_app.active_wms_sublayer',
+                created_by=group,
+                parent_service=update_candidate,
+                metadata=sublayer_metadata,
+            )
+
+    return update_candidate
+
+
+def create_wfs_update_candidate(service: Service, group: MrMapGroup, user: MrMapUser):
+    return baker.make_recipe(
+        "tests.baker_recipes.service_app.wfs_update_candidate",
+        is_update_candidate_for=service,
+        metadata=baker.make_recipe(
+            'tests.baker_recipes.service_app.active_wfs_service_metadata',
+            created_by=group,
+            metadata_type=service.metadata.metadata_type,
+        ),
+        servicetype=baker.make_recipe(
+            'tests.baker_recipes.service_app.wfs_v100_servicetype'
+        ),
+        created_by=group,
+        created_by_user=user,
     )

@@ -1389,8 +1389,19 @@ class OGCOperationRequestHandler:
             parent_service__metadata=metadata,
             identifier__in=layer_identifiers
         )
-        for layer in layer_objs:
-            leaf_layers += layer.get_leaf_layers()
+
+        # Case 1: Only root layer is requested -> fast solution
+        if layer_objs.count() == 1 and layer_objs[0].parent_layer is None:
+            # Yes, only the root layer has been requested
+            layers = Layer.objects.filter(
+                parent_service__metadata=metadata,
+                child_layer=None
+            ).order_by("id")
+            leaf_layers += layers.values_list("identifier", flat=True)
+        else:
+            # Multiple layers have been requested -> slower solution
+            for layer in layer_objs:
+                leaf_layers += layer.get_leaf_layers_identifier()
 
         if len(leaf_layers) > 0:
             self.layers_param = ",".join(leaf_layers)

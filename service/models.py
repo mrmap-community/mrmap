@@ -2562,7 +2562,7 @@ class Layer(Service):
         for layer in self.child_layer.all():
             layer.activate_layer_recursive(new_status)
 
-    def _get_bottom_layers_recursive(self, leaf_list: list):
+    def _get_bottom_layers_identifier_recursive(self, leaf_list: list):
         """ Runs a recursive search for all leaf layers.
 
         If a leaf layer is found, it will be added to layer_list
@@ -2575,11 +2575,11 @@ class Layer(Service):
         """
         layer_obj_children = self.child_layer.all()
         for child in layer_obj_children:
-            child._get_bottom_layers_recursive(leaf_list)
+            child._get_bottom_layers_identifier_recursive(leaf_list)
         if layer_obj_children.count() == 0:
             leaf_list.append(self.identifier)
 
-    def get_leaf_layers(self):
+    def get_leaf_layers_identifier(self):
         """ Returns a list of all leaf layers.
 
         Leaf layers are the layers, which have no further children.
@@ -2588,9 +2588,10 @@ class Layer(Service):
              leaf_layers (list): The leaf layers of a layer
         """
         leaf_layers = []
+
         layer_obj_children = self.child_layer.all()
         for child in layer_obj_children:
-            child._get_bottom_layers_recursive(leaf_layers)
+            child._get_bottom_layers_identifier_recursive(leaf_layers)
         return leaf_layers
 
 

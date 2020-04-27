@@ -22,6 +22,13 @@ class EditorIndexViewTestCase(TestCase):
         create_wms_service(self.user.get_groups().first(), 10)
         create_wfs_service(self.user.get_groups().first(), 10)
 
+    def test_get_index_view(self):
+        """ Test for checking whether the view is correctly rendered or not
+
+        Returns:
+
+        """
+        pass
 
 class EditorWMSIndexViewTestCase(TestCase):
     """ Test case for basic index view of WMS editor
@@ -32,6 +39,14 @@ class EditorWMSIndexViewTestCase(TestCase):
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
         create_wms_service(self.user.get_groups().first(), 10)
+
+    def test_get_index_view(self):
+        """ Test for checking whether the view is correctly rendered or not
+
+        Returns:
+
+        """
+        pass
 
 
 class EditorWFSIndexViewTestCase(TestCase):
@@ -44,6 +59,14 @@ class EditorWFSIndexViewTestCase(TestCase):
         self.client.login(username=self.user.username, password=PASSWORD)
         create_wfs_service(self.user.get_groups().first(), 10)
 
+    def test_get_index_view(self):
+        """ Test for checking whether the view is correctly rendered or not
+
+        Returns:
+
+        """
+        pass
+
 
 class EditorMetadataEditViewTestCase(TestCase):
     """ Test case for basic metadata editor view
@@ -55,6 +78,14 @@ class EditorMetadataEditViewTestCase(TestCase):
         self.client.login(username=self.user.username, password=PASSWORD)
         create_wms_service(self.user.get_groups().first(), 1)
 
+    def test_get_form_view(self):
+        """ Test for checking whether the view is correctly rendered or not
+
+        Returns:
+
+        """
+        pass
+
 
 class EditorAccessEditViewTestCase(TestCase):
     """ Test case for basic access editor view
@@ -65,3 +96,12 @@ class EditorAccessEditViewTestCase(TestCase):
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
         create_wms_service(self.user.get_groups().first(), 10)
+
+
+    def test_get_form_view(self):
+        """ Test for checking whether the view is correctly rendered or not
+
+        Returns:
+
+        """
+        pass

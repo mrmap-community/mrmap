@@ -686,11 +686,11 @@ def new_pending_update_service(request: HttpRequest, metadata_id: int):
     Returns:
         A rendered view
     """
-    user = user_helper.get_user(request)
-    current_service = get_object_or_404(Service, metadata__id=metadata_id)
-    current_document = get_object_or_404(Document, related_metadata=current_service.metadata)
-
     if request.method == 'POST':
+        current_service = get_object_or_404(Service, metadata__id=metadata_id)
+        current_document = get_object_or_404(Document, related_metadata=current_service.metadata)
+        user = user_helper.get_user(request)
+
         # Update check form!
         update_form = UpdateServiceCheckForm(request.POST,
                                              current_service=current_service,

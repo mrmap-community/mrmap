@@ -424,7 +424,7 @@ class ServiceUpdateServiceViewTestCase(TestCase):
 
     def test_get_update_service_view(self):
         response = self.client.get(
-            reverse('service:new-pending-update', args=(self.wms_metadatas[0].id,))
+            reverse('service:new-pending-update', args=(self.wms_metadatas[0].id,)),
         )
         self.assertEqual(response.status_code, 303)
 
@@ -437,8 +437,11 @@ class ServiceUpdateServiceViewTestCase(TestCase):
             reverse('service:new-pending-update', args=(self.wms_metadatas[0].id,)),
             data=params
         )
-
         self.assertEqual(response.status_code, 303)
+        try:
+            Service.objects.get(is_update_candidate_for=self.wms_metadatas[0].service.id)
+        except ObjectDoesNotExist:
+            self.fail("No update candidate were found for the service.")
 
     def test_post_invalid_no_service_update_service_page1(self):
         params = {
@@ -469,3 +472,19 @@ class ServiceUpdateServiceViewTestCase(TestCase):
         self.assertEqual(response.status_code, 422)
         self.assertTrue(response.context['show_update_form'])
         self.assertFormError(response, 'update_service_form', None, SERVICE_UPDATE_WRONG_TYPE)
+
+    def test_post_invalid_update_candidate_exists_update_service_page1(self):
+        params = {
+            'page': '1',
+            'get_capabilities_uri': get_capabilitites_url().get('valid'),
+        }
+        self.client.post(
+            reverse('service:new-pending-update', args=(self.wms_metadatas[0].id,)),
+            data=params
+        )
+        response = self.client.post(
+            reverse('service:new-pending-update', args=(self.wms_metadatas[0].id,)),
+            data=params
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertFormError(response, 'update_service_form', None, "There are still pending update requests from user '{}' for this service.".format(self.user))

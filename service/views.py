@@ -731,7 +731,7 @@ def new_pending_update_service(request: HttpRequest, metadata_id: int):
 @login_required
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic
-def pending_update_service(request: HttpRequest, metadata_id: int):
+def pending_update_service(request: HttpRequest, metadata_id: int, status_code=None):
     template = "views/service_update.html"
     user = user_helper.get_user(request)
 
@@ -761,7 +761,10 @@ def pending_update_service(request: HttpRequest, metadata_id: int):
     }
 
     context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context(), status=202)
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=200 if status_code is None else status_code)
 
 
 @login_required
@@ -769,18 +772,20 @@ def pending_update_service(request: HttpRequest, metadata_id: int):
 @transaction.atomic
 def dismiss_pending_update_service(request: HttpRequest, metadata_id: int):
     user = user_helper.get_user(request)
-
     current_service = get_object_or_404(Service, metadata__id=metadata_id)
-    new_service = current_service.has_update_candidate
+    new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
 
-    if new_service.created_by_user == user:
-        # ToDo: check if user is in group of created_by field of update_cadidate
-        new_service.delete()
-        messages.success(request, _("Pending update successfully dismissed."))
+    if request.method == 'POST':
+        if new_service.created_by_user == user:
+            # ToDo: check if user is in group of created_by field of update_cadidate
+            new_service.delete()
+            messages.success(request, _("Pending update successfully dismissed."))
+        else:
+            messages.error(request, _("You are not the owner of this pending update. Rejected!"))
+
         return HttpResponseRedirect(reverse("service:detail", args=(current_service.metadata.id,)), status=303)
-    else:
-        messages.error(request, _("You are not the owner of this pending update. Rejected!"))
-        return pending_update_service(request, metadata_id)
+
+    return HttpResponseRedirect(reverse("service:pending-update", args=(current_service.metadata.id,)), status=303)
 
 
 @login_required

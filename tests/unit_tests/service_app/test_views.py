@@ -509,7 +509,7 @@ class PendingUpdateServiceViewTestCase(TestCase):
         response = self.client.get(
             reverse('service:pending-update', args=(self.wms_metadata.id,)),
         )
-
+        self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response=response, template_name="views/service_update.html")
         self.assertIsInstance(response.context["current_service"], Service)
         self.assertIsInstance(response.context["update_service"], Service)
@@ -520,9 +520,50 @@ class PendingUpdateServiceViewTestCase(TestCase):
         response = self.client.get(
             reverse('service:pending-update', args=(self.wfs_metadata.id,)),
         )
-
+        self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response=response, template_name="views/service_update.html")
         self.assertIsInstance(response.context["current_service"], Service)
         self.assertIsInstance(response.context["update_service"], Service)
         self.assertIsInstance(response.context["diff_elements"], dict)
         self.assertIsInstance(response.context["update_confirmation_form"], UpdateOldToNewElementsForm)
+
+
+class DismissPendingUpdateServiceViewTestCase(TestCase):
+    def setUp(self):
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
+
+        self.wms_metadata = create_wms_service(self.user.get_groups().first(), 1)[0]
+        self.wms_update_candidate = create_wms_service(is_update_candidate_for=self.wms_metadata.service, group=self.user.get_groups()[0], user=self.user)
+
+        self.wfs_metadata = create_wfs_service(self.user.get_groups().first(), 1)[0]
+        self.wfs_update_candidate = create_wfs_service(is_update_candidate_for=self.wfs_metadata.service, group=self.user.get_groups()[0], user=self.user)
+
+    def test_get_dismiss_pending_update_wms_service_view(self):
+        response = self.client.get(
+            reverse('service:dismiss-pending-update', args=(self.wms_metadata.id,)),
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.url, reverse('service:pending-update', args=(self.wms_metadata.id,)))
+
+    def test_get_dismiss_pending_update_wfs_service_view(self):
+        response = self.client.get(
+            reverse('service:dismiss-pending-update', args=(self.wfs_metadata.id,)),
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.url, reverse('service:pending-update', args=(self.wfs_metadata.id,)))
+
+    def test_post_dismiss_pending_update_wms_service_view(self):
+        response = self.client.post(
+            reverse('service:dismiss-pending-update', args=(self.wms_metadata.id,)),
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.url, reverse('service:detail', args=(self.wms_metadata.id,)))
+
+    def test_post_dismiss_pending_update_wfs_service_view(self):
+        response = self.client.post(
+            reverse('service:dismiss-pending-update', args=(self.wfs_metadata.id,)),
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.url, reverse('service:detail', args=(self.wfs_metadata.id,)))

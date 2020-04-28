@@ -22,8 +22,12 @@ class ServiceIndexViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(self.user.get_groups().first(), 10)
-        create_wfs_service(self.user.get_groups().first(), 10)
+        self.wms_services = create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
+        self.wfs_services = create_wfs_service(group=self.user.get_groups().first(), how_much_services=10)
+        create_wms_service(is_update_candidate_for=self.wms_services[0].service, user=self.user,
+                           group=self.user.get_groups().first())
+        create_wfs_service(is_update_candidate_for=self.wfs_services[0].service, user=self.user,
+                           group=self.user.get_groups().first())
 
     def test_get_index_view(self):
         response = self.client.get(
@@ -52,7 +56,7 @@ class ServiceWmsIndexViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(self.user.get_groups().first(), 10)
+        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
 
     def test_get_index_view(self):
         response = self.client.get(
@@ -76,8 +80,8 @@ class ServiceWfsIndexViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(self.user.get_groups().first(), 10)
-        create_wfs_service(self.user.get_groups().first(), 10)
+        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
+        create_wfs_service(group=self.user.get_groups().first(), how_much_services=10)
 
     def test_get_index_view(self):
         response = self.client.get(
@@ -479,7 +483,7 @@ class NewUpdateServiceViewTestCase(TestCase):
             'page': '1',
             'get_capabilities_uri': get_capabilitites_url().get('valid'),
         }
-        create_wms_update_candidate(service=self.wms_metadatas[0].service, group=self.user.get_groups()[0], user=self.user)
+        create_wms_service(is_update_candidate_for=self.wms_metadatas[0].service, group=self.user.get_groups()[0], user=self.user)
 
         response = self.client.post(
             reverse('service:new-pending-update', args=(self.wms_metadatas[0].id,)),
@@ -496,9 +500,12 @@ class PendingUpdateServiceViewTestCase(TestCase):
         self.client.login(username=self.user.username, password=PASSWORD)
 
         self.wms_metadata = create_wms_service(self.user.get_groups().first(), 1)[0]
-        self.update_candidate = create_wms_update_candidate(service=self.wms_metadata.service, group=self.user.get_groups()[0], user=self.user)
+        self.wms_update_candidate = create_wms_service(is_update_candidate_for=self.wms_metadata.service, group=self.user.get_groups()[0], user=self.user)
 
-    def test_get_pending_update_service_view(self):
+        self.wfs_metadata = create_wfs_service(self.user.get_groups().first(), 1)[0]
+        self.wfs_update_candidate = create_wfs_service(is_update_candidate_for=self.wfs_metadata.service, group=self.user.get_groups()[0], user=self.user)
+
+    def test_get_pending_update_wms_service_view(self):
         response = self.client.get(
             reverse('service:pending-update', args=(self.wms_metadata.id,)),
         )
@@ -509,3 +516,13 @@ class PendingUpdateServiceViewTestCase(TestCase):
         self.assertIsInstance(response.context["diff_elements"], dict)
         self.assertIsInstance(response.context["update_confirmation_form"], UpdateOldToNewElementsForm)
 
+    def test_get_pending_update_wfs_service_view(self):
+        response = self.client.get(
+            reverse('service:pending-update', args=(self.wfs_metadata.id,)),
+        )
+
+        self.assertTemplateUsed(response=response, template_name="views/service_update.html")
+        self.assertIsInstance(response.context["current_service"], Service)
+        self.assertIsInstance(response.context["update_service"], Service)
+        self.assertIsInstance(response.context["diff_elements"], dict)
+        self.assertIsInstance(response.context["update_confirmation_form"], UpdateOldToNewElementsForm)

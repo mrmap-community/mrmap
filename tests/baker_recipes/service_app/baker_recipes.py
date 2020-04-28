@@ -66,18 +66,15 @@ active_root_wms_service = Recipe(
 
 )
 
-active_wms_root_layer = Recipe(
+active_wms_sublayer = Recipe(
     Layer,
+    identifier=seq("Layer"),
     is_active=True,
-    is_root=True,
+    is_root=False,
     metadata=foreign_key(active_wms_layer_metadata),
     servicetype=foreign_key(wms_v100_servicetype),
     created_by=foreign_key(superadmin_group),
     parent_service=foreign_key(active_root_wms_service),
-)
-
-active_wms_sublayer = active_wms_root_layer.extend(
-    is_root=False,
 )
 
 active_root_wfs_service = Recipe(
@@ -114,26 +111,4 @@ category = Recipe(
 document = Recipe(
     Document,
     related_metadata=foreign_key(active_wms_service_metadata)
-)
-
-wms_update_candidate = Recipe(
-    Service,
-    is_active=False,
-    is_root=True,
-    metadata=foreign_key(active_wms_service_metadata),
-    servicetype=foreign_key(wms_v100_servicetype),
-    created_by=foreign_key(superadmin_group),
-    is_update_candidate_for=foreign_key(active_root_wms_service),
-    created_by_user=foreign_key(superadmin_user),
-)
-
-wfs_update_candidate = Recipe(
-    Service,
-    is_active=False,
-    is_root=True,
-    metadata=foreign_key(active_wfs_service_metadata),
-    servicetype=foreign_key(wfs_v100_servicetype),
-    created_by=foreign_key(superadmin_group),
-    is_update_candidate_for=foreign_key(active_root_wfs_service),
-    created_by_user=foreign_key(superadmin_user),
 )

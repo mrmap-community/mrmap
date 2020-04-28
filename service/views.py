@@ -738,9 +738,9 @@ def pending_update_service(request: HttpRequest, metadata_id: int):
     current_service = get_object_or_404(Service, metadata__id=metadata_id)
     new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
 
-    if current_service.metadata.metadata_type.type is not 'featuretype':
-        new_service.root_layer = Layer.objects.get(parent_service=new_service, parent_layer=None)
+    if current_service.servicetype.name == OGCServiceEnum.WMS.value:
         current_service.root_layer = Layer.objects.get(parent_service=current_service, parent_layer=None)
+        new_service.root_layer = Layer.objects.get(parent_service=new_service, parent_layer=None)
 
     # Collect differences
     comparator = ServiceComparator(service_a=new_service, service_b=current_service)

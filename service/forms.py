@@ -16,6 +16,7 @@ from MapSkinner.validators import validate_get_request_uri
 from django.utils.translation import gettext_lazy as _
 
 from service.helper import service_helper
+from service.helper.enums import OGCServiceEnum
 from service.models import Service, Document
 
 
@@ -26,32 +27,39 @@ class ServiceURIForm(forms.Form):
 
 
 class RegisterNewServiceWizardPage1(forms.Form):
-    action_url = reverse_lazy(SERVICE_ADD,)
+    action_url = reverse_lazy(SERVICE_ADD, )
     page = forms.IntegerField(widget=forms.HiddenInput(), initial=1)
     get_request_uri = forms.URLField(validators=[validate_get_request_uri])
 
 
 class RegisterNewServiceWizardPage2(forms.Form):
-    action_url = reverse_lazy(SERVICE_ADD,)
+    action_url = reverse_lazy(SERVICE_ADD, )
     page = forms.IntegerField(required=False, widget=forms.HiddenInput(), initial=2)
     is_form_update = forms.BooleanField(required=False, widget=forms.HiddenInput(), initial=False)
     ogc_request = forms.CharField(label=_('OGC Request'), widget=forms.TextInput(attrs={'readonly': '', }))
     ogc_service = forms.CharField(label=_('OGC Service'), widget=forms.TextInput(attrs={'readonly': '', }))
     ogc_version = forms.CharField(label=_('OGC Version'), widget=forms.TextInput(attrs={'readonly': '', }))
     uri = forms.CharField(label=_('URI'), widget=forms.TextInput(attrs={'readonly': '', }))
-    registering_with_group = forms.ModelChoiceField(label=_("Registration with group"), widget=forms.Select(attrs={'class': 'auto_submit_item'}), queryset=None, to_field_name='id', initial=1)
-    registering_for_other_organization = forms.ModelChoiceField(label=_("Registration for other organization"), required=False, queryset=None, to_field_name='id', empty_label=_("No other"))
+    registering_with_group = forms.ModelChoiceField(label=_("Registration with group"),
+                                                    widget=forms.Select(attrs={'class': 'auto_submit_item'}),
+                                                    queryset=None, to_field_name='id', initial=1)
+    registering_for_other_organization = forms.ModelChoiceField(label=_("Registration for other organization"),
+                                                                required=False, queryset=None, to_field_name='id',
+                                                                empty_label=_("No other"))
 
-    service_needs_authentication = forms.BooleanField(label=_("Service needs authentication"), required=False, widget=forms.CheckboxInput(attrs={'class': 'auto_submit_item', }))
+    service_needs_authentication = forms.BooleanField(label=_("Service needs authentication"), required=False,
+                                                      widget=forms.CheckboxInput(attrs={'class': 'auto_submit_item', }))
     username = forms.CharField(label=_("Username"), required=False, disabled=True)
     password = forms.CharField(label=_("Password"), required=False, widget=forms.PasswordInput, disabled=True)
-    authentication_type = forms.ChoiceField(label=_("Authentication type"), required=False, disabled=True, choices=(('http_digest', 'HTTP Digest'), ('http_basic', 'HTTP Basic')))
+    authentication_type = forms.ChoiceField(label=_("Authentication type"), required=False, disabled=True,
+                                            choices=(('http_digest', 'HTTP Digest'), ('http_basic', 'HTTP Basic')))
 
     def __init__(self, *args, **kwargs):
         # pop custom kwargs before invoke super constructor and hold them
         user = None if 'user' not in kwargs else kwargs.pop('user')
         selected_group = None if 'selected_group' not in kwargs else kwargs.pop('selected_group')
-        service_needs_authentication = False if 'service_needs_authentication' not in kwargs else kwargs.pop('service_needs_authentication')
+        service_needs_authentication = False if 'service_needs_authentication' not in kwargs else kwargs.pop(
+            'service_needs_authentication')
 
         # run super constructor to construct the form
         super(RegisterNewServiceWizardPage2, self).__init__(*args, **kwargs)
@@ -63,7 +71,8 @@ class RegisterNewServiceWizardPage2(forms.Form):
         if selected_group is not None:
             self.fields["registering_for_other_organization"].queryset = selected_group.publish_for_organizations.all()
         elif user is not None and user_groups.first() is not None:
-            self.fields["registering_for_other_organization"].queryset = user_groups.first().publish_for_organizations.all()
+            self.fields[
+                "registering_for_other_organization"].queryset = user_groups.first().publish_for_organizations.all()
         if service_needs_authentication:
             self.fields["service_needs_authentication"].initial = "on"
             self.fields["service_needs_authentication"].required = True
@@ -143,6 +152,7 @@ class UpdateOldToNewElementsForm(forms.Form):
         new_elements = None if 'new_elements' not in kwargs else kwargs.pop('new_elements')
         removed_elements = None if 'removed_elements' not in kwargs else kwargs.pop('removed_elements')
         choices = None if 'choices' not in kwargs else kwargs.pop('choices')
+        current_service = None if 'current_service' not in kwargs else kwargs.pop('current_service')
         super(UpdateOldToNewElementsForm, self).__init__(*args, **kwargs)
 
         # Prepare remove elements as choices
@@ -156,6 +166,8 @@ class UpdateOldToNewElementsForm(forms.Form):
                 label="{} ({})".format(elem.metadata.identifier, elem.metadata.title),
                 choices=remove_elements_choices,
                 help_text=_("Select the old layer name, if this new layer was just renamed.")
+                if current_service.servicetype.name == OGCServiceEnum.WMS.value
+                else _("Select the old featuretype name, if this new featuretype was just renamed.")
             )
 
         if choices is not None:

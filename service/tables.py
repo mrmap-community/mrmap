@@ -318,3 +318,8 @@ class CoupledMetadataTable(MapSkinnerTable):
         return format_html("<a href='{}'>{}</a>",
                            url,
                            record['title'], )
+
+
+class UpdateServiceElements(MapSkinnerTable):
+    title = tables.Column(empty_values=[],)
+    identifier = tables.Column(empty_values=[],)

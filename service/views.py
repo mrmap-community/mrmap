@@ -1,13 +1,10 @@
 import io
-import json
-import time
 from io import BytesIO
 from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core import serializers
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction, IntegrityError
+from django.db import transaction
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse, QueryDict, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
@@ -33,7 +30,7 @@ from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVer
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
-from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable
+from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable, UpdateServiceElements
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
@@ -750,14 +747,35 @@ def pending_update_service(request: HttpRequest, metadata_id: int, update_params
     update_confirmation_form = UpdateOldToNewElementsForm(
         new_elements=diff_elements.get("new"),
         removed_elements=diff_elements.get("removed"),
+        current_service=current_service,
     )
     update_confirmation_form.action_url = reverse("service:run-update", args=[metadata_id])
+
+    updated_elements_md = []
+    for element in diff_elements.get("updated"):
+        updated_elements_md.append(element.metadata)
+
+    removed_elements_md = []
+    for element in diff_elements.get("removed"):
+        removed_elements_md.append(element.metadata)
+
+    updated_elements_table = UpdateServiceElements(updated_elements_md,
+                                                   order_by_field='updated',
+                                                   )
+    updated_elements_table.configure_pagination(request, 'updated-t')
+
+    removed_elements_table = UpdateServiceElements(removed_elements_md,
+                                                   order_by_field='removed',)
+    removed_elements_table.configure_pagination(request, 'removed-t')
 
     params = {
         "current_service": current_service,
         "update_service": new_service,
         "diff_elements": diff_elements,
+        "updated_elements_table": updated_elements_table,
+        "removed_elements_table": removed_elements_table,
         "update_confirmation_form": update_confirmation_form,
+        "new_elements_per_page": request.GET.get('new_elements_per_page', 5),
     }
 
     if update_params:
@@ -823,6 +841,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
                                                               new_elements=diff_elements.get("new"),
                                                               removed_elements=diff_elements.get("removed"),
                                                               choices=links,
+                                                              current_service=current_service,
                                                               )
         update_confirmation_form.action_url = reverse("service:run-update", args=[metadata_id])
         if update_confirmation_form.is_valid():

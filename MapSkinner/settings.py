@@ -130,7 +130,8 @@ INSTALLED_APPS = [
     'fontawesome_5',
     'django_tables2',
     'query_parameters',
-    'django_nose'
+    'django_nose',
+    'mathfilters'
 ]
 
 TEMPLATE_LOADERS = (

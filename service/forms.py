@@ -139,7 +139,10 @@ class UpdateServiceCheckForm(forms.Form):
 class UpdateOldToNewElementsForm(forms.Form):
     action_url = ''
 
-    def __init__(self, new_elements: list, removed_elements: list, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
+        new_elements = None if 'new_elements' not in kwargs else kwargs.pop('new_elements')
+        removed_elements = None if 'removed_elements' not in kwargs else kwargs.pop('removed_elements')
+        choices = None if 'choices' not in kwargs else kwargs.pop('choices')
         super(UpdateOldToNewElementsForm, self).__init__(*args, **kwargs)
 
         # Prepare remove elements as choices
@@ -154,3 +157,7 @@ class UpdateOldToNewElementsForm(forms.Form):
                 choices=remove_elements_choices,
                 help_text=_("Select the old layer name, if this new layer was just renamed.")
             )
+
+        if choices is not None:
+            for identifier, choice in choices.items():
+                self.fields['new_elem_{}'.format(identifier)].initial = choice

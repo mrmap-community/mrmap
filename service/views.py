@@ -731,7 +731,7 @@ def new_pending_update_service(request: HttpRequest, metadata_id: int):
 @login_required
 @check_permission(Permission(can_update_service=True))
 @transaction.atomic
-def pending_update_service(request: HttpRequest, metadata_id: int, status_code=None):
+def pending_update_service(request: HttpRequest, metadata_id: int, update_params=None, status_code=None):
     template = "views/service_update.html"
     user = user_helper.get_user(request)
 
@@ -759,6 +759,9 @@ def pending_update_service(request: HttpRequest, metadata_id: int, status_code=N
         "diff_elements": diff_elements,
         "update_confirmation_form": update_confirmation_form,
     }
+
+    if update_params:
+        params.update(update_params)
 
     context = DefaultContext(request, params, user)
     return render(request=request,
@@ -800,23 +803,29 @@ def run_update_service(request: HttpRequest, metadata_id: int):
         new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
         new_document = get_object_or_404(Document, is_update_candidate_for=current_document)
 
-        if current_service.metadata.metadata_type.type is not 'featuretype':
+        if current_service.metadata.metadata_type.type != 'featuretype':
             new_service.root_layer = Layer.objects.get(parent_service=new_service, parent_layer=None)
             current_service.root_layer = Layer.objects.get(parent_service=current_service, parent_layer=None)
 
-        try:
-            # Update perform form!
-            # We need to extract the linkage of new->old elements from the request by hand
-            links = {}
-            prefix = "new_elem_"
-            for key, val in request.POST.items():
-                if prefix in key:
-                    links[key.replace(prefix, "")] = int(val)
+        comparator = ServiceComparator(service_a=new_service, service_b=current_service)
+        diff = comparator.compare_services()
 
-            # Collect differences
-            comparator = ServiceComparator(service_a=new_service, service_b=current_service)
-            diff = comparator.compare_services()
+        diff_elements = diff.get("layers", None) or diff.get("feature_types", {})
 
+        # We need to extract the linkage of new->old elements from the request by hand
+        links = {}
+        prefix = "new_elem_"
+        for key, choice in request.POST.items():
+            if prefix in key:
+                links[key.replace(prefix, "")] = int(choice)
+
+        update_confirmation_form = UpdateOldToNewElementsForm(request.POST,
+                                                              new_elements=diff_elements.get("new"),
+                                                              removed_elements=diff_elements.get("removed"),
+                                                              choices=links,
+                                                              )
+        update_confirmation_form.action_url = reverse("service:run-update", args=[metadata_id])
+        if update_confirmation_form.is_valid():
             # UPDATE
             # First update the metadata of the whole service
             md = update_helper.update_metadata(current_service.metadata, new_service.metadata, new_service.keep_custom_md)
@@ -860,9 +869,12 @@ def run_update_service(request: HttpRequest, metadata_id: int):
 
             messages.success(request, SERVICE_UPDATED)
             return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
-        except Exception as e:
-            messages.error(request, "Service update fails cause of the following error: {}".format(e))
-            return HttpResponseRedirect(reverse("service:pending-update", args=(current_service.metadata.id,)), status=303)
+        else:
+            params = {"update_confirmation_form": update_confirmation_form,}
+            return pending_update_service(request=request,
+                                          metadata_id=metadata_id,
+                                          update_params=params,
+                                          status_code=422)
     else:
         return HttpResponseRedirect(reverse("service:pending-update", args=(current_service.metadata.id,)), status=303)
 

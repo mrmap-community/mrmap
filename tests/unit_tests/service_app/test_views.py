@@ -567,3 +567,44 @@ class DismissPendingUpdateServiceViewTestCase(TestCase):
         )
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.url, reverse('service:detail', args=(self.wfs_metadata.id,)))
+
+
+class RunUpdateServiceViewTestCase(TestCase):
+    def setUp(self):
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
+
+        self.wms_metadata = create_wms_service(self.user.get_groups().first(), 1)[0]
+        self.wms_update_candidate = create_wms_service(is_update_candidate_for=self.wms_metadata.service, group=self.user.get_groups()[0], user=self.user)
+
+        self.wfs_metadata = create_wfs_service(self.user.get_groups().first(), 1)[0]
+        self.wfs_update_candidate = create_wfs_service(is_update_candidate_for=self.wfs_metadata.service, group=self.user.get_groups()[0], user=self.user)
+
+    def test_get_run_update_wms_service_view(self):
+        response = self.client.get(
+            reverse('service:run-update', args=(self.wms_metadata.id,)),
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.url, reverse('service:pending-update', args=(self.wms_metadata.id,)))
+
+    def test_get_run_update_wfs_service_view(self):
+        response = self.client.get(
+            reverse('service:run-update', args=(self.wfs_metadata.id,)),
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.url, reverse('service:pending-update', args=(self.wfs_metadata.id,)))
+
+    def test_post_run_update_wms_service_view(self):
+        response = self.client.post(
+            reverse('service:run-update', args=(self.wms_metadata.id,)),
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.url, reverse('service:detail', args=(self.wms_metadata.id,)))
+
+    def test_post_run_update_wfs_service_view(self):
+        response = self.client.post(
+            reverse('service:run-update', args=(self.wfs_metadata.id,)),
+        )
+        self.assertEqual(response.status_code, 303)
+        self.assertEqual(response.url, reverse('service:detail', args=(self.wfs_metadata.id,)))

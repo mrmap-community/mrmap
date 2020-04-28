@@ -62,11 +62,3 @@ class MetadataEditorForm(ModelForm):
                 },
             ),
         }
-
-class FeatureTypeEditorForm(ModelForm):
-    class Meta:
-        model = Metadata
-        fields = [
-            "title",
-            "abstract",
-        ]

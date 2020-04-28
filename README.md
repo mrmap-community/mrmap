@@ -18,7 +18,7 @@ The system provides the following functionalities:
 * Dashboard
 * Catalogue and API
 
-Please read [FUNCTIONALITY.md](FUNCTIONALITY.mc) for full list of Functions.
+Please read [FUNCTIONALITY.md](FUNCTIONALITY.md) for full list of Functions.
   
 
 ##Getting Started

@@ -110,7 +110,7 @@ public_group = Recipe(
 
 superadmin_user = Recipe(
     MrMapUser,
-    username="Testuser",
+    username="Superuser",
     email="test@example.com",
     salt=salt,
     password=make_password(PASSWORD, salt=salt),

@@ -11,6 +11,15 @@ from tests.utils import generate_random_string
 
 
 def create_testuser():
+    # Check if testuser already exists
+    try:
+        testuser = MrMapUser.objects.get(
+            username="Testuser",
+            email="test@example.com"
+        )
+        return testuser
+    except ObjectDoesNotExist:
+        pass
     return baker.make_recipe('tests.baker_recipes.structure_app.active_testuser')
 
 
@@ -18,7 +27,7 @@ def create_superadminuser(groups: QuerySet = None,):
     # Check if superadminuser already exists
     try:
         superuser = MrMapUser.objects.get(
-            username="Testuser",
+            username="Superuser",
             email="test@example.com"
         )
         return superuser

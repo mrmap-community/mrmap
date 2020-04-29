@@ -8,6 +8,7 @@ from MapSkinner.messages import SERVICE_ACTIVATED, SERVICE_DEACTIVATED, SERVICE_
 from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2, RemoveServiceForm, \
     UpdateOldToNewElementsForm
 from service.helper.enums import OGCServiceEnum
+from service.helper.service_comparator import ServiceComparator
 from service.models import Layer, FeatureType, Service, Metadata
 from service.tables import WmsServiceTable, WfsServiceTable, PendingTasksTable
 from structure.models import PendingTask, GroupActivity
@@ -238,8 +239,8 @@ class ServiceRemoveViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        self.wms_service_metadatas = create_wms_service(self.user.get_groups().first(), 1)
-        self.wfs_service_metadatas = create_wfs_service(self.user.get_groups().first(), 1)
+        self.wms_service_metadatas = create_wms_service(group=self.user.get_groups().first(), how_much_services=1)
+        self.wfs_service_metadatas = create_wfs_service(group=self.user.get_groups().first(), how_much_services=1)
 
     def test_remove_wms_service(self):
         post_data = {
@@ -305,7 +306,7 @@ class ServiceActivateViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        self.wms_service_metadatas = create_wms_service(self.user.get_groups().first(), 1)
+        self.wms_service_metadatas = create_wms_service(group=self.user.get_groups().first(), how_much_services=1)
 
     def test_activate_service(self):
 
@@ -342,8 +343,8 @@ class ServiceDetailViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        self.wms_service_metadatas = create_wms_service(self.user.get_groups().first(), 1)
-        self.wfs_service_metadatas = create_wfs_service(self.user.get_groups().first(), 1)
+        self.wms_service_metadatas = create_wms_service(group=self.user.get_groups().first(), how_much_services=1)
+        self.wfs_service_metadatas = create_wfs_service(group=self.user.get_groups().first(), how_much_services=1)
 
     def test_get_detail_wms(self):
         response = self.client.get(reverse('service:detail', args=[self.wms_service_metadatas[0].id]), )
@@ -425,7 +426,7 @@ class NewUpdateServiceViewTestCase(TestCase):
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
 
-        self.wms_metadatas = create_wms_service(self.user.get_groups().first(), 1)
+        self.wms_metadatas = create_wms_service(group=self.user.get_groups().first(), how_much_services=1)
 
     def test_get_update_service_view(self):
         response = self.client.get(
@@ -499,10 +500,10 @@ class PendingUpdateServiceViewTestCase(TestCase):
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
 
-        self.wms_metadata = create_wms_service(self.user.get_groups().first(), 1)[0]
+        self.wms_metadata = create_wms_service(group=self.user.get_groups().first(), how_much_services=1)[0]
         self.wms_update_candidate = create_wms_service(is_update_candidate_for=self.wms_metadata.service, group=self.user.get_groups()[0], user=self.user)
 
-        self.wfs_metadata = create_wfs_service(self.user.get_groups().first(), 1)[0]
+        self.wfs_metadata = create_wfs_service(group=self.user.get_groups().first(), how_much_services=1)[0]
         self.wfs_update_candidate = create_wfs_service(is_update_candidate_for=self.wfs_metadata.service, group=self.user.get_groups()[0], user=self.user)
 
     def test_get_pending_update_wms_service_view(self):
@@ -534,10 +535,10 @@ class DismissPendingUpdateServiceViewTestCase(TestCase):
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
 
-        self.wms_metadata = create_wms_service(self.user.get_groups().first(), 1)[0]
+        self.wms_metadata = create_wms_service(group=self.user.get_groups().first(), how_much_services=1)[0]
         self.wms_update_candidate = create_wms_service(is_update_candidate_for=self.wms_metadata.service, group=self.user.get_groups()[0], user=self.user)
 
-        self.wfs_metadata = create_wfs_service(self.user.get_groups().first(), 1)[0]
+        self.wfs_metadata = create_wfs_service(group=self.user.get_groups().first(), how_much_services=1)[0]
         self.wfs_update_candidate = create_wfs_service(is_update_candidate_for=self.wfs_metadata.service, group=self.user.get_groups()[0], user=self.user)
 
     def test_get_dismiss_pending_update_wms_service_view(self):
@@ -575,16 +576,17 @@ class RunUpdateServiceViewTestCase(TestCase):
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
 
-        self.wms_metadata = create_wms_service(self.user.get_groups().first(), 1)[0]
+        self.wms_metadata = create_wms_service(group=self.user.get_groups().first(), how_much_services=1)[0]
         self.wms_update_candidate = create_wms_service(is_update_candidate_for=self.wms_metadata.service, group=self.user.get_groups()[0], user=self.user)
 
-        self.wfs_metadata = create_wfs_service(self.user.get_groups().first(), 1)[0]
+        self.wfs_metadata = create_wfs_service(group=self.user.get_groups().first(), how_much_services=1)[0]
         self.wfs_update_candidate = create_wfs_service(is_update_candidate_for=self.wfs_metadata.service, group=self.user.get_groups()[0], user=self.user)
 
     def test_get_run_update_wms_service_view(self):
         response = self.client.get(
             reverse('service:run-update', args=(self.wms_metadata.id,)),
         )
+
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.url, reverse('service:pending-update', args=(self.wms_metadata.id,)))
 
@@ -596,9 +598,20 @@ class RunUpdateServiceViewTestCase(TestCase):
         self.assertEqual(response.url, reverse('service:pending-update', args=(self.wfs_metadata.id,)))
 
     def test_post_run_update_wms_service_view(self):
+        comparator = ServiceComparator(service_a=self.wms_update_candidate[0].service, service_b=self.wms_metadata.service)
+        diff = comparator.compare_services()
+        diff_elements = diff.get("layers")
+        new_elements = diff_elements.get("new")
+
+        data = {}
+        for element in new_elements:
+            data.update({'new_elem_{}'.format(element.metadata.identifier): -1})
+
         response = self.client.post(
             reverse('service:run-update', args=(self.wms_metadata.id,)),
+            data=data,
         )
+
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.url, reverse('service:detail', args=(self.wms_metadata.id,)))
 

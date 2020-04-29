@@ -5,7 +5,7 @@ from django.db.models import QuerySet
 from model_bakery import baker
 from structure.models import MrMapUser, Organization
 from service.helper.enums import MetadataEnum
-from service.models import MetadataType, Service
+from service.models import MetadataType, Service, Document
 from structure.models import MrMapGroup
 from tests.utils import generate_random_string
 
@@ -63,11 +63,12 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service=None,
         )
 
     for root_service_metadata in root_service_metadatas:
+
         baker.make_recipe(
             'tests.baker_recipes.service_app.document',
             related_metadata=root_service_metadata,
-            # Todo: is_update_candidate_for=Service.metadata if is_update_candidate_for is not None else None
-            # ToDo:         created_by_user=user if user is not None else None,
+            is_update_candidate_for=Document.objects.get(related_metadata=is_update_candidate_for.metadata) if is_update_candidate_for is not None else None,
+            created_by_user=user if user is not None else None,
         )
 
         if is_update_candidate_for is not None and user is not None:
@@ -97,6 +98,7 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service=None,
             created_by=group,
             parent_service=root_service,
             metadata=root_layer_metadata[0],
+            identifier=root_layer_metadata[0].identifier,
         )
 
         root_service.root_layer = root_layer
@@ -115,7 +117,9 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service=None,
                 created_by=group,
                 parent_service=root_service,
                 metadata=sublayer_metadata,
-                parent_layer=root_layer
+                parent_layer=root_layer,
+                identifier=sublayer_metadata.identifier
+
             )
 
     return root_service_metadatas
@@ -151,8 +155,8 @@ def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = Non
         baker.make_recipe(
             'tests.baker_recipes.service_app.document',
             related_metadata=root_service_metadata,
-            # ToDo: is_update_candidate_for=Service.metadata if is_update_candidate_for is not None else None,
-            # ToDo:         created_by_user=user if user is not None else None,
+            is_update_candidate_for=Document.objects.get(related_metadata=is_update_candidate_for.metadata) if is_update_candidate_for is not None else None,
+            created_by_user=user if user is not None else None,
         )
 
         if is_update_candidate_for is not None and user is not None:
@@ -182,7 +186,7 @@ def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = Non
                 'tests.baker_recipes.service_app.active_wfs_featuretype',
                 created_by=group,
                 parent_service=root_service,
-                metadata=featuretype_metadata
+                metadata=featuretype_metadata,
             )
 
     return root_service_metadatas

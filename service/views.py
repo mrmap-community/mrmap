@@ -814,16 +814,15 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id: int):
 @transaction.atomic
 def run_update_service(request: HttpRequest, metadata_id: int):
     user = user_helper.get_user(request)
-    current_service = get_object_or_404(Service, metadata__id=metadata_id)
 
     if request.method == 'POST':
+        current_service = get_object_or_404(Service, metadata__id=metadata_id)
         current_document = get_object_or_404(Document, related_metadata=current_service.metadata)
         new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
         new_document = get_object_or_404(Document, is_update_candidate_for=current_document)
-
-        if current_service.metadata.metadata_type.type != 'featuretype':
-            new_service.root_layer = Layer.objects.get(parent_service=new_service, parent_layer=None)
-            current_service.root_layer = Layer.objects.get(parent_service=current_service, parent_layer=None)
+        if current_service.servicetype.name != OGCServiceEnum.WFS.value:
+            new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent_layer=None)
+            current_service.root_layer = get_object_or_404(Layer, parent_service=current_service, parent_layer=None)
 
         comparator = ServiceComparator(service_a=new_service, service_b=current_service)
         diff = comparator.compare_services()
@@ -895,7 +894,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
                                           update_params=params,
                                           status_code=422)
     else:
-        return HttpResponseRedirect(reverse("service:pending-update", args=(current_service.metadata.id,)), status=303)
+        return HttpResponseRedirect(reverse("service:pending-update", args=(metadata_id,)), status=303)
 
 
 @login_required

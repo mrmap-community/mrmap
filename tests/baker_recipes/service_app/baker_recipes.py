@@ -22,6 +22,7 @@ service_metadatatype = Recipe(
 active_wms_service_metadata = Recipe(
     Metadata,
     title=seq("metadata_wms_"),
+    identifier=seq("metadata_wms"),
     is_active=True,
     metadata_type=foreign_key(service_metadatatype),
     created_by=foreign_key(superadmin_group),
@@ -29,12 +30,14 @@ active_wms_service_metadata = Recipe(
 
 active_wms_layer_metadata = active_wms_service_metadata.extend(
     metadata_type=foreign_key(layer_metadatatype),
+    identifier=seq("metadata_wms_layer"),
 )
 
 
 active_wfs_service_metadata = Recipe(
     Metadata,
     title=seq("metadata_wfs_"),
+    identifier=seq("metadata_wfs"),
     is_active=True,
     metadata_type=foreign_key(service_metadatatype),
     created_by=foreign_key(superadmin_group),
@@ -42,6 +45,7 @@ active_wfs_service_metadata = Recipe(
 
 active_wfs_featuretype_metadata = active_wfs_service_metadata.extend(
     metadata_type=foreign_key(featuretype_metadatatype),
+    identifier=seq("metadata_wfs_featuretype"),
 )
 
 wms_v100_servicetype = Recipe(

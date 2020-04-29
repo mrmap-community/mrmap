@@ -47,7 +47,7 @@ def log_proxy(function):
     """ Checks whether the metadata has a logging proxy configuration and adds another log record
 
     Args:
-        md (Metadata): The requested metadata
+        function (Function): The wrapped function
     Returns:
         The function
     """

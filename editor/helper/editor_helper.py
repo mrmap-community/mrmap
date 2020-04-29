@@ -87,6 +87,14 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
 
 
 def _overwrite_capabilities_iso_metadata_links(xml_obj: _Element, metadata: Metadata):
+    """ Overwrites links in capabilities document
+
+    Args:
+        xml_obj (_Element): The xml_object of the document
+        metadata (Metadata): The metadata object, holding the data
+    Returns:
+
+    """
     # get list of all iso md links that really exist (from the metadata object)
     iso_md_links = metadata.get_related_metadata_uris()
 
@@ -107,6 +115,40 @@ def _overwrite_capabilities_iso_metadata_links(xml_obj: _Element, metadata: Meta
     # what is left over in iso_md_links are new links that must be added to the capabilities doc
     for new_link in iso_md_links:
         xml_helper.add_iso_md_element(xml_obj, new_link)
+
+
+def _overwrite_capabilities_data(xml_obj: _Element, metadata: Metadata):
+    """ Overwrites capabilities document data with changed data from editor based changes.
+
+    Only capable of changing <Title>, <Abstract> and <AccessConstraints>
+
+    Args:
+        xml_obj (_Element): The document xml object
+        metadata (Metadata): The metadata holding the data
+    Returns:
+
+    """
+
+    elements = {
+        "Title": metadata.title,
+        "Abstract": metadata.abstract,
+        "AccessConstraints": metadata.access_constraints,
+    }
+    for key, val in elements.items():
+        try:
+            # Check if element exists to change it
+            key_xml_obj = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format(key), xml_obj)
+            if key_xml_obj is not None:
+                # Element exists, we can change it easily
+                xml_helper.write_text_to_element(xml_obj, "./" + GENERIC_NAMESPACE_TEMPLATE.format(key), val)
+            else:
+                # The element does not exist (happens in case of abstract sometimes)
+                # First create, than change it
+                xml_helper.create_subelement(xml_obj, key, )
+                xml_helper.write_text_to_element(xml_obj, "./" + GENERIC_NAMESPACE_TEMPLATE.format(key), val)
+        except AttributeError as e:
+            # for not is_root this will fail in AccessConstraints querying
+            pass
 
 
 def overwrite_capabilities_document(metadata: Metadata):
@@ -158,39 +200,20 @@ def overwrite_capabilities_document(metadata: Metadata):
     _overwrite_capabilities_iso_metadata_links(xml_obj, metadata)
 
     # overwrite data
-    elements = {
-        "Title": metadata.title,
-        "Abstract": metadata.abstract,
-        "AccessConstraints": metadata.access_constraints,
-    }
-    for key, val in elements.items():
-        try:
-            # Check if element exists to change it
-            key_xml_obj = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format(key), xml_obj)
-            if key_xml_obj is not None:
-                # Element exists, we can change it easily
-                xml_helper.write_text_to_element(xml_obj, "./" + GENERIC_NAMESPACE_TEMPLATE.format(key), val)
-            else:
-                # The element does not exist (happens in case of abstract sometimes)
-                # First create, than change it
-                xml_helper.create_subelement(xml_obj, key, )
-                xml_helper.write_text_to_element(xml_obj, "./" + GENERIC_NAMESPACE_TEMPLATE.format(key), val)
-        except AttributeError as e:
-            # for not is_root this will fail in AccessConstraints querying
-            pass
+    _overwrite_capabilities_data(xml_obj, metadata)
 
-    # write xml back to database
+    # write xml back to Document record
     xml = xml_helper.xml_to_string(xml_obj_root)
     cap_doc.current_capability_document = xml
     cap_doc.save()
 
-    # Delete all cached documents, since metadata changed!
+    # Delete all cached documents, which holds old state!
     metadata.clear_cached_documents()
 
-    # Delete all cached documents of root service!
+    # Delete all cached documents of root service, which holds old state!
     parent_metadata.clear_cached_documents()
 
-    # Remove existing document contents from upper elements (children of root element)
+    # Remove existing document contents from upper elements (children of root element), which holds old state!
     metadata.clear_upper_element_capabilities(clear_self_too=True)
 
 

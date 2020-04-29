@@ -21,7 +21,8 @@ sudo apt install libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin
 > to use the virtualenv run: source `PATH-TO-MAPSKINNER`/venv/bin/activate
 
 ##Install nginx with mapserver
-> We use mapserver to produce the masks for spatial restrictions.
+We use mapserver to produce the masks for spatial restrictions.  
+
 1. Install all needed packages:
 
         $ sudo apt install cgi-mapserver nginx fcgiwrap
@@ -35,17 +36,17 @@ sudo apt install libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin
 		fastcgi_pass  unix:/var/run/fcgiwrap.socket;
 		include /etc/nginx/fastcgi_params;
 		fastcgi_param SCRIPT_FILENAME  $document_root$fastcgi_script_name;
-    	}
+        }
 ```
          
-1. Restart apache2 daemon:
+1. Restart nginx:
 
         $ sudo systemctl restart nginx
         
 1. Verify mapserver installation:
     * type from terminal:
           $ mapserv -v
-    * Open the browser and go to http://localhost/cgi-bin/mapserv?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities 
+    * Open the browser and go to http://localhost/cgi-bin/mapserv?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities   
         You should see the following message:
     
           msCGILoadMap(): Web application error. CGI variable "map" is not set.
@@ -77,26 +78,14 @@ sudo apt install libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin
         
             $ sudo vim /etc/postgresql/11/main/pg_hba.conf 
     
-    1. change authentication method to trust for local connections:
-        ```
-        # Database administrative login by Unix domain socket
-        local   all             postgres                                peer
-
-        # TYPE  DATABASE        USER            ADDRESS                 METHOD
-
-        # "local" is for Unix domain socket connections only
-        local   all             all                                     peer
+    1. change authentication method to trust for local IPv4 connections, line 92 on a fresh prostgres installation:
+        ```vim
+        ...
         # IPv4 local connections:
-        host    all             all             127.0.0.1/32            **trust**
-        # IPv6 local connections:
-        host    all             all             ::1/128                 md5
-        # Allow replication connections from localhost, by a user with the
-        # replication privilege.
-        local   replication     all                                     peer
-        host    replication     all             127.0.0.1/32            md5
-        host    replication     all             ::1/128                 md5
-
-        ```     
+        host    all             all             127.0.0.1/32            trust
+        ...
+        ```
+             
        
 1. restart postgres daemon
 

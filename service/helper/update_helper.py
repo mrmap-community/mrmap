@@ -143,16 +143,14 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
 
     # reference systems
     old.reference_system.clear()
-    for srs in new.reference_system_list:
-        srs = ReferenceSystem.objects.get_or_create(
-            code=srs.code,
-            prefix=srs.prefix
-        )[0]
+    new_ref_systems = new.reference_system.all()
+    for srs in new_ref_systems:
         old.reference_system.add(srs)
 
     # Dimensions
     old.dimensions.clear()
-    for dim in new.dimension_list:
+    new_dimensions = new.dimensions.all()
+    for dim in new_dimensions:
         dim.save()
         old.dimensions.add(dim)
 
@@ -176,7 +174,8 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
     else:
         # Keywords updating without keeping custom md
         old.keywords.clear()
-        for kw in new.keywords_list:
+        new_keywords = new.keywords.all()
+        for kw in new_keywords:
             old.keywords.add(kw)
 
     old.last_modified = timezone.now()
@@ -327,7 +326,8 @@ def update_wfs_elements(old: Service, new: Service, diff: dict, links: dict, kee
     # update, add and remove feature types
     # feature types
     old_service_feature_types = FeatureType.objects.filter(parent_service=old)
-    for feature_type in new.feature_type_list:
+    new_service_feature_types = FeatureType.objects.filter(parent_service=new)
+    for feature_type in new_service_feature_types:
         id = None
         existing_f_t = None
 
@@ -381,32 +381,32 @@ def update_wfs_elements(old: Service, new: Service, diff: dict, links: dict, kee
 
 
 @transaction.atomic
-def _update_wms_layers_recursive(old: Service, new: Service, layers: list, links: dict, parent: Layer = None, keep_custom_metadata: bool = False):
+def _update_wms_layers_recursive(old: Service, new: Service, new_layers: list, links: dict, parent: Layer = None, keep_custom_metadata: bool = False):
     """ Updates wms layers recursively.
 
     Iterates over all children on level 1, adds new layers, updates existing ones, removes old ones, then proceeds
     on the children of each layer on the next level and so on.
 
     Args:
-        old (Service): The existing service that nees to be updated
+        old (Service): The existing service that needs to be updated
         new (Service): The newer version from where the new data is taken
-        layers (list): The current list of children
+        new_layers (list): The list of children from last recursion call to iterae
         keep_custom_metadata (bool): Whether the metadata should be overwritten or not
     Returns:
          old (Service): The updated existing service
     """
-    for layer in layers:
+    for new_layer in new_layers:
         keys = links.keys()
         existing_layer = None
         id = None
-        if layer.identifier in keys:
+        if new_layer.identifier in keys:
             # Get the id, from the layer that already exist
-            id = links[layer.identifier]
+            id = links[new_layer.identifier]
         else:
             # if the layer is not new, we just want to update it
             existing_layer = Layer.objects.get(
                 parent_service=old,
-                identifier=layer.identifier
+                identifier=new_layer.identifier
             )
 
         # Update layer
@@ -417,31 +417,27 @@ def _update_wms_layers_recursive(old: Service, new: Service, layers: list, links
                 existing_layer = Layer.objects.get(metadata__id=id)
 
             # ... and perform the update on it.
-            existing_layer = update_single_layer(existing_layer, layer, keep_custom_metadata)
-
-            # To retrieve the children of existing_layer, we overwrite the layer variable to match the recursion style
-            layer = existing_layer
+            update_single_layer(existing_layer, new_layer, keep_custom_metadata)
 
         except ObjectDoesNotExist:
             # Layer could not be found with the given information.
             # Layer must be new  -> add it!
-            layer.parent_service = old
-            layer.parent_layer = parent
-            layer.is_active = old.is_active
-            md = layer.metadata
+            new_layer.parent_service = old
+            new_layer.parent_layer = parent
+            new_layer.is_active = old.is_active
+            md = new_layer.metadata
             md.is_active = old.is_active
             md.metadata_type = MetadataType.objects.get_or_create(type=md.metadata_type.type)[0]
             md.save()
 
             transform_lists_to_m2m_collections(md)
-            layer.metadata = md
-            layer.save()
-            layer = transform_lists_to_m2m_collections(layer)
-            layer.save()
+            new_layer.metadata = md
+            new_layer.save()
+            new_layer = transform_lists_to_m2m_collections(new_layer)
+            new_layer.save()
 
-        children = layer.children_list
-        if len(children) > 0:
-            _update_wms_layers_recursive(old, new, children, links, layer, keep_custom_metadata)
+        children_of_new = new_layer.child_layer.all()
+        _update_wms_layers_recursive(old, new, children_of_new, links, new_layer, keep_custom_metadata)
 
 
 @transaction.atomic

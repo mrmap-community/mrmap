@@ -615,6 +615,24 @@ class RunUpdateServiceViewTestCase(TestCase):
         self.assertEqual(response.status_code, 303)
         self.assertEqual(response.url, reverse('service:detail', args=(self.wms_metadata.id,)))
 
+    def test_post_invalid_run_update_wms_service_view(self):
+        comparator = ServiceComparator(service_a=self.wms_update_candidate[0].service,
+                                       service_b=self.wms_metadata.service)
+        diff = comparator.compare_services()
+        diff_elements = diff.get("layers")
+        new_elements = diff_elements.get("new")
+
+        data = {}
+        for element in new_elements:
+            data.update({'new_elem_{}'.format(element.metadata.identifier): -1})
+
+        response = self.client.post(
+            reverse('service:run-update', args=(self.wms_metadata.id,)),
+        )
+
+        self.assertEqual(response.status_code, 422)
+        self.assertFormError(response, 'update_confirmation_form', next(iter(data)), 'This field is required.' )
+
     def test_post_run_update_wfs_service_view(self):
         response = self.client.post(
             reverse('service:run-update', args=(self.wfs_metadata.id,)),

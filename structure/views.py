@@ -7,7 +7,7 @@ from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from MapSkinner.decorator import check_permission
+from MapSkinner.decorator import check_permission, check_ownership
 from MapSkinner.messages import PUBLISH_REQUEST_SENT, \
     PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, \
     PUBLISH_PERMISSION_REMOVED, \
@@ -238,6 +238,7 @@ def detail_organizations(request: HttpRequest, org_id: int, update_params=None, 
 
 @login_required
 @check_permission(Permission(can_edit_organization=True))
+@check_ownership(Organization, 'org_id')
 def edit_org(request: HttpRequest, org_id: int):
     """ The edit view for changing organization values
 
@@ -270,6 +271,7 @@ def edit_org(request: HttpRequest, org_id: int):
 # TODO: update function documentation
 @login_required
 @check_permission(Permission(can_delete_organization=True))
+@check_ownership(Organization, 'org_id')
 def remove_org(request: HttpRequest, org_id: int):
     """ Renders the remove form for an organization
 
@@ -385,6 +387,7 @@ def accept_publish_request(request: HttpRequest, request_id: int):
 
 @login_required
 @check_permission(Permission(can_remove_publisher=True))
+@check_ownership(Organization, 'org_id')
 def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
     """ Removes a publisher for an organization
 
@@ -460,6 +463,7 @@ def publish_request(request: HttpRequest, org_id: int):
 
 
 @login_required
+@check_ownership(MrMapGroup, 'group_id')
 def detail_group(request: HttpRequest, group_id: int, update_params=None, status_code=None):
     """ Renders an overview of a group's details.
 
@@ -558,6 +562,7 @@ def new_group(request: HttpRequest):
 
 
 @login_required
+@check_ownership(MrMapGroup, 'group_id')
 def list_publisher_group(request: HttpRequest, group_id: int):
     """ List all organizations a group can publish for
 
@@ -582,6 +587,7 @@ def list_publisher_group(request: HttpRequest, group_id: int):
 
 @login_required
 @check_permission(Permission(can_delete_group=True))
+@check_ownership(MrMapGroup, 'group_id')
 def remove_group(request: HttpRequest, group_id: int):
     """ Renders the remove form for a group
 
@@ -618,6 +624,7 @@ def remove_group(request: HttpRequest, group_id: int):
 
 @login_required
 @check_permission(Permission(can_edit_group=True))
+@check_ownership(MrMapGroup, 'group_id')
 def edit_group(request: HttpRequest, group_id: int):
     """ The edit view for changing group values
 

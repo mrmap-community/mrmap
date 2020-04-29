@@ -13,7 +13,7 @@ from requests.exceptions import ReadTimeout
 from MapSkinner import utils
 from MapSkinner.cacher import PreviewImageCacher
 from MapSkinner.consts import *
-from MapSkinner.decorator import check_permission, log_proxy
+from MapSkinner.decorator import check_permission, log_proxy, check_ownership
 from MapSkinner.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
@@ -310,6 +310,7 @@ def pending_tasks(request: HttpRequest):
 
 @login_required
 @check_permission(Permission(can_remove_service=True))
+@check_ownership(Metadata, 'metadata_id')
 def remove(request: HttpRequest, metadata_id: int):
     """ Renders the remove form for a service
 
@@ -338,6 +339,7 @@ def remove(request: HttpRequest, metadata_id: int):
 
 @login_required
 @check_permission(Permission(can_activate_service=True))
+@check_ownership(Metadata, 'metadata_id')
 def activate(request: HttpRequest, service_id: int):
     """ (De-)Activates a service and all of its layers
 
@@ -671,6 +673,7 @@ def wms_index(request: HttpRequest):
 
 @login_required
 @check_permission(Permission(can_update_service=True))
+@check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
 def update_service(request: HttpRequest, metadata_id: int):
     """ Compare old service with new service and collect differences
@@ -858,6 +861,7 @@ def _check_for_dataset_metadata(metadata: Metadata,):
 
 
 @login_required
+@check_ownership(Metadata, 'metadata_id')
 def detail(request: HttpRequest, metadata_id: int, update_params=None, status_code=None):
     """ Renders a detail view of the selected service
 

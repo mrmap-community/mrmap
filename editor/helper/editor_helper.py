@@ -62,7 +62,7 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
         # we need to add an element first!
         try:
             xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Abstract".format(ns_prefix), nsmap=keyword_ns_map)
-        except TypeError as e:
+        except (TypeError, ValueError) as e:
             # there seems to be no <Abstract> element. We add simply after <Title> and also create a new Abstract element
             xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Title".format(ns_prefix))
             xml_helper.create_subelement(
@@ -119,12 +119,16 @@ def overwrite_capabilities_document(metadata: Metadata):
     """
     is_root = metadata.is_root()
     if is_root:
-        rel_md = metadata
+        parent_metadata = metadata
     elif metadata.metadata_type.type == MetadataEnum.LAYER.value:
-        rel_md = metadata.service.parent_service.metadata
+        parent_metadata = metadata.service.parent_service.metadata
     elif metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
-        rel_md = metadata.featuretype.parent_service.metadata
-    cap_doc = Document.objects.get(related_metadata=rel_md)
+        parent_metadata = metadata.featuretype.parent_service.metadata
+
+    # Make sure the Document record already exist by fetching the current capability xml
+    # This is a little trick to auto-generate Document records which did not exist before!
+    parent_metadata.get_current_capability_xml(parent_metadata.get_service_version().value)
+    cap_doc = Document.objects.get(related_metadata=parent_metadata)
 
     # overwrite all editable data
     identifier = metadata.identifier
@@ -159,7 +163,6 @@ def overwrite_capabilities_document(metadata: Metadata):
         "Abstract": metadata.abstract,
         "AccessConstraints": metadata.access_constraints,
     }
-    tmp = xml_helper.xml_to_string(xml_obj)
     for key, val in elements.items():
         try:
             # Check if element exists to change it
@@ -181,9 +184,14 @@ def overwrite_capabilities_document(metadata: Metadata):
     cap_doc.current_capability_document = xml
     cap_doc.save()
 
-    # Delete all cached documents, since metadata changed now!
+    # Delete all cached documents, since metadata changed!
     metadata.clear_cached_documents()
-    rel_md.clear_cached_documents()
+
+    # Delete all cached documents of root service!
+    parent_metadata.clear_cached_documents()
+
+    # Remove existing document contents from upper elements (children of root element)
+    metadata.clear_upper_element_capabilities(clear_self_too=True)
 
 
 @transaction.atomic

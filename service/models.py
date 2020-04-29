@@ -607,6 +607,9 @@ class Metadata(Resource):
 
         """
         # Only important for Layer instances, since there is no hierarchy in WFS
+        if self.metadata_type != MetadataEnum.LAYER.value:
+            return
+
         # Find all upper layers/elements
         layer = Layer.objects.get(metadata=self)
 

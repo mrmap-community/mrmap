@@ -836,6 +836,8 @@ def run_update_service(request: HttpRequest, metadata_id: int):
             if prefix in key:
                 links[key.replace(prefix, "")] = int(choice)
 
+        print(links)
+
         update_confirmation_form = UpdateOldToNewElementsForm(request.POST,
                                                               new_elements=diff_elements.get("new"),
                                                               removed_elements=diff_elements.get("removed"),

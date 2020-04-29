@@ -29,8 +29,8 @@ class EditorIndexViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(self.user.get_groups().first(), 10)
-        create_wfs_service(self.user.get_groups().first(), 10)
+        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
+        create_wfs_service(group=self.user.get_groups().first(), how_much_services=10)
 
     def test_get_index_view(self):
         """ Test for checking whether the view is correctly rendered or not
@@ -62,7 +62,7 @@ class EditorWMSIndexViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(self.user.get_groups().first(), 10)
+        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
 
     def test_get_index_view(self):
         """ Test for checking whether the view is correctly rendered or not
@@ -89,7 +89,7 @@ class EditorWFSIndexViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        create_wfs_service(self.user.get_groups().first(), 10)
+        create_wfs_service(group=self.user.get_groups().first(), how_much_services=10)
 
     def test_get_index_view(self):
         """ Test for checking whether the view is correctly rendered or not
@@ -116,7 +116,7 @@ class EditorMetadataEditViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(self.user.get_groups().first(), 1)
+        create_wms_service(group=self.user.get_groups().first(), how_much_services=1)
 
     def test_get_form_view(self):
         """ Test for checking whether the view is correctly rendered or not
@@ -141,7 +141,7 @@ class EditorAccessEditViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(self.user.get_groups().first(), 10)
+        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
 
     def test_get_form_view(self):
         """ Test for checking whether the view is correctly rendered or not

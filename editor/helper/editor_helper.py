@@ -152,7 +152,13 @@ def _overwrite_capabilities_data(xml_obj: _Element, metadata: Metadata):
 
 
 def overwrite_capabilities_document(metadata: Metadata):
-    """ Overwrites the capabilities document which is related to the provided metadata
+    """ Overwrites the capabilities document which is related to the provided metadata.
+
+    If a subelement of a service has been edited, the service root capabilities will be changed since this is the
+    most requested document of the service.
+    All subelements capabilities documents above the edited element will be reset to None and cached documents will be
+    cleared. This forces an automatic creation of the correct capabilities on the next request for these elements,
+    which will result in correct information about the edited subelement.
 
     Args:
         metadata (Metadata):

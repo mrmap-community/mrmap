@@ -331,26 +331,22 @@ def update_wfs_elements(old: Service, new: Service, diff: dict, links: dict, kee
         id = None
         existing_f_t = None
 
-        if feature_type.metadata.identifier in links.keys():
-            # This FeatureType is just a renamed one, that already exists. It must be updated and renamed!
-            # Get the id, from the FeatureType that already exist
-            id = links[feature_type.metadata.identifier]
-        else:
-            existing_f_t = FeatureType.objects.get(
-                parent_service=old,
-                metadata__identifier=feature_type.metadata.identifier,
-            )
-
         try:
+            if feature_type.metadata.identifier in links.keys():
+                # This FeatureType is just a renamed one, that already exists. It must be updated and renamed!
+                # Get the id, from the FeatureType that already exist
+                id = links[feature_type.metadata.identifier]
+            else:
+                existing_f_t = FeatureType.objects.get(
+                    parent_service=old,
+                    metadata__identifier=feature_type.metadata.identifier,
+                )
             if existing_f_t is None:
                 # Try to get this FeatureType (will fail for id=-1 -> indicates new FeatureType
                 # but no linking to old FeatureType)
                 existing_f_t = old_service_feature_types.get(metadata__id=id)
 
             existing_f_t = update_feature_type(existing_f_t, feature_type, keep_custom_metadata)
-
-            # Write non-persisted lists to many-to-many collections
-            existing_f_t = transform_lists_to_m2m_collections(existing_f_t)
             existing_f_t.save()
 
         except ObjectDoesNotExist:
@@ -399,18 +395,18 @@ def _update_wms_layers_recursive(old: Service, new: Service, new_layers: list, l
         keys = links.keys()
         existing_layer = None
         id = None
-        if new_layer.identifier in keys:
-            # Get the id, from the layer that already exist
-            id = links[new_layer.identifier]
-        else:
-            # if the layer is not new, we just want to update it
-            existing_layer = Layer.objects.get(
-                parent_service=old,
-                identifier=new_layer.identifier
-            )
 
         # Update layer
         try:
+            if new_layer.identifier in keys:
+                # Get the id, from the layer that already exist
+                id = links[new_layer.identifier]
+            else:
+                # if the layer is not new, we just want to update it
+                existing_layer = Layer.objects.get(
+                    parent_service=old,
+                    identifier=new_layer.identifier
+                )
             # If no existing_layer could be found until now, we assume the id variable to be set. This means, that
             # the user knows, that an existing layer has been renamed to the new one. We fetch the "old" layer now...
             if existing_layer is None:

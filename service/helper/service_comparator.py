@@ -63,7 +63,7 @@ class ServiceComparator:
         elif self.service_a.servicetype.name == OGCServiceEnum.WFS.value:
             # Check feature services against each other
             # always iterate over service_1 and check against service_2
-            diff["feature_types"] = self.compare_feature_types(self.service_a.feature_type_list)
+            diff["feature_types"] = self.compare_feature_types(FeatureType.objects.filter(parent_service=self.service_a))
 
         return diff
 

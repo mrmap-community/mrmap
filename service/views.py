@@ -341,7 +341,7 @@ def remove(request: HttpRequest, metadata_id: int):
 
 @login_required
 @check_permission(Permission(can_activate_service=True))
-@check_ownership(Metadata, 'metadata_id')
+@check_ownership(Service, 'service_id')
 def activate(request: HttpRequest, service_id: int):
     """ (De-)Activates a service and all of its layers
 

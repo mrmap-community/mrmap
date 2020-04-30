@@ -9,13 +9,14 @@ import json
 
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect, get_object_or_404
 from django.urls import reverse
 
-from MapSkinner.messages import NO_PERMISSION, SERVICE_NOT_FOUND, RESOURCE_IS_OWNED_BY_ANOTHER_GROUP
+from MapSkinner.messages import NO_PERMISSION, SERVICE_NOT_FOUND, RESOURCE_IS_OWNED_BY_ANOTHER_GROUP, \
+    REQUESTING_USER_IS_NOT_MEMBER_OF_THE_GROUP, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION
 from service.models import Metadata, ProxyLog, Resource
-from structure.models import Permission, MrMapUser, MrMapGroup
+from structure.models import Permission, MrMapUser, MrMapGroup, Organization
 from users.helper import user_helper
 
 
@@ -64,12 +65,23 @@ def check_ownership(klass, id_name: str):
             if isinstance(resource, MrMapGroup):
                 if resource in user_groups:
                     return function(request=request, *args, **kwargs)
+                else:
+                    messages.add_message(request, messages.ERROR, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_GROUP)
+
+            elif isinstance(resource, Organization):
+                if user.organization == resource:
+                    return function(request=request, *args, **kwargs)
+                else:
+                    messages.add_message(request, messages.ERROR, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION)
+
             else:
                 if resource.created_by in user_groups:
                     return function(request=request, *args, **kwargs)
-                
-            messages.add_message(request, messages.ERROR, RESOURCE_IS_OWNED_BY_ANOTHER_GROUP)
-            return redirect(request.META.get("HTTP_REFERER") if "HTTP_REFERER" in request.META else reverse('home'))
+                else:
+                    messages.add_message(request, messages.ERROR, RESOURCE_IS_OWNED_BY_ANOTHER_GROUP)
+            return HttpResponseRedirect(
+                request.META.get("HTTP_REFERER") if "HTTP_REFERER" in request.META else reverse('home'),
+                status=303)
 
         wrap.__doc__ = function.__doc__
         wrap.__name__ = function.__name__

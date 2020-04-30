@@ -388,6 +388,7 @@ def accept_publish_request(request: HttpRequest, request_id: int):
 @login_required
 @check_permission(Permission(can_remove_publisher=True))
 @check_ownership(Organization, 'org_id')
+@check_ownership(MrMapGroup, 'group_id')
 def remove_publisher(request: HttpRequest, org_id: int, group_id: int):
     """ Removes a publisher for an organization
 

@@ -320,11 +320,3 @@ class RemovePublisher(forms.Form):
         self.organization = None if 'organization' not in kwargs else kwargs.pop('organization')
         self.group = None if 'group' not in kwargs else kwargs.pop('group')
         super(RemovePublisher, self).__init__(*args, **kwargs)
-
-    def clean(self):
-        cleaned_data = super(RemovePublisher, self).clean()
-
-        if self.group not in self.user.get_groups() and self.user.organization != self.organization:
-            self.add_error(None, PUBLISH_PERMISSION_REMOVING_DENIED)
-
-        return cleaned_data

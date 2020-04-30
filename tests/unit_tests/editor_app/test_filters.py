@@ -9,7 +9,7 @@ from django.test import TestCase
 
 from service.filters import MetadataWmsFilter, MetadataWfsFilter
 from service.helper.enums import OGCServiceEnum
-from service.models import Service, Metadata
+from service.models import Metadata
 from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service, create_wfs_service
 from tests.utils import check_filtering
 
@@ -19,8 +19,8 @@ class EditorFiltersTestCase(TestCase):
     def setUp(self):
         self.user = create_superadminuser()
 
-        create_wms_service(self.user.get_groups().first(), 10)
-        create_wfs_service(self.user.get_groups().first(), 10)
+        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
+        create_wfs_service(group=self.user.get_groups().first(), how_much_services=10)
         self.wms_service_metadatas = Metadata.objects.filter(
             service__servicetype__name=OGCServiceEnum.WMS.value
         )

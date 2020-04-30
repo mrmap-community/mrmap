@@ -37,6 +37,7 @@ class MapSkinnerTable(tables.Table):
     filter = None
     pagination = None
     page_field = None
+    caption = ""
 
     def configure_pagination(self, request: HttpRequest, param_lead: str):
         RequestConfig(request).configure(self)

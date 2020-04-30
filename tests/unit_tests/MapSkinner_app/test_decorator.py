@@ -32,8 +32,8 @@ class DecoratorTestCase(TestCase):
         self.request_factory = RequestFactory()
 
         create_wms_service(
-            self.user.get_groups().first(),
-            1
+            group=self.user.get_groups().first(),
+            how_much_services=1
         )
 
         # Setup for log proxy test

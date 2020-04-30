@@ -20,8 +20,8 @@ class ServiceFiltersTestCase(TestCase):
     def setUp(self):
         self.user_password = PASSWORD
         self.user = create_superadminuser()
-        create_wms_service(self.user.get_groups().first(), 10)
-        create_wms_service(self.user.get_groups().first(), 10)
+        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
+        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
 
         self.wms_metadatas = Metadata.objects.filter(
             service__servicetype__name=OGCServiceEnum.WMS.value

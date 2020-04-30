@@ -139,7 +139,7 @@ def update_service(request: HttpRequest, id: int):
 
     # parse new capabilities into db model
     registrating_group = old_service.created_by
-    new_service = service_helper.get_service_model_instance(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user, register_group=registrating_group)
+    new_service = service_helper.create_service(service_type=url_dict.get("service"), version=url_dict.get("version"), base_uri=url_dict.get("base_uri"), user=user, register_group=registrating_group)
     xml = new_service["raw_data"].service_capabilities_xml
     new_service = new_service["service"]
 

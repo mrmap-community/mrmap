@@ -156,7 +156,7 @@ def generate_name(srs_list: list=[]):
     return sec_handler.sha256(tmp)
 
 
-def get_service_model_instance(service_type, version, base_uri, user, register_group, register_for_organization=None, async_task: Task = None, external_auth: ExternalAuthentication = None):
+def create_service(service_type, version, base_uri, user, register_group, register_for_organization=None, async_task: Task = None, external_auth: ExternalAuthentication = None):
     """ Creates a database model from given service information and persists it.
 
     Due to the many-to-many relationships used in the models there is currently no way (without extending the models) to
@@ -181,7 +181,7 @@ def get_service_model_instance(service_type, version, base_uri, user, register_g
         # let it load it's capabilities
         wms.get_capabilities()
         wms.create_from_capabilities(async_task=async_task)
-        service = wms.create_service_model_instance(user, register_group, register_for_organization)
+        service = wms.create_service_model_instance(user, register_group, register_for_organization, external_auth)
         ret_dict["raw_data"] = wms
     else:
         # create WFS object

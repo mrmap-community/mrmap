@@ -64,7 +64,7 @@ class EditorTestCase(TestCase):
         # THIS MEANS WE CAN NOT CHECK PERMISSIONS IN HERE; SINCE WE TESTS ON THE LOWER LEVEL OF THE PROCESS
 
         ## Creating a new wms service model instance
-        service = service_helper.get_service_model_instance(
+        service = service_helper.create_service(
             self.test_wms["type"],
             self.test_wms["version"],
             self.test_wms["uri"],

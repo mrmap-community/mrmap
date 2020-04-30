@@ -696,7 +696,7 @@ def new_pending_update_service(request: HttpRequest, metadata_id: int):
         # Check if update form is valid
         if update_form.is_valid():
             # Create db model from new service information (no persisting, yet)
-            new_service = service_helper.get_service_model_instance(
+            new_service = service_helper.create_service(
                 service_type=update_form.url_dict.get("service"),
                 version=service_helper.resolve_version_enum(update_form.url_dict.get("version")),
                 base_uri=update_form.url_dict.get("base_uri"),

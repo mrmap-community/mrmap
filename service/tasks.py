@@ -204,7 +204,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
 
     try:
         t_start = time.time()
-        service = service_helper.get_service_model_instance(
+        service = service_helper.create_service(
             url_dict.get("service"),
             url_dict.get("version"),
             url_dict.get("base_uri"),
@@ -236,7 +236,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         xml = raw_service.service_capabilities_xml
 
         # persist everything
-        service_helper.persist_service_model_instance(service, external_auth)
+        #service_helper.persist_service_model_instance(service, external_auth)
 
         # update progress
         if curr_task_id is not None:

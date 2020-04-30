@@ -695,133 +695,30 @@ class OGCWebMapService(OGCWebService):
         Returns:
             nothing
         """
-        metadata = Metadata()
-        md_type = MetadataType.objects.get_or_create(type=MetadataEnum.LAYER.value)[0]
-        metadata.metadata_type = md_type
-        metadata.title = layer_obj.title
-        metadata.uuid = uuid.uuid4()
-        metadata.abstract = layer_obj.abstract
-        metadata.online_resource = parent_service.metadata.online_resource
-        metadata.capabilities_original_uri = parent_service.metadata.capabilities_original_uri
-        metadata.capabilities_uri = parent_service.metadata.capabilities_original_uri
-        metadata.identifier = layer_obj.identifier
-        metadata.contact = parent_service.metadata.contact
-        metadata.access_constraints = parent_service.metadata.access_constraints
-        metadata.is_active = False
-        metadata.created_by = group
-        metadata.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(metadata.id) + "request={}".format(
-            OGCOperationEnum.GET_CAPABILITIES.value)
-        metadata.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(metadata.id)
-        metadata.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(metadata.id)
-
-        metadata.save()
-
-        # Keywords
-        for kw in layer_obj.capability_keywords:
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            metadata.keywords.add(keyword)
-
-        # handle reference systems
-        for sys in layer_obj.capability_projection_system:
-            parts = self.epsg_api.get_subelements(sys)
-            # check if this srs is allowed for us. If not, skip it!
-            if parts.get("code") not in ALLOWED_SRS:
-                continue
-            ref_sys = ReferenceSystem.objects.get_or_create(code=parts.get("code"), prefix=parts.get("prefix"))[0]
-            metadata.reference_system.add(ref_sys)
+        # Metadata
+        metadata = layer_obj.create_metadata_record(parent_service, group)
 
         # Layer
-        layer = Layer()
-        layer.uuid = uuid.uuid4()
-        layer.metadata = metadata
-        layer.identifier = layer_obj.identifier
-        layer.servicetype = parent_service.servicetype
-        layer.position = layer_obj.position
-        layer.parent_layer = parent_layer
-        layer.parent_service = parent_service
-        layer.is_queryable = layer_obj.is_queryable
-        layer.is_cascaded = layer_obj.is_cascaded
-        layer.registered_by = group
-        layer.is_opaque = layer_obj.is_opaque
-        layer.scale_min = layer_obj.capability_scale_hint.get("min")
-        layer.scale_max = layer_obj.capability_scale_hint.get("max")
-
-        # Save model so M2M relations can be used
-        layer.save()
-
-        # If parent layer is a real layer, we add the current layer as a child to the parent layer
-        if layer.parent_layer is not None:
-            layer.parent_layer.child_layer.add(layer)
-
-        if layer_obj.style is not None:
-            layer_obj.style.layer = layer
-            layer_obj.style.save()
-
-        # create bounding box polygon
-        bounding_points = (
-            (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["miny"])),
-            (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["maxy"])),
-            (float(layer_obj.capability_bbox_lat_lon["maxx"]), float(layer_obj.capability_bbox_lat_lon["maxy"])),
-            (float(layer_obj.capability_bbox_lat_lon["maxx"]), float(layer_obj.capability_bbox_lat_lon["miny"])),
-            (float(layer_obj.capability_bbox_lat_lon["minx"]), float(layer_obj.capability_bbox_lat_lon["miny"]))
+        layer = layer_obj.create_layer_record(
+            metadata,
+            parent_service,
+            group,
+            parent_layer
         )
-        layer.bbox_lat_lon = Polygon(bounding_points)
-        metadata.bounding_geometry = layer.bbox_lat_lon
-        layer.created_by = group
-        layer.published_for = parent_service.published_for
-        layer.parent_service = parent_service
-        layer.get_styles_uri_GET = layer_obj.get_styles_uri_GET
-        layer.get_styles_uri_POST = layer_obj.get_styles_uri_POST
-        layer.get_legend_graphic_uri_GET = layer_obj.get_legend_graphic_uri_GET
-        layer.get_legend_graphic_uri_POST = layer_obj.get_legend_graphic_uri_POST
-        layer.get_feature_info_uri_GET = layer_obj.get_feature_info_uri_GET
-        layer.get_feature_info_uri_POST = layer_obj.get_feature_info_uri_POST
-        layer.get_map_uri_GET = layer_obj.get_map_uri_GET
-        layer.get_map_uri_POST = layer_obj.get_map_uri_POST
-        layer.describe_layer_uri_GET = layer_obj.describe_layer_uri_GET
-        layer.describe_layer_uri_POST = layer_obj.describe_layer_uri_POST
-        layer.get_capabilities_uri_GET = layer_obj.get_capabilities_uri_GET
-        layer.get_capabilities_uri_POST = layer_obj.get_capabilities_uri_POST
 
-        for iso_md in layer_obj.iso_metadata:
-            iso_md = iso_md.to_db_model()
-            metadata_relation = MetadataRelation()
-            metadata_relation.metadata_from = metadata
-            metadata_relation.metadata_to = iso_md
-            metadata_relation.origin = MetadataOrigin.objects.get_or_create(
-                name=iso_md.origin
-            )[0]
-            metadata_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
-            metadata_relation.save()
-
-        # Dimensions
-        for dimension in layer_obj.dimension_list:
-            dim = Dimension.objects.get_or_create(
-                type=dimension.get("type"),
-                units=dimension.get("units"),
-                extent=dimension.get("extent"),
-            )[0]
-            layer.metadata.dimensions.add(dim)
-
-        if parent_service.root_layer is None:
-            # no root layer set yet
-            parent_service.root_layer = layer
-
-        # iterate over all available mime types and actions
-        for action, format_list in layer_obj.format_list.items():
-            for _format in format_list:
-                service_to_format = MimeType.objects.get_or_create(
-                    operation=action,
-                    mime_type=_format,
-                    created_by=group
-                )[0]
-                layer.formats.add(service_to_format)
+        # Additional records
+        layer_obj.create_additional_records(
+            metadata,
+            layer,
+            group,
+            self.epsg_api
+        )
 
         # Final save before continue
         metadata.save()
         layer.save()
 
-        # Create layer DB records
+        # Continue with child objects
         if len(layer_obj.child_layers) > 0:
             parent_layer = copy(layer)  # ToDo: Copy() necessary?
             self._create_layer_model_instance(
@@ -1028,6 +925,7 @@ class OGCWebMapService(OGCWebService):
             )[0]
             md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
             md_relation.save()
+
 
 class OGCWebMapServiceLayer(OGCLayer):
     """ The OGCWebMapServiceLayer class

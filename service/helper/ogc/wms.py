@@ -10,17 +10,16 @@ from abc import abstractmethod
 
 import time
 
-from copy import copy
 from threading import Thread
 
 from celery import Task
-from django.contrib.gis.geos import Polygon
 from django.db import transaction
 
-from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH, SERVICE_OPERATION_URI_TEMPLATE, \
+from MapSkinner.messages import SERVICE_NO_ROOT_LAYER
+from service.settings import SERVICE_OPERATION_URI_TEMPLATE, \
     SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE
 from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
-    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
+    PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
 from MapSkinner.utils import execute_threads, print_debug_mode
 from service.helper.crypto_handler import CryptoHandler
@@ -31,10 +30,10 @@ from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
 from service.helper import xml_helper, task_helper
-from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
-    MetadataRelation, MetadataOrigin, MetadataType, Style, ExternalAuthentication, Dimension
-from service.settings import MD_RELATION_TYPE_VISUALIZES, MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
-from structure.models import Organization, MrMapGroup, Contact
+from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
+    MetadataRelation, MetadataOrigin, MetadataType, Style, ExternalAuthentication
+from service.settings import MD_RELATION_TYPE_VISUALIZES
+from structure.models import Organization, MrMapGroup
 from structure.models import MrMapUser
 
 
@@ -683,74 +682,6 @@ class OGCWebMapService(OGCWebService):
         # parse request uris from capabilities document
         self.parse_request_uris(xml_obj, self)
 
-    def _create_single_layer_model_instance(self, layer_obj, parent_service: Service, group: MrMapGroup, user: MrMapUser, parent_layer: Layer=None):
-        """ Transforms a OGCWebMapLayer object to Layer model (models.py)
-
-        Args:
-            layer_obj (OGCWebMapServiceLayer): The OGCWebMapLayer object which holds all data
-            parent_service (Service): The root or parent service which holds all these layers
-            group (MrMapGroup): The group that started the registration process
-            user (MrMapUser): The performing user
-            parent_layer (Layer): The parent layer object to this layer
-        Returns:
-            nothing
-        """
-        # Metadata
-        metadata = layer_obj.create_metadata_record(parent_service, group)
-
-        # Layer
-        layer = layer_obj.create_layer_record(
-            metadata,
-            parent_service,
-            group,
-            parent_layer
-        )
-
-        # Additional records
-        layer_obj.create_additional_records(
-            metadata,
-            layer,
-            group,
-            self.epsg_api
-        )
-
-        # Final save before continue
-        metadata.save()
-        layer.save()
-
-        # Continue with child objects
-        if len(layer_obj.child_layers) > 0:
-            parent_layer = copy(layer)  # ToDo: Copy() necessary?
-            self._create_layer_model_instance(
-                layers=layer_obj.child_layers,
-                parent_service=parent_service,
-                group=group,
-                parent_layer=parent_layer,
-                user=user,
-            )
-
-    def _create_layer_model_instance(self, layers: list, parent_service: Service, group: MrMapGroup, user: MrMapUser, parent_layer: Layer=None):
-        """ Iterates over all layers given by the service and persist them, including additional data like metadata and so on.
-
-        Args:
-            layers (list): A list of layers
-            parent_service (Service): The root or parent service which holds all these layers
-            group (MrMapGroup): The group that started the registration process
-            user (MrMapUser): The performing user
-            parent_layer (Layer): The parent layer object to this layer
-        Returns:
-            nothing
-        """
-        # Iterate over all layers and create DB records
-        for layer_obj in layers:
-            self._create_single_layer_model_instance(
-                layer_obj=layer_obj,
-                parent_service=parent_service,
-                group=group,
-                user=user,
-                parent_layer=parent_layer,
-            )
-
     @transaction.atomic
     def create_service_model_instance(self, user: MrMapUser, register_group: MrMapGroup, register_for_organization: Organization, external_auth: ExternalAuthentication = None):
         """ Persists the web map service and all of its related content and data
@@ -783,14 +714,19 @@ class OGCWebMapService(OGCWebService):
         # Additionals (keywords, mimetypes, ...)
         self._create_additional_records(service, metadata)
 
-        # Begin creation of Layer records, starting with the root layer
-        root_layer = self.layers[0]
-        self._create_layer_model_instance(
-            layers=[root_layer],
-            parent_service=service,
-            group=group,
-            user=user
-        )
+        # Begin creation of Layer records. Calling the found root layer will
+        # iterate through all parent-child related layer objects
+        try:
+            root_layer = self.layers[0]
+            root_layer.create_layer_record(
+                parent_service=service,
+                group=group,
+                user=user,
+                parent_layer=None,
+                epsg_api=self.epsg_api
+            )
+        except KeyError:
+            raise IndexError(SERVICE_NO_ROOT_LAYER)
         return service
 
     def _create_organization_contact_record(self):

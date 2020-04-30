@@ -8,7 +8,7 @@ from service.models import Service, Metadata, MetadataType, Layer, Keyword, Refe
     MetadataOrigin, Dimension, MimeType
 from service.settings import SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE, \
     ALLOWED_SRS, MD_RELATION_TYPE_DESCRIBED_BY
-from structure.models import MrMapGroup
+from structure.models import MrMapGroup, MrMapUser
 
 
 class OGCLayer:
@@ -58,7 +58,52 @@ class OGCLayer:
 
         self.iso_metadata = []
 
-    def create_metadata_record(self, parent_service: Service, group: MrMapGroup):
+    def create_layer_record(self, parent_service: Service, group: MrMapGroup, user: MrMapUser, epsg_api: EpsgApi, parent_layer: Layer=None):
+        """ Transforms a OGCWebMapLayer object to Layer model (models.py)
+
+        Args:
+            parent_service (Service): The root or parent service which holds all these layers
+            group (MrMapGroup): The group that started the registration process
+            user (MrMapUser): The performing user
+            epsg_api (EpsgApi): A EpsgApi object
+            parent_layer (Layer): The parent layer object to this layer
+        Returns:
+            nothing
+        """
+        # Metadata
+        metadata = self._create_metadata_record(parent_service, group)
+
+        # Layer
+        layer = self._create_layer_record(
+            metadata,
+            parent_service,
+            group,
+            parent_layer
+        )
+
+        # Additional records
+        self._create_additional_records(
+            metadata,
+            layer,
+            group,
+            epsg_api
+        )
+
+        # Final save before continue
+        metadata.save()
+        layer.save()
+
+        # Continue with child objects
+        for child in self.child_layers:
+            child.create_layer_record(
+                parent_service=parent_service,
+                group=group,
+                parent_layer=layer,
+                user=user,
+                epsg_api=epsg_api
+            )
+
+    def _create_metadata_record(self, parent_service: Service, group: MrMapGroup):
         """ Creates a Metadata record from the OGCLayer object
 
         Args:
@@ -101,7 +146,7 @@ class OGCLayer:
 
         return metadata
     
-    def create_layer_record(self, metadata: Metadata, parent_service: Service, group: MrMapGroup, parent_layer: Layer):
+    def _create_layer_record(self, metadata: Metadata, parent_service: Service, group: MrMapGroup, parent_layer: Layer):
         """ Creates a Layer record from the OGCLayer object
 
         Args:
@@ -164,7 +209,7 @@ class OGCLayer:
 
         return layer
     
-    def create_additional_records(self, metadata: Metadata, layer: Layer, group: MrMapGroup, epsg_api: EpsgApi):
+    def _create_additional_records(self, metadata: Metadata, layer: Layer, group: MrMapGroup, epsg_api: EpsgApi):
         """ Creates additional records such as Keywords, ReferenceSystems, Dimensions, ...
 
         Args:

@@ -602,6 +602,38 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    def clear_upper_element_capabilities(self, clear_self_too=False):
+        """ Removes current_capability_document from upper element Document records.
+
+        This forces the documents to be regenerated on the next call
+
+        Returns:
+
+        """
+        # Only important for Layer instances, since there is no hierarchy in WFS
+        if self.metadata_type != MetadataEnum.LAYER.value:
+            return
+
+        # Find all upper layers/elements
+        layer = Layer.objects.get(metadata=self)
+
+        upper_elements = layer.get_upper_layers()
+        upper_elements_metadatas = [elem.metadata for elem in upper_elements]
+
+        if clear_self_too:
+            upper_elements_metadatas.append(self)
+
+        # Set document records value to None
+        upper_elements_docs = Document.objects.filter(
+            related_metadata__in=upper_elements_metadatas
+        )
+        for doc in upper_elements_docs:
+            doc.current_capability_document = None
+            doc.save()
+
+        for md in upper_elements_metadatas:
+            md.clear_cached_documents()
+
     def clear_cached_documents(self):
         """ Sets the content of all possibly auto-generated documents to None
 
@@ -656,7 +688,6 @@ class Metadata(Resource):
             ret_list = [layer.metadata for layer in sub_layers]
 
         return ret_list
-
 
     def get_service_metadata_xml(self):
         """ Getter for the service metadata.
@@ -2515,6 +2546,25 @@ class Layer(Service):
         else:
             return self.child_layer.all()
 
+    def get_upper_layers(self):
+        """ Returns a list of all layers from self to the root layer of the service
+
+        Returns:
+
+        """
+        ret_list = []
+        upper_element = Layer.objects.get(
+            child_layer=self
+        )
+        while upper_element is not None:
+            ret_list.append(upper_element)
+            try:
+                upper_element = Layer.objects.get(
+                    child_layer=upper_element
+                )
+            except ObjectDoesNotExist:
+                upper_element = None
+        return ret_list
 
     def delete_children_secured_operations(self, layer, operation, group):
         """ Walk recursive through all layers of wms and remove their secured operations

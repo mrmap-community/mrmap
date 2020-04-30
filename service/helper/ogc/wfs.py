@@ -646,7 +646,7 @@ class OGCWebFeatureService(OGCWebService):
             self._get_feature_type_metadata(feature_type, epsg_api, service_type_version, external_auth=external_auth)
 
     @abstractmethod
-    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization):
+    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization, external_auth: ExternalAuthentication):
         """ Map all data from the WebFeatureService classes to their database models
 
         This does not persist the models to the database!
@@ -655,6 +655,7 @@ class OGCWebFeatureService(OGCWebService):
             user (MrMapUser): The user which performs the action
             register_group (Group): The group which is used to register this service
             register_for_organization (Organization): The organization for which this service is being registered
+            external_auth (ExternalAuthentication): The external authentication object
         Returns:
              service (Service): Service instance, contains all information, ready for persisting!
         """
@@ -696,6 +697,22 @@ class OGCWebFeatureService(OGCWebService):
         md.capabilities_uri = self.service_connect_url
         md.bounding_geometry = self.service_bounding_box
 
+        # Save metadata record so we can use M2M or id of record later
+        md.save()
+
+        md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
+        md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
+        md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
+
+        # Process external authentication data, if provided
+        if external_auth is not None:
+            external_auth.metadata = md
+            crypt_handler = CryptoHandler()
+            key = crypt_handler.generate_key()
+            crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
+            external_auth.encrypt(key)
+            external_auth.save()
+
         # Service
         service = Service()
         service_type = ServiceType.objects.get_or_create(
@@ -731,23 +748,36 @@ class OGCWebFeatureService(OGCWebService):
         service.get_gml_objct_uri_GET = self.get_gml_object_uri.get("get", None)
         service.get_gml_objct_uri_POST = self.get_gml_object_uri.get("post", None)
 
-        service.formats_list = self.service_mime_type_list
-
         service.availability = 0.0
         service.is_available = False
         service.is_root = True
-
         md.service = service
 
+        # Save record to enable M2M
+        service.save()
+
+        # save linked service metadata
         if self.linked_service_metadata is not None:
             service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value)
+            md_relation = MetadataRelation()
+            md_relation.metadata_from = md
+            md_relation.metadata_to = service.linked_service_metadata
+            md_relation.origin = MetadataOrigin.objects.get_or_create(
+                name='capabilities'
+            )[0]
+            md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
+            md_relation.save()
 
         # Keywords
         for kw in self.service_identification_keywords:
             if kw is None:
                 continue
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            md.keywords_list.append(keyword)
+            md.keywords.add(keyword)
+
+        # MimeTypes
+        for mime_type in self.service_mime_type_list:
+            service.formats.add(mime_type)
 
         # feature types
         for feature_type_key, feature_type_val in self.feature_type_list.items():
@@ -764,61 +794,6 @@ class OGCWebFeatureService(OGCWebService):
             f_t.elements_list = feature_type_val.get("element_list", [])
             f_t.namespaces_list = feature_type_val.get("ns_list", [])
 
-            # add feature type to list of related feature types
-            service.feature_type_list.append(f_t)
-
-        return service
-
-    @transaction.atomic
-    def persist_service_model(self, service, external_auth: ExternalAuthentication):
-        """ Persist the service model object
-
-        Returns:
-             Nothing
-        """
-        # save metadata
-        md = service.metadata
-        md.save()
-
-        if external_auth is not None:
-            external_auth.metadata = md
-            crypt_handler = CryptoHandler()
-            key = crypt_handler.generate_key()
-            crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
-            external_auth.encrypt(key)
-            external_auth.save()
-
-        # save linked service metadata
-        if service.linked_service_metadata is not None:
-            md_relation = MetadataRelation()
-            md_relation.metadata_from = md
-            md_relation.metadata_to = service.linked_service_metadata
-            md_relation.origin = MetadataOrigin.objects.get_or_create(
-                name='capabilities'
-            )[0]
-            md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
-            md_relation.save()
-
-        md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
-        md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
-        md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
-        # save again, due to added related metadata
-        md.save()
-
-        service.metadata = md
-        # save parent service
-        service.save()
-
-        # Keywords
-        for kw in service.metadata.keywords_list:
-            service.metadata.keywords.add(kw)
-
-        # MimeTypes
-        for mime_type in service.formats_list:
-            service.formats.add(mime_type)
-
-        # feature types
-        for f_t in service.feature_type_list:
             f_t.parent_service = service
             md = f_t.metadata
             md.save()
@@ -864,6 +839,8 @@ class OGCWebFeatureService(OGCWebService):
             # namespaces
             for ns in f_t.namespaces_list:
                 f_t.namespaces.add(ns)
+
+        return service
 
     ### DATASET METADATA ###
     def _parse_dataset_md(self, feature_type, xml_feature_type_obj: _Element):

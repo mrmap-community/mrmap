@@ -761,7 +761,8 @@ class OGCWebMapService(OGCWebService):
             layer.parent_layer.child_layer.add(layer)
 
         if layer_obj.style is not None:
-            layer.tmp_style = layer_obj.style
+            layer_obj.style.layer = layer
+            layer_obj.style.save()
 
         # create bounding box polygon
         bounding_points = (
@@ -922,6 +923,9 @@ class OGCWebMapService(OGCWebService):
         metadata.is_active = False
         metadata.created_by = group
 
+        # Save metadata instance to be able to add M2M entities
+        metadata.save()
+
         if external_auth is not None:
             external_auth.metadata = metadata
             crypt_handler = CryptoHandler()
@@ -933,9 +937,6 @@ class OGCWebMapService(OGCWebService):
         metadata.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(metadata.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
         metadata.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(metadata.id)
         metadata.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(metadata.id)
-
-        # Save metadata instance to be able to add M2M entities
-        metadata.save()
 
         # Keywords
         for kw in self.service_identification_keywords:

@@ -194,7 +194,7 @@ class OGCLayer:
 
         # If parent layer is a real layer, we add the current layer as a child to the parent layer
         if layer.parent_layer is not None:
-            layer.parent_layer.child_layer.add(layer)
+            layer.parent_layer.child_layers.add(layer)
 
         if self.style is not None:
             self.style.layer = layer

@@ -2435,7 +2435,7 @@ class Layer(Service):
     preview_image = models.CharField(max_length=100, blank=True, null=True)
     preview_extent = models.CharField(max_length=100, blank=True, null=True)
     preview_legend = models.CharField(max_length=100)
-    parent_layer = models.ForeignKey("self", on_delete=models.CASCADE, null=True, related_name="child_layer")
+    parent_layer = models.ForeignKey("self", on_delete=models.CASCADE, null=True, related_name="child_layers")
     position = models.IntegerField(default=0)
     is_queryable = models.BooleanField(default=False)
     is_opaque = models.BooleanField(default=False)
@@ -2544,7 +2544,7 @@ class Layer(Service):
         if all:
             return self._get_all_children_recursive([])
         else:
-            return self.child_layer.all()
+            return self.child_layers.all()
 
     def get_upper_layers(self):
         """ Returns a list of all layers from self to the root layer of the service
@@ -2619,7 +2619,7 @@ class Layer(Service):
                 md.metadata_to.save()
                 md.save()
 
-        for layer in self.child_layer.all():
+        for layer in self.child_layers.all():
             layer.activate_layer_recursive(new_status)
 
     def _get_bottom_layers_identifier_iterative(self):
@@ -2630,7 +2630,7 @@ class Layer(Service):
         Returns:
              leaves (list): List of id sorted leaf layer identifiers
         """
-        layer_obj_children = self.child_layer.all()
+        layer_obj_children = self.child_layers.all()
         leaves = []
         non_leaves = []
         for child in layer_obj_children:

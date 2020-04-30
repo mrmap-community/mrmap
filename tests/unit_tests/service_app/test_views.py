@@ -640,8 +640,6 @@ class RunUpdateServiceViewTestCase(TestCase):
         diff_elements = diff.get("feature_types")
         new_elements = diff_elements.get("new")
 
-        print(diff)
-
         data = {}
         for element in new_elements:
             data.update({'new_elem_{}'.format(element.metadata.identifier): -1})

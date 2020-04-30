@@ -430,7 +430,7 @@ class SecuredOperation(models.Model):
                 sec_op.delete()
 
                 # remove secured operations of root layer children
-                for child_layer in layer.child_layer.all():
+                for child_layer in layer.child_layers.all():
                     sec_ops = SecuredOperation.objects.filter(
                         secured_metadata=child_layer.metadata,
                         operation=operation,
@@ -2252,7 +2252,7 @@ class Service(Resource):
         """
         self.perform_single_element_securing(current, is_secured, group, operation, group_polygons, secured_operation)
 
-        for layer in current.child_layer.all():
+        for layer in current.child_layers.all():
             self._recursive_secure_sub_layers(layer, is_secured, group, operation, group_polygons, secured_operation)
 
     def _secure_sub_layers(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
@@ -2578,7 +2578,7 @@ class Layer(Service):
         Returns:
 
         """
-        for child_layer in layer.child_layer.all():
+        for child_layer in layer.child_layers.all():
             sec_ops = SecuredOperation.objects.filter(
                 secured_metadata=child_layer.metadata,
                 operation=operation,
@@ -2634,7 +2634,7 @@ class Layer(Service):
         leaves = []
         non_leaves = []
         for child in layer_obj_children:
-            children = child.child_layer.all()
+            children = child.child_layers.all()
             if children.count() == 0:
                 leaves.append(child)
             else:
@@ -2642,7 +2642,7 @@ class Layer(Service):
 
         while len(non_leaves) > 0:
             layer = non_leaves.pop()
-            children = layer.child_layer.all()
+            children = layer.child_layers.all()
             if children.count() == 0:
                 leaves.append(layer)
             else:

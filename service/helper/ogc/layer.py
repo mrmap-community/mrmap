@@ -42,6 +42,6 @@ class OGCLayer:
         self.get_styles_uri_POST = None
         self.dimension_list = []
         self.style = None
-        self.child_layer = []
+        self.child_layers = []
 
         self.iso_metadata = []

@@ -763,7 +763,6 @@ class OGCWebFeatureService(OGCWebService):
         service.servicetype = service_type
         service.created_by = group
         service.published_for = orga_published_for
-        service.published_by = orga_publisher
 
         service.get_capabilities_uri_GET = self.get_capabilities_uri.get("get", None)
         service.get_capabilities_uri_POST = self.get_capabilities_uri.get("post", None)

@@ -28,7 +28,7 @@ from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
     FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType, RequestOperation, ExternalAuthentication
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
-from structure.models import Organization, MrMapUser
+from structure.models import Organization, MrMapUser, MrMapGroup, Contact
 
 
 class OGCWebFeatureServiceFactory:
@@ -664,17 +664,32 @@ class OGCWebFeatureService(OGCWebService):
         orga_publisher = user.organization
         group = register_group
 
-        # Metadata
-        md = Metadata()
-        md_type = MetadataType.objects.get_or_create(type=MetadataEnum.SERVICE.value)[0]
-        md.metadata_type = md_type
-        md.title = self.service_identification_title
-        if self.service_file_identifier is None:
-            self.service_file_identifier = uuid.uuid4()
-        md.uuid = self.service_file_identifier
-        md.abstract = self.service_identification_abstract
-        md.online_resource = self.service_provider_onlineresource_linkage
+        # Contact
+        contact = self._create_contact_record()
 
+        # Metadata
+        md = self._create_metadata_record(contact, group)
+
+        # Process external authentication data, if provided
+        self._process_external_authentication(md, external_auth)
+
+        # Service
+        service = self._create_service_record(group, orga_published_for, orga_publisher, md)
+
+        # Additional (Keywords, linked metadata, MimeTypes, ...)
+        self._create_additional_records(service, md)
+
+        # feature types
+        self._create_feature_types(service, group, contact)
+
+        return service
+
+    def _create_contact_record(self):
+        """ Creates a contact record from the OGCWebFeatureService object
+
+        Returns:
+             contact (Contact): A persisted contact object
+        """
         ## contact
         contact = Organization.objects.get_or_create(
             organization_name=self.service_provider_providername,
@@ -688,6 +703,27 @@ class OGCWebFeatureService(OGCWebService):
             state_or_province=self.service_provider_address_state_or_province,
             country=self.service_provider_address_country,
         )[0]
+        return contact
+
+    def _create_metadata_record(self, contact: Contact, group: MrMapGroup):
+        """ Creates a Metadata record from the OGCWebFeatureService object
+
+        Args:
+            contact (Contact): The contact object
+            group (MrMapGroup): The owner/creator group
+        Returns:
+             md (Metadata): The persisted metadata record
+        """
+        md = Metadata()
+        md_type = MetadataType.objects.get_or_create(type=MetadataEnum.SERVICE.value)[0]
+        md.metadata_type = md_type
+        md.title = self.service_identification_title
+        if self.service_file_identifier is None:
+            self.service_file_identifier = uuid.uuid4()
+        md.uuid = self.service_file_identifier
+        md.abstract = self.service_identification_abstract
+        md.online_resource = self.service_provider_onlineresource_linkage
+
         md.contact = contact
         md.authority_url = self.service_provider_url
         md.access_constraints = self.service_identification_accessconstraints
@@ -704,7 +740,19 @@ class OGCWebFeatureService(OGCWebService):
         md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
         md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
 
-        # Process external authentication data, if provided
+        md.save()
+
+        return md
+
+    def _process_external_authentication(self, md: Metadata, external_auth: ExternalAuthentication):
+        """ Fills needed data into the ExternalAuthentication object
+
+        Args:
+            md (Metadata): The externally secured metadata record
+            external_auth (ExternalAuthentication): The external authentication record
+        Returns:
+
+        """
         if external_auth is not None:
             external_auth.metadata = md
             crypt_handler = CryptoHandler()
@@ -713,7 +761,17 @@ class OGCWebFeatureService(OGCWebService):
             external_auth.encrypt(key)
             external_auth.save()
 
-        # Service
+    def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, orga_publisher: Organization, md: Metadata):
+        """ Creates a Service object from the OGCWebFeatureService object
+
+        Args:
+            group (MrMapGroup): The owner/creator group
+            orga_published_for (Organization): The organization for which the service is published
+            orga_publisher (Organization): THe organization that publishes
+            md (Metadata): The describing metadata
+        Returns:
+             service (Service): The persisted service object
+        """
         service = Service()
         service_type = ServiceType.objects.get_or_create(
             name=self.service_type.value,
@@ -756,6 +814,18 @@ class OGCWebFeatureService(OGCWebService):
         # Save record to enable M2M
         service.save()
 
+        return service
+
+    def _create_additional_records(self, service: Service, md: Metadata):
+        """ Creates additional records like linked service metadata, keywords or MimeTypes/Formats
+
+        Args:
+            service (Service): The service record
+            md (Metadata): THe metadata record
+        Returns:
+
+        """
+
         # save linked service metadata
         if self.linked_service_metadata is not None:
             service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value)
@@ -779,7 +849,16 @@ class OGCWebFeatureService(OGCWebService):
         for mime_type in self.service_mime_type_list:
             service.formats.add(mime_type)
 
-        # feature types
+    def _create_feature_types(self, service: Service, group: MrMapGroup, contact: Contact):
+        """ Iterates over parsed feature types and creates DB records for each
+
+        Args:
+            service (Service):
+            group (Service):
+            contact (Service):
+        :return:
+        """
+
         for feature_type_key, feature_type_val in self.feature_type_list.items():
             f_t = feature_type_val.get("feature_type")
             f_t.metadata.created_by = group
@@ -840,7 +919,6 @@ class OGCWebFeatureService(OGCWebService):
             for ns in f_t.namespaces_list:
                 f_t.namespaces.add(ns)
 
-        return service
 
     ### DATASET METADATA ###
     def _parse_dataset_md(self, feature_type, xml_feature_type_obj: _Element):

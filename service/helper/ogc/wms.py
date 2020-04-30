@@ -34,7 +34,7 @@ from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, Layer, MimeType, Keyword, ReferenceSystem, \
     MetadataRelation, MetadataOrigin, MetadataType, Style, ExternalAuthentication, Dimension
 from service.settings import MD_RELATION_TYPE_VISUALIZES, MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
-from structure.models import Organization, MrMapGroup
+from structure.models import Organization, MrMapGroup, Contact
 from structure.models import MrMapUser
 
 
@@ -896,14 +896,70 @@ class OGCWebMapService(OGCWebService):
         orga_publisher = user.organization
         group = register_group
 
-        # fill objects
-        # Create ServiceType record if it doesn't exist yet
+        # Contact
+        contact = self._create_organization_contact_record()
+
+        # Metadata
+        metadata = self._create_metadata_record(contact, group)
+
+        # Process external authentication
+        self._process_external_authentication(metadata, external_auth)
+
+        # Service
+        ## Create ServiceType record if it doesn't exist yet
         service_type = ServiceType.objects.get_or_create(
             name=self.service_type.value,
             version=self.service_version.value
         )[0]
+        service = self._create_service_record(group, orga_published_for, orga_publisher, metadata, service_type)
 
-        # Metadata
+        # Additionals (keywords, mimetypes, ...)
+        self._create_additional_records(service, metadata)
+
+        # Begin creation of Layer records, starting with the root layer
+        root_layer = self.layers[0]
+        self._create_layer_model_instance(
+            layers=[root_layer],
+            service_type=service_type,
+            wms=service,
+            creator=group,
+            root_md=copy(metadata),
+            publisher=orga_publisher,
+            published_for=orga_published_for,
+            contact=contact,
+            user=user
+        )
+        return service
+
+    def _create_organization_contact_record(self):
+        """ Creates a Organization record from the OGCWebMapService
+
+        Returns:
+             contact (Organization): The persisted organization contact record
+        """
+        contact = Organization.objects.get_or_create(
+            organization_name=self.service_provider_providername,
+            person_name=self.service_provider_responsibleparty_individualname,
+            email=self.service_provider_address_electronicmailaddress,
+            phone=self.service_provider_telephone_voice,
+            facsimile=self.service_provider_telephone_facsimile,
+            city=self.service_provider_address_city,
+            address=self.service_provider_address,
+            postal_code=self.service_provider_address_postalcode,
+            state_or_province=self.service_provider_address_state_or_province,
+            country=self.service_provider_address_country,
+        )[0]
+        return contact
+
+    def _create_metadata_record(self, contact: Organization, group: MrMapGroup):
+        """ Creates a Metadata record from the OGCWebMapService
+
+        Args:
+            contact (Organization): The contact organization for this metadata record
+            group (MrMapGroup): The owner/creator group
+        Returns:
+             metadata (Metadata): The persisted metadata record
+        """
         metadata = Metadata()
         md_type = MetadataType.objects.get_or_create(type=MetadataEnum.SERVICE.value)[0]
         metadata.metadata_type = md_type
@@ -922,47 +978,31 @@ class OGCWebMapService(OGCWebService):
         metadata.identifier = self.service_file_identifier
         metadata.is_active = False
         metadata.created_by = group
+        metadata.contact = contact
 
         # Save metadata instance to be able to add M2M entities
         metadata.save()
-
-        if external_auth is not None:
-            external_auth.metadata = metadata
-            crypt_handler = CryptoHandler()
-            key = crypt_handler.generate_key()
-            crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, metadata.id), key)
-            external_auth.encrypt(key)
-            external_auth.save()
 
         metadata.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(metadata.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
         metadata.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(metadata.id)
         metadata.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(metadata.id)
 
-        # Keywords
-        for kw in self.service_identification_keywords:
-            if kw is None:
-                continue
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            metadata.keywords.add(keyword)
-
-        # Contact
-        contact = Organization.objects.get_or_create(
-            organization_name=self.service_provider_providername,
-            person_name=self.service_provider_responsibleparty_individualname,
-            email=self.service_provider_address_electronicmailaddress,
-            phone=self.service_provider_telephone_voice,
-            facsimile=self.service_provider_telephone_facsimile,
-            city=self.service_provider_address_city,
-            address=self.service_provider_address,
-            postal_code=self.service_provider_address_postalcode,
-            state_or_province=self.service_provider_address_state_or_province,
-            country=self.service_provider_address_country,
-        )[0]
-        metadata.contact = contact
-
         metadata.save()
+        return metadata
 
-        # Service
+    def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, orga_publisher: Organization,
+                               metadata: Metadata, service_type: ServiceType):
+        """ Creates a Service object from the OGCWebFeatureService object
+
+        Args:
+            group (MrMapGroup): The owner/creator group
+            orga_published_for (Organization): The organization for which the service is published
+            orga_publisher (Organization): THe organization that publishes
+            metadata (Metadata): The describing metadata
+        Returns:
+             service (Service): The persisted service object
+        """
+
         service = Service()
         service.availability = 0.0
         service.is_available = False
@@ -987,6 +1027,27 @@ class OGCWebMapService(OGCWebService):
 
         service.save()
 
+        # Persist capabilities document
+        service.persist_capabilities_doc(self.service_capabilities_xml)
+
+        return service
+
+    def _create_additional_records(self, service: Service, metadata: Metadata):
+        """ Creates additional records like linked service metadata, keywords or MimeTypes/Formats
+
+        Args:
+            service (Service): The service record
+            metadata (Metadata): THe metadata record
+        Returns:
+
+        """
+        # Keywords
+        for kw in self.service_identification_keywords:
+            if kw is None:
+                continue
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            metadata.keywords.add(keyword)
+
         # Check for linked service metadata that might be found during parsing
         if self.linked_service_metadata is not None:
             service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value)
@@ -998,24 +1059,6 @@ class OGCWebMapService(OGCWebService):
             )[0]
             md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
             md_relation.save()
-
-        # Persist capabilities xml
-        service.persist_capabilities_doc(self.service_capabilities_xml)
-
-        # Begin creation of Layer records, starting with the root layer
-        root_layer = self.layers[0]
-        self._create_layer_model_instance(
-            layers=[root_layer],
-            service_type=service_type,
-            wms=service,
-            creator=group,
-            root_md=copy(metadata),
-            publisher=orga_publisher,
-            published_for=orga_published_for,
-            contact=contact,
-            user=user
-        )
-        return service
 
 class OGCWebMapServiceLayer(OGCLayer):
     """ The OGCWebMapServiceLayer class

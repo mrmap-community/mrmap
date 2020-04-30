@@ -665,7 +665,7 @@ class OGCWebFeatureService(OGCWebService):
         group = register_group
 
         # Contact
-        contact = self._create_contact_record()
+        contact = self._create_contact_organization_record()
 
         # Metadata
         md = self._create_metadata_record(contact, group)
@@ -684,7 +684,7 @@ class OGCWebFeatureService(OGCWebService):
 
         return service
 
-    def _create_contact_record(self):
+    def _create_contact_organization_record(self):
         """ Creates a contact record from the OGCWebFeatureService object
 
         Returns:
@@ -705,7 +705,7 @@ class OGCWebFeatureService(OGCWebService):
         )[0]
         return contact
 
-    def _create_metadata_record(self, contact: Contact, group: MrMapGroup):
+    def _create_metadata_record(self, contact: Organization, group: MrMapGroup):
         """ Creates a Metadata record from the OGCWebFeatureService object
 
         Args:
@@ -743,23 +743,6 @@ class OGCWebFeatureService(OGCWebService):
         md.save()
 
         return md
-
-    def _process_external_authentication(self, md: Metadata, external_auth: ExternalAuthentication):
-        """ Fills needed data into the ExternalAuthentication object
-
-        Args:
-            md (Metadata): The externally secured metadata record
-            external_auth (ExternalAuthentication): The external authentication record
-        Returns:
-
-        """
-        if external_auth is not None:
-            external_auth.metadata = md
-            crypt_handler = CryptoHandler()
-            key = crypt_handler.generate_key()
-            crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
-            external_auth.encrypt(key)
-            external_auth.save()
 
     def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, orga_publisher: Organization, md: Metadata):
         """ Creates a Service object from the OGCWebFeatureService object
@@ -811,8 +794,11 @@ class OGCWebFeatureService(OGCWebService):
         service.is_root = True
         md.service = service
 
-        # Save record to enable M2M
+        # Save record to enable M2M relations
         service.save()
+
+        # Persist capabilities document
+        service.persist_capabilities_doc(self.service_capabilities_xml)
 
         return service
 

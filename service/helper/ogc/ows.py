@@ -12,9 +12,11 @@ from MapSkinner.messages import CONNECTION_TIMEOUT
 from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
+from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, OGCServiceEnum
 from service.helper.iso.iso_metadata import ISOMetadata
-from service.models import RequestOperation, ExternalAuthentication
+from service.models import RequestOperation, ExternalAuthentication, Metadata
+from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
 from structure.models import MrMapUser
 
 
@@ -233,3 +235,20 @@ class OGCWebService:
     @abstractmethod
     def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization):
         pass
+
+    def _process_external_authentication(self, md: Metadata, external_auth: ExternalAuthentication):
+        """ Fills needed data into the ExternalAuthentication object
+
+        Args:
+            md (Metadata): The externally secured metadata record
+            external_auth (ExternalAuthentication): The external authentication record
+        Returns:
+
+        """
+        if external_auth is not None:
+            external_auth.metadata = md
+            crypt_handler = CryptoHandler()
+            key = crypt_handler.generate_key()
+            crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
+            external_auth.encrypt(key)
+            external_auth.save()

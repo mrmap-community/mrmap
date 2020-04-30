@@ -233,8 +233,3 @@ class OGCWebService:
     @abstractmethod
     def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization):
         pass
-
-    @transaction.atomic
-    @abstractmethod
-    def persist_service_model(self, service, external_auth):
-        pass

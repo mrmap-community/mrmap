@@ -172,8 +172,7 @@ def create_service(service_type, version, base_uri, user, register_group, regist
     Returns:
 
     """
-
-    ret_dict = {}
+    service = None
     if service_type is OGCServiceEnum.WMS:
         # create WMS object
         wms_factory = OGCWebMapServiceFactory()
@@ -182,7 +181,6 @@ def create_service(service_type, version, base_uri, user, register_group, regist
         wms.get_capabilities()
         wms.create_from_capabilities(async_task=async_task)
         service = wms.create_service_model_instance(user, register_group, register_for_organization, external_auth)
-        ret_dict["raw_data"] = wms
     else:
         # create WFS object
         wfs_factory = OGCWebFeatureServiceFactory()
@@ -193,30 +191,7 @@ def create_service(service_type, version, base_uri, user, register_group, regist
         # since we iterate through featuretypes, we can use async task here
         wfs.create_from_capabilities(async_task=async_task, external_auth=external_auth)
         service = wfs.create_service_model_instance(user, register_group, register_for_organization)
-        ret_dict["raw_data"] = wfs
-    ret_dict["service"] = service
-    return ret_dict
-
-
-def persist_service_model_instance(service: Service, external_auth: ExternalAuthentication):
-    """ Persists the service model instance
-
-    Args:
-        external_auth: The external authentication instance
-        service: The service model instance
-    Returns:
-         Nothing
-    """
-    if service.servicetype.name == OGCServiceEnum.WMS.value:
-        # create WMS object
-        wms_factory = OGCWebMapServiceFactory()
-        wms = wms_factory.get_ogc_wms(version=resolve_version_enum(service.servicetype.version))
-        wms.persist_service_model(service, external_auth)
-    else:
-        # create WFS object
-        wfs_factory = OGCWebFeatureServiceFactory()
-        wfs = wfs_factory.get_ogc_wfs(version=resolve_version_enum(service.servicetype.version))
-        wfs.persist_service_model(service, external_auth)
+    return service
 
 
 def capabilities_are_different(cap_url_1, cap_url_2):

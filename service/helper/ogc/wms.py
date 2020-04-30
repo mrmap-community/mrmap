@@ -126,7 +126,7 @@ class OGCWebMapService(OGCWebService):
 
         if not metadata_only:
             start_time = time.time()
-            self._get_layers(xml_obj=xml_obj, async_task=async_task)
+            self._parse_layers(xml_obj=xml_obj, async_task=async_task)
             print_debug_mode(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
 
     ### DATASET METADATA ###
@@ -485,9 +485,9 @@ class OGCWebMapService(OGCWebService):
             parent.child_layer.append(layer_obj)
         position += 1
 
-        self._get_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size, async_task=async_task)
+        self._parse_layers_recursive(layers=sublayers, parent=layer_obj, step_size=step_size, async_task=async_task)
 
-    def _get_layers_recursive(self, layers, parent=None, position=0, step_size: float = None, async_task: Task = None):
+    def _parse_layers_recursive(self, layers, parent=None, position=0, step_size: float = None, async_task: Task = None):
         """ Recursive Iteration over all children and subchildren.
 
         Creates OGCWebMapLayer objects for each xml layer and fills it with the layer content.
@@ -515,7 +515,7 @@ class OGCWebMapService(OGCWebService):
                 self._parse_single_layer(layer, parent, position, step_size=step_size, async_task=async_task)
                 position += 1
 
-    def _get_layers(self, xml_obj, async_task: Task = None):
+    def _parse_layers(self, xml_obj, async_task: Task = None):
         """ Parses all layers of a service and creates OGCWebMapLayer objects from each.
 
         Uses recursion on the inside to get all children.
@@ -545,7 +545,7 @@ class OGCWebMapService(OGCWebService):
         step_size = float(PROGRESS_STATUS_AFTER_PARSING / len_layers)
         print_debug_mode("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
 
-        self._get_layers_recursive(layers, step_size=step_size, async_task=async_task)
+        self._parse_layers_recursive(layers, step_size=step_size, async_task=async_task)
 
     def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         """ Parses all <Service> element information which can be found in every wms specification since 1.0.0
@@ -998,7 +998,10 @@ class OGCWebMapService(OGCWebService):
             md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
             md_relation.save()
 
-        # Begin creation of Layer records starting with the root layer
+        # Persist capabilities xml
+        service.persist_capabilities_doc(self.service_capabilities_xml)
+
+        # Begin creation of Layer records, starting with the root layer
         root_layer = self.layers[0]
         self._create_layer_model_instance(
             layers=[root_layer],
@@ -1012,125 +1015,6 @@ class OGCWebMapService(OGCWebService):
             user=user
         )
         return service
-
-    @transaction.atomic
-    def persist_service_model(self, service, external_auth: ExternalAuthentication):
-        """ Persist the service model object
-
-        Returns:
-             Nothing
-        """
-        # save metadata
-        md = service.metadata
-        md.save()
-
-        if external_auth is not None:
-            external_auth.metadata = md
-            crypt_handler = CryptoHandler()
-            key = crypt_handler.generate_key()
-            crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
-            external_auth.encrypt(key)
-            external_auth.save()
-
-        # save linked service metadata
-        if service.linked_service_metadata is not None:
-            md_relation = MetadataRelation()
-            md_relation.metadata_from = md
-            md_relation.metadata_to = service.linked_service_metadata
-            md_relation.origin = MetadataOrigin.objects.get_or_create(
-                name='capabilities'
-            )[0]
-            md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
-            md_relation.save()
-
-        md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
-        md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
-        md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
-        # save again, due to added related metadata
-        md.save()
-
-        # metadata keywords
-        for kw in md.keywords_list:
-            md.keywords.add(kw)
-        service.metadata = md
-
-        # save parent service
-        service.save()
-
-        # save all containing layers
-        if service.root_layer is not None:
-            self._persist_child_layers([service.root_layer], service)
-
-
-    @transaction.atomic
-    def _persist_child_layers(self, layers, parent_service, parent_layer=None):
-        """ Persist all layer children
-
-        Everything that has just been constructed will get a database record
-
-        Args:
-            parent_layer:
-        Returns:
-             Nothing
-        """
-        for layer in layers:
-            md = layer.metadata
-            md_type = md.metadata_type
-            md_type = MetadataType.objects.get_or_create(type=md_type.type)[0]
-            md.metadata_type = md_type
-            md.save()
-
-            md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(
-                OGCOperationEnum.GET_CAPABILITIES.value)
-            md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
-            md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
-            md.save()
-            for iso_md in layer.iso_metadata:
-                iso_md = iso_md.to_db_model()
-                metadata_relation = MetadataRelation()
-                metadata_relation.metadata_from = md
-                metadata_relation.metadata_to = iso_md
-                metadata_relation.origin = MetadataOrigin.objects.get_or_create(
-                    name=iso_md.origin
-                )[0]
-                metadata_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
-                metadata_relation.save()
-
-            layer.metadata = md
-
-            # handle keywords of this layer
-            for kw in layer.metadata.keywords_list:
-                layer.metadata.keywords.add(kw)
-
-            # handle reference systems
-            for sys in layer.metadata.reference_system_list:
-                sys = ReferenceSystem.objects.get_or_create(code=sys.code, prefix=sys.prefix)[0]
-                layer.metadata.reference_system.add(sys)
-
-            for dimension in layer.metadata.dimension_list:
-                dimension.save()
-                layer.metadata.dimensions.add(dimension)
-
-            layer.parent_layer = parent_layer
-            layer.parent_service = parent_service
-            layer.save()
-
-            if layer.tmp_style is not None:
-                layer.tmp_style.layer = layer
-                layer.tmp_style.save()
-
-            # iterate over all available mime types and actions
-            for _format in layer.formats_list:
-                _format = MimeType.objects.get_or_create(
-                    operation=_format.operation,
-                    mime_type=_format.mime_type,
-                )[0]
-                layer.formats.add(_format)
-
-            layer_children_list = layer.children_list
-            if len(layer_children_list) > 0:
-                self._persist_child_layers(layer.children_list, parent_service, layer)
-
 
 class OGCWebMapServiceLayer(OGCLayer):
     """ The OGCWebMapServiceLayer class
@@ -1344,4 +1228,4 @@ class OGCWebMapService_1_3_0(OGCWebMapService):
         )
         self.max_height = max_height
 
-        self._get_layers(xml_obj=xml_obj)
+        self._parse_layers(xml_obj=xml_obj)

@@ -8,7 +8,7 @@ from django.shortcuts import render, redirect
 # Create your views here.
 from django.template.loader import render_to_string
 from MapSkinner import utils
-from MapSkinner.decorator import check_permission
+from MapSkinner.decorator import check_permission, check_ownership
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
     SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
@@ -117,6 +117,7 @@ def index_wfs(request: HttpRequest):
 
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
+@check_ownership(Metadata, 'id')
 def edit(request: HttpRequest, id: int):
     """ The edit view for metadata
 
@@ -193,6 +194,7 @@ def edit(request: HttpRequest, id: int):
 
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
+@check_ownership(Metadata, 'id')
 def edit_access(request: HttpRequest, id: int):
     """ The edit view for the operations access
 
@@ -314,6 +316,7 @@ def access_geometry_form(request: HttpRequest, id: int):
 
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
+@check_ownership(Metadata, 'id')
 def restore(request: HttpRequest, id: int):
     """ Drops custom metadata and load original metadata from capabilities and ISO metadata
 
@@ -368,6 +371,7 @@ def restore(request: HttpRequest, id: int):
 
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
+@check_ownership(FeatureType, 'id')
 def restore_featuretype(request: HttpRequest, id: int):
     """ Drops custom featuretype data and load original from capabilities and ISO metadata
 

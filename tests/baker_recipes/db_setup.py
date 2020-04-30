@@ -201,7 +201,7 @@ def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = Non
     return root_service_metadatas
 
 
-def create_guest_groups(user: MrMapGroup = None, how_much_groups: int = 1):
+def create_guest_groups(user: MrMapUser = None, how_much_groups: int = 1):
 
     # Check for already existing groups to fetch the next sequence integer
     existing_groups = MrMapGroup.objects.filter(

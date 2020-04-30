@@ -51,6 +51,10 @@ SESSION_TIMEOUT = _("Session timeout. You have been logged out.")
 CONNECTION_TIMEOUT = _("Timeout while loading '{}'!")
 
 NO_PERMISSION = _("You do not have permissions for this!")
+RESOURCE_IS_OWNED_BY_ANOTHER_GROUP = _("Resource is owned by another group. Access denied.")
+REQUESTING_USER_IS_NOT_MEMBER_OF_THE_GROUP = _("Requesting user is not member of the group. Access denied.")
+REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION = _("Requesting user is not member of the organization. Access denied.")
+
 
 METADATA_RESTORING_SUCCESS = _("Metadata restored to original")
 METADATA_EDITING_SUCCESS = _("Metadata editing successful")

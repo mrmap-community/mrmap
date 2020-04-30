@@ -9,12 +9,14 @@ import json
 
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpResponse
-from django.shortcuts import redirect
+from django.http import HttpResponse, HttpResponseRedirect
+from django.shortcuts import redirect, get_object_or_404
+from django.urls import reverse
 
-from MapSkinner.messages import NO_PERMISSION, SERVICE_NOT_FOUND
-from service.models import Metadata, ProxyLog
-from structure.models import Permission
+from MapSkinner.messages import NO_PERMISSION, SERVICE_NOT_FOUND, RESOURCE_IS_OWNED_BY_ANOTHER_GROUP, \
+    REQUESTING_USER_IS_NOT_MEMBER_OF_THE_GROUP, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION
+from service.models import Metadata, ProxyLog, Resource
+from structure.models import Permission, MrMapUser, MrMapGroup, Organization
 from users.helper import user_helper
 
 
@@ -34,8 +36,52 @@ def check_permission(permission_needed: Permission):
             for perm in perm_needed:
                 if perm not in user_permissions:
                     messages.add_message(request, messages.ERROR, NO_PERMISSION)
-                    return redirect(request.META.get("HTTP_REFERER"))
+                    return redirect(request.META.get("HTTP_REFERER") if "HTTP_REFERER" in request.META else reverse('home'))
             return function(request=request, *args, **kwargs)
+
+        wrap.__doc__ = function.__doc__
+        wrap.__name__ = function.__name__
+        return wrap
+    return method_wrap
+
+
+def check_ownership(klass, id_name: str):
+    """ Checks whether the user is owner of the resource by groupmemberships
+
+    Args:
+        klass: the class object which will be requested
+        id_name: name of the id used in the kwargs
+    Returns:
+        The function
+    """
+
+    def method_wrap(function):
+        def wrap(request, *args, **kwargs):
+            resource = get_object_or_404(klass, id=kwargs.get(id_name),)
+
+            user = user_helper.get_user(request=request)
+            user_groups = user.get_groups()
+
+            if isinstance(resource, MrMapGroup):
+                if resource in user_groups:
+                    return function(request=request, *args, **kwargs)
+                else:
+                    messages.add_message(request, messages.ERROR, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_GROUP)
+
+            elif isinstance(resource, Organization):
+                if user.organization == resource:
+                    return function(request=request, *args, **kwargs)
+                else:
+                    messages.add_message(request, messages.ERROR, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION)
+
+            else:
+                if resource.created_by in user_groups:
+                    return function(request=request, *args, **kwargs)
+                else:
+                    messages.add_message(request, messages.ERROR, RESOURCE_IS_OWNED_BY_ANOTHER_GROUP)
+            return HttpResponseRedirect(
+                request.META.get("HTTP_REFERER") if "HTTP_REFERER" in request.META else reverse('home'),
+                status=303)
 
         wrap.__doc__ = function.__doc__
         wrap.__name__ = function.__name__

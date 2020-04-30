@@ -91,7 +91,7 @@ def get_capabilitites_url():
     # currently supported version for wms 1.3.0, 1.1.1, 1.1.0, 1.0.0
     # currently supported version for wfs 2.0.2, 2.0.0, 1.1.3, 1.1.0, 1.0.0
     return {
-        "valid": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
+        "valid": "https://geo4.service24.rlp.de/wms/rp_lika_basis.fcgi?REQUEST=GetCapabilities&VERSION=1.1.1&SERVICE=WMS",
         "valid_wms_version_130": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
         "valid_wms_version_111": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetCapabilities",
         "valid_wms_version_110": "http://geo5.service24.rlp.de/wms/karte_rp.fcgi?SERVICE=WMS&VERSION=1.1.0&REQUEST=GetCapabilities",

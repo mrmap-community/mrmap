@@ -30,17 +30,20 @@ from service.helper.iso.service_metadata_builder import ServiceMetadataBuilder
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
     LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES
-from structure.models import MrMapGroup, Organization
+from structure.models import MrMapGroup, Organization, MrMapUser
 from service.helper import xml_helper
 
 
 class Resource(models.Model):
     uuid = models.CharField(max_length=255, default=uuid.uuid4())
     created = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(MrMapGroup, on_delete=models.DO_NOTHING, null=True, blank=True)
+    created_by = models.ForeignKey(MrMapGroup, on_delete=models.SET_NULL, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)
     is_deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
+    is_update_candidate_for = models.OneToOneField('self', on_delete=models.SET_NULL, related_name="has_update_candidate", null=True, default=None, blank=True)
+    created_by_user = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True, blank=True)
+    keep_custom_md = models.BooleanField(default=True)
 
     def save(self, update_last_modified=True, force_insert=False, force_update=False, using=None,
              update_fields=None):
@@ -536,6 +539,7 @@ class ExternalAuthentication(models.Model):
 
 
 class Metadata(Resource):
+    id = models.BigAutoField(primary_key=True,)
     identifier = models.CharField(max_length=255, null=True)
     title = models.CharField(max_length=255)
     abstract = models.TextField(null=True, blank=True)
@@ -598,6 +602,38 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    def clear_upper_element_capabilities(self, clear_self_too=False):
+        """ Removes current_capability_document from upper element Document records.
+
+        This forces the documents to be regenerated on the next call
+
+        Returns:
+
+        """
+        # Only important for Layer instances, since there is no hierarchy in WFS
+        if self.metadata_type != MetadataEnum.LAYER.value:
+            return
+
+        # Find all upper layers/elements
+        layer = Layer.objects.get(metadata=self)
+
+        upper_elements = layer.get_upper_layers()
+        upper_elements_metadatas = [elem.metadata for elem in upper_elements]
+
+        if clear_self_too:
+            upper_elements_metadatas.append(self)
+
+        # Set document records value to None
+        upper_elements_docs = Document.objects.filter(
+            related_metadata__in=upper_elements_metadatas
+        )
+        for doc in upper_elements_docs:
+            doc.current_capability_document = None
+            doc.save()
+
+        for md in upper_elements_metadatas:
+            md.clear_cached_documents()
+
     def clear_cached_documents(self):
         """ Sets the content of all possibly auto-generated documents to None
 
@@ -652,7 +688,6 @@ class Metadata(Resource):
             ret_list = [layer.metadata for layer in sub_layers]
 
         return ret_list
-
 
     def get_service_metadata_xml(self):
         """ Getter for the service metadata.
@@ -1318,6 +1353,7 @@ class MetadataType(models.Model):
 
 
 class Document(Resource):
+    id = models.BigAutoField(primary_key=True)
     related_metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
     original_capability_document = models.TextField(null=True, blank=True)
     current_capability_document = models.TextField(null=True, blank=True)
@@ -2087,6 +2123,7 @@ class ServiceType(models.Model):
 
 
 class Service(Resource):
+    id = models.BigAutoField(primary_key=True)
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)
@@ -2372,16 +2409,20 @@ class Service(Resource):
         self.metadata.save(update_last_modified=False)
         self.save(update_last_modified=False)
 
-    def persist_capabilities_doc(self, xml: str):
+    def persist_capabilities_doc(self, xml: str, is_update_candidate_for: Resource = None, created_by_user: MrMapUser = None):
         """ Persists the capabilities document
 
         Args:
             xml (str): The xml document as string
+            is_update_candidate_for:
+            created_by_user:
         Returns:
              nothing
         """
         # save original capabilities document
         cap_doc = Document()
+        cap_doc.is_update_candidate_for = is_update_candidate_for
+        cap_doc.created_by_user = created_by_user
         cap_doc.original_capability_document = xml
         cap_doc.related_metadata = self.metadata
         cap_doc.set_capabilities_secured()
@@ -2505,6 +2546,25 @@ class Layer(Service):
         else:
             return self.child_layer.all()
 
+    def get_upper_layers(self):
+        """ Returns a list of all layers from self to the root layer of the service
+
+        Returns:
+
+        """
+        ret_list = []
+        upper_element = Layer.objects.get(
+            child_layer=self
+        )
+        while upper_element is not None:
+            ret_list.append(upper_element)
+            try:
+                upper_element = Layer.objects.get(
+                    child_layer=upper_element
+                )
+            except ObjectDoesNotExist:
+                upper_element = None
+        return ret_list
 
     def delete_children_secured_operations(self, layer, operation, group):
         """ Walk recursive through all layers of wms and remove their secured operations

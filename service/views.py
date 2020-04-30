@@ -14,11 +14,11 @@ from MapSkinner import utils
 from MapSkinner.cacher import PreviewImageCacher
 from MapSkinner.consts import *
 from MapSkinner.decorator import check_permission, log_proxy, check_ownership
-from MapSkinner.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_UPDATED, \
+from MapSkinner.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED
-from MapSkinner.responses import BackendAjaxResponse, DefaultContext
+from MapSkinner.responses import DefaultContext
 from service import tasks
 from service.helper import xml_helper
 from service.filters import MetadataWmsFilter, MetadataWfsFilter
@@ -30,9 +30,9 @@ from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVer
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
-from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable
+from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable, UpdateServiceElements
 from service.tasks import async_increase_hits
-from service.models import Metadata, Layer, Service, FeatureType, Document, MetadataRelation, Style, ProxyLog
+from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
 from structure.models import MrMapUser, Permission, PendingTask, MrMapGroup
@@ -63,6 +63,7 @@ def _prepare_wms_table(request: HttpRequest):
         service__is_root=show_service,
         created_by__in=user.get_groups(),
         is_deleted=False,
+        is_update_candidate_for=None
     ).order_by("title")
 
     wms_table_filtered = MetadataWmsFilter(request.GET, queryset=md_list_wms)
@@ -106,6 +107,7 @@ def _prepare_wfs_table(request: HttpRequest):
         service__servicetype__name=OGCServiceEnum.WFS.value,
         created_by__in=user.get_groups(),
         is_deleted=False,
+        is_update_candidate_for=None
     ).order_by("title")
 
     wfs_table_filtered = MetadataWfsFilter(request.GET, queryset=md_list_wfs)
@@ -675,7 +677,7 @@ def wms_index(request: HttpRequest):
 @check_permission(Permission(can_update_service=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
-def update_service(request: HttpRequest, metadata_id: int):
+def new_pending_update_service(request: HttpRequest, metadata_id: int):
     """ Compare old service with new service and collect differences
 
     Args:
@@ -684,93 +686,170 @@ def update_service(request: HttpRequest, metadata_id: int):
     Returns:
         A rendered view
     """
+    if request.method == 'POST':
+        current_service = get_object_or_404(Service, metadata__id=metadata_id)
+        current_document = get_object_or_404(Document, related_metadata=current_service.metadata)
+        user = user_helper.get_user(request)
+
+        # Update check form!
+        update_form = UpdateServiceCheckForm(request.POST,
+                                             current_service=current_service,
+                                             current_document=current_document,
+                                             requesting_user=user)
+        # Check if update form is valid
+        if update_form.is_valid():
+            # Create db model from new service information (no persisting, yet)
+            new_service = service_helper.get_service_model_instance(
+                service_type=update_form.url_dict.get("service"),
+                version=service_helper.resolve_version_enum(update_form.url_dict.get("version")),
+                base_uri=update_form.url_dict.get("base_uri"),
+                user=user,
+                register_group=current_service.created_by
+            )
+            new_document = new_service["raw_data"]
+            new_service = new_service["service"]
+            new_service.is_update_candidate_for = current_service
+            new_service.created_by_user = user
+            new_service.keep_custom_md = update_form.cleaned_data['keep_custom_md']
+            new_service.metadata.is_update_candidate_for = current_service.metadata
+            new_service.metadata.created_by_user = user
+            # persist the service object
+            service_helper.persist_service_model_instance(new_service, None)
+            # get the current document object and persist the update candidate
+            new_service.persist_capabilities_doc(new_document.service_capabilities_xml, current_document, user)
+            return HttpResponseRedirect(reverse("service:pending-update", args=(metadata_id,)), status=303)
+        else:
+            params = {
+                "update_service_form": update_form,
+                "show_update_form": True,
+            }
+            return detail(request=request, metadata_id=metadata_id, update_params=params, status_code=422)
+
+    return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
+
+
+@login_required
+@check_permission(Permission(can_update_service=True))
+@transaction.atomic
+def pending_update_service(request: HttpRequest, metadata_id: int, update_params=None, status_code=None):
     template = "views/service_update.html"
     user = user_helper.get_user(request)
+
     current_service = get_object_or_404(Service, metadata__id=metadata_id)
+    new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
+
+    if current_service.servicetype.name == OGCServiceEnum.WMS.value:
+        current_service.root_layer = Layer.objects.get(parent_service=current_service, parent_layer=None)
+        new_service.root_layer = Layer.objects.get(parent_service=new_service, parent_layer=None)
+
+    # Collect differences
+    comparator = ServiceComparator(service_a=new_service, service_b=current_service)
+    diff = comparator.compare_services()
+
+    diff_elements = diff.get("layers", None) or diff.get("feature_types", {})
+    update_confirmation_form = UpdateOldToNewElementsForm(
+        new_elements=diff_elements.get("new"),
+        removed_elements=diff_elements.get("removed"),
+        current_service=current_service,
+    )
+    update_confirmation_form.action_url = reverse("service:run-update", args=[metadata_id])
+
+    updated_elements_md = []
+    for element in diff_elements.get("updated"):
+        updated_elements_md.append(element.metadata)
+
+    removed_elements_md = []
+    for element in diff_elements.get("removed"):
+        removed_elements_md.append(element.metadata)
+
+    updated_elements_table = UpdateServiceElements(updated_elements_md,
+                                                   order_by_field='updated',
+                                                   )
+    updated_elements_table.configure_pagination(request, 'updated-t')
+
+    removed_elements_table = UpdateServiceElements(removed_elements_md,
+                                                   order_by_field='removed',)
+    removed_elements_table.configure_pagination(request, 'removed-t')
+
+    params = {
+        "current_service": current_service,
+        "update_service": new_service,
+        "diff_elements": diff_elements,
+        "updated_elements_table": updated_elements_table,
+        "removed_elements_table": removed_elements_table,
+        "update_confirmation_form": update_confirmation_form,
+        "new_elements_per_page": request.GET.get('new_elements_per_page', 5),
+    }
+
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=200 if status_code is None else status_code)
+
+
+@login_required
+@check_permission(Permission(can_update_service=True))
+@transaction.atomic
+def dismiss_pending_update_service(request: HttpRequest, metadata_id: int):
+    user = user_helper.get_user(request)
+    current_service = get_object_or_404(Service, metadata__id=metadata_id)
+    new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
 
     if request.method == 'POST':
-        # Check if update check form has been retrieved or an update perform form
-        page = int(request.POST.get("page", -1))
-        if page == 1:
-            # Update check form!
-            update_form = UpdateServiceCheckForm(request.POST, current_service=current_service,)
-            # Check if update form is valid
-            if update_form.is_valid():
-                # Create db model from new service information (no persisting, yet)
-                new_service = service_helper.get_service_model_instance(
-                    service_type=update_form.url_dict.get("service"),
-                    version=service_helper.resolve_version_enum(update_form.url_dict.get("version")),
-                    base_uri=update_form.url_dict.get("base_uri"),
-                    user=user,
-                    register_group=current_service.created_by
-                )
-                new_service = new_service["service"]
+        if new_service.created_by_user == user:
+            # ToDo: check if user is in group of created_by field of update_cadidate
+            new_service.delete()
+            messages.success(request, _("Pending update successfully dismissed."))
+        else:
+            messages.error(request, _("You are not the owner of this pending update. Rejected!"))
 
-                # Collect differences
-                comparator = ServiceComparator(service_a=new_service, service_b=current_service)
-                diff = comparator.compare_services()
+        return HttpResponseRedirect(reverse("service:detail", args=(current_service.metadata.id,)), status=303)
 
-                diff_elements = diff.get("layers", None) or diff.get("feature_types", {})
-                update_confirmation_form = UpdateOldToNewElementsForm(
-                    new_elements=diff_elements.get("new"),
-                    removed_elements=diff_elements.get("removed"),
-                    keep_custom_md=update_form.cleaned_data.get("keep_custom_md", False),
-                    get_capabilities_uri=update_form.cleaned_data.get("get_capabilities_uri", None)
-                )
-                update_confirmation_form.action_url = reverse("service:update", args=[metadata_id])
+    return HttpResponseRedirect(reverse("service:pending-update", args=(current_service.metadata.id,)), status=303)
 
-                params = {
-                    "current_service": current_service,
-                    "update_service": new_service,
-                    "diff_elements": diff_elements,
-                    "update_confirmation_form": update_confirmation_form,
-                }
-                context = DefaultContext(request, params, user)
-                return render(request=request, template_name=template, context=context.get_context(), status=202)
-            else:
-                params = {
-                    "update_service_form": update_form,
-                    "show_update_form": True,
-                }
-                return detail(request=request, metadata_id=metadata_id, update_params=params, status_code=422)
 
-        elif page == 2:
-            # Update perform form!
-            # We need to extract the linkage of new->old elements from the request by hand
-            links = {}
-            prefix = "new_elem_"
-            for key, val in request.POST.items():
-                if prefix in key:
-                    links[key.replace(prefix, "")] = int(val)
+@login_required
+@check_permission(Permission(can_update_service=True))
+@transaction.atomic
+def run_update_service(request: HttpRequest, metadata_id: int):
+    user = user_helper.get_user(request)
 
-            uri = request.POST.get("capabilities_url", None)
-            keep_custom_md = utils.resolve_boolean_attribute_val(request.POST.get("keep_custom_md", True))
+    if request.method == 'POST':
+        current_service = get_object_or_404(Service, metadata__id=metadata_id)
+        current_document = get_object_or_404(Document, related_metadata=current_service.metadata)
+        new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
+        new_document = get_object_or_404(Document, is_update_candidate_for=current_document)
+        if current_service.servicetype.name != OGCServiceEnum.WFS.value:
+            new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent_layer=None)
+            current_service.root_layer = get_object_or_404(Layer, parent_service=current_service, parent_layer=None)
 
-            if uri is None:
-                messages.error(request, PARAMETER_ERROR.format("Get capabilities uri"))
-                return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
+        comparator = ServiceComparator(service_a=new_service, service_b=current_service)
+        diff = comparator.compare_services()
 
-            url_dict = service_helper.split_service_uri(uri)
+        diff_elements = diff.get("layers", None) or diff.get("feature_types", {})
 
-            # Create db model from new service information (no persisting, yet)
-            registrating_group = current_service.created_by
-            new_service = service_helper.get_service_model_instance(
-                service_type=url_dict.get("service"),
-                version=service_helper.resolve_version_enum(url_dict.get("version")),
-                base_uri=url_dict.get("base_uri"),
-                user=user,
-                register_group=registrating_group
-            )
-            new_service_capabilities_xml = new_service["raw_data"].service_capabilities_xml
-            new_service = new_service["service"]
+        # We need to extract the linkage of new->old elements from the request by hand
+        links = {}
+        prefix = "new_elem_"
+        for key, choice in request.POST.items():
+            if prefix in key:
+                links[key.replace(prefix, "")] = int(choice)
 
-            # Collect differences
-            comparator = ServiceComparator(service_a=new_service, service_b=current_service)
-            diff = comparator.compare_services()
-
+        update_confirmation_form = UpdateOldToNewElementsForm(request.POST,
+                                                              new_elements=diff_elements.get("new"),
+                                                              removed_elements=diff_elements.get("removed"),
+                                                              choices=links,
+                                                              current_service=current_service,
+                                                              )
+        update_confirmation_form.action_url = reverse("service:run-update", args=[metadata_id])
+        if update_confirmation_form.is_valid():
             # UPDATE
             # First update the metadata of the whole service
-            md = update_helper.update_metadata(current_service.metadata, new_service.metadata, keep_custom_md)
+            md = update_helper.update_metadata(current_service.metadata, new_service.metadata, new_service.keep_custom_md)
             md.save()
             current_service.metadata = md
 
@@ -784,18 +863,20 @@ def update_service(request: HttpRequest, metadata_id: int):
                     new_service,
                     diff,
                     links,
-                    keep_custom_md
+                    new_service.keep_custom_md
                 )
             elif new_service.servicetype.name == OGCServiceEnum.WMS.value:
+                # dauer lange
                 current_service = update_helper.update_wms_elements(
                     current_service,
                     new_service,
                     diff,
                     links,
-                    keep_custom_md
+                    new_service.keep_custom_md
                 )
 
-            update_helper.update_capability_document(current_service, new_service_capabilities_xml)
+            new_document.is_update_candidate_for = None
+            update_helper.update_capability_document(current_service, new_document.original_capability_document)
 
             current_service.save()
             user_helper.create_group_activity(
@@ -805,10 +886,18 @@ def update_service(request: HttpRequest, metadata_id: int):
                 current_service.metadata.title
             )
 
+            new_service.delete()
+
             messages.success(request, SERVICE_UPDATED)
             return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
-
-    return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
+        else:
+            params = {"update_confirmation_form": update_confirmation_form,}
+            return pending_update_service(request=request,
+                                          metadata_id=metadata_id,
+                                          update_params=params,
+                                          status_code=422)
+    else:
+        return HttpResponseRedirect(reverse("service:pending-update", args=(metadata_id,)), status=303)
 
 
 @login_required
@@ -876,6 +965,20 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
 
     template = "views/detail.html"
     service_md = get_object_or_404(Metadata, id=metadata_id)
+
+    # get service object
+    if service_md.metadata_type.type == 'featuretype':
+        service = service_md.featuretype.parent_service
+    else:
+        service = service_md.service
+    # proof if the requested metadata is a update_candidate --> 404
+    if service.is_root:
+        if service.is_update_candidate_for is not None:
+            return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+    else:
+        if service.parent_service.is_update_candidate_for is not None:
+            return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+
     params = {}
 
     # catch featuretype
@@ -926,7 +1029,7 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
             'service_needs_authentication': False,
         }
     )
-    update_service_check_form.action_url = reverse('service:update', args=[metadata_id])
+    update_service_check_form.action_url = reverse('service:new-pending-update', args=[metadata_id])
 
     params.update({
         "service_md": service_md,

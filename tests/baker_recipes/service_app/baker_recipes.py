@@ -1,9 +1,8 @@
 from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum
-from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType, Keyword, Category
-from tests.baker_recipes.structure_app.baker_recipes import superadmin_group
-
+from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType, Keyword, Category, Document
+from tests.baker_recipes.structure_app.baker_recipes import superadmin_group, superadmin_user
 
 layer_metadatatype = Recipe(
     MetadataType,
@@ -23,6 +22,7 @@ service_metadatatype = Recipe(
 active_wms_service_metadata = Recipe(
     Metadata,
     title=seq("metadata_wms_"),
+    identifier=seq("metadata_wms"),
     is_active=True,
     metadata_type=foreign_key(service_metadatatype),
     created_by=foreign_key(superadmin_group),
@@ -30,12 +30,14 @@ active_wms_service_metadata = Recipe(
 
 active_wms_layer_metadata = active_wms_service_metadata.extend(
     metadata_type=foreign_key(layer_metadatatype),
+    identifier=seq("metadata_wms_layer"),
 )
 
 
 active_wfs_service_metadata = Recipe(
     Metadata,
     title=seq("metadata_wfs_"),
+    identifier=seq("metadata_wfs"),
     is_active=True,
     metadata_type=foreign_key(service_metadatatype),
     created_by=foreign_key(superadmin_group),
@@ -43,6 +45,7 @@ active_wfs_service_metadata = Recipe(
 
 active_wfs_featuretype_metadata = active_wfs_service_metadata.extend(
     metadata_type=foreign_key(featuretype_metadatatype),
+    identifier=seq("metadata_wfs_featuretype"),
 )
 
 wms_v100_servicetype = Recipe(
@@ -69,6 +72,7 @@ active_root_wms_service = Recipe(
 
 active_wms_sublayer = Recipe(
     Layer,
+    identifier=seq("Layer"),
     is_active=True,
     is_root=False,
     metadata=foreign_key(active_wms_layer_metadata),
@@ -106,4 +110,9 @@ category = Recipe(
     description_locale_1=seq("desc_"),
     title_EN=seq("title_"),
     description_EN=seq("desc_"),
+)
+
+document = Recipe(
+    Document,
+    related_metadata=foreign_key(active_wms_service_metadata)
 )

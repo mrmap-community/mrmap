@@ -174,7 +174,6 @@ class OrganizationTable(MapSkinnerTable):
 
         return format_html(URL_ICON_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, home_icon, ' ' + value, )
 
-
     @staticmethod
     def render_orgs_is_auto_generated(value):
         """ Preprocessing for rendering of is_auto_generated value.

@@ -2,105 +2,204 @@
 {% load i18n static %}
 {% load fontawesome_5 %}
 {% load bootstrap4 %}
-
+{% load django_tables2 %}
+{% load mathfilters %}
 
 {% block card-header-title-left %}
-    <h4 class="mb-1 mr-3">
-        {% if current_service.servicetype.name == 'wms' %}
-            {% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}
-        {% else %}
-            {% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %}
-        {% endif %} <strong>{{ current_service.metadata.title }}</strong>
-    </h4>
+<h4 class="mb-1 mr-3">
+    {% if current_service.servicetype.name == 'wms' %}
+    {% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}
+    {% else %}
+    {% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %}
+    {% endif %} <strong>{{ current_service.metadata.title }}</strong>
+</h4>
 {% endblock %}
 
 {% block card-body %}
-<div class="container-fluid">
-    <form action="{{update_confirmation_form.action_url}}" method="post">
-        {% csrf_token %}
-        <div class="alert alert-info" role="alert">
-            {% trans 'You are about to update this service.' %}
-            <br>
-            {% trans 'Please read the info and help texts on this page very carefully and only proceed if you know what you are doing.' %}
-        </div>
-        <hr>
-        <h5>
-            <strong>{% trans 'New' %}</strong>
-        </h5>
-        <div class="alert alert-warning" role="alert">
-            {% trans 'New elements could just be already known elements, but renamed.' %}
-            <br>
-            {% trans 'In this case: Select for every renamed "new" element the old one from the related list.' %}
-            <br>
-            {% trans 'If the element is really new, just leave the empty selection.' %}
-        </div>
+<div class="container-fluid px-5">
 
-        {% bootstrap_form update_confirmation_form %}
-
-        <div class="table-responsive">
-            <h5>
-                <strong>{% trans 'Removed' %}</strong>
-            </h5>
+    <div class="alert alert-info" role="alert">
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+        {% trans 'You are about to update this service.' %}
+        <br>
+        {% trans 'Please read the info and help texts on this page very carefully and only proceed if you know what you are doing.' %}
+    </div>
+    <ul class="nav nav-tabs" id="update_service_tabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" id="new-tab" data-toggle="tab" href="#new" role="tab" aria-controls="new"
+               aria-selected="true">
+                <h5>
+                    <strong>
+                        {% if current_service.servicetype.name == 'wms' %}
+                            {% trans 'New-Layers' %}
+                        {% else %}
+                            {% trans 'New-Featuretypes' %}
+                        {% endif %}
+                    </strong>
+                </h5>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="removed-tab" data-toggle="tab" href="#removed" role="tab" aria-controls="removed"
+               aria-selected="false">
+                <h5>
+                    <strong>
+                        {% if current_service.servicetype.name == 'wms' %}
+                            {% trans 'Removed-Layers' %}
+                        {% else %}
+                            {% trans 'Removed-Featuretypes' %}
+                        {% endif %}
+                    </strong>
+                </h5>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="updated-tab" data-toggle="tab" href="#updated" role="tab" aria-controls="updated"
+               aria-selected="false">
+                 <h5>
+                    <strong>
+                        {% if current_service.servicetype.name == 'wms' %}
+                            {% trans 'Updated-Layers' %}
+                        {% else %}
+                            {% trans 'Updated-Featuretypes' %}
+                        {% endif %}
+                    </strong>
+                </h5>
+            </a>
+        </li>
+    </ul>
+    <div class="tab-content" id="update_service_content">
+        <div class="tab-pane fade show active mt-3" id="new" role="tabpanel" aria-labelledby="new-tab">
             <div class="alert alert-warning" role="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                {% trans 'New elements could just be already known elements, but renamed.' %}
+                <br>
+                {% trans 'In this case: Select for every renamed "new" element the old one from the related list.' %}
+                <br>
+                {% trans 'If the element is really new, just leave the empty selection.' %}
+            </div>
+            {% with new_elements_per_page as how_much_items_per_page  %}
+            <div class="dropdown d-inline-block mb-2">
+                {% trans 'Show' %}
+                <button class="btn {{THEME.TABLE.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="PagingButton"
+                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    {% if update_confirmation_form.fields|length == new_elements_per_page %}{% trans 'all' %}{% else %}{{ new_elements_per_page }}{% endif %}
+                </button>
+                {% trans 'entries' %}
+                <div class="dropdown-menu" aria-labelledby="PagingButton">
+                    <a class="dropdown-item" href="{% querystring 'new_elements_per_page'=5%}">5</a>
+                    <a class="dropdown-item" href="{% querystring 'new_elements_per_page'=10%}">10</a>
+                    <a class="dropdown-item" href="{% querystring 'new_elements_per_page'=20%}">20</a>
+                    <a class="dropdown-item" href="{% querystring 'new_elements_per_page'=update_confirmation_form.fields|length%}">{% trans 'all' %}</a>
+                </div>
+            </div>
+            <form id="id_form_update_service" action="{{update_confirmation_form.action_url}}" method="post">
+                {% csrf_token %}
+                <div class="overflow-auto">
+                    {% comment %}
+                        If we want only x tabs use this:
+                        {% with how_much_tabs=update_confirmation_form.fields|length|intdiv:how_much_tabs %}
+                        and replace how_much_items_per_page with how_much_tabs
+                    {% endcomment %}
+                    {% with how_much_tabs=update_confirmation_form.fields|length|intdiv:how_much_items_per_page %}
+                        <ul class="nav nav-tabs" id="new-elements-tabs" role="tablist">
+                            {% for field in update_confirmation_form%}
+                                {% if forloop.counter0|sub:how_much_items_per_page|mod:how_much_items_per_page == 0 %}
+                                <li class="nav-item">
+                                    {% if how_much_tabs == 0 %}
+                                        <a class="nav-link {% if forloop.first %} active {% endif %}" id="id_new_elements_tab_{{ forloop.counter|intdiv:1 }}" data-toggle="tab" href="#id_new_elements_{{ forloop.counter|intdiv:1 }}" role="tab" aria-controls="id_new_elements_{{ forloop.counter|intdiv:1 }}" aria-selected="true">
+                                            {{ forloop.counter }}-{% if forloop.counter >= update_confirmation_form.fields|length|sub:how_much_items_per_page%}{{update_confirmation_form.fields|length}}{% else %}{{ how_much_items_per_page|add:forloop.counter0 }}{% endif %}
+                                        </a>
+                                    {% else %}
+                                        <a class="nav-link {% if forloop.first %} active {% endif %}" id="id_new_elements_tab_{{ forloop.counter|intdiv:how_much_tabs }}" data-toggle="tab" href="#id_new_elements_{{ forloop.counter|intdiv:how_much_tabs }}" role="tab" aria-controls="id_new_elements_{{ forloop.counter|intdiv:how_much_tabs }}" aria-selected="true">
+                                            {{ forloop.counter }}-{% if forloop.counter >= update_confirmation_form.fields|length|sub:how_much_items_per_page%}{{update_confirmation_form.fields|length}}{% else %}{{ how_much_items_per_page|add:forloop.counter0 }}{% endif %}
+                                        </a>
+                                    {% endif %}
+
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                        <div class="tab-content" id="new-elements-contents">
+                              {% for field in update_confirmation_form %}
+                                {% if forloop.counter0|sub:how_much_items_per_page|mod:how_much_items_per_page == 0 %}
+                                    {% if not forloop.first %}
+                                    </div>
+                                    {% endif %}
+                                    {% if how_much_tabs == 0 %}
+                                        <div class="tab-pane fade show {% if forloop.first %} active {% endif %}" id="id_new_elements_{{ forloop.counter|intdiv:1 }}" role="tabpanel" aria-labelledby="id_new_elements_tab_{{ forloop.counter|intdiv:1 }}">
+                                    {% else %}
+                                        <div class="tab-pane fade show {% if forloop.first %} active {% endif %}" id="id_new_elements_{{ forloop.counter|intdiv:how_much_tabs }}" role="tabpanel" aria-labelledby="id_new_elements_tab_{{ forloop.counter|intdiv:how_much_tabs }}">
+                                    {% endif %}
+                                {% endif %}
+
+                                {% bootstrap_field field %}
+                            {% endfor %}
+                                    </div>
+                        </div>
+                    {% endwith %}
+                    {% endwith %}
+                </div>
+
+                <div class="row mt-2">
+                    <div class="col-auto">
+                        <button id="id_submit_update_service_btn" type="submit"
+                                class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">
+                            <div id="id_loading_spinner_div" class="d-none">
+                                {% include 'includes/loading_spinner.html' %}
+                            </div>
+                            <div id="id_next_div">
+                                {% trans 'Continue'%}
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </form>
+            <div class="row mt-2 mb-2">
+                <div class="col-auto">
+                    <form action="{% url 'service:dismiss-pending-update' current_service.metadata.id %}" method="post">
+                        {% csrf_token %}
+                        <button id="id_dismiss_update_service_btn" type="submit"
+                                class="btn {{THEME.CARD.BTN_WARNING_COLOR}}">{% trans 'Dismiss' %}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade mt-3" id="removed" role="tabpanel" aria-labelledby="removed-tab">
+            <div class="alert alert-warning" role="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
                 {% trans 'These elements will be removed, since they do not exist in the service anymore.' %}
                 <br>
                 {% trans 'It is possible, that one of these elements was simply renamed. If so, go up to the new elements and read the help text.' %}
             </div>
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>{% trans 'Title' %}</th>
-                        <th>{% trans 'Identifier' %}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for layer in diff_elements.removed %}
-                <tr>
-                    <td>{{ layer.metadata.title }}</td>
-                    <td>{{ layer.metadata.identifier }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td>{% trans 'None' %}</td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+            {% render_table removed_elements_table %}
         </div>
-
-        <div class="table-responsive">
-            <h5>
-                <strong>{% trans 'Updated' %}</strong>
-            </h5>
+        <div class="tab-pane fade mt-3" id="updated" role="tabpanel" aria-labelledby="updated-tab">
             <div class="alert alert-success" role="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
                 {% trans 'These elements still exist in the service and will be updated normally.' %}
             </div>
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>{% trans 'Title' %}</th>
-                        <th>{% trans 'Identifier' %}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for layer in diff_elements.updated %}
-                <tr>
-                    <td>{{ layer.metadata.title }}</td>
-                    <td>{{ layer.metadata.identifier }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td>{% trans 'None' %}</td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+            {% render_table updated_elements_table %}
         </div>
-
-        <div class="row"><div class="col">
-            <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">{% trans 'Continue'%}</button>
-        </div></div>
-    </form>
-
+    </div>
 </div>
+<script type="application/javascript">
+    $( "#id_form_update_service" ).submit(function() {
+        $( "#id_loading_spinner_div" ).removeClass( "d-none" );
+        $( "#id_next_div" ).addClass( "d-none" );
+        $( "#id_dismiss_update_service_btn" ).addClass( "disabled" );
+        $( "#id_submit_update_service_btn" ).prop( "disabled", true);
+    });
+
+
+</script>
 {% endblock %}

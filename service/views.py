@@ -41,6 +41,23 @@ from django.urls import reverse
 from django import forms
 
 
+def _is_updatecandidate(metadata: Metadata):
+    # get service object
+    if metadata.metadata_type.type == 'featuretype':
+        service = metadata.featuretype.parent_service
+    else:
+        service = metadata.service
+    # proof if the requested metadata is a update_candidate --> 404
+    if service.is_root:
+        if service.is_update_candidate_for is not None:
+            return True
+    else:
+        if service.parent_service.is_update_candidate_for is not None:
+            return True
+
+    return False
+
+
 def _prepare_wms_table(request: HttpRequest):
     """ Collects all wms service data and prepares parameter for rendering
 
@@ -597,6 +614,9 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
 
     md = get_object_or_404(Metadata, id=metadata_id)
 
+    if _is_updatecandidate(md):
+        return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+
     # collect global data for all cases
     params = {
         'md_id': md.id,
@@ -966,18 +986,8 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
     template = "views/detail.html"
     service_md = get_object_or_404(Metadata, id=metadata_id)
 
-    # get service object
-    if service_md.metadata_type.type == 'featuretype':
-        service = service_md.featuretype.parent_service
-    else:
-        service = service_md.service
-    # proof if the requested metadata is a update_candidate --> 404
-    if service.is_root:
-        if service.is_update_candidate_for is not None:
-            return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
-    else:
-        if service.parent_service.is_update_candidate_for is not None:
-            return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+    if _is_updatecandidate(service_md):
+        return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
     params = {}
 

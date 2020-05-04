@@ -1,7 +1,8 @@
 from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum
-from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType, Keyword, Category, Document
+from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType, Keyword, Category, \
+    Document, RequestOperation
 from tests.baker_recipes.structure_app.baker_recipes import superadmin_group, superadmin_user
 
 layer_metadatatype = Recipe(
@@ -115,4 +116,8 @@ category = Recipe(
 document = Recipe(
     Document,
     related_metadata=foreign_key(active_wms_service_metadata)
+)
+
+operation = Recipe(
+    RequestOperation,
 )

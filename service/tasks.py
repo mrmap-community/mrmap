@@ -204,7 +204,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
 
     try:
         t_start = time.time()
-        service = service_helper.get_service_model_instance(
+        service = service_helper.create_service(
             url_dict.get("service"),
             url_dict.get("version"),
             url_dict.get("base_uri"),
@@ -215,13 +215,9 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             external_auth=external_auth
         )
 
-        ## update progress
+        # update progress
         if curr_task_id is not None:
             task_helper.update_progress(async_new_service, PROGRESS_STATUS_AFTER_PARSING)
-
-        # get return values
-        raw_service = service["raw_data"]
-        service = service["service"]
 
         # get db object
         if curr_task_id is not None:
@@ -233,18 +229,11 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             })
             pending_task.save()
 
-        xml = raw_service.service_capabilities_xml
-
-        # persist everything
-        service_helper.persist_service_model_instance(service, external_auth)
-
         # update progress
         if curr_task_id is not None:
             task_helper.update_progress(async_new_service, 95)
 
-        service.persist_capabilities_doc(xml)
-
-        # after service AND documents have been persisted, we can now set the service being secured
+        # after service AND documents have been persisted, we can now set the service being secured if needed
         if external_auth is not None:
             service.metadata.set_proxy(True)
 

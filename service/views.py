@@ -699,24 +699,19 @@ def new_pending_update_service(request: HttpRequest, metadata_id: int):
         # Check if update form is valid
         if update_form.is_valid():
             # Create db model from new service information (no persisting, yet)
-            new_service = service_helper.get_service_model_instance(
+            new_service = service_helper.create_service(
                 service_type=update_form.url_dict.get("service"),
                 version=service_helper.resolve_version_enum(update_form.url_dict.get("version")),
                 base_uri=update_form.url_dict.get("base_uri"),
                 user=user,
                 register_group=current_service.created_by
             )
-            new_document = new_service["raw_data"]
-            new_service = new_service["service"]
             new_service.is_update_candidate_for = current_service
             new_service.created_by_user = user
             new_service.keep_custom_md = update_form.cleaned_data['keep_custom_md']
             new_service.metadata.is_update_candidate_for = current_service.metadata
             new_service.metadata.created_by_user = user
-            # persist the service object
-            service_helper.persist_service_model_instance(new_service, None)
-            # get the current document object and persist the update candidate
-            new_service.persist_capabilities_doc(new_document.service_capabilities_xml, current_document, user)
+            new_service.save()
             return HttpResponseRedirect(reverse("service:pending-update", args=(metadata_id,)), status=303)
         else:
             params = {

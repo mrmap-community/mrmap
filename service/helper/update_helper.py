@@ -432,7 +432,7 @@ def _update_wms_layers_recursive(old: Service, new: Service, new_layers: list, l
             new_layer = transform_lists_to_m2m_collections(new_layer)
             new_layer.save()
 
-        children_of_new = new_layer.child_layer.all()
+        children_of_new = new_layer.child_layers.all()
         _update_wms_layers_recursive(old, new, children_of_new, links, new_layer, keep_custom_metadata)
 
 

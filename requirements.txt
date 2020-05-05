@@ -38,3 +38,6 @@ model-bakery==1.1.0
 
 # For git revision rendering
 dealer
+
+# For CSW
+pycsw

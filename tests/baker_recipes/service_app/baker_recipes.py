@@ -1,7 +1,8 @@
 from model_bakery import seq
-from model_bakery.recipe import Recipe, foreign_key
+from model_bakery.recipe import Recipe, foreign_key, related
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum
-from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType, Keyword, Category, Document
+from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType, Keyword, Category, \
+    Document, MimeType
 from tests.baker_recipes.structure_app.baker_recipes import superadmin_group, superadmin_user
 
 layer_metadatatype = Recipe(
@@ -17,6 +18,11 @@ featuretype_metadatatype = Recipe(
 service_metadatatype = Recipe(
     MetadataType,
     type=MetadataEnum.SERVICE.value
+)
+
+mimetype = Recipe(
+    MimeType,
+    mime_type="image/png"
 )
 
 active_wms_service_metadata = Recipe(
@@ -67,7 +73,7 @@ active_root_wms_service = Recipe(
     metadata=foreign_key(active_wms_service_metadata),
     servicetype=foreign_key(wms_v100_servicetype),
     created_by=foreign_key(superadmin_group),
-
+    formats=related(mimetype),
 )
 
 active_wms_sublayer = Recipe(
@@ -79,6 +85,7 @@ active_wms_sublayer = Recipe(
     servicetype=foreign_key(wms_v100_servicetype),
     created_by=foreign_key(superadmin_group),
     parent_service=foreign_key(active_root_wms_service),
+    formats=related(mimetype),
 )
 
 active_root_wfs_service = Recipe(
@@ -88,6 +95,7 @@ active_root_wfs_service = Recipe(
     metadata=foreign_key(active_wfs_service_metadata),
     servicetype=foreign_key(wfs_v100_servicetype),
     created_by=foreign_key(superadmin_group),
+    formats=related(mimetype),
 )
 
 active_wfs_featuretype = Recipe(
@@ -96,6 +104,7 @@ active_wfs_featuretype = Recipe(
     metadata=foreign_key(active_wfs_featuretype_metadata),
     created_by=foreign_key(superadmin_group),
     parent_service=foreign_key(active_root_wfs_service),
+    formats=related(mimetype),
 )
 
 keyword = Recipe(
@@ -116,3 +125,5 @@ document = Recipe(
     Document,
     related_metadata=foreign_key(active_wms_service_metadata)
 )
+
+

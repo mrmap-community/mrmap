@@ -3,9 +3,11 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from model_bakery import baker, seq
+from model_bakery.recipe import related
+
 from structure.models import MrMapUser, Organization
 from service.helper.enums import MetadataEnum
-from service.models import MetadataType, Service, Document
+from service.models import MetadataType, Service, Document, MimeType
 from structure.models import MrMapGroup
 from tests.utils import generate_random_string
 
@@ -131,8 +133,7 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service=None,
                 parent_service=root_service,
                 metadata=sublayer_metadata,
                 parent_layer=root_layer,
-                identifier=sublayer_metadata.identifier
-
+                identifier=sublayer_metadata.identifier,
             )
 
     return root_service_metadatas

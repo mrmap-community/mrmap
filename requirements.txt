@@ -41,3 +41,4 @@ dealer
 
 # For CSW
 pycsw
+sqlalchemy  # needed for pycsw

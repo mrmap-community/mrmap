@@ -364,14 +364,14 @@ PYCSW_CONF = {
             'temp_extent': 'YYYY-MM-DD/YYYY-MM-DD',
         },
         'repository': {
-            "database": "postgresql://{}@{}/{}".format(
-                DATABASES["default"]["USER"],
-                DATABASES["default"]["HOST"],
-                DATABASES["default"]["NAME"],
-            ),
-            "table": "Metadata",
-            "mappings": "",
-            "source": "",
+            #"database": "postgresql://{}@{}/{}".format(
+            #    DATABASES["default"]["USER"],
+            #    DATABASES["default"]["HOST"],
+            #    DATABASES["default"]["NAME"],
+            #),
+            #"table": "service_metadata",  # App 'service' and model 'Metadata'
+            "mappings": "csw.mappings",
+            "source": "csw.backend.CswBackend",
             "filter": "",
         }
 }

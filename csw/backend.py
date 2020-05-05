@@ -92,3 +92,16 @@ class CswBackend(Repository):
         result_count_str = str(all_md.count())
         results = all_md[int(startposition):int(startposition) + int(maxrecords)]
         return [result_count_str, list(results)]
+
+    def query_domain(self, domain, typenames, domainquerytype='list',
+        count=False):
+        # ToDo: Not implemented yet
+        pass
+
+    def update(self, record=None, recprops=None, constraint=None):
+        # Not to be supported
+        pass
+
+    def delete(self, constraint):
+        # Not to be supported
+        pass

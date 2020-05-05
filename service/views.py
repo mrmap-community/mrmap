@@ -517,7 +517,7 @@ def get_service_preview(request: HttpRequest, metadata_id: int):
     return HttpResponse(response, content_type=content_type)
 
 
-def get_capabilities(request: HttpRequest, metadata_id: int):
+def _get_capabilities(request: HttpRequest, metadata_id: int):
     """ Returns the current capabilities xml file
 
     Args:
@@ -1096,7 +1096,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id:
             return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
 
         elif operation_handler.request_param.upper() == OGCOperationEnum.GET_CAPABILITIES.value.upper():
-            return get_capabilities(request=request, metadata_id=metadata_id)
+            return _get_capabilities(request=request, metadata_id=metadata_id)
 
         elif not metadata.is_root():
             # we do not allow the direct call of operations on child elements, such as layers!

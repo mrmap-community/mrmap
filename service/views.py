@@ -41,6 +41,24 @@ from django.urls import reverse
 from django import forms
 
 
+def _is_updatecandidate(metadata: Metadata):
+    # get service object
+    if metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
+        service = metadata.featuretype.parent_service
+    elif metadata.metadata_type.type == MetadataEnum.DATASET.value:
+        return False
+    else:
+        service = metadata.service
+    # proof if the requested metadata is a update_candidate --> 404
+    if service.is_root:
+        if service.is_update_candidate_for is not None:
+            return True
+    else:
+        if service.parent_service.is_update_candidate_for is not None:
+            return True
+    return False
+
+
 def _prepare_wms_table(request: HttpRequest):
     """ Collects all wms service data and prepares parameter for rendering
 
@@ -71,11 +89,11 @@ def _prepare_wms_table(request: HttpRequest):
     if show_service:
         wms_table = WmsServiceTable(wms_table_filtered.qs,
                                     order_by_field='swms',  # swms = sort wms
-                                    user=user,)
+                                    user=user, )
     else:
         wms_table = WmsLayerTable(wms_table_filtered.qs,
                                   order_by_field='swms',  # swms = sort wms
-                                  user=user,)
+                                  user=user, )
 
     # add boolean field to filter.form; this is needed, cause the search form sends it if show layer dropdown is set
     # add it after table is created; otherwise we get a KeyError
@@ -113,7 +131,7 @@ def _prepare_wfs_table(request: HttpRequest):
     wfs_table_filtered = MetadataWfsFilter(request.GET, queryset=md_list_wfs)
     wfs_table = WfsServiceTable(wfs_table_filtered.qs,
                                 order_by_field='swfs',  # swms = sort wms
-                                user=user,)
+                                user=user, )
 
     wfs_table.filter = wfs_table_filtered
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
@@ -187,7 +205,7 @@ def _new_service_wizard_page2(request: HttpRequest):
             "new_service_form": form,
             "show_new_service_form": True,
         }
-        return index(request=request, update_params=params,)
+        return index(request=request, update_params=params, )
     else:
         # it's not a update. we have to validate the fields now
         # and if all is fine generate a new pending task object
@@ -204,7 +222,7 @@ def _new_service_wizard_page2(request: HttpRequest):
                 service_helper.create_new_service(form, user)
 
                 # everthing works well. Redirect to index page.
-                return HttpResponseRedirect(reverse("service:index",), status=303)
+                return HttpResponseRedirect(reverse("service:index", ), status=303)
             except Exception as e:
                 # Form is not valid --> response with page 2 and show errors
                 form.add_error(None, e)
@@ -300,7 +318,7 @@ def pending_tasks(request: HttpRequest):
     # get pending tasks
     pt = PendingTask.objects.filter(created_by__in=user.get_groups())
     pt_table = PendingTasksTable(pt,
-                                 orderable=False, user=user,)
+                                 orderable=False, user=user, )
     params = {
         "pt_table": pt_table,
         "user": user,
@@ -416,8 +434,7 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
     return HttpResponse(document, content_type='application/xml')
 
 
-# TODO: currently the preview is not pretty. Refactor this method to get a pretty preview img by consider the right scale of the layers
-def get_service_metadata_preview(request: HttpRequest, metadata_id: int):
+def get_service_preview(request: HttpRequest, metadata_id: int):
     """ Returns the service metadata preview as png for a given metadata id
 
     Args:
@@ -428,10 +445,15 @@ def get_service_metadata_preview(request: HttpRequest, metadata_id: int):
     """
 
     md = get_object_or_404(Metadata, id=metadata_id)
+    if md.metadata_type.type == MetadataEnum.DATASET.value or \
+            md.metadata_type.type == MetadataEnum.FEATURETYPE.value or \
+            md.service.servicetype.name != OGCServiceEnum.WMS.value or \
+            _is_updatecandidate(md):
+        return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
     if md.service.servicetype.name == OGCServiceEnum.WMS.value and md.service.is_root:
         service = get_object_or_404(Service, id=md.service.id)
-        layer = get_object_or_404(Layer, parent_service=service, parent_layer=None,)
+        layer = get_object_or_404(Layer, parent_service=service, parent_layer=None, )
     elif md.service.servicetype.name == OGCServiceEnum.WMS.value and not md.service.is_root:
         layer = md.service.layer
 
@@ -495,7 +517,7 @@ def get_service_metadata_preview(request: HttpRequest, metadata_id: int):
     return HttpResponse(response, content_type=content_type)
 
 
-def get_capabilities(request: HttpRequest, metadata_id: int):
+def _get_capabilities(request: HttpRequest, metadata_id: int):
     """ Returns the current capabilities xml file
 
     Args:
@@ -566,7 +588,7 @@ def get_capabilities(request: HttpRequest, metadata_id: int):
                 raise ValueError("No xml document was retrieved. Content was :'{}'".format(xml))
 
             # we fake the persisted service version, so the document setters will change the correct elements in the xml
-            #md.service.servicetype.version = version_param
+            # md.service.servicetype.version = version_param
             doc = Document(
                 original_capability_document=xml,
                 current_capability_document=xml,
@@ -594,8 +616,9 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
     # ---- constant values
     base_template = '404.html'
     # ----
-
     md = get_object_or_404(Metadata, id=metadata_id)
+    if _is_updatecandidate(md):
+        return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
     # collect global data for all cases
     params = {
@@ -608,7 +631,7 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
         'contact': collect_contact_data(md.contact)
     }
 
-    params.update(collect_metadata_related_objects(md, request,))
+    params.update(collect_metadata_related_objects(md, request, ))
 
     # build the single view cases: wms root, wms layer, wfs root, wfs featuretype, wcs, metadata
     if md.metadata_type.type == MetadataEnum.DATASET.value:
@@ -659,7 +682,7 @@ def wms_index(request: HttpRequest):
     # get pending tasks
     pt = PendingTask.objects.filter(created_by__in=user.get_groups())
     pt_table = PendingTasksTable(pt,
-                                 orderable=False, user=user,)
+                                 orderable=False, user=user, )
 
     params = {
         "pt_table": pt_table,
@@ -763,7 +786,7 @@ def pending_update_service(request: HttpRequest, metadata_id: int, update_params
     updated_elements_table.configure_pagination(request, 'updated-t')
 
     removed_elements_table = UpdateServiceElements(removed_elements_md,
-                                                   order_by_field='removed',)
+                                                   order_by_field='removed', )
     removed_elements_table.configure_pagination(request, 'removed-t')
 
     params = {
@@ -844,7 +867,8 @@ def run_update_service(request: HttpRequest, metadata_id: int):
         if update_confirmation_form.is_valid():
             # UPDATE
             # First update the metadata of the whole service
-            md = update_helper.update_metadata(current_service.metadata, new_service.metadata, new_service.keep_custom_md)
+            md = update_helper.update_metadata(current_service.metadata, new_service.metadata,
+                                               new_service.keep_custom_md)
             md.save()
             current_service.metadata = md
 
@@ -886,7 +910,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
             messages.success(request, SERVICE_UPDATED)
             return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
         else:
-            params = {"update_confirmation_form": update_confirmation_form,}
+            params = {"update_confirmation_form": update_confirmation_form, }
             return pending_update_service(request=request,
                                           metadata_id=metadata_id,
                                           update_params=params,
@@ -912,7 +936,7 @@ def wfs_index(request: HttpRequest):
     # get pending tasks
     pending_tasks = PendingTask.objects.filter(created_by__in=user.get_groups())
     pt_table = PendingTasksTable(pending_tasks,
-                                 orderable=False, user=user,)
+                                 orderable=False, user=user, )
 
     params = {
         "pt_table": pt_table,
@@ -926,7 +950,7 @@ def wfs_index(request: HttpRequest):
     return render(request=request, template_name=template, context=context.get_context())
 
 
-def _check_for_dataset_metadata(metadata: Metadata,):
+def _check_for_dataset_metadata(metadata: Metadata, ):
     """ Checks whether an metadata object has a dataset metadata record.
 
     Args:
@@ -961,18 +985,8 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
     template = "views/detail.html"
     service_md = get_object_or_404(Metadata, id=metadata_id)
 
-    # get service object
-    if service_md.metadata_type.type == 'featuretype':
-        service = service_md.featuretype.parent_service
-    else:
-        service = service_md.service
-    # proof if the requested metadata is a update_candidate --> 404
-    if service.is_root:
-        if service.is_update_candidate_for is not None:
-            return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
-    else:
-        if service.parent_service.is_update_candidate_for is not None:
-            return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
+    if _is_updatecandidate(service_md):
+        return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
     params = {}
 
@@ -1077,7 +1091,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id:
             return HttpResponse(status=500, content=SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE)
 
         elif operation_handler.request_param.upper() == OGCOperationEnum.GET_CAPABILITIES.value.upper():
-            return get_capabilities(request=request, metadata_id=metadata_id)
+            return _get_capabilities(request=request, metadata_id=metadata_id)
 
         elif not metadata.is_root():
             # we do not allow the direct call of operations on child elements, such as layers!

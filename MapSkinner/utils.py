@@ -6,15 +6,10 @@ Created on: 17.04.19
 
 """
 import urllib
-import django_tables2
-from django.http import HttpRequest
-
-from MapSkinner.consts import URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
 from MapSkinner.themes import DARK_THEME, LIGHT_THEME
-from MapSkinner.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_DEFAULT, PAGE_SIZE_MAX
 from django.utils.html import format_html
-from structure.models import MrMapUser
 
+from structure.models import MrMapUser
 from MapSkinner.settings import DEBUG
 
 
@@ -28,6 +23,7 @@ def print_debug_mode(string: str):
     """
     if DEBUG:
         print(string)
+
 
 def execute_threads(thread_list):
     """ Executes a list of threads
@@ -157,3 +153,4 @@ def get_nested_attribute(obj, attrib_str: str):
         val = val.__getattribute__(attr)
 
     return val
+

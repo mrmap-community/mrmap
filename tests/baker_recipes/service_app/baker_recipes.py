@@ -1,9 +1,9 @@
 from model_bakery import seq
-from model_bakery.recipe import Recipe, foreign_key
+from model_bakery.recipe import Recipe, foreign_key, related
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum
 from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType, Keyword, Category, \
-    Document, RequestOperation
-from tests.baker_recipes.structure_app.baker_recipes import superadmin_group, superadmin_user
+    Document, RequestOperation, MimeType, MetadataOrigin
+from tests.baker_recipes.structure_app.baker_recipes import superadmin_group
 
 layer_metadatatype = Recipe(
     MetadataType,
@@ -18,6 +18,16 @@ featuretype_metadatatype = Recipe(
 service_metadatatype = Recipe(
     MetadataType,
     type=MetadataEnum.SERVICE.value
+)
+
+dataset_metadatatype = Recipe(
+    MetadataType,
+    type=MetadataEnum.DATASET.value
+)
+
+mimetype = Recipe(
+    MimeType,
+    mime_type="image/png"
 )
 
 active_wms_service_metadata = Recipe(
@@ -68,7 +78,7 @@ active_root_wms_service = Recipe(
     metadata=foreign_key(active_wms_service_metadata),
     servicetype=foreign_key(wms_v100_servicetype),
     created_by=foreign_key(superadmin_group),
-
+    formats=related(mimetype),
 )
 
 active_wms_sublayer = Recipe(
@@ -80,6 +90,7 @@ active_wms_sublayer = Recipe(
     servicetype=foreign_key(wms_v100_servicetype),
     created_by=foreign_key(superadmin_group),
     parent_service=foreign_key(active_root_wms_service),
+    formats=related(mimetype),
 )
 
 active_root_wfs_service = Recipe(
@@ -89,6 +100,7 @@ active_root_wfs_service = Recipe(
     metadata=foreign_key(active_wfs_service_metadata),
     servicetype=foreign_key(wfs_v100_servicetype),
     created_by=foreign_key(superadmin_group),
+    formats=related(mimetype),
 )
 
 active_wfs_featuretype = Recipe(
@@ -97,6 +109,7 @@ active_wfs_featuretype = Recipe(
     metadata=foreign_key(active_wfs_featuretype_metadata),
     created_by=foreign_key(superadmin_group),
     parent_service=foreign_key(active_root_wfs_service),
+    formats=related(mimetype),
 )
 
 keyword = Recipe(
@@ -113,9 +126,27 @@ category = Recipe(
     description_EN=seq("desc_"),
 )
 
+active_dataset_metadata = Recipe(
+    Metadata,
+    title=seq("metadata_dataset_"),
+    identifier=seq("metadata_dataset_"),
+    is_active=True,
+    metadata_type=foreign_key(dataset_metadatatype),
+    created_by=foreign_key(superadmin_group),
+)
+
 document = Recipe(
     Document,
-    related_metadata=foreign_key(active_wms_service_metadata)
+    related_metadata=foreign_key(active_dataset_metadata),
+    created_by=foreign_key(superadmin_group),
+    original_capability_document="<test></test>",
+    current_capability_document="<test></test>",
+    dataset_metadata_document="<test></test>",
+    service_metadata_document="<test></test>",
+)
+
+metadata_origin = Recipe(
+    MetadataOrigin,
 )
 
 operation = Recipe(

@@ -33,7 +33,6 @@ class CswCustomRepository(Repository):
                     self.queryables[qname][qkey] = qvalue
 
         # flatten all queryables
-        # TODO smarter way of doing this
         self.queryables['_all'] = {}
         for qbl in self.queryables:
             self.queryables['_all'].update(self.queryables[qbl])
@@ -75,20 +74,15 @@ class CswCustomRepository(Repository):
         )
 
         # Sort queryset
-        if isinstance(sortby, list):
-            order_by_list = []
-            for sort_item in sortby:
-                # Specification declares that each item follows the format 'attrib_name:A|D' where A indicates ASC
-                # and D indicates DESC
-                sort_item_splitted = sort_item.split(":")
-                attrib = sort_item_splitted[0]
-                asc = sort_item_splitted[1].upper() == "A"
-
-                # Convert A and D to '' and '-' which is used in Django's order_by() syntax
-                if asc:
-                    attrib = "-" + attrib
-                order_by_list.append(attrib)
-            all_md.order_by(order_by_list)
+        if isinstance(sortby, dict):
+            # Specification declares that each item follows the format 'attrib_name:A|D' where A indicates ASC
+            # and D indicates DESC
+            attrib = sortby["propertyname"]
+            desc = sortby["order"].upper() == "DESC"
+            # Convert A and D to '' and '-' which is used in Django's order_by() syntax
+            if desc:
+                attrib = "-" + attrib
+            all_md = all_md.order_by(attrib)
 
         result_count_str = str(all_md.count())
         results = all_md[int(startposition):int(startposition) + int(maxrecords)]

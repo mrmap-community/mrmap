@@ -75,7 +75,7 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
     try:
         # is it a root layer?
         params['parent_layer'] = Layer.objects.get(
-            child_layer=md.service.layer
+            child_layers=md.service.layer
         )
     except Layer.DoesNotExist:
         # yes, it's a root layer, no parent available; skip

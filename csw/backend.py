@@ -21,8 +21,7 @@ class CswCustomRepository(Repository):
         self.fts = False
         self.label = 'MrMapCSW'
         self.local_ingest = True
-        self.queryables = {
-        }
+        self.queryables = {}
 
         for tname in self.context.model['typenames']:
             for qname in self.context.model['typenames'][tname]['queryables']:

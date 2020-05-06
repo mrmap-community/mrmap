@@ -326,7 +326,7 @@ PYCSW_CONF = {
         },
         'manager': {
             'transactions': 'false',
-            'allowed_ips': '127.0.0.1',
+            'allowed_ips': '*',
         },
         'metadata:main': {
             'identification_title': 'Mr. Map CSW',

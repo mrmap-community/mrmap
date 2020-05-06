@@ -1382,6 +1382,134 @@ class Metadata(Resource):
             pass
         self.save()
 
+    @property
+    def csw_keywords(self):
+        """ Returns all keywords mit comma separated in a string.
+
+        A function disguised as an attribute for usage as single attribute reference in the pycsw mapping dict
+
+        Returns:
+             str: All keywords of this record comma separated
+        """
+        all_kws = self.keywords.all()
+        return ",".join([kw.keyword for kw in all_kws])
+
+    @property
+    def csw_typename(self):
+        """ Returns the metadata type.
+
+        A function disguised as an attribute for usage as single attribute reference in the pycsw mapping dict
+
+        Returns:
+             str: The metadata type
+        """
+        # csw_typename is defined as being 'service' or 'dataset'
+        type = self.metadata_type.type
+        if type != MetadataEnum.DATASET.value:
+            type = MetadataEnum.SERVICE.value
+        return type
+
+    @property
+    def csw_formats(self):
+        formats = self.service.formats.all()
+        return ",".join([f.mime_type for f in formats])
+
+    @property
+    def csw_bounding_geometry(self):
+        """ Returns the bounding geometry as WKT.
+
+        A function disguised as an attribute for usage as single attribute reference in the pycsw mapping dict
+
+        Returns:
+             str: The wkt string
+        """
+        wkt = self.bounding_geometry
+        if wkt:
+            wkt = wkt.wkt
+        return wkt
+
+    @property
+    def csw_srs(self):
+        """ Returns the spatial reference systems as comma separated string.
+
+        A function disguised as an attribute for usage as single attribute reference in the pycsw mapping dict
+
+        Returns:
+             str: The reference systems, comma separated
+        """
+        srs = self.reference_system.all()
+        return ",".join(["{}{}".format(ref.prefix, str(ref.code)) for ref in srs])
+
+    @property
+    def csw_organizationname(self):
+        """ Returns the organization name.
+
+        A function disguised as an attribute for usage as single attribute reference in the pycsw mapping dict
+
+        Returns:
+             str: The organization name
+        """
+        org_name = self.contact.organization_name
+        return org_name
+
+    @property
+    def csw_category(self):
+        """ Returns the categories in a comma separated string.
+
+        A function disguised as an attribute for usage as single attribute reference in the pycsw mapping dict
+
+        Returns:
+             str:
+        """
+        categories = self.categories.all()
+        return ",".join([cat.title_EN for cat in categories])
+
+    @property
+    def csw_temp_dim_start(self):
+        """ Returns the time dimension starts.
+
+        A function disguised as an attribute for usage as single attribute reference in the pycsw mapping dict
+
+        Returns:
+             str:
+        """
+        dims = self.dimensions.all()
+        return ",".join([dim.time_extent_min for dim in dims])
+
+    @property
+    def csw_temp_dim_end(self):
+        """ Returns the time dimension ends.
+
+        A function disguised as an attribute for usage as single attribute reference in the pycsw mapping dict
+
+        Returns:
+             str:
+        """
+        dims = self.dimensions.all()
+        return ",".join([dim.time_extent_max for dim in dims])
+
+    @property
+    def csw_service_type(self):
+        """ Returns the service type.
+
+        A function disguised as an attribute for usage as single attribute reference in the pycsw mapping dict
+
+        Returns:
+             str:
+        """
+        return self.get_service_type()
+
+    @property
+    def csw_service_version(self):
+        """ Returns the service type.
+
+        A function disguised as an attribute for usage as single attribute reference in the pycsw mapping dict
+
+        Returns:
+             str:
+        """
+        return self.get_service_version().value
+
 
 class MetadataType(models.Model):
     type = models.CharField(max_length=255, blank=True, null=True, unique=True)

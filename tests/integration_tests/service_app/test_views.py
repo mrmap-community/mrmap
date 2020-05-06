@@ -81,19 +81,14 @@ class ServiceTestCase(TestCase):
         # THIS MEANS WE CAN NOT CHECK PERMISSIONS IN HERE; SINCE WE TESTS ON THE LOWER LEVEL OF THE PROCESS
 
         ## Creating a new service model instance
-        service = service_helper.get_service_model_instance(
+        service = service_helper.create_service(
             self.test_wms["type"],
             self.test_wms["version"],
             self.test_wms["uri"],
             self.user,
             self.group
         )
-        self.raw_data = service.get("raw_data", None)
-        self.service = service.get("service", None)
-
-        # run process without an external authentication - since the service does not require an authentication
-        service_helper.persist_service_model_instance(self.service, external_auth=None)
-        self.service.persist_capabilities_doc(self.raw_data.service_capabilities_xml)
+        self.service = service
 
     def _get_logged_in_client(self, user: MrMapUser):
         """ Helping function to encapsulate the login process

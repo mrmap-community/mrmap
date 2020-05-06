@@ -1,13 +1,9 @@
-
-
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from model_bakery import baker, seq
-from model_bakery.recipe import related
-
 from structure.models import MrMapUser, Organization
-from service.helper.enums import MetadataEnum, OGCServiceEnum
-from service.models import MetadataType, Service, Document, MimeType, MetadataRelation, MetadataOrigin
+from service.helper.enums import MetadataEnum, OGCOperationEnum
+from service.models import MetadataType, Service, Document, MetadataRelation
 from structure.models import MrMapGroup
 from tests.utils import generate_random_string
 
@@ -355,4 +351,11 @@ def create_categories(num: int = 1):
     return baker.make_recipe(
         "tests.baker_recipes.service_app.category",
         _quantity=num
+    )
+
+
+def create_operation(operation_name: OGCOperationEnum):
+    return baker.make_recipe(
+        "tests.baker_recipes.service_app.operation",
+        operation_name=operation_name
     )

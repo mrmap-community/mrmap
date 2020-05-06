@@ -64,19 +64,14 @@ class EditorTestCase(TestCase):
         # THIS MEANS WE CAN NOT CHECK PERMISSIONS IN HERE; SINCE WE TESTS ON THE LOWER LEVEL OF THE PROCESS
 
         ## Creating a new wms service model instance
-        service = service_helper.get_service_model_instance(
+        service = service_helper.create_service(
             self.test_wms["type"],
             self.test_wms["version"],
             self.test_wms["uri"],
             self.user,
             self.group
         )
-        self.raw_data_wms = service.get("raw_data", None)
-        self.service_wms = service.get("service", None)
-
-        # persist service without external_auth
-        service_helper.persist_service_model_instance(self.service_wms, None)
-        self.service_wms.persist_capabilities_doc(self.raw_data_wms.service_capabilities_xml)
+        self.service_wms = service
 
     def _get_logged_in_client(self, user: MrMapUser):
         """ Helping function to encapsulate the login process

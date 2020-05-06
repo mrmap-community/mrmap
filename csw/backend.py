@@ -52,10 +52,10 @@ class CswCustomRepository(Repository):
              list: number of results, results
         """
         metadatas = Metadata.objects.filter(
-            identifier__in=ids
+            identifier__in=ids,
+            is_active=True
         )
-        result_count_str = str(metadatas.count())
-        return [result_count_str, list(metadatas)]
+        return list(metadatas)
 
     def query(self, constraint, sortby=None, typenames=None, maxrecords=10, startposition=0):
         """ Implementation of GetRecords operation
@@ -77,6 +77,9 @@ class CswCustomRepository(Repository):
         if constraint:
             if "where" in constraint:
                 all_md = all_md.extra(where=[constraint["where"]], params=constraint["values"])
+            else:
+                # ToDo?
+                pass
 
         # Sort queryset
         if isinstance(sortby, dict):

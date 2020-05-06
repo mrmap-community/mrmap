@@ -737,3 +737,17 @@ class GetDatasetMetadataViewTestCase(TestCase):
             reverse('service:get-dataset-metadata', args=(dataset_md.id,))
         )
         self.assertEqual(response.status_code, 200)
+
+
+class GetServiceMetadataViewTestCase(TestCase):
+    def setUp(self):
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
+        self.wms_metadata = create_wms_service(group=self.user.get_groups().first(), how_much_services=1)[0]
+
+    def test_get_service_metadata(self):
+        response = self.client.get(
+            reverse('service:get-service-metadata', args=(self.wms_metadata.id,))
+        )
+        self.assertEqual(response.status_code, 200)

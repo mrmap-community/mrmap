@@ -11,7 +11,7 @@ from MapSkinner import settings
 from service.models import Metadata
 
 
-class CswBackend(Repository):
+class CswCustomRepository(Repository):
     """ Custom backend to handle CSW requests using pycsw
 
     """
@@ -19,9 +19,10 @@ class CswBackend(Repository):
         self.context = context
         self.filter = repo_filter
         self.fts = False
-        self.label = 'GeoNode'
+        self.label = 'MrMapCSW'
         self.local_ingest = True
-        self.queryables = {}
+        self.queryables = {
+        }
 
         for tname in self.context.model['typenames']:
             for qname in self.context.model['typenames'][tname]['queryables']:

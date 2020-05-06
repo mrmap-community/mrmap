@@ -73,6 +73,11 @@ class CswCustomRepository(Repository):
             is_active=True
         )
 
+        # Prefilter using constraint parameter
+        if constraint:
+            if "where" in constraint:
+                all_md = all_md.extra(where=[constraint["where"]], params=constraint["values"])
+
         # Sort queryset
         if isinstance(sortby, dict):
             # Specification declares that each item follows the format 'attrib_name:A|D' where A indicates ASC

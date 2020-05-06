@@ -4,7 +4,7 @@
 {% block table-wrapper %}
 {% load bootstrap4 %}
 {% load django_tables2_extras %}
-<div class="row">
+<div class="row"><!--<t-head-->
     {% if table.filter.form %}
     <div class="col-md-7 col-lg-9 col-xl-10"><!--filter-->
         <form action="" method="get" class="form form-inline">
@@ -46,8 +46,8 @@
         {% endif %}
     </div><!--</pagination-->
     {% endif %}
-</div>
-<div class="mt-3">
+</div><!--</t-head-->
+<div class="mt-3"><!--<t-content-->
     <div class="row">
     <div class="col">
         <div class="overflow-auto">
@@ -67,14 +67,19 @@
                                         {{ column.header }}
                                     </div>
                                     <div class="">
-                                        {% if '-' in column.order_by_alias.next and request.GET|get_order_by_alias_from_request:table.order_by_field is not None %}
+                                        {% if request.GET|get_order_by_alias_from_request:table.order_by_field is None%}
                                         <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
                                         class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else%} {{table.context.THEME.TABLE.LINK_COLOR}}  {% endif %}">
+                                            {% autoescape off %}{{table.context.THEME.ICONS.SORT_ALPHA_DOWN}}{% endautoescape %} {{THEME}}
+                                        </a>
+                                        {% elif '-' not in column.order_by_alias.next%}
+                                        <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next%}"
+                                        class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else %} {{table.context.THEME.TABLE.LINK_COLOR}} {% endif %}">
                                             {% autoescape off %}{{table.context.THEME.ICONS.SORT_ALPHA_UP}}{% endautoescape %} {{THEME}}
                                         </a>
                                         {% else %}
-                                        <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next%}"
-                                        class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else %} {{table.context.THEME.TABLE.LINK_COLOR}} {% endif %}">
+                                        <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
+                                        class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else%} {{table.context.THEME.TABLE.LINK_COLOR}}  {% endif %}">
                                             {% autoescape off %}{{table.context.THEME.ICONS.SORT_ALPHA_DOWN}}{% endautoescape %} {{THEME}}
                                         </a>
                                         {% endif %}
@@ -165,5 +170,5 @@
     </div>
     </div>
 </div>
-</div>
+</div><!--</t-content-->
 {% endblock table-wrapper %}

@@ -6,8 +6,8 @@ from model_bakery import baker, seq
 from model_bakery.recipe import related
 
 from structure.models import MrMapUser, Organization
-from service.helper.enums import MetadataEnum
-from service.models import MetadataType, Service, Document, MimeType
+from service.helper.enums import MetadataEnum, OGCServiceEnum
+from service.models import MetadataType, Service, Document, MimeType, MetadataRelation, MetadataOrigin
 from structure.models import MrMapGroup
 from tests.utils import generate_random_string
 
@@ -56,6 +56,10 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service=None,
         type=MetadataEnum.LAYER.value
     )[0]
 
+    dataset_md_type = MetadataType.objects.get_or_create(
+        type=MetadataEnum.DATASET.value
+    )[0]
+
     if is_update_candidate_for is not None and user is not None:
         root_service_metadatas = baker.make_recipe(
             'tests.baker_recipes.service_app.active_wms_service_metadata',
@@ -77,11 +81,35 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service=None,
 
     for root_service_metadata in root_service_metadatas:
 
+        dataset_metadata = baker.make_recipe(
+            'tests.baker_recipes.service_app.active_dataset_metadata',
+            created_by=group,
+            metadata_type=dataset_md_type,
+
+        )
+
+        baker.make_recipe(
+            'tests.baker_recipes.service_app.document',
+            related_metadata=dataset_metadata,
+            created_by=group,
+        )
+
+        md_origin = baker.make_recipe(
+            'tests.baker_recipes.service_app.metadata_origin',
+        )
+
+        md_relation = MetadataRelation()
+        md_relation.metadata_from = root_service_metadata
+        md_relation.metadata_to = dataset_metadata
+        md_relation.origin = md_origin
+        md_relation.save()
+
         baker.make_recipe(
             'tests.baker_recipes.service_app.document',
             related_metadata=root_service_metadata,
             is_update_candidate_for=Document.objects.get(related_metadata=is_update_candidate_for.metadata) if is_update_candidate_for is not None else None,
-            created_by_user=user if user is not None else None,
+            created_by=group,
+            created_by_user=user or None,
         )
 
         if is_update_candidate_for is not None and user is not None:
@@ -148,6 +176,10 @@ def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = Non
         type=MetadataEnum.FEATURETYPE.value
     )[0]
 
+    dataset_md_type = MetadataType.objects.get_or_create(
+        type=MetadataEnum.DATASET.value
+    )[0]
+
     if is_update_candidate_for is not None and user is not None:
         root_service_metadatas = baker.make_recipe(
             'tests.baker_recipes.service_app.active_wfs_service_metadata',
@@ -168,11 +200,35 @@ def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = Non
         )
 
     for root_service_metadata in root_service_metadatas:
+        dataset_metadata = baker.make_recipe(
+            'tests.baker_recipes.service_app.active_dataset_metadata',
+            created_by=group,
+            metadata_type=dataset_md_type,
+        )
+
+        baker.make_recipe(
+            'tests.baker_recipes.service_app.document',
+            related_metadata=dataset_metadata,
+            created_by=group,
+        )
+
+        md_origin = baker.make_recipe(
+            'tests.baker_recipes.service_app.metadata_origin',
+        )
+
+        md_relation = MetadataRelation()
+        md_relation.metadata_from = root_service_metadata
+        md_relation.metadata_to = dataset_metadata
+        md_relation.origin = md_origin
+
+        md_relation.save()
+
         baker.make_recipe(
             'tests.baker_recipes.service_app.document',
             related_metadata=root_service_metadata,
             is_update_candidate_for=Document.objects.get(related_metadata=is_update_candidate_for.metadata) if is_update_candidate_for is not None else None,
-            created_by_user=user if user is not None else None,
+            created_by=group,
+            created_by_user=user or None,
         )
 
         if is_update_candidate_for is not None and user is not None:

@@ -2,7 +2,7 @@ from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key, related
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum
 from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType, Keyword, Category, \
-    Document, MimeType
+    Document, MimeType, MetadataOrigin
 from tests.baker_recipes.structure_app.baker_recipes import superadmin_group, superadmin_user
 
 layer_metadatatype = Recipe(
@@ -18,6 +18,11 @@ featuretype_metadatatype = Recipe(
 service_metadatatype = Recipe(
     MetadataType,
     type=MetadataEnum.SERVICE.value
+)
+
+dataset_metadatatype = Recipe(
+    MetadataType,
+    type=MetadataEnum.DATASET.value
 )
 
 mimetype = Recipe(
@@ -121,9 +126,25 @@ category = Recipe(
     description_EN=seq("desc_"),
 )
 
-document = Recipe(
-    Document,
-    related_metadata=foreign_key(active_wms_service_metadata)
+active_dataset_metadata = Recipe(
+    Metadata,
+    title=seq("metadata_dataset_"),
+    identifier=seq("metadata_dataset_"),
+    is_active=True,
+    metadata_type=foreign_key(dataset_metadatatype),
+    created_by=foreign_key(superadmin_group),
 )
 
+document = Recipe(
+    Document,
+    related_metadata=foreign_key(active_dataset_metadata),
+    created_by=foreign_key(superadmin_group),
+    original_capability_document="<test></test>",
+    current_capability_document="<test></test>",
+    dataset_metadata_document="<test></test>",
+    service_metadata_document="<test></test>",
+)
 
+metadata_origin = Recipe(
+    MetadataOrigin,
+)

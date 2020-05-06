@@ -711,3 +711,29 @@ class GetServicePreviewViewTestCase(TestCase):
             reverse('service:get-service-metadata-preview', args=(self.wms_metadata.id,))
         )
         self.assertEqual(response.status_code, 200)
+
+
+class GetDatasetMetadataViewTestCase(TestCase):
+    def setUp(self):
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
+        self.wms_metadata = create_wms_service(group=self.user.get_groups().first(), how_much_services=1)[0]
+
+    def test_get_dataset_metadata_redirect_to_dataset(self):
+        response = self.client.get(
+            reverse('service:get-dataset-metadata', args=(self.wms_metadata.id,))
+        )
+        self.assertEqual(response.status_code, 302)
+
+    def test_get_dataset_metadata(self):
+        dataset_md = MetadataRelation.objects.get(
+            metadata_from=self.wms_metadata,
+            metadata_to__metadata_type__type=OGCServiceEnum.DATASET.value
+        )
+        dataset_md = dataset_md.metadata_to
+
+        response = self.client.get(
+            reverse('service:get-dataset-metadata', args=(dataset_md.id,))
+        )
+        self.assertEqual(response.status_code, 200)

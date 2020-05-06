@@ -839,7 +839,7 @@ class Metadata(Resource):
             )
             dataset_md = dataset_md.metadata_to
             return dataset_md
-        except ObjectDoesNotExist as e:
+        except ObjectDoesNotExist:
             return None
 
     def get_remote_original_capabilities_document(self, version: str):

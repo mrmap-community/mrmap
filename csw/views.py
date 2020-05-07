@@ -10,12 +10,13 @@ from django.views.decorators.cache import cache_page
 
 from pycsw import server as pycsw_server
 
-from MapSkinner.settings import PYCSW_CONF, RESPONSE_CACHE_TIME
+from MapSkinner.settings import PYCSW_CONF
+from csw.settings import CSW_CACHE_TIME
 
 
 # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
 # Cache requested url for time t
-@cache_page(RESPONSE_CACHE_TIME)
+@cache_page(CSW_CACHE_TIME)
 def resolve_request(request: HttpRequest):
     """ Wraps incoming csw request
 

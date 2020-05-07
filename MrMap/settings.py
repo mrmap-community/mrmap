@@ -274,6 +274,7 @@ CELERY_TIMEZONE = TIME_ZONE
 
 # API
 from api.settings import REST_FRAMEWORK
+RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
 
 # Tests
 if 'test' in sys.argv:

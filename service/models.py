@@ -1034,22 +1034,26 @@ class Metadata(Resource):
     def find_max_bounding_box(self):
         """ Returns the largest bounding box of all children
 
-        Saves the found bounding box to bounding_geometry for faster access
-
         Returns:
 
         """
-        children = self.service.child_service.all()
-        max_box = self.bounding_geometry
-        for child in children:
-            bbox = child.layer.bbox_lat_lon
-            if max_box is None:
-                max_box = bbox
-            else:
-                ba = bbox.area
-                ma = max_box.area
-                if ba > ma:
-                    max_box = bbox
+        if self.metadata_type.type == MetadataEnum.SERVICE.value:
+            if self.service.servicetype.name == OGCServiceEnum.WMS.value:
+                children = Layer.objects.filter(
+                    parent_service__metadata=self
+                )
+            elif self.service.servicetype.name == OGCServiceEnum.WFS.value:
+                children = FeatureType.objects.filter(
+                    parent_service__metadata=self
+                )
+        elif self.metadata_type.type == MetadataEnum.LAYER.value:
+            children = Layer.objects.filter(
+                parent_layer__metadata=self
+            )
+        else:
+            return DEFAULT_SERVICE_BOUNDING_BOX
+        children_bboxes = {child.bbox_lat_lon.area: child.bbox_lat_lon for child in children}
+        max_box = children_bboxes.get(max(children_bboxes), None)
 
         if max_box is None:
             max_box = DEFAULT_SERVICE_BOUNDING_BOX
@@ -1423,9 +1427,12 @@ class Metadata(Resource):
         Returns:
              str: The wkt string
         """
-        wkt = self.bounding_geometry
-        if wkt:
-            wkt = wkt.wkt
+        geom = self.bounding_geometry
+
+        if geom.area == 0:
+            geom = self.find_max_bounding_box()
+
+        wkt = geom.wkt
         return wkt
 
     @property

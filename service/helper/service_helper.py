@@ -156,7 +156,7 @@ def generate_name(srs_list: list=[]):
     return sec_handler.sha256(tmp)
 
 
-def create_service(service_type, version, base_uri, user, register_group, register_for_organization=None, async_task: Task = None, external_auth: ExternalAuthentication = None):
+def create_service(service_type, version, base_uri, user, register_group, register_for_organization=None, async_task: Task = None, external_auth: ExternalAuthentication = None, is_update_candidate_for: Service = None):
     """ Creates a database model from given service information and persists it.
 
     Due to the many-to-many relationships used in the models there is currently no way (without extending the models) to
@@ -180,7 +180,7 @@ def create_service(service_type, version, base_uri, user, register_group, regist
         # let it load it's capabilities
         wms.get_capabilities()
         wms.create_from_capabilities(async_task=async_task)
-        service = wms.create_service_model_instance(user, register_group, register_for_organization, external_auth)
+        service = wms.create_service_model_instance(user, register_group, register_for_organization, external_auth, is_update_candidate_for)
     else:
         # create WFS object
         wfs_factory = OGCWebFeatureServiceFactory()
@@ -190,7 +190,7 @@ def create_service(service_type, version, base_uri, user, register_group, regist
 
         # since we iterate through featuretypes, we can use async task here
         wfs.create_from_capabilities(async_task=async_task, external_auth=external_auth)
-        service = wfs.create_service_model_instance(user, register_group, register_for_organization, external_auth)
+        service = wfs.create_service_model_instance(user, register_group, register_for_organization, external_auth, is_update_candidate_for)
     return service
 
 

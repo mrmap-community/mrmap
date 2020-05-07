@@ -21,7 +21,7 @@ def create_testuser():
     return baker.make_recipe('tests.baker_recipes.structure_app.active_testuser')
 
 
-def create_superadminuser(groups: QuerySet = None,):
+def create_superadminuser(groups: QuerySet = None, ):
     # Check if superadminuser already exists
     try:
         superuser = MrMapUser.objects.get(
@@ -43,7 +43,8 @@ def create_superadminuser(groups: QuerySet = None,):
     return superuser
 
 
-def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service=None, user: MrMapUser=None, contact: Organization=None, how_much_services: int = 1, how_much_sublayers: int = 1):
+def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service = None, user: MrMapUser = None,
+                       contact: Organization = None, how_much_services: int = 1, how_much_sublayers: int = 1):
     service_md_type = MetadataType.objects.get_or_create(
         type=MetadataEnum.SERVICE.value
     )[0]
@@ -56,24 +57,13 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service=None,
         type=MetadataEnum.DATASET.value
     )[0]
 
-    if is_update_candidate_for is not None and user is not None:
-        root_service_metadatas = baker.make_recipe(
-            'tests.baker_recipes.service_app.active_wms_service_metadata',
-            created_by=group,
-            _quantity=how_much_services,
-            metadata_type=service_md_type,
-            is_update_candidate_for=is_update_candidate_for.metadata,
-            created_by_user=user,
-            contact=contact,
-        )
-    else:
-        root_service_metadatas = baker.make_recipe(
-            'tests.baker_recipes.service_app.active_wms_service_metadata',
-            created_by=group,
-            _quantity=how_much_services,
-            metadata_type=service_md_type,
-            contact=contact,
-        )
+    root_service_metadatas = baker.make_recipe(
+        'tests.baker_recipes.service_app.active_wms_service_metadata',
+        created_by=group,
+        _quantity=how_much_services,
+        metadata_type=service_md_type,
+        contact=contact,
+    )
 
     for root_service_metadata in root_service_metadatas:
 
@@ -81,7 +71,6 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service=None,
             'tests.baker_recipes.service_app.active_dataset_metadata',
             created_by=group,
             metadata_type=dataset_md_type,
-
         )
 
         baker.make_recipe(
@@ -103,25 +92,16 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service=None,
         baker.make_recipe(
             'tests.baker_recipes.service_app.document',
             related_metadata=root_service_metadata,
-            is_update_candidate_for=Document.objects.get(related_metadata=is_update_candidate_for.metadata) if is_update_candidate_for is not None else None,
             created_by=group,
-            created_by_user=user or None,
         )
 
-        if is_update_candidate_for is not None and user is not None:
-            root_service = baker.make_recipe(
-                'tests.baker_recipes.service_app.active_root_wms_service',
-                created_by=group,
-                metadata=root_service_metadata,
-                is_update_candidate_for=is_update_candidate_for,
-                created_by_user=user,
-            )
-        else:
-            root_service = baker.make_recipe(
-                'tests.baker_recipes.service_app.active_root_wms_service',
-                created_by=group,
-                metadata=root_service_metadata,
-            )
+        root_service = baker.make_recipe(
+            'tests.baker_recipes.service_app.active_root_wms_service',
+            created_by=group,
+            metadata=root_service_metadata,
+            is_update_candidate_for=is_update_candidate_for,
+            created_by_user=user,
+        )
 
         root_layer_metadata = baker.make_recipe(
             'tests.baker_recipes.service_app.active_wms_layer_metadata',
@@ -163,7 +143,8 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service=None,
     return root_service_metadatas
 
 
-def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = None, user: MrMapUser = None, contact: Organization=None, how_much_services: int = 1, how_much_featuretypes: int = 1):
+def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = None, user: MrMapUser = None,
+                       contact: Organization = None, how_much_services: int = 1, how_much_featuretypes: int = 1):
     service_md_type = MetadataType.objects.get_or_create(
         type=MetadataEnum.SERVICE.value
     )[0]
@@ -176,24 +157,13 @@ def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = Non
         type=MetadataEnum.DATASET.value
     )[0]
 
-    if is_update_candidate_for is not None and user is not None:
-        root_service_metadatas = baker.make_recipe(
-            'tests.baker_recipes.service_app.active_wfs_service_metadata',
-            created_by=group,
-            _quantity=how_much_services,
-            metadata_type=service_md_type,
-            is_update_candidate_for=is_update_candidate_for.metadata,
-            created_by_user=user,
-            contact=contact,
-        )
-    else:
-        root_service_metadatas = baker.make_recipe(
-            'tests.baker_recipes.service_app.active_wfs_service_metadata',
-            created_by=group,
-            _quantity=how_much_services,
-            metadata_type=service_md_type,
-            contact=contact,
-        )
+    root_service_metadatas = baker.make_recipe(
+        'tests.baker_recipes.service_app.active_wfs_service_metadata',
+        created_by=group,
+        _quantity=how_much_services,
+        metadata_type=service_md_type,
+        contact=contact,
+    )
 
     for root_service_metadata in root_service_metadatas:
         dataset_metadata = baker.make_recipe(
@@ -222,25 +192,16 @@ def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = Non
         baker.make_recipe(
             'tests.baker_recipes.service_app.document',
             related_metadata=root_service_metadata,
-            is_update_candidate_for=Document.objects.get(related_metadata=is_update_candidate_for.metadata) if is_update_candidate_for is not None else None,
             created_by=group,
-            created_by_user=user or None,
         )
 
-        if is_update_candidate_for is not None and user is not None:
-            root_service = baker.make_recipe(
-                'tests.baker_recipes.service_app.active_root_wfs_service',
-                created_by=group,
-                metadata=root_service_metadata,
-                is_update_candidate_for=is_update_candidate_for,
-                created_by_user=user,
-            )
-        else:
-            root_service = baker.make_recipe(
-                'tests.baker_recipes.service_app.active_root_wfs_service',
-                created_by=group,
-                metadata=root_service_metadata,
-            )
+        root_service = baker.make_recipe(
+            'tests.baker_recipes.service_app.active_root_wfs_service',
+            created_by=group,
+            metadata=root_service_metadata,
+            is_update_candidate_for=is_update_candidate_for,
+            created_by_user=user,
+        )
 
         featuretype_metadatas = baker.make_recipe(
             'tests.baker_recipes.service_app.active_wfs_featuretype_metadata',
@@ -262,7 +223,6 @@ def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = Non
 
 
 def create_guest_groups(user: MrMapUser = None, how_much_groups: int = 1):
-
     # Check for already existing groups to fetch the next sequence integer
     existing_groups = MrMapGroup.objects.filter(
         name__icontains="GuestGroup"
@@ -321,8 +281,8 @@ def create_public_organization(user: MrMapUser):
     )
 
 
-def create_pending_request(group: MrMapGroup = None, orga: Organization = None, type_str: str = None, how_much_requests: int = 1):
-
+def create_pending_request(group: MrMapGroup = None, orga: Organization = None, type_str: str = None,
+                           how_much_requests: int = 1):
     if group is not None and type_str is not None and orga is not None:
         return baker.make_recipe('tests.baker_recipes.structure_app.pending_request',
                                  group=group,

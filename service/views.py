@@ -81,7 +81,7 @@ def _prepare_wms_table(request: HttpRequest):
         service__is_root=show_service,
         created_by__in=user.get_groups(),
         is_deleted=False,
-        is_update_candidate_for=None
+        service__is_update_candidate_for=None
     ).order_by("title")
 
     wms_table_filtered = MetadataWmsFilter(request.GET, queryset=md_list_wms)
@@ -125,7 +125,7 @@ def _prepare_wfs_table(request: HttpRequest):
         service__servicetype__name=OGCServiceEnum.WFS.value,
         created_by__in=user.get_groups(),
         is_deleted=False,
-        is_update_candidate_for=None
+        service__is_update_candidate_for=None
     ).order_by("title")
 
     wfs_table_filtered = MetadataWfsFilter(request.GET, queryset=md_list_wfs)
@@ -711,13 +711,11 @@ def new_pending_update_service(request: HttpRequest, metadata_id: int):
     """
     if request.method == 'POST':
         current_service = get_object_or_404(Service, metadata__id=metadata_id)
-        current_document = get_object_or_404(Document, related_metadata=current_service.metadata)
         user = user_helper.get_user(request)
 
         # Update check form!
         update_form = UpdateServiceCheckForm(request.POST,
                                              current_service=current_service,
-                                             current_document=current_document,
                                              requesting_user=user)
         # Check if update form is valid
         if update_form.is_valid():
@@ -727,9 +725,9 @@ def new_pending_update_service(request: HttpRequest, metadata_id: int):
                 version=service_helper.resolve_version_enum(update_form.url_dict.get("version")),
                 base_uri=update_form.url_dict.get("base_uri"),
                 user=user,
-                register_group=current_service.created_by
+                register_group=current_service.created_by,
+                is_update_candidate_for=current_service,
             )
-            new_service.is_update_candidate_for = current_service
             new_service.created_by_user = user
             new_service.keep_custom_md = update_form.cleaned_data['keep_custom_md']
             new_service.metadata.is_update_candidate_for = current_service.metadata
@@ -748,13 +746,20 @@ def new_pending_update_service(request: HttpRequest, metadata_id: int):
 
 @login_required
 @check_permission(Permission(can_update_service=True))
+@check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
 def pending_update_service(request: HttpRequest, metadata_id: int, update_params=None, status_code=None):
     template = "views/service_update.html"
     user = user_helper.get_user(request)
 
     current_service = get_object_or_404(Service, metadata__id=metadata_id)
-    new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
+    try:
+        new_service = Service.objects.get(is_update_candidate_for=current_service)
+    except ObjectDoesNotExist:
+        messages.error(request, _("No updatecandidate was found."))
+        # ToDo: make 7 dynamic
+        messages.info(request, _("Update candidates will be deleted after 7 days."))
+        return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
 
     if current_service.servicetype.name == OGCServiceEnum.WMS.value:
         current_service.root_layer = Layer.objects.get(parent_service=current_service, parent_layer=None)
@@ -811,6 +816,7 @@ def pending_update_service(request: HttpRequest, metadata_id: int, update_params
 
 @login_required
 @check_permission(Permission(can_update_service=True))
+@check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
 def dismiss_pending_update_service(request: HttpRequest, metadata_id: int):
     user = user_helper.get_user(request)
@@ -819,7 +825,6 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id: int):
 
     if request.method == 'POST':
         if new_service.created_by_user == user:
-            # ToDo: check if user is in group of created_by field of update_cadidate
             new_service.delete()
             messages.success(request, _("Pending update successfully dismissed."))
         else:
@@ -832,15 +837,15 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id: int):
 
 @login_required
 @check_permission(Permission(can_update_service=True))
+@check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
 def run_update_service(request: HttpRequest, metadata_id: int):
     user = user_helper.get_user(request)
 
     if request.method == 'POST':
         current_service = get_object_or_404(Service, metadata__id=metadata_id)
-        current_document = get_object_or_404(Document, related_metadata=current_service.metadata)
         new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
-        new_document = get_object_or_404(Document, is_update_candidate_for=current_document)
+        new_document = get_object_or_404(Document, related_metadata=new_service.metadata)
         if current_service.servicetype.name != OGCServiceEnum.WFS.value:
             new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent_layer=None)
             current_service.root_layer = get_object_or_404(Layer, parent_service=current_service, parent_layer=None)
@@ -894,7 +899,6 @@ def run_update_service(request: HttpRequest, metadata_id: int):
                     new_service.keep_custom_md
                 )
 
-            new_document.is_update_candidate_for = None
             update_helper.update_capability_document(current_service, new_document.original_capability_document)
 
             current_service.save()

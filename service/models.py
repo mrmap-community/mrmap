@@ -41,9 +41,6 @@ class Resource(models.Model):
     last_modified = models.DateTimeField(null=True)
     is_deleted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)
-    is_update_candidate_for = models.OneToOneField('self', on_delete=models.SET_NULL, related_name="has_update_candidate", null=True, default=None, blank=True)
-    created_by_user = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True, blank=True)
-    keep_custom_md = models.BooleanField(default=True)
 
     def save(self, update_last_modified=True, force_insert=False, force_update=False, using=None,
              update_fields=None):
@@ -2168,6 +2165,10 @@ class Service(Resource):
 
     formats = models.ManyToManyField('MimeType', blank=True)
 
+    is_update_candidate_for = models.OneToOneField('self', on_delete=models.SET_NULL, related_name="has_update_candidate", null=True, default=None, blank=True)
+    created_by_user = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True, blank=True)
+    keep_custom_md = models.BooleanField(default=True)
+
     # used to store ows linked_service_metadata until parsing
     # will not be part of the db
     linked_service_metadata = None
@@ -2722,7 +2723,8 @@ class Dimension(models.Model):
         """
         # each of structure 'start/end/resolution'
         # Find min and max interval boundaries
-        intervals_min = datetime.now(timezone.utc)
+        #intervals_min = datetime.now(timezone.utc)
+        intervals_min = timezone.localtime()
         intervals_max = datetime(1800, 1, 1, tzinfo=timezone.utc)
         for interval in values:
             interval_components = interval.split("/")
@@ -2745,7 +2747,8 @@ class Dimension(models.Model):
         """
         # each of structure 'start/end/resolution'
         # Find min and max interval boundaries
-        intervals_min = datetime.now(timezone.utc)
+        #intervals_min = datetime.now(timezone.utc)
+        intervals_min = timezone.localtime()
         intervals_max = datetime(1800, 1, 1, tzinfo=timezone.utc)
         for value in values:
             value = parse(timestr=value)

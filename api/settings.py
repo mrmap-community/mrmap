@@ -20,7 +20,6 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 10,
 }
 
-API_CACHE_TIME = 60*30  # 30 minutes
 API_ALLOWED_HTTP_METHODS = [
     "get",
     "post",

@@ -2723,7 +2723,8 @@ class Dimension(models.Model):
         """
         # each of structure 'start/end/resolution'
         # Find min and max interval boundaries
-        intervals_min = datetime.now(timezone.utc)
+        #intervals_min = datetime.now(timezone.utc)
+        intervals_min = timezone.localtime()
         intervals_max = datetime(1800, 1, 1, tzinfo=timezone.utc)
         for interval in values:
             interval_components = interval.split("/")
@@ -2746,7 +2747,8 @@ class Dimension(models.Model):
         """
         # each of structure 'start/end/resolution'
         # Find min and max interval boundaries
-        intervals_min = datetime.now(timezone.utc)
+        #intervals_min = datetime.now(timezone.utc)
+        intervals_min = timezone.localtime()
         intervals_max = datetime(1800, 1, 1, tzinfo=timezone.utc)
         for value in values:
             value = parse(timestr=value)

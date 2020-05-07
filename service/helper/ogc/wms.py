@@ -683,7 +683,7 @@ class OGCWebMapService(OGCWebService):
         self.parse_request_uris(xml_obj, self)
 
     @transaction.atomic
-    def create_service_model_instance(self, user: MrMapUser, register_group: MrMapGroup, register_for_organization: Organization, external_auth: ExternalAuthentication = None):
+    def create_service_model_instance(self, user: MrMapUser, register_group: MrMapGroup, register_for_organization: Organization, external_auth: ExternalAuthentication = None, is_update_candidate_for: Service = None):
         """ Persists the web map service and all of its related content and data
 
         Args:
@@ -696,7 +696,6 @@ class OGCWebMapService(OGCWebService):
 
         """
         orga_published_for = register_for_organization
-        orga_publisher = user.organization
         group = register_group
 
         # Contact
@@ -709,7 +708,7 @@ class OGCWebMapService(OGCWebService):
         self._process_external_authentication(metadata, external_auth)
 
         # Service
-        service = self._create_service_record(group, orga_published_for, orga_publisher, metadata)
+        service = self._create_service_record(group, orga_published_for, metadata, is_update_candidate_for)
 
         # Additionals (keywords, mimetypes, ...)
         self._create_additional_records(service, metadata)
@@ -788,8 +787,7 @@ class OGCWebMapService(OGCWebService):
         metadata.save()
         return metadata
 
-    def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, orga_publisher: Organization,
-                               metadata: Metadata):
+    def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, metadata: Metadata, is_update_candidate_for: Service):
         """ Creates a Service object from the OGCWebFeatureService object
 
         Args:
@@ -826,6 +824,7 @@ class OGCWebMapService(OGCWebService):
         service.get_map_uri_POST = self.get_map_uri_POST
         service.metadata = metadata
         service.is_root = True
+        service.is_update_candidate_for=is_update_candidate_for
 
         service.save()
 

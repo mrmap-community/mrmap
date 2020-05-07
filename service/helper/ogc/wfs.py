@@ -646,7 +646,7 @@ class OGCWebFeatureService(OGCWebService):
             self._get_feature_type_metadata(feature_type, epsg_api, service_type_version, external_auth=external_auth)
 
     @abstractmethod
-    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization, external_auth: ExternalAuthentication):
+    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization, external_auth: ExternalAuthentication, is_update_candidate_for: Service):
         """ Map all data from the WebFeatureService classes to their database models
 
         This does not persist the models to the database!
@@ -674,7 +674,7 @@ class OGCWebFeatureService(OGCWebService):
         self._process_external_authentication(md, external_auth)
 
         # Service
-        service = self._create_service_record(group, orga_published_for, orga_publisher, md)
+        service = self._create_service_record(group, orga_published_for, orga_publisher, md, is_update_candidate_for)
 
         # Additional (Keywords, linked metadata, MimeTypes, ...)
         self._create_additional_records(service, md)
@@ -744,7 +744,7 @@ class OGCWebFeatureService(OGCWebService):
 
         return md
 
-    def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, orga_publisher: Organization, md: Metadata):
+    def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, md: Metadata, is_update_candidate_for: Service):
         """ Creates a Service object from the OGCWebFeatureService object
 
         Args:
@@ -792,6 +792,7 @@ class OGCWebFeatureService(OGCWebService):
         service.is_available = False
         service.is_root = True
         md.service = service
+        service.is_update_candidate_for = is_update_candidate_for
 
         # Save record to enable M2M relations
         service.save()

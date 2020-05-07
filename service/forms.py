@@ -103,7 +103,6 @@ class UpdateServiceCheckForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.current_service = None if 'current_service' not in kwargs else kwargs.pop('current_service')
-        self.current_document = None if 'current_document' not in kwargs else kwargs.pop('current_document')
         self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
         super(UpdateServiceCheckForm, self).__init__(*args, **kwargs)
 
@@ -123,11 +122,10 @@ class UpdateServiceCheckForm(forms.Form):
         try:
             # Get service object from db
             has_update_candidate_for_service = Service.objects.get(is_update_candidate_for=self.current_service)
-            has_update_candidate_for_document = Document.objects.get(is_update_candidate_for=self.current_document)
         except ObjectDoesNotExist:
             pass
 
-        if has_update_candidate_for_service or has_update_candidate_for_document:
+        if has_update_candidate_for_service:
             user = has_update_candidate_for_service.created_by_user \
                 if has_update_candidate_for_service.created_by_user is not None \
                 else 'unknown'

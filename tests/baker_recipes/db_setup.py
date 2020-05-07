@@ -56,24 +56,13 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service=None,
         type=MetadataEnum.DATASET.value
     )[0]
 
-    if is_update_candidate_for is not None and user is not None:
-        root_service_metadatas = baker.make_recipe(
-            'tests.baker_recipes.service_app.active_wms_service_metadata',
-            created_by=group,
-            _quantity=how_much_services,
-            metadata_type=service_md_type,
-            is_update_candidate_for=is_update_candidate_for.metadata,
-            created_by_user=user,
-            contact=contact,
-        )
-    else:
-        root_service_metadatas = baker.make_recipe(
-            'tests.baker_recipes.service_app.active_wms_service_metadata',
-            created_by=group,
-            _quantity=how_much_services,
-            metadata_type=service_md_type,
-            contact=contact,
-        )
+    root_service_metadatas = baker.make_recipe(
+        'tests.baker_recipes.service_app.active_wms_service_metadata',
+        created_by=group,
+        _quantity=how_much_services,
+        metadata_type=service_md_type,
+        contact=contact,
+    )
 
     for root_service_metadata in root_service_metadatas:
 
@@ -81,7 +70,6 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service=None,
             'tests.baker_recipes.service_app.active_dataset_metadata',
             created_by=group,
             metadata_type=dataset_md_type,
-
         )
 
         baker.make_recipe(
@@ -103,9 +91,7 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service=None,
         baker.make_recipe(
             'tests.baker_recipes.service_app.document',
             related_metadata=root_service_metadata,
-            is_update_candidate_for=Document.objects.get(related_metadata=is_update_candidate_for.metadata) if is_update_candidate_for is not None else None,
             created_by=group,
-            created_by_user=user or None,
         )
 
         if is_update_candidate_for is not None and user is not None:
@@ -176,24 +162,13 @@ def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = Non
         type=MetadataEnum.DATASET.value
     )[0]
 
-    if is_update_candidate_for is not None and user is not None:
-        root_service_metadatas = baker.make_recipe(
-            'tests.baker_recipes.service_app.active_wfs_service_metadata',
-            created_by=group,
-            _quantity=how_much_services,
-            metadata_type=service_md_type,
-            is_update_candidate_for=is_update_candidate_for.metadata,
-            created_by_user=user,
-            contact=contact,
-        )
-    else:
-        root_service_metadatas = baker.make_recipe(
-            'tests.baker_recipes.service_app.active_wfs_service_metadata',
-            created_by=group,
-            _quantity=how_much_services,
-            metadata_type=service_md_type,
-            contact=contact,
-        )
+    root_service_metadatas = baker.make_recipe(
+        'tests.baker_recipes.service_app.active_wfs_service_metadata',
+        created_by=group,
+        _quantity=how_much_services,
+        metadata_type=service_md_type,
+        contact=contact,
+    )
 
     for root_service_metadata in root_service_metadatas:
         dataset_metadata = baker.make_recipe(
@@ -222,9 +197,7 @@ def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = Non
         baker.make_recipe(
             'tests.baker_recipes.service_app.document',
             related_metadata=root_service_metadata,
-            is_update_candidate_for=Document.objects.get(related_metadata=is_update_candidate_for.metadata) if is_update_candidate_for is not None else None,
             created_by=group,
-            created_by_user=user or None,
         )
 
         if is_update_candidate_for is not None and user is not None:

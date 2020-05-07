@@ -25,9 +25,9 @@ class Command(BaseCommand):
         count = len(elements)
         list_of_ids = []
         for element in elements:
-            list_of_ids.append(element.id)
+            list_of_ids.append({'md_id': element.is_update_candidate_for.metadata.id})
 
         elements.delete()
 
         self.stdout.write('Deleted {} objects older than {} days'.format(count, older_than))
-        self.stdout.write('List of the deleted elements:\n{}'.format(list_of_ids))
+        self.stdout.write('List of id\'s from the metadata elements which had update candidates:\n{}'.format(list_of_ids))

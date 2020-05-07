@@ -13,9 +13,16 @@ from MapSkinner.settings import PYCSW_CONF
 
 
 def resolve_request(request: HttpRequest):
+    """ Wraps incoming csw request
+
+    Args:
+        request (HttpRequest): The incoming request
+    Returns:
+
+    """
     conf = PYCSW_CONF
 
-    version = "2.0.2"
+    version = request.GET.get("version", "2.0.2")
     csw = pycsw_server.Csw(conf, request.META, version=version)
 
     content = csw.dispatch_wsgi()

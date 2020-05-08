@@ -16,7 +16,7 @@ from csw.settings import CSW_CACHE_TIME
 
 # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
 # Cache requested url for time t
-@cache_page(CSW_CACHE_TIME)
+#@cache_page(CSW_CACHE_TIME)
 def resolve_request(request: HttpRequest):
     """ Wraps incoming csw request
 

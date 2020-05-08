@@ -1429,9 +1429,10 @@ class Metadata(Resource):
         """
         geom = self.bounding_geometry
 
-        if geom.area == 0:
+        if geom is not None and geom.area == 0:
             geom = self.find_max_bounding_box()
-
+        else:
+            geom = DEFAULT_SERVICE_BOUNDING_BOX
         wkt = geom.wkt
         return wkt
 
@@ -1516,6 +1517,18 @@ class Metadata(Resource):
              str:
         """
         return self.get_service_version().value
+
+    @property
+    def csw_operates_on_name(self):
+        return "Test"
+
+    @property
+    def csw_operates_on_identifier(self):
+        return "Test"
+
+    @property
+    def csw_operates_on(self):
+        return "Test"
 
 
 class MetadataType(models.Model):

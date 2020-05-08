@@ -26,7 +26,7 @@ from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, MetadataEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Metadata, Keyword, MetadataType, Document
-from structure.models import Organization
+from structure.models import Organization, MrMapGroup
 
 
 class ISOMetadata:
@@ -411,7 +411,7 @@ class ISOMetadata:
         return polygon
 
     @transaction.atomic
-    def to_db_model(self, type=MetadataEnum.DATASET.value):
+    def to_db_model(self, type=MetadataEnum.DATASET.value, created_by: MrMapGroup = None):
         """ Get corresponding metadata object from database or create it if not found!
 
         Returns:
@@ -469,6 +469,7 @@ class ISOMetadata:
             metadata.is_broken = self.is_broken
             metadata.dataset_id = self.dataset_id
             metadata.dataset_id_code_space = self.dataset_id_code_space
+            metadata.created_by = created_by
             metadata.save()
 
             # Add links for dataset metadata

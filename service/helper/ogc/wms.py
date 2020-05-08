@@ -851,7 +851,7 @@ class OGCWebMapService(OGCWebService):
 
         # Check for linked service metadata that might be found during parsing
         if self.linked_service_metadata is not None:
-            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value)
+            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value, created_by=metadata.created_by)
             md_relation = MetadataRelation()
             md_relation.metadata_from = metadata
             md_relation.metadata_to = service.linked_service_metadata

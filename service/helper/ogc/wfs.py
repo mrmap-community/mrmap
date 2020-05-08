@@ -661,7 +661,6 @@ class OGCWebFeatureService(OGCWebService):
         """
 
         orga_published_for = register_for_organization
-        orga_publisher = user.organization
         group = register_group
 
         # Contact
@@ -674,7 +673,7 @@ class OGCWebFeatureService(OGCWebService):
         self._process_external_authentication(md, external_auth)
 
         # Service
-        service = self._create_service_record(group, orga_published_for, orga_publisher, md, is_update_candidate_for)
+        service = self._create_service_record(group, orga_published_for, md, is_update_candidate_for)
 
         # Additional (Keywords, linked metadata, MimeTypes, ...)
         self._create_additional_records(service, md)
@@ -814,7 +813,7 @@ class OGCWebFeatureService(OGCWebService):
 
         # save linked service metadata
         if self.linked_service_metadata is not None:
-            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value)
+            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value, created_by=md.created_by)
             md_relation = MetadataRelation()
             md_relation.metadata_from = md
             md_relation.metadata_to = service.linked_service_metadata
@@ -842,7 +841,8 @@ class OGCWebFeatureService(OGCWebService):
             service (Service):
             group (Service):
             contact (Service):
-        :return:
+        Returns:
+
         """
 
         for feature_type_key, feature_type_val in self.feature_type_list.items():
@@ -875,10 +875,11 @@ class OGCWebFeatureService(OGCWebService):
 
             # dataset_md of feature types
             for dataset_md in f_t.dataset_md_list:
-                dataset_md.save()
+                dataset_record = dataset_md.to_db_model(created_by=group)
+                dataset_record.save()
                 md_relation = MetadataRelation()
                 md_relation.metadata_from = f_t.metadata
-                md_relation.metadata_to = dataset_md
+                md_relation.metadata_to = dataset_record
                 origin = MetadataOrigin.objects.get_or_create(name="capabilities")[0]
                 md_relation.origin = origin
                 md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
@@ -934,7 +935,7 @@ class OGCWebFeatureService(OGCWebService):
                 except Exception as e:
                     # there are iso metadatas that have been filled wrongly -> if so we will drop them
                     continue
-                feature_type.dataset_md_list.append(iso_metadata.to_db_model())
+                feature_type.dataset_md_list.append(iso_metadata)
 
     def get_feature_type_by_identifier(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Extract a single feature type by its identifier and parse it into a FeatureType object

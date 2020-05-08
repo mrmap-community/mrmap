@@ -235,7 +235,7 @@ class OGCLayer:
             metadata.reference_system.add(ref_sys)
 
         for iso_md in self.iso_metadata:
-            iso_md = iso_md.to_db_model()
+            iso_md = iso_md.to_db_model(created_by=group)
             metadata_relation = MetadataRelation()
             metadata_relation.metadata_from = metadata
             metadata_relation.metadata_to = iso_md

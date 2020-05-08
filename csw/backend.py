@@ -5,6 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 05.05.20
 
 """
+from django.db.models import QuerySet, Q
 from pycsw.core.repository import Repository
 
 from MapSkinner import settings
@@ -72,10 +73,29 @@ class CswCustomRepository(Repository):
             is_active=True
         )
 
+        mocked_property_columns = [
+            "csw_keywords",
+            "csw_typename",
+            "csw_schema",
+            "csw_anytext",
+            "csw_bounding_geometry",
+            "csw_srs",
+            "csw_organizationname",
+            "csw_category",
+            "csw_temp_dim_start",
+            "csw_temp_dim_end",
+            "csw_service_type",
+            "csw_service_version",
+        ]
+
         # Prefilter using constraint parameter
         if constraint:
             if "where" in constraint:
-                all_md = all_md.extra(where=[constraint["where"]], params=constraint["values"])
+                found_mocked_column = {mock: mock in constraint["where"] for mock in mocked_property_columns}
+                if True in found_mocked_column.values():
+                    all_md = self._resolve_mocked_property_columns(constraint["values"], all_md, found_mocked_column)
+                else:
+                    all_md = all_md.extra(where=[constraint["where"]], params=constraint["values"])
             else:
                 # ToDo?
                 pass
@@ -107,3 +127,40 @@ class CswCustomRepository(Repository):
     def delete(self, constraint):
         # Not to be supported
         pass
+
+    def _filter_mockup_csw_keywords(self, metadatas: QuerySet, values: list):
+        q = Q()
+        for query_elem in values:
+            q |= Q(keywords__keyword__icontains=query_elem)
+
+        metadatas = metadatas.filter(q)
+        return metadatas
+
+    def _resolve_mocked_property_columns(self, values: list, metadatas: QuerySet, found_mocked_columns: dict):
+        """ Dynamically calls specialized filter functions for mocked property columns.
+
+        There are propertys of Metadata which are not real class attributes but rather wrapped complex requests to nested
+        attributes, disguised using @property as class attributes.
+        This is needed to work with pycsw mapping style found in mappings.py
+
+        There have to be filter functions for each mocked csw_PROP which can not be resolved directly into a table column.
+
+        Args:
+            values (list): The requested values to filter for
+            metadatas (QuerySet): The metadata queryset
+            found_mocked_columns (dict): A dict containing which mocked property is requested
+        Returns:
+             metadatas (QuerySet): The filtered queryset
+        """
+        # Clean values strings
+        values = [v.replace("%", "") for v in values]
+
+        # Get only the csw_PROP names which shall be filtered for
+        filter_for = [key for key, val in found_mocked_columns.items() if val is True]
+
+        # Call dynamically the matching filter function
+        for filter_property in filter_for:
+            filter_function = "_filter_mockup_{}".format(filter_property)
+            metadatas = getattr(self, filter_function)(metadatas, values)
+
+        return metadatas

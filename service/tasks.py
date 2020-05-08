@@ -84,9 +84,21 @@ def async_activate_service(service_id: int, user_id: int, is_active: bool):
             )
             for relation in md_relations:
                 related_md = relation.metadata_to
-                related_md.set_documents_active_status(new_status)
-                related_md.is_active = new_status
-                related_md.save()
+
+                # Check for dependencies before toggling active status
+                # We are only interested in dependencies from activated metadatas
+                relations_from_others = MetadataRelation.objects.filter(
+                    metadata_to=related_md,
+                    metadata_from__is_active=True
+                )
+                if relations_from_others.count() > 1 and new_status is False:
+                    # If there are more than our relation and we want to deactivate, we do NOT proceed
+                    continue
+                else:
+                    # If there are no other dependencies OR we just want to activate the resource, we are good to go
+                    related_md.set_documents_active_status(new_status)
+                    related_md.is_active = new_status
+                    related_md.save()
             ft_metadata.save()
 
     # Formating using an empty string here is correct, since these are the messages we show in

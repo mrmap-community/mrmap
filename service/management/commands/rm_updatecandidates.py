@@ -10,14 +10,14 @@ class Command(BaseCommand):
            'Default is seven days, if you do not pass any parameter'
 
     def add_arguments(self, parser):
-        parser.add_argument('-ot', '--older_than',
+        parser.add_argument('-ot', '--older-than',
                             type=int,
                             help='Indicates the age of update candidates that will be removed')
 
     def handle(self, *args, **options):
         older_than = 7
-        if options['older_than']:
-            older_than = options['older_than']
+        if options['older-than']:
+            older_than = options['older-than']
 
         elements = Service.objects.filter(last_modified__lte=timezone.localtime()-timedelta(days=older_than))\
                                   .exclude(is_update_candidate_for=None)

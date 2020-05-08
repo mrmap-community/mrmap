@@ -576,9 +576,9 @@ class Metadata(Resource):
 
     # other
     keywords = models.ManyToManyField(Keyword)
-    categories = models.ManyToManyField('Category', null=True, blank=True)
-    reference_system = models.ManyToManyField('ReferenceSystem', null=True, blank=True)
-    dimensions = models.ManyToManyField('Dimension', null=True, blank=True)
+    categories = models.ManyToManyField('Category', blank=True)
+    reference_system = models.ManyToManyField('ReferenceSystem', blank=True)
+    dimensions = models.ManyToManyField('Dimension', blank=True)
     metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
     hits = models.IntegerField(default=0)
 

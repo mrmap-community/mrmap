@@ -549,12 +549,12 @@ class Metadata(Resource):
     html_metadata_uri = models.CharField(max_length=500, blank=True, null=True)
 
     contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, blank=True, null=True)
-    terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, null=True)
+    terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, blank=True, null=True)
     access_constraints = models.TextField(null=True, blank=True)
     fees = models.TextField(null=True, blank=True)
 
     last_remote_change = models.DateTimeField(null=True, blank=True)  # the date time, when the metadata was changed where it comes from
-    status = models.IntegerField(null=True)
+    status = models.IntegerField(null=True, blank=True)
     use_proxy_uri = models.BooleanField(default=False)
     log_proxy_access = models.BooleanField(default=False)
     spatial_res_type = models.CharField(max_length=100, null=True)
@@ -569,7 +569,7 @@ class Metadata(Resource):
     is_secured = models.BooleanField(default=False)
 
     # capabilities
-    authority_url = models.CharField(max_length=255, null=True)
+    authority_url = models.CharField(max_length=255, null=True, blank=True)
     metadata_url = models.CharField(max_length=255, null=True)
 
     # other

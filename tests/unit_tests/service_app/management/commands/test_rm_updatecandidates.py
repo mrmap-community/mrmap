@@ -38,7 +38,7 @@ class RemoveUpdatecandidates(TestCase):
             update_candidate_metadata[0].service.save(update_last_modified=False)
 
         out = StringIO()
-        call_command('rm_updatecandidates', stdout=out, older_than=older_than)
+        call_command('rm_updatecandidates', stdout=out, ot=older_than)
         self.assertIn('Deleted 20 objects older than {} days'.format(older_than), out.getvalue())
 
         services_count = Service.objects.filter(is_root=True).count()

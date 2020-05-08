@@ -2597,13 +2597,6 @@ class Layer(Service):
         Returns:
              nothing
         """
-        self.metadata.is_active = new_status
-        self.metadata.save()
-        self.metadata.set_documents_active_status(new_status)
-        self.is_active = new_status
-        self.save()
-
-
         # check for all related metadata, we need to toggle their active status as well
         rel_md = self.metadata.related_metadata.all()
         for md in rel_md:
@@ -2611,7 +2604,7 @@ class Layer(Service):
                 metadata_to=md.metadata_to,
                 metadata_from__is_active=True,
             )
-            if dependencies.count() >= 1 and md not in dependencies:
+            if dependencies.count() > 1 and new_status is False:
                 # we still have multiple dependencies on this relation (besides us), we can not deactivate the metadata
                 pass
             else:
@@ -2619,6 +2612,12 @@ class Layer(Service):
                 md.metadata_to.is_active = new_status
                 md.metadata_to.save()
                 md.save()
+
+        self.metadata.is_active = new_status
+        self.metadata.save()
+        self.metadata.set_documents_active_status(new_status)
+        self.is_active = new_status
+        self.save()
 
         for layer in self.child_layers.all():
             layer.activate_layer_recursive(new_status)

@@ -21,6 +21,8 @@
             Featuretype:
         {% elif service_metadata.is_layer_metadata %}
             Layer:
+        {% elif service_metadata.metadata_type.type == 'dataset' %}
+            Dataset:
         {% endif %}
         {{ service_metadata.title }}
     </h5>

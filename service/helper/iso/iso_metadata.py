@@ -485,7 +485,7 @@ class ISOMetadata:
                 related_metadata=metadata
             )[0]
             if type is MetadataEnum.DATASET.value:
-                document.dataset_metadata_document = self.raw_metadata
+                document.original_dataset_metadata_document = self.raw_metadata
             elif type is MetadataEnum.SERVICE.value:
                 document.service_metadata_document = self.raw_metadata
             else:

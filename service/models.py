@@ -1355,7 +1355,9 @@ class Document(Resource):
     original_capability_document = models.TextField(null=True, blank=True)
     current_capability_document = models.TextField(null=True, blank=True)
     service_metadata_document = models.TextField(null=True, blank=True)
-    dataset_metadata_document = models.TextField(null=True, blank=True)
+
+    original_dataset_metadata_document = models.TextField(null=True, blank=True)
+    current_dataset_metadata_document = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return self.related_metadata.title
@@ -1371,10 +1373,10 @@ class Document(Resource):
         """
         ret_dict = {}
 
-        if self.dataset_metadata_document is None:
+        if self.original_dataset_metadata_document is None:
             return ret_dict
 
-        xml = xml_helper.parse_xml(self.dataset_metadata_document)
+        xml = xml_helper.parse_xml(self.original_dataset_metadata_document)
 
         # Date
         date_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp"), xml)
@@ -2410,20 +2412,16 @@ class Service(Resource):
         self.metadata.save(update_last_modified=False)
         self.save(update_last_modified=False)
 
-    def persist_capabilities_doc(self, xml: str, is_update_candidate_for: Resource = None, created_by_user: MrMapUser = None):
+    def persist_capabilities_doc(self, xml: str):
         """ Persists the capabilities document
 
         Args:
             xml (str): The xml document as string
-            is_update_candidate_for:
-            created_by_user:
         Returns:
              nothing
         """
         # save original capabilities document
         cap_doc = Document()
-        cap_doc.is_update_candidate_for = is_update_candidate_for
-        cap_doc.created_by_user = created_by_user
         cap_doc.original_capability_document = xml
         cap_doc.related_metadata = self.metadata
         cap_doc.set_capabilities_secured()

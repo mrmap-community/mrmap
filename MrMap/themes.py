@@ -28,6 +28,7 @@ FONT_AWESOME_ICONS = {
     'SIGNUP': format_html(ICON_PATTERN, 'fas', 'fa-user-plus', ),
     'UNDO': format_html(ICON_PATTERN, 'fas', 'fa-undo', ),
     'CAPABILITIES': format_html(ICON_PATTERN, 'fas', 'fa-file-code', ),
+    'NEWSPAPER': format_html(ICON_PATTERN, 'far', 'fa-newspaper', ),
     'METADATA': format_html(ICON_PATTERN, 'fas', 'fa-file-alt', ),
     'ACCESS': format_html(ICON_PATTERN, 'fas', 'fa-key', ),
     'SORT_ALPHA_UP': format_html(ICON_PATTERN, 'fas', 'fa-sort-alpha-up', ),

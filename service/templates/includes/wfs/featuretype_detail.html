@@ -28,11 +28,17 @@
                 </div>
             {% endif %}
             </div><!--</col>-->
-            {% if has_dataset_metadata is True %}
+            {% if has_dataset_metadata %}
                 <div class="col-sm mb-2 text-center">
-                    <a id="dataset-metadata-button-{{ service.metadata.id }}" target="_blank" class="btn {{THEME.CARD.BTN_INFO_COLOR}}" href="{% url 'service:get-dataset-metadata' service.metadata.id %}">
-                        {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Dataset Metadata' %}
-                    </a>
+                    <div class="dropdown">
+                <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="id_dataset_metadata_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Dataset Metadata' %}
+                </button>
+                <div class="dropdown-menu" aria-labelledby="id_dataset_metadata_dropdown">
+                    <a class="dropdown-item" target="_blank" href="{% url 'service:get-metadata-html' has_dataset_metadata.related_metadata.id %}">{% trans 'HTML' %}</a>
+                    <a class="dropdown-item" target="_blank" href="{% url 'service:get-dataset-metadata' has_dataset_metadata.related_metadata.id %}">{% trans 'XML' %}</a>
+                </div>
+            </div>
                 </div><!--</col>-->
             {% endif %}
             <div class="col-sm mb-2 text-center">

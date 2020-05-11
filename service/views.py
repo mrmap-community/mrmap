@@ -960,16 +960,15 @@ def _check_for_dataset_metadata(metadata: Metadata, ):
     Args:
         metadata:
     Returns:
-         A boolean, whether the requested element has a dataset metadata record or not
+         The document or none
     """
     try:
         md_2 = metadata.get_related_dataset_metadata()
-        Document.objects.get(
+        return Document.objects.get(
             related_metadata=md_2
         )
-        return True
     except ObjectDoesNotExist:
-        return False
+        return None
 
 
 @login_required

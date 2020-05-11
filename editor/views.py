@@ -3,8 +3,7 @@ import json
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest
-from django.shortcuts import render, redirect
-
+from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from MrMap import utils
 from MrMap.cacher import PageCacher
@@ -133,7 +132,7 @@ def edit(request: HttpRequest, id: int):
     """
     user = user_helper.get_user(request)
 
-    metadata = Metadata.objects.get(id=id)
+    metadata = get_object_or_404(Metadata, id=id)
 
     # check if user owns this service by group-relation
     if metadata.created_by not in user.get_groups():

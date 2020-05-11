@@ -151,6 +151,36 @@ def _overwrite_capabilities_data(xml_obj: _Element, metadata: Metadata):
             pass
 
 
+def overwrite_document(metadata: Metadata):
+    """ Overwrites the dataset metadata document which is related to the provided metadata.
+
+        Args:
+            metadata (Metadata):
+        Returns:
+             nothing
+        """
+    is_root = metadata.is_root()
+    if is_root:
+        parent_metadata = metadata
+    elif metadata.metadata_type.type == MetadataEnum.LAYER.value:
+        parent_metadata = metadata.service.parent_service.metadata
+    elif metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
+        parent_metadata = metadata.featuretype.parent_service.metadata
+    elif metadata.metadata_type.type == MetadataEnum.DATASET.value:
+        parent_metadata = metadata
+
+    # Make sure the Document record already exist by fetching the current capability xml
+    # This is a little trick to auto-generate Document records which did not exist before!
+    parent_metadata.get_current_capability_xml(parent_metadata.get_service_version().value)
+    doc = Document.objects.get(related_metadata=parent_metadata)
+
+    if metadata.metadata_type.type == MetadataEnum.DATASET.value:
+        xml_obj_root = xml_helper.parse_xml(doc.current_dataset_metadata_document)
+    else:
+        xml_obj_root = xml_helper.parse_xml(doc.current_capability_document)
+
+
+
 def overwrite_capabilities_document(metadata: Metadata):
     """ Overwrites the capabilities document which is related to the provided metadata.
 
@@ -179,13 +209,13 @@ def overwrite_capabilities_document(metadata: Metadata):
     cap_doc = Document.objects.get(related_metadata=parent_metadata)
 
     # overwrite all editable data
-    identifier = metadata.identifier
     xml_obj_root = xml_helper.parse_xml(cap_doc.current_capability_document)
 
     # find matching xml element in xml doc
     _type = metadata.get_service_type()
     _version = metadata.get_service_version()
 
+    identifier = metadata.identifier
     if is_root:
         if metadata.is_service_type(OGCServiceEnum.WFS):
             if _version is OGCServiceVersionEnum.V_2_0_0 or _version is OGCServiceVersionEnum.V_2_0_2:
@@ -369,7 +399,13 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     # save metadata
     original_md.is_custom = True
     original_md.save()
-    overwrite_capabilities_document(original_md)
+
+    if original_md.metadata_type.type == OGCServiceEnum.DATASET.value:
+        pass
+        # ToDo: overwrite_dataset_metadata_document(original_md)
+    else:
+        overwrite_capabilities_document(original_md)
+
 
 
 

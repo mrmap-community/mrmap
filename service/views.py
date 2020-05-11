@@ -432,7 +432,7 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
                 raise ObjectDoesNotExist
             return redirect("service:get-dataset-metadata", metadata_id=md.id)
         document = Document.objects.get(related_metadata=md)
-        document = document.dataset_metadata_document
+        document = document.current_dataset_metadata_document
         if document is None:
             raise ObjectDoesNotExist
     except ObjectDoesNotExist:

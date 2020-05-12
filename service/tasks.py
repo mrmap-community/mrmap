@@ -146,17 +146,15 @@ def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int,
     else:
         operation = None
 
-    md_type = md.metadata_type.type
-
     # if whole service (wms AND wfs) shall be secured, create SecuredOperations for service object
-    if md_type == MetadataEnum.SERVICE.value:
+    if md.is_metadata_type(MetadataEnum.SERVICE):
         md.service.secure_access(is_secured, group, operation, group_polygons, secured_operation)
 
     # secure subelements afterwards
-    if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
+    if md.is_metadata_type(MetadataEnum.SERVICE) or md.is_metadata_type(MetadataEnum.LAYER):
         md.service.secure_sub_elements(is_secured, group, operation, group_polygons, secured_operation)
 
-    elif md_type == MetadataEnum.FEATURETYPE.value:
+    elif md.is_metadata_type(MetadataEnum.FEATURETYPE):
         md.featuretype.secure_feature_type(is_secured, group, operation, group_polygons, secured_operation)
 
 

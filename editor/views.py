@@ -210,7 +210,6 @@ def edit_access(request: HttpRequest, id: int):
     user = user_helper.get_user(request)
 
     md = Metadata.objects.get(id=id)
-    md_type = md.metadata_type.type
     template = "views/editor_edit_access_index.html"
     post_params = request.POST
 
@@ -223,7 +222,7 @@ def edit_access(request: HttpRequest, id: int):
             return redirect("editor:edit_access", md.id)
         messages.success(request, EDITOR_ACCESS_RESTRICTED.format(md.title))
         md.save()
-        if md_type == MetadataEnum.FEATURETYPE.value:
+        if md.is_metadata_type(MetadataEnum.FEATURETYPE):
             redirect_id = md.featuretype.parent_service.metadata.id
         else:
             if md.service.is_root:
@@ -234,8 +233,7 @@ def edit_access(request: HttpRequest, id: int):
 
     else:
         # render form
-        metadata_type = md.metadata_type.type
-        if metadata_type == MetadataEnum.FEATURETYPE.value:
+        if md.is_metadata_type(MetadataEnum.FEATURETYPE):
             _type = OGCServiceEnum.WFS.value
         else:
             _type = md.service.servicetype.name

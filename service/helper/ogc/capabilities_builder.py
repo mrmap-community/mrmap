@@ -38,16 +38,15 @@ class CapabilityXMLBuilder:
         self.metadata = metadata
 
         # A single FeatureType is not a service, therefore we can not use the regular metadata.service call.
-        md_type = metadata.metadata_type.type
-        if md_type == MetadataEnum.SERVICE.value:
+        if metadata.is_metadata_type(MetadataEnum.SERVICE):
             service = metadata.service
             parent_service = service
-        elif md_type == MetadataEnum.FEATURETYPE.value:
+        elif metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
             service = FeatureType.objects.get(
                 metadata=metadata
             ).parent_service
             parent_service = service
-        elif md_type == MetadataEnum.LAYER.value:
+        elif metadata.is_metadata_type(MetadataEnum.LAYER):
             service = metadata.service
             if not service.is_root:
                 parent_service = service.parent_service

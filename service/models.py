@@ -381,10 +381,8 @@ class SecuredOperation(models.Model):
         operation = self.operation
         group = self.allowed_group
 
-        md_type = md.metadata_type.type
-
         # continue with possibly existing children
-        if md_type == MetadataEnum.FEATURETYPE.value:
+        if md.is_metadata_type(MetadataEnum.FEATURETYPE):
             sec_ops = SecuredOperation.objects.filter(
                 secured_metadata=md,
                 operation=operation,
@@ -392,7 +390,7 @@ class SecuredOperation(models.Model):
             )
             sec_ops.delete()
 
-        elif md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
+        elif md.is_metadata_type(MetadataEnum.SERVICE) or md.is_metadata_type(MetadataEnum.LAYER):
             service_type = md.service.servicetype.name
             if service_type == OGCServiceEnum.WFS.value:
                 # find all wfs featuretypes
@@ -714,9 +712,8 @@ class Metadata(Resource):
         Returns:
              ret_list (list)
         """
-        md_type = self.metadata_type.type
-        is_service = md_type == MetadataEnum.SERVICE.value
-        is_layer = md_type == MetadataEnum.LAYER.value
+        is_service = self.is_metadata_type(MetadataEnum.SERVICE)
+        is_layer = self.is_metadata_type(MetadataEnum.LAYER)
 
         ret_list = []
         if is_service:
@@ -1325,19 +1322,12 @@ class Metadata(Resource):
 
         self.use_proxy_uri = use_proxy
 
-        # If md uris shall be tunneled using the proxy, we need to make sure that all metadata elements of the service are aware of this!
-        service_type = self.get_service_type()
-        subelements = []
-        if service_type == OGCServiceEnum.WFS.value:
-            subelements = self.service.featuretypes.all()
-        elif service_type == OGCServiceEnum.WMS.value:
-            subelements = Layer.objects.filter(parent_service=self.service)
-
+        # If md uris shall be tunneled using the proxy, we need to make sure that all children are aware of this!
+        subelements = self.service.subelements
         for subelement in subelements:
             subelement_md = subelement.metadata
             subelement_md.use_proxy_uri = self.use_proxy_uri
             subelement_md.save()
-
             subelement_md.clear_cached_documents()
 
         self.save()
@@ -1362,10 +1352,8 @@ class Metadata(Resource):
             self.use_proxy_uri = is_secured
         self._set_document_secured(self.use_proxy_uri)
 
-        md_type = self.metadata_type.type
-
         children = []
-        if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
+        if self.is_metadata_type(MetadataEnum.SERVICE) or self.is_metadata_type(MetadataEnum.LAYER):
             if self.service.is_service_type(OGCServiceEnum.WMS):
                 parent_service = self.service
                 children = Metadata.objects.filter(
@@ -1382,7 +1370,7 @@ class Metadata(Resource):
                 child.use_proxy_uri = self.use_proxy_uri
                 child.save()
 
-        elif md_type == MetadataEnum.FEATURETYPE.value:
+        elif self.is_metadata_type(MetadataEnum.FEATURETYPE):
             # a featuretype does not have children - we can skip this case!
             pass
         self.save()

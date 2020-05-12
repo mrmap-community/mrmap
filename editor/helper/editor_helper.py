@@ -168,9 +168,9 @@ def overwrite_capabilities_document(metadata: Metadata):
     is_root = metadata.is_root()
     if is_root:
         parent_metadata = metadata
-    elif metadata.metadata_type.type == MetadataEnum.LAYER.value:
+    elif metadata.is_metadata_type(MetadataEnum.LAYER):
         parent_metadata = metadata.service.parent_service.metadata
-    elif metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
+    elif metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
         parent_metadata = metadata.featuretype.parent_service.metadata
 
     # Make sure the Document record already exist by fetching the current capability xml

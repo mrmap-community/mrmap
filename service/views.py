@@ -43,9 +43,9 @@ from django import forms
 
 def _is_updatecandidate(metadata: Metadata):
     # get service object
-    if metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
+    if metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
         service = metadata.featuretype.parent_service
-    elif metadata.metadata_type.type == MetadataEnum.DATASET.value:
+    elif metadata.is_metadata_type(MetadataEnum.DATASET):
         return False
     else:
         service = metadata.service
@@ -445,8 +445,8 @@ def get_service_preview(request: HttpRequest, metadata_id: int):
     """
 
     md = get_object_or_404(Metadata, id=metadata_id)
-    if md.metadata_type.type == MetadataEnum.DATASET.value or \
-            md.metadata_type.type == MetadataEnum.FEATURETYPE.value or \
+    if md.is_metadata_type(MetadataEnum.DATASET) or \
+            md.is_metadata_type(MetadataEnum.FEATURETYPE) or \
             not md.service.is_service_type(OGCServiceEnum.WMS) or _is_updatecandidate(md):
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
@@ -633,7 +633,7 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
     params.update(collect_metadata_related_objects(md, request, ))
 
     # build the single view cases: wms root, wms layer, wfs root, wfs featuretype, wcs, metadata
-    if md.metadata_type.type == MetadataEnum.DATASET.value:
+    if md.is_metadata_type(MetadataEnum.DATASET):
         base_template = 'metadata/base/dataset/dataset_metadata_as_html.html'
         params['contact'] = collect_contact_data(md.contact)
         dataset_doc = Document.objects.get(
@@ -642,11 +642,11 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
         params['dataset_metadata'] = dataset_doc.get_dataset_metadata_as_dict()
         params.update({'capabilities_uri': reverse('service:get-dataset-metadata', args=(md.id,))})
 
-    elif md.metadata_type.type == MetadataEnum.FEATURETYPE.value:
+    elif md.is_metadata_type(MetadataEnum.FEATURETYPE):
         base_template = 'metadata/base/wfs/featuretype_metadata_as_html.html'
         params.update(collect_featuretype_data(md))
 
-    elif md.metadata_type.type == MetadataEnum.LAYER.value:
+    elif md.is_metadata_type(MetadataEnum.LAYER):
         base_template = 'metadata/base/wms/layer_metadata_as_html.html'
         params.update(collect_layer_data(md, request))
 
@@ -994,7 +994,7 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
     params = {}
 
     # catch featuretype
-    if service_md.metadata_type.type == 'featuretype':
+    if service_md.is_metadata_type(MetadataEnum.FEATURETYPE):
         params.update({'caption': _("Shows informations about the featuretype which you are selected.")})
         template = "views/featuretype_detail_no_base.html" if 'no-base' in request.GET else "views/featuretype_detail.html"
         service = service_md.featuretype

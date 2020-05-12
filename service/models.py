@@ -11,7 +11,7 @@ from datetime import datetime
 from json import JSONDecodeError
 
 from PIL import Image
-from dateutil.parser import parser, parse
+from dateutil.parser import parse
 from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
@@ -599,6 +599,52 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    @property
+    def is_service_metadata(self):
+        """ Returns whether the metadata record describes this type of data
+
+        Returns:
+             True|False
+        """
+        return self.is_metadata_type(MetadataEnum.SERVICE)
+
+    @property
+    def is_layer_metadata(self):
+        """ Returns whether the metadata record describes this type of data
+
+        Returns:
+             True|False
+        """
+        return self.is_metadata_type(MetadataEnum.LAYER)
+
+    @property
+    def is_featuretype_metadata(self):
+        """ Returns whether the metadata record describes this type of data
+
+        Returns:
+             True|False
+        """
+        return self.is_metadata_type(MetadataEnum.FEATURETYPE)
+
+    @property
+    def is_dataset_metadata(self):
+        """ Returns whether the metadata record describes this type of data
+
+        Returns:
+             True|False
+        """
+        return self.is_metadata_type(MetadataEnum.DATASET)
+
+    def is_metadata_type(self, enum: MetadataEnum):
+        """ Returns whether the metadata is of this MetadataEnum
+
+        Args:
+            enum (MetadataEnum): The enum
+        Returns:
+             True if the metadata_type is equal, false otherwise
+        """
+        return self.metadata_type.type == enum.value
+
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.
 
@@ -890,7 +936,7 @@ class Metadata(Resource):
         self.hits += 1
 
         # Only if whole service was called, increase the children hits as well
-        if self.metadata_type.type == MetadataEnum.SERVICE.value:
+        if self.is_metadata_type(MetadataEnum.SERVICE):
 
             # wms children
             if self.service.is_service_type(OGCServiceEnum.WMS):
@@ -953,9 +999,9 @@ class Metadata(Resource):
         service_type = None
         if self.is_root():
             return self.service.servicetype.name
-        elif self.metadata_type.type == 'layer':
+        elif self.is_metadata_type(MetadataEnum.LAYER):
             service_type = 'wms'
-        elif self.metadata_type.type == 'featuretype':
+        elif self.is_metadata_type(MetadataEnum.FEATURETYPE):
             service_type = 'wfs'
         return service_type
 
@@ -1018,7 +1064,7 @@ class Metadata(Resource):
         Returns:
              is_root (bool): True if there is no parent service to the described service, False otherwise
         """
-        return self.metadata_type.type == 'service'
+        return self.is_metadata_type(MetadataEnum.SERVICE)
 
     def _restore_layer_md(self, service,):
         """ Private function for retrieving single layer metadata

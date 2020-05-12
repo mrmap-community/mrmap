@@ -535,7 +535,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         self._generate_capability_exception_xml(capability_elem)
 
         layer_md = self.metadata
-        if self.metadata.metadata_type.type == MetadataEnum.SERVICE.value:
+        if self.metadata.is_metadata_type(MetadataEnum.SERVICE):
             layer_md = self.root_layer.metadata
 
         self._generate_capability_layer_xml(capability_elem, layer_md)
@@ -1449,7 +1449,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         self.rs_declaration = "SRS"
 
         self.feature_type_list = []
-        if self.metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
+        if self.metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
             self.feature_type_list = FeatureType.objects.filter(
                 metadata=metadata,
             )

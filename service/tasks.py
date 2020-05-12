@@ -9,6 +9,7 @@ import json
 import time
 
 from celery import shared_task
+from django.db import transaction
 
 from lxml.etree import XMLSyntaxError, XPathEvalError
 from requests.exceptions import InvalidURL
@@ -64,13 +65,13 @@ def async_activate_service(service_id: int, user_id: int, is_active: bool):
 
     # get root_layer of service and start changing of all statuses
     # also check all related metadata and activate them too
-    if service.servicetype.name == OGCServiceEnum.WMS.value:
+    if service.is_service_type(OGCServiceEnum.WMS):
         service.activate_service(new_status)
         root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
         root_layer.activate_layer_recursive(new_status)
 
     # activate features/related dataset metadata
-    elif service.servicetype.name == OGCServiceEnum.WFS.value:
+    elif service.is_service_type(OGCServiceEnum.WFS):
         featuretypes = service.featuretypes.all()
 
         for featuretype in featuretypes:
@@ -113,6 +114,7 @@ def async_activate_service(service_id: int, user_id: int, is_active: bool):
 
 
 @shared_task(name="async_secure_service_task")
+@transaction.atomic
 def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int, operation_id: int, group_polygons: dict, secured_operation_id: int):
     """ Async call for securing a service
 
@@ -144,17 +146,15 @@ def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int,
     else:
         operation = None
 
-    md_type = md.metadata_type.type
-
     # if whole service (wms AND wfs) shall be secured, create SecuredOperations for service object
-    if md_type == MetadataEnum.SERVICE.value:
-        md.service.perform_single_element_securing(md.service, is_secured, group, operation, group_polygons, secured_operation)
+    if md.is_metadata_type(MetadataEnum.SERVICE):
+        md.service.secure_access(is_secured, group, operation, group_polygons, secured_operation)
 
     # secure subelements afterwards
-    if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
+    if md.is_metadata_type(MetadataEnum.SERVICE) or md.is_metadata_type(MetadataEnum.LAYER):
         md.service.secure_sub_elements(is_secured, group, operation, group_polygons, secured_operation)
 
-    elif md_type == MetadataEnum.FEATURETYPE.value:
+    elif md.is_metadata_type(MetadataEnum.FEATURETYPE):
         md.featuretype.secure_feature_type(is_secured, group, operation, group_polygons, secured_operation)
 
 

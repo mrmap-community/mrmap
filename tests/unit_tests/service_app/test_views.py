@@ -255,7 +255,7 @@ class ServiceRemoveViewTestCase(TestCase):
         metadata.refresh_from_db()
         self.assertTrue(metadata.is_deleted, msg="Metadata is not marked as deleted.")
 
-        sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
+        sub_elements = metadata.service.subelements
         for sub_element in sub_elements:
             sub_metadata = sub_element.metadata
             self.assertTrue(sub_metadata.is_deleted, msg="Metadata of subelement is not marked as deleted.")
@@ -273,7 +273,7 @@ class ServiceRemoveViewTestCase(TestCase):
         metadata.refresh_from_db()
         self.assertTrue(metadata.is_deleted, msg="Metadata is not marked as deleted.")
 
-        sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
+        sub_elements = metadata.service.subelements
         for sub_element in sub_elements:
             sub_metadata = sub_element.metadata
             self.assertTrue(sub_metadata.is_deleted, msg="Metadata of subelement is not marked as deleted.")

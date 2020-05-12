@@ -7,7 +7,7 @@
 
 {% block card-header-title-left %}
 <h4 class="mb-1 mr-3">
-    {% if current_service.servicetype.name == 'wms' %}
+    {% if current_service.is_wms %}
     {% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}
     {% else %}
     {% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %}
@@ -32,7 +32,7 @@
                aria-selected="true">
                 <h5>
                     <strong>
-                        {% if current_service.servicetype.name == 'wms' %}
+                        {% if current_service.is_wms %}
                             {% trans 'New-Layers' %}
                         {% else %}
                             {% trans 'New-Featuretypes' %}
@@ -46,7 +46,7 @@
                aria-selected="false">
                 <h5>
                     <strong>
-                        {% if current_service.servicetype.name == 'wms' %}
+                        {% if current_service.is_wms %}
                             {% trans 'Removed-Layers' %}
                         {% else %}
                             {% trans 'Removed-Featuretypes' %}
@@ -60,7 +60,7 @@
                aria-selected="false">
                  <h5>
                     <strong>
-                        {% if current_service.servicetype.name == 'wms' %}
+                        {% if current_service.is_wms %}
                             {% trans 'Updated-Layers' %}
                         {% else %}
                             {% trans 'Updated-Featuretypes' %}

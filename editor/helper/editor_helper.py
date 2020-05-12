@@ -168,9 +168,9 @@ def overwrite_capabilities_document(metadata: Metadata):
     is_root = metadata.is_root()
     if is_root:
         parent_metadata = metadata
-    elif metadata.metadata_type.type == MetadataEnum.LAYER.value:
+    elif metadata.is_metadata_type(MetadataEnum.LAYER):
         parent_metadata = metadata.service.parent_service.metadata
-    elif metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
+    elif metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
         parent_metadata = metadata.featuretype.parent_service.metadata
 
     # Make sure the Document record already exist by fetching the current capability xml
@@ -187,7 +187,7 @@ def overwrite_capabilities_document(metadata: Metadata):
     _version = metadata.get_service_version()
 
     if is_root:
-        if _type == OGCServiceEnum.WFS.value:
+        if metadata.is_service_type(OGCServiceEnum.WFS):
             if _version is OGCServiceVersionEnum.V_2_0_0 or _version is OGCServiceVersionEnum.V_2_0_2:
                 XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
                 XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
@@ -487,16 +487,16 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
     # use_proxy=False and is_secured=True and metadata.is_secured=True is not allowed!
     if use_proxy is not None:
         if not use_proxy and is_secured and md.is_secured:
-            raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS)
+            raise AssertionError(SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS)
 
     # use_proxy=False and log_proxy=True is not allowed!
     # use_proxy=False and metadata.log_proxy_access is not allowed either!
     if not use_proxy and log_proxy:
-        raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING)
+        AssertionError(SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING)
 
     # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
     if md.has_external_authentication() and not use_proxy:
-        raise Exception(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
+        AssertionError(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
 
     # set new metadata proxy value and iterate over all children
     if use_proxy is not None and use_proxy != md.use_proxy_uri:
@@ -510,6 +510,7 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
     if is_secured != md.is_secured:
         md.set_secured(is_secured)
 
+    # If service is not secured (anymore), we have to remove all SecuredOperation records related to this metadata
     if not is_secured:
         # remove all secured settings
         sec_ops = SecuredOperation.objects.filter(
@@ -521,7 +522,7 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
         async_secure_service_task.delay(md.id, is_secured, None, None, None, None)
 
     else:
-
+        # Create securing tasks for each group to speed up process
         for item in sec_operations_groups:
             group_items = item.get("groups", {})
             for group_item in group_items:
@@ -551,10 +552,6 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
                     if item_sec_op_id == -1:
                         # create new setting
                         async_secure_service_task.delay(md.id, is_secured, group_id, operation.id, group_polygons, None)
-
                     else:
                         # edit existing one
-                        secured_op_input = SecuredOperation.objects.get(
-                            id=item_sec_op_id
-                        )
                         async_secure_service_task.delay(md.id, is_secured, group_id, operation.id, group_polygons, item_sec_op_id)

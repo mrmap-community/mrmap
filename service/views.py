@@ -43,9 +43,9 @@ from django import forms
 
 def _is_updatecandidate(metadata: Metadata):
     # get service object
-    if metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
+    if metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
         service = metadata.featuretype.parent_service
-    elif metadata.metadata_type.type == MetadataEnum.DATASET.value:
+    elif metadata.is_metadata_type(MetadataEnum.DATASET):
         return False
     else:
         service = metadata.service
@@ -445,16 +445,15 @@ def get_service_preview(request: HttpRequest, metadata_id: int):
     """
 
     md = get_object_or_404(Metadata, id=metadata_id)
-    if md.metadata_type.type == MetadataEnum.DATASET.value or \
-            md.metadata_type.type == MetadataEnum.FEATURETYPE.value or \
-            md.service.servicetype.name != OGCServiceEnum.WMS.value or \
-            _is_updatecandidate(md):
+    if md.is_metadata_type(MetadataEnum.DATASET) or \
+            md.is_metadata_type(MetadataEnum.FEATURETYPE) or \
+            not md.service.is_service_type(OGCServiceEnum.WMS) or _is_updatecandidate(md):
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
-    if md.service.servicetype.name == OGCServiceEnum.WMS.value and md.service.is_root:
+    if md.service.is_service_type(OGCServiceEnum.WMS) and md.service.is_root:
         service = get_object_or_404(Service, id=md.service.id)
         layer = get_object_or_404(Layer, parent_service=service, parent_layer=None, )
-    elif md.service.servicetype.name == OGCServiceEnum.WMS.value and not md.service.is_root:
+    elif md.service.is_service_type(OGCServiceEnum.WMS) and not md.service.is_root:
         layer = md.service.layer
 
     layer = layer.identifier
@@ -634,7 +633,7 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
     params.update(collect_metadata_related_objects(md, request, ))
 
     # build the single view cases: wms root, wms layer, wfs root, wfs featuretype, wcs, metadata
-    if md.metadata_type.type == MetadataEnum.DATASET.value:
+    if md.is_metadata_type(MetadataEnum.DATASET):
         base_template = 'metadata/base/dataset/dataset_metadata_as_html.html'
         params['contact'] = collect_contact_data(md.contact)
         dataset_doc = Document.objects.get(
@@ -643,20 +642,20 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
         params['dataset_metadata'] = dataset_doc.get_dataset_metadata_as_dict()
         params.update({'capabilities_uri': reverse('service:get-dataset-metadata', args=(md.id,))})
 
-    elif md.metadata_type.type == MetadataEnum.FEATURETYPE.value:
+    elif md.is_metadata_type(MetadataEnum.FEATURETYPE):
         base_template = 'metadata/base/wfs/featuretype_metadata_as_html.html'
         params.update(collect_featuretype_data(md))
 
-    elif md.metadata_type.type == MetadataEnum.LAYER.value:
+    elif md.is_metadata_type(MetadataEnum.LAYER):
         base_template = 'metadata/base/wms/layer_metadata_as_html.html'
         params.update(collect_layer_data(md, request))
 
-    elif md.service.servicetype.name == OGCServiceEnum.WMS.value:
+    elif md.service.is_service_type(OGCServiceEnum.WMS):
         # wms root object
         base_template = 'metadata/base/wms/root_metadata_as_html.html'
         params.update(collect_wms_root_data(md))
 
-    elif md.service.servicetype.name == OGCServiceEnum.WFS.value:
+    elif md.service.is_service_type(OGCServiceEnum.WFS):
         # wfs root object
         base_template = 'metadata/base/wfs/root_metadata_as_html.html'
         params.update(collect_wfs_root_data(md, request))
@@ -761,7 +760,7 @@ def pending_update_service(request: HttpRequest, metadata_id: int, update_params
         messages.info(request, _("Update candidates will be deleted after 7 days."))
         return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
 
-    if current_service.servicetype.name == OGCServiceEnum.WMS.value:
+    if current_service.is_service_type(OGCServiceEnum.WMS):
         current_service.root_layer = Layer.objects.get(parent_service=current_service, parent_layer=None)
         new_service.root_layer = Layer.objects.get(parent_service=new_service, parent_layer=None)
 
@@ -846,7 +845,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
         current_service = get_object_or_404(Service, metadata__id=metadata_id)
         new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
         new_document = get_object_or_404(Document, related_metadata=new_service.metadata)
-        if current_service.servicetype.name != OGCServiceEnum.WFS.value:
+        if not current_service.is_service_type(OGCServiceEnum.WFS):
             new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent_layer=None)
             current_service.root_layer = get_object_or_404(Layer, parent_service=current_service, parent_layer=None)
 
@@ -881,7 +880,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
             current_service = update_helper.update_service(current_service, new_service)
 
             # Update the subelements
-            if new_service.servicetype.name == OGCServiceEnum.WFS.value:
+            if new_service.is_service_type(OGCServiceEnum.WFS):
                 current_service = update_helper.update_wfs_elements(
                     current_service,
                     new_service,
@@ -889,7 +888,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
                     links,
                     new_service.keep_custom_md
                 )
-            elif new_service.servicetype.name == OGCServiceEnum.WMS.value:
+            elif new_service.is_service_type(OGCServiceEnum.WMS):
                 # dauer lange
                 current_service = update_helper.update_wms_elements(
                     current_service,
@@ -995,7 +994,7 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
     params = {}
 
     # catch featuretype
-    if service_md.metadata_type.type == 'featuretype':
+    if service_md.is_metadata_type(MetadataEnum.FEATURETYPE):
         params.update({'caption': _("Shows informations about the featuretype which you are selected.")})
         template = "views/featuretype_detail_no_base.html" if 'no-base' in request.GET else "views/featuretype_detail.html"
         service = service_md.featuretype

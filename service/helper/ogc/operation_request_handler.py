@@ -323,7 +323,7 @@ class OGCOperationRequestHandler:
         Returns:
             nothing
         """
-        if md.get_service_type().lower() == OGCServiceEnum.WMS.value:
+        if md.is_service_type(OGCServiceEnum.WMS):
             self._resolve_layer_param_to_leaf_layers(md)
 
         if self.layers_param is not None and self.type_name_param is None:
@@ -471,7 +471,7 @@ class OGCOperationRequestHandler:
         """
 
         # identify requested operation and resolve the uri
-        if metadata.get_service_type() == OGCServiceEnum.WFS.value and not metadata.is_root():
+        if metadata.is_service_type(OGCServiceEnum.WFS) and not metadata.is_root():
             feature_type = FeatureType.objects.get(
                 metadata=metadata
             )
@@ -1395,7 +1395,7 @@ class OGCOperationRequestHandler:
             # Yes, only the root layer has been requested
             layers = Layer.objects.filter(
                 parent_service__metadata=metadata,
-                child_layer=None
+                child_layers=None
             ).order_by("id")
             leaf_layers += layers.values_list("identifier", flat=True)
         else:

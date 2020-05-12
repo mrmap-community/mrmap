@@ -1330,6 +1330,11 @@ class Metadata(Resource):
         for subelement in subelements:
             subelement_md = subelement.metadata
             subelement_md.use_proxy_uri = self.use_proxy_uri
+            try:
+                subelement_md_doc = Document.objects.get(related_metadata=subelement_md)
+                subelement_md_doc.set_proxy(use_proxy)
+            except ObjectDoesNotExist:
+                pass
             subelement_md.save()
             subelement_md.clear_cached_documents()
 
@@ -1592,7 +1597,7 @@ class Document(Resource):
             if OGCOperationEnum.GET_CAPABILITIES.value in op.tag:
                 continue
 
-            uri_dict = op_uri_dict.get(op.tag, "")
+            uri_dict = op_uri_dict.get(op.tag, {})
             http_operations = ["Get", "Post"]
 
             for http_operation in http_operations:

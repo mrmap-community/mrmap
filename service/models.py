@@ -2555,13 +2555,13 @@ class Layer(Service):
         """
         ret_list = []
         upper_element = Layer.objects.get(
-            child_layer=self
+            child_layers=self
         )
         while upper_element is not None:
             ret_list.append(upper_element)
             try:
                 upper_element = Layer.objects.get(
-                    child_layer=upper_element
+                    child_layers=upper_element
                 )
             except ObjectDoesNotExist:
                 upper_element = None

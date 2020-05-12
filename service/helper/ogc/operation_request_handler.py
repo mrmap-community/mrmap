@@ -1395,7 +1395,7 @@ class OGCOperationRequestHandler:
             # Yes, only the root layer has been requested
             layers = Layer.objects.filter(
                 parent_service__metadata=metadata,
-                child_layer=None
+                child_layers=None
             ).order_by("id")
             leaf_layers += layers.values_list("identifier", flat=True)
         else:

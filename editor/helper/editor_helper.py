@@ -510,6 +510,7 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
     if is_secured != md.is_secured:
         md.set_secured(is_secured)
 
+    # If service is not secured (anymore), we have to remove all SecuredOperation records related to this metadata
     if not is_secured:
         # remove all secured settings
         sec_ops = SecuredOperation.objects.filter(
@@ -521,7 +522,7 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
         async_secure_service_task.delay(md.id, is_secured, None, None, None, None)
 
     else:
-
+        # Create securing tasks for each group to speed up process
         for item in sec_operations_groups:
             group_items = item.get("groups", {})
             for group_item in group_items:
@@ -551,10 +552,6 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
                     if item_sec_op_id == -1:
                         # create new setting
                         async_secure_service_task.delay(md.id, is_secured, group_id, operation.id, group_polygons, None)
-
                     else:
                         # edit existing one
-                        secured_op_input = SecuredOperation.objects.get(
-                            id=item_sec_op_id
-                        )
                         async_secure_service_task.delay(md.id, is_secured, group_id, operation.id, group_polygons, item_sec_op_id)

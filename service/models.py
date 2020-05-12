@@ -2232,13 +2232,14 @@ class Service(Resource):
         """
         ret_list = []
         if self.is_service_type(OGCServiceEnum.WMS):
-            if self.is_root:
+            if self.metadata.is_metadata_type(MetadataEnum.SERVICE):
                 qs = Layer.objects.filter(
                     parent_service=self
                 )
                 ret_list = list(qs)
             else:
-                ret_list += list(self.child_layers.all())
+                self_layer_instance = Layer.objects.get(metadata=self.metadata)
+                ret_list += list(self_layer_instance.child_layers.all())
                 for layer in ret_list:
                     ret_list += list(layer.child_layers.all())
         elif self.is_service_type(OGCServiceEnum.WFS):

@@ -18,6 +18,7 @@ from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.filters import MetadataWmsFilter, MetadataWfsFilter
 from service.helper.enums import OGCServiceEnum, MetadataEnum
 from service.models import RequestOperation, SecuredOperation, Metadata
+from service.tasks import async_process_secure_operations_form
 from structure.models import MrMapUser, Permission, MrMapGroup
 from users.helper import user_helper
 from editor.helper import editor_helper
@@ -214,9 +215,9 @@ def edit_access(request: HttpRequest, id: int):
     post_params = request.POST
 
     if request.method == "POST":
-        # process form input
+        # process form input using async tasks
         try:
-            editor_helper.process_secure_operations_form(post_params, md)
+            async_process_secure_operations_form.delay(post_params, md.id)
         except Exception as e:
             messages.error(request, message=e)
             return redirect("editor:edit_access", md.id)

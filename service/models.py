@@ -723,16 +723,13 @@ class Metadata(Resource):
         is_layer = self.is_metadata_type(MetadataEnum.LAYER)
 
         ret_list = []
-        if is_service:
+        if is_service or is_layer:
+            ret_list += [elem.metadata for elem in self.service.subelements]
+        else:
             subelement_metadatas = Metadata.objects.filter(
                 service__parent_service__metadata=self,
             )
-            ret_list = list(subelement_metadatas)
-        elif is_layer:
-            # Collect further sublayers!
-            layer = Layer.objects.get(metadata=self)
-            sub_layers = layer.get_children(all=True)
-            ret_list = [layer.metadata for layer in sub_layers]
+            ret_list += list(subelement_metadatas)
 
         return ret_list
 
@@ -1316,9 +1313,12 @@ class Metadata(Resource):
         else:
             root_md = self
 
-        # change capabilities document
-        root_md_doc = Document.objects.get(related_metadata=root_md)
-        root_md_doc.set_proxy(use_proxy)
+        # change capabilities document if there is one (subelements may not have any documents yet)
+        try:
+            root_md_doc = Document.objects.get(related_metadata=root_md)
+            root_md_doc.set_proxy(use_proxy)
+        except ObjectDoesNotExist:
+            pass
 
         # Clear cached documents
         self.clear_cached_documents()
@@ -1326,9 +1326,8 @@ class Metadata(Resource):
         self.use_proxy_uri = use_proxy
 
         # If md uris shall be tunneled using the proxy, we need to make sure that all children are aware of this!
-        subelements = self.service.subelements
-        for subelement in subelements:
-            subelement_md = subelement.metadata
+        subelements_mds = [element.metadata for element in self.service.subelements]
+        for subelement_md in subelements_mds:
             subelement_md.use_proxy_uri = self.use_proxy_uri
             try:
                 subelement_md_doc = Document.objects.get(related_metadata=subelement_md)

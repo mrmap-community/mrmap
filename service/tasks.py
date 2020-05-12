@@ -65,13 +65,13 @@ def async_activate_service(service_id: int, user_id: int, is_active: bool):
 
     # get root_layer of service and start changing of all statuses
     # also check all related metadata and activate them too
-    if service.servicetype.name == OGCServiceEnum.WMS.value:
+    if service.is_service_type(OGCServiceEnum.WMS):
         service.activate_service(new_status)
         root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
         root_layer.activate_layer_recursive(new_status)
 
     # activate features/related dataset metadata
-    elif service.servicetype.name == OGCServiceEnum.WFS.value:
+    elif service.is_service_type(OGCServiceEnum.WFS):
         featuretypes = service.featuretypes.all()
 
         for featuretype in featuretypes:

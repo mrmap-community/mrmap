@@ -164,7 +164,7 @@ class UpdateOldToNewElementsForm(forms.Form):
                 label="{} ({})".format(elem.metadata.identifier, elem.metadata.title),
                 choices=remove_elements_choices,
                 help_text=_("Select the old layer name, if this new layer was just renamed.")
-                if current_service.servicetype.name == OGCServiceEnum.WMS.value
+                if current_service.is_service_type(OGCServiceEnum.WMS)
                 else _("Select the old featuretype name, if this new featuretype was just renamed.")
             )
 

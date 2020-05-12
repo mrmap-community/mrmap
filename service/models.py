@@ -893,13 +893,13 @@ class Metadata(Resource):
         if self.metadata_type.type == MetadataEnum.SERVICE.value:
 
             # wms children
-            if self.service.servicetype.name == 'wms':
+            if self.service.is_service_type(OGCServiceEnum.WMS):
                 children = self.service.child_service.all()
                 for child in children:
                     child.metadata.hits += 1
                     child.metadata.save()
 
-            elif self.service.servicetype.name == 'wfs':
+            elif self.service.is_service_type(OGCServiceEnum.WFS):
                 featuretypes = self.service.featuretypes.all()
                 for f_t in featuretypes:
                     f_t.metadata.hits += 1
@@ -1320,7 +1320,7 @@ class Metadata(Resource):
 
         children = []
         if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
-            if self.service.servicetype.name == OGCServiceEnum.WMS.value:
+            if self.service.is_service_type(OGCServiceEnum.WMS):
                 parent_service = self.service
                 children = Metadata.objects.filter(
                     service__parent_service=parent_service
@@ -1328,7 +1328,7 @@ class Metadata(Resource):
                 for child in children:
                     child._set_document_secured(self.use_proxy_uri)
 
-            elif self.service.servicetype.name == OGCServiceEnum.WFS.value:
+            elif self.service.is_service_type(OGCServiceEnum.WFS):
                 children = [ft.metadata for ft in self.service.featuretypes.all()]
 
             for child in children:
@@ -2184,6 +2184,60 @@ class Service(Resource):
     def __str__(self):
         return str(self.id)
 
+    @property
+    def subelements(self):
+        """ Returns a list of Layer or Featuretype records.
+
+        Returns:
+             list (list): The list of subelements
+        """
+        ret_list = []
+        if self.is_service_type(OGCServiceEnum.WMS):
+            if self.is_root:
+                qs = Layer.objects.filter(
+                    parent_service=self
+                )
+                ret_list = list(qs)
+            else:
+                ret_list += list(self.child_layers.all())
+                for layer in ret_list:
+                    ret_list += list(layer.child_layers.all())
+        elif self.is_service_type(OGCServiceEnum.WFS):
+            ret_list += FeatureType.objects.filter(
+                parent_service=self
+            )
+
+        return ret_list
+
+    @property
+    def is_wms(self):
+        """ Returns whether the service is a WMS or not
+
+        Returns:
+             True if WMS else False
+        """
+        return self.is_service_type(enum=OGCServiceEnum.WMS)
+
+    @property
+    def is_wfs(self):
+        """ Returns whether the service is a WMS or not
+
+        Returns:
+             True if WMS else False
+        """
+        return self.is_service_type(enum=OGCServiceEnum.WFS)
+
+    def is_service_type(self, enum: OGCServiceEnum):
+        """ Returns whether the service is of this ServiceEnum
+
+        Args:
+            enum (OGCServiceEnum): The enum
+        Returns:
+             True if the servicetypes are equal, false otherwise
+        """
+        return self.servicetype.name == enum.value
+
+
     def get_supported_formats(self):
         """ Returns a list of supported formats.
 
@@ -2289,9 +2343,9 @@ class Service(Resource):
         Returns:
              nothing
         """
-        if self.servicetype.name == OGCServiceEnum.WMS.value:
+        if self.is_service_type(OGCServiceEnum.WMS):
             self._secure_sub_layers(is_secured, group, operation, group_polygons, secured_operation)
-        elif self.servicetype.name == OGCServiceEnum.WFS.value:
+        elif self.is_service_type(OGCServiceEnum.WFS):
             self._secure_feature_types(is_secured, group, operation, group_polygons, secured_operation)
 
     @transaction.atomic
@@ -2333,11 +2387,11 @@ class Service(Resource):
             linked_md.delete()
 
         # remove subelements
-        if self.servicetype.name == 'wms':
+        if self.is_service_type(OGCServiceEnum.WMS):
             layers = self.child_service.all()
             for layer in layers:
                 self.delete_child_data(layer)
-        elif self.servicetype.name == 'wfs':
+        elif self.is_service_type(OGCServiceEnum.WFS):
             feature_types = self.featuretypes.all()
             for f_t in feature_types:
                 self.delete_child_data(f_t)
@@ -2970,7 +3024,7 @@ class FeatureType(Resource):
             return
         service_version = service_helper.resolve_version_enum(self.parent_service.servicetype.version)
         service = None
-        if self.parent_service.servicetype.name == OGCServiceEnum.WFS.value:
+        if self.parent_service.is_service_type(OGCServiceEnum.WFS):
             service = OGCWebFeatureServiceFactory()
             service = service.get_ogc_wfs(version=service_version, service_connect_url=self.parent_service.metadata.capabilities_original_uri)
         if service is None:

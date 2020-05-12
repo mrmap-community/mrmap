@@ -447,14 +447,13 @@ def get_service_preview(request: HttpRequest, metadata_id: int):
     md = get_object_or_404(Metadata, id=metadata_id)
     if md.metadata_type.type == MetadataEnum.DATASET.value or \
             md.metadata_type.type == MetadataEnum.FEATURETYPE.value or \
-            md.service.servicetype.name != OGCServiceEnum.WMS.value or \
-            _is_updatecandidate(md):
+            not md.service.is_service_type(OGCServiceEnum.WMS) or _is_updatecandidate(md):
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
 
-    if md.service.servicetype.name == OGCServiceEnum.WMS.value and md.service.is_root:
+    if md.service.is_service_type(OGCServiceEnum.WMS) and md.service.is_root:
         service = get_object_or_404(Service, id=md.service.id)
         layer = get_object_or_404(Layer, parent_service=service, parent_layer=None, )
-    elif md.service.servicetype.name == OGCServiceEnum.WMS.value and not md.service.is_root:
+    elif md.service.is_service_type(OGCServiceEnum.WMS) and not md.service.is_root:
         layer = md.service.layer
 
     layer = layer.identifier
@@ -651,12 +650,12 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
         base_template = 'metadata/base/wms/layer_metadata_as_html.html'
         params.update(collect_layer_data(md, request))
 
-    elif md.service.servicetype.name == OGCServiceEnum.WMS.value:
+    elif md.service.is_service_type(OGCServiceEnum.WMS):
         # wms root object
         base_template = 'metadata/base/wms/root_metadata_as_html.html'
         params.update(collect_wms_root_data(md))
 
-    elif md.service.servicetype.name == OGCServiceEnum.WFS.value:
+    elif md.service.is_service_type(OGCServiceEnum.WFS):
         # wfs root object
         base_template = 'metadata/base/wfs/root_metadata_as_html.html'
         params.update(collect_wfs_root_data(md, request))
@@ -761,7 +760,7 @@ def pending_update_service(request: HttpRequest, metadata_id: int, update_params
         messages.info(request, _("Update candidates will be deleted after 7 days."))
         return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
 
-    if current_service.servicetype.name == OGCServiceEnum.WMS.value:
+    if current_service.is_service_type(OGCServiceEnum.WMS):
         current_service.root_layer = Layer.objects.get(parent_service=current_service, parent_layer=None)
         new_service.root_layer = Layer.objects.get(parent_service=new_service, parent_layer=None)
 
@@ -846,7 +845,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
         current_service = get_object_or_404(Service, metadata__id=metadata_id)
         new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
         new_document = get_object_or_404(Document, related_metadata=new_service.metadata)
-        if current_service.servicetype.name != OGCServiceEnum.WFS.value:
+        if not current_service.is_service_type(OGCServiceEnum.WFS):
             new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent_layer=None)
             current_service.root_layer = get_object_or_404(Layer, parent_service=current_service, parent_layer=None)
 

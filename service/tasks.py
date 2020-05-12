@@ -9,6 +9,7 @@ import json
 import time
 
 from celery import shared_task
+from django.db import transaction
 
 from lxml.etree import XMLSyntaxError, XPathEvalError
 from requests.exceptions import InvalidURL
@@ -113,6 +114,7 @@ def async_activate_service(service_id: int, user_id: int, is_active: bool):
 
 
 @shared_task(name="async_secure_service_task")
+@transaction.atomic
 def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int, operation_id: int, group_polygons: dict, secured_operation_id: int):
     """ Async call for securing a service
 
@@ -148,7 +150,7 @@ def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int,
 
     # if whole service (wms AND wfs) shall be secured, create SecuredOperations for service object
     if md_type == MetadataEnum.SERVICE.value:
-        md.service.perform_single_element_securing(md.service, is_secured, group, operation, group_polygons, secured_operation)
+        md.service.secure_access(is_secured, group, operation, group_polygons, secured_operation)
 
     # secure subelements afterwards
     if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:

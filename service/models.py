@@ -2198,11 +2198,10 @@ class Service(Resource):
             return child.get_supported_formats()
         return self.formats.all()
 
-    def perform_single_element_securing(self, element, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation):
+    def secure_access(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation):
         """ Secures a single element
 
         Args:
-            element: The element which shall be secured
             is_secured (bool): Whether to secure the element or not
             group (MrMapGroup): The group which is allowed to perform an operation
             operation (RequestOperation): The operation which can be performed by the groups
@@ -2210,7 +2209,7 @@ class Service(Resource):
         Returns:
 
         """
-        element.metadata.is_secured = is_secured
+        self.metadata.is_secured = is_secured
         if is_secured:
 
             if sec_op is None:
@@ -2219,7 +2218,7 @@ class Service(Resource):
                 sec_op.allowed_group = group
             else:
                 sec_op = SecuredOperation.objects.get(
-                    secured_metadata=element.metadata,
+                    secured_metadata=self.metadata,
                     operation=operation,
                     allowed_group=group
                 )
@@ -2232,29 +2231,12 @@ class Service(Resource):
 
             sec_op.bounding_geometry = GeometryCollection(poly_list)
             sec_op.save()
-            element.metadata.secured_operations.add(sec_op)
+            self.metadata.secured_operations.add(sec_op)
         else:
-            for sec_op in element.metadata.secured_operations.all():
-                sec_op.delete()
-            element.metadata.secured_operations.clear()
-        element.metadata.save()
-        element.save()
-
-    def _recursive_secure_sub_layers(self, current, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
-        """ Recursive implementation of securing all sub layers of a current layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            group (MrMapGroup): The group which is allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-             nothing
-        """
-        self.perform_single_element_securing(current, is_secured, group, operation, group_polygons, secured_operation)
-
-        for layer in current.child_layers.all():
-            self._recursive_secure_sub_layers(layer, is_secured, group, operation, group_polygons, secured_operation)
+            self.metadata.secured_operations.all().delete()
+            self.metadata.secured_operations.clear()
+        self.metadata.save()
+        self.save()
 
     def _secure_sub_layers(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub layers of this layer
@@ -2278,7 +2260,7 @@ class Service(Resource):
             start_element = Layer.objects.get(
                 metadata=self.metadata
             )
-        self._recursive_secure_sub_layers(start_element, is_secured, group, operation, group_polygons, secured_operation)
+        start_element.secure_sub_layers_recursive(is_secured, group, operation, group_polygons, secured_operation)
 
     def _secure_feature_types(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub layers of this layer
@@ -2294,7 +2276,7 @@ class Service(Resource):
         if self.is_root:
             elements = self.featuretypes.all()
             for element in elements:
-                self.perform_single_element_securing(element, is_secured, group, operation, group_polygons, secured_operation)
+                element.secure_access(is_secured, group, operation, group_polygons, secured_operation)
 
     def secure_sub_elements(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub elements of this layer
@@ -2662,6 +2644,22 @@ class Layer(Service):
         """
         leaf_layers = self._get_bottom_layers_identifier_iterative()
         return leaf_layers
+
+    def secure_sub_layers_recursive(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+        """ Recursive implementation of securing all sub layers of a current layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            group (MrMapGroup): The group which is allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+            group_polygons (dict): The polygons which restrict the access for the group
+        Returns:
+             nothing
+        """
+        self.secure_access(is_secured, group, operation, group_polygons, secured_operation)
+
+        for layer in self.child_layers.all():
+            layer.secure_sub_layers_recursive(is_secured, group, operation, group_polygons, secured_operation)
 
 
 class Module(Service):

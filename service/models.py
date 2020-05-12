@@ -1103,7 +1103,6 @@ class Metadata(Resource):
             rel_md = self.service.parent_service.metadata
         cap_doc = Document.objects.get(related_metadata=rel_md)
         cap_doc.restore_subelement(identifier)
-        return
 
     def _restore_feature_type_md(self, service, external_auth: ExternalAuthentication = None):
         """ Private function for retrieving single featuretype metadata
@@ -1139,7 +1138,6 @@ class Metadata(Resource):
             rel_md = self.featuretype.parent_service.metadata
         cap_doc = Document.objects.get(related_metadata=rel_md)
         cap_doc.restore_subelement(identifier)
-        return
 
     def _restore_wms(self, external_auth: ExternalAuthentication = None):
         """ Restore the metadata of a wms service
@@ -1236,7 +1234,7 @@ class Metadata(Resource):
         # identify whether this is a wfs or wms (we need to handle them in different ways)
         if self.is_service_type(OGCServiceEnum.WFS):
             self._restore_wfs(identifier, external_auth=external_auth)
-        elif self.is_service_type(OGCServiceEnum.WFS):
+        elif self.is_service_type(OGCServiceEnum.WMS):
             self._restore_wms(external_auth=external_auth)
 
         # Subelements like layers or featuretypes might have own capabilities documents. Delete them on restore!
@@ -2788,7 +2786,6 @@ class MimeType(Resource):
 
 
 class Dimension(models.Model):
-    #metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name="dimensions")
     type = models.CharField(max_length=255, choices=DIMENSION_TYPE_CHOICES, null=True, blank=True)
     units = models.CharField(max_length=255, null=True, blank=True)
     extent = models.TextField(null=True, blank=True)

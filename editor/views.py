@@ -233,14 +233,10 @@ def edit_access(request: HttpRequest, id: int):
 
     else:
         # render form
-        if md.is_metadata_type(MetadataEnum.FEATURETYPE):
-            _type = OGCServiceEnum.WFS.value
-        else:
-            _type = md.service.servicetype.name
         secured_operations = []
-        if _type == OGCServiceEnum.WMS.value:
+        if md.is_service_type(OGCServiceEnum.WMS):
             secured_operations = WMS_SECURED_OPERATIONS
-        elif _type == OGCServiceEnum.WFS.value:
+        elif md.is_service_type(OGCServiceEnum.WFS):
             secured_operations = WFS_SECURED_OPERATIONS
 
         operations = RequestOperation.objects.filter(

@@ -187,7 +187,7 @@ def overwrite_capabilities_document(metadata: Metadata):
     _version = metadata.get_service_version()
 
     if is_root:
-        if _type == OGCServiceEnum.WFS.value:
+        if metadata.is_service_type(OGCServiceEnum.WFS):
             if _version is OGCServiceVersionEnum.V_2_0_0 or _version is OGCServiceVersionEnum.V_2_0_2:
                 XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
                 XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"

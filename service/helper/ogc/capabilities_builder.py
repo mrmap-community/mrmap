@@ -110,7 +110,7 @@ class CapabilityXMLBuilder:
         """
         xml_builder = None
 
-        if self.service_type == OGCServiceEnum.WMS.value:
+        if self.parent_service.is_service_type(OGCServiceEnum.WMS):
 
             if self.service_version == OGCServiceVersionEnum.V_1_0_0.value:
                 xml_builder = CapabilityWMS100Builder(self.metadata, self.service_version)
@@ -125,7 +125,7 @@ class CapabilityXMLBuilder:
                 # If something unknown has been passed as version, we use 1.1.1 as default
                 xml_builder = CapabilityWMS111Builder(self.metadata, self.service_version)
 
-        elif self.service_type == OGCServiceEnum.WFS.value:
+        elif self.parent_service.is_service_type(OGCServiceEnum.WFS):
 
             if self.service_version == OGCServiceVersionEnum.V_1_0_0.value:
                 xml_builder = CapabilityWFS100Builder(self.metadata, self.service_version)

@@ -292,12 +292,7 @@ def remove_service(metadata: Metadata, user: MrMapUser):
     metadata.is_deleted = True
     metadata.save()
 
-    service_type = metadata.get_service_type()
-    if service_type == OGCServiceEnum.WMS.value:
-        sub_elements = Layer.objects.filter(parent_service__metadata=metadata)
-    elif service_type == OGCServiceEnum.WFS.value:
-        sub_elements = FeatureType.objects.filter(parent_service__metadata=metadata)
-
+    sub_elements = metadata.service.subelements
     for sub_element in sub_elements:
         sub_metadata = sub_element.metadata
         sub_metadata.is_deleted = True

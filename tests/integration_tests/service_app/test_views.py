@@ -341,10 +341,9 @@ class ServiceTestCase(TestCase):
         # Check for all operations if the uris has been changed!
         # Do not check for GetCapabilities, since we always change this uri during registration!
         # Make sure all versions can be matched by the code - the xml structure differs a lot from version to version
-        service_type = metadata.get_service_type()
         service_version = metadata.get_service_version()
 
-        if service_type == OGCServiceEnum.WMS.value:
+        if metadata.is_service_type(OGCServiceEnum.WMS):
             operations = [
                 OGCOperationEnum.GET_MAP.value,
                 OGCOperationEnum.GET_FEATURE_INFO.value,
@@ -353,7 +352,7 @@ class ServiceTestCase(TestCase):
                 OGCOperationEnum.GET_STYLES.value,
                 OGCOperationEnum.PUT_STYLES.value,
             ]
-        elif service_type == OGCServiceEnum.WFS.value:
+        elif metadata.is_service_type(OGCServiceEnum.WFS):
             operations = [
                 OGCOperationEnum.GET_FEATURE.value,
                 OGCOperationEnum.TRANSACTION.value,
@@ -375,7 +374,7 @@ class ServiceTestCase(TestCase):
             operation_secured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format(operation), request_secured)
 
             if service_version == OGCServiceVersionEnum.V_1_0_0:
-                if service_type == OGCServiceEnum.WMS.value:
+                if metadata.is_service_type(OGCServiceEnum.WMS):
                     # The WMS 1.0.0 specification uses <OPERATION> instead of <GetOPERATION> for any operation element.
                     operation = operation.replace("Get", "")
 
@@ -407,7 +406,9 @@ class ServiceTestCase(TestCase):
                 self.assertContains(get_secured, HOST_NAME)
                 self.assertContains(post_secured, HOST_NAME)
 
-            elif service_version == OGCServiceVersionEnum.V_1_1_0 or service_version == OGCServiceVersionEnum.V_2_0_0 or service_version == OGCServiceVersionEnum.V_2_0_2:
+            elif service_version == OGCServiceVersionEnum.V_1_1_0 \
+                    or service_version == OGCServiceVersionEnum.V_2_0_0 \
+                    or service_version == OGCServiceVersionEnum.V_2_0_2:
                 # Only WFS
                 # Get <OPERATION> element again, since the operation is now identified using an attribute, not an element tag
                 operation_unsecured = xml_helper.try_get_single_element_from_xml(
@@ -511,10 +512,8 @@ class ServiceTestCase(TestCase):
 
         service = self.service
         metadata = service.metadata
-        service_type = metadata.get_service_type()
 
-
-        if service_type == OGCServiceEnum.WMS.value:
+        if metadata.is_service_type(OGCServiceEnum.WMS):
             uri = SERVICE_OPERATION_URI_TEMPLATE.format(metadata.id)
             params = {
                 "request": OGCOperationEnum.GET_MAP.value,

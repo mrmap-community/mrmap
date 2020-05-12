@@ -880,7 +880,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
             current_service = update_helper.update_service(current_service, new_service)
 
             # Update the subelements
-            if new_service.servicetype.name == OGCServiceEnum.WFS.value:
+            if new_service.is_service_type(OGCServiceEnum.WFS):
                 current_service = update_helper.update_wfs_elements(
                     current_service,
                     new_service,
@@ -888,7 +888,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
                     links,
                     new_service.keep_custom_md
                 )
-            elif new_service.servicetype.name == OGCServiceEnum.WMS.value:
+            elif new_service.is_service_type(OGCServiceEnum.WMS):
                 # dauer lange
                 current_service = update_helper.update_wms_elements(
                     current_service,

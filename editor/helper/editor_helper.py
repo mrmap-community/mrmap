@@ -487,16 +487,16 @@ def process_secure_operations_form(post_params: dict, md: Metadata):
     # use_proxy=False and is_secured=True and metadata.is_secured=True is not allowed!
     if use_proxy is not None:
         if not use_proxy and is_secured and md.is_secured:
-            raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS)
+            raise AssertionError(SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS)
 
     # use_proxy=False and log_proxy=True is not allowed!
     # use_proxy=False and metadata.log_proxy_access is not allowed either!
     if not use_proxy and log_proxy:
-        raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING)
+        AssertionError(SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING)
 
     # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
     if md.has_external_authentication() and not use_proxy:
-        raise Exception(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
+        AssertionError(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
 
     # set new metadata proxy value and iterate over all children
     if use_proxy is not None and use_proxy != md.use_proxy_uri:

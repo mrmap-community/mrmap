@@ -27,7 +27,7 @@ from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSeri
     MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer, CategorySerializer
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
     LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER, \
-    SUGGESTIONS_MAX_RESULTS
+    SUGGESTIONS_MAX_RESULTS, API_CACHE_KEY_PREFIX
 from service import tasks
 from service.helper import service_helper
 from service.models import Service, Layer, Metadata, Keyword, Category
@@ -240,7 +240,7 @@ class ServiceViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         serializer = ServiceSerializer(tmp, many=True)
@@ -274,7 +274,7 @@ class ServiceViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
         try:
             tmp = Layer.objects.get(metadata__id=pk)
@@ -411,7 +411,7 @@ class LayerViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         serializer = LayerSerializer(tmp, many=True)
@@ -422,7 +422,7 @@ class LayerViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
         tmp = Layer.objects.get(metadata__id=pk)
         if not tmp.metadata.is_active:
@@ -528,7 +528,7 @@ class MetadataViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         serializer = MetadataSerializer(tmp, many=True)
@@ -539,7 +539,7 @@ class MetadataViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
         tmp = Metadata.objects.get(id=pk)
         if not tmp.is_active:
@@ -597,7 +597,7 @@ class GroupViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         serializer = GroupSerializer(tmp, many=True)
@@ -608,7 +608,7 @@ class GroupViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
         tmp = MrMapGroup.objects.get(id=pk)
         return Response(ServiceSerializer(tmp).data)
@@ -742,7 +742,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         serializer = CatalogueMetadataSerializer(tmp, many=True)
@@ -750,7 +750,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
         tmp = Metadata.objects.get(id=pk)
         if not tmp.is_active:
@@ -804,7 +804,7 @@ class SuggestionViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         data = {
@@ -852,7 +852,7 @@ class CategoryViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    #@method_decorator(cache_page(API_CACHE_TIME))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         serializer = CategorySerializer(tmp, many=True)

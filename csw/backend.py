@@ -170,55 +170,66 @@ class CswCustomRepository(Repository):
         return metadatas
 
     def _prefilter_queryset(self, where: str, metadatas: QuerySet):
-        if AND in where or OR in where:
-            if AND in where:
-                # recursion!
-                where_split = where.split(AND)
-                for component in where_split:
-                    metadatas = self._prefilter_queryset(component, metadatas)
-            elif OR in where:
-                # recursion!
-                where_split = where.split(OR)
-                filtered_qs = None
-                for component in where_split:
-                    qs = self._prefilter_queryset(component, metadatas)
-                    if filtered_qs is None:
-                        filtered_qs = qs
-                    filtered_qs = filtered_qs.union(qs)
-                metadatas = filtered_qs
-            return metadatas
+        """ Recursive filtering of queryset
+
+        Args:
+            where (str): The WHERE in sql style string
+            metadatas (QuerySet): The current queryset status
+        Returns:
+             metadatas (Queryset): The filtered queryset
+        """
+        if AND in where:
+            # Split each part of the AND relation and call the filter function again for each
+            where_split = where.split(AND)
+            filtered_qs = None
+            for component in where_split:
+                qs = self._prefilter_queryset(component, metadatas)
+                if filtered_qs is None:
+                    filtered_qs = qs
+                # Using .intersection() we only get the query elements which can be found in both querysets (which is AND)
+                filtered_qs = filtered_qs.intersection(qs)
+        elif OR in where:
+            # recursion!
+            where_split = where.split(OR)
+            filtered_qs = None
+            for component in where_split:
+                qs = self._prefilter_queryset(component, metadatas)
+                if filtered_qs is None:
+                    filtered_qs = qs
+                # Using .union() we merge the resulting query elements into one queryset (which is OR)
+                filtered_qs = filtered_qs.union(qs)
+            metadatas = filtered_qs
         else:
             # No further recursion needed, filter directly
             is_mocked = True in [identifier in where for identifier in MOCKED_PROPERTY_COLUMNS]
             if is_mocked:
                 # mocked column - resolve mocked column filter functionality
+                # ToDo: Implement!
                 pass
             else:
                 # no mocked column - we can use simple filtering
                 exclude = {}
+                filter = {}
                 if "!=" in where:
                     where_list = where.split("!=")
-                    key = ""
-                    val = ""
-                    exclude = {where_list[0]: where_list[-1]}
+                    key = where_list[0].strip()
+                    val = where_list[-1].strip()
+                    exclude = {key: val}
                 elif "=" in where:
                     where_list = where.split("=")
-                    key = where_list[0]
-                    val = where_list[-1]
+                    key = where_list[0].strip()
+                    val = where_list[-1].strip()
+                    filter = {key: val}
                 elif " like " in where:
                     where_list = where.split(" like ")
-                    key = where_list[0] + "__icontains"
-                    val = where_list[-1].replace("%", "")
+                    key = where_list[0].strip() + "__icontains"
+                    val = where_list[-1].replace("%", "").strip()
+                    filter = {key: val}
 
-                # remove whitespaces around val
-                val = val.strip()
-
-                filter = {
-                    key: val
-                }
                 metadatas = metadatas.filter(
                     **filter
                 ).exclude(
                     **exclude
                 )
                 return metadatas
+        return metadatas

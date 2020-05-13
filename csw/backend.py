@@ -11,7 +11,23 @@ from pycsw.core.repository import Repository
 from MapSkinner import settings
 from service.models import Metadata
 
+AND = " and "
+OR = " or "
 
+MOCKED_PROPERTY_COLUMNS = [
+    "csw_keywords",
+    "csw_typename",
+    "csw_schema",
+    "csw_anytext",
+    "csw_bounding_geometry",
+    "csw_srs",
+    "csw_organizationname",
+    "csw_category",
+    "csw_temp_dim_start",
+    "csw_temp_dim_end",
+    "csw_service_type",
+    "csw_service_version",
+]
 class CswCustomRepository(Repository):
     """ Custom backend to handle CSW requests using pycsw
 
@@ -73,32 +89,8 @@ class CswCustomRepository(Repository):
             is_active=True
         )
 
-        mocked_property_columns = [
-            "csw_keywords",
-            "csw_typename",
-            "csw_schema",
-            "csw_anytext",
-            "csw_bounding_geometry",
-            "csw_srs",
-            "csw_organizationname",
-            "csw_category",
-            "csw_temp_dim_start",
-            "csw_temp_dim_end",
-            "csw_service_type",
-            "csw_service_version",
-        ]
-
         # Prefilter using constraint parameter
-        if constraint:
-            if "where" in constraint:
-                found_mocked_column = {mock: mock in constraint["where"] for mock in mocked_property_columns}
-                if True in found_mocked_column.values():
-                    all_md = self._resolve_mocked_property_columns(constraint["values"], all_md, found_mocked_column)
-                else:
-                    all_md = all_md.extra(where=[constraint["where"]], params=constraint["values"])
-            else:
-                # ToDo?
-                pass
+        all_md = self._process_constraint_filter(constraint, all_md)
 
         # Sort queryset
         if isinstance(sortby, dict):
@@ -164,3 +156,69 @@ class CswCustomRepository(Repository):
             metadatas = getattr(self, filter_function)(metadatas, values)
 
         return metadatas
+
+    def _process_constraint_filter(self, constraint: dict, metadatas: QuerySet):
+        if constraint:
+            if "where" in constraint:
+                where = constraint["where"].lower()
+                where = where % tuple(constraint["values"])
+                metadatas = self._prefilter_queryset(where, metadatas)
+
+            else:
+                # ToDo?
+                pass
+        return metadatas
+
+    def _prefilter_queryset(self, where: str, metadatas: QuerySet):
+        if AND in where or OR in where:
+            if AND in where:
+                # recursion!
+                where_split = where.split(AND)
+                for component in where_split:
+                    metadatas = self._prefilter_queryset(component, metadatas)
+            elif OR in where:
+                # recursion!
+                where_split = where.split(OR)
+                filtered_qs = None
+                for component in where_split:
+                    qs = self._prefilter_queryset(component, metadatas)
+                    if filtered_qs is None:
+                        filtered_qs = qs
+                    filtered_qs = filtered_qs.union(qs)
+                metadatas = filtered_qs
+            return metadatas
+        else:
+            # No further recursion needed, filter directly
+            is_mocked = True in [identifier in where for identifier in MOCKED_PROPERTY_COLUMNS]
+            if is_mocked:
+                # mocked column - resolve mocked column filter functionality
+                pass
+            else:
+                # no mocked column - we can use simple filtering
+                exclude = {}
+                if "!=" in where:
+                    where_list = where.split("!=")
+                    key = ""
+                    val = ""
+                    exclude = {where_list[0]: where_list[-1]}
+                elif "=" in where:
+                    where_list = where.split("=")
+                    key = where_list[0]
+                    val = where_list[-1]
+                elif " like " in where:
+                    where_list = where.split(" like ")
+                    key = where_list[0] + "__icontains"
+                    val = where_list[-1].replace("%", "")
+
+                # remove whitespaces around val
+                val = val.strip()
+
+                filter = {
+                    key: val
+                }
+                metadatas = metadatas.filter(
+                    **filter
+                ).exclude(
+                    **exclude
+                )
+                return metadatas

@@ -6,7 +6,6 @@ Created on: 25.02.20
 
 """
 import json
-import xml
 
 from django.core.cache import cache
 
@@ -28,6 +27,19 @@ class SimpleCacher:
 
         """
         return cache.get("{}{}".format(self.key_prefix, key))
+
+    def get_keys(self, pattern: str):
+        """ Returns a list of keys that matches the given pattern.
+
+        Pattern uses * as wildcard. So use e.g. "*test" to find "123test"
+        or "test*" to find "test123".
+
+        Args:
+            pattern (str): The pattern to look for
+        Returns:
+             keys (list): A list of found keys
+        """
+        return cache.keys(pattern)
 
     def set(self, key: str, val, use_ttl: bool = True):
         """ Set a key-value pair.
@@ -54,7 +66,7 @@ class SimpleCacher:
                 val,
             )
 
-    def remove(self, key: str):
+    def remove(self, key: str, use_internal_key_prefix: bool = False):
         """ Removes a record from the cache.
 
         Returns True if removing was successful, False otherwise
@@ -64,7 +76,7 @@ class SimpleCacher:
         Returns:
             success (bool): True|False
         """
-        return cache.delete("{}{}".format(self.key_prefix, key))
+        return cache.delete("{}{}".format(self.key_prefix if use_internal_key_prefix else "", key))
 
 
 class DocumentCacher(SimpleCacher):
@@ -118,3 +130,20 @@ class PreviewImageCacher(SimpleCacher):
         query_data_str = json.dumps(params_dict)
         _hash = self.crypto_handler.sha256(query_data_str)
         return super().get(_hash)
+
+
+class PageCacher(SimpleCacher):
+    def __init__(self):
+        super().__init__(-1, None)
+
+    def remove_pages(self, key_like: str):
+        """ Removes cached pages from the memory.
+
+        Args:
+            key_like (str): A string that occurs in the searched key
+        Returns:
+
+        """
+        keys = self.get_keys("*" + key_like + "*")
+        for key in keys:
+            self.remove(key)

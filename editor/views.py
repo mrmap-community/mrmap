@@ -8,11 +8,13 @@ from django.shortcuts import render, redirect
 # Create your views here.
 from django.template.loader import render_to_string
 from MapSkinner import utils
+from MapSkinner.cacher import PageCacher
 from MapSkinner.decorator import check_permission, check_ownership
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
     SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
+from api.settings import API_CACHE_KEY_PREFIX
 from editor.forms import MetadataEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.filters import MetadataWmsFilter, MetadataWfsFilter
@@ -158,19 +160,19 @@ def edit(request: HttpRequest, id: int):
 
             editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
             editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
+
+            # Clear page cache for API, so the changes will be visible on the next cache
+            p_cacher = PageCacher()
+            p_cacher.remove_pages(API_CACHE_KEY_PREFIX)
+
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
-            _type = metadata.get_service_type()
 
-            if _type == 'wms':
-                if metadata.is_root():
-                    parent_service = metadata.service
-                else:
+            if metadata.is_root():
+                parent_service = metadata.service
+            else:
+                if metadata.is_service_type(OGCServiceEnum.WMS):
                     parent_service = metadata.service.parent_service
-
-            elif _type == 'wfs':
-                if metadata.is_root():
-                    parent_service = metadata.service
-                else:
+                elif metadata.is_service_type(OGCServiceEnum.WFS):
                     parent_service = metadata.featuretype.parent_service
 
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, "{}: {}".format(parent_service.metadata.title, metadata.title))

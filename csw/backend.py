@@ -14,20 +14,21 @@ from service.models import Metadata
 AND = " and "
 OR = " or "
 
-MOCKED_PROPERTY_COLUMNS = [
-    "csw_keywords",
-    "csw_typename",
-    "csw_schema",
-    "csw_anytext",
-    "csw_bounding_geometry",
-    "csw_srs",
-    "csw_organizationname",
-    "csw_category",
-    "csw_temp_dim_start",
-    "csw_temp_dim_end",
-    "csw_service_type",
-    "csw_service_version",
-]
+MOCKED_PROPERTY_COLUMNS = {
+    "csw_keywords": "keywords__keyword",
+    "csw_typename": "",
+    "csw_schema": "",
+    "csw_anytext": "",
+    "csw_bounding_geometry": "",
+    "csw_srs": "",
+    "csw_organizationname": "",
+    "csw_category": "",
+    "csw_temp_dim_start": "",
+    "csw_temp_dim_end": "",
+    "csw_service_type": "",
+    "csw_service_version": "",
+}
+
 class CswCustomRepository(Repository):
     """ Custom backend to handle CSW requests using pycsw
 
@@ -158,15 +159,18 @@ class CswCustomRepository(Repository):
         return metadatas
 
     def _process_constraint_filter(self, constraint: dict, metadatas: QuerySet):
-        if constraint:
-            if "where" in constraint:
-                where = constraint["where"].lower()
-                where = where % tuple(constraint["values"])
-                metadatas = self._prefilter_queryset(where, metadatas)
+        """ Run the prefiltering of Metadata based on a given constraint parameter
 
-            else:
-                # ToDo?
-                pass
+        Args:
+            constraint (dict):
+            metadatas (QuerySet):
+        Returns:
+
+        """
+        if constraint and "where" in constraint:
+            where = constraint["where"].lower()
+            where = where % tuple(constraint["values"])
+            metadatas = self._prefilter_queryset(where, metadatas)
         return metadatas
 
     def _prefilter_queryset(self, where: str, metadatas: QuerySet):
@@ -188,6 +192,7 @@ class CswCustomRepository(Repository):
                     filtered_qs = qs
                 # Using .intersection() we only get the query elements which can be found in both querysets (which is AND)
                 filtered_qs = filtered_qs.intersection(qs)
+            metadatas = filtered_qs
         elif OR in where:
             # recursion!
             where_split = where.split(OR)
@@ -201,35 +206,83 @@ class CswCustomRepository(Repository):
             metadatas = filtered_qs
         else:
             # No further recursion needed, filter directly
-            is_mocked = True in [identifier in where for identifier in MOCKED_PROPERTY_COLUMNS]
+            is_mocked = True in [identifier in where for identifier in MOCKED_PROPERTY_COLUMNS.keys()]
             if is_mocked:
                 # mocked column - resolve mocked column filter functionality
-                # ToDo: Implement!
-                pass
+                metadatas = self._filter_mocked_col(where, metadatas)
             else:
                 # no mocked column - we can use simple filtering
-                exclude = {}
-                filter = {}
-                if "!=" in where:
-                    where_list = where.split("!=")
-                    key = where_list[0].strip()
-                    val = where_list[-1].strip()
-                    exclude = {key: val}
-                elif "=" in where:
-                    where_list = where.split("=")
-                    key = where_list[0].strip()
-                    val = where_list[-1].strip()
-                    filter = {key: val}
-                elif " like " in where:
-                    where_list = where.split(" like ")
-                    key = where_list[0].strip() + "__icontains"
-                    val = where_list[-1].replace("%", "").strip()
-                    filter = {key: val}
+                metadatas = self._filter_non_mocked_col(where, metadatas)
+            return metadatas
+        return metadatas
 
-                metadatas = metadatas.filter(
-                    **filter
-                ).exclude(
-                    **exclude
-                )
-                return metadatas
+    def _filter_mocked_col(self, where: str, metadatas: QuerySet):
+        exclude = {}
+        filter = {}
+        if "!=" in where:
+            where_list = where.split("!=")
+            key = where_list[0].strip()
+            val = where_list[-1].strip()
+
+            # Resolve mocked column name in key to real nested attribute
+            key = MOCKED_PROPERTY_COLUMNS[key]
+            exclude = {key: val}
+
+        elif "=" in where:
+            where_list = where.split("=")
+            key = where_list[0].strip()
+            val = where_list[-1].strip()
+
+            # Resolve mocked column name in key to real nested attribute
+            key = MOCKED_PROPERTY_COLUMNS[key]
+            filter = {key: val}
+
+        elif " like " in where:
+            where_list = where.split(" like ")
+            key = where_list[0].strip()
+            val = where_list[-1].replace("%", "").strip()
+
+            # Resolve mocked column name in key to real nested attribute
+            key = MOCKED_PROPERTY_COLUMNS[key] + "__icontains"
+            filter = {key: val}
+
+        metadatas = metadatas.filter(
+            **filter
+        ).exclude(
+            **exclude
+        )
+        return metadatas
+
+    def _filter_non_mocked_col(self, where: str, metadatas: QuerySet):
+        """ Filter using real attributes, which are present in the database models
+
+        Args:
+            where (str): The WHERE sql style string
+            metadatas (QuerySet): The metadata queryset
+        Returns:
+            metadatas (QuerySet): The filtered queryset
+        """
+        exclude = {}
+        filter = {}
+        if "!=" in where:
+            where_list = where.split("!=")
+            key = where_list[0].strip()
+            val = where_list[-1].strip()
+            exclude = {key: val}
+        elif "=" in where:
+            where_list = where.split("=")
+            key = where_list[0].strip()
+            val = where_list[-1].strip()
+            filter = {key: val}
+        elif " like " in where:
+            where_list = where.split(" like ")
+            key = where_list[0].strip() + "__icontains"
+            val = where_list[-1].replace("%", "").strip()
+            filter = {key: val}
+
+        metadatas = metadatas.filter(
+            **filter
+        ).exclude(
+            **exclude
+        )
         return metadatas

@@ -13,6 +13,9 @@ from service.models import Metadata
 
 AND = " and "
 OR = " or "
+NEQ = " != "
+EQ = " = "
+LIKE = " like "
 
 MOCKED_PROPERTY_COLUMNS = {
     "csw_keywords": "keywords__keyword",
@@ -207,54 +210,14 @@ class CswCustomRepository(Repository):
         else:
             # No further recursion needed, filter directly
             is_mocked = True in [identifier in where for identifier in MOCKED_PROPERTY_COLUMNS.keys()]
-            if is_mocked:
-                # mocked column - resolve mocked column filter functionality
-                metadatas = self._filter_mocked_col(where, metadatas)
-            else:
-                # no mocked column - we can use simple filtering
-                metadatas = self._filter_non_mocked_col(where, metadatas)
+            metadatas = self._filter_col(where, metadatas, is_mocked)
             return metadatas
         return metadatas
 
-    def _filter_mocked_col(self, where: str, metadatas: QuerySet):
-        exclude = {}
-        filter = {}
-        if "!=" in where:
-            where_list = where.split("!=")
-            key = where_list[0].strip()
-            val = where_list[-1].strip()
+    def _filter_col(self, where: str, metadatas: QuerySet, is_mocked: bool):
+        """ Filter by column name
 
-            # Resolve mocked column name in key to real nested attribute
-            key = MOCKED_PROPERTY_COLUMNS[key]
-            exclude = {key: val}
-
-        elif "=" in where:
-            where_list = where.split("=")
-            key = where_list[0].strip()
-            val = where_list[-1].strip()
-
-            # Resolve mocked column name in key to real nested attribute
-            key = MOCKED_PROPERTY_COLUMNS[key]
-            filter = {key: val}
-
-        elif " like " in where:
-            where_list = where.split(" like ")
-            key = where_list[0].strip()
-            val = where_list[-1].replace("%", "").strip()
-
-            # Resolve mocked column name in key to real nested attribute
-            key = MOCKED_PROPERTY_COLUMNS[key] + "__icontains"
-            filter = {key: val}
-
-        metadatas = metadatas.filter(
-            **filter
-        ).exclude(
-            **exclude
-        )
-        return metadatas
-
-    def _filter_non_mocked_col(self, where: str, metadatas: QuerySet):
-        """ Filter using real attributes, which are present in the database models
+        Mocked columns will be mapped on the real nested accessor
 
         Args:
             where (str): The WHERE sql style string
@@ -264,20 +227,32 @@ class CswCustomRepository(Repository):
         """
         exclude = {}
         filter = {}
-        if "!=" in where:
-            where_list = where.split("!=")
+
+        if NEQ in where:
+            where_list = where.split(NEQ)
             key = where_list[0].strip()
             val = where_list[-1].strip()
+
+            # Resolve mocked column name in key to real nested attribute, if the col is mocked
+            key = MOCKED_PROPERTY_COLUMNS[key] if is_mocked else key
             exclude = {key: val}
-        elif "=" in where:
-            where_list = where.split("=")
+
+        elif EQ in where:
+            where_list = where.split(EQ)
             key = where_list[0].strip()
             val = where_list[-1].strip()
+
+            # Resolve mocked column name in key to real nested attribute, if the col is mocked
+            key = MOCKED_PROPERTY_COLUMNS[key] if is_mocked else key
             filter = {key: val}
-        elif " like " in where:
-            where_list = where.split(" like ")
-            key = where_list[0].strip() + "__icontains"
+
+        elif LIKE in where:
+            where_list = where.split(LIKE)
+            key = where_list[0].strip()
             val = where_list[-1].replace("%", "").strip()
+
+            # Resolve mocked column name in key to real nested attribute, if the col is mocked
+            key = MOCKED_PROPERTY_COLUMNS[key] if is_mocked else key + "__icontains"
             filter = {key: val}
 
         metadatas = metadatas.filter(

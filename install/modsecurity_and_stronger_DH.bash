@@ -1,7 +1,7 @@
 #!/bin/bash
 # this script adds an additional layer of security to you mrmap installation.
 # to achieve this it generates stronger encryption keys and configures modsecurity
-# with the OWASP core rule set. https://github.com/SpiderLabs/owasp-modsecurity-crs
+# with the OWASP core rule set.  https://github.com/coreruleset/coreruleset
 # This can take up to an hour!
 
 #generate stonger Diffie Hellman Key

@@ -3,12 +3,12 @@ from django.db.models.functions import Length
 from django.utils.html import format_html
 from django.urls import reverse
 import json
-from MapSkinner.celery_app import app
+from MrMap.celery_app import app
 from celery.result import AsyncResult
 
-from MapSkinner.tables import MapSkinnerTable
-from MapSkinner.utils import get_theme, get_ok_nok_icon
-from MapSkinner.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
+from MrMap.tables import MrMapTable
+from MrMap.utils import get_theme, get_ok_nok_icon
+from MrMap.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
@@ -22,7 +22,7 @@ def _get_close_button(url, user):
                        format_html(get_theme(user)["ICONS"]['WINDOW_CLOSE']),)
 
 
-class ServiceTable(MapSkinnerTable):
+class ServiceTable(MrMapTable):
     attrs = {
         "th": {
             "class": "align-middle",
@@ -126,7 +126,7 @@ class WmsLayerTable(ServiceTable):
         return queryset, True
 
 
-class WfsServiceTable(MapSkinnerTable):
+class WfsServiceTable(MrMapTable):
     caption = _("Shows all WFS which are configured in your Mr. Map environment.")
 
     class Meta:
@@ -197,7 +197,7 @@ class WfsServiceTable(MapSkinnerTable):
         return queryset, True
 
 
-class PendingTasksTable(MapSkinnerTable):
+class PendingTasksTable(MrMapTable):
     caption = _("Shows all currently running pending tasks.")
 
     pt_cancle = tables.Column(verbose_name=' ', empty_values=[], orderable=False, )
@@ -254,7 +254,7 @@ class PendingTasksTable(MapSkinnerTable):
             return str(e)
 
 
-class ChildLayerTable(MapSkinnerTable):
+class ChildLayerTable(MrMapTable):
     id = tables.Column(visible=False)
     title = tables.Column(visible=False)
     child_layer_title = tables.Column(empty_values=[], order_by='title', )
@@ -280,7 +280,7 @@ class ChildLayerTable(MapSkinnerTable):
                                record['title'], )
 
 
-class FeatureTypeTable(MapSkinnerTable):
+class FeatureTypeTable(MrMapTable):
     id = tables.Column(visible=False)
     title = tables.Column(visible=False)
     featuretype_title = tables.Column(empty_values=[], order_by='title', )
@@ -300,7 +300,7 @@ class FeatureTypeTable(MapSkinnerTable):
                            record['title'], )
 
 
-class CoupledMetadataTable(MapSkinnerTable):
+class CoupledMetadataTable(MrMapTable):
     id = tables.Column(visible=False)
     title = tables.Column(visible=False)
     coupled_metadata_title = tables.Column(empty_values=[], order_by='title', )
@@ -320,6 +320,6 @@ class CoupledMetadataTable(MapSkinnerTable):
                            record['title'], )
 
 
-class UpdateServiceElements(MapSkinnerTable):
+class UpdateServiceElements(MrMapTable):
     title = tables.Column(empty_values=[],)
     identifier = tables.Column(empty_values=[],)

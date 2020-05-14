@@ -9,7 +9,7 @@ from dateutil.parser import parse
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 from django.db.models import Q
 
-from MapSkinner.messages import PARAMETER_ERROR
+from MrMap.messages import PARAMETER_ERROR
 from api.settings import SUGGESTIONS_MAX_RESULTS
 from service.settings import DEFAULT_SRS
 

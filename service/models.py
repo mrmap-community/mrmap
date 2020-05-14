@@ -18,11 +18,11 @@ from django.db import transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
 
-from MapSkinner.cacher import DocumentCacher
-from MapSkinner.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
-from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
-from MapSkinner import utils
-from MapSkinner.utils import print_debug_mode
+from MrMap.cacher import DocumentCacher
+from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
+from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
+from MrMap import utils
+from MrMap.utils import print_debug_mode
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.crypto_handler import CryptoHandler

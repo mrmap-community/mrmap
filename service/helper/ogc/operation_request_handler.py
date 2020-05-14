@@ -23,12 +23,12 @@ from django.contrib.gis.geos import Polygon, GEOSGeometry, Point, GeometryCollec
 from django.http import HttpRequest, HttpResponse, QueryDict
 from lxml.etree import QName, _Element
 
-from MapSkinner import utils
-from MapSkinner.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
+from MrMap import utils
+from MrMap.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
     SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY, SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY, \
     OPERATION_HANDLER_MULTIPLE_QUERIES_NOT_ALLOWED
-from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES, EXEC_TIME_PRINT
-from MapSkinner.utils import execute_threads, print_debug_mode
+from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES, EXEC_TIME_PRINT
+from MrMap.utils import execute_threads, print_debug_mode
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector

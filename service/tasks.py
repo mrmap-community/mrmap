@@ -14,12 +14,12 @@ from django.db import transaction
 from lxml.etree import XMLSyntaxError, XPathEvalError
 from requests.exceptions import InvalidURL
 
-from MapSkinner import utils
-from MapSkinner.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED, \
+from MrMap import utils
+from MrMap.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED, \
     SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING, \
     SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
-from MapSkinner.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
-from MapSkinner.utils import print_debug_mode
+from MrMap.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
+from MrMap.utils import print_debug_mode
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
     MetadataRelation, ProxyLog

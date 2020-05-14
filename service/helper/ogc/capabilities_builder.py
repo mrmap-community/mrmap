@@ -13,8 +13,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from lxml.etree import Element, QName
 
-from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE, HTTP_OR_SSL, HOST_NAME
-from MapSkinner.utils import print_debug_mode
+from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE, HTTP_OR_SSL, HOST_NAME
+from MrMap.utils import print_debug_mode
 from service.helper import xml_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, MetadataEnum
 from service.helper.epsg_api import EpsgApi

@@ -8,8 +8,8 @@ from django.contrib.gis.geos import Polygon
 from django.db import transaction
 from requests.exceptions import ReadTimeout
 
-from MapSkinner.messages import CONNECTION_TIMEOUT
-from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE
+from MrMap.messages import CONNECTION_TIMEOUT
+from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler

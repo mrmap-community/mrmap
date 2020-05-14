@@ -4,7 +4,7 @@ from django.contrib.auth.hashers import make_password
 from django.test import TestCase, Client
 from django.utils import timezone
 
-from MapSkinner.settings import HOST_NAME, HTTP_OR_SSL, ROOT_URL
+from MrMap.settings import HOST_NAME, HTTP_OR_SSL, ROOT_URL
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
 from service.helper import service_helper
 from structure.models import Permission, Role, MrMapUser, MrMapGroup

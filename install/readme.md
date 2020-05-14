@@ -1,19 +1,19 @@
 Brief description of files and scripts found in the install folder.
 
-**I.    mrmap_production_setup.bash**
+**I.    mapskinner_production_setup.bash**
 
-This script will install MapSkinner with production settings on your blank debian10 server.  
+This script will install MrMap with production settings on your blank debian10 server.  
 
 Get it with:
 ```
-wget https://git.osgeo.org/gitea/GDI-RP/MrMap/raw/branch/pre_master/install/mrmap_production_setup.bash
+wget https://git.osgeo.org/gitea/GDI-RP/MrMap/raw/branch/pre_master/install/mapskinner_production_setup.bash
 ```  
 
 Change your hostname and desired database credentials at the beginning of the script.  
 
 Afterwards execute it with:  
 ```
-bash mrmap_production_setup.bash
+bash mapskinner_production_setup.bash
 ```  
 
 
@@ -40,7 +40,7 @@ stronger encryption keys, this is absolutely recommended for a real production s
 facing the threats of the www, it can take up to an hour though! Can be skipped for testing and intranet only servers.  
 
 
-**II.   update_mrmap.bash**
+**II.   update_mapskinner.bash**
 
 This updates your MrMap installation.  
 In the first step this will check if there are differences between your local  
@@ -60,12 +60,12 @@ apps need to be done manually!
 
 Usage:  
 ```
-bash /opt/MrMap/install/update_mrmap.bash
+bash /opt/MrMap/install/update_mapskinner.bash
 ```  
 
 **III.  mass_register.py**
 
-Used to register a list of services at once via the MrMap api.
+Used to register a list of services at once via the mapskinner api.
 
 The list has to contain one wms get capabilities request each line including parameters.  
 Generate an API Token on the web interface and paste it into the token parameter in the script.  

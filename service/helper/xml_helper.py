@@ -9,7 +9,7 @@ from lxml import etree
 from lxml.etree import XMLSyntaxError, _Element
 from requests.exceptions import ProxyError
 
-from MapSkinner.settings import XML_NAMESPACES
+from MrMap.settings import XML_NAMESPACES
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceVersionEnum
 

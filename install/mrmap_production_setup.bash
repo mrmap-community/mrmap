@@ -1,4 +1,4 @@
-# install(script) nginx + uwsgi + django + MrMap/mrmap:
+# install(script) nginx + uwsgi + django + MrMap:
 #!/bin/bash
 mrmap_db_user=mrmap_db_user
 mrmap_db_pw=mrmap_db_pw

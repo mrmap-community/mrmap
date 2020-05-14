@@ -17,10 +17,10 @@ from django.db import transaction
 from django.utils.timezone import utc
 from lxml.etree import _Element
 
-from MapSkinner.settings import XML_NAMESPACES
+from MrMap.settings import XML_NAMESPACES
 from service.settings import INSPIRE_LEGISLATION_FILE, HTML_METADATA_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, \
     SERVICE_DATASET_URI_TEMPLATE
-from MapSkinner import utils
+from MrMap import utils
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, MetadataEnum

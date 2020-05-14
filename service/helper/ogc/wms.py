@@ -15,13 +15,13 @@ from threading import Thread
 from celery import Task
 from django.db import transaction
 
-from MapSkinner.messages import SERVICE_NO_ROOT_LAYER
+from MrMap.messages import SERVICE_NO_ROOT_LAYER
 from service.settings import SERVICE_OPERATION_URI_TEMPLATE, \
     SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE
-from MapSkinner.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
+from MrMap.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
     PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
-from MapSkinner import utils
-from MapSkinner.utils import execute_threads, print_debug_mode
+from MrMap import utils
+from MrMap.utils import execute_threads, print_debug_mode
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.epsg_api import EpsgApi

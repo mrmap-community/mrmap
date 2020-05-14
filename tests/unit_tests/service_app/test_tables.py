@@ -2,7 +2,7 @@ from django.core.exceptions import FieldError
 from django.test import TestCase, RequestFactory
 from django.urls import reverse
 from django_tables2 import RequestConfig
-from MapSkinner.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
+from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
 from service.models import Metadata
 from service.tables import WmsLayerTable, WfsServiceTable, WmsServiceTable, PendingTasksTable, ChildLayerTable, \
     FeatureTypeTable, CoupledMetadataTable

@@ -3,13 +3,13 @@ from django.template.loader import render_to_string
 from django.utils.html import format_html
 from django.urls import reverse
 
-from MapSkinner.tables import MapSkinnerTable
-from MapSkinner.utils import get_theme, get_ok_nok_icon
-from MapSkinner.consts import URL_PATTERN, URL_ICON_PATTERN
+from MrMap.tables import MrMapTable
+from MrMap.utils import get_theme, get_ok_nok_icon
+from MrMap.consts import URL_PATTERN, URL_ICON_PATTERN
 from django.utils.translation import gettext_lazy as _
 
 
-class PublisherTable(MapSkinnerTable):
+class PublisherTable(MrMapTable):
     class Meta:
         row_attrs = {
             "class": "text-center"
@@ -54,7 +54,7 @@ class PublisherTable(MapSkinnerTable):
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
-class PublishesForTable(MapSkinnerTable):
+class PublishesForTable(MrMapTable):
     class Meta:
         row_attrs = {
             "class": "text-center"
@@ -87,7 +87,7 @@ class PublishesForTable(MapSkinnerTable):
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
-class PublisherRequestTable(MapSkinnerTable):
+class PublisherRequestTable(MrMapTable):
     class Meta:
         row_attrs = {
             "class": "text-center"
@@ -133,7 +133,7 @@ class PublisherRequestTable(MapSkinnerTable):
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
-class GroupTable(MapSkinnerTable):
+class GroupTable(MrMapTable):
     groups_name = tables.Column(accessor='name', verbose_name='Name', )
     groups_description = tables.Column(accessor='description', verbose_name='Description', )
     groups_organization = tables.Column(accessor='organization.organization_name', verbose_name='Organization', )
@@ -153,7 +153,7 @@ class GroupTable(MapSkinnerTable):
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
 
-class OrganizationTable(MapSkinnerTable):
+class OrganizationTable(MrMapTable):
     orgs_organization_name = tables.Column(accessor='organization_name', verbose_name='Name', )
     orgs_description = tables.Column(accessor='description', verbose_name='Description', )
     orgs_is_auto_generated = tables.Column(accessor='is_auto_generated', verbose_name='Real organization', )

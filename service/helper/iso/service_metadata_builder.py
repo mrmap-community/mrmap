@@ -18,7 +18,7 @@ from lxml import etree
 
 from django.utils import timezone
 
-from MapSkinner.settings import XML_NAMESPACES
+from MrMap.settings import XML_NAMESPACES
 
 
 class ServiceMetadataBuilder:

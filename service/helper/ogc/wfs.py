@@ -15,10 +15,10 @@ from service.settings import DEFAULT_SRS, SERVICE_OPERATION_URI_TEMPLATE, SERVIC
     HTML_METADATA_URI_TEMPLATE
 from service.settings import MD_RELATION_TYPE_VISUALIZES, \
     EXTERNAL_AUTHENTICATION_FILEPATH
-from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
+from MrMap.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
-from MapSkinner.messages import SERVICE_GENERIC_ERROR
-from MapSkinner.utils import execute_threads, print_debug_mode
+from MrMap.messages import SERVICE_GENERIC_ERROR
+from MrMap.utils import execute_threads, print_debug_mode
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.enums import MetadataEnum
 from service.helper.epsg_api import EpsgApi

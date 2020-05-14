@@ -9,8 +9,8 @@ import json
 
 import requests
 
-from MapSkinner.cacher import EPSGCacher
-from MapSkinner.settings import PROXIES, XML_NAMESPACES
+from MrMap.cacher import EPSGCacher
+from MrMap.settings import PROXIES, XML_NAMESPACES
 from service.helper import xml_helper
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum
 

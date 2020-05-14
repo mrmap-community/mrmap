@@ -42,7 +42,7 @@ sed -i s/"SecUnicodeMapFile unicode.mapping 20127"/"#SecUnicodeMapFile unicode.m
 sed -i "/add_header X-XSS-Protection \"1; mode=block\";/a \    \modsecurity on;" /etc/nginx/conf.d/mrmap.conf
 sed -i "/\    \modsecurity on;/a \    \modsecurity_rules_file /etc/nginx/modsec/modsec_includes.conf;" /etc/nginx/conf.d/mrmap.conf
 cd /etc/nginx/
-git clone https://github.com/SpiderLabs/owasp-modsecurity-crs.git
+git clone https://github.com/coreruleset/coreruleset owasp-modsecurity-crs
 cd owasp-modsecurity-crs
 cp -a crs-setup.conf.example crs-setup.conf
 cp -a rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf.example rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf

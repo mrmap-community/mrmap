@@ -16,20 +16,33 @@ OR = " or "
 NEQ = " != "
 EQ = " = "
 LIKE = " like "
+ILIKE = " ilike "
 
+DJANGO_CONTAINS_TEMPLATE = "__{}contains"
+DJANGO_STARTSWITH_TEMPLATE = "__{}startswith"
+DJANGO_ENDSWITH_TEMPLATE = "__{}endswith"
+
+"""
+    MOCKED_PROPERTY_COLUMNS
+    The mocked property/column name (key) is mapped to a Django filter style identifier, which will be used if a mocked
+    key is requested. 
+    If a mocked column (e.g. csw_anytext) needs to be filtered over multiple real columns, the identifiers - still 
+    Django filter style - have to be concatenated using |
+     
+"""
 MOCKED_PROPERTY_COLUMNS = {
     "csw_keywords": "keywords__keyword",
     "csw_typename": "",
     "csw_schema": "",
-    "csw_anytext": "",
+    "csw_anytext": "keywords__keyword|title|abstract",
     "csw_bounding_geometry": "",
-    "csw_srs": "",
-    "csw_organizationname": "",
-    "csw_category": "",
-    "csw_temp_dim_start": "",
-    "csw_temp_dim_end": "",
-    "csw_service_type": "",
-    "csw_service_version": "",
+    "csw_srs": "reference_systems__code",
+    "csw_organizationname": "contact__organization_name",
+    "csw_category": "categories__title_locale_1",
+    "csw_temp_dim_start": "dimensions__time_extent_min",
+    "csw_temp_dim_end": "dimensions__time_extent_max",
+    "csw_service_type": "service__servicetype__name",
+    "csw_service_version": "service__servicetype__version",
 }
 
 class CswCustomRepository(Repository):
@@ -235,7 +248,7 @@ class CswCustomRepository(Repository):
 
             # Resolve mocked column name in key to real nested attribute, if the col is mocked
             key = MOCKED_PROPERTY_COLUMNS[key] if is_mocked else key
-            exclude = {key: val}
+            exclude = {identifier: val for identifier in key.split("|")}
 
         elif EQ in where:
             where_list = where.split(EQ)
@@ -244,20 +257,70 @@ class CswCustomRepository(Repository):
 
             # Resolve mocked column name in key to real nested attribute, if the col is mocked
             key = MOCKED_PROPERTY_COLUMNS[key] if is_mocked else key
-            filter = {key: val}
+            filter = {identifier: val for identifier in key.split("|")}
 
         elif LIKE in where:
             where_list = where.split(LIKE)
             key = where_list[0].strip()
-            val = where_list[-1].replace("%", "").strip()
+            val = where_list[-1].strip()
+
+            # For LIKE we must resolve the correct django filter suffix (__contains, __startswith, __endswith)
+            filter_suffix = self._resolve_filter_suffix(False, val)
+
+            # Get rid of the '%' since we do not need it in django style filtering
+            val = val.replace("%", "")
 
             # Resolve mocked column name in key to real nested attribute, if the col is mocked
-            key = MOCKED_PROPERTY_COLUMNS[key] if is_mocked else key + "__icontains"
-            filter = {key: val}
+            key = MOCKED_PROPERTY_COLUMNS[key] if is_mocked else key
+            filter = {identifier + filter_suffix: val for identifier in key.split("|")}
+
+        elif ILIKE in where:
+            where_list = where.split(ILIKE)
+            key = where_list[0].strip()
+            val = where_list[-1].strip()
+
+            # For ILIKE we must resolve the correct django filter suffix (__icontains, __istartswith, __iendswith)
+            filter_suffix = self._resolve_filter_suffix(True, val)
+
+            # Get rid of the '%' since we do not need it in django style filtering
+            val = val.replace("%", "")
+
+            # Resolve mocked column name in key to real nested attribute, if the col is mocked
+            key = MOCKED_PROPERTY_COLUMNS[key] if is_mocked else key
+            filter = {identifier + filter_suffix: val for identifier in key.split("|")}
+
+        # Restructure filter using Q() for case of '|' separated real columns.
+        # For other cases this won't hurt anyone.
+        q_filter = Q()
+        for item in filter:
+            q_filter |= Q(**{item: filter[item]})
 
         metadatas = metadatas.filter(
-            **filter
+            q_filter
         ).exclude(
             **exclude
         )
         return metadatas
+
+    def _resolve_filter_suffix(self, is_insensitive: bool, val: str):
+        """ Resolves django filter suffix from SQL '%' position in val.
+
+        '%test'     -> endswith test
+        'test%'     -> startswith test
+        '%test%'     -> contains test
+
+        Args:
+            is_insensitive (bool): Whether insensitivity is used or not
+            val (str): The lookup string containing "%"
+        Returns:
+             filter_suffix (str): The django style filter suffix
+        """
+        filter_suffix = None
+        sensitive = "i" if is_insensitive else ""
+        if val.startswith("%") and val.endswith("%"):
+            filter_suffix = DJANGO_CONTAINS_TEMPLATE.format(sensitive)
+        elif val.startswith("%"):
+            filter_suffix = DJANGO_ENDSWITH_TEMPLATE.format(sensitive)
+        elif val.endswith("%"):
+            filter_suffix = DJANGO_STARTSWITH_TEMPLATE.format(sensitive)
+        return filter_suffix

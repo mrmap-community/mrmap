@@ -21,6 +21,7 @@ SERVICE_ACTIVATED = _("Service {} activated")
 SERVICE_DEACTIVATED = _("Service {} deactivated")
 SERVICE_MD_RESTORED = _("Service metadata restored")
 GROUP_EDITED = _("Group edited")
+DATASET_MD_EDITED = _("Dataset metadata edited")
 
 ####################
 

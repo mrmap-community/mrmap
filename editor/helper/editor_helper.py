@@ -6,28 +6,31 @@ Created on: 01.08.19
 
 """
 import json
-import urllib
+import pickle
+from urllib.request import urlopen
+import lxml.etree as ElementTree
 
 from django.contrib import messages
 from django.db import transaction
 from django.http import HttpRequest
-
-from lxml.etree import _Element
+from lxml import objectify, etree
+from lxml.etree import _Element, fromstring
+from lxml.objectify import ObjectifiedElement
+from pyxb.bundles.opengis.iso19139.v20070417 import gmd
 from requests.exceptions import MissingSchema
-
-from MapSkinner.cacher import DocumentCacher
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK, SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, \
     SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
-from MapSkinner.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL, GENERIC_NAMESPACE_TEMPLATE
+from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner import utils
-
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, MetadataEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum
 from service.helper.iso.iso_metadata import ISOMetadata
-from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
-    MetadataOrigin, SecuredOperation, RequestOperation, Layer, Style
+from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, \
+    MetadataOrigin, SecuredOperation, RequestOperation
 from service.helper import xml_helper
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY
 from service.tasks import async_secure_service_task
+import pyxb.utils.domutils as domutils
+import xmlschema
 
 
 def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _type: str):
@@ -151,7 +154,7 @@ def _overwrite_capabilities_data(xml_obj: _Element, metadata: Metadata):
             pass
 
 
-def overwrite_document(metadata: Metadata):
+def overwrite_dataset_metadata_document(metadata: Metadata):
     """ Overwrites the dataset metadata document which is related to the provided metadata.
 
         Args:
@@ -159,26 +162,62 @@ def overwrite_document(metadata: Metadata):
         Returns:
              nothing
         """
-    is_root = metadata.is_root()
-    if is_root:
-        parent_metadata = metadata
-    elif metadata.metadata_type.type == MetadataEnum.LAYER.value:
-        parent_metadata = metadata.service.parent_service.metadata
-    elif metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
-        parent_metadata = metadata.featuretype.parent_service.metadata
-    elif metadata.metadata_type.type == MetadataEnum.DATASET.value:
-        parent_metadata = metadata
 
-    # Make sure the Document record already exist by fetching the current capability xml
-    # This is a little trick to auto-generate Document records which did not exist before!
-    parent_metadata.get_current_capability_xml(parent_metadata.get_service_version().value)
-    doc = Document.objects.get(related_metadata=parent_metadata)
+    doc = Document.objects.get(related_metadata=metadata)
+    xml = doc.current_dataset_metadata_document.encode('utf-8')
 
-    if metadata.metadata_type.type == MetadataEnum.DATASET.value:
-        xml_obj_root = xml_helper.parse_xml(doc.current_dataset_metadata_document)
-    else:
-        xml_obj_root = xml_helper.parse_xml(doc.current_capability_document)
+    md_metadata = gmd.CreateFromDocument(doc.current_dataset_metadata_document)
 
+    """
+    # xmlschema package validation against a schema
+    
+    xs = xmlschema.XMLSchema('http://schemas.opengis.net/iso/19139/20060504/gmd/gmd.xsd')
+    serialized_schema = pickle.dumps(xs)
+    xt = ElementTree.fromstring(xml)
+    is_valid = xs.is_valid(xt)
+    descriptive_keywords = xs.elements['descriptiveKeywords'].decode(xt)
+    """
+    iso_19115_root_obj = domutils.StringToDOM(xml)
+
+    md_metadatas = iso_19115_root_obj.childNodes
+
+    for md_metadata in md_metadatas:
+        identification_infos = []
+        contacts = []
+        title = None
+        abstract = None
+        descriptive_keywords = []
+
+        for child_Node in md_metadata.childNodes:
+            # collect identificationInfo objects
+            if child_Node.tagName == 'identificationInfo':
+                identification_infos.append(child_Node)
+            # collect contact objects
+            elif child_Node.tagName == 'contact':
+                contacts.append(child_Node)
+
+        for identification_info in identification_infos:
+            md_data_identification = None
+            # collect MD_DataIdentification
+            for child_Node in identification_info.childNodes:
+                if child_Node.tagName == 'MD_DataIdentification':
+                    md_data_identification = child_Node
+
+            for child_Node in md_data_identification.childNodes:
+                # collect title object
+                if child_Node.tagName == 'title':
+                    title = child_Node
+                # collect abstract object
+                elif child_Node.tagName == 'abstract':
+                    abstract = child_Node
+                # collect descriptiveKeywords objects
+                elif child_Node.tagName == 'descriptiveKeywords':
+                    descriptive_keywords.append(child_Node)
+        i=0
+
+
+    # handle keywords
+    #_overwrite_dataset_metadata_keywords(iso_19115_md_metadata, metadata)
 
 
 def overwrite_capabilities_document(metadata: Metadata):
@@ -399,8 +438,7 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     original_md.save()
 
     if original_md.metadata_type.type == OGCServiceEnum.DATASET.value:
-        pass
-        # ToDo: overwrite_dataset_metadata_document(original_md)
+        overwrite_dataset_metadata_document(original_md)
     else:
         overwrite_capabilities_document(original_md)
 

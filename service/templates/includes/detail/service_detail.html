@@ -84,6 +84,8 @@
           <div class="dropdown-menu" aria-labelledby="id_metadata_dropdown">
               <a class="dropdown-item" target="_blank" href="{% url 'service:get-metadata-html' service_md.id %}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
               <a class="dropdown-item" target="_blank" href="{% url 'service:get-service-metadata' service_md.id %}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
+              <a class="dropdown-item" target="_blank" href="{% url 'editor:restore' service_md.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
+
           </div>
         </div>
     </div>

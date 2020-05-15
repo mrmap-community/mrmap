@@ -9,9 +9,9 @@
 <h5 class="text-muted">
     {% if service_metadata.is_root %}
         {% trans 'Service:' %}
-    {% elif service_metadata.metadata_type.type == 'featuretype' %}
+    {% elif service_metadata.is_featuretype_metadata %}
         {% trans 'Featuretype:' %}
-    {% elif service_metadata.metadata_type.type == 'layer' %}
+    {% elif service_metadata.is_layer_metadata %}
         {% trans 'Layer:' %}
     {% endif %}
     {{ service_metadata.title }}

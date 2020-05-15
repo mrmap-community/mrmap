@@ -64,14 +64,14 @@
         <div class="col">
             {% include 'includes/wms/child_layer_detail_table.html' %}
             {% if layers|length > 0 %}
-                {% if service.servicetype.name == 'wms' %}
+                {% if service.is_wms %}
                     {% comment "we need to pass a unique id for accordion button" %}{% endcomment %}
                     {% with service_md.id as id_accordion %}
                         {% with "accordion_sub_element" as id_accordion_combined %}
                             {% include 'includes/wms/show_sublayer_accordion.html' %}
                         {% endwith %}
                     {% endwith %}
-                {% elif service.servicetype.name == 'wfs' %}
+                {% elif service.is_wfs %}
                     {% with service.featuretypes.all as featuretypes %}
                         {% include 'includes/wfs/show_featuretypes_accordion.html' %}
                     {% endwith %}

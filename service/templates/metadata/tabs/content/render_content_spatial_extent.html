@@ -1,0 +1,19 @@
+{% load i18n %}
+    <tr>
+        <th scope="row">{% trans 'Spatial extent' %}</th>
+        <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
+            {% if bounding_box.area > 0.0 %}
+                <div id="id_map" style="height: 50vh; min-height: 200px;"></div>
+                {% with id_map='id' bbox=bounding_box leaflet_add_bbox=True  %}
+                    {% include 'leaflet/leaflet-client.html' %}
+                    <script type="text/javascript">
+                        $('#properties-tab').on('shown.bs.tab', function (e) {
+                          initializeLeafletClient();
+                        })
+                    </script>
+                {% endwith %}
+            {% else %}
+                {% trans 'No spatial data provided!' %}
+            {% endif %}
+        </td>
+    </tr>

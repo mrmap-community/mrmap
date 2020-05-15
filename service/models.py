@@ -11,7 +11,7 @@ from datetime import datetime
 from json import JSONDecodeError
 
 from PIL import Image
-from dateutil.parser import parser, parse
+from dateutil.parser import parse
 from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
@@ -89,12 +89,10 @@ class ProxyLog(models.Model):
         Returns:
              nothing
         """
-        service_type = self.metadata.get_service_type()
-
         start_time = time.time()
-        if service_type == OGCServiceEnum.WFS.value:
+        if self.metadata.is_service_type(OGCServiceEnum.WFS):
             self._log_wfs_response(response, output_format)
-        elif service_type == OGCServiceEnum.WMS.value:
+        elif self.metadata.is_service_type(OGCServiceEnum.WMS):
             self._log_wms_response(response)
         else:
             # For future implementation
@@ -381,10 +379,8 @@ class SecuredOperation(models.Model):
         operation = self.operation
         group = self.allowed_group
 
-        md_type = md.metadata_type.type
-
         # continue with possibly existing children
-        if md_type == MetadataEnum.FEATURETYPE.value:
+        if md.is_metadata_type(MetadataEnum.FEATURETYPE):
             sec_ops = SecuredOperation.objects.filter(
                 secured_metadata=md,
                 operation=operation,
@@ -392,9 +388,8 @@ class SecuredOperation(models.Model):
             )
             sec_ops.delete()
 
-        elif md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
-            service_type = md.service.servicetype.name
-            if service_type == OGCServiceEnum.WFS.value:
+        elif md.is_metadata_type(MetadataEnum.SERVICE) or md.is_metadata_type(MetadataEnum.LAYER):
+            if md.is_service_type(OGCServiceEnum.WFS):
                 # find all wfs featuretypes
                 featuretypes = md.service.featuretypes.all()
                 for featuretype in featuretypes:
@@ -405,7 +400,7 @@ class SecuredOperation(models.Model):
                     )
                     sec_ops.delete()
 
-            elif service_type == OGCServiceEnum.WMS.value:
+            elif md.is_service_type(OGCServiceEnum.WMS):
                 if md.service.is_root:
                     # find root layer
                     layer = Layer.objects.get(
@@ -599,6 +594,62 @@ class Metadata(Resource):
     def __str__(self):
         return self.title
 
+    @property
+    def is_service_metadata(self):
+        """ Returns whether the metadata record describes this type of data
+
+        Returns:
+             True|False
+        """
+        return self.is_metadata_type(MetadataEnum.SERVICE)
+
+    @property
+    def is_layer_metadata(self):
+        """ Returns whether the metadata record describes this type of data
+
+        Returns:
+             True|False
+        """
+        return self.is_metadata_type(MetadataEnum.LAYER)
+
+    @property
+    def is_featuretype_metadata(self):
+        """ Returns whether the metadata record describes this type of data
+
+        Returns:
+             True|False
+        """
+        return self.is_metadata_type(MetadataEnum.FEATURETYPE)
+
+    @property
+    def is_dataset_metadata(self):
+        """ Returns whether the metadata record describes this type of data
+
+        Returns:
+             True|False
+        """
+        return self.is_metadata_type(MetadataEnum.DATASET)
+
+    def is_metadata_type(self, enum: MetadataEnum):
+        """ Returns whether the metadata is of this MetadataEnum
+
+        Args:
+            enum (MetadataEnum): The enum
+        Returns:
+             True if the metadata_type is equal, false otherwise
+        """
+        return self.metadata_type.type == enum.value
+
+    def is_service_type(self, enum: OGCServiceEnum):
+        """ Returns whether the described service element of this metadata is of the given OGCServiceEnum
+
+        Args:
+            enum (MetadataEnum): The enum
+        Returns:
+             True|False
+        """
+        return self.get_service_type() == enum.value
+
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.
 
@@ -668,21 +719,17 @@ class Metadata(Resource):
         Returns:
              ret_list (list)
         """
-        md_type = self.metadata_type.type
-        is_service = md_type == MetadataEnum.SERVICE.value
-        is_layer = md_type == MetadataEnum.LAYER.value
+        is_service = self.is_metadata_type(MetadataEnum.SERVICE)
+        is_layer = self.is_metadata_type(MetadataEnum.LAYER)
 
         ret_list = []
-        if is_service:
+        if is_service or is_layer:
+            ret_list += [elem.metadata for elem in self.service.subelements]
+        else:
             subelement_metadatas = Metadata.objects.filter(
                 service__parent_service__metadata=self,
             )
-            ret_list = list(subelement_metadatas)
-        elif is_layer:
-            # Collect further sublayers!
-            layer = Layer.objects.get(metadata=self)
-            sub_layers = layer.get_children(all=True)
-            ret_list = [layer.metadata for layer in sub_layers]
+            ret_list += list(subelement_metadatas)
 
         return ret_list
 
@@ -890,16 +937,16 @@ class Metadata(Resource):
         self.hits += 1
 
         # Only if whole service was called, increase the children hits as well
-        if self.metadata_type.type == MetadataEnum.SERVICE.value:
+        if self.is_metadata_type(MetadataEnum.SERVICE):
 
             # wms children
-            if self.service.servicetype.name == 'wms':
+            if self.service.is_service_type(OGCServiceEnum.WMS):
                 children = self.service.child_service.all()
                 for child in children:
                     child.metadata.hits += 1
                     child.metadata.save()
 
-            elif self.service.servicetype.name == 'wfs':
+            elif self.service.is_service_type(OGCServiceEnum.WFS):
                 featuretypes = self.service.featuretypes.all()
                 for f_t in featuretypes:
                     f_t.metadata.hits += 1
@@ -953,9 +1000,9 @@ class Metadata(Resource):
         service_type = None
         if self.is_root():
             return self.service.servicetype.name
-        elif self.metadata_type.type == 'layer':
+        elif self.is_metadata_type(MetadataEnum.LAYER):
             service_type = 'wms'
-        elif self.metadata_type.type == 'featuretype':
+        elif self.is_metadata_type(MetadataEnum.FEATURETYPE):
             service_type = 'wfs'
         return service_type
 
@@ -968,11 +1015,11 @@ class Metadata(Resource):
         # Non root elements have to be handled differently, since FeatureTypes are not Service instances and always use
         # their parent_service as Service information holder
         if not self.is_root():
-            if self.get_service_type() == OGCServiceEnum.WFS.value:
+            if self.is_service_type(OGCServiceEnum.WFS):
                 service = FeatureType.objects.get(
                     metadata=self
                 ).parent_service
-            elif self.get_service_type() == OGCServiceEnum.WMS.value:
+            elif self.is_service_type(OGCServiceEnum.WMS):
                 service = self.service.parent_service
             else:
                 raise TypeError(PARAMETER_ERROR.format("SERVICE"))
@@ -1018,7 +1065,7 @@ class Metadata(Resource):
         Returns:
              is_root (bool): True if there is no parent service to the described service, False otherwise
         """
-        return self.metadata_type.type == 'service'
+        return self.is_metadata_type(MetadataEnum.SERVICE)
 
     def _restore_layer_md(self, service,):
         """ Private function for retrieving single layer metadata
@@ -1053,7 +1100,6 @@ class Metadata(Resource):
             rel_md = self.service.parent_service.metadata
         cap_doc = Document.objects.get(related_metadata=rel_md)
         cap_doc.restore_subelement(identifier)
-        return
 
     def _restore_feature_type_md(self, service, external_auth: ExternalAuthentication = None):
         """ Private function for retrieving single featuretype metadata
@@ -1089,7 +1135,6 @@ class Metadata(Resource):
             rel_md = self.featuretype.parent_service.metadata
         cap_doc = Document.objects.get(related_metadata=rel_md)
         cap_doc.restore_subelement(identifier)
-        return
 
     def _restore_wms(self, external_auth: ExternalAuthentication = None):
         """ Restore the metadata of a wms service
@@ -1183,12 +1228,10 @@ class Metadata(Resource):
         Returns:
              nothing
         """
-
         # identify whether this is a wfs or wms (we need to handle them in different ways)
-        service_type = self.get_service_type()
-        if service_type == OGCServiceEnum.WFS.value:
+        if self.is_service_type(OGCServiceEnum.WFS):
             self._restore_wfs(identifier, external_auth=external_auth)
-        elif service_type == OGCServiceEnum.WMS.value:
+        elif self.is_service_type(OGCServiceEnum.WMS):
             self._restore_wms(external_auth=external_auth)
 
         # Subelements like layers or featuretypes might have own capabilities documents. Delete them on restore!
@@ -1270,28 +1313,28 @@ class Metadata(Resource):
         else:
             root_md = self
 
-        # change capabilities document
-        root_md_doc = Document.objects.get(related_metadata=root_md)
-        root_md_doc.set_proxy(use_proxy)
+        # change capabilities document if there is one (subelements may not have any documents yet)
+        try:
+            root_md_doc = Document.objects.get(related_metadata=root_md)
+            root_md_doc.set_proxy(use_proxy)
+        except ObjectDoesNotExist:
+            pass
 
         # Clear cached documents
         self.clear_cached_documents()
 
         self.use_proxy_uri = use_proxy
 
-        # If md uris shall be tunneled using the proxy, we need to make sure that all metadata elements of the service are aware of this!
-        service_type = self.get_service_type()
-        subelements = []
-        if service_type == OGCServiceEnum.WFS.value:
-            subelements = self.service.featuretypes.all()
-        elif service_type == OGCServiceEnum.WMS.value:
-            subelements = Layer.objects.filter(parent_service=self.service)
-
-        for subelement in subelements:
-            subelement_md = subelement.metadata
+        # If md uris shall be tunneled using the proxy, we need to make sure that all children are aware of this!
+        subelements_mds = [element.metadata for element in self.service.subelements]
+        for subelement_md in subelements_mds:
             subelement_md.use_proxy_uri = self.use_proxy_uri
+            try:
+                subelement_md_doc = Document.objects.get(related_metadata=subelement_md)
+                subelement_md_doc.set_proxy(use_proxy)
+            except ObjectDoesNotExist:
+                pass
             subelement_md.save()
-
             subelement_md.clear_cached_documents()
 
         self.save()
@@ -1316,11 +1359,9 @@ class Metadata(Resource):
             self.use_proxy_uri = is_secured
         self._set_document_secured(self.use_proxy_uri)
 
-        md_type = self.metadata_type.type
-
         children = []
-        if md_type == MetadataEnum.SERVICE.value or md_type == MetadataEnum.LAYER.value:
-            if self.service.servicetype.name == OGCServiceEnum.WMS.value:
+        if self.is_metadata_type(MetadataEnum.SERVICE) or self.is_metadata_type(MetadataEnum.LAYER):
+            if self.service.is_service_type(OGCServiceEnum.WMS):
                 parent_service = self.service
                 children = Metadata.objects.filter(
                     service__parent_service=parent_service
@@ -1328,7 +1369,7 @@ class Metadata(Resource):
                 for child in children:
                     child._set_document_secured(self.use_proxy_uri)
 
-            elif self.service.servicetype.name == OGCServiceEnum.WFS.value:
+            elif self.service.is_service_type(OGCServiceEnum.WFS):
                 children = [ft.metadata for ft in self.service.featuretypes.all()]
 
             for child in children:
@@ -1336,7 +1377,7 @@ class Metadata(Resource):
                 child.use_proxy_uri = self.use_proxy_uri
                 child.save()
 
-        elif md_type == MetadataEnum.FEATURETYPE.value:
+        elif self.is_metadata_type(MetadataEnum.FEATURETYPE):
             # a featuretype does not have children - we can skip this case!
             pass
         self.save()
@@ -1557,7 +1598,7 @@ class Document(Resource):
             if OGCOperationEnum.GET_CAPABILITIES.value in op.tag:
                 continue
 
-            uri_dict = op_uri_dict.get(op.tag, "")
+            uri_dict = op_uri_dict.get(op.tag, {})
             http_operations = ["Get", "Post"]
 
             for http_operation in http_operations:
@@ -1786,10 +1827,9 @@ class Document(Resource):
 
         # wms and wfs have to be handled differently!
         # Furthermore each standard has a different handling of attributes and elements ...
-        service_type = self.related_metadata.get_service_type()
         service_version = self.related_metadata.get_service_version().value
 
-        if service_type == OGCServiceEnum.WMS.value:
+        if self.related_metadata.is_service_type(OGCServiceEnum.WMS):
 
             if service_version == "1.0.0":
                 # additional things to change for WMS 1.0.0
@@ -1835,7 +1875,7 @@ class Document(Resource):
                     "{http://www.w3.org/1999/xlink}href",
                     uri)
 
-        elif service_type == OGCServiceEnum.WFS.value:
+        elif self.related_metadata.is_service_type(OGCServiceEnum.WFS):
             if service_version == "1.0.0":
                 xml_helper.write_text_to_element(
                     xml,
@@ -1909,14 +1949,13 @@ class Document(Resource):
             uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.related_metadata.id)
         else:
             uri = ""
-        _type = self.related_metadata.get_service_type()
         _version = force_version or self.related_metadata.get_service_version()
-        if _type == OGCServiceEnum.WMS.value:
+        if self.related_metadata.is_service_type(OGCServiceEnum.WMS):
             if _version is OGCServiceVersionEnum.V_1_0_0:
                 self._set_wms_1_0_0_operation_secured(xml_obj, uri, is_secured)
             else:
                 self._set_wms_operations_secured(xml_obj, uri, is_secured)
-        elif _type == OGCServiceEnum.WFS.value:
+        elif self.related_metadata.is_service_type(OGCServiceEnum.WFS):
             if _version is OGCServiceVersionEnum.V_1_0_0:
                 self._set_wfs_1_0_0_operations_secured(xml_obj, uri, is_secured)
             else:
@@ -2186,6 +2225,61 @@ class Service(Resource):
     def __str__(self):
         return str(self.id)
 
+    @property
+    def subelements(self):
+        """ Returns a list of Layer or Featuretype records.
+
+        Returns:
+             list (list): The list of subelements
+        """
+        ret_list = []
+        if self.is_service_type(OGCServiceEnum.WMS):
+            if self.metadata.is_metadata_type(MetadataEnum.SERVICE):
+                qs = Layer.objects.filter(
+                    parent_service=self
+                )
+                ret_list = list(qs)
+            else:
+                self_layer_instance = Layer.objects.get(metadata=self.metadata)
+                ret_list += list(self_layer_instance.child_layers.all())
+                for layer in ret_list:
+                    ret_list += list(layer.child_layers.all())
+        elif self.is_service_type(OGCServiceEnum.WFS):
+            ret_list += FeatureType.objects.filter(
+                parent_service=self
+            )
+
+        return ret_list
+
+    @property
+    def is_wms(self):
+        """ Returns whether the service is a WMS or not
+
+        Returns:
+             True if WMS else False
+        """
+        return self.is_service_type(enum=OGCServiceEnum.WMS)
+
+    @property
+    def is_wfs(self):
+        """ Returns whether the service is a WMS or not
+
+        Returns:
+             True if WMS else False
+        """
+        return self.is_service_type(enum=OGCServiceEnum.WFS)
+
+    def is_service_type(self, enum: OGCServiceEnum):
+        """ Returns whether the service is of this ServiceEnum
+
+        Args:
+            enum (OGCServiceEnum): The enum
+        Returns:
+             True if the servicetypes are equal, false otherwise
+        """
+        return self.servicetype.name == enum.value
+
+
     def get_supported_formats(self):
         """ Returns a list of supported formats.
 
@@ -2200,11 +2294,10 @@ class Service(Resource):
             return child.get_supported_formats()
         return self.formats.all()
 
-    def perform_single_element_securing(self, element, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation):
+    def secure_access(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation, element=None):
         """ Secures a single element
 
         Args:
-            element: The element which shall be secured
             is_secured (bool): Whether to secure the element or not
             group (MrMapGroup): The group which is allowed to perform an operation
             operation (RequestOperation): The operation which can be performed by the groups
@@ -2212,6 +2305,8 @@ class Service(Resource):
         Returns:
 
         """
+        if element is None:
+            element = self
         element.metadata.is_secured = is_secured
         if is_secured:
 
@@ -2236,27 +2331,10 @@ class Service(Resource):
             sec_op.save()
             element.metadata.secured_operations.add(sec_op)
         else:
-            for sec_op in element.metadata.secured_operations.all():
-                sec_op.delete()
+            element.metadata.secured_operations.all().delete()
             element.metadata.secured_operations.clear()
         element.metadata.save()
         element.save()
-
-    def _recursive_secure_sub_layers(self, current, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
-        """ Recursive implementation of securing all sub layers of a current layer
-
-        Args:
-            is_secured (bool): Whether the sublayers shall be secured or not
-            group (MrMapGroup): The group which is allowed to run the operation
-            operation (RequestOperation): The operation that is allowed to be run
-            group_polygons (dict): The polygons which restrict the access for the group
-        Returns:
-             nothing
-        """
-        self.perform_single_element_securing(current, is_secured, group, operation, group_polygons, secured_operation)
-
-        for layer in current.child_layers.all():
-            self._recursive_secure_sub_layers(layer, is_secured, group, operation, group_polygons, secured_operation)
 
     def _secure_sub_layers(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub layers of this layer
@@ -2280,7 +2358,7 @@ class Service(Resource):
             start_element = Layer.objects.get(
                 metadata=self.metadata
             )
-        self._recursive_secure_sub_layers(start_element, is_secured, group, operation, group_polygons, secured_operation)
+        start_element.secure_sub_layers_recursive(is_secured, group, operation, group_polygons, secured_operation)
 
     def _secure_feature_types(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub layers of this layer
@@ -2296,7 +2374,7 @@ class Service(Resource):
         if self.is_root:
             elements = self.featuretypes.all()
             for element in elements:
-                self.perform_single_element_securing(element, is_secured, group, operation, group_polygons, secured_operation)
+                self.secure_access(is_secured, group, operation, group_polygons, secured_operation, element=element)
 
     def secure_sub_elements(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
         """ Secures all sub elements of this layer
@@ -2309,9 +2387,9 @@ class Service(Resource):
         Returns:
              nothing
         """
-        if self.servicetype.name == OGCServiceEnum.WMS.value:
+        if self.is_service_type(OGCServiceEnum.WMS):
             self._secure_sub_layers(is_secured, group, operation, group_polygons, secured_operation)
-        elif self.servicetype.name == OGCServiceEnum.WFS.value:
+        elif self.is_service_type(OGCServiceEnum.WFS):
             self._secure_feature_types(is_secured, group, operation, group_polygons, secured_operation)
 
     @transaction.atomic
@@ -2353,11 +2431,11 @@ class Service(Resource):
             linked_md.delete()
 
         # remove subelements
-        if self.servicetype.name == 'wms':
+        if self.is_service_type(OGCServiceEnum.WMS):
             layers = self.child_service.all()
             for layer in layers:
                 self.delete_child_data(layer)
-        elif self.servicetype.name == 'wfs':
+        elif self.is_service_type(OGCServiceEnum.WFS):
             feature_types = self.featuretypes.all()
             for f_t in feature_types:
                 self.delete_child_data(f_t)
@@ -2553,13 +2631,13 @@ class Layer(Service):
         """
         ret_list = []
         upper_element = Layer.objects.get(
-            child_layer=self
+            child_layers=self
         )
         while upper_element is not None:
             ret_list.append(upper_element)
             try:
                 upper_element = Layer.objects.get(
-                    child_layer=upper_element
+                    child_layers=upper_element
                 )
             except ObjectDoesNotExist:
                 upper_element = None
@@ -2661,6 +2739,22 @@ class Layer(Service):
         leaf_layers = self._get_bottom_layers_identifier_iterative()
         return leaf_layers
 
+    def secure_sub_layers_recursive(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, secured_operation: SecuredOperation):
+        """ Recursive implementation of securing all sub layers of a current layer
+
+        Args:
+            is_secured (bool): Whether the sublayers shall be secured or not
+            group (MrMapGroup): The group which is allowed to run the operation
+            operation (RequestOperation): The operation that is allowed to be run
+            group_polygons (dict): The polygons which restrict the access for the group
+        Returns:
+             nothing
+        """
+        self.secure_access(is_secured, group, operation, group_polygons, secured_operation)
+
+        for layer in self.child_layers.all():
+            layer.secure_sub_layers_recursive(is_secured, group, operation, group_polygons, secured_operation)
+
 
 class Module(Service):
     type = models.CharField(max_length=100)
@@ -2695,7 +2789,6 @@ class MimeType(Resource):
 
 
 class Dimension(models.Model):
-    #metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name="dimensions")
     type = models.CharField(max_length=255, choices=DIMENSION_TYPE_CHOICES, null=True, blank=True)
     units = models.CharField(max_length=255, null=True, blank=True)
     extent = models.TextField(null=True, blank=True)
@@ -2970,7 +3063,7 @@ class FeatureType(Resource):
             return
         service_version = service_helper.resolve_version_enum(self.parent_service.servicetype.version)
         service = None
-        if self.parent_service.servicetype.name == OGCServiceEnum.WFS.value:
+        if self.parent_service.is_service_type(OGCServiceEnum.WFS):
             service = OGCWebFeatureServiceFactory()
             service = service.get_ogc_wfs(version=service_version, service_connect_url=self.parent_service.metadata.capabilities_original_uri)
         if service is None:

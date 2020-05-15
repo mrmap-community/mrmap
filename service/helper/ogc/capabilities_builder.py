@@ -38,16 +38,15 @@ class CapabilityXMLBuilder:
         self.metadata = metadata
 
         # A single FeatureType is not a service, therefore we can not use the regular metadata.service call.
-        md_type = metadata.metadata_type.type
-        if md_type == MetadataEnum.SERVICE.value:
+        if metadata.is_metadata_type(MetadataEnum.SERVICE):
             service = metadata.service
             parent_service = service
-        elif md_type == MetadataEnum.FEATURETYPE.value:
+        elif metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
             service = FeatureType.objects.get(
                 metadata=metadata
             ).parent_service
             parent_service = service
-        elif md_type == MetadataEnum.LAYER.value:
+        elif metadata.is_metadata_type(MetadataEnum.LAYER):
             service = metadata.service
             if not service.is_root:
                 parent_service = service.parent_service
@@ -111,7 +110,7 @@ class CapabilityXMLBuilder:
         """
         xml_builder = None
 
-        if self.service_type == OGCServiceEnum.WMS.value:
+        if self.parent_service.is_service_type(OGCServiceEnum.WMS):
 
             if self.service_version == OGCServiceVersionEnum.V_1_0_0.value:
                 xml_builder = CapabilityWMS100Builder(self.metadata, self.service_version)
@@ -126,7 +125,7 @@ class CapabilityXMLBuilder:
                 # If something unknown has been passed as version, we use 1.1.1 as default
                 xml_builder = CapabilityWMS111Builder(self.metadata, self.service_version)
 
-        elif self.service_type == OGCServiceEnum.WFS.value:
+        elif self.parent_service.is_service_type(OGCServiceEnum.WFS):
 
             if self.service_version == OGCServiceVersionEnum.V_1_0_0.value:
                 xml_builder = CapabilityWFS100Builder(self.metadata, self.service_version)
@@ -535,7 +534,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         self._generate_capability_exception_xml(capability_elem)
 
         layer_md = self.metadata
-        if self.metadata.metadata_type.type == MetadataEnum.SERVICE.value:
+        if self.metadata.is_metadata_type(MetadataEnum.SERVICE):
             layer_md = self.root_layer.metadata
 
         self._generate_capability_layer_xml(capability_elem, layer_md)
@@ -1449,7 +1448,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         self.rs_declaration = "SRS"
 
         self.feature_type_list = []
-        if self.metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
+        if self.metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
             self.feature_type_list = FeatureType.objects.filter(
                 metadata=metadata,
             )

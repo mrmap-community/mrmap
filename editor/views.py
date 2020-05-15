@@ -6,16 +6,19 @@ from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from MapSkinner import utils
+from MapSkinner.cacher import PageCacher
 from MapSkinner.decorator import check_permission, check_ownership
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
     SECURITY_PROXY_WARNING_ONLY_FOR_ROOT, DATASET_MD_EDITED
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
+from api.settings import API_CACHE_KEY_PREFIX
 from editor.forms import MetadataEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.filters import MetadataWmsFilter, MetadataWfsFilter
 from service.helper.enums import OGCServiceEnum, MetadataEnum
 from service.models import RequestOperation, SecuredOperation, Metadata
+from service.tasks import async_process_secure_operations_form
 from structure.models import MrMapUser, Permission, MrMapGroup
 from users.helper import user_helper
 from editor.helper import editor_helper
@@ -197,19 +200,19 @@ def edit(request: HttpRequest, metadata_id: int):
 
             editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
             editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
+
+            # Clear page cache for API, so the changes will be visible on the next cache
+            p_cacher = PageCacher()
+            p_cacher.remove_pages(API_CACHE_KEY_PREFIX)
+
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
-            _type = metadata.get_service_type()
 
-            if _type == 'wms':
-                if metadata.is_root():
-                    parent_service = metadata.service
-                else:
+            if metadata.is_root():
+                parent_service = metadata.service
+            else:
+                if metadata.is_service_type(OGCServiceEnum.WMS):
                     parent_service = metadata.service.parent_service
-
-            elif _type == 'wfs':
-                if metadata.is_root():
-                    parent_service = metadata.service
-                else:
+                elif metadata.is_service_type(OGCServiceEnum.WFS):
                     parent_service = metadata.featuretype.parent_service
 
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, "{}: {}".format(parent_service.metadata.title, metadata.title))
@@ -246,20 +249,19 @@ def edit_access(request: HttpRequest, id: int):
     user = user_helper.get_user(request)
 
     md = Metadata.objects.get(id=id)
-    md_type = md.metadata_type.type
     template = "views/editor_edit_access_index.html"
     post_params = request.POST
 
     if request.method == "POST":
-        # process form input
+        # process form input using async tasks
         try:
-            editor_helper.process_secure_operations_form(post_params, md)
+            async_process_secure_operations_form.delay(post_params, md.id)
         except Exception as e:
             messages.error(request, message=e)
             return redirect("editor:edit_access", md.id)
         messages.success(request, EDITOR_ACCESS_RESTRICTED.format(md.title))
         md.save()
-        if md_type == MetadataEnum.FEATURETYPE.value:
+        if md.is_metadata_type(MetadataEnum.FEATURETYPE):
             redirect_id = md.featuretype.parent_service.metadata.id
         else:
             if md.service.is_root:
@@ -270,15 +272,10 @@ def edit_access(request: HttpRequest, id: int):
 
     else:
         # render form
-        metadata_type = md.metadata_type.type
-        if metadata_type == MetadataEnum.FEATURETYPE.value:
-            _type = OGCServiceEnum.WFS.value
-        else:
-            _type = md.service.servicetype.name
         secured_operations = []
-        if _type == OGCServiceEnum.WMS.value:
+        if md.is_service_type(OGCServiceEnum.WMS):
             secured_operations = WMS_SECURED_OPERATIONS
-        elif _type == OGCServiceEnum.WFS.value:
+        elif md.is_service_type(OGCServiceEnum.WFS):
             secured_operations = WFS_SECURED_OPERATIONS
 
         operations = RequestOperation.objects.filter(

@@ -7,7 +7,7 @@
     <tbody>
     <tr>
         <th scope="row">{% trans 'Title' %}</th>
-        <td itemprop="about headline">
+        <td itemprop="about headline" class="col">
             {{ title }}
         </td>
     </tr>
@@ -18,7 +18,7 @@
         </td>
     </tr>
     <tr>
-        <th scope="row">{% trans 'Child Layer' %}</th>
+        <th scope="row">{% trans 'Root layer' %}</th>
         <td>
             <div class="list-group">
                 {% if children %}

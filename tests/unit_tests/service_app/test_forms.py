@@ -186,7 +186,8 @@ class RegisterNewServiceWizardPage2TestCase(TestCase):
         """
             Tests if the correct queryset and initial value of the specific registering_with_group field
         """
-        user_groups = self.user.get_groups()
+        # Exclude public groups from the registration form check - registration is not allowed for public groups
+        user_groups = self.user.get_groups({"is_public_group": False})
         form = RegisterNewServiceWizardPage2(user=self.user)
         self.assertEqual(list(form.fields["registering_with_group"].queryset), list(user_groups))
         self.assertQuerysetEqual(form.fields["registering_for_other_organization"].queryset, user_groups.first().publish_for_organizations.all())

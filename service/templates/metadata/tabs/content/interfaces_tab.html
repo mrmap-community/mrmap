@@ -5,7 +5,7 @@
     <tbody>
     <tr>
         <th scope="row">{% trans 'Capabilities' %}</th>
-        <td>
+        <td class="col-sm">
             <p>
                 <a itemprop="url" class="btn btn-info" href="{{ capabilities_uri }}">
                     {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Show document' %}
@@ -20,14 +20,14 @@
             </p>
             <div class="collapse" id="collapseCapsLink">
                 <div class="card card-body">
-                    <a itemprop="url" href="{{ capabilities_uri }}">{{ capabilities_uri }}</a>
+                    <a itemprop="url" href="{{ capabilities_uri }}">{{ ROOT_URL }}{{ capabilities_uri }}</a>
                 </div>
             </div>
         </td>
     </tr>
     <tr>
         <th scope="row">{% trans 'Original Capabilities' %}</th>
-        <td>
+        <td class="col-sm">
             <p>
                 <a itemprop="url" class="btn btn-info" href="{{ capabilities_original_uri }}">
                     {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Show document' %}

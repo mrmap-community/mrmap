@@ -77,25 +77,7 @@
                 {{layer.bbox_lat_lon.boundary.extent.3}}</p>
         </td>
     </tr>
-    <tr>
-        <th scope="row">{% trans 'Spatial extent' %}</th>
-        <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
-            {% if layer.bbox_lat_lon.area > 0.0 %}
-                <div id="id_map" style="height: 50vh; min-height: 200px;"></div>
-                {% with id_map='id' bbox=layer.bbox_lat_lon leaflet_add_bbox=True  %}
-                    {% include 'leaflet/leaflet-client.html' %}
-                {% endwith %}
-                <script type="text/javascript">
-                    $('#properties-tab').on('shown.bs.tab', function (e) {
-                      initializeLeafletClient();
-                    })
-                </script>
-
-            {% else %}
-                {% trans 'No spatial data provided!' %}
-            {% endif %}
-        </td>
-    </tr>
+    {% include '../../render_content_spatial_extent.html' %}
     {% if related_metadata %}
     <tr>
         <th scope="row">{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} {% trans 'Coupled dataset metadata' %}</th>

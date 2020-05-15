@@ -237,9 +237,9 @@ def overwrite_capabilities_document(metadata: Metadata):
     is_root = metadata.is_root()
     if is_root:
         parent_metadata = metadata
-    elif metadata.metadata_type.type == MetadataEnum.LAYER.value:
+    elif metadata.is_metadata_type(MetadataEnum.LAYER):
         parent_metadata = metadata.service.parent_service.metadata
-    elif metadata.metadata_type.type == MetadataEnum.FEATURETYPE.value:
+    elif metadata.is_metadata_type(MetadataEnum.FEATURETYPE):
         parent_metadata = metadata.featuretype.parent_service.metadata
 
     # Make sure the Document record already exist by fetching the current capability xml
@@ -256,7 +256,7 @@ def overwrite_capabilities_document(metadata: Metadata):
 
     identifier = metadata.identifier
     if is_root:
-        if _type == OGCServiceEnum.WFS.value:
+        if metadata.is_service_type(OGCServiceEnum.WFS):
             if _version is OGCServiceVersionEnum.V_2_0_0 or _version is OGCServiceVersionEnum.V_2_0_2:
                 XML_NAMESPACES["wfs"] = "http://www.opengis.net/wfs/2.0"
                 XML_NAMESPACES["ows"] = "http://www.opengis.net/ows/1.1"
@@ -530,105 +530,3 @@ def prepare_secured_operations_groups(operations, sec_ops, all_groups, metadata)
                 })
             tmp.append(op_dict)
     return tmp
-
-
-def process_secure_operations_form(post_params: dict, md: Metadata):
-    """ Processes the secure-operations input from the access-editor form of a service.
-
-    Args:
-        post_params (dict): The dict which contains the POST parameter
-        md (Metadata): The metadata object of the edited object
-    Returns:
-         nothing - directly changes the database
-    """
-    # process form input
-    sec_operations_groups = json.loads(post_params.get("secured-operation-groups", {}))
-
-    is_secured = post_params.get("is_secured", "")
-    is_secured = is_secured == "on"  # resolve True|False
-
-    log_proxy = post_params.get("log_proxy", "")
-    log_proxy = log_proxy == "on"  # resolve True|False
-
-    # only root metadata can toggle the use_proxy setting
-    if md.is_root():
-        use_proxy = post_params.get("use_proxy", "")
-        # use_proxy could be None in case of subelements, which are not able to toggle the proxy option
-        use_proxy = use_proxy == "on"  # resolve True|False
-    else:
-        use_proxy = None
-
-    # use_proxy=False and is_secured=True and metadata.is_secured=True is not allowed!
-    if use_proxy is not None:
-        if not use_proxy and is_secured and md.is_secured:
-            raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS)
-
-    # use_proxy=False and log_proxy=True is not allowed!
-    # use_proxy=False and metadata.log_proxy_access is not allowed either!
-    if not use_proxy and log_proxy:
-        raise Exception(SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING)
-
-    # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
-    if md.has_external_authentication() and not use_proxy:
-        raise Exception(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
-
-    # set new metadata proxy value and iterate over all children
-    if use_proxy is not None and use_proxy != md.use_proxy_uri:
-        md.set_proxy(use_proxy)
-
-    # Set new log setting
-    if log_proxy != md.log_proxy_access:
-        md.set_logging(log_proxy)
-
-    # set new secured value and iterate over all children
-    if is_secured != md.is_secured:
-        md.set_secured(is_secured)
-
-    if not is_secured:
-        # remove all secured settings
-        sec_ops = SecuredOperation.objects.filter(
-            secured_metadata=md
-        )
-        sec_ops.delete()
-
-        # remove all secured settings for subelements
-        async_secure_service_task.delay(md.id, is_secured, None, None, None, None)
-
-    else:
-
-        for item in sec_operations_groups:
-            group_items = item.get("groups", {})
-            for group_item in group_items:
-                item_sec_op_id = int(group_item.get("securedOperation", "-1"))
-                group_id = int(group_item.get("groupId", "-1"))
-                remove = group_item.get("remove", "false")
-                remove = utils.resolve_boolean_attribute_val(remove)
-                group_polygons = group_item.get("polygons", "{}")
-                group_polygons = utils.resolve_none_string(group_polygons)
-                if group_polygons is not None:
-                    group_polygons = json.loads(group_polygons)
-                else:
-                    group_polygons = []
-
-                operation = item.get("operation", None)
-
-                if remove:
-                    # remove this secured operation
-                    sec_op = SecuredOperation.objects.get(
-                        id=item_sec_op_id
-                    )
-                    sec_op.delete()
-                else:
-                    operation = RequestOperation.objects.get(
-                        operation_name=operation
-                    )
-                    if item_sec_op_id == -1:
-                        # create new setting
-                        async_secure_service_task.delay(md.id, is_secured, group_id, operation.id, group_polygons, None)
-
-                    else:
-                        # edit existing one
-                        secured_op_input = SecuredOperation.objects.get(
-                            id=item_sec_op_id
-                        )
-                        async_secure_service_task.delay(md.id, is_secured, group_id, operation.id, group_polygons, item_sec_op_id)

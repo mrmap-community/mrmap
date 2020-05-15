@@ -2,7 +2,7 @@ import json
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from MrMap import utils
@@ -118,35 +118,77 @@ def index_wfs(request: HttpRequest):
 
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
-@check_ownership(Metadata, 'id')
-def edit(request: HttpRequest, id: int):
+@check_ownership(Metadata, 'metadata_id')
+def edit_dataset(request: HttpRequest, metadata_id: int):
     """ The edit view for metadata
 
     Provides editing functions for all elements which are described by Metadata objects
 
     Args:
         request: The incoming request
-        id: The metadata id
+        metadata_id: The metadata id
     Returns:
         A rendered view
     """
     user = user_helper.get_user(request)
 
-    metadata = get_object_or_404(Metadata, id=id)
-
-    # check if user owns this service by group-relation
-    if metadata.created_by not in user.get_groups():
-        messages.error(request, message=NO_PERMISSION)
-        return redirect("editor:index")
-
-    editor_form = MetadataEditorForm(request.POST or None)
+    metadata = get_object_or_404(Metadata, id=metadata_id)
+    if metadata.metadata_type.type != 'dataset':
+        return HttpResponseRedirect(reverse("editor:edit", args=(metadata_id,)), status=303)
 
     if request.method == 'POST':
-
+        editor_form = MetadataEditorForm(request.POST or None)
         if editor_form.is_valid():
-
             custom_md = editor_form.save(commit=False)
 
+
+            # ToDo:
+            #editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
+            editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
+
+
+
+            messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
+
+            user_helper.create_group_activity(metadata.created_by, user, DATASET_MD_EDITED, "{}: {}".format(metadata.title, None))
+    else:
+        editor_form = MetadataEditorForm(instance=metadata)
+
+    editor_form.action_url = reverse("editor:edit-dataset-metadata", args=(metadata_id,))
+    params = {
+        "service_metadata": metadata,
+        "form": editor_form,
+    }
+
+    template = "views/editor_metadata_index.html"
+    context = DefaultContext(request, params, user)
+    return render(request, template, context.get_context())
+
+
+@login_required
+@check_permission(Permission(can_edit_metadata_service=True))
+@check_ownership(Metadata, 'metadata_id')
+def edit(request: HttpRequest, metadata_id: int):
+    """ The edit view for metadata
+
+    Provides editing functions for all elements which are described by Metadata objects
+
+    Args:
+        request: The incoming request
+        metadata_id: The metadata id
+    Returns:
+        A rendered view
+    """
+    user = user_helper.get_user(request)
+
+    metadata = get_object_or_404(Metadata, id=metadata_id)
+    if metadata.metadata_type.type == 'dataset':
+        return HttpResponseRedirect(reverse("editor:edit-dataset-metadata", args=(metadata_id,)), status=303)
+
+    if request.method == 'POST':
+        editor_form = MetadataEditorForm(request.POST or None)
+        if editor_form.is_valid():
+            custom_md = editor_form.save(commit=False)
             if not metadata.is_root():
                 # this is for the case that we are working on a non root element which is not allowed to change the
                 # inheritance setting for the whole service -> we act like it didn't change
@@ -174,21 +216,17 @@ def edit(request: HttpRequest, id: int):
                     parent_service = metadata.featuretype.parent_service
 
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, "{}: {}".format(parent_service.metadata.title, metadata.title))
-            return redirect("service:detail", id)
-
-        else:
-            messages.add_message(request, messages.ERROR, FORM_INPUT_INVALID)
-            return redirect("editor:edit", id)
+            return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
     else:
-
-        template = "views/editor_metadata_index.html"
         editor_form = MetadataEditorForm(instance=metadata)
-        editor_form.action_url = reverse("editor:edit", args=(id,))
 
-        params = {
-            "service_metadata": metadata,
-            "form": editor_form,
-        }
+    template = "views/editor_metadata_index.html"
+    editor_form.action_url = reverse("editor:edit", args=(metadata_id,))
+
+    params = {
+        "service_metadata": metadata,
+        "form": editor_form,
+    }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
 

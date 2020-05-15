@@ -5,7 +5,7 @@
     <tbody>
     <tr>
         <th scope="row">{% trans 'Capabilities' %}</th>
-        <td>
+        <td class="col-sm">
             <p>
                 <a itemprop="url" class="btn btn-info" href="{{ capabilities_uri }}">
                     {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Show document' %}
@@ -27,7 +27,7 @@
     </tr>
     <tr>
         <th scope="row">{% trans 'Original Capabilities' %}</th>
-        <td>
+        <td class="col-sm">
             <p>
                 <a itemprop="url" class="btn btn-info" href="{{ capabilities_original_uri }}">
                     {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Show document' %}

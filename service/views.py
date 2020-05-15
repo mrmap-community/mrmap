@@ -645,6 +645,7 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
         dataset_doc = Document.objects.get(
             related_metadata=md
         )
+        params['bounding_box'] = md.bounding_geometry
         params['dataset_metadata'] = dataset_doc.get_dataset_metadata_as_dict()
         params.update({'capabilities_uri': reverse('service:get-dataset-metadata', args=(md.id,))})
 

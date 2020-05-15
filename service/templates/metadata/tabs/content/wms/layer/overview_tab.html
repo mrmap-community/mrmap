@@ -9,7 +9,7 @@
     <tbody>
     <tr>
         <th scope="row">{% trans 'Title' %}</th>
-        <td itemprop="about headline">
+        <td itemprop="about headline" class="col">
             {{ title }}
         </td>
     </tr>
@@ -32,7 +32,7 @@
     </tr>
     {% endif %}
     <tr>
-        <th scope="row">{% trans 'Name of the resource' %}</th>
+        <th scope="row">{% trans 'Name of resource' %}</th>
         <td>{{ name_of_the_resource }}</td>
     </tr>
     <tr>
@@ -49,6 +49,7 @@
             </div>
         </td>
     </tr>
+    {% include '../../render_content_spatial_extent.html' %}
     <tr>
         <th scope="row">{% trans 'Organization' %}</th>
         <td>

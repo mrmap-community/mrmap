@@ -22,7 +22,7 @@ MD_CORE_MODEL = {
         'pycsw:Abstract': 'abstract',
         'pycsw:Keywords': 'csw_keywords',
         'pycsw:KeywordType': '',
-        'pycsw:Format': '',
+        'pycsw:Format': 'csw_formats',
         'pycsw:Source': 'capabilities_uri',
         'pycsw:Date': '',
         'pycsw:Modified': 'last_modified',

@@ -1377,7 +1377,14 @@ class Metadata(Resource):
 
     @property
     def csw_formats(self):
-        formats = self.service.formats.all()
+        """ Returns the formats (MimeTypes)
+
+        A function disguised as an attribute for usage as single attribute reference in the pycsw mapping dict
+
+        Returns:
+             str: The formats, concatenated using ','
+        """
+        formats = self.service.get_supported_formats()
         return ",".join([f.mime_type for f in formats])
 
     @property

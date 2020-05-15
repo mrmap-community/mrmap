@@ -7,7 +7,9 @@
                 {% with id_map='id' bbox=bounding_box leaflet_add_bbox=True  %}
                     {% include 'leaflet/leaflet-client.html' %}
                     <script type="text/javascript">
-                        initializeLeafletClient();
+                        $('#properties-tab').on('shown.bs.tab', function (e) {
+                          initializeLeafletClient();
+                        })
                     </script>
                 {% endwith %}
             {% else %}

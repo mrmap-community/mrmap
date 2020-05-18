@@ -3,6 +3,7 @@ from django.contrib import admin
 # Register your models here.
 from django.contrib.admin import site
 
+from service.admin_filter import MetadataTypeFilter
 from service.models import *
 
 
@@ -55,7 +56,9 @@ class MetadataTypeAdmin(admin.ModelAdmin):
 
 
 class MetadataAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact', 'uuid')
+    list_display = ('id', 'title', 'service', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact', 'uuid')
+    list_filter = ('metadata_type', 'is_active', 'is_broken')
+    search_fields = ['title']
 
 
 class MetadataRelationAdmin(admin.ModelAdmin):

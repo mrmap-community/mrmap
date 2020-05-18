@@ -9,6 +9,8 @@ import json
 import pickle
 from urllib.request import urlopen
 import lxml.etree as ElementTree
+import untangle
+import xmltodict
 
 from django.contrib import messages
 from django.db import transaction
@@ -169,10 +171,15 @@ def overwrite_dataset_metadata_document(metadata: Metadata):
     doc = Document.objects.get(related_metadata=metadata)
     xml = doc.current_dataset_metadata_document.encode('utf-8')
 
+    xml_dict = xmltodict.parse(doc.current_dataset_metadata_document)
+
+    xml_again = xmltodict.unparse(xml_dict)
+    
+
     # pyxb CreateFromDocument example; doesnt work well
-    #md_metadata = gmd.CreateFromDocument(xml, default_namespace='gmd')
+    # md_metadata = gmd.CreateFromDocument(xml, default_namespace='gmd')
 
-
+    """
     # xmlschema package validation against a schema
 
     xs = xmlschema.XMLSchema('http://schemas.opengis.net/iso/19139/20060504/gmd/gmd.xsd')
@@ -180,6 +187,7 @@ def overwrite_dataset_metadata_document(metadata: Metadata):
     xt = ElementTree.fromstring(xml)
     is_valid = xs.is_valid(xt)
     descriptive_keywords = xs.elements['descriptiveKeywords'].decode(xt)
+    """
 
     """
     # pyxb string to dom example

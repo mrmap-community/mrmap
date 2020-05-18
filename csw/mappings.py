@@ -47,7 +47,7 @@ MD_CORE_MODEL = {
         'pycsw:TempExtent_end': 'csw_temp_dim_end',
         'pycsw:ServiceType': 'csw_service_type',
         'pycsw:ServiceTypeVersion': 'csw_service_version',
-        'pycsw:Operation': '',
+        'pycsw:Operation': 'csw_operation',
         'pycsw:CouplingType': '',
         'pycsw:OperatesOn': 'csw_operates_on',
         'pycsw:OperatesOnIdentifier': 'csw_operates_on_identifier',

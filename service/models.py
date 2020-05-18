@@ -1526,16 +1526,42 @@ class Metadata(Resource):
         return self.get_service_version().value
 
     @property
+    def csw_operation(self):
+        """ Returns the available operations for this metadata.
+
+        A function disguised as an attribute for usage as single attribute reference in the pycsw mapping dict
+
+        Returns:
+             str:
+        """
+        parent_service = None
+        if self.is_root():
+            parent_service = self.service
+        elif self.is_service_type(OGCServiceEnum.WMS):
+            parent_service = self.service.parent_service
+        elif self.is_service_type(OGCServiceEnum.WFS):
+            parent_service = self.featuretype.parent_service
+
+        operations = {_format.operation: None for _format in parent_service.get_supported_formats()}
+        operations = operations.keys()
+        return ",".join(operations)
+
+    @property
     def csw_operates_on_name(self):
-        return "Test"
+        return "Test_on_name"
 
     @property
     def csw_operates_on_identifier(self):
-        return "Test"
+        return "Test_on_identifier"
 
     @property
     def csw_operates_on(self):
-        return "Test"
+        if not self.is_metadata_type(MetadataEnum.DATASET):
+            metadata_relations = self.related_metadata.all()
+            related_metadatas = [rel.metadata_to for rel in metadata_relations]
+            return ",".join([related_metadata.identifier for related_metadata in related_metadatas])
+        else:
+            return None
 
 
 class MetadataType(models.Model):
@@ -2432,7 +2458,6 @@ class Service(Resource):
         """
         return self.servicetype.name == enum.value
 
-
     def get_supported_formats(self):
         """ Returns a list of supported formats.
 
@@ -2443,8 +2468,11 @@ class Service(Resource):
              formats (QuerySet): A query set of available formats
         """
         if self.metadata.is_root() and self.formats.all().count() == 0:
-            child = self.child_service.first()
-            return child.get_supported_formats()
+            try:
+                child = self.subelements[0]
+                return child.formats.all()
+            except KeyError:
+                pass
         return self.formats.all()
 
     def secure_access(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation, element=None):

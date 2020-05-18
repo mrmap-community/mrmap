@@ -720,6 +720,7 @@ class OGCWebFeatureService(OGCWebService):
         if self.service_file_identifier is None:
             self.service_file_identifier = uuid.uuid4()
         md.uuid = self.service_file_identifier
+        md.identifier = self.service_file_identifier
         md.abstract = self.service_identification_abstract
         md.online_resource = self.service_provider_onlineresource_linkage
 

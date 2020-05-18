@@ -5,6 +5,7 @@ mrmap_db_pw=mrmap_db_pw
 hostname=127.0.0.1
 
 # install required packages
+apt-get update
 apt-get install -y postgresql postgresql-client postgis redis-server libcurl4-openssl-dev libssl-dev virtualenv build-essential git python3-pip fcgiwrap cgi-mapserver apache2-utils curl gnupg2 ca-certificates lsb-release gettext
 
 # add nginx official mainline repo

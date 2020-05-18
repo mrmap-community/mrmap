@@ -160,9 +160,15 @@ def _new_service_wizard_page1(request: HttpRequest):
         }
 
         params = {
-            "new_service_form": RegisterNewServiceWizardPage2(initial=init_data,
-                                                              user=user,
-                                                              selected_group=user.get_groups().first()),
+            "new_service_form": RegisterNewServiceWizardPage2(
+                initial=init_data,
+                user=user,
+                selected_group=user.get_groups(
+                    {
+                        "is_public_group": False
+                    }
+                ).first()
+            ),
             "show_new_service_form": True,
         }
         return index(request=request, update_params=params, status_code=202)
@@ -639,6 +645,7 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
         dataset_doc = Document.objects.get(
             related_metadata=md
         )
+        params['bounding_box'] = md.bounding_geometry
         params['dataset_metadata'] = dataset_doc.get_dataset_metadata_as_dict()
         params.update({'capabilities_uri': reverse('service:get-dataset-metadata', args=(md.id,))})
 

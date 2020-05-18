@@ -166,19 +166,21 @@ def overwrite_dataset_metadata_document(metadata: Metadata):
     doc = Document.objects.get(related_metadata=metadata)
     xml = doc.current_dataset_metadata_document.encode('utf-8')
 
-    md_metadata = gmd.CreateFromDocument(doc.current_dataset_metadata_document)
+    # pyxb CreateFromDocument example; doesnt work well
+    #md_metadata = gmd.CreateFromDocument(xml, default_namespace='gmd')
 
-    """
+
     # xmlschema package validation against a schema
-    
+
     xs = xmlschema.XMLSchema('http://schemas.opengis.net/iso/19139/20060504/gmd/gmd.xsd')
     serialized_schema = pickle.dumps(xs)
     xt = ElementTree.fromstring(xml)
     is_valid = xs.is_valid(xt)
     descriptive_keywords = xs.elements['descriptiveKeywords'].decode(xt)
-    """
-    iso_19115_root_obj = domutils.StringToDOM(xml)
 
+    """
+    # pyxb string to dom example
+    iso_19115_root_obj = domutils.StringToDOM(xml)
     md_metadatas = iso_19115_root_obj.childNodes
 
     for md_metadata in md_metadatas:
@@ -214,7 +216,7 @@ def overwrite_dataset_metadata_document(metadata: Metadata):
                 elif child_Node.tagName == 'descriptiveKeywords':
                     descriptive_keywords.append(child_Node)
         i=0
-
+    """
 
     # handle keywords
     #_overwrite_dataset_metadata_keywords(iso_19115_md_metadata, metadata)

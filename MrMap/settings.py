@@ -29,15 +29,15 @@ GIT_REPO_URI = "https://git.osgeo.org/gitea/hollsandre/MrMap/src/branch/pre_mast
 GIT_GRAPH_URI = "https://git.osgeo.org/gitea/GDI-RP/MrMap/graph"
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'y8l7#tp67t4^blr5a96dtaxj%z0%5&_fr5zn99kp)r+hk!_#$e'
+SECRET_KEY = 'k7goig+64=-4ps7a(@-qqa(pdk^8+hq#1a9)^bn^m*j=ix-3j5'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
 
-HTTP_OR_SSL = "https://"
-HOST_NAME = "192.168.56.111"
+HTTP_OR_SSL = "http://"
+HOST_NAME = "127.0.0.1:8000"
 HOST_IP = "127.0.0.1:8000"
 # DEFINE ROOT URL FOR DYNAMIC AJAX REQUEST RESOLVING
 ROOT_URL = HTTP_OR_SSL + HOST_NAME
@@ -191,8 +191,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': 'MrMap',
-        'USER': 'mrmap_db_user',
-        'PASSWORD': 'mrmap_db_pw',
+        'USER': 'postgres',
         'HOST': '127.0.0.1',
         'PORT': '5432'
     }

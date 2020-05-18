@@ -60,7 +60,7 @@ custom_update(){
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!
 Checking MrMap/settings.py
 !!!!!!!!!!!!!!!!!!!!!!!!!!"
-check_django_settings "MapSkinner/settings.py"
+check_django_settings "MrMap/settings.py"
 
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!
 Checking service/settings.py

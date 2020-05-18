@@ -10,7 +10,7 @@ from django.views.decorators.cache import cache_page
 
 from pycsw import server as pycsw_server
 
-from MapSkinner.settings import PYCSW_CONF
+from MrMap.settings import PYCSW_CONF
 from csw.settings import CSW_CACHE_TIME
 
 

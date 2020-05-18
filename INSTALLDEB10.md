@@ -16,9 +16,9 @@ sudo apt install libcurl4-openssl-dev libssl-dev python3.7-dev gdal-bin
         
 1. create virtualenv
 
-        $ virtualenv -p python3 `PATH-TO-MAPSKINNER`/venv
+        $ virtualenv -p python3 `PATH-TO-MrMap`/venv
         
-> to use the virtualenv run: source `PATH-TO-MAPSKINNER`/venv/bin/activate
+> to use the virtualenv run: source `PATH-TO-MrMap`/venv/bin/activate
 
 ##Install nginx with mapserver
 We use mapserver to produce the masks for spatial restrictions.  

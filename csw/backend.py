@@ -8,7 +8,7 @@ Created on: 05.05.20
 from django.db.models import QuerySet, Q
 from pycsw.core.repository import Repository
 
-from MapSkinner import settings
+from MrMap import settings
 from service.models import Metadata
 
 AND = " and "

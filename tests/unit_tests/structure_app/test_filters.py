@@ -7,7 +7,7 @@ Created on: 24.04.20
 """
 from django.test import TestCase
 
-from MapSkinner import utils
+from MrMap import utils
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.models import Organization, MrMapGroup
 from tests.baker_recipes.db_setup import create_superadminuser, create_random_named_orgas, create_guest_groups

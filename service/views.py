@@ -10,15 +10,15 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from requests.exceptions import ReadTimeout
-from MapSkinner import utils
-from MapSkinner.cacher import PreviewImageCacher
-from MapSkinner.consts import *
-from MapSkinner.decorator import check_permission, log_proxy, check_ownership
-from MapSkinner.messages import SERVICE_UPDATED, \
+from MrMap import utils
+from MrMap.cacher import PreviewImageCacher
+from MrMap.consts import *
+from MrMap.decorator import check_permission, log_proxy, check_ownership
+from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED
-from MapSkinner.responses import DefaultContext
+from MrMap.responses import DefaultContext
 from service import tasks
 from service.helper import xml_helper
 from service.filters import MetadataWmsFilter, MetadataWfsFilter

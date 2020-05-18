@@ -2,8 +2,8 @@ from django.http import HttpRequest
 from django_tables2 import tables, RequestConfig
 from django_tables2.templatetags import django_tables2
 
-from MapSkinner.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
-from MapSkinner.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_MAX, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
+from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
+from MrMap.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_MAX, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
 
 
 def prepare_table_pagination_settings(request: HttpRequest, table: django_tables2, param_lead: str):
@@ -33,7 +33,7 @@ def prepare_list_pagination_settings(request: HttpRequest, l: list, param_lead: 
     return pagination
 
 
-class MapSkinnerTable(tables.Table):
+class MrMapTable(tables.Table):
     filter = None
     pagination = None
     page_field = None

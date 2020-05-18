@@ -4,12 +4,12 @@ from django.forms import ModelForm
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
-from MapSkinner.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
+from MrMap.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, REQUEST_ACTIVATION_TIMEOVER, \
     PUBLISH_PERMISSION_REMOVING_DENIED
-from MapSkinner.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
-from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
+from MrMap.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
+from MrMap.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from structure.models import MrMapGroup, Organization, Role, PendingRequest
 from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
 

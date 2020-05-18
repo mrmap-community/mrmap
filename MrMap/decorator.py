@@ -13,7 +13,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect, get_object_or_404
 from django.urls import reverse
 
-from MapSkinner.messages import NO_PERMISSION, SERVICE_NOT_FOUND, RESOURCE_IS_OWNED_BY_ANOTHER_GROUP, \
+from MrMap.messages import NO_PERMISSION, SERVICE_NOT_FOUND, RESOURCE_IS_OWNED_BY_ANOTHER_GROUP, \
     REQUESTING_USER_IS_NOT_MEMBER_OF_THE_GROUP, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION
 from service.models import Metadata, ProxyLog, Resource
 from structure.models import Permission, MrMapUser, MrMapGroup, Organization

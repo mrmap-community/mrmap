@@ -12,8 +12,8 @@ import os
 from celery import Celery, task
 from django.conf import settings
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MapSkinner.settings')
-app = Celery('MapSkinner')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MrMap.settings')
+app = Celery('MrMap')
 
 # Using a string here means the worker will not have to
 # pickle the object when using Windows.

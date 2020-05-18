@@ -1,4 +1,4 @@
-# install(script) nginx + uwsgi + django + mapskinner/mrmap:
+# install(script) nginx + uwsgi + django + MrMap:
 #!/bin/bash
 mrmap_db_user=mrmap_db_user
 mrmap_db_pw=mrmap_db_pw
@@ -27,24 +27,24 @@ sed -i s/"host    all             all             127.0.0.1\/32            md5"/
 
 /etc/init.d/postgresql restart
 
-# mapskinner setup, has to be done as postgres because of postgis extension
+# MrMap setup, has to be done as postgres because of postgis extension
 
-git clone https://git.osgeo.org/gitea/GDI-RP/MapSkinner /opt/MapSkinner
+git clone https://git.osgeo.org/gitea/GDI-RP/MrMap /opt/MrMap
 python -m pip install uwsgi flower
-python -m pip install -r /opt/MapSkinner/requirements.txt
-python /opt/MapSkinner/manage.py makemigrations service
-python /opt/MapSkinner/manage.py makemigrations structure
-python /opt/MapSkinner/manage.py migrate
-python /opt/MapSkinner/manage.py collectstatic
+python -m pip install -r /opt/MrMap/requirements.txt
+python /opt/MrMap/manage.py makemigrations service
+python /opt/MrMap/manage.py makemigrations structure
+python /opt/MrMap/manage.py migrate
+python /opt/MrMap/manage.py collectstatic
 
 # changes to settings.py, set Django debug to false, set hostname, enable ssl
-sed -i s/"DEBUG = True"/"DEBUG = False"/g /opt/MapSkinner/MapSkinner/settings.py
-sed -i s/"HOST_NAME = \"127.0.0.1:8000\""/"HOST_NAME = \"$hostname\""/g /opt/MapSkinner/MapSkinner/settings.py
-sed -i s/"HTTP_OR_SSL = \"http:\/\/\""/"HTTP_OR_SSL = \"https:\/\/\""/g /opt/MapSkinner/MapSkinner/settings.py
+sed -i s/"DEBUG = True"/"DEBUG = False"/g /opt/MrMap/MrMap/settings.py
+sed -i s/"HOST_NAME = \"127.0.0.1:8000\""/"HOST_NAME = \"$hostname\""/g /opt/MrMap/MrMap/settings.py
+sed -i s/"HTTP_OR_SSL = \"http:\/\/\""/"HTTP_OR_SSL = \"https:\/\/\""/g /opt/MrMap/MrMap/settings.py
 # generate new secret key
-skey=`python /opt/MapSkinner/manage.py shell -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`
-sed -i '/^SECRET_KEY/d' /opt/MapSkinner/MapSkinner/settings.py
-sed -i "/# SECURITY WARNING: keep the secret key used in production secret\!/a SECRET_KEY = '$skey'" /opt/MapSkinner/MapSkinner/settings.py
+skey=`python /opt/MrMap/manage.py shell -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`
+sed -i '/^SECRET_KEY/d' /opt/MrMap/MrMap/settings.py
+sed -i "/# SECURITY WARNING: keep the secret key used in production secret\!/a SECRET_KEY = '$skey'" /opt/MrMap/MrMap/settings.py
 # remove postgres trust, replace with mr map database user
 sed -i s/"host    all             all             127.0.0.1\/32            trust"/"host    MrMap             $mrmap_db_user             127.0.0.1\/32            md5"/g /etc/postgresql/11/main/pg_hba.conf
 
@@ -52,10 +52,10 @@ sed -i s/"host    all             all             127.0.0.1\/32            trust
 
 
 # change settings.py to dedicated user
-sed -i s/"        'USER': 'postgres',"/"        'USER': '$mrmap_db_user',"/g /opt/MapSkinner/MapSkinner/settings.py
+sed -i s/"        'USER': 'postgres',"/"        'USER': '$mrmap_db_user',"/g /opt/MrMap/MrMap/settings.py
 
-if  ! grep -q "        'PASSWORD': '$mrmap_db_pw',"  /opt/MapSkinner/MapSkinner/settings.py ;then
-	sed -i "/        'USER': '$mrmap_db_user',/a \        \'PASSWORD': '$mrmap_db_pw'," /opt/MapSkinner/MapSkinner/settings.py
+if  ! grep -q "        'PASSWORD': '$mrmap_db_pw',"  /opt/MrMap/MrMap/settings.py ;then
+	sed -i "/        'USER': '$mrmap_db_user',/a \        \'PASSWORD': '$mrmap_db_pw'," /opt/MrMap/MrMap/settings.py
 fi
 
 # db setup done
@@ -77,7 +77,7 @@ if [ ! -f /etc/ssl/certs/dhparams.pem ]; then
 fi
 
 # copy nginx config
-cp -a /opt/MapSkinner/install/confs/mrmap_nginx /etc/nginx/conf.d/mrmap.conf
+cp -a /opt/MrMap/install/confs/mrmap_nginx /etc/nginx/conf.d/mrmap.conf
 # replace hostname in nginx config
 sed -i s/"    server_name 127.0.0.1;"/"    server_name $hostname;"/g /etc/nginx/conf.d/mrmap.conf
 sed -i s/"    server_name         127.0.0.1;"/"    server_name         $hostname;"/g /etc/nginx/conf.d/mrmap.conf
@@ -89,10 +89,10 @@ fi
 rm /etc/nginx/conf.d/default.conf
 
 # copy uwsgi ini
-cp -a /opt/MapSkinner/install/confs/mrmap_uwsgi_ini /opt/MapSkinner/MapSkinner/mrmap_uwsgi.ini
+cp -a /opt/MrMap/install/confs/mrmap_uwsgi_ini /opt/MrMap/MrMap/mrmap_uwsgi.ini
 
 # copy script to change database rights
-cp -a /opt/MapSkinner/install/confs/change_db_rights /tmp/change_database_rights.psql
+cp -a /opt/MrMap/install/confs/change_db_rights /tmp/change_database_rights.psql
 
 sed -i s/\$mrmap_db_user/$mrmap_db_user/g /tmp/change_database_rights.psql
 # execute
@@ -100,7 +100,7 @@ su - postgres -c "psql -d 'MrMap' -f /tmp/change_database_rights.psql"
 
 
 # copy uwsgi systemd config
-cp -a /opt/MapSkinner/install/confs/mrmap_uwsgi_service /etc/systemd/system/uwsgi.service
+cp -a /opt/MrMap/install/confs/mrmap_uwsgi_service /etc/systemd/system/uwsgi.service
 
 # start uwsgi and enable start on boot
 systemctl start uwsgi
@@ -118,10 +118,10 @@ chown www-data:www-data /var/run/celery/
 
 
 # copy celery environment file
-cp -a /opt/MapSkinner/install/confs/mrmap_celery_environment /etc/default/celery
+cp -a /opt/MrMap/install/confs/mrmap_celery_environment /etc/default/celery
 
 # copy celery service file
-cp -a /opt/MapSkinner/install/confs/mrmap_celery_service /etc/systemd/system/celery.service
+cp -a /opt/MrMap/install/confs/mrmap_celery_service /etc/systemd/system/celery.service
 
 # start celery and enable start on boot
 systemctl start celery
@@ -129,19 +129,19 @@ systemctl enable celery
 
 
 # copy celery helper service file
-cp -a /opt/MapSkinner/install/confs/mrmap_celery_helper_service /etc/systemd/system/celery-helper.service
+cp -a /opt/MrMap/install/confs/mrmap_celery_helper_service /etc/systemd/system/celery-helper.service
 systemctl enable celery-helper
 
 # copy celery flower statistics service file
-cp -a /opt/MapSkinner/install/confs/mrmap_celery_flower_service /etc/systemd/system/celery-flower.service
+cp -a /opt/MrMap/install/confs/mrmap_celery_flower_service /etc/systemd/system/celery-flower.service
 systemctl enable celery-flower
 systemctl start celery-flower
 
 
 systemctl daemon-reload
 
-if  ! grep -q "restartMapSkinner"  /etc/bash.bashrc ;then
-echo "alias "restartMapSkinner"=\"systemctl restart celery;systemctl restart uwsgi;systemctl restart celery-flower;/etc/init.d/nginx restart\"" >> /etc/bash.bashrc
+if  ! grep -q "restartMrMap"  /etc/bash.bashrc ;then
+echo "alias "restartMrMap"=\"systemctl restart celery;systemctl restart uwsgi;systemctl restart celery-flower;/etc/init.d/nginx restart\"" >> /etc/bash.bashrc
 fi
 
 echo "Enter password for basic auth for celery statistics, available under /flower, username is root for now"
@@ -151,10 +151,10 @@ htpasswd -c /etc/nginx/.htpasswd root
 while true; do
     read -p "Do you want to install Modsecurity and generate stronger Key Exchange Algorithm? \n
 This can take up to 1 hour, recommended for production!y/n? \n
-You can do this later with bash /opt/MapSkinner/install/modsecurity_and_stronger_DH.bash " yn
+You can do this later with bash /opt/MrMap/install/modsecurity_and_stronger_DH.bash " yn
     case $yn in
         [Yy]* )
-				bash /opt/MapSkinner/install/modsecurity_and_stronger_DH.bash;
+				bash /opt/MrMap/install/modsecurity_and_stronger_DH.bash;
         break;;
         [Nn]* ) break;;
         * ) echo "Please answer yes or no.";;
@@ -207,8 +207,8 @@ MMMMMdhhhhhhMMMMMMNmdmmNMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 MMMMMNhhddmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 
 '
-echo "Congratulations, MapSkinner is installed on your system!"
-echo "Please execute \"python /opt/MapSkinner/manage.py setup\" to create a user, afterwards access with browser and have fun :)"
+echo "Congratulations, MrMap is installed on your system!"
+echo "Please execute \"python /opt/MrMap/manage.py setup\" to create a user, afterwards access with browser and have fun :)"
 
 /etc/init.d/nginx restart
 systemctl restart uwsgi

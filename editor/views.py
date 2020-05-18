@@ -7,13 +7,13 @@ from django.shortcuts import render, redirect
 
 # Create your views here.
 from django.template.loader import render_to_string
-from MapSkinner import utils
-from MapSkinner.cacher import PageCacher
-from MapSkinner.decorator import check_permission, check_ownership
-from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
+from MrMap import utils
+from MrMap.cacher import PageCacher
+from MrMap.decorator import check_permission, check_ownership
+from MrMap.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
     SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
-from MapSkinner.responses import DefaultContext, BackendAjaxResponse
+from MrMap.responses import DefaultContext, BackendAjaxResponse
 from api.settings import API_CACHE_KEY_PREFIX
 from editor.forms import MetadataEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS

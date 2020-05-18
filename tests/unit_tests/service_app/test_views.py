@@ -4,8 +4,8 @@ from unittest import mock
 from django.contrib.messages import get_messages
 from django.test import TestCase, Client
 from django.urls import reverse
-from MapSkinner.consts import SERVICE_ADD
-from MapSkinner.messages import SERVICE_ACTIVATED, SERVICE_DEACTIVATED, SERVICE_UPDATE_WRONG_TYPE
+from MrMap.consts import SERVICE_ADD
+from MrMap.messages import SERVICE_ACTIVATED, SERVICE_DEACTIVATED, SERVICE_UPDATE_WRONG_TYPE
 from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2, RemoveServiceForm, \
     UpdateOldToNewElementsForm
 from service.helper.enums import OGCServiceEnum

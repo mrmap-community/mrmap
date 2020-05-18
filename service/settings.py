@@ -10,7 +10,7 @@ import os
 
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 
-from MapSkinner.settings import BASE_DIR, HTTP_OR_SSL, HOST_NAME
+from MrMap.settings import BASE_DIR, HTTP_OR_SSL, HOST_NAME
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
 
 # Some special things
@@ -126,7 +126,7 @@ RENDER_TEXT_ON_IMG = False  # Whether to render 'Access denied for xy' on GetMap
 PREVIEW_MIME_TYPE_DEFAULT = "png"   # Specify a preferred default mime type (without "image/..." prefix) for rendering preview images (e.g. HTML metadata view)
 
 # PREVIEW IMAGE REQUESTING
-PLACEHOLDER_IMG_PATH = "MapSkinner/static/images/mr_map_404.png"
+PLACEHOLDER_IMG_PATH = "MrMap/static/images/mr_map_404.png"
 
 # PROXY LOG
 COUNT_DATA_PIXELS_ONLY = True  # If True, the response megapixel will be computed without transparent (alpha) pixel.

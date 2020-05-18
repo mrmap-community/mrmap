@@ -14,11 +14,11 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from MapSkinner import utils
-from MapSkinner.decorator import check_permission
-from MapSkinner.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
+from MrMap import utils
+from MrMap.decorator import check_permission
+from MrMap.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
     RESOURCE_NOT_FOUND, SERVICE_REMOVED
-from MapSkinner.responses import DefaultContext, APIResponse
+from MrMap.responses import DefaultContext, APIResponse
 from api import view_helper
 from api.forms import TokenForm
 from api.permissions import CanRegisterService, CanRemoveService, CanActivateService

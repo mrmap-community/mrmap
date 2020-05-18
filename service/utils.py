@@ -9,7 +9,7 @@ Created on: 21.01.20
 from django.http import HttpRequest
 from django_tables2 import RequestConfig
 
-from MapSkinner.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
+from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
 from service.helper.enums import MetadataEnum
 from service.models import Metadata, Organization, Layer, FeatureType, MetadataRelation, Service
 from structure.models import MrMapUser

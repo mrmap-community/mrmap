@@ -1,6 +1,6 @@
 CELERYD_NODES="w1 w2 w3"
 CELERY_BIN="/usr/local/bin/celery"
-CELERY_APP="MapSkinner"
+CELERY_APP="MrMap"
 CELERYD_MULTI="multi"
 CELERYD_OPTS="--time-limit=3000 --concurrency=8"
 

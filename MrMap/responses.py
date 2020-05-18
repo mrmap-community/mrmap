@@ -7,9 +7,9 @@ Created on: 15.04.19
 """
 from django.http import JsonResponse, HttpRequest
 
-from MapSkinner.settings import ROOT_URL, GIT_REPO_URI, GIT_GRAPH_URI
+from MrMap.settings import ROOT_URL, GIT_REPO_URI, GIT_GRAPH_URI
 from structure.models import MrMapUser
-from MapSkinner.utils import get_theme
+from MrMap.utils import get_theme
 
 
 class DefaultContext:

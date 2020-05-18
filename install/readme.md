@@ -6,7 +6,7 @@ This script will install MrMap with production settings on your blank debian10 s
 
 Get it with:
 ```
-wget https://git.osgeo.org/gitea/GDI-RP/MrMap/raw/branch/pre_master/install/mapskinner_production_setup.bash
+wget https://git.osgeo.org/gitea/GDI-RP/MrMap/raw/branch/pre_master/install/mrmap_production_setup.bash
 ```  
 
 Change your hostname and desired database credentials at the beginning of the script.  

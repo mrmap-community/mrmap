@@ -6,33 +6,21 @@ Created on: 01.08.19
 
 """
 import json
-import pickle
-from urllib.request import urlopen
-import lxml.etree as ElementTree
-import untangle
 import xmltodict
-
 from django.contrib import messages
 from django.db import transaction
 from django.http import HttpRequest
-from lxml import objectify, etree
-from lxml.etree import _Element, fromstring
-from lxml.objectify import ObjectifiedElement
-from pyxb.bundles.opengis.iso19139.v20070417 import gmd
+from lxml.etree import _Element
 from requests.exceptions import MissingSchema
-from MapSkinner.messages import EDITOR_INVALID_ISO_LINK, SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, \
-    SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
+from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
 from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
-from MapSkinner import utils
+from editor.iso19115_xml_skeletons import MD_KEYWORDS
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, \
-    MetadataOrigin, SecuredOperation, RequestOperation
+    MetadataOrigin, SecuredOperation
 from service.helper import xml_helper
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY
-from service.tasks import async_secure_service_task
-import pyxb.utils.domutils as domutils
-import xmlschema
 
 
 def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _type: str):
@@ -60,16 +48,22 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
         keyword_prefix = "{" + XML_NAMESPACES[ns_keyword_prefix_s] + "}"
         keyword_ns_map[ns_keyword_prefix_s] = XML_NAMESPACES[ns_keyword_prefix_s]
 
-    xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format(keyword_container_tag), xml_obj)
+    xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml(
+        "./" + GENERIC_NAMESPACE_TEMPLATE.format(keyword_container_tag), xml_obj)
 
     if xml_keywords_list_obj is None:
         # there are no keywords in this capabilities for this element yet
         # we need to add an element first!
         try:
-            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Abstract".format(ns_prefix), nsmap=keyword_ns_map)
+            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj,
+                                                                 "{}{}".format(keyword_prefix, keyword_container_tag),
+                                                                 after="{}Abstract".format(ns_prefix),
+                                                                 nsmap=keyword_ns_map)
         except (TypeError, ValueError) as e:
             # there seems to be no <Abstract> element. We add simply after <Title> and also create a new Abstract element
-            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Title".format(ns_prefix))
+            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj,
+                                                                 "{}{}".format(keyword_prefix, keyword_container_tag),
+                                                                 after="{}Title".format(ns_prefix))
             xml_helper.create_subelement(
                 xml_obj,
                 "{}".format("Abstract"),
@@ -87,7 +81,8 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
 
     # then add all edited
     for kw in metadata.keywords.all():
-        xml_keyword = xml_helper.create_subelement(xml_keywords_list_obj, "{}Keyword".format(keyword_prefix), nsmap=keyword_ns_map)
+        xml_keyword = xml_helper.create_subelement(xml_keywords_list_obj, "{}Keyword".format(keyword_prefix),
+                                                   nsmap=keyword_ns_map)
         xml_helper.write_text_to_element(xml_keyword, txt=kw.keyword)
 
 
@@ -142,7 +137,8 @@ def _overwrite_capabilities_data(xml_obj: _Element, metadata: Metadata):
     for key, val in elements.items():
         try:
             # Check if element exists to change it
-            key_xml_obj = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format(key), xml_obj)
+            key_xml_obj = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format(key),
+                                                                     xml_obj)
             if key_xml_obj is not None:
                 # Element exists, we can change it easily
                 xml_helper.write_text_to_element(xml_obj, "./" + GENERIC_NAMESPACE_TEMPLATE.format(key), val)
@@ -166,68 +162,39 @@ def overwrite_dataset_metadata_document(metadata: Metadata):
         """
 
     doc = Document.objects.get(related_metadata=metadata)
-    xml = doc.current_dataset_metadata_document.encode('utf-8')
-
     xml_dict = xmltodict.parse(doc.current_dataset_metadata_document)
 
-    xml_again = xmltodict.unparse(xml_dict)
-    
+    # ToDo: try catch KeyErrors for all the following code
 
-    # pyxb CreateFromDocument example; doesnt work well
-    # md_metadata = gmd.CreateFromDocument(xml, default_namespace='gmd')
+    # overwrite abstract
+    xml_dict['gmd:MD_Metadata'][
+        'gmd:identificationInfo'][
+        'gmd:MD_DataIdentification'][
+        'gmd:abstract'][
+        'gco:CharacterString'] = metadata.abstract
 
-    """
-    # xmlschema package validation against a schema
+    # overwrite title
+    xml_dict['gmd:MD_Metadata'][
+        'gmd:identificationInfo'][
+        'gmd:MD_DataIdentification'][
+        'gmd:citation'][
+        'gmd:CI_Citation'][
+        'gmd:title'][
+        'gco:CharacterString'] = metadata.title
 
-    xs = xmlschema.XMLSchema('http://schemas.opengis.net/iso/19139/20060504/gmd/gmd.xsd')
-    serialized_schema = pickle.dumps(xs)
-    xt = ElementTree.fromstring(xml)
-    is_valid = xs.is_valid(xt)
-    descriptive_keywords = xs.elements['descriptiveKeywords'].decode(xt)
-    """
+    # overwrite keywords
+    descriptive_keywords = xml_dict['gmd:MD_Metadata'][
+                                'gmd:identificationInfo'][
+                                'gmd:MD_DataIdentification'][
+                                'gmd:descriptiveKeywords']
+    descriptive_keywords.clear()
 
-    """
-    # pyxb string to dom example
-    iso_19115_root_obj = domutils.StringToDOM(xml)
-    md_metadatas = iso_19115_root_obj.childNodes
+    for keyword in metadata.keywords.all():
+        descriptive_keywords.append(xmltodict.parse(MD_KEYWORDS.format(keyword)))
 
-    for md_metadata in md_metadatas:
-        identification_infos = []
-        contacts = []
-        title = None
-        abstract = None
-        descriptive_keywords = []
-
-        for child_Node in md_metadata.childNodes:
-            # collect identificationInfo objects
-            if child_Node.tagName == 'identificationInfo':
-                identification_infos.append(child_Node)
-            # collect contact objects
-            elif child_Node.tagName == 'contact':
-                contacts.append(child_Node)
-
-        for identification_info in identification_infos:
-            md_data_identification = None
-            # collect MD_DataIdentification
-            for child_Node in identification_info.childNodes:
-                if child_Node.tagName == 'MD_DataIdentification':
-                    md_data_identification = child_Node
-
-            for child_Node in md_data_identification.childNodes:
-                # collect title object
-                if child_Node.tagName == 'title':
-                    title = child_Node
-                # collect abstract object
-                elif child_Node.tagName == 'abstract':
-                    abstract = child_Node
-                # collect descriptiveKeywords objects
-                elif child_Node.tagName == 'descriptiveKeywords':
-                    descriptive_keywords.append(child_Node)
-        i=0
-    """
-
-    # handle keywords
-    #_overwrite_dataset_metadata_keywords(iso_19115_md_metadata, metadata)
+    # save new dataset metadata document
+    doc.current_dataset_metadata_document = xmltodict.unparse(xml_dict)
+    doc.save()
 
 
 def overwrite_capabilities_document(metadata: Metadata):
@@ -366,8 +333,8 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
         md_relation.metadata_from = metadata
         md_relation.metadata_to = iso_md
         md_relation.origin = MetadataOrigin.objects.get_or_create(
-                name=iso_md.origin
-            )[0]
+            name=iso_md.origin
+        )[0]
         md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
         md_relation.save()
 
@@ -424,10 +391,13 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
 
     # Categories updating
     # Categories are provided as id's to prevent language related conflicts
-    categories = editor_form.cleaned_data["categories"]
-    original_md.categories.clear()
-    for category in categories:
-        original_md.categories.add(category)
+    try:
+        categories = editor_form.cleaned_data["categories"]
+        original_md.categories.clear()
+        for category in categories:
+            original_md.categories.add(category)
+    except KeyError:
+        pass
 
     # Categories are inherited by subelements
     subelement_mds = original_md.get_subelements_metadatas()
@@ -451,7 +421,6 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
         overwrite_dataset_metadata_document(original_md)
     else:
         overwrite_capabilities_document(original_md)
-
 
 
 def overwrite_featuretype(original_ft: FeatureType, custom_ft: FeatureType, editor_form):

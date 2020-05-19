@@ -13,7 +13,7 @@ from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, 
     SECURITY_PROXY_WARNING_ONLY_FOR_ROOT, DATASET_MD_EDITED
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from api.settings import API_CACHE_KEY_PREFIX
-from editor.forms import MetadataEditorForm
+from editor.forms import MetadataEditorForm, DatasetMetadataEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.filters import MetadataWmsFilter, MetadataWfsFilter
 from service.helper.enums import OGCServiceEnum, MetadataEnum
@@ -137,22 +137,19 @@ def edit_dataset(request: HttpRequest, metadata_id: int):
         return HttpResponseRedirect(reverse("editor:edit", args=(metadata_id,)), status=303)
 
     if request.method == 'POST':
-        editor_form = MetadataEditorForm(request.POST or None)
+        editor_form = DatasetMetadataEditorForm(request.POST)
         if editor_form.is_valid():
             custom_md = editor_form.save(commit=False)
-
 
             # ToDo:
             #editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
             editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
 
-
-
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
 
             user_helper.create_group_activity(metadata.created_by, user, DATASET_MD_EDITED, "{}: {}".format(metadata.title, None))
     else:
-        editor_form = MetadataEditorForm(instance=metadata)
+        editor_form = DatasetMetadataEditorForm(instance=metadata)
 
     editor_form.action_url = reverse("editor:edit-dataset-metadata", args=(metadata_id,))
     params = {

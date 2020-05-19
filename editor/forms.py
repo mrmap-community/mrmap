@@ -62,3 +62,11 @@ class MetadataEditorForm(ModelForm):
                 },
             ),
         }
+
+
+class DatasetMetadataEditorForm(MetadataEditorForm):
+    def __init__(self, *args, **kwargs):
+        super(DatasetMetadataEditorForm, self).__init__(*args, **kwargs)
+        self.fields.pop('access_constraints')
+        self.fields.pop('terms_of_use')
+        self.fields.pop('categories')

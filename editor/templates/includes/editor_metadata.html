@@ -28,9 +28,11 @@
     </h5>
 {% endblock %}
 {% block card-header-subtitle-right %}
+    {% if service_metadata.metadata_type.type != 'dataset' %}
         <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'service:detail' service_metadata.id %}">
             <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Service detail view' %}</span>
         </a>
+    {% endif %}
 {% endblock %}
 
 

@@ -23,6 +23,7 @@ class MetadataEditorForm(ModelForm):
         self.fields['terms_of_use'].required = False
         self.fields['categories'].required = False
         self.fields['keywords'].required = False
+        self.has_autocomplete = True
 
     class Meta:
         model = Metadata
@@ -70,3 +71,4 @@ class DatasetMetadataEditorForm(MetadataEditorForm):
         self.fields.pop('access_constraints')
         self.fields.pop('terms_of_use')
         self.fields.pop('categories')
+        self.has_autocomplete = True

@@ -185,7 +185,7 @@ def edit_dataset(request: HttpRequest, metadata_id: int):
 
             user_helper.create_group_activity(metadata.created_by, user, DATASET_MD_EDITED, "{}: {}".format(metadata.title, None))
     else:
-        editor_form = DatasetMetadataEditorForm(instance=metadata)
+        editor_form = DatasetMetadataEditorForm(instance=metadata, action_url='')
 
     editor_form.action_url = reverse("editor:edit-dataset-metadata", args=(metadata_id,))
     params = {

@@ -79,6 +79,7 @@ def index(request: HttpRequest):
         "wms_table": _prepare_wms_table(request, user),
         "wfs_table": _prepare_wfs_table(request, user),
         "dataset_table": _prepare_dataset_table(request, user),
+        "new_dataset_form": DatasetMetadataEditorForm(),
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
@@ -145,6 +146,7 @@ def index_datasets(request: HttpRequest):
 
     params = {
         "dataset_table": _prepare_dataset_table(request, user),
+        "new_dataset_form": DatasetMetadataEditorForm(),
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())

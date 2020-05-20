@@ -41,6 +41,9 @@ class Permission(models.Model):
     can_remove_service = models.BooleanField(default=False)
     can_edit_metadata_service = models.BooleanField(default=False)
 
+    can_add_dataset_metadata = models.BooleanField(default=False)
+    can_edit_dataset_metadata = models.BooleanField(default=False)
+
     can_toggle_publish_requests = models.BooleanField(default=False)
     can_remove_publisher = models.BooleanField(default=False)
     can_request_to_become_publisher = models.BooleanField(default=False)

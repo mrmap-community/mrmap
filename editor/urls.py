@@ -17,6 +17,7 @@ urlpatterns = [
     path('category-autocomplete/', CategoryAutocomplete.as_view(), name="category-autocomplete"),
     path('wms/', index_wms, name='wms-index'),
     path('wfs/', index_wfs, name='wfs-index'),
+    path('datasets/', index_datasets, name='datasets-index'),
     path('metadata/<metadata_id>', edit, name='edit'),
     path('dataset/<metadata_id>', edit_dataset, name='edit-dataset-metadata'),
     path('access/<id>', edit_access, name='edit_access'),

@@ -7,7 +7,7 @@
 
 {% block card-header-title-left %}
 
-<h4 class="mb-1 mr-3">{% if service_type == 'WFS' %}{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% else %} {% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}{% endif %} {% trans service_type %}</h4>
+<h4 class="mb-1 mr-3">{% if service_type == 'WFS' %}{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% elif service_type == 'WMS' %} {% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %} {% elif service_type == 'Datasets' %}{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %}{% endif %} {% trans service_type %}</h4>
 
 {% endblock %}
 

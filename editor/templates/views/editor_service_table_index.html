@@ -13,5 +13,10 @@
                 {% include 'includes/editor_service_table.html' %}
         {% endwith %}
     {% endwith %}
+    {% with 'Datasets' as service_type %}
+        {% with dataset_table as table %}
+                {% include 'includes/editor_service_table.html' %}
+        {% endwith %}
+    {% endwith %}
 </div>
 {% endblock %}

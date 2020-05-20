@@ -3,7 +3,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 
 from MapSkinner.tables import MapSkinnerTable
-from service.models import Layer, FeatureType
+from service.models import Layer, FeatureType, MetadataRelation
 from MapSkinner.consts import *
 from MapSkinner.utils import get_theme, get_ok_nok_icon
 from django.utils.translation import gettext_lazy as _
@@ -30,16 +30,16 @@ def _get_undo_button(url, user):
 class WmsServiceTable(MapSkinnerTable):
     caption = _("Shows all WMS which are configured in your Mr. Map environment. You can Edit them if you want.")
 
-    wms_title = tables.Column(accessor='title', verbose_name='Title', )
-    wms_active = tables.Column(accessor='is_active', verbose_name='Active', )
-    wms_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', )
-    wms_registered_by_group = tables.Column(accessor='service.created_by', verbose_name='Registered by group', )
-    wms_original_metadata = tables.Column(verbose_name='Original metadata', empty_values=[])
-    wms_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', )
-    wms_last_modified = tables.Column(accessor='last_modified', verbose_name='Last modified', )
-    wms_edit_metadata = tables.Column(verbose_name='Edit', empty_values=[])
-    wms_edit_access = tables.Column(verbose_name='Access', empty_values=[])
-    wms_reset = tables.Column(verbose_name='Reset', empty_values=[])
+    wms_title = tables.Column(accessor='title', verbose_name=_('Title'), )
+    wms_active = tables.Column(accessor='is_active', verbose_name=_('Active'), )
+    wms_data_provider = tables.Column(accessor='contact.organization_name', verbose_name=_('Data provider'), )
+    wms_registered_by_group = tables.Column(accessor='service.created_by', verbose_name=_('Registered by group'), )
+    wms_original_metadata = tables.Column(verbose_name=_('Original metadata'), empty_values=[])
+    wms_secured_access = tables.Column(accessor='is_secured', verbose_name=_('Secured access'), )
+    wms_last_modified = tables.Column(accessor='last_modified', verbose_name=_('Last modified'), )
+    wms_edit_metadata = tables.Column(verbose_name=_('Edit'), empty_values=[])
+    wms_edit_access = tables.Column(verbose_name=_('Access'), empty_values=[])
+    wms_reset = tables.Column(verbose_name=_('Reset'), empty_values=[])
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
@@ -89,16 +89,16 @@ class WmsServiceTable(MapSkinnerTable):
 class WfsServiceTable(MapSkinnerTable):
     caption = _("Shows all WFS which are configured in your Mr. Map environment. You can Edit them if you want.")
 
-    wfs_title = tables.Column(accessor='title', verbose_name='Title', )
-    wfs_active = tables.Column(accessor='is_active', verbose_name='Active', )
-    wfs_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', )
-    wfs_registered_by_group = tables.Column(accessor='service.created_by', verbose_name='Registered by group', )
-    wfs_original_metadata = tables.Column(verbose_name='Original metadata', empty_values=[])
-    wfs_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', )
-    wfs_last_modified = tables.Column(accessor='last_modified', verbose_name='Last modified', )
-    wfs_edit_metadata = tables.Column(verbose_name='Edit', empty_values=[])
-    wfs_edit_access = tables.Column(verbose_name='Access', empty_values=[])
-    wfs_reset = tables.Column(verbose_name='Reset', empty_values=[])
+    wfs_title = tables.Column(accessor='title', verbose_name=_('Title'), )
+    wfs_active = tables.Column(accessor='is_active', verbose_name=_('Active'), )
+    wfs_data_provider = tables.Column(accessor='contact.organization_name', verbose_name=_('Data provider'), )
+    wfs_registered_by_group = tables.Column(accessor='service.created_by', verbose_name=_('Registered by group'), )
+    wfs_original_metadata = tables.Column(verbose_name=_('Original metadata'), empty_values=[])
+    wfs_secured_access = tables.Column(accessor='is_secured', verbose_name=_('Secured access'), )
+    wfs_last_modified = tables.Column(accessor='last_modified', verbose_name=_('Last modified'), )
+    wfs_edit_metadata = tables.Column(verbose_name=_('Edit'), empty_values=[])
+    wfs_edit_access = tables.Column(verbose_name=_('Access'), empty_values=[])
+    wfs_reset = tables.Column(verbose_name=_('Reset'), empty_values=[])
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
@@ -141,5 +141,38 @@ class WfsServiceTable(MapSkinnerTable):
         return _get_edit_button(url, self.user)
 
     def render_wfs_reset(self, record):
+        url = reverse('editor:restore', args=(record.id,))
+        return _get_undo_button(url, self.user)
+
+
+class DatasetTable(MapSkinnerTable):
+    caption = _("Shows all datasets which are configured in your Mr. Map environment. You can Edit them if you want.")
+
+    dataset_title = tables.Column(accessor='title', verbose_name=_('Title'), )
+    dataset_related_objects = tables.Column(verbose_name=_('Related objects'), empty_values=[])
+    dataset_edit_metadata = tables.Column(verbose_name=_('Edit'), empty_values=[])
+    dataset_reset = tables.Column(verbose_name=_('Reset'), empty_values=[])
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    def render_dataset_title(self, value, record):
+        url = reverse('service:get-dataset-metadata', args=(record.id,))
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+
+    def render_dataset_related_objects(self, record):
+        relations = MetadataRelation.objects.filter(metadata_to=record)
+        link_list = []
+        for relation in relations:
+            url = reverse('service:detail', args=(relation.metadata_from.id,))
+            link_list.append(format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, relation.metadata_from.title, ))
+        return format_html(', '.join(link_list))
+
+    def render_dataset_edit_metadata(self, record):
+        url = reverse('editor:edit', args=(record.id,))
+        return _get_edit_button(url, self.user)
+
+    def render_dataset_reset(self, record):
         url = reverse('editor:restore', args=(record.id,))
         return _get_undo_button(url, self.user)

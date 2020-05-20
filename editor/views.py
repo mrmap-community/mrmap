@@ -15,7 +15,7 @@ from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from api.settings import API_CACHE_KEY_PREFIX
 from editor.forms import MetadataEditorForm, DatasetMetadataEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
-from service.filters import MetadataWmsFilter, MetadataWfsFilter
+from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter
 from service.helper.enums import OGCServiceEnum, MetadataEnum
 from service.models import RequestOperation, SecuredOperation, Metadata
 from service.tasks import async_process_secure_operations_form
@@ -50,6 +50,17 @@ def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
     return wfs_table
 
 
+def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, ):
+    datasets = user.get_datasets_as_qs()
+    datasets_table_filtered = MetadataDatasetFilter(request.GET, queryset=datasets)
+    datasets_table = DatasetTable(datasets_table_filtered.qs,
+                                user=user, )
+    datasets_table.filter = datasets_table_filtered
+    # TODO: # since parameters could be changed directly in the uri, we need to make sure to avoid problems
+    datasets_table.configure_pagination(request, 'dataset-t')
+
+    return datasets_table
+
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
 def index(request: HttpRequest):
@@ -67,6 +78,7 @@ def index(request: HttpRequest):
     params = {
         "wms_table": _prepare_wms_table(request, user),
         "wfs_table": _prepare_wfs_table(request, user),
+        "dataset_table": _prepare_dataset_table(request, user),
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
@@ -111,6 +123,28 @@ def index_wfs(request: HttpRequest):
 
     params = {
         "wfs_table": _prepare_wfs_table(request, user),
+    }
+    context = DefaultContext(request, params, user)
+    return render(request, template, context.get_context())
+
+
+@login_required
+@check_permission(Permission(can_edit_metadata_service=True))
+def index_datasets(request: HttpRequest):
+    """ The index view of the editor app.
+
+    Lists all datasets with information of custom set metadata.
+
+    Args:
+        request: The incoming request
+    Returns:
+    """
+    user = user_helper.get_user(request)
+
+    template = "views/editor_service_table_index_datasets.html"
+
+    params = {
+        "dataset_table": _prepare_dataset_table(request, user),
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())

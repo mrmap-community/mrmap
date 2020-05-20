@@ -166,6 +166,19 @@ class MrMapUser(AbstractUser):
             md_list = md_list.filter(service__servicetype__name=type.name.lower())
         return md_list
 
+    def get_datasets_as_qs(self, ):
+        """ Returns all datasets which are related to the user
+
+        Returns:
+             md_list:
+        """
+        from service.models import Metadata
+        md_list = Metadata.objects.filter(
+            metadata_type__type='dataset',
+            created_by__in=self.get_groups(),
+        ).order_by("title")
+        return md_list
+
     def get_groups(self, filter_by: dict = {}):
         """ Returns a queryset of all MrMapGroups related to the user
 

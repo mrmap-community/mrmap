@@ -6,17 +6,20 @@ Created on: 05.05.20
 
 """
 from django.http import HttpRequest, HttpResponse
-from django.views.decorators.cache import cache_page
-
-from pycsw import server as pycsw_server
-
-from MrMap.settings import PYCSW_CONF
-from csw.settings import CSW_CACHE_TIME
 
 
 # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
 # Cache requested url for time t
 #@cache_page(CSW_CACHE_TIME)
+from django.views.decorators.cache import cache_page
+
+from csw.settings import CSW_CACHE_TIME
+from csw.utils.parameter import ParameterResolver
+
+#@cache_page(CSW_CACHE_TIME, key_prefix="csw")
+from csw.utils.request_resolver import RequestResolver
+
+
 def resolve_request(request: HttpRequest):
     """ Wraps incoming csw request
 
@@ -25,16 +28,10 @@ def resolve_request(request: HttpRequest):
     Returns:
 
     """
-    conf = PYCSW_CONF
+    paramter = ParameterResolver(request.GET.dict())
+    request_resolver = RequestResolver(paramter)
 
-    version = request.GET.get("version", "2.0.2")
-    csw = pycsw_server.Csw(conf, request.META, version=version)
+    content = request_resolver.get_response()
+    content_type = paramter.output_format
 
-    content = csw.dispatch_wsgi()
-
-    # pycsw API return value differs between >=2.x and <2.x
-    # response contains in >=2.x the status code at [0] and the "real" content at [1]
-    if int(version[0]) >= 2:
-        content = content[1]
-
-    return HttpResponse(content, content_type=csw.contenttype)
+    return HttpResponse(content, content_type=content_type)

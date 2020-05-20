@@ -5,6 +5,8 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 20.05.20
 
 """
+from xml.etree.ElementTree import Element
+
 from django.db.models import QuerySet
 
 from csw.utils.parameter import ParameterResolver

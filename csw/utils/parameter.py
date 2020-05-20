@@ -35,7 +35,7 @@ class ParameterResolver:
         self.request_id = None              # optional, multiplicity: 0|1
         self.output_format = None           # optional, multiplicity: 0|1
         self.output_schema = None           # optional, multiplicity: 0|1
-        self.start_position = 1             # optional, multiplicity: 0|1
+        self.start_position = None          # optional, multiplicity: 0|1
         self.max_records = None             # optional, multiplicity: 0|1
         self.type_names = None              # mandatory, multiplicity: 1
         self.element_set_name = None        # mutually exclusive with element_name, multiplicity: 0|1
@@ -96,12 +96,20 @@ class ParameterResolver:
 
             # Make sure no negative integers are passed
             try:
-                val_int = int(val)
-                if val_int < 0:
+                val = int(val)
+                if val < 0:
                     raise AssertionError("No negative values allowed!")
             except ValueError:
                 pass
             setattr(self, param, val)
+
+        # Transform listable parameters into lists
+        listable_elements = ["element_name", "namespace"]
+        for elem in listable_elements:
+            attribute = getattr(self, elem)
+            if isinstance(attribute, str):
+                attribute = attribute.split(",")
+                setattr(self, elem, attribute)
 
         # Check if range of values is acceptable
         if self.result_type not in RESULT_TYPE_CHOICES:
@@ -109,5 +117,5 @@ class ParameterResolver:
 
         if self.element_set_name and self.element_name:
             raise AssertionError("Parameter 'ElementSetName' and 'ElementName' are mutually exclusive. You can only provide one!")
-        elif self.element_set_name not in ELEMENT_SET_CHOICES:
+        elif self.element_set_name and self.element_set_name not in ELEMENT_SET_CHOICES:
             raise AssertionError("Parameter '{}' invalid! Choices are '{}'".format(self.element_set_name, ",".join(ELEMENT_SET_CHOICES)))

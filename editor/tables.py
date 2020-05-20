@@ -150,6 +150,7 @@ class DatasetTable(MapSkinnerTable):
 
     dataset_title = tables.Column(accessor='title', verbose_name=_('Title'), )
     dataset_related_objects = tables.Column(verbose_name=_('Related objects'), empty_values=[])
+    dataset_origins = tables.Column(verbose_name=_('Origins'), empty_values=[])
     dataset_edit_metadata = tables.Column(verbose_name=_('Edit'), empty_values=[])
     dataset_reset = tables.Column(verbose_name=_('Reset'), empty_values=[])
 
@@ -166,8 +167,15 @@ class DatasetTable(MapSkinnerTable):
         link_list = []
         for relation in relations:
             url = reverse('service:detail', args=(relation.metadata_from.id,))
-            link_list.append(format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, relation.metadata_from.title, ))
+            link_list.append(format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, relation.metadata_from.title+' [{}]'.format(relation.metadata_from.id), ))
         return format_html(', '.join(link_list))
+
+    def render_dataset_origins(self, record):
+        relations = MetadataRelation.objects.filter(metadata_to=record)
+        origin_list = []
+        for relation in relations:
+            origin_list.append(relation.origin.name+' [{}]'.format(relation.metadata_from.id))
+        return format_html(', '.join(origin_list))
 
     def render_dataset_edit_metadata(self, record):
         url = reverse('editor:edit', args=(record.id,))

@@ -7,8 +7,8 @@
 {% endblock %}
 
 {% block modal-footer %}
-<a class="btn {{ THEME.MODAL.BTN_WARNING_COLOR }}" href="{% url 'editor:datasets-index' %}" role="button">{% trans 'Dismiss' %}</a>
+<a class="btn {{ THEME.MODAL.BTN_WARNING_COLOR }}" href="{% url 'editor:datasets-index' %}" role="button">{% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss' %}</a>
 <button type="button submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">
-    {% trans 'Save' %}
+    {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
 </button>
 {% endblock %}

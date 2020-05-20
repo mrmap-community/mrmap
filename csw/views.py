@@ -5,8 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 05.05.20
 
 """
-from django.http import HttpRequest, HttpResponse
-
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 
 # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
 # Cache requested url for time t
@@ -34,4 +33,8 @@ def resolve_request(request: HttpRequest):
     content = request_resolver.get_response()
     content_type = paramter.output_format
 
-    return HttpResponse(content, content_type=content_type)
+    content_len = len(content)
+    if content_len > 1000000:
+        return StreamingHttpResponse(content, content_type=content_type)
+    else:
+        return HttpResponse(content, content_type=content_type)

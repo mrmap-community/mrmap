@@ -1,6 +1,9 @@
 from django.contrib import admin
-from service.models import *
+from django.utils.safestring import mark_safe
 
+from service.models import *
+from django.urls import reverse
+from django.template.defaultfilters import escape
 
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ('id', 'type', 'title_EN', 'online_link', 'origin')
@@ -57,9 +60,27 @@ class MetadataAdmin(admin.ModelAdmin):
 
 
 class MetadataRelationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata_from', 'relation_type', 'metadata_to', 'origin')
+    list_display = ('id', 'metadata_from_link', 'relation_type', 'metadata_to_link', 'origin_link')
     list_filter = ('relation_type',)
-    search_fields = ['metadata_from', 'metadata_to', ]
+    # search_fields = ['metadata_from', 'metadata_to',]
+
+    def metadata_from_link(self, obj):
+        return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata_from.id,)), escape(obj.metadata_from)))
+
+    metadata_from_link.allow_tags = True
+    metadata_from_link.short_description = "metadata_from"
+
+    def metadata_to_link(self, obj):
+        return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata_to.id,)), escape(obj.metadata_to)))
+
+    metadata_to_link.allow_tags = True
+    metadata_to_link.short_description = "metadata_to"
+
+    def origin_link(self, obj):
+        return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadataorigin_change", args=(obj.origin.id,)), escape(obj.origin)))
+
+    origin_link.allow_tags = True
+    origin_link.short_description = "origin"
 
 
 class TermsOfUseAdmin(admin.ModelAdmin):

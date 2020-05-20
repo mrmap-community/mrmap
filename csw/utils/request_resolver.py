@@ -249,7 +249,7 @@ class GetRecordsResolver(RequestResolver):
 
         # Formats
         # ToDo: Get formats for dataset!
-        for _format in md.service.get_supported_formats():
+        for _format in md.formats.all():
             elem = xml_helper.create_subelement(
                 record_elem,
                 "{}format".format(self.dc_ns),

@@ -467,7 +467,7 @@ def get_service_preview(request: HttpRequest, metadata_id: int):
     bbox = str(bbox.extent).replace("(", "").replace(")", "")  # this is a little dumb, you may choose something better
 
     # Fetch a supported version of png
-    png_format = md.service.get_supported_formats().filter(
+    png_format = md.formats.filter(
         mime_type__icontains="image/"
     ).first()
 
@@ -852,6 +852,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
         current_service = get_object_or_404(Service, metadata__id=metadata_id)
         new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
         new_document = get_object_or_404(Document, related_metadata=new_service.metadata)
+
         if not current_service.is_service_type(OGCServiceEnum.WFS):
             new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent_layer=None)
             current_service.root_layer = get_object_or_404(Layer, parent_service=current_service, parent_layer=None)
@@ -878,8 +879,11 @@ def run_update_service(request: HttpRequest, metadata_id: int):
         if update_confirmation_form.is_valid():
             # UPDATE
             # First update the metadata of the whole service
-            md = update_helper.update_metadata(current_service.metadata, new_service.metadata,
-                                               new_service.keep_custom_md)
+            md = update_helper.update_metadata(
+                current_service.metadata,
+                new_service.metadata,
+                new_service.keep_custom_md
+            )
             md.save()
             current_service.metadata = md
 
@@ -1026,7 +1030,7 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
             params.update({'has_dataset_metadata': _check_for_dataset_metadata(service.metadata)})
 
     mime_types = {}
-    for mime in service.formats.all():
+    for mime in service_md.formats.all():
         op = mime_types.get(mime.operation)
         if op is None:
             op = []

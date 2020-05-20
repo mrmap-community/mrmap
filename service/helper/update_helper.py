@@ -33,10 +33,6 @@ def transform_lists_to_m2m_collections(element):
          element: The element
     """
     if isinstance(element, FeatureType):
-        # formats
-        for _format in element.formats_list:
-            element.formats.add(_format)
-
         # elements
         for e in element.elements_list:
             element.elements.add(e)
@@ -60,8 +56,6 @@ def transform_lists_to_m2m_collections(element):
             srs = ReferenceSystem.objects.get_or_create(code=srs.code, prefix=srs.prefix)[0]
             element.reference_system.add(srs)
 
-    elif isinstance(element, Service):
-        # service transforming of lists
         # formats
         for _format in element.formats_list:
             _format = MimeType.objects.get_or_create(
@@ -73,6 +67,10 @@ def transform_lists_to_m2m_collections(element):
         # categories
         for category in element.categories_list:
             element.categories.add(category)
+
+    elif isinstance(element, Service):
+        # service transforming of lists
+        pass
 
     else:
         raise Exception("UNKNOWN INSTANCE!")
@@ -154,6 +152,11 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
         dim.save()
         old.dimensions.add(dim)
 
+    # formats
+    old.formats.clear()
+    for _format in new.formats_list:
+        old.formats.add(_format)
+
     # Restore custom metadata if needed
     if keep_custom_md:
         old.is_custom = metadata_is_custom
@@ -215,16 +218,6 @@ def update_service(old: Service, new: Service):
     old.published_for = published_for
     old.metadata = md
     old.is_active = activated
-
-    # formats
-    old.formats.clear()
-    for _format in new.formats_list:
-        old.formats.add(_format)
-
-    # categories
-    old.categories.clear()
-    for category in new.categories_list:
-        old.categories.add(category)
 
     old.last_modified = timezone.now()
     return old

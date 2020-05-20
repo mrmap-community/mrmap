@@ -66,7 +66,7 @@ class SimpleCacher:
                 val,
             )
 
-    def remove(self, key: str, use_internal_key_prefix: bool = False):
+    def remove(self, key: str, use_internal_key_prefix: bool = True):
         """ Removes a record from the cache.
 
         Returns True if removing was successful, False otherwise
@@ -146,4 +146,4 @@ class PageCacher(SimpleCacher):
         """
         keys = self.get_keys("*" + key_like + "*")
         for key in keys:
-            self.remove(key)
+            self.remove(key, False)

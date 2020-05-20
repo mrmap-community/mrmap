@@ -265,4 +265,4 @@ class OGCLayer:
                     mime_type=_format,
                     created_by=group
                 )[0]
-                layer.formats.add(service_to_format)
+                layer.metadata.formats.add(service_to_format)

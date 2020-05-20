@@ -833,7 +833,7 @@ class OGCWebFeatureService(OGCWebService):
 
         # MimeTypes
         for mime_type in self.service_mime_type_list:
-            service.formats.add(mime_type)
+            md.formats.add(mime_type)
 
     def _create_feature_types(self, service: Service, group: MrMapGroup, contact: Contact):
         """ Iterates over parsed feature types and creates DB records for each
@@ -897,7 +897,7 @@ class OGCWebFeatureService(OGCWebService):
             # formats
             for _format in f_t.formats_list:
                 _format.save()
-                f_t.formats.add(_format)
+                md.formats.add(_format)
 
             # elements
             for _element in f_t.elements_list:

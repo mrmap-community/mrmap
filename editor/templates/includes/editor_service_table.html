@@ -11,6 +11,22 @@
 
 {% endblock %}
 
+{% block card-header-title-right %}
+{% if service_type == 'Datasets' %}
+    {% if 'can_add_dataset_metadata' in user_permissions %}
+        <button type="button" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_dataset">
+            {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New Dataset' %}
+        </button>
+        {% with form=new_dataset_form %}
+            {% with 'new_dataset' as id_modal %}
+                {% with show_new_dataset_form as show_modal %}
+                    {% include 'modals/new_dataset.html' %}
+                {% endwith %}
+            {% endwith %}
+        {% endwith %}
+    {% endif %}
+{% endif %}
+{% endblock %}
 
 {% block card-body %}
 

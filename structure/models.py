@@ -212,7 +212,7 @@ class MrMapUser(AbstractUser):
             }
 
         Returns:
-             list
+             queryset
         """
 
         groups = MrMapGroup.objects.filter(

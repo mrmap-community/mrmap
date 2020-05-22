@@ -7,12 +7,12 @@ Created on: 09.07.19
 """
 from dal import autocomplete
 from django.core.exceptions import ObjectDoesNotExist
-from django.forms import ModelMultipleChoiceField
+from django.forms import ModelMultipleChoiceField, HiddenInput, ModelChoiceField
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.forms import MrMapModelForm
 from service.helper.enums import MetadataEnum
-from service.models import Metadata, MetadataRelation, MetadataOrigin
+from service.models import Metadata, MetadataRelation, MetadataOrigin, MetadataType
 from structure.models import MrMapUser
 
 
@@ -91,13 +91,13 @@ class DatasetMetadataEditorForm(MrMapModelForm):
                         required=False,)
 
     def __init__(self, *args, **kwargs):
-        requesting_user = '' if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
+        self.requesting_user = '' if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
         #self.instance_id = -1 if 'instance_id' not in kwargs else kwargs.pop('instance_id')
         # first call parent's constructor
         super(DatasetMetadataEditorForm, self).__init__(*args, **kwargs)
 
         # setup querysets
-        self.fields['additional_related_objects'].queryset = requesting_user.get_metadatas_as_qs(type=MetadataEnum.DATASET, inverse_match=True)
+        self.fields['additional_related_objects'].queryset = self.requesting_user.get_metadatas_as_qs(type=MetadataEnum.DATASET, inverse_match=True)
 
         if 'instance' in kwargs:
             instance = kwargs['instance']
@@ -108,10 +108,11 @@ class DatasetMetadataEditorForm(MrMapModelForm):
                 if metadata_relation.origin.name != 'capabilities':
                     additional_related_objects.append(metadata_relation.metadata_from)
             self.fields['additional_related_objects'].initial = additional_related_objects
+        else:
+            self.fields['additional_related_objects'].label = _('Related objects')
+            self.fields['additional_related_objects'].required = True
+            self.fields['created_by'] = ModelChoiceField(queryset=self.requesting_user.get_groups(), empty_label=None)
 
-            # setup non required fields
-        #self.fields['terms_of_use'].required = False
-        #self.fields['categories'].required = False
         self.fields['keywords'].required = False
         self.has_autocomplete = True
 
@@ -120,6 +121,7 @@ class DatasetMetadataEditorForm(MrMapModelForm):
         fields = [
             "title",
             "abstract",
+            #"created_by",
             #"related_metadata",
             #"access_constraints",
             #"terms_of_use",
@@ -156,14 +158,22 @@ class DatasetMetadataEditorForm(MrMapModelForm):
         }
 
     def save(self, commit=True):
+        # ToDo: is it possible to create save function without commit param?
         m = super(DatasetMetadataEditorForm, self).save(commit=False)
+
+        if self.instance.id is None:
+            m.created_by = self.cleaned_data['created_by']
+            m.metadata_type = MetadataType.objects.get_or_create(type=MetadataEnum.DATASET.value)[0]
+            # ToDo: set to active if some of the related objects are active...
+        if commit:
+            m.save()
+
         # 1: create new MetadataRelations for the instance, if the relation does not exist
         additional_related_objects = self.cleaned_data['additional_related_objects']
         for related_object in additional_related_objects:
 
             related_object = Metadata.objects.get(id=related_object.id)
             try:
-                # ToDo: test this for new dataset metadatas
                 MetadataRelation.objects.get(metadata_to=self.instance, metadata_from=related_object)
                 # no error; do nothing
             except ObjectDoesNotExist:
@@ -171,7 +181,6 @@ class DatasetMetadataEditorForm(MrMapModelForm):
                 origin = MetadataOrigin.objects.get_or_create(name='MrMap')[0]
                 new_metadata_relation = MetadataRelation()
                 new_metadata_relation.metadata_from = related_object
-                # ToDo: test this for new dataset metadatas
                 new_metadata_relation.metadata_to = self.instance
                 new_metadata_relation.origin = origin
                 new_metadata_relation.relation_type = 'describedBy'
@@ -185,6 +194,4 @@ class DatasetMetadataEditorForm(MrMapModelForm):
             # ToDo: if an error occurs we need to rollback
             remove_candidate.delete()
 
-        if commit:
-            m.save()
         return m

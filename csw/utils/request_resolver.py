@@ -25,7 +25,7 @@ class RequestResolver:
     def __init__(self, param: ParameterResolver):
         self.param = param
 
-        self.resolver_map = {
+        self.operation_resolver_map = {
             "GetRecords": GetRecordsResolver,
             "GetRecordById": None,
             "GetCapabilities": None,
@@ -35,6 +35,16 @@ class RequestResolver:
             "Harvest": None,
         }
 
+        self.attribute_map = {
+            "dc:title": "title",
+            "dc:identifier": "identifier",
+            "dc:abstract": "abstract",
+            "dc:description": "abstract",
+            "dc:date": "created",
+            "dc:modified": "last_modified",
+        }
+
+
     def get_response(self):
         """ Resolve the corresponding class to perform the response fetching
 
@@ -43,11 +53,11 @@ class RequestResolver:
         """
         request = self.param.request
 
-        resolver_class = self.resolver_map.get(request, None)
+        resolver_class = self.operation_resolver_map.get(request, None)
         if not resolver_class:
             raise AttributeError(
                 "No valid operation or operation not supported. Supported operations are `{}`".format(
-                    ", ".join(key for key, val in self.resolver_map.items() if val is not None)
+                    ", ".join(key for key, val in self.operation_resolver_map.items() if val is not None)
                 ),
                 "request"
             )
@@ -61,7 +71,7 @@ class RequestResolver:
         response = class_obj.get_response()
         return response
 
-    def get_metadata(self, filtered: bool):
+    def get_metadata(self, filtered: bool, sorted: bool):
         """ Returns available metadata
 
         Args:
@@ -74,6 +84,8 @@ class RequestResolver:
         )
         if filtered:
             all_md = self._filter_metadata(all_md)
+        if sorted:
+            all_md = self._sort_metadata(all_md)
         return all_md
 
     def _filter_metadata(self, all_md: QuerySet):
@@ -84,7 +96,34 @@ class RequestResolver:
         Returns:
              all_md (QuerySet): The filtered metadata queryset
         """
+        if self.param.constraint is None:
+            return all_md
+        # ToDo: Implement rest
         return all_md
+
+    def _sort_metadata(self, all_md: QuerySet):
+        """ Perform sorting using sortBy parameter
+
+        Args:
+            all_md (QuerySet): The unsorted metadata queryset
+        Returns:
+             all_md (QuerySet): The sorted metadata queryset
+        """
+        if self.param.sort_by is None:
+            return all_md
+        sort_by_components = self.param.sort_by.split(":")
+        attrib = ":".join(sort_by_components[:-1])
+        md_attrib = self.attribute_map.get(attrib, None)
+        if md_attrib is None:
+            raise NotImplementedError(
+                "{} not supported for sorting".format(attrib),
+                "sortBy"
+            )
+        desc = sort_by_components[-1] == "D"
+        if desc:
+            md_attrib = "-" + md_attrib
+        return all_md.order_by(md_attrib)
+
 
 
 class GetRecordsResolver(RequestResolver):
@@ -97,7 +136,10 @@ class GetRecordsResolver(RequestResolver):
         Returns:
              xml_str (str): The response as string
         """
-        metadata = self.get_metadata(filtered=True)
+        metadata = self.get_metadata(
+            filtered=True,
+            sorted=True
+        )
         i_from = self.param.start_position - 1
         i_to = i_from + self.param.max_records
         returned_metadata = metadata[i_from:i_to]

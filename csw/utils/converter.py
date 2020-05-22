@@ -8,6 +8,7 @@ Created on: 20.05.20
 from abc import abstractmethod
 from collections import OrderedDict
 from datetime import datetime
+
 from lxml.etree import Element
 
 from django.db.models import QuerySet
@@ -82,7 +83,7 @@ class MetadataConverter:
             # Fallback
             md_converter = DublinCoreMetadataConverter(self.param, self.all_md, self.returned_md)
 
-        for md in self.all_md:
+        for md in self.returned_md:
             returned_metadata_element = md_converter.create_metadata_elem(md)
             xml_helper.add_subelement(search_result_element, returned_metadata_element)
 

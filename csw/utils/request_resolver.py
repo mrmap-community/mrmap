@@ -5,16 +5,11 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 20.05.20
 
 """
-from collections import OrderedDict
-from datetime import datetime
-
 from django.db.models import QuerySet
 
-from MrMap.settings import XML_NAMESPACES
-from csw.utils.converter import DublinCoreMetadataConverter, Iso19115MetadataConverter, MetadataConverter
+from csw.utils.converter import MetadataConverter
 from csw.utils.parameter import ParameterResolver
 from service.helper import xml_helper
-from service.helper.enums import MetadataEnum
 from service.models import Metadata
 
 

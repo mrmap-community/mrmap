@@ -19,7 +19,7 @@ from csw.utils.parameter import ParameterResolver
 from csw.utils.request_resolver import RequestResolver
 
 
-def resolve_request(request: HttpRequest):
+def get_csw_results(request: HttpRequest):
     """ Wraps incoming csw request
 
     Args:

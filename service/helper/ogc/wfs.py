@@ -178,7 +178,7 @@ class OGCWebFeatureService(OGCWebService):
         )
 
         if async_task is not None:
-            task_helper.update_service_description(async_task, self.service_identification_title)
+            task_helper.update_service_description(async_task, self.service_identification_title, phase_descr="Parsing main capabilities")
 
         self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(
             xml_elem=service_xml,
@@ -404,9 +404,6 @@ class OGCWebFeatureService(OGCWebService):
         Returns:
             feature_type_list(dict): A dict containing all different metadatas for this featuretype and it's children
         """
-        # update async task if this is called async
-        if async_task is not None and step_size is not None:
-            task_helper.update_progress_by_step(async_task, step_size)
 
         f_t = FeatureType()
         md = Metadata()
@@ -419,6 +416,12 @@ class OGCWebFeatureService(OGCWebService):
             xml_elem=feature_type,
             elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
         )
+
+        # update async task if this is called async
+        if async_task is not None and step_size is not None:
+            task_helper.update_progress_by_step(async_task, step_size)
+            task_helper.update_service_description(async_task, None, "Parsing {}".format(md.title))
+
         md.identifier = xml_helper.try_get_text_from_xml_element(
             xml_elem=feature_type,
             elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Name")
@@ -877,6 +880,7 @@ class OGCWebFeatureService(OGCWebService):
             # dataset_md of feature types
             for dataset_md in f_t.dataset_md_list:
                 dataset_record = dataset_md.to_db_model(created_by=group)
+                print(dataset_md.formats)
                 dataset_record.save()
                 md_relation = MetadataRelation()
                 md_relation.metadata_from = f_t.metadata
@@ -1261,6 +1265,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             # update async task if this is called async
             if async_task is not None and step_size is not None:
                 task_helper.update_progress_by_step(async_task, step_size)
+                task_helper.update_service_description(async_task, None, "Parsing {}".format(metadata.title))
 
 
 class OGCWebFeatureService_1_1_0(OGCWebFeatureService):

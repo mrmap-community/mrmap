@@ -248,7 +248,6 @@ class GetRecordsResolver(RequestResolver):
             elem.text = kw.keyword
 
         # Formats
-        # ToDo: Get formats for dataset!
         for _format in md.formats.all():
             elem = xml_helper.create_subelement(
                 record_elem,

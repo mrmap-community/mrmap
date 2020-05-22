@@ -17,7 +17,7 @@ from django.db import transaction
 from django.utils.timezone import utc
 from lxml.etree import _Element
 
-from MrMap.settings import XML_NAMESPACES
+from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from service.settings import INSPIRE_LEGISLATION_FILE, HTML_METADATA_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, \
     SERVICE_DATASET_URI_TEMPLATE
 from MrMap import utils
@@ -25,7 +25,7 @@ from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, MetadataEnum
 from service.helper.epsg_api import EpsgApi
-from service.models import Metadata, Keyword, MetadataType, Document
+from service.models import Metadata, Keyword, MetadataType, Document, MimeType
 from structure.models import Organization, MrMapGroup
 
 
@@ -47,6 +47,7 @@ class ISOMetadata:
         self.abstract = None
         self.keywords = []
         self.iso_categories = []
+        self.formats = []
         self.download_link = None
         self.transfer_size = None
         self.preview_image = None
@@ -154,7 +155,7 @@ class ISOMetadata:
         # Initialize datasetid
         self.dataset_id = 'undefined'
         code = xml_helper.try_get_text_from_xml_element(elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString'.format(xpath_type), xml_elem=xml_obj)
-        if code is not None and len(code) != '':
+        if code is not None and len(code) != 0:
             # new implementation:
             # http://inspire.ec.europa.eu/file/1705/download?token=iSTwpRWd&usg=AOvVaw18y1aTdkoMCBxpIz7tOOgu
             # from 2017-03-02 - the MD_Identifier - see C.2.5 Unique resource identifier - it is separated with a slash - the codespace should be everything after the last slash
@@ -240,6 +241,16 @@ class ISOMetadata:
         iso_categories = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:topicCategory/gmd:MD_TopicCategoryCode".format(xpath_type))
         for iso_category in iso_categories:
             self.iso_categories.append(xml_helper.try_get_text_from_xml_element(iso_category))
+
+        # Get all values from <gmd:distributionInfo> which declares the distributionFormat
+        formats = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("distributionFormat"))
+        for format_elem in formats:
+            # get the character value per format
+            name_elem = xml_helper.try_get_single_element_from_xml(xml_elem=format_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("name"))
+            if name_elem is None:
+                continue
+            val = xml_helper.try_get_text_from_xml_element(xml_elem=name_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"))
+            self.formats.append(val)
 
         self.download_link = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource[gmd:function/gmd:CI_OnLineFunctionCode/@codeListValue="download"]/gmd:linkage/gmd:URL')
         self.transfer_size = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:transferSize/gco:Real')
@@ -471,6 +482,14 @@ class ISOMetadata:
             metadata.dataset_id_code_space = self.dataset_id_code_space
             metadata.created_by = created_by
             metadata.save()
+
+            # Remove old formats, add new ones
+            metadata.formats.clear()
+            for _format in self.formats:
+                mime_type = MimeType.objects.get_or_create(
+                    mime_type=_format,
+                )[0]
+                metadata.formats.add(mime_type)
 
             # Add links for dataset metadata
             # There is no capabilities link for dataset -> leave it None

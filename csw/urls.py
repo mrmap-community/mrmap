@@ -11,5 +11,5 @@ from csw.views import *
 
 app_name = 'csw'
 urlpatterns = [
-    path('', resolve_request, name='resolve-request'),
+    path('', get_csw_results, name='get-csw-results'),
 ]

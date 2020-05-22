@@ -9,7 +9,7 @@ from collections import OrderedDict
 from datetime import datetime
 
 from django.db.models import QuerySet
-from lxml.etree import Element
+from lxml.etree import Element, _Element
 
 from MrMap.settings import XML_NAMESPACES
 from csw.utils.parameter import ParameterResolver
@@ -149,6 +149,32 @@ class RequestResolver:
         )
         return elem
 
+    def _create_xml_from_map(self, parent_element: _Element, map: OrderedDict):
+        """ Creates xml elements from a given tag-attribute map.
+
+        Only for simple elements, which only hold a tag and text data.
+
+        Args:
+            parent_element (Element): The upper xml element
+            map (OrderedDict): The tag-attribute map
+        Returns:
+
+        """
+        for key, val in map.items():
+            if isinstance(val, list):
+                for item in val:
+                    elem = xml_helper.create_subelement(
+                        parent_element,
+                        key
+                    )
+                    elem.text = item
+
+            else:
+                elem = xml_helper.create_subelement(
+                    parent_element,
+                    key
+                )
+                elem.text = val
 
 
 class GetRecordsResolver(RequestResolver):
@@ -163,6 +189,7 @@ class GetRecordsResolver(RequestResolver):
         }
         self.dc_ns = "{" + self.dc_ns_map["dc"] + "}"
         self.dct_ns = "{" + self.dc_ns_map["dct"] + "}"
+        self.ows_ns = "{" + self.dc_ns_map["ows"] + "}"
 
     def _create_dublin_core_brief_elem(self, md: Metadata):
         """ Creates the BriefRecord in Dublin core syntax
@@ -172,7 +199,44 @@ class GetRecordsResolver(RequestResolver):
         Returns:
              elem (_Element): The lxml element
         """
-        pass
+        record_elem = Element(
+            "{}BriefRecord".format(self.csw_ns),
+            nsmap=self.dc_ns_map,
+        )
+
+        # Perform xml creation for simple elements
+        attribute_element_map = OrderedDict()
+        attribute_element_map["{}identifier".format(self.dc_ns)] = md.identifier
+        attribute_element_map["{}title".format(self.dc_ns)] = md.title
+        attribute_element_map["{}type".format(self.dc_ns)] = md.metadata_type.type if md.metadata_type.type == MetadataEnum.DATASET.value else "service"
+
+        # Create xml elements from mapped information
+        self._create_xml_from_map(record_elem, attribute_element_map)
+
+        # Perform xml creation for complex elements
+        geometry = md.bounding_geometry if md.bounding_geometry is not None and md.bounding_geometry.area > 0 else md.find_max_bounding_box()
+        bbox_elem = xml_helper.create_subelement(
+            record_elem,
+            "{}BoundingBox".format(self.ows_ns),
+            attrib={
+                "crs": "EPSG:{}".format(geometry.srid)
+            }
+        )
+
+        bbox = geometry.extent
+        lower_corner_elem = xml_helper.create_subelement(
+            bbox_elem,
+            "{}LowerCorner".format(self.ows_ns)
+        )
+        lower_corner_elem.text = "{} {}".format(bbox[0], bbox[1])
+        upper_corner_elem = xml_helper.create_subelement(
+            bbox_elem,
+            "{}UpperCorner".format(self.ows_ns)
+        )
+        upper_corner_elem.text = "{} {}".format(bbox[2], bbox[3])
+
+        return record_elem
+
 
     def _create_dublin_core_summary_elem(self, md: Metadata):
         """ Creates the SummaryRecord in Dublin core syntax
@@ -197,78 +261,23 @@ class GetRecordsResolver(RequestResolver):
             nsmap=self.dc_ns_map,
         )
 
-        # Identifier
-        elem = xml_helper.create_subelement(
-            record_elem,
-            "{}identifier".format(self.dc_ns),
-        )
-        elem.text = md.identifier
+        # Perform xml creation for simple elements
+        attribute_element_map = OrderedDict()
+        attribute_element_map["{}identifier".format(self.dc_ns)] = md.identifier
+        attribute_element_map["{}date".format(self.dc_ns)] = md.created.strftime("%Y-%m-%d")
+        attribute_element_map["{}title".format(self.dc_ns)] = md.title
+        attribute_element_map["{}abstract".format(self.dct_ns)] = md.abstract
+        attribute_element_map["{}description".format(self.dc_ns)] = md.abstract
+        attribute_element_map["{}type".format(self.dc_ns)] = md.metadata_type.type if md.metadata_type.type == MetadataEnum.DATASET.value else "service"
+        attribute_element_map["{}subject".format(self.dc_ns)] = [kw.keyword for kw in md.keywords.all()]
+        attribute_element_map["{}format".format(self.dc_ns)] = [format.mime_type for format in md.formats.all()]
+        attribute_element_map["{}modified".format(self.dct_ns)] = md.last_modified.strftime("%Y-%m-%d")
+        attribute_element_map["{}rights".format(self.dc_ns)] = "ToDo"  # ToDo
 
-        # Date
-        elem = xml_helper.create_subelement(
-            record_elem,
-            "{}date".format(self.dc_ns),
-        )
-        elem.text = md.created.strftime("%Y-%m-%d")
+        # Create xml elements from mapped information
+        self._create_xml_from_map(record_elem, attribute_element_map)
 
-        # Title
-        elem = xml_helper.create_subelement(
-            record_elem,
-            "{}title".format(self.dc_ns),
-        )
-        elem.text = md.title
-
-        # Abstract
-        elem = xml_helper.create_subelement(
-            record_elem,
-            "{}abstract".format(self.dct_ns),
-        )
-        elem.text = md.abstract
-
-        # Description
-        elem = xml_helper.create_subelement(
-            record_elem,
-            "{}abstract".format(self.dc_ns),
-        )
-        elem.text = md.abstract
-
-        # Type
-        elem = xml_helper.create_subelement(
-            record_elem,
-            "{}type".format(self.dc_ns),
-        )
-        elem.text = md.metadata_type.type if md.metadata_type.type == MetadataEnum.DATASET.value else "service"
-
-        # Subjects
-        for kw in md.keywords.all():
-            elem = xml_helper.create_subelement(
-                record_elem,
-                "{}subject".format(self.dc_ns),
-            )
-            elem.text = kw.keyword
-
-        # Formats
-        for _format in md.formats.all():
-            elem = xml_helper.create_subelement(
-                record_elem,
-                "{}format".format(self.dc_ns),
-            )
-            elem.text = _format.mime_type
-
-        # Modified
-        elem = xml_helper.create_subelement(
-            record_elem,
-            "{}modified".format(self.dct_ns),
-        )
-        elem.text = md.last_modified.strftime("%Y-%m-%d")
-
-        # Rights
-        elem = xml_helper.create_subelement(
-            record_elem,
-            "{}rights".format(self.dc_ns),
-        )
-        elem.text = "ToDo"
-
+        # Perform xml creation for more complex elements
         # URI
         elem = xml_helper.create_subelement(
             record_elem,
@@ -291,7 +300,7 @@ class GetRecordsResolver(RequestResolver):
         Returns:
              elem (_Element): The lxml element
         """
-        typename = self.param.type_names
+        typename = self.param.element_set_name or self.param.element_name
         if typename == "brief":
             return self._create_dublin_core_brief_elem(returned_md)
         elif typename == "summary":

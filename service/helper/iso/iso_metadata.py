@@ -221,7 +221,7 @@ class ISOMetadata:
         # try to transform the last_change_date into a datetime object
         try:
             self.last_change_date = parse(self.last_change_date)
-        except (ValueError, OverflowError, TypeError) as e:
+        except (ValueError, OverflowError, TypeError):
             # if this is not possible due to wrong input, just use the current time...
             self.last_change_date = timezone.now()
 
@@ -365,7 +365,6 @@ class ISOMetadata:
         Returns:
              polygon (Polygon): The polygon object created from the data
         """
-        polygon = Polygon()
         relative_ring_xpath = "./gml:Polygon/gml:exterior/gml:LinearRing/gml:posList"
         relative_coordinate_xpath = "./gml:Polygon/gml:exterior/gml:LinearRing/gml:coordinates"
         pos_list = xml_helper.try_get_element_from_xml(xml_elem=polygon_elem, elem=relative_ring_xpath)
@@ -428,93 +427,91 @@ class ISOMetadata:
         Returns:
             metadata (Metadata): A db model Metadata object
         """
-        # try to find the object by uuid and uri
-        update = False
-        new = False
+        # try to find the object by uuid and uri. If not existing yet, create a new record
         try:
             metadata = Metadata.objects.get(uuid=self.file_identifier, metadata_url=self.uri)
             # check if the parsed metadata might be newer
             # make sure both date time objects will be comparable
             persisted_change = metadata.last_remote_change.replace(tzinfo=utc)
             new_change = self.last_change_date.replace(tzinfo=utc)
-            if persisted_change <= new_change:
-                update = True
+            if persisted_change > new_change:
+                # Nothing to do here
+                return metadata
         except ObjectDoesNotExist:
             # object does not seem to exist -> create it!
             metadata = Metadata()
             md_type = MetadataType.objects.get_or_create(type=type)[0]
             metadata.metadata_type = md_type
-            new = True
 
-        if update or new:
-            metadata.uuid = self.file_identifier
-            metadata.identifier = self.file_identifier
-            metadata.abstract = self.abstract
-            metadata.access_constraints = self.access_constraints
+        metadata.uuid = self.file_identifier
+        metadata.identifier = self.file_identifier
+        metadata.abstract = self.abstract
+        metadata.access_constraints = self.access_constraints
 
-            if len(self.polygonal_extent_exterior) > 0:
-                metadata.bounding_geometry = self.polygonal_extent_exterior[0]
+        if len(self.polygonal_extent_exterior) > 0:
+            metadata.bounding_geometry = self.polygonal_extent_exterior[0]
 
-            try:
-                metadata.contact = Organization.objects.get_or_create(
-                    organization_name=self.responsible_party,
-                    email=self.contact_email,
-                )[0]
-            except MultipleObjectsReturned:
-                # okay, we need to create a unique organization
-                # "unique" since it will only be identified using organization_name and email
-                metadata.contact = Organization.objects.get_or_create(
-                    organization_name="{}#1".format(self.responsible_party),
-                    email=self.contact_email,
-                )[0]
-
-            metadata.is_inspire_conform = self.inspire_interoperability
-            metadata.metadata_url = self.uri
-            metadata.last_remote_change = self.last_change_date
-            metadata.spatial_res_type = self.spatial_res_type
-            metadata.spatial_res_value = self.spatial_res_val
-            if self.title is None:
-                self.title = "BROKEN"
-            metadata.title = self.title
-            metadata.origin = self.origin
-            metadata.is_broken = self.is_broken
-            metadata.dataset_id = self.dataset_id
-            metadata.dataset_id_code_space = self.dataset_id_code_space
-            metadata.created_by = created_by
-            metadata.save()
-
-            # Remove old formats, add new ones
-            metadata.formats.clear()
-            for _format in self.formats:
-                mime_type = MimeType.objects.get_or_create(
-                    mime_type=_format,
-                )[0]
-                metadata.formats.add(mime_type)
-
-            # Add links for dataset metadata
-            # There is no capabilities link for dataset -> leave it None
-            metadata.capabilities_uri = None
-            metadata.service_metadata_uri = SERVICE_DATASET_URI_TEMPLATE.format(metadata.id)
-            metadata.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(metadata.id)
-
-            metadata.save()
-
-            # create document object to persist the dataset metadata document
-            document = Document.objects.get_or_create(
-                related_metadata=metadata
+        try:
+            metadata.contact = Organization.objects.get_or_create(
+                organization_name=self.responsible_party,
+                email=self.contact_email,
             )[0]
-            if type is MetadataEnum.DATASET.value:
-                document.dataset_metadata_document = self.raw_metadata
-            elif type is MetadataEnum.SERVICE.value:
-                document.service_metadata_document = self.raw_metadata
-            else:
-                # ToDo: For future implementations
-                pass
-            document.save()
+        except MultipleObjectsReturned:
+            # okay, we need to create a unique organization
+            # "unique" since it will only be identified using organization_name and email
+            metadata.contact = Organization.objects.get_or_create(
+                organization_name="{}#1".format(self.responsible_party),
+                email=self.contact_email,
+            )[0]
 
-            if update:
-                metadata.keywords.clear()
-            for kw in self.keywords:
-                keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-                metadata.keywords.add(keyword)
+        metadata.is_inspire_conform = self.inspire_interoperability
+        metadata.metadata_url = self.uri
+        metadata.last_remote_change = self.last_change_date
+        metadata.spatial_res_type = self.spatial_res_type
+        metadata.spatial_res_value = self.spatial_res_val
+        if self.title is None:
+            self.title = "BROKEN"
+        metadata.title = self.title
+        metadata.origin = self.origin
+        metadata.is_broken = self.is_broken
+        metadata.dataset_id = self.dataset_id
+        metadata.dataset_id_code_space = self.dataset_id_code_space
+        metadata.created_by = created_by
+        metadata.save()
+
+        # Remove old formats, add new ones
+        metadata.formats.clear()
+        for _format in self.formats:
+            mime_type = MimeType.objects.get_or_create(
+                mime_type=_format,
+            )[0]
+            metadata.formats.add(mime_type)
+
+        # Add links for dataset metadata
+        # There is no capabilities link for dataset -> leave it None
+        metadata.capabilities_uri = None
+        metadata.service_metadata_uri = SERVICE_DATASET_URI_TEMPLATE.format(metadata.id)
+        metadata.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(metadata.id)
+        metadata.save()
+
+        # create document object to persist the dataset metadata document
+        document = Document.objects.get_or_create(
+            related_metadata=metadata
+        )[0]
+
+        if type is MetadataEnum.DATASET.value:
+            document.dataset_metadata_document = self.raw_metadata
+        elif type is MetadataEnum.SERVICE.value:
+            document.service_metadata_document = self.raw_metadata
+        else:
+            # ToDo: For future implementations
+            pass
+
+        document.save()
+
+        metadata.keywords.clear()
+        for kw in self.keywords:
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            metadata.keywords.add(keyword)
+
         return metadata

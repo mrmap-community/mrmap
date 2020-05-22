@@ -880,7 +880,6 @@ class OGCWebFeatureService(OGCWebService):
             # dataset_md of feature types
             for dataset_md in f_t.dataset_md_list:
                 dataset_record = dataset_md.to_db_model(created_by=group)
-                print(dataset_md.formats)
                 dataset_record.save()
                 md_relation = MetadataRelation()
                 md_relation.metadata_from = f_t.metadata

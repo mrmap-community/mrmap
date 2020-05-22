@@ -237,7 +237,6 @@ class GetRecordsResolver(RequestResolver):
 
         return record_elem
 
-
     def _create_dublin_core_summary_elem(self, md: Metadata):
         """ Creates the SummaryRecord in Dublin core syntax
 
@@ -246,7 +245,25 @@ class GetRecordsResolver(RequestResolver):
         Returns:
              elem (_Element): The lxml element
         """
-        pass
+        record_elem = Element(
+            "{}SummaryRecord".format(self.csw_ns),
+            nsmap=self.dc_ns_map,
+        )
+
+        # Perform xml creation for simple elements
+        attribute_element_map = OrderedDict()
+        attribute_element_map["{}identifier".format(self.dc_ns)] = md.identifier
+        attribute_element_map["{}title".format(self.dc_ns)] = md.title
+        attribute_element_map["{}type".format(self.dc_ns)] = md.metadata_type.type if md.metadata_type.type == MetadataEnum.DATASET.value else "service"
+        attribute_element_map["{}subject".format(self.dc_ns)] = [kw.keyword for kw in md.keywords.all()]
+        attribute_element_map["{}format".format(self.dc_ns)] = [format.mime_type for format in md.formats.all()]
+        attribute_element_map["{}modified".format(self.dct_ns)] = md.last_modified.strftime("%Y-%m-%d")
+        attribute_element_map["{}abstract".format(self.dct_ns)] = md.abstract
+
+        # Create xml elements from mapped information
+        self._create_xml_from_map(record_elem, attribute_element_map)
+
+        return record_elem
 
     def _create_dublin_core_full_elem(self, md: Metadata):
         """ Creates the default (full) record in Dublin core syntax

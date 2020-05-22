@@ -62,7 +62,7 @@ class MetadataAdmin(admin.ModelAdmin):
 class MetadataRelationAdmin(admin.ModelAdmin):
     list_display = ('id', 'metadata_from_link', 'relation_type', 'metadata_to_link', 'origin_link')
     list_filter = ('relation_type',)
-    # search_fields = ['metadata_from', 'metadata_to',]
+    search_fields = ['metadata_from__title', 'metadata_to__title',]
 
     def metadata_from_link(self, obj):
         return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata_from.id,)), escape(obj.metadata_from)))

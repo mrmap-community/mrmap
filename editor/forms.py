@@ -6,10 +6,14 @@ Created on: 09.07.19
 
 """
 from dal import autocomplete
+from django.core.exceptions import ObjectDoesNotExist
+from django.forms import ModelMultipleChoiceField
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.forms import MrMapModelForm
-from service.models import Metadata
+from service.helper.enums import MetadataEnum
+from service.models import Metadata, MetadataRelation, MetadataOrigin
+from structure.models import MrMapUser
 
 
 class MetadataEditorForm(MrMapModelForm):
@@ -63,12 +67,47 @@ class MetadataEditorForm(MrMapModelForm):
         }
 
 
+class MetadataModelMutlipleChoiceField(ModelMultipleChoiceField):
+    def label_from_instance(self, obj):
+        """
+            we need to override this function to show the id of the metadata object,
+            so the user can differentiate the results where title is equal.
+        """
+        return "{} #{}".format(obj.title, obj.id)
+
+
 class DatasetMetadataEditorForm(MrMapModelForm):
+    related_objects = MetadataModelMutlipleChoiceField(
+                        queryset=None,
+                        widget=autocomplete.ModelSelect2Multiple(
+                               url='editor:metadata-autocomplete',
+                               attrs={
+                                    "data-containercss": {
+                                        "height": "3em",
+                                        "width": "3em",
+                                    },
+                               },
+                               ),)
+
     def __init__(self, *args, **kwargs):
+        requesting_user = '' if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
+        #self.instance_id = -1 if 'instance_id' not in kwargs else kwargs.pop('instance_id')
         # first call parent's constructor
         super(DatasetMetadataEditorForm, self).__init__(*args, **kwargs)
 
-        # there's a `fields` property now
+        # setup querysets
+        self.fields['related_objects'].queryset = requesting_user.get_metadatas_as_qs(type=MetadataEnum.DATASET, inverse_match=True)
+
+        if 'instance' in kwargs:
+            instance = kwargs['instance']
+            self.fields['related_objects'].queryset = self.fields['related_objects'].queryset.exclude(id=instance.id)
+            metadata_relations = MetadataRelation.objects.filter(metadata_to=instance)
+            related_objects = []
+            for metadata_relation in metadata_relations:
+                related_objects.append(metadata_relation.metadata_from)
+            self.fields['related_objects'].initial = related_objects
+
+            # setup non required fields
         #self.fields['terms_of_use'].required = False
         #self.fields['categories'].required = False
         self.fields['keywords'].required = False
@@ -79,6 +118,7 @@ class DatasetMetadataEditorForm(MrMapModelForm):
         fields = [
             "title",
             "abstract",
+            #"related_metadata",
             #"access_constraints",
             #"terms_of_use",
             "keywords",
@@ -112,3 +152,35 @@ class DatasetMetadataEditorForm(MrMapModelForm):
                 },
             ),
         }
+
+    def save(self, commit=True):
+        m = super(DatasetMetadataEditorForm, self).save(commit=False)
+        # 1: create new MetadataRelations for the instance, if the relation does not exist
+        related_objects = self.cleaned_data['related_objects']
+        for related_object in related_objects:
+
+            related_object = Metadata.objects.get(id=related_object.id)
+            try:
+                # ToDo: test this for new dataset metadatas
+                MetadataRelation.objects.get(metadata_to=self.instance, metadata_from=related_object)
+                # no error; do nothing
+            except ObjectDoesNotExist:
+                # if object does not exist, we need to create it new
+                origin = MetadataOrigin.objects.get_or_create(name='MrMap')[0]
+                new_metadata_relation = MetadataRelation()
+                new_metadata_relation.metadata_from = related_object
+                # ToDo: test this for new dataset metadatas
+                new_metadata_relation.metadata_to = self.instance
+                new_metadata_relation.origin = origin
+                new_metadata_relation.relation_type = 'describedBy'
+                # ToDo: if an error occurs we need to rollback
+                new_metadata_relation.save()
+        # 2: remove all metadata relations which we don't need anymore
+        remove_candidates = MetadataRelation.objects.filter(metadata_to=self.instance).exclude(metadata_from__id__in=related_objects)
+        for remove_candidate in remove_candidates:
+            # ToDo: if an error occurs we need to rollback
+            remove_candidate.delete()
+
+        if commit:
+            m.save()
+        return m

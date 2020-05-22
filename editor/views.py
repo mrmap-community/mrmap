@@ -54,12 +54,13 @@ def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, ):
     datasets = user.get_datasets_as_qs()
     datasets_table_filtered = MetadataDatasetFilter(request.GET, queryset=datasets)
     datasets_table = DatasetTable(datasets_table_filtered.qs,
-                                user=user, )
+                                  user=user, )
     datasets_table.filter = datasets_table_filtered
     # TODO: # since parameters could be changed directly in the uri, we need to make sure to avoid problems
     datasets_table.configure_pagination(request, 'dataset-t')
 
     return datasets_table
+
 
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
@@ -79,7 +80,7 @@ def index(request: HttpRequest):
         "wms_table": _prepare_wms_table(request, user),
         "wfs_table": _prepare_wfs_table(request, user),
         "dataset_table": _prepare_dataset_table(request, user),
-        "new_dataset_form": DatasetMetadataEditorForm(action_url=''),
+        "new_dataset_form": DatasetMetadataEditorForm(action_url='', requesting_user=user,),
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
@@ -146,7 +147,7 @@ def index_datasets(request: HttpRequest):
 
     params = {
         "dataset_table": _prepare_dataset_table(request, user),
-        "new_dataset_form": DatasetMetadataEditorForm(action_url=''),
+        "new_dataset_form": DatasetMetadataEditorForm(action_url='', requesting_user=user,),
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
@@ -173,7 +174,7 @@ def edit_dataset(request: HttpRequest, metadata_id: int):
         return HttpResponseRedirect(reverse("editor:edit", args=(metadata_id,)), status=303)
 
     if request.method == 'POST':
-        editor_form = DatasetMetadataEditorForm(request.POST)
+        editor_form = DatasetMetadataEditorForm(request.POST, instance=metadata, action_url='', requesting_user=user)
         if editor_form.is_valid():
             custom_md = editor_form.save(commit=False)
 
@@ -185,7 +186,7 @@ def edit_dataset(request: HttpRequest, metadata_id: int):
 
             user_helper.create_group_activity(metadata.created_by, user, DATASET_MD_EDITED, "{}: {}".format(metadata.title, None))
     else:
-        editor_form = DatasetMetadataEditorForm(instance=metadata, action_url='')
+        editor_form = DatasetMetadataEditorForm(instance=metadata, action_url='', requesting_user=user,)
 
     editor_form.action_url = reverse("editor:edit-dataset-metadata", args=(metadata_id,))
     params = {

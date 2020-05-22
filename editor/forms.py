@@ -77,17 +77,18 @@ class MetadataModelMutlipleChoiceField(ModelMultipleChoiceField):
 
 
 class DatasetMetadataEditorForm(MrMapModelForm):
-    related_objects = MetadataModelMutlipleChoiceField(
+    additional_related_objects = MetadataModelMutlipleChoiceField(
                         queryset=None,
                         widget=autocomplete.ModelSelect2Multiple(
                                url='editor:metadata-autocomplete',
                                attrs={
-                                    "data-containercss": {
-                                        "height": "3em",
-                                        "width": "3em",
-                                    },
+                                        "data-containercss": {
+                                            "height": "3em",
+                                            "width": "3em",
+                                        },
                                },
-                               ),)
+                        ),
+                        required=False,)
 
     def __init__(self, *args, **kwargs):
         requesting_user = '' if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
@@ -96,16 +97,17 @@ class DatasetMetadataEditorForm(MrMapModelForm):
         super(DatasetMetadataEditorForm, self).__init__(*args, **kwargs)
 
         # setup querysets
-        self.fields['related_objects'].queryset = requesting_user.get_metadatas_as_qs(type=MetadataEnum.DATASET, inverse_match=True)
+        self.fields['additional_related_objects'].queryset = requesting_user.get_metadatas_as_qs(type=MetadataEnum.DATASET, inverse_match=True)
 
         if 'instance' in kwargs:
             instance = kwargs['instance']
-            self.fields['related_objects'].queryset = self.fields['related_objects'].queryset.exclude(id=instance.id)
+            self.fields['additional_related_objects'].queryset = self.fields['additional_related_objects'].queryset.exclude(id=instance.id)
             metadata_relations = MetadataRelation.objects.filter(metadata_to=instance)
-            related_objects = []
+            additional_related_objects = []
             for metadata_relation in metadata_relations:
-                related_objects.append(metadata_relation.metadata_from)
-            self.fields['related_objects'].initial = related_objects
+                if metadata_relation.origin.name != 'capabilities':
+                    additional_related_objects.append(metadata_relation.metadata_from)
+            self.fields['additional_related_objects'].initial = additional_related_objects
 
             # setup non required fields
         #self.fields['terms_of_use'].required = False
@@ -156,8 +158,8 @@ class DatasetMetadataEditorForm(MrMapModelForm):
     def save(self, commit=True):
         m = super(DatasetMetadataEditorForm, self).save(commit=False)
         # 1: create new MetadataRelations for the instance, if the relation does not exist
-        related_objects = self.cleaned_data['related_objects']
-        for related_object in related_objects:
+        additional_related_objects = self.cleaned_data['additional_related_objects']
+        for related_object in additional_related_objects:
 
             related_object = Metadata.objects.get(id=related_object.id)
             try:
@@ -176,7 +178,9 @@ class DatasetMetadataEditorForm(MrMapModelForm):
                 # ToDo: if an error occurs we need to rollback
                 new_metadata_relation.save()
         # 2: remove all metadata relations which we don't need anymore
-        remove_candidates = MetadataRelation.objects.filter(metadata_to=self.instance).exclude(metadata_from__id__in=related_objects)
+        remove_candidates = MetadataRelation.objects.filter(metadata_to=self.instance)\
+                                                    .exclude(metadata_from__id__in=additional_related_objects)\
+                                                    .exclude(origin__name='capabilities')
         for remove_candidate in remove_candidates:
             # ToDo: if an error occurs we need to rollback
             remove_candidate.delete()

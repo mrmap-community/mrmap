@@ -12,6 +12,10 @@ from csw.utils.parameter import ParameterResolver
 from service.helper import xml_helper
 from service.models import Metadata
 
+SUPPORTED_VERSIONS = [
+    "2.0.2",
+    "3.0",
+]
 
 class RequestResolver:
     """ Resolves which type of request has to be performed.
@@ -42,9 +46,15 @@ class RequestResolver:
         resolver_class = self.resolver_map.get(request, None)
         if not resolver_class:
             raise AttributeError(
-                "No valid operation or operation not supported. Choices are `{}`".format(
-                    ",".join(self.resolver_map.keys())
-                )
+                "No valid operation or operation not supported. Supported operations are `{}`".format(
+                    ", ".join(key for key, val in self.resolver_map.items() if val is not None)
+                ),
+                "request"
+            )
+        if self.param.version not in SUPPORTED_VERSIONS:
+            raise NotImplementedError(
+                "{} is not supported. Choices are '{}'".format(self.param.version, ", ".join(SUPPORTED_VERSIONS)),
+                "version"
             )
 
         class_obj = resolver_class(param=self.param)

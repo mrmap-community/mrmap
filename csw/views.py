@@ -17,6 +17,7 @@ from csw.utils.parameter import ParameterResolver
 
 #@cache_page(CSW_CACHE_TIME, key_prefix="csw")
 from csw.utils.request_resolver import RequestResolver
+from service.helper.ogc.ows import OWSException
 
 
 def get_csw_results(request: HttpRequest):
@@ -30,10 +31,15 @@ def get_csw_results(request: HttpRequest):
     paramter = ParameterResolver(request.GET.dict())
     request_resolver = RequestResolver(paramter)
 
-    content = request_resolver.get_response()
+    try:
+        content = request_resolver.get_response()
+        content_len = len(content)
+    except Exception as e:
+        ows_exception = OWSException(e)
+        content = ows_exception.get_exception_report()
+        content_len = -1
     content_type = paramter.output_format
 
-    content_len = len(content)
     if content_len > 1000000:
         return StreamingHttpResponse(content, content_type=content_type)
     else:

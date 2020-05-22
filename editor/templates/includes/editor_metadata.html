@@ -40,7 +40,7 @@
 
 <div class="row">
    <div class="col">
-       <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service_metadata.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
+       <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% if service_metadata.metadata_type.type == 'dataset' %} {% url 'editor:restore-dataset-metadata' service_metadata.id %} {% else %} {% url 'editor:restore' service_metadata.id %} {% endif %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
    </div>
 </div>
 

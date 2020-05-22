@@ -1233,14 +1233,41 @@ class Metadata(Resource):
         cap_doc = Document.objects.get(related_metadata=service.metadata)
         cap_doc.restore()
 
+    def _restore_dataset_md(self, ):
+        """ Private function for retrieving single layer metadata
+
+        Args:
+            service (OGCWebMapService): An empty OGCWebMapService object to load and parse the metadata
+        Returns:
+             nothing, it changes the Metadata object itself
+        """
+        from service.helper.iso.iso_metadata import ISOMetadata
+        original_metadata_document = ISOMetadata(uri=str(self.metadata_url), origin="capabilities")
+        self.abstract = original_metadata_document.abstract
+        self.title = original_metadata_document.title
+
+        keyword_list = []
+        for keyword in original_metadata_document.keywords:
+            keyword_list.append(Keyword.objects.get_or_create(keyword=keyword)[0])
+
+        self.keywords.set(keyword_list)
+
+        doc = Document.objects.get(related_metadata=self)
+        doc.current_dataset_metadata_document = doc.original_dataset_metadata_document
+
     def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Load original metadata from capabilities and ISO metadata
 
         Args:
             identifier (str): The identifier of a featureType or Layer (in xml often named 'name')
+            external_auth (ExternalAuthentication):
         Returns:
              nothing
         """
+        # catch dataset
+        if self.is_dataset_metadata:
+            self._restore_dataset_md()
+
         # identify whether this is a wfs or wms (we need to handle them in different ways)
         if self.is_service_type(OGCServiceEnum.WFS):
             self._restore_wfs(identifier, external_auth=external_auth)

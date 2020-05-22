@@ -23,5 +23,6 @@ urlpatterns = [
     path('dataset/<metadata_id>', edit_dataset, name='edit-dataset-metadata'),
     path('access/<id>', edit_access, name='edit_access'),
     path('access/<id>/geometry-form/', access_geometry_form, name='access_geometry_form'),
-    path('restore/<id>', restore, name='restore'),
+    path('restore/<metadata_id>', restore, name='restore'),
+    path('restore-dataset-metadata/<metadata_id>', restore_dataset_metadata, name='restore-dataset-metadata'),
 ]

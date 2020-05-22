@@ -59,6 +59,7 @@ REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION = _("Requesting user is not me
 
 METADATA_RESTORING_SUCCESS = _("Metadata restored to original")
 METADATA_EDITING_SUCCESS = _("Metadata editing successful")
+METADATA_ADDED_SUCCESS = _("Metadata added successful")
 METADATA_IS_ORIGINAL = _("Metadata is original. Reset aborted.")
 METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED = _("You have to turn off the secured access before you can turn off the proxy.")
 

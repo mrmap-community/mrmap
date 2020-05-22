@@ -10,7 +10,7 @@ from MapSkinner.cacher import PageCacher
 from MapSkinner.decorator import check_permission, check_ownership
 from MapSkinner.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
-    SECURITY_PROXY_WARNING_ONLY_FOR_ROOT, DATASET_MD_EDITED
+    SECURITY_PROXY_WARNING_ONLY_FOR_ROOT, DATASET_MD_EDITED, METADATA_ADDED_SUCCESS
 from MapSkinner.responses import DefaultContext, BackendAjaxResponse
 from api.settings import API_CACHE_KEY_PREFIX
 from editor.forms import MetadataEditorForm, DatasetMetadataEditorForm
@@ -80,7 +80,7 @@ def index(request: HttpRequest):
         "wms_table": _prepare_wms_table(request, user),
         "wfs_table": _prepare_wfs_table(request, user),
         "dataset_table": _prepare_dataset_table(request, user),
-        "new_dataset_form": DatasetMetadataEditorForm(action_url='', requesting_user=user,),
+        "new_dataset_form": DatasetMetadataEditorForm(action_url=reverse('editor:add-dataset-metadata'), requesting_user=user,),
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
@@ -147,7 +147,7 @@ def index_datasets(request: HttpRequest):
 
     params = {
         "dataset_table": _prepare_dataset_table(request, user),
-        "new_dataset_form": DatasetMetadataEditorForm(action_url='', requesting_user=user,),
+        "new_dataset_form": DatasetMetadataEditorForm(action_url=reverse('editor:add-dataset-metadata'), requesting_user=user,),
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
@@ -185,6 +185,9 @@ def edit_dataset(request: HttpRequest, metadata_id: int):
             messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
 
             user_helper.create_group_activity(metadata.created_by, user, DATASET_MD_EDITED, "{}: {}".format(metadata.title, None))
+        else:
+            pass
+            # ToDo:
     else:
         editor_form = DatasetMetadataEditorForm(instance=metadata, action_url='', requesting_user=user,)
 
@@ -197,6 +200,35 @@ def edit_dataset(request: HttpRequest, metadata_id: int):
     template = "views/editor_metadata_index.html"
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
+
+
+@login_required
+@check_permission(Permission(can_add_dataset_metadata=True))
+def add_dataset(request: HttpRequest,):
+    """ The edit view for metadata
+
+    Provides add function to create new dataset metadata
+
+    Args:
+        request: The incoming request
+    Returns:
+        A rendered view
+    """
+    user = user_helper.get_user(request)
+
+    if request.method == 'POST':
+        editor_form = DatasetMetadataEditorForm(request.POST, action_url=reverse('editor:add-dataset-metadata'), requesting_user=user)
+        if editor_form.is_valid():
+            new_dataset_metadata = editor_form.save()
+
+            messages.add_message(request, messages.SUCCESS, METADATA_ADDED_SUCCESS)
+            user_helper.create_group_activity(new_dataset_metadata.created_by, user, DATASET_MD_EDITED, "{}: {}".format(new_dataset_metadata.title, None))
+            return HttpResponseRedirect(reverse("editor:index", ), status=303)
+        else:
+            pass
+            # ToDo:
+    else:
+        return HttpResponseRedirect(reverse("editor:index", ), status=303)
 
 
 @login_required

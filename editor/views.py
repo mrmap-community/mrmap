@@ -383,8 +383,8 @@ def access_geometry_form(request: HttpRequest, id: int):
 
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
-@check_ownership(Metadata, 'id')
-def restore(request: HttpRequest, id: int):
+@check_ownership(Metadata, 'metadata_id')
+def restore(request: HttpRequest, metadata_id: int):
     """ Drops custom metadata and load original metadata from capabilities and ISO metadata
 
     Args,
@@ -395,14 +395,9 @@ def restore(request: HttpRequest, id: int):
     """
     user = user_helper.get_user(request)
 
-    metadata = Metadata.objects.get(id=id)
+    metadata = Metadata.objects.get(id=metadata_id)
 
     ext_auth = metadata.get_external_authentication_object()
-
-    # check if user owns this service by group-relation
-    if metadata.created_by not in user.get_groups():
-        messages.error(request, message=NO_PERMISSION)
-        return redirect("editor:index")
 
     service_type = metadata.get_service_type()
     if service_type == 'wms':
@@ -433,6 +428,37 @@ def restore(request: HttpRequest, id: int):
     else:
         parent_metadata = metadata
     user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_RESTORED, "{}: {}".format(parent_metadata.title, metadata.title))
+    return redirect("editor:index")
+
+
+@login_required
+@check_permission(Permission(can_edit_metadata_service=True))
+@check_ownership(Metadata, 'metadata_id')
+def restore_dataset_metadata(request: HttpRequest, metadata_id: int):
+    """ Drops custom metadata and load original metadata from capabilities and ISO metadata
+
+    Args,
+        request: The incoming request
+        id: The metadata id
+    Returns:
+         Redirects back to edit view
+    """
+    user = user_helper.get_user(request)
+
+    metadata = Metadata.objects.get(id=metadata_id)
+
+    ext_auth = metadata.get_external_authentication_object()
+
+    if not metadata.is_custom:
+        messages.add_message(request, messages.INFO, METADATA_IS_ORIGINAL)
+        return redirect(request.META.get("HTTP_REFERER"))
+
+    if metadata.is_custom:
+        metadata.restore(metadata.identifier, external_auth=ext_auth)
+        metadata.save()
+
+    messages.add_message(request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
+    user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_RESTORED, "{}".format(metadata.title, ))
     return redirect("editor:index")
 
 

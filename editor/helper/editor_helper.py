@@ -378,7 +378,8 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     original_md.title = custom_md.title
     original_md.abstract = custom_md.abstract
     original_md.access_constraints = custom_md.access_constraints
-    original_md.metadata_url = custom_md.metadata_url
+    # we need the metadata_url to reset dataset metadatas
+    # original_md.metadata_url = custom_md.metadata_url
     original_md.terms_of_use = custom_md.terms_of_use
     # get db objects from values
 

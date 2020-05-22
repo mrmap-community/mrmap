@@ -182,5 +182,5 @@ class DatasetTable(MapSkinnerTable):
         return _get_edit_button(url, self.user)
 
     def render_dataset_reset(self, record):
-        url = reverse('editor:restore', args=(record.id,))
+        url = reverse('editor:restore-dataset-metadata', args=(record.id,))
         return _get_undo_button(url, self.user)

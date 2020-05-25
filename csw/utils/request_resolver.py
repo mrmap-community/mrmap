@@ -8,6 +8,7 @@ Created on: 20.05.20
 from django.db.models import QuerySet
 
 from csw.utils.converter import MetadataConverter
+from csw.utils.csw_filter import *
 from csw.utils.parameter import ParameterResolver
 from service.helper import xml_helper
 from service.models import Metadata
@@ -55,14 +56,14 @@ class RequestResolver:
 
         resolver_class = self.operation_resolver_map.get(request, None)
         if not resolver_class:
-            raise AttributeError(
+            raise ValueError(
                 "No valid operation or operation not supported. Supported operations are `{}`".format(
                     ", ".join(key for key, val in self.operation_resolver_map.items() if val is not None)
                 ),
                 "request"
             )
         if self.param.version not in SUPPORTED_VERSIONS:
-            raise NotImplementedError(
+            raise ValueError(
                 "{} is not supported. Choices are '{}'".format(self.param.version, ", ".join(SUPPORTED_VERSIONS)),
                 "version"
             )
@@ -98,8 +99,8 @@ class RequestResolver:
         """
         if self.param.constraint is None:
             return all_md
-        # ToDo: Implement rest
-        return all_md
+        filtered_md = prefilter_queryset(self.param.constraint, all_md)
+        return filtered_md
 
     def _sort_metadata(self, all_md: QuerySet):
         """ Perform sorting using sortBy parameter
@@ -145,6 +146,8 @@ class GetRecordsResolver(RequestResolver):
         i_from = self.param.start_position - 1
         i_to = i_from + self.param.max_records
         returned_metadata = metadata[i_from:i_to]
+        if i_from > metadata.count():
+            raise ValueError("Start position ({}) can't be greater than number of matching records ({})".format(self.param.start_position, metadata.count()), "startPosition")
 
         md_converter = MetadataConverter(self.param, metadata, returned_metadata)
         response = md_converter.create_xml_response()

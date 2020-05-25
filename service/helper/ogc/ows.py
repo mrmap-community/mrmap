@@ -258,8 +258,14 @@ class OGCWebService:
 class OWSException:
     def __init__(self, exception: Exception):
         self.exception = exception
-        self.text = exception.args[0]
-        self.locator = exception.args[1]
+        try:
+            self.text = exception.args[0]
+        except IndexError:
+            self.text = "None"
+        try:
+            self.locator = exception.args[1]
+        except IndexError:
+            self.locator = "None"
 
         self.namespace_map = {
             None: XML_NAMESPACES["ows"],

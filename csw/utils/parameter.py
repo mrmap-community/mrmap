@@ -94,6 +94,9 @@ class ParameterResolver:
             if not param:
                 continue
 
+            # Make sure no ' or " can be found inside the parameters
+            val = val.replace("'", "").replace('"', "")
+
             # Make sure no negative integers are passed
             try:
                 val = int(val)

@@ -17,6 +17,7 @@ SUPPORTED_VERSIONS = [
     "3.0",
 ]
 
+
 class RequestResolver:
     """ Resolves which type of request has to be performed.
 
@@ -43,7 +44,6 @@ class RequestResolver:
             "dc:date": "created",
             "dc:modified": "last_modified",
         }
-
 
     def get_response(self):
         """ Resolve the corresponding class to perform the response fetching
@@ -104,6 +104,9 @@ class RequestResolver:
     def _sort_metadata(self, all_md: QuerySet):
         """ Perform sorting using sortBy parameter
 
+        Values follow the syntax of `attribute:A|D`. The A or D indicates ASC or DESC ordering. Since the
+        attribute can contain `:` as well, the A|D part has to be separated without the attribute to be damaged.
+
         Args:
             all_md (QuerySet): The unsorted metadata queryset
         Returns:
@@ -123,7 +126,6 @@ class RequestResolver:
         if desc:
             md_attrib = "-" + md_attrib
         return all_md.order_by(md_attrib)
-
 
 
 class GetRecordsResolver(RequestResolver):

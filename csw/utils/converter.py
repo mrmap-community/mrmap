@@ -9,7 +9,7 @@ from abc import abstractmethod
 from collections import OrderedDict
 from datetime import datetime
 
-from lxml.etree import Element
+from lxml.etree import Element, QName
 
 from django.db.models import QuerySet
 
@@ -214,6 +214,68 @@ class Iso19115MetadataConverter(MetadataConverter):
 
         xml = xml_helper.parse_xml(xml)
         xml = xml_helper.try_get_single_element_from_xml(xml_elem=xml, elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_Metadata"))
+
+        # Reduce the amount of information returned based on the requested elementSetName parameter
+        xml = self.reduce_information(xml)
+
+        return xml
+
+    def reduce_information(self, xml: Element):
+        """ Removes all elements from the xml response, which are not allowed in the requested response
+
+        Args:
+            xml (Element): The response xml
+        Returns:
+             xml (Element): The reduced response xml
+        """
+        element_set_name = self.param.element_set_name
+
+        # The elements_to_keep are dicts, so the lookup can be much faster compared to a lookup in a list
+        # Nice explaining thread can be found here:
+        # https://stackoverflow.com/questions/43690191/why-are-dict-lookups-always-better-than-list-lookups
+        if element_set_name == "brief":
+            elements_to_keep = {
+                "fileIdentifier": None,
+                "hierarchyLevel": None,
+                "identificationInfo": None,
+            }
+            xml = self._reduce_information_by_map(xml, elements_to_keep)
+        elif element_set_name == "summary":
+            elements_to_keep = {
+                "fileIdentifier": None,
+                "language": None,
+                "characterSet": None,
+                "hierarchyLevel": None,
+                "hierarchyLevelName": None,
+                "contact": None,
+                "dateStamp": None,
+                "metadataStandardName": None,
+                "metadataStandardVersion": None,
+                "referenceSystemInfo": None,
+                "identificationInfo": None,
+            }
+            xml = self._reduce_information_by_map(xml, elements_to_keep)
+        else:
+            # Nothing - return like 'full' was requested
+            pass
+
+        return xml
+
+    def _reduce_information_by_map(self, xml: Element, map: dict):
+        """ Removes all elements from the xml response, which are not allowed in a brief response
+
+        Args:
+            xml (Element): The response xml
+        Returns:
+             xml (Element): The reduced response xml
+        """
+        children = xml.getchildren()
+        for child in children:
+            tag = QName(child).localname
+            if tag not in map:
+                # Remove it!
+                xml_helper.remove_element(child)
+
         return xml
 
 

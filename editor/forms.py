@@ -164,15 +164,17 @@ class DatasetMetadataEditorForm(MrMapModelForm):
         if self.instance.id is None:
             m.created_by = self.cleaned_data['created_by']
             m.metadata_type = MetadataType.objects.get_or_create(type=MetadataEnum.DATASET.value)[0]
-            # ToDo: set to active if some of the related objects are active...
+            
+        # ToDo: we need to save it here anyway, cause we creating RelatedMetadata objects below
         if commit:
             m.save()
 
         # 1: create new MetadataRelations for the instance, if the relation does not exist
         additional_related_objects = self.cleaned_data['additional_related_objects']
         for related_object in additional_related_objects:
-
             related_object = Metadata.objects.get(id=related_object.id)
+            if related_object.service.is_active:
+                m.is_active = True
             try:
                 MetadataRelation.objects.get(metadata_to=self.instance, metadata_from=related_object)
                 # no error; do nothing

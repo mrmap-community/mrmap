@@ -91,6 +91,11 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(msg))
 
         self._create_default_monitoring_setting()
+        msg = (
+            f"Default monitoring setting with interval {MONITORING_INTERVAL} and "
+            f"timeout {MONITORING_REQUEST_TIMEOUT} was created successfully"
+        )
+        self.stdout.write(self.style.SUCCESS(str(msg)))
 
     def _create_default_group(self, user: User):
         """ Creates default group, default role for group and default superuser permission for role

@@ -771,7 +771,7 @@ class Metadata(Resource):
 
             # Write metadata to db as well
             cap_doc = Document.objects.get_or_create(related_metadata=self)[0]
-            cap_doc.service_metadata_document = doc
+            cap_doc.service_metadata_document = doc.decode("UTF-8")
             cap_doc.save()
 
         return doc

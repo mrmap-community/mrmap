@@ -13,17 +13,18 @@ from lxml.etree import Element
 
 from django.db.models import QuerySet
 
-from MrMap.settings import XML_NAMESPACES
+from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from csw.utils.parameter import ParameterResolver
 from service.helper import xml_helper
 from service.helper.enums import MetadataEnum
-from service.models import Metadata
+from service.models import Metadata, Document
 
 GMD_SCHEMA = "http://www.isotc211.org/2005/gmd"
 IDENTIFIER_TEMPLATE = "{}identifier"
 TITLE_TEMPLATE = "{}title"
 TYPE_TEMPLATE = "{}type"
 DATE_STRF = "%Y-%m-%d"
+
 
 class MetadataConverter:
     """ Creates xml representations from given metadata
@@ -189,8 +190,31 @@ class MetadataConverter:
 
 
 class Iso19115MetadataConverter(MetadataConverter):
+    """ Creates a response based on the MD_Metadata from ISO19115
+
+    """
+    def __init__(self, param: ParameterResolver, all_md: QuerySet, returned_md: list):
+        super().__init__(param, all_md, returned_md)
+
     def create_metadata_elem(self, returned_md: Metadata):
-        pass
+        """ Returns existing service/dataset metadata as xml elements
+
+        Args:
+            returned_md (Metadata): The processing metadata
+        Returns:
+             xml (Element): The xml element
+        """
+        if returned_md.is_dataset_metadata:
+            doc = Document.objects.get(
+                related_metadata=returned_md
+            )
+            xml = doc.dataset_metadata_document
+        else:
+            xml = returned_md.get_service_metadata_xml()
+
+        xml = xml_helper.parse_xml(xml)
+        xml = xml_helper.try_get_single_element_from_xml(xml_elem=xml, elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_Metadata"))
+        return xml
 
 
 class DublinCoreMetadataConverter(MetadataConverter):

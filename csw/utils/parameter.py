@@ -7,6 +7,9 @@ Created on: 20.05.20
 """
 from django.http import HttpRequest
 
+from csw.utils.csw_filter import transform_constraint_to_cql, CONSTRAINT_LOCATOR
+from service.helper import xml_helper
+
 RESULT_TYPE_CHOICES = {
     "hits": None,
     "results": None,
@@ -94,9 +97,6 @@ class ParameterResolver:
             if not param:
                 continue
 
-            # Make sure no ' or " can be found inside the parameters
-            val = val.replace("'", "").replace('"', "")
-
             # Make sure no negative integers are passed
             try:
                 val = int(val)
@@ -122,3 +122,15 @@ class ParameterResolver:
             raise AssertionError("Parameter 'ElementSetName' and 'ElementName' are mutually exclusive. You can only provide one!")
         elif self.element_set_name and self.element_set_name not in ELEMENT_SET_CHOICES:
             raise AssertionError("Parameter '{}' invalid! Choices are '{}'".format(self.element_set_name, ",".join(ELEMENT_SET_CHOICES)))
+
+        # Check if constraint has to be transformed first!
+        if self.constraint_language.upper() != "CQL_TEXT":
+            try:
+                self.constraint = transform_constraint_to_cql(self.constraint, self.constraint_language)
+                self.constraint_language = "CQL_TEXT"
+            except TypeError:
+                raise ValueError("XML does not seem to be valid. Please check the CSW specification.", CONSTRAINT_LOCATOR)
+        else:
+            xml_elem = xml_helper.parse_xml(self.constraint)
+            if xml_elem is not None:
+                raise ValueError("XML found for constraint parameter but CQL_TEXT found for constraintlanguage. Please set your parameters correctly.", CONSTRAINT_LOCATOR)

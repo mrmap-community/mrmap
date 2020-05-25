@@ -180,7 +180,7 @@ class GetRecordsByIdResolver(RequestResolver):
             raise ValueError("Start position ({}) can't be greater than number of matching records ({})".format(self.param.start_position, metadata.count()), "startPosition")
 
         md_converter = MetadataConverter(self.param, metadata, returned_metadata)
-        response = md_converter.create_xml_response()
+        response = md_converter.create_xml_response(with_content=True)
 
         xml_str = xml_helper.xml_to_string(response, pretty_print=True)
         return xml_str

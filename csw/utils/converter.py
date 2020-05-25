@@ -20,7 +20,10 @@ from service.helper.enums import MetadataEnum
 from service.models import Metadata
 
 GMD_SCHEMA = "http://www.isotc211.org/2005/gmd"
-
+IDENTIFIER_TEMPLATE = "{}identifier"
+TITLE_TEMPLATE = "{}title"
+TYPE_TEMPLATE = "{}type"
+DATE_STRF = "%Y-%m-%d"
 
 class MetadataConverter:
     """ Creates xml representations from given metadata
@@ -55,7 +58,7 @@ class MetadataConverter:
              response (str): The response
         """
         request = self.param.request
-        if request == "GetRecords":
+        if request == "GetRecords" or request == "GetRecordById":
             return self._create_get_records_response(with_content)
         else:
             return "{} not supported".format(request)
@@ -79,6 +82,7 @@ class MetadataConverter:
         search_result_element = self._create_search_results_elem(self.all_md, self.returned_md)
         xml_helper.add_subelement(root, search_result_element)
 
+        # If the content is not requested, we can directly return the xml document in this state
         if not with_content:
             return root
 
@@ -219,9 +223,9 @@ class DublinCoreMetadataConverter(MetadataConverter):
 
         # Perform xml creation for simple elements
         attribute_element_map = OrderedDict()
-        attribute_element_map["{}identifier".format(self.dc_ns)] = md.identifier
-        attribute_element_map["{}title".format(self.dc_ns)] = md.title
-        attribute_element_map["{}type".format(
+        attribute_element_map[IDENTIFIER_TEMPLATE.format(self.dc_ns)] = md.identifier
+        attribute_element_map[TITLE_TEMPLATE.format(self.dc_ns)] = md.title
+        attribute_element_map[TYPE_TEMPLATE.format(
             self.dc_ns)] = md.metadata_type.type if md.metadata_type.type == MetadataEnum.DATASET.value else "service"
 
         # Create xml elements from mapped information
@@ -266,13 +270,13 @@ class DublinCoreMetadataConverter(MetadataConverter):
 
         # Perform xml creation for simple elements
         attribute_element_map = OrderedDict()
-        attribute_element_map["{}identifier".format(self.dc_ns)] = md.identifier
-        attribute_element_map["{}title".format(self.dc_ns)] = md.title
-        attribute_element_map["{}type".format(
+        attribute_element_map[IDENTIFIER_TEMPLATE.format(self.dc_ns)] = md.identifier
+        attribute_element_map[TITLE_TEMPLATE.format(self.dc_ns)] = md.title
+        attribute_element_map[TYPE_TEMPLATE.format(
             self.dc_ns)] = md.metadata_type.type if md.metadata_type.type == MetadataEnum.DATASET.value else "service"
         attribute_element_map["{}subject".format(self.dc_ns)] = [kw.keyword for kw in md.keywords.all()]
         attribute_element_map["{}format".format(self.dc_ns)] = [format.mime_type for format in md.formats.all()]
-        attribute_element_map["{}modified".format(self.dct_ns)] = md.last_modified.strftime("%Y-%m-%d")
+        attribute_element_map["{}modified".format(self.dct_ns)] = md.last_modified.strftime(DATE_STRF)
         attribute_element_map["{}abstract".format(self.dct_ns)] = md.abstract
 
         # Create xml elements from mapped information
@@ -295,16 +299,16 @@ class DublinCoreMetadataConverter(MetadataConverter):
 
         # Perform xml creation for simple elements
         attribute_element_map = OrderedDict()
-        attribute_element_map["{}identifier".format(self.dc_ns)] = md.identifier
-        attribute_element_map["{}date".format(self.dc_ns)] = md.created.strftime("%Y-%m-%d")
-        attribute_element_map["{}title".format(self.dc_ns)] = md.title
+        attribute_element_map[IDENTIFIER_TEMPLATE.format(self.dc_ns)] = md.identifier
+        attribute_element_map["{}date".format(self.dc_ns)] = md.created.strftime(DATE_STRF)
+        attribute_element_map[TITLE_TEMPLATE.format(self.dc_ns)] = md.title
         attribute_element_map["{}abstract".format(self.dct_ns)] = md.abstract
         attribute_element_map["{}description".format(self.dc_ns)] = md.abstract
-        attribute_element_map["{}type".format(
+        attribute_element_map[TYPE_TEMPLATE.format(
             self.dc_ns)] = md.metadata_type.type if md.metadata_type.type == MetadataEnum.DATASET.value else "service"
         attribute_element_map["{}subject".format(self.dc_ns)] = [kw.keyword for kw in md.keywords.all()]
         attribute_element_map["{}format".format(self.dc_ns)] = [format.mime_type for format in md.formats.all()]
-        attribute_element_map["{}modified".format(self.dct_ns)] = md.last_modified.strftime("%Y-%m-%d")
+        attribute_element_map["{}modified".format(self.dct_ns)] = md.last_modified.strftime(DATE_STRF)
         attribute_element_map["{}rights".format(self.dc_ns)] = "ToDo"  # ToDo
 
         # Create xml elements from mapped information

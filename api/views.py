@@ -411,8 +411,11 @@ class MonitoringViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = MonitoringSerializer
 
     def get_queryset(self):
-        monitoring_run = MonitoringRun.objects.latest('start')
-        monitorings = Monitoring.objects.filter(monitoring_run=monitoring_run)
+        try:
+            monitoring_run = MonitoringRun.objects.latest('start')
+            monitorings = Monitoring.objects.filter(monitoring_run=monitoring_run)
+        except ObjectDoesNotExist:
+            return Monitoring.objects.all()
         return monitorings
 
     def retrieve(self, request, pk=None, *args, **kwargs):

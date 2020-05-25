@@ -44,23 +44,27 @@ class MetadataConverter:
         self.csw_ns = "{" + self.ns_map["csw"] + "}"
         self.xsi_ns = "{" + self.ns_map["xsi"] + "}"
 
-    def create_xml_response(self):
+    def create_xml_response(self, with_content: bool):
         """ Creates a xml response
 
         Returns a response matching the requested type (GetRecords, ...)
 
+        Args:
+            with_content (bool): Whether only the outer xml should be returned or the results as well
         Returns:
              response (str): The response
         """
         request = self.param.request
         if request == "GetRecords":
-            return self._create_get_records_response()
+            return self._create_get_records_response(with_content)
         else:
             return "{} not supported".format(request)
 
-    def _create_get_records_response(self):
+    def _create_get_records_response(self, with_content: bool):
         """ Creates a GetRecords response
 
+        Args:
+            with_content (bool): Wether to return content or only the outer xml
         Returns:
              response (str): The response
         """
@@ -74,6 +78,9 @@ class MetadataConverter:
         # Create <csw:SearchResults>
         search_result_element = self._create_search_results_elem(self.all_md, self.returned_md)
         xml_helper.add_subelement(root, search_result_element)
+
+        if not with_content:
+            return root
 
         # Create metadata converter object
         if self.param.type_names == "gmd:MD_Metadata" and self.param.output_schema == GMD_SCHEMA:

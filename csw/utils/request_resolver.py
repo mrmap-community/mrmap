@@ -29,7 +29,7 @@ class RequestResolver:
 
         self.operation_resolver_map = {
             "GetRecords": GetRecordsResolver,
-            "GetRecordById": None,
+            "GetRecordById": GetRecordsByIdResolver,
             "GetCapabilities": None,
             "DescribeRecord": None,
             "GetDomain": None,
@@ -149,8 +149,39 @@ class GetRecordsResolver(RequestResolver):
         if i_from > metadata.count():
             raise ValueError("Start position ({}) can't be greater than number of matching records ({})".format(self.param.start_position, metadata.count()), "startPosition")
 
+        # Only return results content if this was requested
+        md_converter = MetadataConverter(self.param, metadata, returned_metadata)
+        response = md_converter.create_xml_response(with_content=self.param.result_type == "results")
+
+        xml_str = xml_helper.xml_to_string(response, pretty_print=True)
+        return xml_str
+
+
+class GetRecordsByIdResolver(RequestResolver):
+    def __init__(self, param: ParameterResolver):
+        super().__init__(param=param)
+
+    def get_response(self):
+        """ Creates the xml response
+
+        Returns:
+             xml_str (str): The response as string
+        """
+        metadata = self.get_metadata(
+            filtered=True,
+            sorted=True
+        ).filter(
+            identifier__in=self.param.request_id.split(","),
+        )
+        i_from = self.param.start_position - 1
+        i_to = i_from + self.param.max_records
+        returned_metadata = metadata[i_from:i_to]
+        if i_from > metadata.count():
+            raise ValueError("Start position ({}) can't be greater than number of matching records ({})".format(self.param.start_position, metadata.count()), "startPosition")
+
         md_converter = MetadataConverter(self.param, metadata, returned_metadata)
         response = md_converter.create_xml_response()
 
         xml_str = xml_helper.xml_to_string(response, pretty_print=True)
         return xml_str
+

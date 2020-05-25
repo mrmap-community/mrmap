@@ -65,7 +65,7 @@ class ParameterResolver:
             "version": "version",
             "namespace": "namespace",
             "resulttype": "result_type",
-            "requestid": "request_id",
+            "id": "request_id",
             "outputformat": "output_format",
             "outputschema": "output_schema",
             "startposition": "start_position",
@@ -118,19 +118,19 @@ class ParameterResolver:
         if self.result_type not in RESULT_TYPE_CHOICES:
             raise AssertionError("Parameter '{}' invalid! Choices are '{}'".format(self.result_type, ",".join(RESULT_TYPE_CHOICES)))
 
-        if self.element_set_name and self.element_name:
+        if self.element_set_name is not None and len(self.element_name) > 0:
             raise AssertionError("Parameter 'ElementSetName' and 'ElementName' are mutually exclusive. You can only provide one!")
         elif self.element_set_name and self.element_set_name not in ELEMENT_SET_CHOICES:
             raise AssertionError("Parameter '{}' invalid! Choices are '{}'".format(self.element_set_name, ",".join(ELEMENT_SET_CHOICES)))
 
         # Check if constraint has to be transformed first!
-        if self.constraint_language.upper() != "CQL_TEXT":
+        if self.constraint_language is not None and self.constraint_language.upper() != "CQL_TEXT":
             try:
                 self.constraint = transform_constraint_to_cql(self.constraint, self.constraint_language)
                 self.constraint_language = "CQL_TEXT"
             except TypeError:
                 raise ValueError("XML does not seem to be valid. Please check the CSW specification.", CONSTRAINT_LOCATOR)
-        else:
+        elif self.constraint is not None:
             xml_elem = xml_helper.parse_xml(self.constraint)
             if xml_elem is not None:
                 raise ValueError("XML found for constraint parameter but CQL_TEXT found for constraintlanguage. Please set your parameters correctly.", CONSTRAINT_LOCATOR)

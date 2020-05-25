@@ -99,7 +99,7 @@ class RequestResolver:
         """
         if self.param.constraint is None:
             return all_md
-        filtered_md = prefilter_queryset(self.param.constraint, all_md)
+        filtered_md = filter_queryset(self.param.constraint, self.param.constraint_language, all_md)
         return filtered_md
 
     def _sort_metadata(self, all_md: QuerySet):

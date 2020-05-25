@@ -760,6 +760,9 @@ class Metadata(Resource):
             if doc is None or len(doc) == 0:
                 # Well, there is one but no service_metadata_document is found inside
                 raise ObjectDoesNotExist
+            else:
+                # There is a capability_document in the db. Let's write it to cache, so it can be returned even faster
+                cacher.set(self.id, doc)
 
         except ObjectDoesNotExist as e:
             # There is no service metadata document in the database, we need to create it

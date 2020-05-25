@@ -124,6 +124,19 @@ class Monitoring:
                 if wfs_helper.list_stored_queries is not None:
                     self.check_service(wfs_helper.list_stored_queries)
 
+            if version == OGCServiceVersionEnum.V_2_0_2.value:
+                wfs_helper.set_2_0_2_urls()
+                if wfs_helper.list_stored_queries is not None:
+                    self.check_service(wfs_helper.list_stored_queries)
+
+            for featuretype in service.featuretypes.all():
+                describe_featuretype_url = wfs_helper.get_describe_featuretype_url(str(featuretype))
+                if describe_featuretype_url is not None:
+                    self.check_service(describe_featuretype_url)
+                get_feature_url = wfs_helper.get_get_feature_url(str(featuretype))
+                if get_feature_url is not None:
+                    self.check_service(get_feature_url, check_wfs_member=True)
+
     def check_wms(self, service: Service, capabilities_only: bool = False):
         """ Check the availability of wms operations.
 
@@ -159,25 +172,27 @@ class Monitoring:
             if wms_helper.get_styles_url is not None:
                 self.check_service(wms_helper.get_styles_url)
 
-    def check_service(self, url: str):
+    def check_service(self, url: str, check_wfs_member: bool = False):
         """ Checks the status of a service and calls the appropriate handlers.
 
         Args:
             url (str): URL of the service to check.
+            check_wfs_member (bool): True, if a returned xml should check for a 'member' tag.
         Returns:
             nothing
         """
-        service_status = self.check_status(url)
+        service_status = self.check_status(url, check_wfs_member=check_wfs_member)
         if service_status.success is True:
             self.handle_service_success(service_status)
         else:
             self.handle_service_error(service_status)
 
-    def check_status(self, url: str) -> ServiceStatus:
+    def check_status(self, url: str, check_wfs_member: bool = False) -> ServiceStatus:
         """ Check status of ogc service.
 
         Args:
             url (str): URL to the service that should be checked.
+            check_wfs_member (bool): True, if a returned xml should check for a 'member' tag.
         Returns:
             ServiceStatus: Status info of service.
         """
@@ -201,6 +216,9 @@ class Monitoring:
                 xml = parse_xml(response_text)
                 if 'Exception' in xml.getroot().tag:
                     success = False
+                if check_wfs_member:
+                    if len([child for child in xml.getroot() if child.tag.endswith('member')]) != 1:
+                        success = False
             except AttributeError:
                 # handle successful responses that do not return xml
                 response_text = None

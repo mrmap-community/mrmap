@@ -133,6 +133,28 @@ class MonitoringTests(TestCase):
         )
         self.assertURLEqual(list_stored_queries_url, expected_url)
 
+    def test_wfs_get_describe_featuretype_url(self):
+        service = self.metadata_wfs.service
+        wfs_helper = WfsHelper(service)
+        featuretype = service.featurtypes.all()[0]
+        describe_featuretype_url = wfs_helper.get_describe_featuretype_url(str(featuretype))
+        expected_url = (
+            'https://www.wfs.nrw.de/geobasis/wfs_nw_alkis_vereinfacht?'
+            'REQUEST=describeFeatureType&VERSION=2.0.0&SERVICE=wfs&typeNames=dvg:nw_dvg2_bld'
+        )
+        self.assertURLEqual(describe_featuretype_url, expected_url)
+
+    def test_wfs_get_get_feature_url(self):
+        service = self.metadata_wfs.service
+        wfs_helper = WfsHelper(service)
+        featuretype = service.featurtypes.all()[0]
+        get_feature_url = wfs_helper.get_get_feature_url(str(featuretype))
+        expected_url = (
+            'https://www.wfs.nrw.de/geobasis/wfs_nw_alkis_vereinfacht?'
+            'REQUEST=getFeature&VERSION=2.0.0&SERVICE=wfs&typeNames=dvg:nw_dvg2_bld&COUNT=1'
+        )
+        self.assertURLEqual(get_feature_url, expected_url)
+
     def test_wms_get_capabilities_url(self):
         service = self.metadata_wms.service
         wms_helper = WmsHelper(service)

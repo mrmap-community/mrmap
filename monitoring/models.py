@@ -7,25 +7,12 @@ Created on: 26.02.2020
 """
 
 from django.contrib.gis.db import models
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-
-from service.models import Metadata
 
 
 class MonitoringSetting(models.Model):
     metadatas = models.ManyToManyField('service.Metadata', related_name='monitoring_setting')
     interval = models.DurationField()
     timeout = models.IntegerField()
-
-
-@receiver(post_save, sender=Metadata)
-def add_to_setting_on_metadata_create(created=False, instance=None, **kwargs):
-    if created:
-        # NOTE: Since we do not have a clear handling for which setting to use, always use first (default) setting.
-        monitoring_setting = MonitoringSetting.objects.first()
-        monitoring_setting.metadatas.add(instance)
-        monitoring_setting.save()
 
 
 class MonitoringRun(models.Model):

@@ -13,6 +13,7 @@ from MapSkinner.cacher import DocumentCacher
 from MapSkinner.messages import PARAMETER_ERROR
 from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, XML_NAMESPACES
 from MapSkinner import utils
+from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.crypto_handler import CryptoHandler
@@ -510,6 +511,27 @@ class Metadata(Resource):
                     f_t.metadata.save()
 
         self.save()
+
+    def save(self, *args, **kwargs):
+        """ Overwriting the regular save function
+
+        Calls the regular save function without any changes and adds the created/updated
+        Metadata object to the MonitoringSetting.
+
+        Passes all args and kwargs to the regular save function.
+
+        Returns:
+            nothing
+        """
+        super().save(*args, **kwargs)
+
+        # Add created/updated object to the MonitoringSettings. Django does not add
+        # the same instance twice, so we do not have to check for updating specifically.
+        # NOTE: Since we do not have a clear handling for which setting to use, always use first (default) setting.
+        monitoring_setting = MonitoringSetting.objects.first()
+        if monitoring_setting is not None:
+            monitoring_setting.metadatas.add(self)
+            monitoring_setting.save()
 
     def delete(self, using=None, keep_parents=False):
         """ Overwriting of the regular delete function

@@ -2,41 +2,34 @@
 {% load i18n static %}
 <html lang="{{ LANGUAGE_CODE }}">
 <head>
-    <meta charset="UTF-8">
-    <title>MapSkinner - 500</title>
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base.css' %}" media="all" />
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/frame.css' %}" media="all" />
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/form.css' %}" media="all" />
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/server_error.css' %}" media="all" />
-        <script>
-            var rootUrl = '{{ ROOT_URL }}'
-        </script>
-    <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
-    <script type="text/javascript" src="{% static '/structure/js/base.js' %}"></script>
+    {% include 'includes/default-head.html' %}
 </head>
-<body class="background">
-
-    <audio id="ee-audio">
-        <source src="{% static 'structure/audio/ee_audio.mp3' %}" type="audio/mpeg">
-    </audio>
-    <div id="overlay">
+<body class="{{THEME.BACKGROUND}} {{THEME.BACKGROUND_IMG}}">
+    {% include 'includes/messages.html' %}
+    {% include 'includes/ee-overlay.html' %}
+    <div class="container">
+        <div class="card {{THEME.CARD.TXT_COLOR}} {{THEME.CARD.BG}} mt-3 {{THEME.CARD.BOARDER}}">
+            <div class="card-header">
+                <h1 class="card-title text-center">500</h1>
+            </div><!--</card-header-->
+            <div class="card-body">
+                <div class="media ">
+                        <img class="align-self-start w-25 mr-3" src="{% static 'images/mr_map_500.png' %}" title="{% trans 'Mr. Map seems to be ill!' %}" alt="{% trans 'Ill Mr. Map' %}">
+                        <div class="media-body w-75">
+                            <article class="article-txt">
+                            <h1>{% trans 'Oh dear!' %}</h1>
+                            <div>{% trans 'Mr. Map seems to be ill and can`t work at the moment.' %}</div>
+                            <hr>
+                            <div>{% trans 'We are doing our best to get him healthy again!' %}</div>
+                        </article>
+                        </div>
+                    </div>
+            </div>
+            <div class="card-footer text-center">
+                <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'home' %}">{% autoescape off %}{{THEME.ICONS.HOME}}{% endautoescape %} {% trans 'Back to home' %}</a><br>
+            </div>
+        </div> <!-- card-body.// -->
     </div>
-
-    <div class="server-error-content">
-        <h1 class="server-error-title">500</h1>
-        <div class="server-error-article">
-            <img class="server-error-img" src="{% static 'structure/images/mr_map_500.png' %}" title="{% trans 'Mr. Map seems to be ill!' %}">
-            <article class="article-txt">
-                <h1>{% trans 'Oh dear!' %}</h1>
-                <div>{% trans 'Mr. Map seems to be ill and can`t work at the moment.' %}</div>
-                <hr>
-                <div>{% trans 'We are doing our best to get him healthy again!' %}</div>
-            </article>
-        </div>
-
-    </div>
-{% include 'messages.html' %}
-{% include 'footer.html' %}
-
+{% include 'includes/footer.html' %}
 </body>
 </html>

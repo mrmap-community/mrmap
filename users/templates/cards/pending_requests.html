@@ -1,10 +1,10 @@
-<!--TODO: this element should only have 50% of current viewport height-->
 {% extends 'sceletons/card-dash.html' %}
+{% comment %} TODO: this element should only have 50% of current viewport height {% endcomment %}
 {% load i18n %}
 {% block card-header %}
 
 <div class="text-center">
-<h3>{% autoescape off %}{{THEME.ICONS.PENDINGTASK}}{% endautoescape %} {% trans 'Pending requests' %}</h3>
+    <h3>{% autoescape off %}{{THEME.ICONS.PENDINGTASK}}{% endautoescape %} {% trans 'Pending requests' %}</h3>
 </div>
 {% endblock %}
 {% block card-body %}

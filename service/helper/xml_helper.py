@@ -9,7 +9,7 @@ from lxml import etree
 from lxml.etree import XMLSyntaxError, _Element
 from requests.exceptions import ProxyError
 
-from MapSkinner.settings import XML_NAMESPACES
+from MrMap.settings import XML_NAMESPACES
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceVersionEnum
 
@@ -296,7 +296,7 @@ def remove_element(xml_child):
     parent.remove(xml_child)
 
 
-def create_subelement(xml_elem: _Element, tag_name, after: str = None, attrib: dict = None):
+def create_subelement(xml_elem: _Element, tag_name, after: str = None, attrib: dict = None, nsmap: dict = {}):
     """ Creates a new xml element as a child of xml_elem with the name tag_name
 
     Args:
@@ -307,7 +307,7 @@ def create_subelement(xml_elem: _Element, tag_name, after: str = None, attrib: d
     Returns:
          A new subelement of xml_elem
     """
-    ret_element = etree.Element(tag_name, attrib=attrib)
+    ret_element = etree.Element(tag_name, attrib=attrib, nsmap=nsmap)
     if after is not None:
         after_element = try_get_single_element_from_xml("./{}".format(after), xml_elem)
         after_element_index = xml_elem.index(after_element) + 1

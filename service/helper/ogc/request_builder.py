@@ -7,8 +7,8 @@ Created on: 20.01.20
 """
 from lxml import etree
 
-from MapSkinner.messages import PARAMETER_ERROR
-from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
+from MrMap.messages import PARAMETER_ERROR
+from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 
 from service.helper import xml_helper
 from service.helper.enums import OGCOperationEnum, OGCServiceVersionEnum, OGCServiceEnum

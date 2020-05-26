@@ -1,13 +1,16 @@
 import django_tables2 as tables
-from django.db.models import F
+from django.db.models.functions import Length
 from django.utils.html import format_html
 from django.urls import reverse
 import json
-from MapSkinner.celery_app import app
+from MrMap.celery_app import app
 from celery.result import AsyncResult
-from MapSkinner.utils import get_theme, get_ok_nok_icon
-from MapSkinner.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
+
+from MrMap.tables import MrMapTable
+from MrMap.utils import get_theme, get_ok_nok_icon
+from MrMap.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
 from django.db.models import Count
+from django.utils.translation import gettext_lazy as _
 
 
 def _get_close_button(url, user):
@@ -19,16 +22,21 @@ def _get_close_button(url, user):
                        format_html(get_theme(user)["ICONS"]['WINDOW_CLOSE']),)
 
 
-class ServiceTable(tables.Table):
-    wms_title = tables.Column(accessor='title', verbose_name='Title', empty_values=[])
-    wms_active = tables.Column(accessor='is_active', verbose_name='Active', )
-    wms_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', )
-    wms_secured_externally = tables.Column(accessor='external_authentication', verbose_name='Secured externally', empty_values=[], )
-    wms_version = tables.Column(accessor='service.servicetype.version', verbose_name='Version', )
-    wms_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', )
-    wms_registered_by_group = tables.Column(accessor='service.created_by', verbose_name='Registered by group', )
-    wms_registered_for = tables.Column(accessor='service.published_for', verbose_name='Registered for', )
-    wms_created_on = tables.Column(accessor='created', verbose_name='Created on', )
+class ServiceTable(MrMapTable):
+    attrs = {
+        "th": {
+            "class": "align-middle",
+        }
+    }
+    wms_title = tables.Column(accessor='title', verbose_name='Title', empty_values=[], attrs=attrs)
+    wms_active = tables.Column(accessor='is_active', verbose_name='Active', attrs=attrs)
+    wms_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', attrs=attrs)
+    wms_secured_externally = tables.Column(accessor='external_authentication', verbose_name='Secured externally', empty_values=[False,], attrs=attrs)
+    wms_version = tables.Column(accessor='service.servicetype.version', verbose_name='Version', attrs=attrs)
+    wms_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', attrs=attrs)
+    wms_registered_by_group = tables.Column(accessor='service.created_by', verbose_name='Registered by group', attrs=attrs)
+    wms_registered_for = tables.Column(accessor='service.published_for', verbose_name='Registered for', attrs=attrs)
+    wms_created_on = tables.Column(accessor='created', verbose_name='Created on', attrs=attrs)
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
@@ -67,10 +75,20 @@ class ServiceTable(tables.Table):
 
 
 class WmsServiceTable(ServiceTable):
-    wms_layers = tables.Column(verbose_name='Layers', empty_values=[], )
+    caption = _("Shows all WMS which are configured in your Mr. Map environment.")
+
+    attrs = {
+        "th": {
+            "class": "align-middle",
+        }
+    }
+    wms_layers = tables.Column(verbose_name='Layers', empty_values=[], attrs=attrs)
 
     class Meta:
         sequence = ("wms_title", "wms_layers", "...")
+        row_attrs = {
+            "class": "text-center"
+        }
 
     @staticmethod
     def render_wms_layers(record):
@@ -88,20 +106,39 @@ class WmsServiceTable(ServiceTable):
 class WmsLayerTable(ServiceTable):
     wms_parent_service = tables.Column(verbose_name='Parent service', empty_values=[], )
 
+    caption = _("Shows all WMS sublayers which are configured in your Mr. Map environment.")
+
     class Meta:
         sequence = ("wms_title", "wms_parent_service", "...")
+        row_attrs = {
+            "class": "text-center"
+        }
 
     def render_wms_parent_service(self, record):
         url = reverse('service:detail', args=(record.service.parent_service.metadata.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, record.service.parent_service.metadata.title)
 
+    @staticmethod
+    def order_wms_parent_service(queryset, is_descending):
+        queryset = queryset.annotate(
+            title_length=Length("service__parent_service__metadata__title")
+        ).order_by(("-" if is_descending else "") + "title_length")
+        return queryset, True
 
-class WfsServiceTable(tables.Table):
+
+class WfsServiceTable(MrMapTable):
+    caption = _("Shows all WFS which are configured in your Mr. Map environment.")
+
+    class Meta:
+        row_attrs = {
+            "class": "text-center"
+        }
+
     wfs_title = tables.Column(accessor='title', verbose_name='Title', )
     wfs_featuretypes = tables.Column(verbose_name='Featuretypes', empty_values=[], )
     wfs_active = tables.Column(accessor='is_active', verbose_name='Active', )
     wfs_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', )
-    wfs_secured_externally = tables.Column(accessor='external_authentication', verbose_name='Secured externally', empty_values=[], )
+    wfs_secured_externally = tables.Column(accessor='external_authentication', verbose_name='Secured externally', empty_values=[False,], )
     wfs_version = tables.Column(accessor='service.servicetype.version', verbose_name='Version', )
     wfs_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', )
     wfs_registered_by_group = tables.Column(accessor='service.created_by', verbose_name='Registered by group', )
@@ -160,19 +197,21 @@ class WfsServiceTable(tables.Table):
         return queryset, True
 
 
-class PendingTasksTable(tables.Table):
-    pt_cancle = tables.Column(verbose_name=' ', empty_values=[], )
-    pt_status = tables.Column(verbose_name='Status', empty_values=[], )
-    pt_service = tables.Column(verbose_name='Service', empty_values=[], )
-    pt_phase = tables.Column(verbose_name='Phase', empty_values=[], )
-    pt_progress = tables.Column(verbose_name='Progress', empty_values=[], )
+class PendingTasksTable(MrMapTable):
+    caption = _("Shows all currently running pending tasks.")
+
+    pt_cancle = tables.Column(verbose_name=' ', empty_values=[], orderable=False, )
+    pt_status = tables.Column(verbose_name='Status', empty_values=[], orderable=False, )
+    pt_service = tables.Column(verbose_name='Service', empty_values=[], orderable=False,)
+    pt_phase = tables.Column(verbose_name='Phase', empty_values=[], orderable=False,)
+    pt_progress = tables.Column(verbose_name='Progress', empty_values=[], orderable=False,)
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
         super().__init__(*args, **kwargs)
 
     def render_pt_cancle(self, record):
-        url = reverse('structure:remove-task', args=(record.task_id,))
+        url = reverse('structure:remove-task', args=(record.id,))
         return _get_close_button(url, self.user)
 
     @staticmethod
@@ -184,19 +223,15 @@ class PendingTasksTable(tables.Table):
     @staticmethod
     def render_pt_service(record):
         # TODO: remove this sticky json
-        return str(json.loads(record.description)['service'])
+        return str(json.loads(record.description)['service']) if 'service' in json.loads(record.description) else _('unknown')
 
     @staticmethod
     def render_pt_phase(record):
         # TODO: remove this sticky json
-        try:
-            return str(json.loads(record.description)['phase'])
-        except KeyError as e:
-            return str(e)
+        return str(json.loads(record.description)['phase']) if 'phase' in json.loads(record.description) else _('unknown')
 
     @staticmethod
     def render_pt_progress(record):
-
         task = AsyncResult(record.task_id, app=app)
         try:
             info_dict = task.info
@@ -217,3 +252,74 @@ class PendingTasksTable(tables.Table):
                                                                                                         '</div>')
         except Exception as e:
             return str(e)
+
+
+class ChildLayerTable(MrMapTable):
+    id = tables.Column(visible=False)
+    title = tables.Column(visible=False)
+    child_layer_title = tables.Column(empty_values=[], order_by='title', )
+
+    caption = _("Shows all child layer of current WMS.")
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def render_child_layer_title(record):
+        url = reverse('service:get-metadata-html', args=(record['id'],))
+
+        if record['sublayers_count'] > 0:
+            return format_html("<a href='{}'>{} <span class='badge badge-secondary'>{}</span></a>",
+                               url,
+                               record['title'],
+                               record['sublayers_count'])
+        else:
+            return format_html("<a href='{}'>{}</a>",
+                               url,
+                               record['title'], )
+
+
+class FeatureTypeTable(MrMapTable):
+    id = tables.Column(visible=False)
+    title = tables.Column(visible=False)
+    featuretype_title = tables.Column(empty_values=[], order_by='title', )
+
+    caption = _("Shows all featuretypes of current WFS.")
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def render_featuretype_title(record):
+        url = reverse('service:get-metadata-html', args=(record['id'],))
+
+        return format_html("<a href='{}'>{}</a>",
+                           url,
+                           record['title'], )
+
+
+class CoupledMetadataTable(MrMapTable):
+    id = tables.Column(visible=False)
+    title = tables.Column(visible=False)
+    coupled_metadata_title = tables.Column(empty_values=[], order_by='title', )
+
+    caption = _("Shows all coupled metadata of current service.")
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def render_coupled_metadata_title(record):
+        url = reverse('service:get-metadata-html', args=(record['id'],))
+
+        return format_html("<a href='{}'>{}</a>",
+                           url,
+                           record['title'], )
+
+
+class UpdateServiceElements(MrMapTable):
+    title = tables.Column(empty_values=[],)
+    identifier = tables.Column(empty_values=[],)

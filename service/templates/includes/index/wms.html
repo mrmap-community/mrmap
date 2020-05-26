@@ -5,27 +5,12 @@
 {% load bootstrap4 %}
 
 {% block card-header-title-left %}
-    <div class="row">
-        <div class="col">
-            <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %} {% trans 'WMS' %}</h4>
-        </div>
-        <div class="col">
-            <div class="dropdown">
-              <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  {% if request.GET.q == 'l' %}
-                    Show layers
-                  {% else %}
-                    Show services
-                  {% endif %}
-              </button>
-              <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <a class="dropdown-item" href="?q=s">Show services</a>
-                <a class="dropdown-item" href="?q=l">Show layers</a>
-              </div>
-            </div>
-        </div>
-    </div>
+    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %} {% trans 'WMS' %}</h4>
 {% endblock %}
+
+{% block card-header-title-center%}
+{% endblock %}
+
 {% block card-header-title-right %}
     {% if 'can_register_service' in user_permissions %}
         <button type="button" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_service">

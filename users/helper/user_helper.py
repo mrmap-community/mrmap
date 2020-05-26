@@ -7,11 +7,12 @@ Created on: 07.05.19
 """
 import base64
 
+from django.contrib.auth import authenticate
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest
 
-from MapSkinner.settings import SESSION_EXPIRATION
-from structure.models import Group, User, GroupActivity
+from structure.models import MrMapGroup, MrMapUser, GroupActivity
+from structure.settings import PUBLIC_GROUP_NAME
 
 
 def get_user(request: HttpRequest=None, username: str=None, user_id: int=None):
@@ -27,26 +28,26 @@ def get_user(request: HttpRequest=None, username: str=None, user_id: int=None):
     user = None
     try:
         if username is not None:
-            user = User.objects.get(username=username)
+            user = MrMapUser.objects.get(username=username)
         elif user_id is not None:
-            user = User.objects.get(id=user_id)
+            user = MrMapUser.objects.get(id=user_id)
         elif request is not None:
             try:
-                user = User.objects.get(id=request.session.get("user_id"))
-            except ObjectDoesNotExist:
+                user = request.user
+            except AttributeError:
                 pass
-            if user is None:
+            if user.is_anonymous and not user.is_authenticated:
                 # check for basic authentication
                 auth_header = request.META.get('HTTP_AUTHORIZATION', '')
                 auth_header = auth_header.split(" ")
                 if len(auth_header) == 2:
                     credentials = auth_header[-1].encode("ascii")
                     username, password = base64.b64decode(credentials).decode("utf-8").split(":")
-                    user = get_user(username=username)
-                    if user is not None:
-                        # directly check if the password is valid!
-                        if user.is_password_valid(password):
-                            return user
+
+                    # Try to resolve the credentials to a user
+                    user = authenticate(username=username, password=password)
+                    if user.is_authenticated:
+                        return user
                     return None
         else:
             return None
@@ -55,30 +56,26 @@ def get_user(request: HttpRequest=None, username: str=None, user_id: int=None):
         return None
 
 
-def is_session_expired(request: HttpRequest):
-    """ Checks whether the current session is expired or not
+def get_public_groups():
+    """ Returns the public group, which is associated with the anonymousUser
 
-    Args:
-        request: The request
     Returns:
-         Returns true if expired, false otherwise
+         public_groups: QuerySet
     """
-    age = request.session.get_expiry_age()
-    if age > 0 and age <= SESSION_EXPIRATION:
-        # in valid range
-        return False
-    else:
-        return True
+    public_groups = MrMapGroup.objects.filter(
+        is_public_group=True
+    )
+    return public_groups
 
 
-def create_group_activity(group: Group, user: User, msg, metadata_title: str):
+def create_group_activity(group: MrMapGroup, user: MrMapUser, msg, metadata_title: str):
     """ Creates a group activity record for logging group actions.
 
     This covers basically changes on metadata aka services
 
     Args:
-        group (Group): The metadata related group
-        user (User): The performing user
+        group (MrMapGroup): The metadata related group
+        user (MrMapUser): The performing user
         msg (str): The description
         metadata_title (str): The related metadata's title
     Returns:

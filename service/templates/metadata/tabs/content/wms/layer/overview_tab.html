@@ -1,0 +1,86 @@
+{% load i18n %}
+{% load fontawesome_5 %}
+{% load bootstrap4 %}
+{% load query_parameters %}
+{% load django_tables2 %}
+{% load render_table from django_tables2 %}
+<table class="table">
+    <caption class="d-none">{% trans 'Overview of the layer for ' %}{{ title }}</caption>
+    <tbody>
+    <tr>
+        <th scope="row">{% trans 'Title' %}</th>
+        <td itemprop="about headline" class="col">
+            {{ title }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Kind of resource' %}</th>
+        <td>
+            {% autoescape off %}{{THEME.ICONS.LAYER}}{% endautoescape %} - Map Layer
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Parent Service' %}</th>
+        <td><a href="{% url 'service:get-metadata-html' parent_service.metadata.id %}">{{parent_service.metadata.title}}</a>
+        </td>
+    </tr>
+    {% if parent_layer%}
+    <tr>
+        <th scope="row">{% trans 'Parent Layer' %}</th>
+        <td><a href="{% url 'service:get-metadata-html' parent_layer.metadata.id %}">{{parent_layer.metadata.title}}</a>
+        </td>
+    </tr>
+    {% endif %}
+    <tr>
+        <th scope="row">{% trans 'Name of resource' %}</th>
+        <td>{{ name_of_the_resource }}</td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Preview' %}</th>
+        <td>
+            <div>
+                {% comment %} TODO: show "no preview" if no preview is available {% endcomment %}
+                <a itemprop="exampleOfWork" itemtype="https://schema.org/CreativeWork"
+                   href="{% url 'service:get-service-metadata-preview' md_id %}">
+                    <img itemprop="thumbnailUrl"
+                         src="{% url 'service:get-service-metadata-preview' md_id %}" alt="preview"
+                         class="img-thumbnail">
+                </a>
+            </div>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Organization' %}</th>
+        <td>
+            {% comment %} TODO: Mapbender presents here a logo {% endcomment %}
+            {{ contact.organization_name }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Abstract' %}</th>
+        <td itemprop="abstract">
+            {{ abstract }}
+        </td>
+    </tr>
+    {% if children %}
+    <tr>
+        <th scope="row">{% trans 'Child Layers' %}</th>
+        <td>
+                {% if layer_filter %}
+                    <form action="" method="get" class="form form-inline">
+                        <div class="row">
+                            <div class="form-group col-auto">
+                                {% bootstrap_form layer_filter.form layout='inline' %}
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-primary">{% autoescape off %}{{THEME.ICONS.SEARCH}}{% endautoescape %} Search</button>
+                            </div>
+                        </div>
+                    </form>
+                {% endif %}
+                {% render_table children %}
+        </td>
+    </tr>
+    {% endif%}
+    </tbody>
+</table>

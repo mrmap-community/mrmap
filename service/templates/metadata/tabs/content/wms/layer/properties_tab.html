@@ -1,0 +1,90 @@
+{% load i18n %}
+{% load fontawesome_5 %}
+{% load django_tables2 %}
+{% load render_table from django_tables2 %}
+<table class="table">
+    <caption class="d-none">{% trans 'Properties of the layer for ' %}{{ title }}</caption>
+    <tbody>
+    <tr>
+        <th scope="row">{% trans 'Is available' %}</th>
+        <td>
+            {% if layer.is_available %}
+                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% else %}
+                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Is opaque' %}</th>
+        <td>
+            {% if layer.is_opaque %}
+                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% else %}
+                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Is cascaded' %}</th>
+        <td>
+            {% if layer.is_cascaded %}
+                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% else %}
+                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Access secured' %}</th>
+        <td>
+            {% if layer.metadata.is_secured %}
+                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% else %}
+                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% endif %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'is Queryable' %}</th>
+        <td>
+            {% if layer.is_queryable %}
+                <h4><p class="text-success">{% autoescape off %}{{THEME.ICONS.OK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% else %}
+                <h4><p class="text-danger">{% autoescape off %}{{THEME.ICONS.NOK_CIRCLE}}{% endautoescape %}</p></h4>
+            {% endif %}
+        </td>
+    </tr>
+
+    <tr>
+        <th scope="row">{% trans 'Coordinate Reference System' %}</th>
+        <td>
+            {% comment %} TODO: is reference_system.all right? check it  {% endcomment %}
+            {% for rs in layer.metadata.reference_system.all %}
+            <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ rs.prefix }}{{ rs.code }}</span>
+            {% empty %}
+            {% trans 'No additional reference systems provided' %}
+            {% endfor %}
+        </td>
+    </tr>
+    <tr itemprop="spatialCoverage" itemscope itemtype="https://schema.org/Place">
+        <th scope="row">{% trans 'Extend in geographic Coordinates' %}</th>
+        <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
+            {% comment %} TODO: test the box that the google testtool will find ==> https://search.google.com/structured-data/testing-tool {% endcomment %}
+            <p itemprop="box">{{layer.bbox_lat_lon.boundary.extent.0}}
+                {{layer.bbox_lat_lon.boundary.extent.1}}
+                {{layer.bbox_lat_lon.boundary.extent.2}}
+                {{layer.bbox_lat_lon.boundary.extent.3}}</p>
+        </td>
+    </tr>
+    {% include '../../render_content_spatial_extent.html' %}
+    {% if related_metadata %}
+    <tr>
+        <th scope="row">{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} {% trans 'Coupled dataset metadata' %}</th>
+        <td>
+                {% render_table related_metadata %}
+        </td>
+    </tr>
+    {% endif %}
+    </tbody>
+</table>

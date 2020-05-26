@@ -10,7 +10,7 @@ import os
 
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 
-from MapSkinner.settings import BASE_DIR, HTTP_OR_SSL, HOST_NAME
+from MrMap.settings import BASE_DIR, HTTP_OR_SSL, HOST_NAME
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
 
 # Some special things
@@ -24,6 +24,7 @@ MD_RELATION_TYPE_DESCRIBED_BY = "describedBy"
 SERVICE_OPERATION_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}" + "/operation?"
 SERVICE_DATASET_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "dataset/{}"
 SERVICE_METADATA_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}"
+HTML_METADATA_URI_TEMPLATE = "{}{}/service/metadata/html/".format(HTTP_OR_SSL, HOST_NAME) + "{}"
 SERVICE_LEGEND_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}" + "/legend/" + "{}"
 
 REQUEST_TIMEOUT = 100  # seconds
@@ -113,8 +114,33 @@ ALLOWED_SRS_EXTENTS = {
 
 INSPIRE_LEGISLATION_FILE = BASE_DIR + "/inspire_legislation.json"
 
+# MASK CREATION
+ERROR_MASK_VAL = 1  # Indicates an error while creating the mask ("good" values are either 0 or 255)
+ERROR_MASK_TXT = "Error during mask creation! \nCheck the configuration of security_mask.map!"
+
 # IMAGE RENDERING
 MIN_FONT_SIZE = 14  # The minimum font size for text on images
 MAX_FONT_SIZE = 20  # The maximum font size for text on images
 FONT_IMG_RATIO = 1/20  # Font to image ratio
 RENDER_TEXT_ON_IMG = False  # Whether to render 'Access denied for xy' on GetMap responses or not
+PREVIEW_MIME_TYPE_DEFAULT = "png"   # Specify a preferred default mime type (without "image/..." prefix) for rendering preview images (e.g. HTML metadata view)
+
+# PREVIEW IMAGE REQUESTING
+PLACEHOLDER_IMG_PATH = "MrMap/static/images/mr_map_404.png"
+
+# PROXY LOG
+COUNT_DATA_PIXELS_ONLY = True  # If True, the response megapixel will be computed without transparent (alpha) pixel.
+LOGABLE_FEATURE_RESPONSE_FORMATS = [
+    "csv",
+    "geojson",
+    "kml",
+    "gml2",
+    "gml3",
+]
+
+# DIMENSION
+DIMENSION_TYPE_CHOICES = [
+    ("time", "time"),
+    ("elevation", "elevation"),
+    ("other", "other"),
+]

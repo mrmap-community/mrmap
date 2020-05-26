@@ -1,0 +1,98 @@
+{% load i18n %}
+{% load fontawesome_5 %}
+<table class="table">
+    <caption class="d-none">{% trans 'Properties of the dataset for ' %}{{ title }}</caption>
+    <tbody>
+    <tr>
+        <th scope="row">{% trans 'Language' %}</th>
+        <td>
+            {{dataset_metadata.language}}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Topic category' %}</th>
+        <td>
+            {{dataset_metadata.topic_category}}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Keyword value' %}</th>
+        <td>
+            {% for keyword in dataset_metadata.keywords %}
+            <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ keyword }}</span>
+            {% empty %}
+            {% trans 'No keywords provided!' %}
+            {% endfor %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Coordinate reference system' %}</th>
+        <td>
+            {% for rs in dataset_metadata.reference_systems %}
+            <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ rs }}</span>
+            {% empty %}
+            {% trans 'No additional reference systems provided' %}
+            {% endfor %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Extend in geographic Coordinates' %}</th>
+        <td itemprop="geo" itemscope itemtype="https://schema.org/GeoShape">
+            {% comment %} TODO: test the box that the google testtool will find ==> https://search.google.com/structured-data/testing-tool  {% endcomment %}
+            <p itemprop="box">{{dataset_metadata.extent_coords.0}}
+                {{dataset_metadata.extent_coords.1}}
+                {{dataset_metadata.extent_coords.2}}
+                {{dataset_metadata.extent_coords.3}}</p>
+        </td>
+    </tr>
+    {% include '../render_content_spatial_extent.html' %}
+    <tr>
+        <th scope="row">{% trans 'Temporal extent from' %}</th>
+        <td>
+            {{dataset_metadata.temporal_extent_begin}}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Temporal extent to' %}</th>
+        <td>
+            {{dataset_metadata.temporal_extent_end}}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Date of publication' %}</th>
+        <td>
+            {% for date in dataset_metadata.dates_additional.publication %}
+            <p>{{ date }}</p>
+            {% empty %}
+            {% trans 'No date of publication provided!' %}
+            {% endfor %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Date of last revision' %}</th>
+        <td>
+            {% for date in dataset_metadata.dates_additional.revision %}
+            <p>{{ date }}</p>
+            {% empty %}
+            {% trans 'No date of last revision provided!' %}
+            {% endfor %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Date of creation' %}</th>
+        <td>
+            {% for date in dataset_metadata.dates_additional.creation %}
+            <p>{{ date }}</p>
+            {% empty %}
+            {% trans 'No date of creation provided!' %}
+            {% endfor %}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Encoding' %}</th>
+        <td>
+            {{dataset_metadata.encoding}}
+        </td>
+    </tr>
+    </tbody>
+</table>

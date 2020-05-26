@@ -1,26 +1,9 @@
 <!DOCTYPE html>
 {% load i18n static %}
-{% load fontawesome_5 %}
+
 <html lang="{{ LANGUAGE_CODE }}">
 <head>
-    <meta charset="UTF-8">
-    <title>
-        MapSkinner {% block title %}{% endblock %}
-    </title>
-
-    {% fontawesome_5_static %}
-    <link rel="shortcut icon" href="{% static 'structure/images/favicon.ico' %}" type="image/x-icon">
-    <link rel="icon" href="{% static 'structure/images/favicon.ico' %}" type="image/x-icon">
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/bootstrap.min.css' %}" media="all"/>
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/base_.css' %}" media="all"/>
-    {% if THEME.NAME == 'light' %}
-    <link rel="stylesheet" type="text/css" href="{% static '/structure/css/custom_bootstrap4.css' %}" media="all"/>
-    {% endif %}
-    <script>var rootUrl = '{{ ROOT_URL }}'</script>
-    <script type="text/javascript" src="{% static '/structure/js/jquery-3.3.1.min.js' %}"></script>
-    <script type="text/javascript" src="{% static '/structure/js/popper.min.js' %}"></script>
-    <script type="text/javascript" src="{% static '/structure/js/bootstrap.min.js' %}"></script>
-    <script type="text/javascript" src="{% static '/structure/js/base.js' %}"></script>
+    {% include 'includes/default-head.html' %}
 
     {% block head %}
     {% endblock %}
@@ -29,25 +12,18 @@
     {% block header%}
     {% endblock %}
 
-    {% include 'navbar.html' %}
-    {% include 'messages.html' %}
+    {% include 'includes/navbar.html' %}
 </header>
 
-<body class="{{THEME.BACKGROUND}}">
-    <div id="body-content">
-
-                <audio id="ee-audio">
-                    <source src="{% static 'structure/audio/ee_audio.mp3' %}" type="audio/mpeg">
-                </audio>
-                <div id="overlay">
-                </div>
-                {% block body %}
-
-                {% endblock %}
-
+<body class="{{THEME.BACKGROUND}} {{THEME.BACKGROUND_IMG}}">
+    {% include 'includes/messages.html' %}
+    <div id="body-content" class="mt-3">
+        {% include 'includes/ee-overlay.html' %}
+        {% block body %}
+        {% endblock %}
     </div>
 </body>
 
-{% include 'footer.html' %}
+{% include 'includes/footer.html' %}
 
 </html>

@@ -18,7 +18,7 @@ from lxml import etree
 
 from django.utils import timezone
 
-from MapSkinner.settings import XML_NAMESPACES
+from MrMap.settings import XML_NAMESPACES
 
 
 class ServiceMetadataBuilder:
@@ -29,13 +29,13 @@ class ServiceMetadataBuilder:
 
         self.service_version = self.metadata.get_service_version()
         self.service_type = self.metadata.get_service_type()
-        if self.service_type == OGCServiceEnum.WFS.value:
+        if self.metadata.is_service_type(OGCServiceEnum.WFS) and not self.metadata.is_root():
+            # Only WFS FeatureType metadata needs a special workaround
             self.service = FeatureType.objects.get(
                 metadata=self.metadata
             ).parent_service
-        elif self.service_type == OGCServiceEnum.WMS.value:
+        else:
             self.service = self.metadata.service
-
 
         self.organization = self.metadata.contact
         

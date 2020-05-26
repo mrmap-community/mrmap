@@ -140,7 +140,7 @@ $(document).ready(function(){
 
     $(".submit-button.secured-operations").click(function(event){
         // store information as json into hidden input field
-        var operations = $("ul")
+        var operations = $(".operation-row table")
         var hiddenInput = $("input.hidden");
         var txtArr = []
         operations.each(function(i, elem){
@@ -263,22 +263,27 @@ $(document).ready(function(){
         return true;
     });
 
+    var html = "";
     $(".add-geometry_").click(function(){
         var elem = $(this);
+        var parentRow = elem.closest(".secured-group-operation");
+        var dataElem = parentRow.find("input");
+
         var serviceMetadataId = elem.attr("data-id")
-        var operation = elem.siblings("input").attr("data-operation");
-        var groupId = elem.siblings("input").attr("data-group");
+        var operation = dataElem.attr("data-operation");
+        var groupId = dataElem.attr("data-group");
 
-        var existingPolygons = elem.siblings("input").attr("data-polygons");
-
+        var existingPolygons = dataElem.attr("data-polygons");
 
         if(elem.attr("disabled") == "disabled"){
             return;
         }
 
+        var url = "{% url 'access_geometry_form' serviceMetadataId %}"
+        console.log(url);
         $.ajax({
             // TODO: use url dispatcher....
-            url: rootUrl + "/editor/edit/access/" + serviceMetadataId + "/geometry-form/",
+            url: rootUrl + "/editor/access/" + serviceMetadataId + "/geometry-form/",
             headers: {
                 "X-CSRFToken": getCookie("csrftoken")
             },
@@ -290,12 +295,9 @@ $(document).ready(function(){
             type: 'get',
             dataType: 'json'
         }).done(function(data){
-            $( "#id_modal_leaflet_modal").modal('show');
 
-            $('#id_modal_leaflet_modal').on('shown.bs.modal', function (e) {
-                var html = data["html"];
-                $( "#id_leaflet_client_div" ).html( html );
-            })
+            $( "#id_modal_leaflet_modal").modal('show');
+            html = data["html"];
 
             //toggleOverlay(html);
 
@@ -304,4 +306,9 @@ $(document).ready(function(){
         });
 
     });
+
+    $('#id_modal_leaflet_modal').on('shown.bs.modal', function (e) {
+        var modal = $( "#id_leaflet_client_div" );
+        modal.html( html );
+    })
 });

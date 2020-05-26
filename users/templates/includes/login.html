@@ -11,7 +11,7 @@
                     <h4 class="card-title text-center">Sign in</h4>
                     <hr>
                     <div class="media">
-                        <img class="align-self-start w-25 mr-3" src="{% static '/structure/images/mr_map.png' %}" alt="mr. map">
+                        <img class="align-self-start w-25 mr-3" src="{% static '/images/mr_map.png' %}" alt="mr. map">
                         <div class="media-body w-75">
                             {% if form.non_field_errors %}
                             <ul class='form-errors list-group'>
@@ -28,11 +28,11 @@
                                 <label class="sr-only" for="{{ field.id_for_label }}">{{ field.label }}</label>
                                 <div class="form-group input-group">
 
-                                    {% if 'Username' in field.label %}
+                                    {% if username_label == field.label %}
                                     <div class="input-group-prepend">
                                         <div class="input-group-text">{% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %}</div>
                                     </div>
-                                    {% elif 'Password' in field.label %}
+                                    {% elif password_label == field.label %}
                                     <div class="input-group-prepend">
                                         <div class="input-group-text">{% autoescape off %}{{THEME.ICONS.PASSWORD}}{% endautoescape %}</div>
                                     </div>
@@ -41,6 +41,7 @@
                                     <input type="{{ field.field.widget.input_type }}" name="{{ field.name }}"
                                            class="form-control" id="{{ field.id_for_label }}"
                                            placeholder="{{ field.label }}" required="{{ field.field.is_required }}">
+                                    <input type="hidden" name="next" value="{{ request.GET.next }}">
                                 </div>
                                 {% endfor %}
                                 <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">

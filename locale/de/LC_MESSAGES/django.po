@@ -18,110 +18,110 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MapSkinner/messages.py:27
+#: MrMap/messages.py:27
 msgid "The input was not valid."
 msgstr "Eine Eingabe ist ungültig"
 
-#: MapSkinner/messages.py:29
+#: MrMap/messages.py:29
 msgid "Username or password incorrect"
 msgstr "Nutzername oder Passwort falsch"
 
-#: MapSkinner/messages.py:30
+#: MrMap/messages.py:30
 msgid "Registration failed due to missing form data."
 msgstr "Registrierung aufgrund fehlender Daten fehlgeschlagen."
 
-#: MapSkinner/messages.py:31
+#: MrMap/messages.py:31
 msgid "Account updated successfully!"
 msgstr "Account aktualisiert!"
 
-#: MapSkinner/messages.py:32
+#: MrMap/messages.py:32
 msgid "Your account is currently not activated"
 msgstr "Dieser Account ist nicht aktiviert"
 
-#: MapSkinner/messages.py:33
+#: MrMap/messages.py:33
 msgid "You have been logged out."
 msgstr "Sie wurden ausgeloggt."
 
-#: MapSkinner/messages.py:35
+#: MrMap/messages.py:35
 msgid "Your activation link was invalid. Please contact an administrator."
 msgstr ""
 "Ihr Aktivierungslink war ungültig. Kontaktieren Sie einen Administrator."
 
-#: MapSkinner/messages.py:36
+#: MrMap/messages.py:36
 msgid ""
 "An activation link for your account was sent. Please check your e-mails!"
 msgstr "Ein Aktivierungslink für Ihren Account wurde per E-Mail versendet."
 
-#: MapSkinner/messages.py:38
+#: MrMap/messages.py:38
 msgid "This e-mail is not known"
 msgstr "Diese E-Mail Adresse ist nicht bekannt"
 
-#: MapSkinner/messages.py:39
+#: MrMap/messages.py:39
 msgid "Successfully logged out!"
 msgstr "Erfolgreich ausgeloggt"
 
-#: MapSkinner/messages.py:40
+#: MrMap/messages.py:40
 msgid "The e-mail address was not valid"
 msgstr "Die E-Mail Adresse ist ungültig"
 
-#: MapSkinner/messages.py:42
+#: MrMap/messages.py:42
 msgid "Password successfully changed!"
 msgstr "Passwort erfolgreich geändert!"
 
-#: MapSkinner/messages.py:43
+#: MrMap/messages.py:43
 msgid "Passwords didn't match!"
 msgstr "Passwörter stimmen nicht überein"
 
-#: MapSkinner/messages.py:44
+#: MrMap/messages.py:44
 msgid "A new password has been sent. Please check your e-mails!"
 msgstr "Ein neues Passwort wurde per E-Mail an Sie gesendet."
 
-#: MapSkinner/messages.py:46
+#: MrMap/messages.py:46
 msgid "Session timeout. You have been logged out."
 msgstr "Sitzung abgelaufen. Sie wurden ausgeloggt."
 
-#: MapSkinner/messages.py:48
+#: MrMap/messages.py:48
 msgid "You do not have permissions for this!"
 msgstr "Sie haben hierzu keine Berechtigung!"
 
-#: MapSkinner/messages.py:50
+#: MrMap/messages.py:50
 msgid "Metadata restored to original"
 msgstr "Metadaten auf Originalzustand wiederhergestellt"
 
-#: MapSkinner/messages.py:51
+#: MrMap/messages.py:51
 msgid "Metadata editing successful"
 msgstr "Metadaten erfolgreich editiert"
 
-#: MapSkinner/messages.py:52
+#: MrMap/messages.py:52
 msgid "Metadata is original. Reset aborted."
 msgstr "Metadaten sind original. Zurücksetzen abgebrochen."
 
-#: MapSkinner/messages.py:54
+#: MrMap/messages.py:54
 msgid "No datasetId found in metadata!"
 msgstr "Keine datasetId in den Metadaten gefunden!"
 
-#: MapSkinner/messages.py:56
+#: MrMap/messages.py:56
 msgid "The request was not activated in time. Request was deleted."
 msgstr ""
 "Die Anfrage wurde nicht rechtzeitig bearbeitet. Anfrage wurde gelöscht."
 
-#: MapSkinner/messages.py:58
+#: MrMap/messages.py:58
 msgid "Publish request has been sent to the organization!"
 msgstr "Veröffentlichungsanfrage wurde an die Organisation geschickt!"
 
-#: MapSkinner/messages.py:59
+#: MrMap/messages.py:59
 msgid "Publisher request accepted for group '{}'"
 msgstr "Veröffentlichungsanfrage für Gruppe '{}' wurde akzeptiert"
 
-#: MapSkinner/messages.py:60
+#: MrMap/messages.py:60
 msgid "Publisher request denied for group '{}'"
 msgstr "Veröffentlichungsanfrage für Gruppe '{}' wurde abgelehnt"
 
-#: MapSkinner/messages.py:61
+#: MrMap/messages.py:61
 msgid "Your group already is a publisher for this organization!"
 msgstr "Ihre Gruppe kann bereits für diese Organisation veröffentlichen!"
 
-#: MapSkinner/messages.py:62
+#: MrMap/messages.py:62
 msgid ""
 "You cannot be a publisher to your group's own organization! You publish by "
 "default like this."
@@ -129,16 +129,16 @@ msgstr ""
 "Sie können keine Veröffentlichungsrechte für die Gruppe Ihrer Organisation "
 "beantragen. Sie veröffentlichen standardmäßig für diese Organisation."
 
-#: MapSkinner/messages.py:63
+#: MrMap/messages.py:63
 msgid "Your group already has sent a request. Please be patient!"
 msgstr ""
 "Ihre Gruppe hat bereits eine Anfrage gesendet. Bitte gedulden Sie sich!"
 
-#: MapSkinner/messages.py:65
+#: MrMap/messages.py:65
 msgid "Publishing permission of {} for {} removed."
 msgstr "Veröffentlichungsrechte von {} für {} entfernt."
 
-#: MapSkinner/messages.py:66
+#: MrMap/messages.py:66
 msgid ""
 "Publish permission removing denied. You are not a member of the organization "
 "nor a member of the publishing group!"
@@ -146,38 +146,38 @@ msgstr ""
 "Veröffentlichungsrechte Entferung abgelehnt. Sie sind weder Mitglied der "
 "Organisation, noch ein Mitglied der veröffentlichenden Gruppe"
 
-#: MapSkinner/messages.py:68
+#: MrMap/messages.py:68
 msgid "A group can not be parent to itself!"
 msgstr "Eine Gruppe kann sich nicht selbst untergeordnet sein!"
 
-#: MapSkinner/messages.py:69
+#: MrMap/messages.py:69
 msgid "This group is owned by another user. Action denied."
 msgstr "Diese Gruppe gehört einem anderen Nutzer. Aktion abgebrochen."
 
-#: MapSkinner/messages.py:70
+#: MrMap/messages.py:70
 msgid "The form data was not valid."
 msgstr "Eine Eingabe ist ungültig"
 
-#: MapSkinner/messages.py:72
+#: MrMap/messages.py:72
 msgid "An organization can not be parent to itself!"
 msgstr "Eine Gruppe kann sich nicht selbst untergeordnet sein!"
 
-#: MapSkinner/messages.py:73
+#: MrMap/messages.py:73
 msgid "This organization is owned by another user. Action denied."
 msgstr "Diese Organisation gehört einem anderen Nutzer. Aktion abgebrochen."
 
-#: MapSkinner/messages.py:75
+#: MrMap/messages.py:75
 msgid "The service registration for '{}' was canceled"
 msgstr "Die Diensteregistrierung für '{}' wurde abgebrochen."
 
-#: MapSkinner/messages.py:76
+#: MrMap/messages.py:76
 msgid ""
 "You tried to update a service to another service type. This is not possible!"
 msgstr ""
 "Sie versuchen einen Dienst auf einen anderen Diensttypen zu aktualisieren. "
 "Das ist nicht möglich!"
 
-#: MapSkinner/messages.py:77
+#: MrMap/messages.py:77
 msgid ""
 "The provided capabilities document is not different from the currently "
 "registered. Update canceled!"
@@ -185,7 +185,7 @@ msgstr ""
 "Das Capabilities Dokument unterscheidet sich nicht vom aktuell "
 "registrierten. Update abgebrochen!"
 
-#: MapSkinner/messages.py:78
+#: MrMap/messages.py:78
 msgid ""
 "The service could not be registered. Please check your metadata and contact "
 "an administrator."
@@ -193,7 +193,7 @@ msgstr ""
 "Der Dienst konnte nicht registriert werden. Bitte prüfen Sie die Metadaten "
 "und kontaktieren Sie einen Administrator."
 
-#: MapSkinner/messages.py:80
+#: MrMap/messages.py:80
 msgid ""
 "There are several service metadata documents for this service. Please "
 "contact an administrator."
@@ -201,15 +201,15 @@ msgstr ""
 "Es existieren mehrere Service Metadaten Dokumente für diesen Dienst. Keine "
 "Eindeutigkeit feststellbar. Kontaktieren Sie einen Administrator."
 
-#: MapSkinner/messages.py:82
+#: MrMap/messages.py:82
 msgid "'{}' was invalid."
 msgstr "Die URI ist ungültig."
 
-#: MapSkinner/settings.py:202 templates/footer.html:11
+#: MrMap/settings.py:202 templates/footer.html:11
 msgid "English"
 msgstr "Englisch"
 
-#: MapSkinner/settings.py:203
+#: MrMap/settings.py:203
 msgid "German"
 msgstr "Deutsch"
 

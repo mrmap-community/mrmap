@@ -5,6 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 05.12.19
 
 """
+import time
 import urllib
 import io
 from collections import OrderedDict
@@ -22,12 +23,12 @@ from django.contrib.gis.geos import Polygon, GEOSGeometry, Point, GeometryCollec
 from django.http import HttpRequest, HttpResponse, QueryDict
 from lxml.etree import QName, _Element
 
-from MapSkinner import utils
-from MapSkinner.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
+from MrMap import utils
+from MrMap.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
     SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY, SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY, \
     OPERATION_HANDLER_MULTIPLE_QUERIES_NOT_ALLOWED
-from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
-from MapSkinner.utils import execute_threads
+from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES, EXEC_TIME_PRINT
+from MrMap.utils import execute_threads, print_debug_mode
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
@@ -35,11 +36,11 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.request_builder import OGCRequestPOSTBuilder
-from service.models import Metadata, FeatureType, Layer, MimeType, Service
+from service.models import Metadata, FeatureType, Layer, ProxyLog
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
-    RENDER_TEXT_ON_IMG, MAX_FONT_SIZE
+    RENDER_TEXT_ON_IMG, MAX_FONT_SIZE, ERROR_MASK_VAL, ERROR_MASK_TXT
 from users.helper import user_helper
 
 
@@ -79,7 +80,7 @@ class OGCOperationRequestHandler:
         self.original_params_dict = OrderedDict()  # contains the original, unedited parameters
         self.new_params_dict = OrderedDict()  # contains the parameters, which could be still original or might have changed during method processing
 
-        self.service_type_param = None  # refers to param 'SERVICE'
+        self.service_type_param = metadata.get_service_type()  # refers to param 'SERVICE', default is set to regular metadata service type (in case no SERVICE param was given)
         self.request_param = None  # refers to param 'REQUEST'
         self.layers_param = None  # refers to param 'LAYERS'
         self.x_y_param = [None, None]  # refers to param 'X/Y' (WMS 1.0.0), 'X, Y' (WMS 1.1.1), 'I,J' (WMS 1.3.0)
@@ -87,7 +88,7 @@ class OGCOperationRequestHandler:
         self.axis_corrected_bbox_param = None  # contains an axis corrected version of the bbox_param. Only differs in case of WMS 1.3.0
         self.srs_param = None  # refers to param 'SRS'|'SRSNAME' (WMS 1.0.0 - 1.1.1) and 'CRS' (WMS 1.3.0)
         self.srs_code = None  # only the srsid as int
-        self.format_param = None  # refers to param 'FORMAT'
+        self.format_param = None  # refers to param 'FORMAT' and 'OUTPUTFORMAT'
         self.count_param = None  # refers to param 'COUNT' (WFS 2.x) and 'MAXFEATURES' (WFS 1.x)
         self.version_param = None  # refers to param 'VERSION'
         self.filter_param = None  # refers to param 'FILTER' (WFS)
@@ -100,6 +101,13 @@ class OGCOperationRequestHandler:
 
         self.intersected_allowed_geometry = None
         self.user = user_helper.get_user(request)
+
+        # If user is AnonymousUser, we need to get the public groups
+        if self.user.is_authenticated:
+            self.user_groups = self.user.get_groups()
+        else:
+            self.user_groups = user_helper.get_public_groups()
+
         self.access_denied_img = None  # if subelements are not accessible for the user, this PIL.Image object represents an overlay with information about the resources, which can not be accessed
 
         if self.request_is_GET:
@@ -163,8 +171,8 @@ class OGCOperationRequestHandler:
                 self.x_y_param[1] = val
             elif key == "VERSION":
                 self.version_param = val
-            elif key == "FORMAT":
-                self.format_param = val
+            elif key == "FORMAT" or key == "OUTPUTFORMAT":
+                self.format_param = val or None
             elif key == "SRS" or key == "CRS" or key == "SRSNAME":
                 self.srs_param = val
                 self.srs_code = int(self.srs_param.split(":")[-1])  # get the last element of the ':' splitted string
@@ -179,6 +187,22 @@ class OGCOperationRequestHandler:
                 self.filter_param = val
             elif key == "TYPENAME" or key == "TYPENAMES":
                 self.type_name_param = val
+
+    def _extend_bbox_by_srs(self, bbox_list: list):
+        """ Extends the bbox_param by the same value that can be found inside srs_param
+
+        Due to some wrongly configured services, we always add the srs parameter as a fifth value to the array of
+        bbox vertices. This way, these services will respond correctly.
+
+        Args:
+            bbox_list (list): Contains bounding box values
+        Returns:
+            bbox_list (list): Contains bounding box values and maybe the srs_param
+        """
+        if len(bbox_list) == 4 and self.srs_param not in bbox_list:
+            # Only four values, which represent the extent vertices. Add the srs_param
+            bbox_list.append(self.srs_param)
+        return bbox_list
 
     def _bbox_to_filter(self):
         """ Transforms the BBOX parameter into a valid Filter. Removes the BBOX parameter from the query, since
@@ -240,10 +264,14 @@ class OGCOperationRequestHandler:
 
         """
         if self.request_param.upper() == OGCOperationEnum.GET_FEATURE.value.upper() and self.type_name_param is not None:
+            # It might be possible, that type_name_param contains an unwanted namespace. Get rid of it!
+            type_name_list = self.type_name_param.split(":")
+            type_name_suffix = type_name_list[-1]
+
             # for WFS we need to check a few things in here!
             # first get the featuretype object, that is requested
             featuretype = FeatureType.objects.get(
-                metadata__identifier=self.type_name_param,
+                metadata__identifier__contains=type_name_suffix,
                 parent_service__metadata=metadata
             )
 
@@ -295,21 +323,17 @@ class OGCOperationRequestHandler:
         Returns:
             nothing
         """
-        if md.get_service_type().lower() == OGCServiceEnum.WMS.value:
+        if md.is_service_type(OGCServiceEnum.WMS):
             self._resolve_layer_param_to_leaf_layers(md)
 
         if self.layers_param is not None and self.type_name_param is None:
             # in case of WMS
             layer_identifiers = self.layers_param.split(",")
 
-            if self.user is not None:
-                user_groups = self.user.groups.all()
-            else:
-                user_groups = []
             allowed_layers = Metadata.objects.filter(
                 service__parent_service__metadata=md,
                 identifier__in=layer_identifiers,
-                secured_operations__allowed_group__in=user_groups,
+                secured_operations__allowed_group__in=self.user_groups,
                 secured_operations__operation__operation_name__iexact=self.request_param,
             )
             allowed_layers_identifier_list = [l.identifier for l in allowed_layers]
@@ -349,6 +373,26 @@ class OGCOperationRequestHandler:
                     draw.text((0, y), "Access denied for '{}'".format(restricted_layer), (0, 0, 0), font=font)
                     y += font_size
                 self.access_denied_img = text_img
+
+    def _create_image_with_text(self, w: int, h: int, txt: str):
+        """ Renders text on an empty image
+
+        Args:
+            w (int): The image width
+            h (int): The image height
+            txt (str): text to be rendered
+        Returns:
+             text_img (Image): The image containing text
+        """
+
+        text_img = Image.new("RGBA", (int(self.width_param), int(h)), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(text_img)
+        font_size = int(h * FONT_IMG_RATIO)
+
+        font = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", font_size)
+        draw.text((0, 0), txt, (0, 0, 0), font=font)
+
+        return text_img
 
     def _fill_new_params_dict(self):
         """ Fills all processed parameters into an internal dict
@@ -427,7 +471,7 @@ class OGCOperationRequestHandler:
         """
 
         # identify requested operation and resolve the uri
-        if metadata.get_service_type() == OGCServiceEnum.WFS.value and not metadata.is_root():
+        if metadata.is_service_type(OGCServiceEnum.WFS) and not metadata.is_root():
             feature_type = FeatureType.objects.get(
                 metadata=metadata
             )
@@ -785,7 +829,7 @@ class OGCOperationRequestHandler:
         )
         return geometry_obj
 
-    def _create_filter_xml_from_geometries(self, geom_list: list):
+    def _create_filter_xml_from_geometries(self, geom_list: list, switch_axis_order: bool = False):
         """ Creates a xml string for the filter parameter of a WFS operation
 
         Returns:
@@ -836,16 +880,27 @@ class OGCOperationRequestHandler:
 
             property_elem = xml_helper.create_subelement(within_elem, "{}{}".format(_filter_prefix, prop_tag))
             property_elem.text = self.geom_property_name
-            polygon_elem = xml_helper.create_subelement(within_elem, "{}Polygon".format(gml),
-                                                        attrib={"srsName": self.srs_param})
+            polygon_elem = xml_helper.create_subelement(
+                within_elem,
+                "{}Polygon".format(gml),
+                attrib={"srsName": self.srs_param}
+            )
             outer_bound_elem = xml_helper.create_subelement(polygon_elem, "{}{}".format(gml, outer_bound_tag))
             linear_ring_elem = xml_helper.create_subelement(outer_bound_elem, "{}LinearRing".format(gml))
             pos_list_elem = xml_helper.create_subelement(linear_ring_elem, "{}posList".format(gml))
             tmp = []
 
+            # If the axis have to be switched, we switch the index, which will be used to fetch the corresponding vertex
+            if switch_axis_order:
+                order = [1, 0]
+            else:
+                order = [0, 1]
+
             for vertex in geom.coords[0]:
-                tmp.append(str(vertex[0]))
-                tmp.append(str(vertex[1]))
+                # We make use of the order list, that defines a switched
+                # or non-switched access to the index of the geometry
+                tmp.append(str(vertex[order[0]]))
+                tmp.append(str(vertex[order[1]]))
             pos_list_elem.text = " ".join(tmp)
 
         _filter = xml_helper.xml_to_string(root)
@@ -875,14 +930,12 @@ class OGCOperationRequestHandler:
             del tmp_bbox[-1]
 
         # Check whether the axis of the bbox have to be switched
+        # ToDo: Rethink this! We can expect the bbox parameter to have the correct axis order, since it comes from a GIS client!
         tmp_backup = copy(tmp_bbox)
-        epsg_api = EpsgApi()
-        switch_axis = epsg_api.switch_axis_order(self.service_type_param, self.version_param, self.srs_param)
-        if switch_axis:
-           for i in range(0, len(tmp_bbox)-1, 2):
-               tmp = tmp_bbox[i]
-               tmp_bbox[i] = tmp_bbox[i+1]
-               tmp_bbox[i+1] = tmp
+        #epsg_api = EpsgApi()
+        #switch_axis = epsg_api.check_switch_axis_order(self.service_type_param, self.version_param, self.srs_param)
+        #if switch_axis:
+        #    tmp_bbox = epsg_api.perform_switch_axis_order(tmp_bbox)
 
         # Create Polygon from (possibly axis-switched bbox)
         bbox_param_geom = GEOSGeometry(Polygon.from_bbox(tmp_bbox), srid=self.srs_code)
@@ -890,6 +943,11 @@ class OGCOperationRequestHandler:
 
         # Restore (possibly axis-switched bbox) with original parameter, so it can be used for sending the request later
         tmp_bbox = tmp_backup
+
+        # For WFS, we need to check if the bbox parameter can be extended using the srs
+        if self.service_type_param.lower() == OGCServiceEnum.WFS.value:
+            tmp_bbox = self._extend_bbox_by_srs(tmp_bbox)
+
         ret_dict["geom"] = bbox_param_geom
         ret_dict["bbox_param"] = ",".join(tmp_bbox)
 
@@ -1166,45 +1224,51 @@ class OGCOperationRequestHandler:
         masks = []
         width = int(self.width_param)
         height = int(self.height_param)
-        for op in sec_ops:
-            if op.bounding_geometry.empty:
-                return None
-            request_dict = {
-                "map": MAPSERVER_SECURITY_MASK_FILE_PATH,
-                "version": "1.1.1",
-                "request": "GetMap",
-                "service": "WMS",
-                "format": "image/png",
-                "layers": "mask",
-                "srs": self.srs_param,
-                "bbox": self.axis_corrected_bbox_param,
-                "width": width,
-                "height": height,
-                "keys": op.id,
-                "table": MAPSERVER_SECURITY_MASK_TABLE,
-                "key_column": MAPSERVER_SECURITY_MASK_KEY_COLUMN,
-                "geom_column": MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
-            }
-            uri = "{}?{}".format(
-                MAPSERVER_LOCAL_PATH,
-                urllib.parse.urlencode(request_dict)
-            )
+        try:
+            for op in sec_ops:
+                if op.bounding_geometry.empty:
+                    return None
+                request_dict = {
+                    "map": MAPSERVER_SECURITY_MASK_FILE_PATH,
+                    "version": "1.1.1",
+                    "request": "GetMap",
+                    "service": "WMS",
+                    "format": "image/png",
+                    "layers": "mask",
+                    "srs": self.srs_param,
+                    "bbox": self.axis_corrected_bbox_param,
+                    "width": width,
+                    "height": height,
+                    "keys": op.id,
+                    "table": MAPSERVER_SECURITY_MASK_TABLE,
+                    "key_column": MAPSERVER_SECURITY_MASK_KEY_COLUMN,
+                    "geom_column": MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
+                }
+                uri = "{}?{}".format(
+                    MAPSERVER_LOCAL_PATH,
+                    urllib.parse.urlencode(request_dict)
+                )
 
-            c = CommonConnector(url=uri)
-            c.load()
-            mask = Image.open(io.BytesIO(c.content))
-            masks.append(mask)
+                c = CommonConnector(url=uri)
+                c.load()
+                mask = Image.open(io.BytesIO(c.content))
+                masks.append(mask)
 
-        # Create empty final mask object
-        mask = Image.new("RGBA", (width, height), (255, 0, 0, 0))
+            # Create empty final mask object
+            mask = Image.new("RGBA", (width, height), (255, 0, 0, 0))
 
-        # Combine all single masks into one!
-        for m in masks:
-            mask = Image.alpha_composite(m, mask)
+            # Combine all single masks into one!
+            for m in masks:
+                mask = Image.alpha_composite(m, mask)
 
-        # Put combined mask on white background
-        background = Image.new("RGB", (width, height), (255, 255, 255))
-        background.paste(mask, mask=mask)
+            # Put combined mask on white background
+            background = Image.new("RGB", (width, height), (255, 255, 255))
+            background.paste(mask, mask=mask)
+        except Exception:
+            # If anything occurs during the mask creation, we have to make sure the response won't contain any information at all.
+            # So create an error mask
+            background = Image.new("RGB", (width, height), (ERROR_MASK_VAL, ERROR_MASK_VAL, ERROR_MASK_VAL))
+
         return background
 
     def _create_masked_image(self, img: bytes, mask: bytes, as_bytes: bool = False):
@@ -1213,31 +1277,40 @@ class OGCOperationRequestHandler:
         Args:
             img (byte): The bytes of the image
             mask (byte): The bytes of the mask
+            as_bytes (bool): Whether the image should be returned as Image object or as bytes
         Returns:
              img (Image): The masked image
         """
         try:
+            # Transform byte-image to PIL-image object
             img = Image.open(io.BytesIO(img))
         except OSError:
             raise Exception("Could not create image! Content was:\n {}".format(img))
         try:
+            # Create an alpha layer, which is needed for the compositing of image and mask
             alpha_layer = Image.new("RGBA", img.size, (255, 0, 0, 0))
+
+            # Make sure we have any kind of mask
             if mask is None:
-                # no bounding geometry for masking exist, just create a mask that does nothing
+                # No bounding geometry for masking exist, so we just create a mask that does not mask anything
                 mask = Image.new("RGB", img.size, (0, 0, 0))
             else:
+                # There is a mask ...
                 if isinstance(mask, bytes):
+                    # ... but it is in bytes, so we need to transform it to a PIL-image object as well
                     mask = Image.open(io.BytesIO(mask))
-                elif isinstance(mask, Image.Image):
-                    # This is not useful but improves the understanding
-                    mask = mask
-                else:
-                    # Not supported!
-                    raise OSError
+
+                # Check if the mask is fine or indicates an error
+                is_error_mask = mask.getpixel((0, 0))[0] == ERROR_MASK_VAL
+                if is_error_mask:
+                    # Create full-masking mask and create an access_denied_img
+                    mask = Image.new("RGB", img.size, (255, 255, 255))
+                    self.access_denied_img = self._create_image_with_text(img.width, img.height, ERROR_MASK_TXT)
 
         except OSError:
             raise Exception("Could not create image! Content was:\n {}".format(mask))
 
+        # Make sure mask is in grayscale and has the exact same size as the requested image
         mask = mask.convert("L").resize(img.size)
 
         # save image format for restoring a few steps later
@@ -1245,7 +1318,8 @@ class OGCOperationRequestHandler:
         img = Image.composite(alpha_layer, img, mask)
         img.format = img_format
 
-        # add access_denied_img image (contains info about which layers are restricted for the requesting user)
+        # Add access_denied_img image
+        # (contains info about which layers are restricted or if there was an error during mask creation)
         if self.access_denied_img is not None:
             old_format = img.format
             img = Image.alpha_composite(img, self.access_denied_img)
@@ -1254,14 +1328,14 @@ class OGCOperationRequestHandler:
         if as_bytes:
             out_bytes_stream = io.BytesIO()
             try:
-                img.save(out_bytes_stream, img.format, optimize=True, quality=80)
+                img.save(out_bytes_stream, img.format, quality=80)
                 img = out_bytes_stream.getvalue()
             except IOError:
                 # happens if a non-alpha channel format is requested, such as jpeg
                 # replace alpha channel with white background
                 bg = Image.new("RGB", img.size, (255, 255, 255))
                 bg.paste(img, mask=img.split()[3])
-                bg.save(out_bytes_stream, img.format, optimize=True, quality=80)
+                bg.save(out_bytes_stream, img.format, quality=80)
                 img = out_bytes_stream.getvalue()
 
         return img
@@ -1309,12 +1383,25 @@ class OGCOperationRequestHandler:
         if self.layers_param is None:
             return
 
-        for layer_param in self.layers_param.split(","):
-            layer_obj = Layer.objects.get(
+        layer_identifiers = self.layers_param.split(",")
+
+        layer_objs = Layer.objects.filter(
+            parent_service__metadata=metadata,
+            identifier__in=layer_identifiers
+        )
+
+        # Case 1: Only root layer is requested -> fast solution
+        if layer_objs.count() == 1 and layer_objs[0].parent_layer is None:
+            # Yes, only the root layer has been requested
+            layers = Layer.objects.filter(
                 parent_service__metadata=metadata,
-                identifier=layer_param
-            )
-            leaf_layers += layer_obj.get_leaf_layers()
+                child_layers=None
+            ).order_by("id")
+            leaf_layers += layers.values_list("identifier", flat=True)
+        else:
+            # Multiple layers have been requested -> slower solution
+            for layer in layer_objs:
+                leaf_layers += layer.get_leaf_layers_identifier()
 
         if len(leaf_layers) > 0:
             self.layers_param = ",".join(leaf_layers)
@@ -1330,10 +1417,14 @@ class OGCOperationRequestHandler:
         """
         bounding_geoms_filter_xml = []
         prefix = ""
-        if self.version_param == OGCServiceVersionEnum.V_2_0_0 or OGCServiceVersionEnum.V_2_0_2:
+        prefix_nsmap = {}
+        if self.version_param == OGCServiceVersionEnum.V_2_0_0.value or self.version_param == OGCServiceVersionEnum.V_2_0_2.value:
             prefix = "{" + XML_NAMESPACES["fes"] + "}"
+            prefix_nsmap = {
+                "fes": XML_NAMESPACES["fes"]
+            }
 
-        # First get all single polygons from the GeometryCollection
+        # First get all polygons from the GeometryCollection and transform them according to the requested srs code
         for sec_op in sec_ops:
             bounding_geom_collection = sec_op.bounding_geometry
             for bounding_geom in bounding_geom_collection.coords:
@@ -1342,8 +1433,12 @@ class OGCOperationRequestHandler:
                 geom.transform(self.srs_code)
                 bounding_geoms_filter_xml.append(geom)
 
-        # Then transform them into spatial restricting filter xml elements
-        _filter = self._create_filter_xml_from_geometries(bounding_geoms_filter_xml)
+        # Check whether the axis order has to be switched
+        epsg_api = EpsgApi()
+        switch_axis = epsg_api.check_switch_axis_order(self.service_type_param, self.version_param, self.srs_param)
+
+        # Transform the polygon objects into a <Filter> xml document (as str)
+        _filter = self._create_filter_xml_from_geometries(bounding_geoms_filter_xml, switch_axis_order=switch_axis)
 
         # check if there is already a filter, that came with the initial request. If so, we need to combine this
         # with our newly created one
@@ -1354,7 +1449,7 @@ class OGCOperationRequestHandler:
             backend_filter_elem_children = backend_filter_elem.getchildren()
 
             if len(backend_filter_elem_children) > 0 and len(request_filter_elem_children) > 0:
-                add_elem = etree.Element("{}And".format(prefix))
+                add_elem = etree.Element("{}And".format(prefix), nsmap=prefix_nsmap)
                 for child in request_filter_elem_children:
                     xml_helper.add_subelement(add_elem, child)
                 for child in backend_filter_elem_children:
@@ -1366,12 +1461,13 @@ class OGCOperationRequestHandler:
             self.filter_param = _filter
             self.new_params_dict["FILTER"] = self.filter_param
 
-    def get_secured_operation_response(self, request: HttpRequest, metadata: Metadata):
+    def get_secured_operation_response(self, request: HttpRequest, metadata: Metadata, proxy_log: ProxyLog):
         """ Calls the operation of a service if it is secured.
 
         Args:
-            request (HttpRequest):
-            metadata (Metadata):
+            request (HttpRequest): The incoming request
+            metadata (Metadata): The metadata object
+            proxy_log (ProxyLog): The logging object
         Returns:
 
         """
@@ -1380,10 +1476,6 @@ class OGCOperationRequestHandler:
             "response_type": ""
         }
 
-        # if user could not be found in request -> not logged in -> no permission!
-        if self.user is None:
-            return response
-
         check_sec_ops = False
         if self.request_param in WMS_SECURED_OPERATIONS or self.request_param in WFS_SECURED_OPERATIONS:
             check_sec_ops = True
@@ -1391,7 +1483,7 @@ class OGCOperationRequestHandler:
         # check if the metadata allows operation performing for certain groups
         sec_ops = metadata.secured_operations.filter(
             operation__operation_name__iexact=self.request_param,
-            allowed_group__in=self.user.groups.all(),
+            allowed_group__in=self.user_groups,
         )
 
         if check_sec_ops and sec_ops.count() == 0:
@@ -1454,18 +1546,20 @@ class OGCOperationRequestHandler:
         # WFS - 'Transaction'
         elif self.request_param.upper() == OGCOperationEnum.TRANSACTION.value.upper():
             self._filter_transaction_geometries(sec_ops)
-            response = self.get_operation_response(post_body=self.POST_raw_body)
+            response = self.get_operation_response(post_xml_body=self.POST_raw_body)
 
         return response
 
-    def get_operation_response(self, uri: str = None, post_data: dict = None, post_body: str = None):
+    def get_operation_response(self, uri: str = None, post_data: dict = None, proxy_log:ProxyLog = None, post_xml_body: str = None):
         """ Performs the request.
 
         This may be called after the security checks have passed or otherwise if no security checks had to be done.
 
         Args:
             uri (str): The operation uri
+            proxy_log (ProxyLog): The logging object
             post_data(dict): A key-value dict of the POST data
+            post_xml_body (str): A post xml body
         Returns:
              The xml response
         """
@@ -1491,8 +1585,8 @@ class OGCOperationRequestHandler:
             c = CommonConnector(url=self.post_uri, external_auth=self.external_auth)
 
             # If a post_body xml is given, we always prefer this over post_data
-            if post_body is not None:
-                post_content = post_body
+            if post_xml_body is not None:
+                post_content = post_xml_body
 
             # ... so we do not have any xml post body content. If no other post_data content was provided as variable
             # we will construct our own post_data!
@@ -1501,7 +1595,7 @@ class OGCOperationRequestHandler:
 
             # Fallback - this would only happen if absolutely no parameters were given to this function
             else:
-                post_content = ""
+                post_content = post_data
 
             # There are two ways to post data to a server in the OGC service world:
             # 1)    Using x-www-form-urlencoded (mostly used in todays world)

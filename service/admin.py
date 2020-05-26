@@ -14,6 +14,10 @@ class CategoryOriginAdmin(admin.ModelAdmin):
     pass
 
 
+class DimensionAdmin(admin.ModelAdmin):
+    list_display = ("id", "type", "extent")
+
+
 class RequestOperationAdmin(admin.ModelAdmin):
     list_display = ('id', 'operation_name',)
 
@@ -45,6 +49,7 @@ class DocumentAdmin(admin.ModelAdmin):
 class MetadataOriginAdmin(admin.ModelAdmin):
     list_display = ('id', 'name',)
 
+
 class MetadataTypeAdmin(admin.ModelAdmin):
     list_display = ('id', 'type',)
 
@@ -70,6 +75,7 @@ class ReferenceSystemAdmin(admin.ModelAdmin):
     list_display = ('id', 'code', 'prefix', 'version')
     pass
 
+
 class FeatureTypeAdmin(admin.ModelAdmin):
     list_display = ('id', 'metadata', 'parent_service')
 
@@ -85,19 +91,24 @@ class LayerAdmin(admin.ModelAdmin):
 class MimeTypeAdmin(admin.ModelAdmin):
     list_display = ('id', 'operation', 'mime_type')
 
+
 class NamespaceAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'uri', 'version')
 
+
 class ProxyLogAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'user', 'timestamp')
+    list_display = ('id', 'metadata', 'operation', 'user', 'response_wms_megapixel', 'response_wfs_num_features', 'timestamp')
+
 
 class ExternalAuthenticationAdmin(admin.ModelAdmin):
     list_display = ('id', 'metadata', 'auth_type')
+
 
 class StyleAdmin(admin.ModelAdmin):
     list_display = ('id', 'layer',)
 
 
+admin.site.register(Dimension, DimensionAdmin)
 admin.site.register(Document, DocumentAdmin)
 admin.site.register(RequestOperation, RequestOperationAdmin)
 admin.site.register(SecuredOperation, SecuredOperationAdmin)

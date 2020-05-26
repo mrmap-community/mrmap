@@ -2,15 +2,14 @@
 {% load i18n %}
 
 {% block card-header-title-left %}
-<h4 class="mb-1 mr-3">
+<h4 class="mb-1 mr-3" style="display: inline;">
     {% autoescape off %}{{THEME.ICONS.LAYER}}{% endautoescape %}
-    <b>{{ service.metadata.title }}</b>
+    <strong>{{ service.metadata.title }}</strong>
 </h4>
+<h6 style="display: inline;"><a href="{% url 'service:detail' service_md.id %}">{{THEME.ICONS.EXTERNAL_LINK}}</a></h6>
 {% endblock %}
 {% block card-header-title-right %}
-    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'service:index' %}">
-        <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Overview' %}</span>
-    </a>
+
 {% endblock %}
 
 {% load i18n %}
@@ -29,10 +28,24 @@
                 </div>
             {% endif %}
             </div><!--</col>-->
+            {% if has_dataset_metadata is True %}
+                <div class="col-sm mb-2 text-center">
+                    <a id="dataset-metadata-button-{{ service.metadata.id }}" target="_blank" class="btn {{THEME.CARD.BTN_INFO_COLOR}}" href="{% url 'service:get-dataset-metadata' service.metadata.id %}">
+                        {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Dataset Metadata' %}
+                    </a>
+                </div><!--</col>-->
+            {% endif %}
             <div class="col-sm mb-2 text-center">
-                <!--TODO: Hide?-->
-                <a class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}" href="{% url 'service:get-dataset-metadata' service.metadata.id %}">{% trans 'Dataset Metadata' %}</a>
-            </div><!--</col>-->
+                <div class="dropdown">
+                  <button class="btn {{THEME.CARD.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="id_metadata_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Service Metadata' %}
+                  </button>
+                  <div class="dropdown-menu" aria-labelledby="id_metadata_dropdown">
+                      <a class="dropdown-item" target="_blank" href="{% url 'service:get-metadata-html' service_md.id %}">{% trans 'HTML' %}</a>
+                      <a class="dropdown-item" target="_blank" href="{% url 'service:get-service-metadata' service_md.id %}">{% trans 'XML' %}</a>
+                  </div>
+                </div>
+            </div>
             <div class="col-sm mb-2 text-center">
             {% if 'can_edit_metadata_service' in user_permissions %}
                 <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
@@ -45,7 +58,11 @@
 
         {% include 'includes/wfs/featuretype_detail_table.html' %}
         {% with service as featuretype %}
-            {% include 'includes/wfs/show_featuretype_elements_accordion.html' %}
+            {% with service.id as id_accordion  %}
+                {% with id_accordion_combined='elements' %}
+                    {% include 'includes/wfs/show_featuretype_elements_accordion.html' %}
+                {% endwith %}
+            {% endwith %}
         {% endwith %}
 
         </div><!--</col>-->

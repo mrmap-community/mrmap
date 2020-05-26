@@ -1,10 +1,30 @@
 import django_filters
-from service.models import Metadata
+from service.models import Metadata, Layer, FeatureType
 
 
-class WmsFilter(django_filters.FilterSet):
+class ChildLayerFilter(django_filters.FilterSet):
+    child_layer_title = django_filters.CharFilter(field_name='metadata',
+                                                  lookup_expr='title__icontains',
+                                                  label='Layer title contains')
+
+    class Meta:
+        model = Layer
+        fields = []
+
+
+class FeatureTypeFilter(django_filters.FilterSet):
+    child_layer_title = django_filters.CharFilter(field_name='metadata',
+                                                  lookup_expr='title__icontains',
+                                                  label='Featuretype tile contains')
+
+    class Meta:
+        model = FeatureType
+        fields = []
+
+
+class MetadataWmsFilter(django_filters.FilterSet):
     wms_search = django_filters.CharFilter(method='filter_search_over_all',
-                                           label='Search')
+                                         label='Search')
 
     @staticmethod
     def filter_search_over_all(queryset, name, value):  # parameter name is needed cause 3 values are expected
@@ -20,7 +40,7 @@ class WmsFilter(django_filters.FilterSet):
         fields = []
 
 
-class WfsFilter(django_filters.FilterSet):
+class MetadataWfsFilter(django_filters.FilterSet):
     wfs_search = django_filters.CharFilter(method='filter_search_over_all',
                                            label='Search')
 

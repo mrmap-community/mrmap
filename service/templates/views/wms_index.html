@@ -2,12 +2,13 @@
 {% load i18n static tz %}
 
 {% block body %}
-<div class="container">
+<div class="container-fluid px-5">
+    {% include 'sceletons/breadcrumb.html'%}
     {% if pt_table.rows %}
         <div id="id_pending_tasks_div">
             {% include 'includes/pending_tasks.html' %}
         </div>
-        <script type="text/javascript">
+        <script type="application/javascript">
             interval = setInterval(function(){
                 $.get( '{% url 'service:pending-tasks' %}', function( data ) {
 
@@ -17,6 +18,9 @@
                 if( $("#id_pt_empty").length ) {
                     clearInterval(interval);
                     $("#id_pending_tasks_div").remove();
+
+                    // reload current page
+                    location.reload();
                 };
             }, 1000);
         </script>
@@ -29,7 +33,9 @@
     {% if 'can_register_service' in user_permissions %}
         {% with form=new_service_form %}
             {% with 'new_service' as id_modal %}
-                {% include 'modals/new_service.html' %}
+                {% with show_new_service_form as show_modal %}
+                    {% include 'modals/new_service.html' %}
+                {% endwith %}
             {% endwith %}
         {% endwith %}
     {% endif %}

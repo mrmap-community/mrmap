@@ -7,15 +7,15 @@
 {% block accordion-body %}
     <table class="table {{THEME.TABLE.HOVER}} {{THEME.TABLE.STRIPED}} {{THEME.TABLE.BG}} {{THEME.TABLE.BORDER}} {{THEME.TABLE.BORDERED}}">
         <tr>
-            <th>{% trans 'Uuid' %}</th>
+            <th scope="row">{% trans 'Uuid' %}</th>
             <td>{{ element.uuid }}</td>
         </tr>
         <tr>
-            <th>{% trans 'Name' %}</th>
+            <th scope="row">{% trans 'Name' %}</th>
             <td>{{ element.name }}</td>
         </tr>
         <tr>
-            <th>{% trans 'Type' %}</th>
+            <th scope="row">{% trans 'Type' %}</th>
             <td>{{ element.type }}</td>
         </tr>
     </table>

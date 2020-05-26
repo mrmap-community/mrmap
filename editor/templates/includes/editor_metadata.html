@@ -1,4 +1,3 @@
-<!--wfs_index.html -->
 {% extends 'sceletons/card.html' %}
 {% load i18n static tz %}
 {% load django_tables2 %}
@@ -6,21 +5,21 @@
 {% load query_parameters %}
 {% load bootstrap4 %}
 
+
 {% block card-header-title-left %}
     <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata editor' %}</h4>
 {% endblock %}
+
 {% block card-header-title-right %}
-    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'editor:index' %}">
-        <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Overview' %}</span>
-    </a>
 {% endblock %}
+
 {% block card-header-subtitle-left %}
     <h5 class="text-muted">
         {% if service_metadata.is_root %}
             Service:
-        {% elif service_metadata.metadata_type.type == 'featuretype' %}
+        {% elif service_metadata.is_featuretype_metadata %}
             Featuretype:
-        {% elif service_metadata.metadata_type.type == 'layer' %}
+        {% elif service_metadata.is_layer_metadata %}
             Layer:
         {% endif %}
         {{ service_metadata.title }}
@@ -48,13 +47,12 @@
            <div class="row">
                 <div class="col">
                     {% bootstrap_form form %}
+                    {% include 'includes/editor_metadata_autocompletes.html' %}
                 </div>
             </div>
             <div class="row">
                 <div class="col">
-                    <div class="float-right">
-                        <button type="submit" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}">{% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save'%}</button>
-                    </div>
+                    <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}">{% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save'%}</button>
                 </div>
             </div>
        </form>

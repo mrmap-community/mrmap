@@ -2,15 +2,15 @@
 {% load i18n %}
 {% block table %}
 <tr>
-    <th>{% trans 'Organization' %}</th>
+    <th scope="row">{% trans 'Organization' %}</th>
     <td>{{ group.organization }}</td>
 </tr>
 <tr>
-    <th>{% trans 'Description' %}</th>
+    <th scope="row">{% trans 'Description' %}</th>
     <td>{{ group.description }}</td>
 </tr>
 <tr>
-    <th>{% trans 'Members' %}</th>
+    <th scope="row">{% trans 'Members' %}</th>
     <td>
         {% for member in members %}
             {{ member.username }}<br>
@@ -18,15 +18,36 @@
     </td>
 </tr>
 <tr>
-    <th>{% trans 'Parent' %}</th>
-    <td>{{ group.parent }}</td>
+    <th scope="row">{% trans 'Parent' %}</th>
+    <td>{% if group.parent_group %}<a href="{% url 'structure:detail-group' group.parent_group.id %}">{{ group.parent_group }}</a>{% else %} None {% endif %}</td>
 </tr>
 <tr>
-    <th>{% trans 'Permissions' %}</th>
+    <th scope="row">{% trans 'Permissions' %}</th>
     <td>
-        {% for perm in group_permissions %}
-            {{ perm }} <br>
-        {% endfor %}
+        {% if group_permissions|length > 0 %}
+            {% for perm in group_permissions %}
+                <span class="badge {{THEME.ACCORDION.PILL_BADGE_INFO_COLOR}}">{{ perm }}</span>
+            {% endfor %}
+        {% else %}
+            {% trans 'No group permissions' %}
+        {% endif %}
     </td>
 </tr>
+{% if inherited_permission|length > 0 %}
+<tr>
+    <th scope="row">{% trans 'Inherited Permissions' %}</th>
+    <td>
+        {% with group.id as id_accordion %}
+            {% for perm_dict in inherited_permission %}
+                {% with perm_dict.group.id as id_accordion_combined %}
+
+                    {% include 'includes/detail/inherited_permissions_accordion.html' %}
+
+                {% endwith %}
+            {% endfor %}
+
+        {% endwith %}
+    </td>
+</tr>
+{% endif %}
 {% endblock %}

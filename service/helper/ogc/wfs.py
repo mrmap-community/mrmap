@@ -11,13 +11,14 @@ from django.db import transaction
 from lxml.etree import _Element
 
 from service.helper.crypto_handler import CryptoHandler
-from service.settings import DEFAULT_SRS, SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE
+from service.settings import DEFAULT_SRS, SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, \
+    HTML_METADATA_URI_TEMPLATE
 from service.settings import MD_RELATION_TYPE_VISUALIZES, \
     EXTERNAL_AUTHENTICATION_FILEPATH
-from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
+from MrMap.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
-from MapSkinner.messages import SERVICE_GENERIC_ERROR
-from MapSkinner.utils import execute_threads, print_debug_mode
+from MrMap.messages import SERVICE_GENERIC_ERROR
+from MrMap.utils import execute_threads, print_debug_mode
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.enums import MetadataEnum
 from service.helper.epsg_api import EpsgApi
@@ -27,7 +28,7 @@ from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
     FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType, RequestOperation, ExternalAuthentication
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
-from structure.models import Organization, User
+from structure.models import Organization, MrMapUser, MrMapGroup, Contact
 
 
 class OGCWebFeatureServiceFactory:
@@ -110,6 +111,7 @@ class OGCWebFeatureService(OGCWebService):
 
         self.feature_type_list = {}
         self.service_mime_type_list = []
+        self.service_mime_type_get_feature_list = []
 
         # for wfs we need to overwrite the default namespace with 'wfs'
         XML_NAMESPACES["default"] = XML_NAMESPACES.get("wfs", "")
@@ -266,7 +268,9 @@ class OGCWebFeatureService(OGCWebService):
         self.service_provider_onlineresource_linkage = xml_helper.get_href_attribute(online_resource_elem)
         if self.service_provider_onlineresource_linkage is None or self.service_provider_onlineresource_linkage == "":
             # There are metadatas where no online resource link is given. We need to generate it manually therefore...
-            self.service_provider_onlineresource_linkage = service_helper.split_service_uri(self.service_connect_url).get("base_uri") + "?"
+            self.service_provider_onlineresource_linkage = service_helper.split_service_uri(self.service_connect_url).get("base_uri")
+            self.service_provider_onlineresource_linkage = service_helper.prepare_original_uri_stump(self.service_provider_onlineresource_linkage)
+
         self.service_provider_contact_hoursofservice = xml_helper.try_get_text_from_xml_element(
             xml_elem=xml_obj,
             elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("HoursOfService")
@@ -357,6 +361,8 @@ class OGCWebFeatureService(OGCWebService):
                         mime_type=format_value
                     )[0]
                     self.service_mime_type_list.append(mime_type)
+                    if action == OGCOperationEnum.GET_FEATURE.value:
+                        self.service_mime_type_get_feature_list.append(mime_type)
 
         self.get_capabilities_uri["get"] = get.get(get_cap, None)
         self.get_capabilities_uri["post"] = post.get(get_cap, None)
@@ -464,26 +470,28 @@ class OGCWebFeatureService(OGCWebService):
             elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("LowerCorner"),
             xml_elem=feature_type
         )
-        min_x = tmp.split(" ")[0]
-        min_y = tmp.split(" ")[1]
-        tmp = xml_helper.try_get_text_from_xml_element(
-            elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("UpperCorner"),
-            xml_elem=feature_type
-        )
-        max_x = tmp.split(" ")[0]
-        max_y = tmp.split(" ")[1]
-        tmp = OrderedDict()
-        bbox = Polygon(
-            (
-                (float(min_x), float(min_y)),
-                (float(min_x), float(max_y)),
-                (float(max_x), float(max_y)),
-                (float(max_x), float(min_y)),
-                (float(min_x), float(min_y)),
+        if tmp is not None:
+            # tmp might be None if no extent information are found. Just skip this.
+            min_x = tmp.split(" ")[0]
+            min_y = tmp.split(" ")[1]
+            tmp = xml_helper.try_get_text_from_xml_element(
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("UpperCorner"),
+                xml_elem=feature_type
             )
-        )
-        f_t.metadata.bounding_geometry = bbox
-        f_t.bbox_lat_lon = bbox
+            max_x = tmp.split(" ")[0]
+            max_y = tmp.split(" ")[1]
+            tmp = OrderedDict()
+            bbox = Polygon(
+                (
+                    (float(min_x), float(min_y)),
+                    (float(min_x), float(max_y)),
+                    (float(max_x), float(max_y)),
+                    (float(max_x), float(min_y)),
+                    (float(min_x), float(min_y)),
+                )
+            )
+            f_t.metadata.bounding_geometry = bbox
+            f_t.bbox_lat_lon = bbox
 
         # Output formats
         formats = xml_helper.try_get_element_from_xml(
@@ -491,16 +499,22 @@ class OGCWebFeatureService(OGCWebService):
             elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Format")
         )
         format_list = []
-        for _format in formats:
-            # Due to missing semantic interpretation in the standard of WFS, we assume the outputFormats of featureTypes
-            # to define the GetFeature operation
-            m_t = MimeType.objects.get_or_create(
-                operation=OGCOperationEnum.GET_FEATURE.value,
-                mime_type=xml_helper.try_get_text_from_xml_element(
-                    xml_elem=_format
-                )
-            )[0]
-            format_list.append(m_t)
+
+        if len(formats) == 0:
+            # No Formats found on feature type level. Specification says, we use the same formats, that are specified
+            # by the parent service element
+            format_list = self.service_mime_type_get_feature_list
+        else:
+            for _format in formats:
+                # Due to missing semantic interpretation in the standard of WFS, we assume the outputFormats of featureTypes
+                # to define the GetFeature operation
+                m_t = MimeType.objects.get_or_create(
+                    operation=OGCOperationEnum.GET_FEATURE.value,
+                    mime_type=xml_helper.try_get_text_from_xml_element(
+                        xml_elem=_format
+                    )
+                )[0]
+                format_list.append(m_t)
 
         # Dataset (ISO) Metadata parsing
         self._parse_dataset_md(f_t, feature_type)
@@ -632,34 +646,49 @@ class OGCWebFeatureService(OGCWebService):
             self._get_feature_type_metadata(feature_type, epsg_api, service_type_version, external_auth=external_auth)
 
     @abstractmethod
-    def create_service_model_instance(self, user: User, register_group, register_for_organization):
+    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization, external_auth: ExternalAuthentication, is_update_candidate_for: Service):
         """ Map all data from the WebFeatureService classes to their database models
 
         This does not persist the models to the database!
 
         Args:
-            user (User): The user which performs the action
+            user (MrMapUser): The user which performs the action
             register_group (Group): The group which is used to register this service
             register_for_organization (Organization): The organization for which this service is being registered
+            external_auth (ExternalAuthentication): The external authentication object
         Returns:
              service (Service): Service instance, contains all information, ready for persisting!
         """
 
         orga_published_for = register_for_organization
-        orga_publisher = user.organization
         group = register_group
 
-        # Metadata
-        md = Metadata()
-        md_type = MetadataType.objects.get_or_create(type=MetadataEnum.SERVICE.value)[0]
-        md.metadata_type = md_type
-        md.title = self.service_identification_title
-        if self.service_file_identifier is None:
-            self.service_file_identifier = uuid.uuid4()
-        md.uuid = self.service_file_identifier
-        md.abstract = self.service_identification_abstract
-        md.online_resource = self.service_provider_onlineresource_linkage
+        # Contact
+        contact = self._create_contact_organization_record()
 
+        # Metadata
+        md = self._create_metadata_record(contact, group)
+
+        # Process external authentication data, if provided
+        self._process_external_authentication(md, external_auth)
+
+        # Service
+        service = self._create_service_record(group, orga_published_for, md, is_update_candidate_for)
+
+        # Additional (Keywords, linked metadata, MimeTypes, ...)
+        self._create_additional_records(service, md)
+
+        # feature types
+        self._create_feature_types(service, group, contact)
+
+        return service
+
+    def _create_contact_organization_record(self):
+        """ Creates a contact record from the OGCWebFeatureService object
+
+        Returns:
+             contact (Contact): A persisted contact object
+        """
         ## contact
         contact = Organization.objects.get_or_create(
             organization_name=self.service_provider_providername,
@@ -673,6 +702,27 @@ class OGCWebFeatureService(OGCWebService):
             state_or_province=self.service_provider_address_state_or_province,
             country=self.service_provider_address_country,
         )[0]
+        return contact
+
+    def _create_metadata_record(self, contact: Organization, group: MrMapGroup):
+        """ Creates a Metadata record from the OGCWebFeatureService object
+
+        Args:
+            contact (Contact): The contact object
+            group (MrMapGroup): The owner/creator group
+        Returns:
+             md (Metadata): The persisted metadata record
+        """
+        md = Metadata()
+        md_type = MetadataType.objects.get_or_create(type=MetadataEnum.SERVICE.value)[0]
+        md.metadata_type = md_type
+        md.title = self.service_identification_title
+        if self.service_file_identifier is None:
+            self.service_file_identifier = uuid.uuid4()
+        md.uuid = self.service_file_identifier
+        md.abstract = self.service_identification_abstract
+        md.online_resource = self.service_provider_onlineresource_linkage
+
         md.contact = contact
         md.authority_url = self.service_provider_url
         md.access_constraints = self.service_identification_accessconstraints
@@ -682,7 +732,28 @@ class OGCWebFeatureService(OGCWebService):
         md.capabilities_uri = self.service_connect_url
         md.bounding_geometry = self.service_bounding_box
 
-        # Service
+        # Save metadata record so we can use M2M or id of record later
+        md.save()
+
+        md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
+        md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
+        md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
+
+        md.save()
+
+        return md
+
+    def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, md: Metadata, is_update_candidate_for: Service):
+        """ Creates a Service object from the OGCWebFeatureService object
+
+        Args:
+            group (MrMapGroup): The owner/creator group
+            orga_published_for (Organization): The organization for which the service is published
+            orga_publisher (Organization): THe organization that publishes
+            md (Metadata): The describing metadata
+        Returns:
+             service (Service): The persisted service object
+        """
         service = Service()
         service_type = ServiceType.objects.get_or_create(
             name=self.service_type.value,
@@ -691,7 +762,6 @@ class OGCWebFeatureService(OGCWebService):
         service.servicetype = service_type
         service.created_by = group
         service.published_for = orga_published_for
-        service.published_by = orga_publisher
 
         service.get_capabilities_uri_GET = self.get_capabilities_uri.get("get", None)
         service.get_capabilities_uri_POST = self.get_capabilities_uri.get("post", None)
@@ -717,25 +787,64 @@ class OGCWebFeatureService(OGCWebService):
         service.get_gml_objct_uri_GET = self.get_gml_object_uri.get("get", None)
         service.get_gml_objct_uri_POST = self.get_gml_object_uri.get("post", None)
 
-        service.formats_list = self.service_mime_type_list
-
         service.availability = 0.0
         service.is_available = False
         service.is_root = True
-
         md.service = service
+        service.is_update_candidate_for = is_update_candidate_for
 
+        # Save record to enable M2M relations
+        service.save()
+
+        # Persist capabilities document
+        service.persist_capabilities_doc(self.service_capabilities_xml)
+
+        return service
+
+    def _create_additional_records(self, service: Service, md: Metadata):
+        """ Creates additional records like linked service metadata, keywords or MimeTypes/Formats
+
+        Args:
+            service (Service): The service record
+            md (Metadata): THe metadata record
+        Returns:
+
+        """
+
+        # save linked service metadata
         if self.linked_service_metadata is not None:
-            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value)
+            service.linked_service_metadata = self.linked_service_metadata.to_db_model(MetadataEnum.SERVICE.value, created_by=md.created_by)
+            md_relation = MetadataRelation()
+            md_relation.metadata_from = md
+            md_relation.metadata_to = service.linked_service_metadata
+            md_relation.origin = MetadataOrigin.objects.get_or_create(
+                name='capabilities'
+            )[0]
+            md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
+            md_relation.save()
 
         # Keywords
         for kw in self.service_identification_keywords:
             if kw is None:
                 continue
             keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            md.keywords_list.append(keyword)
+            md.keywords.add(keyword)
 
-        # feature types
+        # MimeTypes
+        for mime_type in self.service_mime_type_list:
+            service.formats.add(mime_type)
+
+    def _create_feature_types(self, service: Service, group: MrMapGroup, contact: Contact):
+        """ Iterates over parsed feature types and creates DB records for each
+
+        Args:
+            service (Service):
+            group (Service):
+            contact (Service):
+        Returns:
+
+        """
+
         for feature_type_key, feature_type_val in self.feature_type_list.items():
             f_t = feature_type_val.get("feature_type")
             f_t.metadata.created_by = group
@@ -750,61 +859,6 @@ class OGCWebFeatureService(OGCWebService):
             f_t.elements_list = feature_type_val.get("element_list", [])
             f_t.namespaces_list = feature_type_val.get("ns_list", [])
 
-            # add feature type to list of related feature types
-            service.feature_type_list.append(f_t)
-
-        return service
-
-    @transaction.atomic
-    def persist_service_model(self, service, external_auth: ExternalAuthentication):
-        """ Persist the service model object
-
-        Returns:
-             Nothing
-        """
-        # save metadata
-        md = service.metadata
-        md.save()
-
-        if external_auth is not None:
-            external_auth.metadata = md
-            crypt_handler = CryptoHandler()
-            key = crypt_handler.generate_key()
-            crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
-            external_auth.encrypt(key)
-            external_auth.save()
-
-        # save linked service metadata
-        if service.linked_service_metadata is not None:
-            md_relation = MetadataRelation()
-            md_relation.metadata_from = md
-            md_relation.metadata_to = service.linked_service_metadata
-            md_relation.origin = MetadataOrigin.objects.get_or_create(
-                name='capabilities'
-            )[0]
-            md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
-            md_relation.save()
-            md.related_metadata.add(md_relation)
-
-        md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
-        md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
-        # save again, due to added related metadata
-        md.save()
-
-        service.metadata = md
-        # save parent service
-        service.save()
-
-        # Keywords
-        for kw in service.metadata.keywords_list:
-            service.metadata.keywords.add(kw)
-
-        # MimeTypes
-        for mime_type in service.formats_list:
-            service.formats.add(mime_type)
-
-        # feature types
-        for f_t in service.feature_type_list:
             f_t.parent_service = service
             md = f_t.metadata
             md.save()
@@ -821,15 +875,15 @@ class OGCWebFeatureService(OGCWebService):
 
             # dataset_md of feature types
             for dataset_md in f_t.dataset_md_list:
-                dataset_md.save()
+                dataset_record = dataset_md.to_db_model(created_by=group)
+                dataset_record.save()
                 md_relation = MetadataRelation()
                 md_relation.metadata_from = f_t.metadata
-                md_relation.metadata_to = dataset_md
+                md_relation.metadata_to = dataset_record
                 origin = MetadataOrigin.objects.get_or_create(name="capabilities")[0]
                 md_relation.origin = origin
                 md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
                 md_relation.save()
-                f_t.metadata.related_metadata.add(md_relation)
 
             # keywords of feature types
             for kw in f_t.keywords_list:
@@ -851,6 +905,7 @@ class OGCWebFeatureService(OGCWebService):
             # namespaces
             for ns in f_t.namespaces_list:
                 f_t.namespaces.add(ns)
+
 
     ### DATASET METADATA ###
     def _parse_dataset_md(self, feature_type, xml_feature_type_obj: _Element):
@@ -880,7 +935,7 @@ class OGCWebFeatureService(OGCWebService):
                 except Exception as e:
                     # there are iso metadatas that have been filled wrongly -> if so we will drop them
                     continue
-                feature_type.dataset_md_list.append(iso_metadata.to_db_model())
+                feature_type.dataset_md_list.append(iso_metadata)
 
     def get_feature_type_by_identifier(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Extract a single feature type by its identifier and parse it into a FeatureType object

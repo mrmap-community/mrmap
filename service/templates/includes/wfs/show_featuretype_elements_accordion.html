@@ -8,8 +8,10 @@
 
     {% block accordion-body %}
         {% for element in service.elements.all %}
-            {% with element.id as id_accordion %}
-                {% include 'includes/wfs/element_accordion.html' %}
+            {% with element.name as id_accordion  %}
+                {% with "sub_element" as id_accordion_combined %}
+                    {% include 'includes/wfs/element_accordion.html' %}
+                {% endwith %}
             {% endwith %}
         {% endfor %}
     {% endblock %}

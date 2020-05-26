@@ -1,12 +1,11 @@
 {% load static %}
 
 {% block head %}
-<link rel="stylesheet" type="text/css" href="{% static '/structure/css/leaflet.css' %}" media="all"/>
-<script type="text/javascript" src="{% static '/structure/js/leaflet.js' %}"></script>
 {% endblock %}
 
 {% block body %}
 <div class="container">
+    {% include 'sceletons/breadcrumb.html'%}
     {% include 'includes/wfs/featuretype_detail.html' %}
 </div>
 {% endblock %}

@@ -5,11 +5,14 @@
 {% endblock %}
 
 {% block accordion-body %}
-    <div id="id_content_service_{{featuretype.metadata.id}}"></div>
-    <script type="text/javascript">
-        $('#id_accordion_btn_{{id_accordion}}_{{id_accordion_combined}}').click(function() {
-            console.log('clicked');
-          if ( $('#id_accordion_btn_{{id_accordion}}_{{id_accordion_combined}}').hasClass('collapsed') ) {
+    <div id="id_content_service_{{featuretype.metadata.id}}">
+        {% include 'includes/loading_spinner.html' %}
+    </div>
+    <script type="application/javascript">
+        var accordionButton = $('#id_accordion_btn_{{id_accordion}}_{{id_accordion_combined}}');
+
+        accordionButton.click(function() {
+          if ( accordionButton.hasClass('collapsed') ) {
             $.get( '{% url 'service:detail' featuretype.metadata.id %}?no-base', function( data ) {
                 $( "#id_content_service_{{featuretype.metadata.id}}" ).html( data );
             });

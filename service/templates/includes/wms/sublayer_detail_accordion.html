@@ -2,19 +2,35 @@
 {% load static i18n %}
 
 {% block accordion-button-title %}
-<i class="fa" aria-hidden="true"></i> {{ layer.metadata.title }} <span class="badge {{THEME.ACCORDION.PILL_BADGE_INFO_COLOR}}">{{ layer.child_layer.all|length }}</span>
+<i class="fa" aria-hidden="true"></i>
+{{ layer.metadata.title }}
+{% if layer.child_layers.all|length > 0 %}
+    <span class="badge {{THEME.ACCORDION.PILL_BADGE_LIGHT_COLOR}}">{{ layer.child_layers.all|length }}</span>
+{% endif %}
 {% endblock %}
 
 {% block accordion-body %}
 
     <div id="id_content_service_{{layer.metadata.id}}">
+        {% include 'includes/loading_spinner.html' %}
     </div>
-    <script type="text/javascript">
-        $('#id_accordion_btn_{{id_accordion}}_{{id_accordion_combined}}').click(function() {
-            console.log('clicked');
-          if ( $('#id_accordion_btn_{{id_accordion}}_{{id_accordion_combined}}').hasClass('collapsed') ) {
+    <script type="application/javascript">
+        var accordionButton = $('#id_accordion_btn_{{id_accordion}}_{{id_accordion_combined}}');
+
+        accordionButton.click(function() {
+          if ( accordionButton.hasClass('collapsed') ) {
             $.get( '{% url 'service:detail' layer.metadata.id %}?no-base', function( data ) {
                 $( "#id_content_service_{{layer.metadata.id}}" ).html( data );
+
+                // Check for dataset metadata of subelement
+                var url = "{% url 'service:check-for-dataset-metadata' layer.metadata.id %}?serviceType=wms";
+                var datasetButton = $("#dataset-metadata-button-{{ layer.metadata.id }}");
+                $.get(url, function(data){
+                    var hasDatasetDoc = data["has_dataset_doc"];
+                    if(hasDatasetDoc){
+                        datasetButton.removeClass("invisible");
+                    }
+                });
             });
           }
         });

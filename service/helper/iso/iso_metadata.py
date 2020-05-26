@@ -17,15 +17,16 @@ from django.db import transaction
 from django.utils.timezone import utc
 from lxml.etree import _Element
 
-from MapSkinner.settings import XML_NAMESPACES
-from service.settings import INSPIRE_LEGISLATION_FILE
-from MapSkinner import utils
+from MrMap.settings import XML_NAMESPACES
+from service.settings import INSPIRE_LEGISLATION_FILE, HTML_METADATA_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, \
+    SERVICE_DATASET_URI_TEMPLATE
+from MrMap import utils
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, MetadataEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Metadata, Keyword, MetadataType, Document
-from structure.models import Organization
+from structure.models import Organization, MrMapGroup
 
 
 class ISOMetadata:
@@ -223,7 +224,7 @@ class ISOMetadata:
             # if this is not possible due to wrong input, just use the current time...
             self.last_change_date = timezone.now()
 
-        self.hierarchy_level = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:hierarchyLevel/gmd:MD_ScopeCode")
+        self.hierarchy_level = xml_helper.try_get_attribute_from_xml_element(xml_obj, "codeListValue", "//gmd:MD_Metadata/gmd:hierarchyLevel/gmd:MD_ScopeCode")
         if self.hierarchy_level == "service":
             xpath_type = "srv:SV_ServiceIdentification"
         else:
@@ -410,7 +411,7 @@ class ISOMetadata:
         return polygon
 
     @transaction.atomic
-    def to_db_model(self, type=MetadataEnum.DATASET.value):
+    def to_db_model(self, type=MetadataEnum.DATASET.value, created_by: MrMapGroup = None):
         """ Get corresponding metadata object from database or create it if not found!
 
         Returns:
@@ -436,6 +437,7 @@ class ISOMetadata:
 
         if update or new:
             metadata.uuid = self.file_identifier
+            metadata.identifier = self.file_identifier
             metadata.abstract = self.abstract
             metadata.access_constraints = self.access_constraints
 
@@ -467,6 +469,15 @@ class ISOMetadata:
             metadata.is_broken = self.is_broken
             metadata.dataset_id = self.dataset_id
             metadata.dataset_id_code_space = self.dataset_id_code_space
+            metadata.created_by = created_by
+            metadata.save()
+
+            # Add links for dataset metadata
+            # There is no capabilities link for dataset -> leave it None
+            metadata.capabilities_uri = None
+            metadata.service_metadata_uri = SERVICE_DATASET_URI_TEMPLATE.format(metadata.id)
+            metadata.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(metadata.id)
+
             metadata.save()
 
             # create document object to persist the dataset metadata document

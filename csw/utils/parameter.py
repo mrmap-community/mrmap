@@ -10,6 +10,8 @@ from django.http import HttpRequest
 from csw.utils.csw_filter import transform_constraint_to_cql, CONSTRAINT_LOCATOR
 from service.helper import xml_helper
 
+INVALID_PARAMETER_TEMPLATE = "Parameter '{}' invalid! Choices are '{}'"
+
 RESULT_TYPE_CHOICES = {
     "hits": None,
     "results": None,
@@ -20,6 +22,11 @@ ELEMENT_SET_CHOICES = {
     "full": None,
     "summary": None,
     "brief": None,
+}
+
+VERSION_CHOICES = {
+    "2.0.2": None,
+    # "3.0": None,  # not supported yet
 }
 
 class ParameterResolver:
@@ -116,12 +123,15 @@ class ParameterResolver:
 
         # Check if range of values is acceptable
         if self.result_type not in RESULT_TYPE_CHOICES:
-            raise ValueError("Parameter '{}' invalid! Choices are '{}'".format(self.result_type, ", ".join(RESULT_TYPE_CHOICES)), "resultType")
+            raise ValueError(INVALID_PARAMETER_TEMPLATE.format(self.result_type, ", ".join(RESULT_TYPE_CHOICES)), "resultType")
 
         if self.element_set_name is not None and len(self.element_name) > 0:
             raise ValueError("Parameter 'ElementSetName' and 'ElementName' are mutually exclusive. You can only provide one!", "elementSetName")
         elif self.element_set_name and self.element_set_name not in ELEMENT_SET_CHOICES:
-            raise ValueError("Parameter '{}' invalid! Choices are '{}'".format(self.element_set_name, ", ".join(ELEMENT_SET_CHOICES)), "elementSetName")
+            raise ValueError(INVALID_PARAMETER_TEMPLATE.format(self.element_set_name, ", ".join(ELEMENT_SET_CHOICES)), "elementSetName")
+
+        if self.version not in VERSION_CHOICES:
+            raise ValueError(INVALID_PARAMETER_TEMPLATE.format(self.version, ", ".join(VERSION_CHOICES)), "version")
 
         # Check if constraint has to be transformed first!
         if self.constraint_language is not None and self.constraint_language.upper() != "CQL_TEXT":

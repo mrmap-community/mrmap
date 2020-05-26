@@ -78,9 +78,6 @@ class EditorTestCase(TestCase):
         monitoring_setting = MonitoringSetting(interval=timedelta(microseconds=1000), timeout=1000)
         monitoring_setting.save()
 
-        service_helper.persist_service_model_instance(self.service_wms, external_auth=None)
-        self.service_wms.persist_capabilities_doc(self.raw_data_wms.service_capabilities_xml)
-
     def _get_logged_in_client(self, user: MrMapUser):
         """ Helping function to encapsulate the login process
 

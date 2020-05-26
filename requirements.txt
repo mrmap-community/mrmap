@@ -1,5 +1,5 @@
 certifi==2019.3.9
-django-celery-beat==1.6.0
+django-celery-beat==2.0.0
 Django==3.*
 django-extensions==2.2.9
 django-simple-captcha==0.5.12

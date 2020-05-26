@@ -9,7 +9,6 @@ from django.utils import timezone
 
 from MrMap.messages import SECURITY_PROXY_NOT_ALLOWED
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, HOST_NAME, HTTP_OR_SSL
-from monitoring.models import MonitoringSetting
 from service import tasks
 from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
@@ -93,15 +92,7 @@ class ServiceTestCase(TestCase):
             self.user,
             self.group
         )
-        self.raw_data = service.get("raw_data", None)
         self.service = service
-
-        monitoring_setting = MonitoringSetting(interval=timedelta(microseconds=1000), timeout=1000)
-        monitoring_setting.save()
-
-        # run process without an external authentication - since the service does not require an authentication
-        service_helper.persist_service_model_instance(self.service, external_auth=None)
-        self.service.persist_capabilities_doc(self.raw_data.service_capabilities_xml)
 
     def _get_logged_in_client(self, user: MrMapUser):
         """ Helping function to encapsulate the login process

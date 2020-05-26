@@ -466,11 +466,13 @@ class OGCWebMapService(OGCWebService):
         Returns:
             nothing
         """
-        if step_size is not None and async_task is not None:
-            task_helper.update_progress_by_step(async_task, step_size)
-
         # iterate over all top level layer and find their children
         layer_obj = self._start_single_layer_parsing(layer)
+
+        if step_size is not None and async_task is not None:
+            task_helper.update_progress_by_step(async_task, step_size)
+            task_helper.update_service_description(async_task, None, "Parsing {}".format(layer_obj.title))
+
         layer_obj.parent = parent
         layer_obj.position = position
         if self.layers is None:
@@ -574,7 +576,7 @@ class OGCWebMapService(OGCWebService):
         )
 
         if async_task is not None:
-            task_helper.update_service_description(async_task, self.service_identification_title)
+            task_helper.update_service_description(async_task, self.service_identification_title, phase_descr="Parsing main capabilities")
 
         self.service_identification_fees = xml_helper.try_get_text_from_xml_element(
             service_xml,

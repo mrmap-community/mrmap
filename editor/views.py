@@ -5,7 +5,6 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest
 from django.shortcuts import render, redirect
 
-# Create your views here.
 from django.template.loader import render_to_string
 from MrMap import utils
 from MrMap.cacher import PageCacher

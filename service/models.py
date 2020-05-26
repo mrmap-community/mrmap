@@ -571,6 +571,7 @@ class Metadata(Resource):
 
     # other
     keywords = models.ManyToManyField(Keyword)
+    formats = models.ManyToManyField('MimeType', blank=True)
     categories = models.ManyToManyField('Category')
     reference_system = models.ManyToManyField('ReferenceSystem')
     dimensions = models.ManyToManyField('Dimension')
@@ -590,6 +591,8 @@ class Metadata(Resource):
         self.keywords_list = []
         self.reference_system_list = []
         self.dimension_list = []
+        self.formats_list = []
+        self.categories_list = []
 
     def __str__(self):
         return self.title
@@ -757,6 +760,9 @@ class Metadata(Resource):
             if doc is None or len(doc) == 0:
                 # Well, there is one but no service_metadata_document is found inside
                 raise ObjectDoesNotExist
+            else:
+                # There is a capability_document in the db. Let's write it to cache, so it can be returned even faster
+                cacher.set(self.id, doc)
 
         except ObjectDoesNotExist as e:
             # There is no service metadata document in the database, we need to create it
@@ -768,7 +774,7 @@ class Metadata(Resource):
 
             # Write metadata to db as well
             cap_doc = Document.objects.get_or_create(related_metadata=self)[0]
-            cap_doc.service_metadata_document = doc
+            cap_doc.service_metadata_document = doc.decode("UTF-8")
             cap_doc.save()
 
         return doc
@@ -1034,22 +1040,26 @@ class Metadata(Resource):
     def find_max_bounding_box(self):
         """ Returns the largest bounding box of all children
 
-        Saves the found bounding box to bounding_geometry for faster access
-
         Returns:
 
         """
-        children = self.service.child_service.all()
-        max_box = self.bounding_geometry
-        for child in children:
-            bbox = child.layer.bbox_lat_lon
-            if max_box is None:
-                max_box = bbox
-            else:
-                ba = bbox.area
-                ma = max_box.area
-                if ba > ma:
-                    max_box = bbox
+        if self.metadata_type.type == MetadataEnum.SERVICE.value:
+            if self.service.servicetype.name == OGCServiceEnum.WMS.value:
+                children = Layer.objects.filter(
+                    parent_service__metadata=self
+                )
+            elif self.service.servicetype.name == OGCServiceEnum.WFS.value:
+                children = FeatureType.objects.filter(
+                    parent_service__metadata=self
+                )
+        elif self.metadata_type.type == MetadataEnum.LAYER.value:
+            children = Layer.objects.filter(
+                parent_layer__metadata=self
+            )
+        else:
+            return DEFAULT_SERVICE_BOUNDING_BOX
+        children_bboxes = {child.bbox_lat_lon.area: child.bbox_lat_lon for child in children}
+        max_box = children_bboxes.get(max(children_bboxes), None)
 
         if max_box is None:
             max_box = DEFAULT_SERVICE_BOUNDING_BOX
@@ -2202,7 +2212,7 @@ class Service(Resource):
     get_gml_objct_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_gml_objct_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
-    formats = models.ManyToManyField('MimeType', blank=True)
+    #formats = models.ManyToManyField('MimeType', blank=True)
 
     is_update_candidate_for = models.OneToOneField('self', on_delete=models.SET_NULL, related_name="has_update_candidate", null=True, default=None, blank=True)
     created_by_user = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True, blank=True)
@@ -2217,7 +2227,7 @@ class Service(Resource):
         # non persisting attributes
         self.root_layer = None
         self.feature_type_list = []
-        self.formats_list = []
+        #self.formats_list = []
         self.categories_list = []
 
     def __str__(self):
@@ -2276,21 +2286,6 @@ class Service(Resource):
              True if the servicetypes are equal, false otherwise
         """
         return self.servicetype.name == enum.value
-
-
-    def get_supported_formats(self):
-        """ Returns a list of supported formats.
-
-        If this is called for a top-level-service record, which does not provide a list of formats, the call will be
-        reached to the next child.
-
-        Returns:
-             formats (QuerySet): A query set of available formats
-        """
-        if self.metadata.is_root() and self.formats.all().count() == 0:
-            child = self.child_service.first()
-            return child.get_supported_formats()
-        return self.formats.all()
 
     def secure_access(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation, element=None):
         """ Secures a single element
@@ -3002,7 +2997,6 @@ class FeatureType(Resource):
     is_searchable = models.BooleanField(default=False)
     default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True, related_name="default_srs")
     inspire_download = models.BooleanField(default=False)
-    formats = models.ManyToManyField(MimeType)
     elements = models.ManyToManyField('FeatureTypeElement')
     namespaces = models.ManyToManyField('Namespace')
     bbox_lat_lon = models.PolygonField(default=Polygon(
@@ -3020,7 +3014,6 @@ class FeatureType(Resource):
         # non persisting attributes
         self.additional_srs_list = []
         self.keywords_list = []
-        self.formats_list = []
         self.elements_list = []
         self.namespaces_list = []
         self.dataset_md_list = []

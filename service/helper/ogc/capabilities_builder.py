@@ -611,7 +611,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
                 contents.update({"{}" + key: ""})
 
         # Create xml elements
-        service_mime_types = service.get_supported_formats()
+        service_mime_types = service.metadata.formats.all()
         for key, val in contents.items():
             k = key.format(self.default_ns)
             elem = xml_helper.create_subelement(request_elem, k)
@@ -1740,7 +1740,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             upper_elem,
             "{}OutputFormats".format(self.wfs_ns)
         )
-        for format in feature_type_obj.formats.all():
+        for format in feature_type_obj.metadata.formats.all():
             elem = xml_helper.create_subelement(
                 output_format_elem,
                 "{}Format".format(self.wfs_ns)
@@ -2030,7 +2030,7 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
             post_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id)
 
         # Add all mime types that are supported by this operation
-        supported_formats = service.formats.filter(
+        supported_formats = service.metadata.formats.filter(
             operation=tag
         )
         for format in supported_formats:

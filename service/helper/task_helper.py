@@ -13,7 +13,7 @@ from celery.result import AsyncResult
 from structure.models import PendingTask
 
 
-def update_service_description(task: Task, service: str):
+def update_service_description(task: Task, service: str, phase_descr: str):
     """ Set a new value to the 'service' element of the pending task description
 
     Args:
@@ -25,7 +25,8 @@ def update_service_description(task: Task, service: str):
     id = task.request.id
     pend_task = PendingTask.objects.get(task_id=id)
     descr_dict = json.loads(pend_task.description)
-    descr_dict["service"] = service
+    descr_dict["service"] = service if service is not None else descr_dict["service"]
+    descr_dict["phase"] = phase_descr if phase_descr is not None else descr_dict["phase"]
     pend_task.description = json.dumps(descr_dict)
     pend_task.save()
 

@@ -209,8 +209,10 @@ def overwrite_capabilities_document(metadata: Metadata):
     _overwrite_capabilities_data(xml_obj, metadata)
 
     # write xml back to Document record
+    # Remove service_metadata_document as well, so it needs to be generated again!
     xml = xml_helper.xml_to_string(xml_obj_root)
     cap_doc.current_capability_document = xml
+    cap_doc.service_metadata_document = None
     cap_doc.save()
 
     # Delete all cached documents, which holds old state!
@@ -368,6 +370,7 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     original_md.is_custom = True
     original_md.save()
     overwrite_capabilities_document(original_md)
+
 
 
 def overwrite_featuretype(original_ft: FeatureType, custom_ft: FeatureType, editor_form):

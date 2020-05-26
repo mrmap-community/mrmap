@@ -27,15 +27,15 @@ def get_csw_results(request: HttpRequest):
     Returns:
 
     """
-    paramter = ParameterResolver(request.GET.dict())
-    request_resolver = RequestResolver(paramter)
 
     try:
+        paramter = ParameterResolver(request.GET.dict())
+        request_resolver = RequestResolver(paramter)
         content = request_resolver.get_response()
+        content_type = paramter.output_format
     except Exception as e:
         ows_exception = OWSException(e)
         content = ows_exception.get_exception_report()
-
-    content_type = paramter.output_format
+        content_type = "application/xml"
 
     return HttpResponse(content, content_type=content_type)

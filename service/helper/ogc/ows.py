@@ -286,7 +286,7 @@ class OWSException:
             nsmap=self.namespace_map,
             attrib={
                 "{}schemaLocation".format(self.xsi_ns): "http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd",
-                "version": "1.1.0",
+                "version": "1.2.0",
             }
         )
         exception_elem = xml_helper.create_subelement(

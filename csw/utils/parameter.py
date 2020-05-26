@@ -116,12 +116,12 @@ class ParameterResolver:
 
         # Check if range of values is acceptable
         if self.result_type not in RESULT_TYPE_CHOICES:
-            raise AssertionError("Parameter '{}' invalid! Choices are '{}'".format(self.result_type, ",".join(RESULT_TYPE_CHOICES)))
+            raise ValueError("Parameter '{}' invalid! Choices are '{}'".format(self.result_type, ", ".join(RESULT_TYPE_CHOICES)), "resultType")
 
         if self.element_set_name is not None and len(self.element_name) > 0:
-            raise AssertionError("Parameter 'ElementSetName' and 'ElementName' are mutually exclusive. You can only provide one!")
+            raise ValueError("Parameter 'ElementSetName' and 'ElementName' are mutually exclusive. You can only provide one!", "elementSetName")
         elif self.element_set_name and self.element_set_name not in ELEMENT_SET_CHOICES:
-            raise AssertionError("Parameter '{}' invalid! Choices are '{}'".format(self.element_set_name, ",".join(ELEMENT_SET_CHOICES)))
+            raise ValueError("Parameter '{}' invalid! Choices are '{}'".format(self.element_set_name, ", ".join(ELEMENT_SET_CHOICES)), "elementSetName")
 
         # Check if constraint has to be transformed first!
         if self.constraint_language is not None and self.constraint_language.upper() != "CQL_TEXT":

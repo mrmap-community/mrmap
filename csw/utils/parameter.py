@@ -56,6 +56,7 @@ class ParameterResolver:
         self.distributed_search = None      # optional, multiplicity: 0|1
         self.hop_count = None               # optional, multiplicity: 0|1
         self.response_handler = None        # optional, multiplicity: 0|1
+        self.section = None                 # optional, multiplicity: 0|1, only for GetCapabilities
 
         # Fill default values, according to CSW specification
         self.output_schema = "http://www.opengis.net/cat/csw/2.0.2"
@@ -86,6 +87,7 @@ class ParameterResolver:
             "distributedsearch": "distributed_search",
             "hopcount": "hop_count",
             "responsehandler": "response_handler",
+            "section": "section",
         }
         self._parse_parameters(param_dict)
 

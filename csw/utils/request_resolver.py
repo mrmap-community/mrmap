@@ -7,6 +7,8 @@ Created on: 20.05.20
 """
 from django.db.models import QuerySet
 
+from MrMap.settings import XML_NAMESPACES
+from csw.settings import CSW_CAPABILITIES_CONF
 from csw.utils.converter import MetadataConverter
 from csw.utils.csw_filter import *
 from csw.utils.parameter import ParameterResolver
@@ -30,7 +32,7 @@ class RequestResolver:
         self.operation_resolver_map = {
             "GetRecords": GetRecordsResolver,
             "GetRecordById": GetRecordsByIdResolver,
-            "GetCapabilities": None,
+            "GetCapabilities": GetCapabilitiesResolver,
             "DescribeRecord": None,
             "GetDomain": None,
             "Transaction": None,
@@ -184,4 +186,151 @@ class GetRecordsByIdResolver(RequestResolver):
 
         xml_str = xml_helper.xml_to_string(response, pretty_print=True)
         return xml_str
+
+class GetCapabilitiesResolver(RequestResolver):
+    def __init__(self, param: ParameterResolver):
+        super().__init__(param=param)
+
+        self.namespaces = {
+            "csw": "http://www.opengis.net/cat/csw/2.0.2",
+            "ogc": XML_NAMESPACES["ogc"],
+            "gml": XML_NAMESPACES["gml"],
+            "ows": XML_NAMESPACES["ows"],
+            "xlink": XML_NAMESPACES["xlink"],
+            "inspire_ds": XML_NAMESPACES["inspire_ds"],
+            "inspire_com": XML_NAMESPACES["inspire_com"],
+            "xsi": XML_NAMESPACES["xsi"],
+        }
+
+        self.csw_ns = "{" + self.namespaces["csw"] + "}"
+        self.xsi_ns = "{" + self.namespaces["xsi"] + "}"
+        self.ows_ns = "{" + self.namespaces["ows"] + "}"
+        self.xlink_ns = "{" + self.namespaces["xlink"] + "}"
+
+    def get_response(self):
+        """ Creates the xml response
+
+        Returns:
+             xml_str (str): The response as string
+        """
+        response = self._create_csw_capabilities()
+        xml_str = xml_helper.xml_to_string(response, pretty_print=True)
+        return xml_str
+
+    def _create_csw_capabilities(self):
+        root = Element(
+            "{}Capabilities".format(self.csw_ns),
+            attrib={
+                "version": "2.0.2",
+                "{}schemaLocation".format(self.xsi_ns): "http://www.opengis.net/cat/csw/2.0.2",
+            },
+            nsmap=self.namespaces
+        )
+        # ToDo: Reduce the output based on requested section parameter?
+
+        self._create_csw_service_identification(root)
+        self._create_csw_service_provider(root)
+
+        return root
+
+    def _create_csw_service_identification(self, root: Element):
+        """ Creates the <ows:ServiceIdentification> element
+
+        Returns:
+
+        """
+        elem = xml_helper.create_subelement(
+            root,
+            "{}ServiceIdentification".format(self.ows_ns)
+        )
+
+        service_identification = CSW_CAPABILITIES_CONF.get("service_identification")
+
+        # Title
+        xml_helper.create_subelement(elem, "{}Title".format(self.ows_ns)).text = service_identification.get("title", "")
+
+        # Abstract
+        xml_helper.create_subelement(elem, "{}Abstract".format(self.ows_ns)).text = service_identification.get("abstract", "")
+
+        # Keywords
+        kw_elem = xml_helper.create_subelement(elem, "{}Keywords".format(self.ows_ns))
+        keywords = service_identification.get("keywords", "").split(",")
+        for kw in keywords:
+            xml_helper.create_subelement(kw_elem, "{}Keyword".format(self.ows_ns)).text = kw
+
+        # ServiceType
+        xml_helper.create_subelement(elem, "{}ServiceType".format(self.ows_ns)).text = service_identification.get("service_type", "")
+
+        # ServiceTypeVersion
+        xml_helper.create_subelement(elem, "{}ServiceTypeVersion".format(self.ows_ns)).text = service_identification.get("service_type_version", "")
+
+        # Fees
+        xml_helper.create_subelement(elem, "{}Fees".format(self.ows_ns)).text = service_identification.get("fees", "")
+
+        # AccessConstraints
+        xml_helper.create_subelement(elem, "{}AccessConstraints".format(self.ows_ns)).text = service_identification.get("access_constraints", "")
+
+    def _create_csw_service_provider(self, root: Element):
+        """ Creates the <ows:ServiceProvider> element
+
+        Returns:
+
+        """
+        elem = xml_helper.create_subelement(
+            root,
+            "{}ServiceProvider".format(self.ows_ns)
+        )
+
+        service_provider = CSW_CAPABILITIES_CONF.get("service_provider")
+
+        # ProviderName
+        xml_helper.create_subelement(elem, "{}ProviderName".format(self.ows_ns)).text = service_provider.get("name", "")
+
+        # ProviderSite
+        xml_helper.create_subelement(elem, "{}ProviderSite".format(self.ows_ns), attrib={"{}href".format(self.xlink_ns): service_provider.get("provider_site")})
+
+        # ServiceContact
+        contact_elem = xml_helper.create_subelement(elem, "{}ServiceContact".format(self.ows_ns))
+
+        ## IndividualName
+        xml_helper.create_subelement(contact_elem, "{}IndividualName".format(self.ows_ns)).text = service_provider.get("individual_name", "")
+
+        ## PositionName
+        xml_helper.create_subelement(contact_elem, "{}PositionName".format(self.ows_ns)).text = service_provider.get("position_name", "")
+
+        ## ContactInfo
+        contact_info_elem = xml_helper.create_subelement(contact_elem, "{}ContactInfo".format(self.ows_ns))
+
+        ### Phone
+        phone_elem = xml_helper.create_subelement(contact_info_elem, "{}Phone".format(self.ows_ns))
+
+        #### Voice
+        xml_helper.create_subelement(phone_elem, "{}Voice".format(self.ows_ns)).text = service_provider.get("contact_phone", "")
+
+        #### Facsimile
+        xml_helper.create_subelement(phone_elem, "{}Facsimile".format(self.ows_ns)).text = service_provider.get("contact_facsimile", "")
+
+        ### Address
+        address_elem = xml_helper.create_subelement(contact_info_elem, "{}Address".format(self.ows_ns))
+
+        #### DeliveryPoint
+        xml_helper.create_subelement(address_elem, "{}DeliveryPoint".format(self.ows_ns)).text = service_provider.get("contact_address_delivery_point", "")
+
+        #### City
+        xml_helper.create_subelement(address_elem, "{}City".format(self.ows_ns)).text = service_provider.get("contact_address_city", "")
+
+        #### AdministrativeArea
+        xml_helper.create_subelement(address_elem, "{}AdministrativeArea".format(self.ows_ns)).text = service_provider.get("contact_address_administrative_area", "")
+
+        #### PostalCode
+        xml_helper.create_subelement(address_elem, "{}PostalCode".format(self.ows_ns)).text = service_provider.get("contact_address_postal_code", "")
+
+        #### Country
+        xml_helper.create_subelement(address_elem, "{}Country".format(self.ows_ns)).text = service_provider.get("contact_address_country", "")
+
+        #### ElectronicMailAddress
+        xml_helper.create_subelement(address_elem, "{}ElectronicMailAddress".format(self.ows_ns)).text = service_provider.get("contact_address_email", "")
+
+
+
 

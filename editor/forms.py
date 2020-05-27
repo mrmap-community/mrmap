@@ -116,6 +116,8 @@ class DatasetMetadataEditorForm(MrMapModelForm):
             self.fields['created_by'] = ModelChoiceField(queryset=self.requesting_user.get_groups(), empty_label=None)
 
         self.fields['keywords'].required = False
+        self.fields['languages'].required = False
+
         self.has_autocomplete = True
 
     class Meta:
@@ -123,20 +125,14 @@ class DatasetMetadataEditorForm(MrMapModelForm):
         fields = [
             "title",
             "abstract",
-            #"created_by",
-            #"related_metadata",
-            #"access_constraints",
-            #"terms_of_use",
             "keywords",
-            #"categories",
+            "languages",
         ]
         help_texts = {
             "title": _("Edit the title."),
             "abstract": _("Edit the description. Keep it short and simple."),
-            #"access_constraints": _("Edit the access constraints."),
-            #"terms_of_use": _("Select another licence."),
             "keywords": _(""),  # Since keywords are handled differently, this can be empty
-            #"categories": _("Select categories for this resource."),
+            "languages": _("Languages of the dataset")
         }
         widgets = {
             "categories": autocomplete.ModelSelect2Multiple(
@@ -150,6 +146,15 @@ class DatasetMetadataEditorForm(MrMapModelForm):
             ),
             'keywords': autocomplete.ModelSelect2Multiple(
                 url='editor:keyword-autocomplete',
+                attrs={
+                    "data-containerCss": {
+                        "height": "3em",
+                        "width": "3em",
+                    }
+                },
+            ),
+            'languages': autocomplete.ModelSelect2Multiple(
+                url='editor:language-autocomplete',
                 attrs={
                     "data-containerCss": {
                         "height": "3em",

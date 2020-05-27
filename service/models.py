@@ -531,8 +531,9 @@ class ExternalAuthentication(models.Model):
 
 
 class MetadataLanguage(models.Model):
-    # ISO three letter code
-    language = models.CharField(max_length=3)
+    language = models.CharField(max_length=255)
+    # ISO639-2/T three letter code
+    iso_639_2_tlc = models.CharField(max_length=3)
 
     def __str__(self):
         return self.language
@@ -590,7 +591,7 @@ class Metadata(Resource):
     dataset_id_code_space = models.CharField(max_length=255, null=True, blank=True)
 
     related_metadata = models.ManyToManyField(MetadataRelation)
-    language = models.ManyToManyField(MetadataLanguage)
+    languages = models.ManyToManyField(MetadataLanguage)
     origin = None
 
     def __init__(self, *args, **kwargs):
@@ -1242,14 +1243,19 @@ class Metadata(Resource):
         self.abstract = original_metadata_document.abstract
         self.title = original_metadata_document.title
 
+        language_list = []
+        for language in original_metadata_document.languages:
+            language_list.append(MetadataLanguage.objects.get_or_create(iso_639_2_tlc=language)[0])
+        self.languages.set(language_list)
+
         keyword_list = []
         for keyword in original_metadata_document.keywords:
             keyword_list.append(Keyword.objects.get_or_create(keyword=keyword)[0])
-
         self.keywords.set(keyword_list)
 
         doc = Document.objects.get(related_metadata=self)
         doc.current_dataset_metadata_document = doc.original_dataset_metadata_document
+        doc.save()
 
     def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Load original metadata from capabilities and ISO metadata

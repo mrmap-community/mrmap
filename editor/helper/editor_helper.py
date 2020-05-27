@@ -12,13 +12,15 @@ from django.db import transaction
 from django.http import HttpRequest
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
+
+from MapSkinner.iso19115.md_data_identification import _create_gmd_descriptive_keywords, _create_gmd_language
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
 from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from MapSkinner.iso19115.iso19115_xml_skeletons import MD_KEYWORDS
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, \
-    MetadataOrigin, SecuredOperation
+    MetadataOrigin, SecuredOperation, MetadataLanguage
 from service.helper import xml_helper
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY
 
@@ -182,14 +184,42 @@ def overwrite_dataset_metadata_document(metadata: Metadata):
         'gco:CharacterString'] = metadata.title
 
     # overwrite keywords
-    descriptive_keywords = xml_dict['gmd:MD_Metadata'][
+    if metadata.keywords.all().count() > 0:
+        descriptive_keywords = []
+        gmd_descriptive_keywords = _create_gmd_descriptive_keywords(metadata=metadata, as_list=True)
+        for element in gmd_descriptive_keywords:
+            descriptive_keywords.append(xmltodict.parse(element)['gmd:descriptiveKeywords'])
+        xml_dict['gmd:MD_Metadata'][
+            'gmd:identificationInfo'][
+            'gmd:MD_DataIdentification'][
+            'gmd:descriptiveKeywords'] = descriptive_keywords
+    else:
+        if 'gmd:language' in xml_dict['gmd:MD_Metadata'][
                                 'gmd:identificationInfo'][
-                                'gmd:MD_DataIdentification'][
-                                'gmd:descriptiveKeywords']
-    descriptive_keywords.clear()
+                                'gmd:MD_DataIdentification']:
+            del xml_dict['gmd:MD_Metadata'][
+                'gmd:identificationInfo'][
+                'gmd:MD_DataIdentification'][
+                'gmd:descriptiveKeywords']
 
-    for keyword in metadata.keywords.all():
-        descriptive_keywords.append(xmltodict.parse(MD_KEYWORDS.format(keyword)))
+    # overwrite language
+    if metadata.languages.all().count() > 0:
+        language = []
+        gmd_language = _create_gmd_language(metadata=metadata, as_list=True)
+        for element in gmd_language:
+            language.append(xmltodict.parse(element)['gmd:language'])
+        xml_dict['gmd:MD_Metadata'][
+            'gmd:identificationInfo'][
+            'gmd:MD_DataIdentification'][
+            'gmd:language'] = language
+    else:
+        if 'gmd:language' in xml_dict['gmd:MD_Metadata'][
+                                'gmd:identificationInfo'][
+                                'gmd:MD_DataIdentification']:
+            del xml_dict['gmd:MD_Metadata'][
+                'gmd:identificationInfo'][
+                'gmd:MD_DataIdentification'][
+                'gmd:language']
 
     # save new dataset metadata document
     doc.current_dataset_metadata_document = xmltodict.unparse(xml_dict)
@@ -388,6 +418,13 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     for kw in keywords:
         keyword = Keyword.objects.get_or_create(keyword=kw)[0]
         original_md.keywords.add(keyword)
+
+    # Language updating
+    languages = editor_form.cleaned_data["languages"]
+    original_md.languages.clear()
+    for language in languages:
+        language = MetadataLanguage.objects.get(id=language.id)
+        original_md.languages.add(language)
 
     # Categories updating
     # Categories are provided as id's to prevent language related conflicts

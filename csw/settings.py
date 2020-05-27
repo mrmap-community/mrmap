@@ -5,10 +5,12 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 05.05.20
 
 """
+from MrMap.settings import ROOT_URL
 from csw.utils.parameter import RESULT_TYPE_CHOICES, ELEMENT_SET_CHOICES
 
 CSW_CACHE_TIME = 60 * 60  # 60 minutes (min * sec)
 
+csw_url = "{}/csw".format(ROOT_URL)
 CSW_CAPABILITIES_CONF = {
     "service_identification": {
         "title": "Mr.Map CSW",
@@ -40,8 +42,8 @@ CSW_CAPABILITIES_CONF = {
     "operations_metadata": {
         "operations": {
             "GetCapabilities": {
-                "get_uri": "",
-                "post_uri": "",
+                "get_uri": csw_url,
+                "post_uri": csw_url,
                 "parameter": {
                     "sections": [
                         "ServiceIdentification",
@@ -57,8 +59,8 @@ CSW_CAPABILITIES_CONF = {
                 },
             },
             "GetRecords": {
-                "get_uri": "",
-                "post_uri": "",
+                "get_uri": csw_url,
+                "post_uri": csw_url,
                 "parameter": {
                     "resultType": RESULT_TYPE_CHOICES.keys(),
                     "ElementSetName": ELEMENT_SET_CHOICES.keys(),
@@ -85,13 +87,13 @@ CSW_CAPABILITIES_CONF = {
                 },
             },
             "GetRecordById": {
-                "get_uri": "",
-                "post_uri": "",
+                "get_uri": csw_url,
+                "post_uri": csw_url,
                 "parameter": {
-                    "output_format": [
+                    "outputFormat": [
                         "application/xml"
                     ],
-                    "outputFormat": [
+                    "outputSchema": [
                         "http://www.isotc211.org/2005/gmd",
                         "http://www.opengis.net/cat/csw/2.0.2",
                     ],
@@ -109,9 +111,19 @@ CSW_CAPABILITIES_CONF = {
                 },
             },
         },
-        "service": "http://www.opengis.net/cat/csw/2.0.2",
-        "version": "2.0.2",
-        "iso_profiles": "http://www.isotc211.org/2005/gmd",
+        "parameters": {
+            "service": [
+                "http://www.opengis.net/cat/csw/2.0.2",
+            ],
+            "version": [
+                "2.0.2",
+            ],
+        },
+        "constraints": {
+            "iso_profiles": [
+                "http://www.isotc211.org/2005/gmd",
+            ],
+        },
     },
     "filter_capabilities": {
         "scalar_capabilities": {

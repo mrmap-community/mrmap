@@ -340,7 +340,7 @@ class GetCapabilitiesResolver(RequestResolver):
         operations_metadata = CSW_CAPABILITIES_CONF.get("operations_metadata", {})
         operations = operations_metadata.get("operations", {})
 
-        for operation_name, operation_val  in operations.items():
+        for operation_name, operation_val in operations.items():
             operation_elem = xml_helper.create_subelement(elem, "{}Operation".format(self.ows_ns), attrib={
                 "name": operation_name
             })
@@ -360,18 +360,40 @@ class GetCapabilitiesResolver(RequestResolver):
 
             # Parameter
             parameters = operation_val.get("parameter", {})
-            for param_key, param_val in parameters.items():
-                param_elem = xml_helper.create_subelement(operation_elem, "{}Parameter".format(self.ows_ns), attrib={
-                    "name": param_key
-                })
-                for val in param_val:
-                    xml_helper.create_subelement(param_elem, "{}Value".format(self.ows_ns)).text = val
+            self._create_parameter_elem(parameters, operation_elem)
 
             # Constraint
             constraints = operation_val.get("constraint", {})
-            for cons_key, cons_val in constraints.items():
-                cons_elem = xml_helper.create_subelement(operation_elem, "{}Constraint".format(self.ows_ns), attrib={
-                    "name": cons_key
-                })
-                for val in cons_val:
-                    xml_helper.create_subelement(cons_elem, "{}Value".format(self.ows_ns)).text = val
+            self._create_constraint_elem(constraints, operation_elem)
+
+        # General parameters and constraints
+        parameters = operations_metadata.get("parameters", {})
+        self._create_parameter_elem(parameters, elem)
+        constraints = operations_metadata.get("constraints", {})
+        self._create_constraint_elem(constraints, elem)
+
+    def _create_constraint_elem(self, constraints: dict, upper_elem: Element):
+        """ Creates <ows:Constraint> element and adds it to an upper element
+
+        Returns:
+
+        """
+        for cons_key, cons_val in constraints.items():
+            cons_elem = xml_helper.create_subelement(upper_elem, "{}Constraint".format(self.ows_ns), attrib={
+                "name": cons_key
+            })
+            for val in cons_val:
+                xml_helper.create_subelement(cons_elem, "{}Value".format(self.ows_ns)).text = val
+
+    def _create_parameter_elem(self, parameters: dict, upper_elem: Element):
+        """ Creates <ows:Parameter> element and adds it to an upper element
+
+        Returns:
+
+        """
+        for param_key, param_val in parameters.items():
+            param_elem = xml_helper.create_subelement(upper_elem, "{}Parameter".format(self.ows_ns), attrib={
+                "name": param_key
+            })
+            for val in param_val:
+                xml_helper.create_subelement(param_elem, "{}Value".format(self.ows_ns)).text = val

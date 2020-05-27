@@ -126,15 +126,15 @@ CSW_CAPABILITIES_CONF = {
         },
     },
     "filter_capabilities": {
-        "scalar_capabilities": {
-            "comparison_operators": [
-                "PropertyIsEqualTo",
-                "PropertyIsLike",
-                "PropertyIsLessThan",
-                "PropertyIsGreaterThan",
-                "PropertyIsLessThanOrEqualTo",
-                "PropertyIsGreaterThanOrEqualTo",
-                "PropertyIsNotEqualTo",
+        "Scalar_Capabilities": {
+            "ComparisonOperators": [
+                "EqualTo",
+                "Like",
+                "LessThan",
+                "GreaterThan",
+                "LessThanOrEqualTo",
+                "GreaterThanOrEqualTo",
+                "NotEqualTo",
             ]
         }
     }

@@ -198,6 +198,7 @@ class GetCapabilitiesResolver(RequestResolver):
         }
 
         self.csw_ns = "{" + self.namespaces["csw"] + "}"
+        self.ogc_ns = "{" + self.namespaces["ogc"] + "}"
         self.xsi_ns = "{" + self.namespaces["xsi"] + "}"
         self.ows_ns = "{" + self.namespaces["ows"] + "}"
         self.xlink_ns = "{" + self.namespaces["xlink"] + "}"
@@ -226,6 +227,7 @@ class GetCapabilitiesResolver(RequestResolver):
         self._create_csw_service_identification(root)
         self._create_csw_service_provider(root)
         self._create_csw_operations_metadata(root)
+        self._create_csw_filter_capabilities(root)
 
         return root
 
@@ -397,3 +399,23 @@ class GetCapabilitiesResolver(RequestResolver):
             })
             for val in param_val:
                 xml_helper.create_subelement(param_elem, "{}Value".format(self.ows_ns)).text = val
+
+    def _create_csw_filter_capabilities(self, root: Element):
+        """ Creates the <ogc:Filter_Capabilities> element
+
+        Returns:
+
+        """
+        elem = xml_helper.create_subelement(
+            root,
+            "{}Filter_Capabilities".format(self.ogc_ns)
+        )
+        filter_capabilities = CSW_CAPABILITIES_CONF.get("filter_capabilities", {})
+
+        for cap_key, cap_val in filter_capabilities.items():
+            cap_elem = xml_helper.create_subelement(elem, "{}{}".format(self.ogc_ns, cap_key))
+            for operator_key, operator_val in cap_val.items():
+                op_elem = xml_helper.create_subelement(cap_elem, "{}{}".format(self.ogc_ns, operator_key))
+                singular_operator_key = operator_key[:-1] if operator_key[-1] == "s" else operator_key
+                for val in operator_val:
+                    xml_helper.create_subelement(op_elem, "{}{}".format(self.ogc_ns, singular_operator_key)).text = val

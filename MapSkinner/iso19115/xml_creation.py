@@ -30,7 +30,7 @@ def create_xml_element(tag_name: str, content: str, ns: str = None, attributes: 
     attrs = ""
     if attributes is not None:
         for key, value in attributes.items():
-            attrs += f" {key}={value}"
+            attrs += f" {key}=\"{value}\""
 
     return f"<{tag_name}{attrs}>{content}</{tag_name}>" if ns is None else f"<{ns}:{tag_name}{attrs}>{content}</{ns}:{tag_name}>"
 

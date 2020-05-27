@@ -63,7 +63,7 @@ def _create_gmd_descriptive_keywords(metadata: Metadata):
     for keyword in metadata.keywords.all():
         gmd_keyword = _create_gmd_keyword(keyword.keyword)
         gmd_md_keywords = _create_gmd_md_keywords(gmd_keyword=gmd_keyword)
-        descriptive_keywords.join(create_xml_element(ns=NS_GMD, tag_name="descriptiveKeywords", content=gmd_md_keywords))
+        descriptive_keywords += create_xml_element(ns=NS_GMD, tag_name="descriptiveKeywords", content=gmd_md_keywords)
     return descriptive_keywords
 
 

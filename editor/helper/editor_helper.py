@@ -14,7 +14,7 @@ from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
 from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
-from editor.iso19115_xml_skeletons import MD_KEYWORDS
+from MapSkinner.iso19115.iso19115_xml_skeletons import MD_KEYWORDS
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, \
@@ -163,7 +163,6 @@ def overwrite_dataset_metadata_document(metadata: Metadata):
 
     doc = Document.objects.get(related_metadata=metadata)
     xml_dict = xmltodict.parse(doc.current_dataset_metadata_document)
-
     # ToDo: try catch KeyErrors for all the following code
 
     # overwrite abstract

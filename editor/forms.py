@@ -7,13 +7,15 @@ Created on: 09.07.19
 """
 from dal import autocomplete
 from django.core.exceptions import ObjectDoesNotExist
-from django.forms import ModelMultipleChoiceField, HiddenInput, ModelChoiceField
+from django.forms import ModelMultipleChoiceField, ModelChoiceField
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.forms import MrMapModelForm
+from MapSkinner.iso19115.md_metadata import create_gmd_md_metadata
 from service.helper.enums import MetadataEnum
-from service.models import Metadata, MetadataRelation, MetadataOrigin, MetadataType
-from structure.models import MrMapUser
+from service.models import Metadata, MetadataRelation, MetadataOrigin, MetadataType, Document
+from structure.models import Organization
 
 
 class MetadataEditorForm(MrMapModelForm):
@@ -160,20 +162,23 @@ class DatasetMetadataEditorForm(MrMapModelForm):
     def save(self, commit=True):
         # ToDo: is it possible to create save function without commit param?
         m = super(DatasetMetadataEditorForm, self).save(commit=False)
+        is_new = False
 
         if self.instance.id is None:
+            is_new = True
             m.created_by = self.cleaned_data['created_by']
             m.metadata_type = MetadataType.objects.get_or_create(type=MetadataEnum.DATASET.value)[0]
 
         # ToDo: we need to save it here anyway, cause we creating RelatedMetadata objects below
         if commit:
+            # ToDo: if an error bellow occurs, we need to rollback
             m.save()
 
         # 1: create new MetadataRelations for the instance, if the relation does not exist
         additional_related_objects = self.cleaned_data['additional_related_objects']
         for related_object in additional_related_objects:
             related_object = Metadata.objects.get(id=related_object.id)
-            if self.instance.id is None and related_object.service.is_active:
+            if is_new and related_object.service.is_active:
                 m.is_active = True
             try:
                 MetadataRelation.objects.get(metadata_to=self.instance, metadata_from=related_object)
@@ -188,6 +193,7 @@ class DatasetMetadataEditorForm(MrMapModelForm):
                 new_metadata_relation.relation_type = 'describedBy'
                 # ToDo: if an error occurs we need to rollback
                 new_metadata_relation.save()
+
         # 2: remove all metadata relations which we don't need anymore
         remove_candidates = MetadataRelation.objects.filter(metadata_to=self.instance)\
                                                     .exclude(metadata_from__id__in=additional_related_objects)\
@@ -195,5 +201,17 @@ class DatasetMetadataEditorForm(MrMapModelForm):
         for remove_candidate in remove_candidates:
             # ToDo: if an error occurs we need to rollback
             remove_candidate.delete()
+
+        # 3: generate Document object
+        if is_new:
+            orga = self.requesting_user.organization
+
+            dataset_metadata_document = create_gmd_md_metadata(m, orga)
+
+            doc = Document
+            doc.related_metadata = m
+            doc.original_dataset_metadata_document = dataset_metadata_document
+            doc.current_dataset_metadata_document = dataset_metadata_document
+            doc.save()
 
         return m

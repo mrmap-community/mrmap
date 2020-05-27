@@ -530,6 +530,14 @@ class ExternalAuthentication(models.Model):
         self.username = crypto_handler.message.decode("ascii")
 
 
+class MetadataLanguage(models.Model):
+    # ISO three letter code
+    language = models.CharField(max_length=3)
+
+    def __str__(self):
+        return self.language
+
+
 class Metadata(Resource):
     id = models.BigAutoField(primary_key=True,)
     identifier = models.CharField(max_length=255, null=True)
@@ -582,6 +590,7 @@ class Metadata(Resource):
     dataset_id_code_space = models.CharField(max_length=255, null=True, blank=True)
 
     related_metadata = models.ManyToManyField(MetadataRelation)
+    language = models.ManyToManyField(MetadataLanguage)
     origin = None
 
     def __init__(self, *args, **kwargs):

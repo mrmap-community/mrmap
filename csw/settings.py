@@ -9,6 +9,7 @@ from MrMap.settings import ROOT_URL
 from csw.utils.parameter import RESULT_TYPE_CHOICES, ELEMENT_SET_CHOICES
 
 CSW_CACHE_TIME = 60 * 60  # 60 minutes (min * sec)
+CSW_CACHE_PREFIX = "csw"
 
 csw_url = "{}/csw".format(ROOT_URL)
 CSW_CAPABILITIES_CONF = {
@@ -43,7 +44,6 @@ CSW_CAPABILITIES_CONF = {
         "operations": {
             "GetCapabilities": {
                 "get_uri": csw_url,
-                #"post_uri": csw_url,
                 "parameter": {
                     "sections": [
                         "ServiceIdentification",
@@ -53,17 +53,13 @@ CSW_CAPABILITIES_CONF = {
                     ]
                 },
                 "constraint": {
-                    #"PostEncoding": [
-                    #    "XML",
-                    #]
                 },
             },
             "GetRecords": {
                 "get_uri": csw_url,
-                #"post_uri": csw_url,
                 "parameter": {
-                    "resultType": RESULT_TYPE_CHOICES.keys(),
-                    "ElementSetName": ELEMENT_SET_CHOICES.keys(),
+                    "resultType": list(RESULT_TYPE_CHOICES.keys()),
+                    "ElementSetName": list(ELEMENT_SET_CHOICES.keys()),
                     "outputFormat": [
                         "application/xml"
                     ],
@@ -81,14 +77,10 @@ CSW_CAPABILITIES_CONF = {
                     ],
                 },
                 "constraint": {
-                    #"PostEncoding": [
-                    #    "XML",
-                    #]
                 },
             },
             "GetRecordById": {
                 "get_uri": csw_url,
-                #"post_uri": csw_url,
                 "parameter": {
                     "outputFormat": [
                         "application/xml"
@@ -101,13 +93,10 @@ CSW_CAPABILITIES_CONF = {
                         "csw:Record",
                         "gmd:MD_Metadata",
                     ],
-                    "ElementSetName": ELEMENT_SET_CHOICES.keys(),
-                    "resultType": RESULT_TYPE_CHOICES.keys(),
+                    "ElementSetName": list(ELEMENT_SET_CHOICES.keys()),
+                    "resultType": list(RESULT_TYPE_CHOICES.keys()),
                 },
                 "constraint": {
-                    #"PostEncoding": [
-                    #    "XML",
-                    #]
                 },
             },
         },
@@ -137,5 +126,5 @@ CSW_CAPABILITIES_CONF = {
                 "NotEqualTo",
             ]
         }
-    }
+    },
 }

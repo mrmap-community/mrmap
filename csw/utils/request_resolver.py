@@ -5,8 +5,12 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 20.05.20
 
 """
+import json
+from hashlib import md5
+
 from django.db.models import QuerySet
 
+from MrMap.cacher import DocumentCacher
 from MrMap.settings import XML_NAMESPACES
 from csw.settings import CSW_CAPABILITIES_CONF
 from csw.utils.converter import MetadataConverter
@@ -158,7 +162,7 @@ class GetRecordsByIdResolver(RequestResolver):
     def __init__(self, param: ParameterResolver):
         super().__init__(param=param)
 
-    def get_response(self):
+    def get_response(self, request):
         """ Creates the xml response
 
         Returns:
@@ -181,6 +185,7 @@ class GetRecordsByIdResolver(RequestResolver):
 
         xml_str = xml_helper.xml_to_string(response, pretty_print=True)
         return xml_str
+
 
 class GetCapabilitiesResolver(RequestResolver):
     def __init__(self, param: ParameterResolver):
@@ -209,9 +214,25 @@ class GetCapabilitiesResolver(RequestResolver):
         Returns:
              xml_str (str): The response as string
         """
-        response = self._create_csw_capabilities()
-        xml_str = xml_helper.xml_to_string(response, pretty_print=True)
-        return xml_str
+        # Check for a cached version, before we generate a new capabilities document
+        cacher = DocumentCacher(title="CSW_CAPABILITIES", version="1.0")
+        response = json.loads(cacher.get("csw") or "{}")
+        csw_settings_hash = md5(json.dumps(CSW_CAPABILITIES_CONF).encode("UTF-8")).hexdigest()
+
+        if response.get("hash", "") != csw_settings_hash or len(response.get("document", "")) == 0:
+            # No cached version found or the used CSW_CAPABILITIES_CONF was different
+            # So create a new document and overwrite!
+            response = xml_helper.xml_to_string(self._create_csw_capabilities(), pretty_print=True)
+            content = {
+                "hash": csw_settings_hash,
+                "document": response
+            }
+            cacher.set(key="csw", val=json.dumps(content))
+        else:
+            # There is a document, which can be returned
+            response = response["document"]
+
+        return response
 
     def _create_csw_capabilities(self):
         root = Element(

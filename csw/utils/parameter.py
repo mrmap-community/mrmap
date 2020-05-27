@@ -131,6 +131,8 @@ class ParameterResolver:
             raise ValueError("Parameter 'ElementSetName' and 'ElementName' are mutually exclusive. You can only provide one!", "elementSetName")
         elif self.element_set_name and self.element_set_name not in ELEMENT_SET_CHOICES:
             raise ValueError(INVALID_PARAMETER_TEMPLATE.format(self.element_set_name, ", ".join(ELEMENT_SET_CHOICES)), "elementSetName")
+        elif self.element_set_name is None and len(self.element_name) == 0:
+            self.element_set_name = "full"  # default
 
         if self.version not in VERSION_CHOICES:
             raise ValueError(INVALID_PARAMETER_TEMPLATE.format(self.version, ", ".join(VERSION_CHOICES)), "version")

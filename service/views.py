@@ -436,6 +436,7 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
         if document is None:
             raise ObjectDoesNotExist
     except ObjectDoesNotExist:
+        # ToDo: a datasetmetadata without a document is broken
         return HttpResponse(content=_("No dataset metadata found"), status=404)
     return HttpResponse(document, content_type='application/xml')
 

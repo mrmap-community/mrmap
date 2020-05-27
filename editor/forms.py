@@ -171,14 +171,15 @@ class DatasetMetadataEditorForm(MrMapModelForm):
 
         # ToDo: we need to save it here anyway, cause we creating RelatedMetadata objects below
         if commit:
-            # ToDo: if an error bellow occurs, we need to rollback
+            # ToDo: if an error bellow occurs, we need to rollback()
             m.save()
+            self.save_m2m()
 
         # 1: create new MetadataRelations for the instance, if the relation does not exist
         additional_related_objects = self.cleaned_data['additional_related_objects']
         for related_object in additional_related_objects:
             related_object = Metadata.objects.get(id=related_object.id)
-            if is_new and related_object.service.is_active:
+            if is_new and related_object.service.is_active and m.is_active is False:
                 m.is_active = True
             try:
                 MetadataRelation.objects.get(metadata_to=self.instance, metadata_from=related_object)
@@ -208,10 +209,11 @@ class DatasetMetadataEditorForm(MrMapModelForm):
 
             dataset_metadata_document = create_gmd_md_metadata(m, orga)
 
-            doc = Document
+            doc = Document()
             doc.related_metadata = m
             doc.original_dataset_metadata_document = dataset_metadata_document
             doc.current_dataset_metadata_document = dataset_metadata_document
             doc.save()
 
+        m.save()
         return m

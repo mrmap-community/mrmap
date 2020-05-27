@@ -43,7 +43,7 @@ CSW_CAPABILITIES_CONF = {
         "operations": {
             "GetCapabilities": {
                 "get_uri": csw_url,
-                "post_uri": csw_url,
+                #"post_uri": csw_url,
                 "parameter": {
                     "sections": [
                         "ServiceIdentification",
@@ -53,14 +53,14 @@ CSW_CAPABILITIES_CONF = {
                     ]
                 },
                 "constraint": {
-                    "PostEncoding": [
-                        "XML",
-                    ]
+                    #"PostEncoding": [
+                    #    "XML",
+                    #]
                 },
             },
             "GetRecords": {
                 "get_uri": csw_url,
-                "post_uri": csw_url,
+                #"post_uri": csw_url,
                 "parameter": {
                     "resultType": RESULT_TYPE_CHOICES.keys(),
                     "ElementSetName": ELEMENT_SET_CHOICES.keys(),
@@ -81,14 +81,14 @@ CSW_CAPABILITIES_CONF = {
                     ],
                 },
                 "constraint": {
-                    "PostEncoding": [
-                        "XML",
-                    ]
+                    #"PostEncoding": [
+                    #    "XML",
+                    #]
                 },
             },
             "GetRecordById": {
                 "get_uri": csw_url,
-                "post_uri": csw_url,
+                #"post_uri": csw_url,
                 "parameter": {
                     "outputFormat": [
                         "application/xml"
@@ -105,9 +105,9 @@ CSW_CAPABILITIES_CONF = {
                     "resultType": RESULT_TYPE_CHOICES.keys(),
                 },
                 "constraint": {
-                    "PostEncoding": [
-                        "XML",
-                    ]
+                    #"PostEncoding": [
+                    #    "XML",
+                    #]
                 },
             },
         },

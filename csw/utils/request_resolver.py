@@ -351,14 +351,18 @@ class GetCapabilitiesResolver(RequestResolver):
             http_elem = xml_helper.create_subelement(dcp_elem, "{}HTTP".format(self.ows_ns))
 
             ## Get
-            xml_helper.create_subelement(http_elem, "{}Get".format(self.ows_ns), attrib={
-                "{}href".format(self.xlink_ns): operation_val.get("get_uri")
-            })
+            get_uri = operation_val.get("get_uri", None)
+            if get_uri is not None:
+                xml_helper.create_subelement(http_elem, "{}Get".format(self.ows_ns), attrib={
+                    "{}href".format(self.xlink_ns): get_uri
+                })
 
             ## Post
-            xml_helper.create_subelement(http_elem, "{}Post".format(self.ows_ns), attrib={
-                "{}href".format(self.xlink_ns): operation_val.get("post_uri")
-            })
+            post_uri = operation_val.get("post_uri", None)
+            if post_uri is not None:
+                xml_helper.create_subelement(http_elem, "{}Post".format(self.ows_ns), attrib={
+                    "{}href".format(self.xlink_ns): post_uri
+                })
 
             # Parameter
             parameters = operation_val.get("parameter", {})

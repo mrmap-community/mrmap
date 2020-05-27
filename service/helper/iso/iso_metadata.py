@@ -46,6 +46,7 @@ class ISOMetadata:
         self.title = None
         self.abstract = None
         self.keywords = []
+        self.languages = []
         self.iso_categories = []
         self.formats = []
         self.download_link = None
@@ -120,6 +121,7 @@ class ISOMetadata:
         for attr in MIN_REQUIRED_ISO_MD:
             if attr is None:
                 self.is_broken = True
+
 
     def get_metadata(self):
         """ Start a network call to retrieve the original capabilities xml document.
@@ -237,6 +239,13 @@ class ISOMetadata:
         for keyword in keywords:
             if keyword.text is not None and keyword not in self.keywords:
                 self.keywords.append(xml_helper.try_get_text_from_xml_element(keyword))
+
+        languages = xml_helper.try_get_element_from_xml(xml_elem=xml_obj,
+                                                        elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:language/gmd:LanguageCode".format(
+                                                           xpath_type))
+        for language in languages:
+            if language.text is not None and languages not in self.languages:
+                self.languages.append(xml_helper.try_get_text_from_xml_element(language))
 
         iso_categories = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:topicCategory/gmd:MD_TopicCategoryCode".format(xpath_type))
         for iso_category in iso_categories:

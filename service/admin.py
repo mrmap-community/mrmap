@@ -5,6 +5,7 @@ from service.models import *
 from django.urls import reverse
 from django.template.defaultfilters import escape
 
+
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ('id', 'type', 'title_EN', 'online_link', 'origin')
 
@@ -43,6 +44,8 @@ class KeywordAdmin(admin.ModelAdmin):
 
 class DocumentAdmin(admin.ModelAdmin):
     list_display = ('id', 'related_metadata', 'is_active', 'created')
+    list_filter = ('is_active',)
+    search_fields = ['id', 'related_metadata__id', ]
 
 
 class MetadataOriginAdmin(admin.ModelAdmin):
@@ -51,6 +54,12 @@ class MetadataOriginAdmin(admin.ModelAdmin):
 
 class MetadataTypeAdmin(admin.ModelAdmin):
     list_display = ('id', 'type',)
+
+
+class MetadataLanguageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'language', 'iso_639_2_tlc',)
+    list_filter = ('language', 'iso_639_2_tlc',)
+    search_fields = ['id', 'language', 'iso_639_2_tlc', ]
 
 
 class MetadataAdmin(admin.ModelAdmin):
@@ -139,6 +148,7 @@ admin.site.register(ServiceType, ServiceTypeAdmin)
 admin.site.register(Module, ModuleAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(Keyword, KeywordAdmin)
+admin.site.register(MetadataLanguage, MetadataLanguageAdmin)
 admin.site.register(MetadataOrigin, MetadataOriginAdmin)
 admin.site.register(MetadataType, MetadataTypeAdmin)
 admin.site.register(Metadata, MetadataAdmin)

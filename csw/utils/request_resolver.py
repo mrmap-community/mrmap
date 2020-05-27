@@ -162,7 +162,7 @@ class GetRecordsByIdResolver(RequestResolver):
     def __init__(self, param: ParameterResolver):
         super().__init__(param=param)
 
-    def get_response(self, request):
+    def get_response(self):
         """ Creates the xml response
 
         Returns:

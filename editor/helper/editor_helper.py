@@ -170,7 +170,6 @@ def overwrite_dataset_metadata_document(metadata: Metadata):
 
     doc = Document.objects.get(related_metadata=metadata)
     xml_dict = xmltodict.parse(doc.current_dataset_metadata_document)
-
     # ToDo: try catch KeyErrors for all the following code
 
     # overwrite abstract

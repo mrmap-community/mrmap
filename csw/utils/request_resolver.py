@@ -11,14 +11,9 @@ from MrMap.settings import XML_NAMESPACES
 from csw.settings import CSW_CAPABILITIES_CONF
 from csw.utils.converter import MetadataConverter
 from csw.utils.csw_filter import *
-from csw.utils.parameter import ParameterResolver
+from csw.utils.parameter import ParameterResolver, VERSION_CHOICES
 from service.helper import xml_helper
 from service.models import Metadata
-
-SUPPORTED_VERSIONS = [
-    "2.0.2",
-    "3.0",
-]
 
 
 class RequestResolver:
@@ -64,9 +59,9 @@ class RequestResolver:
                 ),
                 "request"
             )
-        if self.param.version not in SUPPORTED_VERSIONS:
+        if self.param.version not in VERSION_CHOICES:
             raise ValueError(
-                "{} is not supported. Choices are '{}'".format(self.param.version, ", ".join(SUPPORTED_VERSIONS)),
+                "{} is not supported. Choices are '{}'".format(self.param.version, ", ".join(VERSION_CHOICES)),
                 "version"
             )
 
@@ -230,6 +225,7 @@ class GetCapabilitiesResolver(RequestResolver):
 
         self._create_csw_service_identification(root)
         self._create_csw_service_provider(root)
+        self._create_csw_operations_metadata(root)
 
         return root
 
@@ -331,6 +327,51 @@ class GetCapabilitiesResolver(RequestResolver):
         #### ElectronicMailAddress
         xml_helper.create_subelement(address_elem, "{}ElectronicMailAddress".format(self.ows_ns)).text = service_provider.get("contact_address_email", "")
 
+    def _create_csw_operations_metadata(self, root: Element):
+        """ Creates the <ows:OperationsMetadata> element
 
+        Returns:
 
+        """
+        elem = xml_helper.create_subelement(
+            root,
+            "{}OperationsMetadata".format(self.ows_ns)
+        )
+        operations_metadata = CSW_CAPABILITIES_CONF.get("operations_metadata", {})
+        operations = operations_metadata.get("operations", {})
 
+        for operation_name, operation_val  in operations.items():
+            operation_elem = xml_helper.create_subelement(elem, "{}Operation".format(self.ows_ns), attrib={
+                "name": operation_name
+            })
+            # DCP | HTTP
+            dcp_elem = xml_helper.create_subelement(operation_elem, "{}DCP".format(self.ows_ns))
+            http_elem = xml_helper.create_subelement(dcp_elem, "{}HTTP".format(self.ows_ns))
+
+            ## Get
+            xml_helper.create_subelement(http_elem, "{}Get".format(self.ows_ns), attrib={
+                "{}href".format(self.xlink_ns): operation_val.get("get_uri")
+            })
+
+            ## Post
+            xml_helper.create_subelement(http_elem, "{}Post".format(self.ows_ns), attrib={
+                "{}href".format(self.xlink_ns): operation_val.get("post_uri")
+            })
+
+            # Parameter
+            parameters = operation_val.get("parameter", {})
+            for param_key, param_val in parameters.items():
+                param_elem = xml_helper.create_subelement(operation_elem, "{}Parameter".format(self.ows_ns), attrib={
+                    "name": param_key
+                })
+                for val in param_val:
+                    xml_helper.create_subelement(param_elem, "{}Value".format(self.ows_ns)).text = val
+
+            # Constraint
+            constraints = operation_val.get("constraint", {})
+            for cons_key, cons_val in constraints.items():
+                cons_elem = xml_helper.create_subelement(operation_elem, "{}Constraint".format(self.ows_ns), attrib={
+                    "name": cons_key
+                })
+                for val in cons_val:
+                    xml_helper.create_subelement(cons_elem, "{}Value".format(self.ows_ns)).text = val

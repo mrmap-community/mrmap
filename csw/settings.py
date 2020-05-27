@@ -5,6 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 05.05.20
 
 """
+from csw.utils.parameter import RESULT_TYPE_CHOICES, ELEMENT_SET_CHOICES
 
 CSW_CACHE_TIME = 60 * 60  # 60 minutes (min * sec)
 
@@ -37,73 +38,76 @@ CSW_CAPABILITIES_CONF = {
         "contact_role": "pointOfContact",
     },
     "operations_metadata": {
-        "GetCapabilities": {
-            "get_uri": "",
-            "post_uri": "",
-            "sections": [
-                "ServiceIdentification",
-                "ServiceProvider",
-                "OperationsMetadata",
-                "Filter_Capabilities"
-            ],
-            "post_encoding": [
-                "XML",
-            ]
-        },
-        "GetRecords": {
-            "get_uri": "",
-            "post_uri": "",
-            "result_type": [
-                "hits",
-                "results",
-                "validate",
-            ],
-            "output_format": [
-                "application/xml"
-            ],
-            "output_schema": [
-                "http://www.isotc211.org/2005/gmd",
-                "http://www.opengis.net/cat/csw/2.0.2",
-            ],
-            "type_names": [
-                "csw:Record",
-                "gmd:MD_Metadata",
-            ],
-            "constraint_language": [
-                "CQL_TEXT",
-                "FILTER",
-            ],
-            "post_encoding": [
-                "XML",
-            ]
-        },
-        "GetRecordById": {
-            "get_uri": "",
-            "post_uri": "",
-            "output_format": [
-                "application/xml"
-            ],
-            "output_schema": [
-                "http://www.isotc211.org/2005/gmd",
-                "http://www.opengis.net/cat/csw/2.0.2",
-            ],
-            "type_names": [
-                "csw:Record",
-                "gmd:MD_Metadata",
-            ],
-            "ElementSetName": [
-                "brief",
-                "summary",
-                "full",
-            ],
-            "result_type": [
-                "hits",
-                "results",
-                "validate",
-            ],
-            "post_encoding": [
-                "XML",
-            ]
+        "operations": {
+            "GetCapabilities": {
+                "get_uri": "",
+                "post_uri": "",
+                "parameter": {
+                    "sections": [
+                        "ServiceIdentification",
+                        "ServiceProvider",
+                        "OperationsMetadata",
+                        "Filter_Capabilities"
+                    ]
+                },
+                "constraint": {
+                    "PostEncoding": [
+                        "XML",
+                    ]
+                },
+            },
+            "GetRecords": {
+                "get_uri": "",
+                "post_uri": "",
+                "parameter": {
+                    "resultType": RESULT_TYPE_CHOICES.keys(),
+                    "ElementSetName": ELEMENT_SET_CHOICES.keys(),
+                    "outputFormat": [
+                        "application/xml"
+                    ],
+                    "outputSchema": [
+                        "http://www.isotc211.org/2005/gmd",
+                        "http://www.opengis.net/cat/csw/2.0.2",
+                    ],
+                    "typeNames": [
+                        "csw:Record",
+                        "gmd:MD_Metadata",
+                    ],
+                    "CONSTRAINTLANGUAGE": [
+                        "CQL_TEXT",
+                        "FILTER",
+                    ],
+                },
+                "constraint": {
+                    "PostEncoding": [
+                        "XML",
+                    ]
+                },
+            },
+            "GetRecordById": {
+                "get_uri": "",
+                "post_uri": "",
+                "parameter": {
+                    "output_format": [
+                        "application/xml"
+                    ],
+                    "outputFormat": [
+                        "http://www.isotc211.org/2005/gmd",
+                        "http://www.opengis.net/cat/csw/2.0.2",
+                    ],
+                    "typeNames": [
+                        "csw:Record",
+                        "gmd:MD_Metadata",
+                    ],
+                    "ElementSetName": ELEMENT_SET_CHOICES.keys(),
+                    "resultType": RESULT_TYPE_CHOICES.keys(),
+                },
+                "constraint": {
+                    "PostEncoding": [
+                        "XML",
+                    ]
+                },
+            },
         },
         "service": "http://www.opengis.net/cat/csw/2.0.2",
         "version": "2.0.2",

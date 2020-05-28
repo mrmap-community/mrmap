@@ -60,6 +60,9 @@ class Keyword(models.Model):
     def __str__(self):
         return self.keyword
 
+    class Meta:
+        ordering = ['-id']
+
 
 class ProxyLog(models.Model):
     from structure.models import MrMapUser
@@ -2154,6 +2157,9 @@ class Category(Resource):
     symbol = models.CharField(max_length=500, null=True)
     online_link = models.CharField(max_length=500, null=True)
     origin = models.ForeignKey(CategoryOrigin, on_delete=models.DO_NOTHING, null=True)
+
+    class Meta:
+        ordering = ['-id']
 
     def __str__(self):
         return self.title_EN + " (" + self.type + ")"

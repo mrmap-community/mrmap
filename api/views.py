@@ -1,4 +1,6 @@
 # Create your views here.
+from collections import OrderedDict
+
 from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Count
@@ -786,6 +788,7 @@ class SuggestionViewSet(viewsets.GenericViewSet):
         # Prefilter search on database access to reduce amount of work
         query = self.request.query_params.get("q", None)
         filter = view_helper.create_keyword_query_filter(query)
+        max_results = self.request.query_params.get("max", SUGGESTIONS_MAX_RESULTS)
 
         # Get matching keywords, count the number of relations to metadata records and order accordingly (most on top)
         self.queryset = Keyword.objects.filter(
@@ -794,17 +797,13 @@ class SuggestionViewSet(viewsets.GenericViewSet):
             metadata_count=Count('metadata')
         ).order_by(
             '-metadata_count'
-        )
-
-        # filter by max results
-        max_results = self.request.query_params.get("max", SUGGESTIONS_MAX_RESULTS)
-        self.queryset = view_helper.filter_queryset_keyword_max_results(self.queryset, max_results)
+        )[:max_results]
 
         return self.queryset
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
+    #@method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         data = {
@@ -813,6 +812,7 @@ class SuggestionViewSet(viewsets.GenericViewSet):
                     result.keyword for result in tmp
                 ]
         }
+        data = OrderedDict(data)
         return self.get_paginated_response(data)
 
 

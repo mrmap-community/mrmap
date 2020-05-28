@@ -84,7 +84,7 @@ def create_keyword_query_filter(query):
     _filter = Q()
     if query is not None:
         _filter = Q(
-            keyword__icontains=query
+            keyword__istartswith=query
         )
     return _filter
 
@@ -109,26 +109,6 @@ def create_category_query_filter(query):
             title_EN__icontains=query
         )
     return _filter
-
-
-def filter_queryset_keyword_max_results(queryset, max):
-    """ Filters a given REST framework queryset by a given query.
-
-    Args:
-        queryset: A queryset containing elements
-        max: A text snippet which is used for a search
-    Returns:
-        queryset: The given queryset which only contains matching elements
-    """
-    if max is not None:
-        if not isinstance(max, int):
-            try:
-                max = int(max)
-            except ValueError:
-                # If wrong input was given, take default value
-                max = SUGGESTIONS_MAX_RESULTS
-        queryset = queryset[:max]
-    return queryset
 
 
 def filter_queryset_metadata_query(queryset, query):

@@ -348,6 +348,7 @@ def remove(request: HttpRequest, metadata_id: int):
     """
     user = user_helper.get_user(request)
     metadata = get_object_or_404(Metadata, id=metadata_id)
+    # ToDo: change this form to MrMapConfirmForm
     remove_form = RemoveServiceForm(request.POST)
     if request.method == 'POST':
         if remove_form.is_valid() and request.POST.get("is_confirmed") == 'on':

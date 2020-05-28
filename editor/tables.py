@@ -1,4 +1,5 @@
 import django_tables2 as tables
+from django.template.loader import render_to_string
 from django.utils.html import format_html
 from django.urls import reverse
 
@@ -25,6 +26,16 @@ def _get_undo_button(url, user):
                        get_theme(user)["TABLE"]["BTN_DANGER_COLOR"],
                        url,
                        format_html(get_theme(user)["ICONS"]['UNDO']),)
+
+
+class WmsServiceTable(MrMapTable):
+def _get_delete_button(url, user):
+    return format_html(URL_BTN_PATTERN,
+                       BTN_CLASS,
+                       BTN_SM_CLASS,
+                       get_theme(user)["TABLE"]["BTN_DANGER_COLOR"],
+                       url,
+                       format_html(get_theme(user)["ICONS"]["REMOVE"]),)
 
 
 class WmsServiceTable(MrMapTable):
@@ -151,11 +162,12 @@ class DatasetTable(MapSkinnerTable):
     dataset_title = tables.Column(accessor='title', verbose_name=_('Title'), )
     dataset_related_objects = tables.Column(verbose_name=_('Related objects'), empty_values=[])
     dataset_origins = tables.Column(verbose_name=_('Origins'), empty_values=[])
-    dataset_edit_metadata = tables.Column(verbose_name=_('Edit'), empty_values=[])
-    dataset_reset = tables.Column(verbose_name=_('Reset'), empty_values=[])
+    dataset_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False)
+    #dataset_reset = tables.Column(verbose_name=_('Reset'), empty_values=[])
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
+        self.request = kwargs.pop('request')
         super().__init__(*args, **kwargs)
 
     def render_dataset_title(self, value, record):
@@ -177,10 +189,47 @@ class DatasetTable(MapSkinnerTable):
             origin_list.append(relation.origin.name+' [{}]'.format(relation.metadata_from.id))
         return format_html(', '.join(origin_list))
 
-    def render_dataset_edit_metadata(self, record):
-        url = reverse('editor:edit', args=(record.id,))
-        return _get_edit_button(url, self.user)
+    def render_dataset_actions(self, record):
+        btns = "{} {}"
 
-    def render_dataset_reset(self, record):
-        url = reverse('editor:restore-dataset-metadata', args=(record.id,))
-        return _get_undo_button(url, self.user)
+        edit_url = reverse('editor:edit', args=(record.id,))
+        edit_btn = _get_edit_button(edit_url, self.user)
+
+        reset_url = reverse('editor:restore-dataset-metadata', args=(record.id,))
+        reset_btn = _get_undo_button(reset_url, self.user)
+
+        context_remove_btn = {
+            "btn_size": BTN_SM_CLASS,
+            "btn_color": get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+            "id_modal": f"remove_dataset_{record.id}",
+            "btn_value": get_theme(self.user)["ICONS"]['REMOVE'],
+            "tooltip": _(f"Remove {record.title} [{record.id}] dataset"),
+            "tooltip_placement": "left"
+        }
+        remove_btn = render_to_string(template_name="sceletons/open-modal-button.html",
+                                      context=context_remove_btn)
+        context_remove_modal = {
+            "metadata": record,
+            "form": MrMapConfirmForm(action_url=reverse("editor:remove-dataset-metadata", args=[record.id, ]),
+                                     is_confirmed_label=_("Do you really want to delete this dataset?")),
+            "id_modal": f"remove_dataset_{record.id}",
+            "THEME": get_theme(self.user),
+        }
+        remove_modal = render_to_string(request=self.request,
+                                        template_name="modals/remove_dataset.html",
+                                        context=context_remove_modal)
+        remove_trailer = format_html("{}{}", remove_btn, remove_modal)
+
+        relations = MetadataRelation.objects.filter(metadata_to=record)
+        is_mr_map_origin = True
+        for relation in relations:
+            if relation.origin.name != "MrMap":
+                is_mr_map_origin = False
+                break
+
+        if is_mr_map_origin:
+            btns = format_html(btns, edit_btn, remove_trailer)
+        else:
+            btns = format_html(btns, edit_btn, reset_btn)
+
+        return btns

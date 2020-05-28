@@ -17,13 +17,11 @@
 {% block card-body %}
 <div class="row">
     <div class="col">
-        <div class="overflow-auto">
             {% if pt_table.rows %}
                 {% render_table pt_table %}
             {% else %}
             <span id="id_pt_empty"></span>
             {% endif %}
-        </div>
     </div>
 </div>
 {% endblock %}

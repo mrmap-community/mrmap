@@ -55,6 +55,7 @@
         <div class="overflow-auto">
         <div class="table-container">
             {% block table %}
+            <div class="table-responsive ">
                 <table class="table {{table.context.THEME.TABLE.HOVER}} {{table.context.THEME.TABLE.BG}} {{table.context.THEME.TABLE.BORDER}} {{table.context.THEME.TABLE.BORDERED}}" {% render_attrs table.attrs %}>
                     <caption class="d-none">{{table.caption}}</caption>
                     {% block table.thead %}
@@ -135,6 +136,7 @@
                     {% endif %}
                     {% endblock table.tfoot %}
                 </table>
+            </div>
             {% endblock table %}
 
             {% block pagination %}

@@ -10,6 +10,8 @@
                     {% block modal-title %}
                     {% endblock %}
                 </h5>
+                {% block modal-header %}
+                {% endblock %}
             </div>
             <form id="id_modal_form_{{id_modal}}" action="{{form.action_url}}" method="post">
                 {% csrf_token %}

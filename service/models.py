@@ -964,7 +964,7 @@ class Metadata(Resource):
 
         self.save()
 
-    def delete(self, using=None, keep_parents=False):
+    def delete(self, using=None, keep_parents=False, force=False):
         """ Overwriting of the regular delete function
 
         Checks if the current processed metadata is part of a MetadataRelation, which indicates, that it is still used
@@ -974,6 +974,7 @@ class Metadata(Resource):
         Args:
             using: The regular 'using' parameter
             keep_parents: The regular 'keep_parents' parameter
+            force: Forces the deletion in any case
         Returns:
             nothing
         """
@@ -993,13 +994,14 @@ class Metadata(Resource):
         dependencies = MetadataRelation.objects.filter(
             metadata_to=self
         )
-        if dependencies.count() > 1:
+        if dependencies.count() > 1 and force is False:
             # if there are more than one dependency, we should not remove it
             # the one dependency we can expect at least is the relation to the current metadata record
             return
         else:
             # if we have one or less relations to this metadata record, we can remove it anyway
             super().delete(using, keep_parents)
+
 
     def get_service_type(self):
         """ Performs a check on which service type is described by the metadata record

@@ -1,0 +1,20 @@
+{% extends 'sceletons/modal-form.html' %}
+{% load i18n %}
+{% load bootstrap4 %}
+
+{% block modal-title %}
+{% trans 'Remove ' %}<strong>{{metadata.title}} [{{metadata.id}}]</strong>{% trans ' dataset' %}
+{% endblock %}
+{% block modal-header %}
+<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+  <span aria-hidden="true">&times;</span>
+</button>
+{% endblock %}
+{% block modal-footer %}
+<button class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" type="button" class="close" data-dismiss="modal" aria-label="Close">
+  <span aria-hidden="true">{% trans 'Close' %}</span>
+</button>
+<button type="button submit" class="btn {{ THEME.MODAL.BTN_DANGER_COLOR }}">
+    {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Remove' %}
+</button>
+{% endblock %}

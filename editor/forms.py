@@ -8,14 +8,12 @@ Created on: 09.07.19
 from dal import autocomplete
 from django.core.exceptions import ObjectDoesNotExist
 from django.forms import ModelMultipleChoiceField, ModelChoiceField
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from MapSkinner.forms import MrMapModelForm
 from MapSkinner.iso19115.md_metadata import create_gmd_md_metadata
 from service.helper.enums import MetadataEnum
 from service.models import Metadata, MetadataRelation, MetadataOrigin, MetadataType, Document
-from structure.models import Organization
 
 
 class MetadataEditorForm(MrMapModelForm):

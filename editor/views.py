@@ -519,7 +519,7 @@ def restore(request: HttpRequest, metadata_id: int):
                 parent_metadata = metadata
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_RESTORED,
                                               "{}: {}".format(parent_metadata.title, metadata.title))
-            
+
             return HttpResponseRedirect(reverse("editor:datasets-index", ), status=303)
         else:
             params = {

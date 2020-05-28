@@ -191,16 +191,25 @@ class DatasetTable(MapSkinnerTable):
 
     def render_dataset_actions(self, record):
         btns = "{} {}"
-
-        edit_url = reverse('editor:edit', args=(record.id,))
-        edit_btn = _get_edit_button(edit_url, self.user)
+        # ToDo: only add buttons if the user has the permission for it
+        context_edit_btn = {
+            "btn_size": BTN_SM_CLASS,
+            "btn_color": get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
+            "btn_value": get_theme(self.user)["ICONS"]['EDIT'],
+            "btn_url": reverse('editor:edit', args=(record.id,)),
+            "tooltip": format_html(_("Edit <strong>{} [{}]</strong> dataset"), record.title, record.id),
+            "tooltip_placement": "left",
+            "new_tab": True,
+        }
+        edit_btn = render_to_string(template_name="sceletons/open-link-button.html",
+                                       context=context_edit_btn)
 
         context_restore_btn = {
             "btn_size": BTN_SM_CLASS,
             "btn_color": get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
             "id_modal": f"restore_dataset_{record.id}",
             "btn_value": get_theme(self.user)["ICONS"]['UNDO'],
-            "tooltip": _(f"Reset {record.title} [{record.id}] dataset"),
+            "tooltip": format_html(_("Restore <strong>{} [{}]</strong> dataset"), record.title, record.id),
             "tooltip_placement": "left",
         }
         restore_btn = render_to_string(template_name="sceletons/open-modal-button.html",
@@ -224,7 +233,7 @@ class DatasetTable(MapSkinnerTable):
             "btn_color": get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
             "id_modal": f"remove_dataset_{record.id}",
             "btn_value": get_theme(self.user)["ICONS"]['REMOVE'],
-            "tooltip": _(f"Remove {record.title} [{record.id}] dataset"),
+            "tooltip": format_html(_("Remove <strong>{} [{}]</strong> dataset"), record.title, record.id),
             "tooltip_placement": "left",
             }
         remove_btn = render_to_string(template_name="sceletons/open-modal-button.html",

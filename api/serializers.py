@@ -5,11 +5,19 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 15.08.19
 
 """
+from collections import OrderedDict
+from time import time
+
+from django.db.models import QuerySet
 from rest_framework import serializers
 
+from MrMap.settings import EXEC_TIME_PRINT
+from MrMap.utils import print_debug_mode
 from service.forms import RegisterNewServiceWizardPage2
 from service.helper import service_helper
+from service.helper.enums import MetadataEnum
 from service.models import ServiceType, Metadata, Category, Dimension
+from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import MrMapGroup, Role, Permission
 
 
@@ -291,3 +299,147 @@ class CatalogueMetadataSerializer(serializers.Serializer):
         model = Metadata
 
 
+def serialize_metadata_relation(md: Metadata):
+    """ Serializes the related_metadata of a metadata element into a list of dict elements
+
+    Faster version than using ModelSerializers
+
+    Args:
+        md (Metadata): The metadata element
+    Returns:
+         data_list (list): The list containing serialized dict elements
+    """
+    return ""
+
+
+def serialize_contact(md: Metadata):
+    """ Serializes the contact of a metadata element into a dict element
+
+    Faster version than using ModelSerializers
+
+    Args:
+        md (Metadata): The metadata element
+    Returns:
+         data_list (list): The list containing serialized dict elements
+    """
+    return ""
+
+
+def serialize_dimensions(md: Metadata):
+    """ Serializes the dimensions of a metadata element into a list of dict elements
+
+    Faster version than using ModelSerializers
+
+    Args:
+        md (Metadata): The metadata element
+    Returns:
+         data_list (list): The list containing serialized dict elements
+    """
+    dimensions = []
+
+    for dim in md.dimensions.all():
+        dimension = OrderedDict()
+
+        dimension["type"] = dim.type
+        dimension["custom_name"] = dim.custom_name
+        dimension["units"] = dim.units
+        dimension["extent"] = dim.extent
+
+        dimensions.append(dimension)
+
+    return dimensions
+
+
+def serialize_categories(md: Metadata):
+    """ Serializes the categories of a metadata element into a list of dict elements
+
+    Faster version than using ModelSerializers
+
+    Args:
+        md (Metadata): The metadata element
+    Returns:
+         data_list (list): The list containing serialized dict elements
+    """
+    categories = []
+    for cat in md.categories.all():
+        category = OrderedDict()
+
+        category["id"] = cat.id
+        category["type"] = cat.type
+        category["title_EN"] = cat.title_EN
+        category["description_EN"] = cat.description_EN
+        category["title_locale_1"] = cat.title_locale_1
+        category["description_locale_1"] = cat.description_locale_1
+        category["title_locale_2"] = cat.title_locale_2
+        category["description_locale_2"] = cat.description_locale_2
+        category["symbol"] = cat.symbol
+        category["online_link"] = cat.online_link
+        category["metadata_count"] = cat.metadata_count
+
+        categories.append(category)
+
+    return categories
+
+
+def serialize_catalogue_metadata(md_queryset: QuerySet):
+    """ Serializes a metadata QuerySet into a list of dict elements
+
+    Faster version than using ModelSerializers
+
+    Args:
+        md_queryset (QuerySet): The queryset containing the metadata elements
+    Returns:
+         data_list (list): The list containing serialized dict elements
+    """
+    data_list = []
+
+    t_cat_serialize = 0
+    t_dim_serialize = 0
+    t_md_type_check = 0
+    for md in md_queryset:
+        # fetch bounding geometry
+        bounding_geometry = md.bounding_geometry
+        if bounding_geometry is None:
+            bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
+
+        t_start = time()
+        try:
+            if md.is_featuretype_metadata:
+                parent_service = md.featuretype.parent_service.id
+            else:
+                parent_service = md.service.parent_service.metadata.id
+        except Exception:
+            parent_service = None
+        t_md_type_check += time() - t_start
+
+        serialized = OrderedDict()
+        serialized["id"] = md.id
+        serialized["identifier"] = md.identifier
+        serialized["type"] = md.metadata_type.type
+        serialized["title"] = md.title
+        serialized["abstract"] = md.abstract
+        serialized["spatial_extent_geojson"] = bounding_geometry.geojson
+        serialized["capabilities_uri"] = md.capabilities_uri
+        serialized["xml_metadata_uri"] = md.service_metadata_uri
+        serialized["html_metadata_uri"] = md.html_metadata_uri
+        serialized["fees"] = md.fees
+        serialized["access_constraints"] = md.access_constraints
+        serialized["terms_of_use"] = md.terms_of_use
+        serialized["parent_service"] = parent_service
+        serialized["organization"] = serialize_contact(md)
+        serialized["related_metadata"] = serialize_metadata_relation(md)
+        serialized["keywords"] = [kw.keyword for kw in md.keywords.all()]
+        t_start = time()
+        serialized["categories"] = serialize_categories(md)
+        t_cat_serialize += time() - t_start
+        t_start = time()
+        serialized["dimensions"] = serialize_dimensions(md)
+        t_dim_serialize += time() - t_start
+
+        data_list.append(serialized)
+
+    print_debug_mode(EXEC_TIME_PRINT % ("cat serializing", t_cat_serialize))
+    print_debug_mode(EXEC_TIME_PRINT % ("dim serializing", t_dim_serialize))
+    print_debug_mode(EXEC_TIME_PRINT % ("md type check", t_md_type_check))
+
+    return data_list

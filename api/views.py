@@ -1,5 +1,6 @@
 # Create your views here.
 from collections import OrderedDict
+from time import time
 
 from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
@@ -21,12 +22,15 @@ from MrMap.decorator import check_permission
 from MrMap.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
     RESOURCE_NOT_FOUND, SERVICE_REMOVED
 from MrMap.responses import DefaultContext, APIResponse
+from MrMap.settings import EXEC_TIME_PRINT
+from MrMap.utils import print_debug_mode
 from api import view_helper
 from api.forms import TokenForm
 from api.permissions import CanRegisterService, CanRemoveService, CanActivateService
 
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, \
-    MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer, CategorySerializer
+    MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer, CategorySerializer, \
+    serialize_catalogue_metadata
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
     LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER, \
     SUGGESTIONS_MAX_RESULTS, API_CACHE_KEY_PREFIX
@@ -693,9 +697,23 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         Returns:
              The queryset
         """
+        # Prefetches multiple related attributes to reduce the access time later!
         self.queryset = Metadata.objects.filter(
             is_active=True,
         )
+        prefetches = [
+            "keywords",
+            "categories",
+            "related_metadata",
+            "dimensions",
+            "contact",
+            "terms_of_use",
+            "featuretype__parent_service",
+            "service__parent_service",
+            "metadata_type",
+        ]
+        for prefetch in prefetches:
+            self.queryset = self.queryset.prefetch_related(prefetch)
 
         # filter by dimensions
         time_min = self.request.query_params.get("time-min", None) or None
@@ -744,11 +762,16 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
+    #@method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         serializer = CatalogueMetadataSerializer(tmp, many=True)
-        return self.get_paginated_response(serializer.data)
+        #data = serializer.data
+        t_start = time()
+        data = serialize_catalogue_metadata(tmp)
+        print_debug_mode(EXEC_TIME_PRINT % ("serializing", time() - t_start))
+
+        return self.get_paginated_response(data)
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t

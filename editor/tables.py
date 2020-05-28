@@ -4,7 +4,6 @@ from django.utils.html import format_html
 from django.urls import reverse
 
 from MapSkinner.forms import MrMapConfirmForm
-from MapSkinner.responses import DefaultContext
 from MapSkinner.tables import MapSkinnerTable
 from service.models import Layer, FeatureType, MetadataRelation
 from MapSkinner.consts import *
@@ -196,8 +195,29 @@ class DatasetTable(MapSkinnerTable):
         edit_url = reverse('editor:edit', args=(record.id,))
         edit_btn = _get_edit_button(edit_url, self.user)
 
-        reset_url = reverse('editor:restore-dataset-metadata', args=(record.id,))
-        reset_btn = _get_undo_button(reset_url, self.user)
+        context_restore_btn = {
+            "btn_size": BTN_SM_CLASS,
+            "btn_color": get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+            "id_modal": f"restore_dataset_{record.id}",
+            "btn_value": get_theme(self.user)["ICONS"]['UNDO'],
+            "tooltip": _(f"Reset {record.title} [{record.id}] dataset"),
+            "tooltip_placement": "left",
+        }
+        restore_btn = render_to_string(template_name="sceletons/open-modal-button.html",
+                                       context=context_restore_btn)
+        context_restore_modal = {
+            "metadata": record,
+            "form": MrMapConfirmForm(action_url=reverse('editor:restore-dataset-metadata', args=(record.id,)),
+                                     is_confirmed_label=_("Do you really want to restore this dataset?")),
+            "id_modal": f"restore_dataset_{record.id}",
+            "THEME": get_theme(self.user),
+            "modal_title": format_html("Restore dataset <strong>{} [{}]</strong>", record.title, record.id),
+            "modal_submit_btn_content": format_html("{} {}", get_theme(self.user)["ICONS"]['UNDO'], _('Restore'))
+        }
+        restore_modal = render_to_string(request=self.request,
+                                         template_name="modals/confirm_modal.html",
+                                         context=context_restore_modal)
+        restore_trailer = format_html("{}{}", restore_btn, restore_modal)
 
         context_remove_btn = {
             "btn_size": BTN_SM_CLASS,
@@ -205,19 +225,21 @@ class DatasetTable(MapSkinnerTable):
             "id_modal": f"remove_dataset_{record.id}",
             "btn_value": get_theme(self.user)["ICONS"]['REMOVE'],
             "tooltip": _(f"Remove {record.title} [{record.id}] dataset"),
-            "tooltip_placement": "left"
-        }
+            "tooltip_placement": "left",
+            }
         remove_btn = render_to_string(template_name="sceletons/open-modal-button.html",
                                       context=context_remove_btn)
         context_remove_modal = {
             "metadata": record,
-            "form": MrMapConfirmForm(action_url=reverse("editor:remove-dataset-metadata", args=[record.id, ]),
+            "form": MrMapConfirmForm(action_url=reverse("editor:remove-dataset-metadata", args=(record.id, )),
                                      is_confirmed_label=_("Do you really want to delete this dataset?")),
             "id_modal": f"remove_dataset_{record.id}",
             "THEME": get_theme(self.user),
+            "modal_title": format_html("Remove dataset <strong>{} [{}]</strong>", record.title, record.id),
+            "modal_submit_btn_content": format_html("{} {}", get_theme(self.user)["ICONS"]['REMOVE'], _('Remove'))
         }
         remove_modal = render_to_string(request=self.request,
-                                        template_name="modals/remove_dataset.html",
+                                        template_name="modals/confirm_modal.html",
                                         context=context_remove_modal)
         remove_trailer = format_html("{}{}", remove_btn, remove_modal)
 
@@ -231,6 +253,6 @@ class DatasetTable(MapSkinnerTable):
         if is_mr_map_origin:
             btns = format_html(btns, edit_btn, remove_trailer)
         else:
-            btns = format_html(btns, edit_btn, reset_btn)
+            btns = format_html(btns, edit_btn, restore_trailer)
 
         return btns

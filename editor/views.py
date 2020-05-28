@@ -10,7 +10,7 @@ from MapSkinner.decorator import check_permission, check_ownership
 from MapSkinner.messages import METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
     SECURITY_PROXY_WARNING_ONLY_FOR_ROOT, DATASET_MD_EDITED, METADATA_ADDED_SUCCESS
-from MapSkinner.responses import BackendAjaxResponse
+from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from api.settings import API_CACHE_KEY_PREFIX
 from editor.forms import MetadataEditorForm, DatasetMetadataEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
@@ -483,38 +483,53 @@ def restore(request: HttpRequest, metadata_id: int):
 
     metadata = Metadata.objects.get(id=metadata_id)
 
-    ext_auth = metadata.get_external_authentication_object()
+    remove_form = MrMapConfirmForm(request.POST,
+                                   action_url=reverse("editor:restore-dataset-metadata", args=[metadata_id, ]),
+                                   is_confirmed_label=_("Do you really want to restore this dataset?"))
+    if request.method == 'POST':
+        if remove_form.is_valid():
+            ext_auth = metadata.get_external_authentication_object()
+            service_type = metadata.get_service_type()
+            if service_type == 'wms':
+                children_md = Metadata.objects.filter(service__parent_service__metadata=metadata, is_custom=True)
+            elif service_type == 'wfs':
+                children_md = Metadata.objects.filter(featuretype__parent_service__metadata=metadata, is_custom=True)
 
-    service_type = metadata.get_service_type()
-    if service_type == 'wms':
-        children_md = Metadata.objects.filter(service__parent_service__metadata=metadata, is_custom=True)
-    elif service_type == 'wfs':
-        children_md = Metadata.objects.filter(featuretype__parent_service__metadata=metadata, is_custom=True)
+            if not metadata.is_custom and len(children_md) == 0:
+                messages.add_message(request, messages.INFO, METADATA_IS_ORIGINAL)
+                return redirect(request.META.get("HTTP_REFERER"))
 
-    if not metadata.is_custom and len(children_md) == 0:
-        messages.add_message(request, messages.INFO, METADATA_IS_ORIGINAL)
-        return redirect(request.META.get("HTTP_REFERER"))
+            if metadata.is_custom:
+                metadata.restore(metadata.identifier, external_auth=ext_auth)
+                metadata.save()
 
-    if metadata.is_custom:
-        metadata.restore(metadata.identifier, external_auth=ext_auth)
-        metadata.save()
-
-    for md in children_md:
-        md.restore(md.identifier)
-        md.save()
-    messages.add_message(request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
-    if not metadata.is_root():
-        if service_type == 'wms':
-            parent_metadata = metadata.service.parent_service.metadata
-        elif service_type == 'wfs':
-            parent_metadata = metadata.featuretype.parent_service.metadata
+            for md in children_md:
+                md.restore(md.identifier)
+                md.save()
+            messages.add_message(request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
+            if not metadata.is_root():
+                if service_type == 'wms':
+                    parent_metadata = metadata.service.parent_service.metadata
+                elif service_type == 'wfs':
+                    parent_metadata = metadata.featuretype.parent_service.metadata
+                else:
+                    # This case is not important now
+                    pass
+            else:
+                parent_metadata = metadata
+            user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_RESTORED,
+                                              "{}: {}".format(parent_metadata.title, metadata.title))
+            
+            return HttpResponseRedirect(reverse("editor:datasets-index", ), status=303)
         else:
-            # This case is not important now
-            pass
+            params = {
+                "remove_dataset_form": remove_form,
+                # ToDo:
+                "show_restore_dataset_modal": True,
+            }
+            return index_datasets(request=request, update_params=params, status_code=422)
     else:
-        parent_metadata = metadata
-    user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_RESTORED, "{}: {}".format(parent_metadata.title, metadata.title))
-    return redirect("editor:index")
+        return HttpResponseRedirect(reverse("editor:datasets-index", ), status=303)
 
 
 @login_required

@@ -221,7 +221,7 @@ class LayerSerializer(ServiceSerializer):
     is_available = serializers.BooleanField()
     is_active = serializers.BooleanField()
     parent_service = serializers.PrimaryKeyRelatedField(read_only=True)
-    child_layer = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
+    child_layers = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
     servicetype = ServiceTypeSerializer()
 
 

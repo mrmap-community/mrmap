@@ -16,11 +16,20 @@
             <form id="id_modal_form_{{id_modal}}" action="{{form.action_url}}" method="post">
                 {% csrf_token %}
                 <div class="modal-body">
-                    {% if form %}
-                        {% bootstrap_form form %}
-                    {% endif %}
-                    {% if form.has_autocomplete %}
-                        {% include 'sceletons/autocomplete_form_media.html' %}
+                    {% if formset %}
+                        {% for form in formset %}
+                            {% bootstrap_form form %}
+                            {% if form.has_autocomplete %}
+                                {% include 'sceletons/autocomplete_form_media.html' %}
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        {% if form %}
+                            {% bootstrap_form form %}
+                        {% endif %}
+                        {% if form.has_autocomplete %}
+                            {% include 'sceletons/autocomplete_form_media.html' %}
+                        {% endif %}
                     {% endif %}
                 </div>
                 <div class="modal-footer">

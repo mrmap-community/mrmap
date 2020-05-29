@@ -10,12 +10,12 @@ from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.forms import ModelMultipleChoiceField, ModelChoiceField
 from django.utils.translation import gettext_lazy as _
-
-from MapSkinner.forms import MrMapModelForm
+from django import forms
+from MapSkinner.forms import MrMapModelForm, MrMapForm
 from MapSkinner.iso19115.md_metadata import create_gmd_md_metadata
 from MapSkinner.messages import METADATA_ADDED_SUCCESS, DATASET_MD_EDITED
 from service.helper.enums import MetadataEnum
-from service.models import Metadata, MetadataRelation, MetadataOrigin, MetadataType, Document
+from service.models import Metadata, MetadataRelation, MetadataOrigin, MetadataType, Document, Keyword, Category
 from users.helper import user_helper
 
 
@@ -226,3 +226,82 @@ class DatasetMetadataEditorForm(MrMapModelForm):
         user_helper.create_group_activity(m.created_by, self.user, DATASET_MD_EDITED,
                                           "{}: {}".format(m.title, None))
         return m
+
+
+class DatasetIdentificationForm(MrMapForm):
+    title = forms.CharField(label=_('Title'),)
+    abstract = forms.CharField(label=_('Abstract'), )
+    # encoding = forms.ModelChoiceField(label=_('Encoding'),)
+    # character_encoding = forms.ModelChoiceField(label=_('Character Encoding'),)
+    # coordinate_reference_system = forms.ModelChoiceField(label=_('Coordinate Reference System'),)
+
+    additional_related_objects = MetadataModelMutlipleChoiceField(
+        queryset=None,
+        widget=autocomplete.ModelSelect2Multiple(
+            url='editor:metadata-autocomplete',
+            attrs={
+                "data-containercss": {
+                    "height": "3em",
+                    "width": "3em",
+                },
+            },
+        ),
+        required=False, )
+
+    def __init__(self, *args, **kwargs):
+        # first call parent's constructor
+        super(DatasetIdentificationForm, self).__init__(form_title=_("Identification"),
+                                                        has_autocomplete_fields=True,
+                                                        *args,
+                                                        **kwargs,)
+
+        self.fields['additional_related_objects'].queryset = self.requesting_user.get_metadatas_as_qs(
+            type=MetadataEnum.DATASET, inverse_match=True)
+
+        # ToDo:
+        if 'instance' in kwargs:
+            instance = kwargs['instance']
+            self.fields['additional_related_objects'].queryset = self.fields['additional_related_objects'].queryset.exclude(id=instance.id)
+            metadata_relations = MetadataRelation.objects.filter(metadata_to=instance)
+            additional_related_objects = []
+            for metadata_relation in metadata_relations:
+                if metadata_relation.origin.name != 'capabilities':
+                    additional_related_objects.append(metadata_relation.metadata_from)
+            self.fields['additional_related_objects'].initial = additional_related_objects
+
+
+class DatasetClassificationForm(MrMapForm):
+    keywords = MetadataModelMutlipleChoiceField(
+        label=_('Keywords'),
+        queryset=Keyword.objects.all(),
+        widget=autocomplete.ModelSelect2Multiple(
+            url='editor:keyword-autocomplete',
+            attrs={
+                "data-containercss": {
+                    "height": "3em",
+                    "width": "3em",
+                },
+            },
+        ),
+        required=False, )
+    categories = MetadataModelMutlipleChoiceField(
+        label=_('Categories'),
+        queryset=Category.objects.all(),
+        widget=autocomplete.ModelSelect2Multiple(
+            url='editor:category-autocomplete',
+            attrs={
+                "data-containercss": {
+                    "height": "3em",
+                    "width": "3em",
+                },
+            },
+        ),
+        required=False,)
+
+    def __init__(self, *args, **kwargs):
+        # first call parent's constructor
+        super(DatasetClassificationForm, self).__init__(form_title=_("Classification"),
+                                                        has_autocomplete_fields=True,
+                                                        *args,
+                                                        **kwargs,)
+

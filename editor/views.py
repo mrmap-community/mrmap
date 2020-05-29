@@ -1,4 +1,6 @@
 import json
+
+from django.forms import formset_factory
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -7,12 +9,13 @@ from django.shortcuts import render, redirect, get_object_or_404
 from MapSkinner import utils
 from MapSkinner.cacher import PageCacher
 from MapSkinner.decorator import check_permission, check_ownership
+from MapSkinner.forms import MrMapFormList
 from MapSkinner.messages import METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
     SECURITY_PROXY_WARNING_ONLY_FOR_ROOT, DATASET_MD_EDITED, METADATA_ADDED_SUCCESS
 from MapSkinner.responses import BackendAjaxResponse, DefaultContext
 from api.settings import API_CACHE_KEY_PREFIX
-from editor.forms import MetadataEditorForm, DatasetMetadataEditorForm
+from editor.forms import MetadataEditorForm, DatasetMetadataEditorForm, DatasetIdentificationForm, DatasetClassificationForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter
 from service.helper.enums import OGCServiceEnum, MetadataEnum
@@ -62,6 +65,8 @@ def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, ):
     return datasets_table
 
 
+
+
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
 def index(request: HttpRequest):
@@ -76,11 +81,17 @@ def index(request: HttpRequest):
     user = user_helper.get_user(request)
     template = "views/editor_service_table_index.html"
 
+    form_list = [
+        DatasetIdentificationForm(action_url=reverse('editor:add-dataset-metadata'), request=request,),
+        DatasetClassificationForm(action_url=reverse('editor:add-dataset-metadata'), request=request,),
+    ]
+    mr_map_form_list = MrMapFormList(action_url=reverse('editor:add-dataset-metadata'), form_list=form_list)
+
     params = {
         "wms_table": _prepare_wms_table(request, user),
         "wfs_table": _prepare_wfs_table(request, user),
         "dataset_table": _prepare_dataset_table(request, user),
-        "new_dataset_form": DatasetMetadataEditorForm(action_url=reverse('editor:add-dataset-metadata'), requesting_user=user,),
+        "new_dataset_form": mr_map_form_list,
     }
     context = DefaultContext(request, params, user)
     return render(request, template, context.get_context())
@@ -146,10 +157,15 @@ def index_datasets(request: HttpRequest, update_params=None, status_code=None):
     user = user_helper.get_user(request)
 
     template = "views/editor_service_table_index_datasets.html"
+    form_list = [
+        DatasetIdentificationForm(action_url=reverse('editor:add-dataset-metadata'), request=request, ),
+        DatasetClassificationForm(action_url=reverse('editor:add-dataset-metadata'), request=request, ),
+    ]
+    mr_map_form_list = MrMapFormList(action_url=reverse('editor:add-dataset-metadata'), form_list=form_list)
 
     params = {
         "dataset_table": _prepare_dataset_table(request, user),
-        "new_dataset_form": DatasetMetadataEditorForm(action_url=reverse('editor:add-dataset-metadata'), requesting_user=user,),
+        "new_dataset_form": mr_map_form_list,
     }
 
     if update_params:
@@ -226,13 +242,20 @@ def add_dataset(request: HttpRequest,):
     user = user_helper.get_user(request)
 
     if request.method == 'POST':
-        editor_form = DatasetMetadataEditorForm(request.POST, action_url=reverse('editor:add-dataset-metadata'), requesting_user=user)
+        editor_form = DatasetMetadataEditorForm(request.POST,
+                                                request=request,
+                                                action_url=reverse('editor:add-dataset-metadata'),
+                                                requesting_user=user)
         if editor_form.is_valid():
             editor_form.save()
             return HttpResponseRedirect(reverse("editor:index", ), status=303)
         else:
-            pass
-            # ToDo:
+            params = {
+                "new_ed": editor_form,
+                # ToDo:
+                "show_restore_dataset_modal": True,
+            }
+            return index_datasets(request=request, update_params=params, status_code=422)
     else:
         return HttpResponseRedirect(reverse("editor:index", ), status=303)
 

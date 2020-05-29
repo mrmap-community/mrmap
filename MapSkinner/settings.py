@@ -135,7 +135,7 @@ INSTALLED_APPS = [
 ]
 
 TEMPLATE_LOADERS = (
-    'django.template.loaders.structure.django_tables2_extras.py',
+    'django.template.loaders.structure.mr_map_filters.py',
 )
 
 MIDDLEWARE = [

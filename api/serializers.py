@@ -347,6 +347,9 @@ def serialize_contact(md: Metadata):
     contact = OrderedDict()
     md_contact = md.contact
 
+    if md_contact is None:
+        return None
+
     contact["id"] = md_contact.id
     contact["organization_name"] = md_contact.organization_name
     contact["is_auto_generated"] = md_contact.is_auto_generated

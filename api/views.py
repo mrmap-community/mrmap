@@ -705,6 +705,10 @@ class CatalogueViewSet(viewsets.GenericViewSet):
             "keywords",
             "categories",
             "related_metadata",
+            "related_metadata__metadata_from",
+            "related_metadata__metadata_from__metadata_type",
+            "related_metadata__metadata_to",
+            "related_metadata__metadata_to__metadata_type",
             "dimensions",
             "contact",
             "terms_of_use",
@@ -765,11 +769,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
     #@method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
-        serializer = CatalogueMetadataSerializer(tmp, many=True)
-        #data = serializer.data
-        t_start = time()
         data = serialize_catalogue_metadata(tmp)
-        print_debug_mode(EXEC_TIME_PRINT % ("serializing", time() - t_start))
 
         return self.get_paginated_response(data)
 

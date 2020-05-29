@@ -309,7 +309,29 @@ def serialize_metadata_relation(md: Metadata):
     Returns:
          data_list (list): The list containing serialized dict elements
     """
-    return ""
+    relations = []
+    md_relations = md.related_metadata.all()
+
+    for rel in md_relations:
+        md_from = rel.metadata_from
+        md_to = rel.metadata_to
+
+        rel_obj = OrderedDict()
+        rel_obj["relation_from"] = {
+            "id": md_from.id,
+            "type": md_from.metadata_type.type,
+            "identifier": md_from.identifier
+        }
+        rel_obj["relation_type"] = rel.relation_type
+        rel_obj["relation_to"] = {
+            "id": md_to.id,
+            "type": md_to.metadata_type.type,
+            "identifier": md_to.identifier
+        }
+
+        relations.append(rel_obj)
+
+    return relations
 
 
 def serialize_contact(md: Metadata):
@@ -322,7 +344,20 @@ def serialize_contact(md: Metadata):
     Returns:
          data_list (list): The list containing serialized dict elements
     """
-    return ""
+    contact = OrderedDict()
+    md_contact = md.contact
+
+    contact["id"] = md_contact.id
+    contact["organization_name"] = md_contact.organization_name
+    contact["is_auto_generated"] = md_contact.is_auto_generated
+    contact["person_name"] = md_contact.person_name
+    contact["email"] = md_contact.email
+    contact["phone"] = md_contact.phone
+    contact["facsimile"] = md_contact.facsimile
+    contact["city"] = md_contact.city
+    contact["country"] = md_contact.country
+
+    return contact
 
 
 def serialize_dimensions(md: Metadata):
@@ -392,17 +427,15 @@ def serialize_catalogue_metadata(md_queryset: QuerySet):
          data_list (list): The list containing serialized dict elements
     """
     data_list = []
-
-    t_cat_serialize = 0
-    t_dim_serialize = 0
-    t_md_type_check = 0
     for md in md_queryset:
-        # fetch bounding geometry
+        # fetch keywords beforehand
+        keywords = md.keywords.all()
+
+        # fetch bounding geometry beforehand
         bounding_geometry = md.bounding_geometry
         if bounding_geometry is None:
             bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 
-        t_start = time()
         try:
             if md.is_featuretype_metadata:
                 parent_service = md.featuretype.parent_service.id
@@ -410,7 +443,6 @@ def serialize_catalogue_metadata(md_queryset: QuerySet):
                 parent_service = md.service.parent_service.metadata.id
         except Exception:
             parent_service = None
-        t_md_type_check += time() - t_start
 
         serialized = OrderedDict()
         serialized["id"] = md.id
@@ -426,20 +458,12 @@ def serialize_catalogue_metadata(md_queryset: QuerySet):
         serialized["access_constraints"] = md.access_constraints
         serialized["terms_of_use"] = md.terms_of_use
         serialized["parent_service"] = parent_service
+        serialized["keywords"] = [kw.keyword for kw in keywords]
         serialized["organization"] = serialize_contact(md)
         serialized["related_metadata"] = serialize_metadata_relation(md)
-        serialized["keywords"] = [kw.keyword for kw in md.keywords.all()]
-        t_start = time()
         serialized["categories"] = serialize_categories(md)
-        t_cat_serialize += time() - t_start
-        t_start = time()
         serialized["dimensions"] = serialize_dimensions(md)
-        t_dim_serialize += time() - t_start
 
         data_list.append(serialized)
-
-    print_debug_mode(EXEC_TIME_PRINT % ("cat serializing", t_cat_serialize))
-    print_debug_mode(EXEC_TIME_PRINT % ("dim serializing", t_dim_serialize))
-    print_debug_mode(EXEC_TIME_PRINT % ("md type check", t_md_type_check))
 
     return data_list

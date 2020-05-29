@@ -5,7 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 15.08.19
 
 """
-from collections import OrderedDict
+from collections import OrderedDict, Iterable
 from time import time
 
 from django.db.models import QuerySet
@@ -416,6 +416,53 @@ def serialize_categories(md: Metadata):
     return categories
 
 
+def perform_catalogue_entry_serialization(md: Metadata):
+    """ Performs serialization for a single metadata object
+
+    Args:
+        md (Metadata): The metadata object
+    Returns:
+        serialized (OrderedDict): A dict object, containing the metadata catalogue data
+    """
+    # fetch keywords beforehand
+    keywords = md.keywords.all()
+
+    # fetch bounding geometry beforehand
+    bounding_geometry = md.bounding_geometry
+    if bounding_geometry is None:
+        bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
+
+    try:
+        if md.is_featuretype_metadata:
+            parent_service = md.featuretype.parent_service.id
+        else:
+            parent_service = md.service.parent_service.metadata.id
+    except Exception:
+        parent_service = None
+
+    serialized = OrderedDict()
+    serialized["id"] = md.id
+    serialized["identifier"] = md.identifier
+    serialized["type"] = md.metadata_type.type
+    serialized["title"] = md.title
+    serialized["abstract"] = md.abstract
+    serialized["spatial_extent_geojson"] = bounding_geometry.geojson
+    serialized["capabilities_uri"] = md.capabilities_uri
+    serialized["xml_metadata_uri"] = md.service_metadata_uri
+    serialized["html_metadata_uri"] = md.html_metadata_uri
+    serialized["fees"] = md.fees
+    serialized["access_constraints"] = md.access_constraints
+    serialized["terms_of_use"] = md.terms_of_use
+    serialized["parent_service"] = parent_service
+    serialized["keywords"] = [kw.keyword for kw in keywords]
+    serialized["organization"] = serialize_contact(md)
+    serialized["related_metadata"] = serialize_metadata_relation(md)
+    serialized["categories"] = serialize_categories(md)
+    serialized["dimensions"] = serialize_dimensions(md)
+
+    return serialized
+
+
 def serialize_catalogue_metadata(md_queryset: QuerySet):
     """ Serializes a metadata QuerySet into a list of dict elements
 
@@ -426,44 +473,15 @@ def serialize_catalogue_metadata(md_queryset: QuerySet):
     Returns:
          data_list (list): The list containing serialized dict elements
     """
-    data_list = []
-    for md in md_queryset:
-        # fetch keywords beforehand
-        keywords = md.keywords.all()
+    # If no queryset but a single metadata is provided, we do not add everything into a
+    is_single_retrieve = not isinstance(md_queryset, Iterable)
 
-        # fetch bounding geometry beforehand
-        bounding_geometry = md.bounding_geometry
-        if bounding_geometry is None:
-            bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
+    if is_single_retrieve:
+        ret_val = perform_catalogue_entry_serialization(md_queryset)
+    else:
+        ret_val = []
+        for md in md_queryset:
+            serialized = perform_catalogue_entry_serialization(md)
+            ret_val.append(serialized)
 
-        try:
-            if md.is_featuretype_metadata:
-                parent_service = md.featuretype.parent_service.id
-            else:
-                parent_service = md.service.parent_service.metadata.id
-        except Exception:
-            parent_service = None
-
-        serialized = OrderedDict()
-        serialized["id"] = md.id
-        serialized["identifier"] = md.identifier
-        serialized["type"] = md.metadata_type.type
-        serialized["title"] = md.title
-        serialized["abstract"] = md.abstract
-        serialized["spatial_extent_geojson"] = bounding_geometry.geojson
-        serialized["capabilities_uri"] = md.capabilities_uri
-        serialized["xml_metadata_uri"] = md.service_metadata_uri
-        serialized["html_metadata_uri"] = md.html_metadata_uri
-        serialized["fees"] = md.fees
-        serialized["access_constraints"] = md.access_constraints
-        serialized["terms_of_use"] = md.terms_of_use
-        serialized["parent_service"] = parent_service
-        serialized["keywords"] = [kw.keyword for kw in keywords]
-        serialized["organization"] = serialize_contact(md)
-        serialized["related_metadata"] = serialize_metadata_relation(md)
-        serialized["categories"] = serialize_categories(md)
-        serialized["dimensions"] = serialize_dimensions(md)
-
-        data_list.append(serialized)
-
-    return data_list
+    return ret_val

@@ -1,6 +1,5 @@
 # Create your views here.
 from collections import OrderedDict
-from time import time
 
 from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
@@ -22,8 +21,6 @@ from MrMap.decorator import check_permission
 from MrMap.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
     RESOURCE_NOT_FOUND, SERVICE_REMOVED
 from MrMap.responses import DefaultContext, APIResponse
-from MrMap.settings import EXEC_TIME_PRINT
-from MrMap.utils import print_debug_mode
 from api import view_helper
 from api.forms import TokenForm
 from api.permissions import CanRegisterService, CanRemoveService, CanActivateService
@@ -288,10 +285,13 @@ class ServiceViewSet(viewsets.GenericViewSet):
                 return Response(status=423)
             serializer = LayerSerializer(tmp)
         except ObjectDoesNotExist:
-            tmp = Service.objects.get(metadata__id=pk)
-            if not tmp.metadata.is_active:
-                return Response(status=423)
-            serializer = ServiceSerializer(tmp)
+            try:
+                tmp = Service.objects.get(metadata__id=pk)
+                if not tmp.metadata.is_active:
+                    return Response(status=423)
+                serializer = ServiceSerializer(tmp)
+            except ObjectDoesNotExist:
+                return Response(RESOURCE_NOT_FOUND, status=404)
 
         return Response(serializer.data)
 
@@ -332,9 +332,11 @@ class ServiceViewSet(viewsets.GenericViewSet):
             return Response(data=response.data, status=404)
 
     def update(self, request, pk=None):
+        # Not supported
         pass
 
     def partial_update(self, request, pk=None):
+        # Not supported
         pass
 
     def destroy(self, request, pk=None):
@@ -430,18 +432,24 @@ class LayerViewSet(viewsets.GenericViewSet):
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
-        tmp = Layer.objects.get(metadata__id=pk)
-        if not tmp.metadata.is_active:
-            return Response(status=423)
-        return Response(LayerSerializer(tmp).data)
+        try:
+            tmp = Layer.objects.get(metadata__id=pk)
+            if not tmp.metadata.is_active:
+                return Response(status=423)
+            return Response(LayerSerializer(tmp).data)
+        except ObjectDoesNotExist:
+            return Response(RESOURCE_NOT_FOUND, status=404)
 
     def update(self, request, pk=None):
+        # Not supported
         pass
 
     def partial_update(self, request, pk=None):
+        # Not supported
         pass
 
     def destroy(self, request, pk=None):
+        # Not supported
         pass
 
 
@@ -547,18 +555,24 @@ class MetadataViewSet(viewsets.GenericViewSet):
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
-        tmp = Metadata.objects.get(id=pk)
-        if not tmp.is_active:
-            return Response(status=423)
-        return Response(MetadataSerializer(tmp).data)
+        try:
+            tmp = Metadata.objects.get(id=pk)
+            if not tmp.is_active:
+                return Response(status=423)
+            return Response(MetadataSerializer(tmp).data)
+        except ObjectDoesNotExist:
+            return Response(RESOURCE_NOT_FOUND, status=404)
 
     def update(self, request, pk=None):
+        # Not supported
         pass
 
     def partial_update(self, request, pk=None):
+        # Not supported
         pass
 
     def destroy(self, request, pk=None):
+        # Not supported
         pass
 
 
@@ -616,16 +630,22 @@ class GroupViewSet(viewsets.GenericViewSet):
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
-        tmp = MrMapGroup.objects.get(id=pk)
-        return Response(ServiceSerializer(tmp).data)
+        try:
+            tmp = MrMapGroup.objects.get(id=pk)
+            return Response(ServiceSerializer(tmp).data)
+        except ObjectDoesNotExist:
+            return Response(RESOURCE_NOT_FOUND, status=404)
 
     def update(self, request, pk=None):
+        # Not supported
         pass
 
     def partial_update(self, request, pk=None):
+        # Not supported
         pass
 
     def destroy(self, request, pk=None):
+        # Not supported
         pass
 
 
@@ -766,7 +786,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    #@method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         data = serialize_catalogue_metadata(tmp)
@@ -777,10 +797,14 @@ class CatalogueViewSet(viewsets.GenericViewSet):
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
-        tmp = Metadata.objects.get(id=pk)
-        if not tmp.is_active:
-            return Response(status=423)
-        return Response(CatalogueMetadataSerializer(tmp).data)
+        try:
+            tmp = Metadata.objects.get(id=pk)
+            if not tmp.is_active:
+                return Response(status=423)
+            data = serialize_catalogue_metadata(tmp)
+            return Response(data)
+        except ObjectDoesNotExist:
+            return Response(RESOURCE_NOT_FOUND, status=404)
 
 
 class SuggestionViewSet(viewsets.GenericViewSet):
@@ -826,7 +850,7 @@ class SuggestionViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    #@method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         data = {

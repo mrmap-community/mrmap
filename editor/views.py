@@ -229,10 +229,7 @@ def add_dataset(request: HttpRequest,):
     if request.method == 'POST':
         editor_form = DatasetMetadataEditorForm(request.POST, action_url=reverse('editor:add-dataset-metadata'), requesting_user=user)
         if editor_form.is_valid():
-            new_dataset_metadata = editor_form.save()
-
-            messages.add_message(request, messages.SUCCESS, METADATA_ADDED_SUCCESS)
-            user_helper.create_group_activity(new_dataset_metadata.created_by, user, DATASET_MD_EDITED, "{}: {}".format(new_dataset_metadata.title, None))
+            editor_form.save()
             return HttpResponseRedirect(reverse("editor:index", ), status=303)
         else:
             pass

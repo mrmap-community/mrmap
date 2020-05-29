@@ -1,5 +1,6 @@
 <!-- Modal -->
 {% load bootstrap4 %}
+{% load mr_map_filters %}
 {# Usage: use with parameter on expanding template to declare show_modal, id_modal and form variable  #}
 <div class="modal {% if form.errors|length > 0  %} animated shake {% endif %} {% if not show_modal %} fade {% endif %}" id="id_modal_{{id_modal}}" data-backdrop="static" tabindex="-1" role="dialog"
      aria-labelledby="id_modal_title_{{id_modal}}" aria-hidden="true">
@@ -16,18 +17,15 @@
             <form id="id_modal_form_{{id_modal}}" action="{{form.action_url}}" method="post">
                 {% csrf_token %}
                 <div class="modal-body">
-                    {% if formset %}
-                        {% for form in formset %}
-                            {% bootstrap_form form %}
-                            {% if form.has_autocomplete %}
-                                {% include 'sceletons/autocomplete_form_media.html' %}
-                            {% endif %}
+                    {% if form|isinst:"MapSkinner.forms.MrMapFormList" %}
+                        {% for sub_form in form.form_list %}
+                            {% with sub_form.form_title as id_accordion %}
+                                {% include 'includes/accordion_wrapped_form.html' %}
+                            {% endwith %}
                         {% endfor %}
                     {% else %}
-                        {% if form %}
-                            {% bootstrap_form form %}
-                        {% endif %}
-                        {% if form.has_autocomplete %}
+                        {% bootstrap_form form %}
+                        {% if form.has_autocomplete_fields %}
                             {% include 'sceletons/autocomplete_form_media.html' %}
                         {% endif %}
                     {% endif %}

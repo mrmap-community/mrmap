@@ -216,8 +216,9 @@ class DatasetTable(MapSkinnerTable):
                                        context=context_restore_btn)
         context_restore_modal = {
             "metadata": record,
-            "form": MrMapConfirmForm(action_url=reverse('editor:restore-dataset-metadata', args=(record.id,)),
-                                     is_confirmed_label=_("Do you really want to restore this dataset?")),
+            "form": MrMapConfirmForm(request=self.request,
+                                     action_url=reverse('editor:restore-dataset-metadata', args=(record.id,)),
+                                     is_confirmed_label=_("Do you really want to restore this dataset?"),),
             "id_modal": f"restore_dataset_{record.id}",
             "THEME": get_theme(self.user),
             "modal_title": format_html("Restore dataset <strong>{} [{}]</strong>", record.title, record.id),
@@ -240,7 +241,8 @@ class DatasetTable(MapSkinnerTable):
                                       context=context_remove_btn)
         context_remove_modal = {
             "metadata": record,
-            "form": MrMapConfirmForm(action_url=reverse("editor:remove-dataset-metadata", args=(record.id, )),
+            "form": MrMapConfirmForm(request=self.request,
+                                     action_url=reverse("editor:remove-dataset-metadata", args=(record.id, )),
                                      is_confirmed_label=_("Do you really want to delete this dataset?")),
             "id_modal": f"remove_dataset_{record.id}",
             "THEME": get_theme(self.user),

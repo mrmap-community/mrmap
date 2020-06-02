@@ -119,6 +119,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.postgres',
     'django.contrib.gis',
+    'formtools',
     'service',
     'users',
     'structure',

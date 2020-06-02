@@ -1344,7 +1344,8 @@ class Metadata(Resource):
             subelement_md.use_proxy_uri = self.use_proxy_uri
             try:
                 subelement_md_doc = Document.objects.get(related_metadata=subelement_md)
-                subelement_md_doc.set_proxy(use_proxy)
+                if subelement_md_doc.current_capability_document is not None:
+                    subelement_md_doc.set_proxy(use_proxy)
             except ObjectDoesNotExist:
                 pass
             subelement_md.save()
@@ -1955,6 +1956,10 @@ class Document(Resource):
         Returns:
 
         """
+        if self.current_capability_document is None:
+            # Nothing to do here
+            return
+
         xml_obj = xml_helper.parse_xml(self.current_capability_document)
         if is_secured:
             uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.related_metadata.id)
@@ -1988,6 +1993,10 @@ class Document(Resource):
              nothing
         """
         cap_doc_curr = self.current_capability_document
+        if cap_doc_curr is None:
+            # Nothing to do here!
+            return
+
         xml_obj = xml_helper.parse_xml(cap_doc_curr)
         service_version = force_version or self.related_metadata.get_service_version()
         service_type = self.related_metadata.get_service_type()
@@ -2053,6 +2062,10 @@ class Document(Resource):
              nothing
         """
         cap_doc_curr = self.current_capability_document
+        if cap_doc_curr is None:
+            # Nothing to do here!
+            return
+
         xml_doc = xml_helper.parse_xml(cap_doc_curr)
 
         # get <LegendURL> elements

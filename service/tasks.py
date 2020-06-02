@@ -288,8 +288,6 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
 @shared_task(name="async_process_secure_operations_form")
 @transaction.atomic
 def async_process_secure_operations_form(post_params: dict, md_id: int):
-    md = Metadata.objects.get(id=md_id)
-
     """ Processes the secure-operations input from the access-editor form of a service.
 
     Args:
@@ -298,6 +296,8 @@ def async_process_secure_operations_form(post_params: dict, md_id: int):
     Returns:
          nothing - directly changes the database
     """
+    md = Metadata.objects.get(id=md_id)
+
     # process form input
     sec_operations_groups = json.loads(post_params.get("secured-operation-groups", {}))
 

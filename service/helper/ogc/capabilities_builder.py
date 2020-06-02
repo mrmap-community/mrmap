@@ -556,6 +556,10 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
             original_doc = Document.objects.get(
                 related_metadata=self.service.metadata,
             ).original_capability_document
+            if original_doc is None:
+                original_doc = Document.objects.get(
+                    related_metadata=self.service.parent_service.metadata,
+                ).original_capability_document
         except ObjectDoesNotExist as e:
             return
         original_doc = xml_helper.parse_xml(original_doc)

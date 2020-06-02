@@ -9,6 +9,8 @@ Created on: 09.12.2019
 from datetime import timedelta
 import difflib
 from typing import Union
+from PIL import Image, UnidentifiedImageError
+from io import BytesIO
 
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -56,35 +58,25 @@ class Monitoring:
             nothing
         """
         self.get_linked_metadata()
-        has_service = True
 
         try:
             service = self.metadata.service
         except ObjectDoesNotExist:
-            has_service = False
+            pass
 
-        if has_service:
-            metadata_type = self.metadata.metadata_type.type.lower()
+        if self.metadata.is_service_metadata:
+            service_type = service.servicetype.name.lower()
+            if service_type == OGCServiceEnum.WMS.value.lower():
+                self.check_wms(service, True)
+            elif service_type == OGCServiceEnum.WFS.value.lower():
+                self.check_wfs(service)
 
-            if metadata_type == MetadataEnum.SERVICE.value.lower():
-                service_type = service.servicetype.name.lower()
-                if service_type == OGCServiceEnum.WMS.value.lower():
-                    self.check_wms(service, True)
-                elif service_type == OGCServiceEnum.WFS.value.lower():
-                    self.check_wfs(service)
-
-            elif metadata_type == MetadataEnum.LAYER.value.lower():
-
-                service_type = service.servicetype.name.lower()
-                if service_type == OGCServiceEnum.WMS.value.lower():
-                    self.check_wms(service)
-                elif service_type == OGCServiceEnum.WFS.value.lower():
-                    self.check_wfs(service)
-
-            elif metadata_type == MetadataEnum.FEATURETYPE.value.lower():
-                pass
-            elif metadata_type == MetadataEnum.DATASET.value.lower():
-                pass
+        elif self.metadata.is_layer_metadata:
+            self.check_layer(service)
+        elif self.metadata.is_featuretype_metadata:
+            self.check_featuretype(service)
+        elif self.metadata.is_dataset_metadata:
+            self.check_dataset()
 
         self.check_linked_metadata()
 
@@ -172,27 +164,57 @@ class Monitoring:
             if wms_helper.get_styles_url is not None:
                 self.check_service(wms_helper.get_styles_url)
 
-    def check_service(self, url: str, check_wfs_member: bool = False):
+    def check_layer(self, service: Service):
+        """" Checks the status of a layer.
+
+        Args:
+            service (Service): The service to check.
+        Returns:
+            nothing
+        """
+        wms_helper = WmsHelper(service)
+        get_map_url = wms_helper.get_get_map_url()
+        if get_map_url is not None:
+            self.check_service(get_map_url, check_image=True)
+
+    def check_featuretype(self, service: Service):
+        """ Checks the status of a featuretype.
+
+        Args:
+            service (Service): The service to check.
+        Returns:
+            nothing
+        """
+        wfs_helper = WfsHelper(service)
+
+        for featuretype in service.featuretypes.all():
+            get_feature_url = wfs_helper.get_get_feature_url(str(featuretype))
+            if get_feature_url is not None:
+                self.check_service(get_feature_url, check_wfs_member=True)
+
+    def check_service(self, url: str, check_wfs_member: bool = False, check_image: bool = False):
         """ Checks the status of a service and calls the appropriate handlers.
 
         Args:
             url (str): URL of the service to check.
             check_wfs_member (bool): True, if a returned xml should check for a 'member' tag.
+            check_image (bool): True, if the returned content should be checked as image.
         Returns:
             nothing
         """
-        service_status = self.check_status(url, check_wfs_member=check_wfs_member)
+        service_status = self.check_status(url, check_wfs_member=check_wfs_member, check_image=check_image)
         if service_status.success is True:
             self.handle_service_success(service_status)
         else:
             self.handle_service_error(service_status)
 
-    def check_status(self, url: str, check_wfs_member: bool = False) -> ServiceStatus:
+    def check_status(self, url: str, check_wfs_member: bool = False, check_image: bool = False) -> ServiceStatus:
         """ Check status of ogc service.
 
         Args:
             url (str): URL to the service that should be checked.
             check_wfs_member (bool): True, if a returned xml should check for a 'member' tag.
+            check_image (bool): True, if the returned content should be checked as image.
         Returns:
             ServiceStatus: Status info of service.
         """
@@ -217,13 +239,38 @@ class Monitoring:
                 if 'Exception' in xml.getroot().tag:
                     success = False
                 if check_wfs_member:
-                    if len([child for child in xml.getroot() if child.tag.endswith('member')]) != 1:
+                    if not self.has_wfs_member(xml):
                         success = False
             except AttributeError:
                 # handle successful responses that do not return xml
                 response_text = None
+            if check_image:
+                try:
+                    Image.open(BytesIO(connector.content))
+                    success = True
+                except UnidentifiedImageError:
+                    success = False
 
         return Monitoring.ServiceStatus(url, success, response_text, connector.status_code, duration)
+
+    def has_wfs_member(self, xml):
+        """Checks the existence of a (feature)Member for a wfs feature.
+
+        Args:
+            xml (object): Xml object
+        Returns:
+            bool: true, if xml has member, false otherwise
+        """
+        service = self.metadata.service
+        version = service.servicetype.version
+        if version == OGCServiceVersionEnum.V_1_0_0.value:
+            return len([child for child in xml.getroot() if child.tag.endswith('featureMember')]) != 1
+        if version == OGCServiceVersionEnum.V_1_1_0.value:
+            return len([child for child in xml.getroot() if child.tag.endswith('featureMember')]) != 1
+        if version == OGCServiceVersionEnum.V_2_0_0.value:
+            return len([child for child in xml.getroot() if child.tag.endswith('member')]) != 1
+        if version == OGCServiceVersionEnum.V_2_0_2.value:
+            return len([child for child in xml.getroot() if child.tag.endswith('member')]) != 1
 
     def check_get_capabilities(self, url: str):
         """Handles the GetCapabilities checks.
@@ -239,9 +286,33 @@ class Monitoring:
         Returns:
             nothing
         """
+        document = Document.objects.get(related_metadata=self.metadata)
+        original_document = document.original_capability_document
+        self.check_document(url, original_document)
+
+    def check_dataset(self):
+        """Handles the dataset checks.
+
+        Handles the monitoring process of the datasets as the workflow differs from other operations.
+        If the service is available, a MonitoringCapability model instance will be created and stored in the db. Set
+        values depend on possible differences in the retrieved dataset document.
+        If the service is not available, a Monitoring model instance will be created as no information on
+        differences between datset documents is given.
+
+        Args:
+            none
+        Returns:
+            nothing
+        """
+        url = self.metadata.metadata_url
+        document = Document.objects.get(related_metadata=self.metadata)
+        original_document = document.dataset_metadata_document
+        self.check_document(url, original_document)
+
+    def check_document(self, url, original_document):
         service_status = self.check_status(url)
         if service_status.success:
-            diff_obj = self.get_capabilities_diff(service_status.message)
+            diff_obj = self.get_document_diff(service_status.message, original_document)
             if diff_obj is not None:
                 needs_update = True
                 diff = ''.join(diff_obj)
@@ -261,33 +332,32 @@ class Monitoring:
         else:
             self.handle_service_error(service_status)
 
-    def get_capabilities_diff(self, new_capabilities: str) -> Union[str, None]:
-        """Computes the diff between two capabilities documents.
+    def get_document_diff(self, new_document: str, original_document: str) -> Union[str, None]:
+        """Computes the diff between two documents.
 
-        Retrieves the currently stored capabilities document and compares its hash to the one
-        in the response of the latest getCapabilities check.
+        Compares the currently stored document and compares its hash to the one
+        in the response of the latest check.
 
         Args:
-            new_capabilities (str): GetCapabilities document of last request.
+            new_document (str): Document of last request.
+            original_document (str): Original document.
         Returns:
-            str: The diff of the two capabilities documents, if hashes have differences
+            str: The diff of the two documents, if hashes have differences
             None: If the hashes have no differences
         """
-        document = Document.objects.get(related_metadata=self.metadata)
-        original_document = document.original_capability_document
         crypto_handler = CryptoHandler()
         try:
             # check if new_capabilities is bytestring and decode it if so
-            new_capabilities = new_capabilities.decode('UTF-8')
+            new_document = new_document.decode('UTF-8')
         except AttributeError:
             pass
-        new_capabilities_hash = crypto_handler.sha256(new_capabilities)
+        new_capabilities_hash = crypto_handler.sha256(new_document)
         original_document_hash = crypto_handler.sha256(original_document)
         if new_capabilities_hash == original_document_hash:
             return
         else:
             original_lines = original_document.splitlines(keepends=True)
-            new_lines = new_capabilities.splitlines(keepends=True)
+            new_lines = new_document.splitlines(keepends=True)
             # info on the created diff on https://docs.python.org/3.6/library/difflib.html#difflib.unified_diff
             diff = difflib.unified_diff(original_lines, new_lines)
             return diff

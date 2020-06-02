@@ -44,7 +44,8 @@ def run_monitoring():
             monitor = Monitor(metadata, monitoring_run)
             monitor.run_checks()
         except Exception as e:
-            print(f'Monitoring of metadata with id {metadata.pk} failed. {e}')
+            # print(f'Monitoring of metadata with id {metadata.pk} failed. {e}')
+            pass
     end_time = datetime.datetime.now(pytz.utc)
     duration = end_time - monitoring_run.start
     monitoring_run.end = end_time

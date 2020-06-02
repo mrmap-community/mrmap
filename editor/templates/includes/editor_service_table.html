@@ -1,4 +1,4 @@
-<!--wfs_index.html -->
+<!--editor_service_table.html -->
 {% extends 'sceletons/card.html' %}
 {% load i18n static tz %}
 {% load django_tables2 %}
@@ -6,34 +6,22 @@
 {% load query_parameters %}
 
 {% block card-header-title-left %}
-
 <h4 class="mb-1 mr-3">{% if service_type == 'WFS' %}{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% elif service_type == 'WMS' %} {% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %} {% elif service_type == 'Datasets' %}{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %}{% endif %} {% trans service_type %}</h4>
-
 {% endblock %}
 
 {% block card-header-title-right %}
 {% if service_type == 'Datasets' %}
     {% if 'can_add_dataset_metadata' in user_permissions %}
-        <button type="button" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" data-toggle="modal" data-target="#id_modal_new_dataset">
-            {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New Dataset' %}
-        </button>
-        {% with form=new_dataset_form %}
-            {% with 'new_dataset' as id_modal %}
-                {% with show_new_dataset_form as show_modal %}
-                    {% include 'modals/new_dataset.html' %}
-                {% endwith %}
-            {% endwith %}
-        {% endwith %}
-
+        <a href="{% url 'editor:add-new-dataset-metadata' 'editor:index' %}" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" role="button" aria-pressed="true">
+            {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'Add New Dataset'%}
+        </a>
+        {% if new_dataset_wizard %}
+            {{new_dataset_wizard}}
+        {% endif %}
     {% endif %}
 {% endif %}
 {% endblock %}
 
 {% block card-body %}
-
-
     {% render_table table %}
-
-
-
 {% endblock %}

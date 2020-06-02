@@ -228,14 +228,17 @@ class DatasetMetadataEditorForm(MrMapModelForm):
         return m
 
 
-class DatasetIdentificationForm(MrMapForm):
+class DatasetIdentificationForm(forms.Form):
+    prefix = _("identifiaction")
+    has_autocomplete_fields = True
+
     title = forms.CharField(label=_('Title'),)
     abstract = forms.CharField(label=_('Abstract'), )
     # encoding = forms.ModelChoiceField(label=_('Encoding'),)
     # character_encoding = forms.ModelChoiceField(label=_('Character Encoding'),)
     # coordinate_reference_system = forms.ModelChoiceField(label=_('Coordinate Reference System'),)
 
-    additional_related_objects = MetadataModelMutlipleChoiceField(
+    """additional_related_objects = MetadataModelMutlipleChoiceField(
         queryset=None,
         widget=autocomplete.ModelSelect2Multiple(
             url='editor:metadata-autocomplete',
@@ -246,16 +249,18 @@ class DatasetIdentificationForm(MrMapForm):
                 },
             },
         ),
-        required=False, )
+        required=False, )"""
 
     def __init__(self, *args, **kwargs):
+        self.current_view = '' if 'current_view' not in kwargs else kwargs.pop('current_view')
         # first call parent's constructor
-        super(DatasetIdentificationForm, self).__init__(form_title=_("Identification"),
-                                                        has_autocomplete_fields=True,
+        super(DatasetIdentificationForm, self).__init__(
                                                         *args,
                                                         **kwargs,)
 
-        self.fields['additional_related_objects'].queryset = self.requesting_user.get_metadatas_as_qs(
+
+
+        """self.fields['additional_related_objects'].queryset = self.requesting_user.get_metadatas_as_qs(
             type=MetadataEnum.DATASET, inverse_match=True)
 
         # ToDo:
@@ -268,9 +273,13 @@ class DatasetIdentificationForm(MrMapForm):
                 if metadata_relation.origin.name != 'capabilities':
                     additional_related_objects.append(metadata_relation.metadata_from)
             self.fields['additional_related_objects'].initial = additional_related_objects
+"""
+
+class DatasetClassificationForm(forms.Form):
+    prefix = _("classification")
+    has_autocomplete_fields = True
 
 
-class DatasetClassificationForm(MrMapForm):
     keywords = MetadataModelMutlipleChoiceField(
         label=_('Keywords'),
         queryset=Keyword.objects.all(),
@@ -299,9 +308,9 @@ class DatasetClassificationForm(MrMapForm):
         required=False,)
 
     def __init__(self, *args, **kwargs):
+        self.current_view = '' if 'current_view' not in kwargs else kwargs.pop('current_view')
         # first call parent's constructor
-        super(DatasetClassificationForm, self).__init__(form_title=_("Classification"),
-                                                        has_autocomplete_fields=True,
+        super(DatasetClassificationForm, self).__init__(
                                                         *args,
                                                         **kwargs,)
 

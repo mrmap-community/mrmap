@@ -11,7 +11,7 @@ from django.urls import path
 from editor.autocompletes import KeywordAutocomplete, CategoryAutocomplete, DatasetMetadataAutocomplete, \
     MetadataLanguageAutocomplete
 from editor.views import *
-from editor.wizards import AddDatasetWizard
+from editor.wizards import DATASET_WIZARD_FORMS, DatasetWizard
 
 app_name = 'editor'
 urlpatterns = [
@@ -24,10 +24,9 @@ urlpatterns = [
     path('wfs/', index_wfs, name='wfs-index'),
     path('datasets/', index_datasets, name='datasets-index'),
     path('metadata/<metadata_id>', edit, name='edit'),
-    path('dataset/<metadata_id>', edit_dataset, name='edit-dataset-metadata'),
-    #path('dataset/add/', add_dataset, name='add-dataset-metadata'),
 
-    path('dataset/add/<current_view>', AddDatasetWizard.as_view([DatasetIdentificationForm, DatasetClassificationForm]), name="add-new-dataset-metadata"),
+    path('dataset/wizard/<current_view>', DatasetWizard.as_view(DATASET_WIZARD_FORMS), name="dataset-metadata-wizard-new"),
+    path('dataset/wizard/<current_view>/<instance_id>', DatasetWizard.as_view(DATASET_WIZARD_FORMS), name="dataset-metadata-wizard-instance"),
 
     path('dataset/remove/<metadata_id>', remove_dataset, name='remove-dataset-metadata'),
     path('access/<id>', edit_access, name='edit_access'),

@@ -18,7 +18,14 @@
                 <form action="{{action_url}}" method="post" id="id_form">
                     {% csrf_token %}
                     <div class="modal-body">
-                        <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+
+                        <ul class="nav nav-tabs">
+                            {% for step in wizard.steps.all %}
+                              <li class="nav-item">
+                                <a class="nav-link {% if step == wizard.steps.current %} active {% endif %}">{{ step|title }}</a>
+                              </li>
+                            {% endfor %}
+                        </ul>
                         {{ wizard.management_form }}
                         {% if wizard.form.forms %}
                             {{ wizard.form.management_form }}
@@ -36,19 +43,41 @@
                         {% endif %}
                     </div>
                     <div class="modal-footer">
-                        {% if wizard.steps.prev %}
-                            <button name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.first }}">{% trans "first step" %}</button>
-                            <button name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.prev }}">{% trans "prev step" %}</button>
-                        {% endif %}
-                            <button type="submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">
-                                {% if wizard.steps.next %}
-                                    {% trans 'Next' %}
-                                {% else %}
-                                    {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
+                        <div class="container-fluid">
+                        <div class="row">
+                            <div class="col-sm">
+                                <div class="float-left">
+                                {% if wizard.steps.prev %}
+                                    <button name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.first }}">
+                                        {% autoescape off %}{{THEME.ICONS.FIRST}}{% endautoescape %} {% trans 'First' %}
+                                    </button>
+                                    <button name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.prev }}">
+                                        {% autoescape off %}{{THEME.ICONS.BACK}}{% endautoescape %} {% trans 'Back' %}
+                                    </button>
                                 {% endif %}
-                            </button>
-                        {% block modal-footer %}
-                        {% endblock %}
+                                </div>
+                            </div>
+                            <div class="col-sm">
+                                <div class="mx-auto text-center">
+                                    <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+                                </div>
+                            </div>
+                            <div class="col-sm">
+                                <div class="float-right">
+                                    <a href="{% url current_view %}" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" role="button" aria-pressed="true">
+                                        {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss'%}
+                                    </a>
+                                    <button type="submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">
+                                        {% if wizard.steps.next %}
+                                            {% autoescape off %}{{THEME.ICONS.NEXT}}{% endautoescape %} {% trans 'Next' %}
+                                        {% else %}
+                                            {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
+                                        {% endif %}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                            </div>
                     </div>
                 </form>
         </div>

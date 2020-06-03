@@ -163,7 +163,6 @@ class DatasetTable(MapSkinnerTable):
     dataset_related_objects = tables.Column(verbose_name=_('Related objects'), empty_values=[])
     dataset_origins = tables.Column(verbose_name=_('Origins'), empty_values=[])
     dataset_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False)
-    #dataset_reset = tables.Column(verbose_name=_('Reset'), empty_values=[])
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
@@ -196,13 +195,13 @@ class DatasetTable(MapSkinnerTable):
             "btn_size": BTN_SM_CLASS,
             "btn_color": get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
             "btn_value": get_theme(self.user)["ICONS"]['EDIT'],
-            "btn_url": reverse('editor:edit', args=(record.id,)),
+            # ToDo 'editor:index' has to be a dynamic value from the current view where the user comes from
+            "btn_url": reverse('editor:dataset-metadata-wizard-instance', args=('editor:index', record.id)),
             "tooltip": format_html(_("Edit <strong>{} [{}]</strong> dataset"), record.title, record.id),
             "tooltip_placement": "left",
-            "new_tab": True,
         }
         edit_btn = render_to_string(template_name="sceletons/open-link-button.html",
-                                       context=context_edit_btn)
+                                    context=context_edit_btn)
 
         context_restore_btn = {
             "btn_size": BTN_SM_CLASS,

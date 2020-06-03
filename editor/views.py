@@ -15,9 +15,8 @@ from MrMap.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METAD
     SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MrMap.responses import DefaultContext, BackendAjaxResponse
 from api.settings import API_CACHE_KEY_PREFIX
-from editor.forms import MetadataEditorForm, DatasetMetadataEditorForm, DatasetIdentificationForm, DatasetClassificationForm
+from editor.forms import MetadataEditorForm, DatasetIdentificationForm, DatasetClassificationForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
-from editor.wizards import AddDatasetWizard
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter
 from service.helper.enums import OGCServiceEnum, MetadataEnum
 from service.models import RequestOperation, SecuredOperation, Metadata
@@ -93,7 +92,7 @@ def index(request: HttpRequest, rendered_wizard=None):
 
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
-def index_wms(request: HttpRequest):
+def index_wms(request: HttpRequest, ):
     """ The index view of the editor app.
 
     Lists all services with information of custom set metadata.
@@ -115,7 +114,7 @@ def index_wms(request: HttpRequest):
 
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
-def index_wfs(request: HttpRequest):
+def index_wfs(request: HttpRequest, ):
     """ The index view of the editor app.
 
     Lists all services with information of custom set metadata.
@@ -137,7 +136,7 @@ def index_wfs(request: HttpRequest):
 
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
-def index_datasets(request: HttpRequest, update_params=None, status_code=None):
+def index_datasets(request: HttpRequest, rendered_wizard=None):
     """ The index view of the editor app.
 
     Lists all datasets with information of custom set metadata.
@@ -151,107 +150,17 @@ def index_datasets(request: HttpRequest, update_params=None, status_code=None):
     user = user_helper.get_user(request)
 
     template = "views/editor_service_table_index_datasets.html"
-    form_list = [
-        DatasetIdentificationForm(action_url=reverse('editor:add-dataset-metadata'), request=request, ),
-        DatasetClassificationForm(action_url=reverse('editor:add-dataset-metadata'), request=request, ),
-    ]
-    mr_map_form_list = MrMapFormList(action_url=reverse('editor:add-dataset-metadata'), form_list=form_list)
 
     params = {
         "dataset_table": _prepare_dataset_table(request, user),
-        "new_dataset_form": mr_map_form_list,
+        "new_dataset_wizard": rendered_wizard
     }
-
-    if update_params:
-        params.update(update_params)
 
     context = DefaultContext(request, params, user)
     return render(request=request,
                   template_name=template,
                   context=context.get_context(),
-                  status=200 if status_code is None else status_code)
-
-
-@login_required
-@check_permission(Permission(can_edit_metadata_service=True))
-@check_ownership(Metadata, 'metadata_id')
-def edit_dataset(request: HttpRequest, metadata_id: int):
-    """ The edit view for metadata
-
-    Provides editing functions for all elements which are described by Metadata objects
-
-    Args:
-        request: The incoming request
-        metadata_id: The metadata id
-    Returns:
-        A rendered view
-    """
-    user = user_helper.get_user(request)
-
-    metadata = get_object_or_404(Metadata, id=metadata_id)
-    if metadata.metadata_type.type != 'dataset':
-        return HttpResponseRedirect(reverse("editor:edit", args=(metadata_id,)), status=303)
-
-    if request.method == 'POST':
-        editor_form = DatasetMetadataEditorForm(request.POST, instance=metadata, action_url='', requesting_user=user)
-        if editor_form.is_valid():
-            custom_md = editor_form.save(commit=False)
-
-            # ToDo:
-            #editor_helper.resolve_iso_metadata_links(request, metadata, editor_form)
-            editor_helper.overwrite_metadata(metadata, custom_md, editor_form)
-
-            messages.add_message(request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
-
-            user_helper.create_group_activity(metadata.created_by, user, DATASET_MD_EDITED, "{}: {}".format(metadata.title, None))
-        else:
-            pass
-            # ToDo:
-    else:
-        editor_form = DatasetMetadataEditorForm(instance=metadata, action_url='', requesting_user=user,)
-
-    editor_form.action_url = reverse("editor:edit-dataset-metadata", args=(metadata_id,))
-    params = {
-        "service_metadata": metadata,
-        "form": editor_form,
-    }
-
-    template = "views/editor_metadata_index.html"
-    context = DefaultContext(request, params, user)
-    return render(request, template, context.get_context())
-
-
-@login_required
-@check_permission(Permission(can_add_dataset_metadata=True))
-def add_dataset(request: HttpRequest,):
-    """ The edit view for metadata
-
-    Provides add function to create new dataset metadata
-
-    Args:
-        request: The incoming request
-    Returns:
-        A rendered view
-    """
-    user = user_helper.get_user(request)
-
-    if request.method == 'POST':
-        editor_form = DatasetMetadataEditorForm(request.POST,
-                                                request=request,
-                                                action_url=reverse('editor:add-dataset-metadata'),
-                                                requesting_user=user)
-        if editor_form.is_valid():
-            editor_form.save()
-            return HttpResponseRedirect(reverse("editor:index", ), status=303)
-        else:
-            params = {
-                "new_ed": editor_form,
-                # ToDo:
-                "show_restore_dataset_modal": True,
-            }
-            return index_datasets(request=request, update_params=params, status_code=422)
-    else:
-        return HttpResponseRedirect(reverse("editor:index", ), status=303)
+                  status=200)
 
 
 @login_required

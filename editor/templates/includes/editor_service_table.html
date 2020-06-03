@@ -12,7 +12,7 @@
 {% block card-header-title-right %}
 {% if service_type == 'Datasets' %}
     {% if 'can_add_dataset_metadata' in user_permissions %}
-        <a href="{% url 'editor:add-new-dataset-metadata' 'editor:index' %}" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" role="button" aria-pressed="true">
+        <a href="{% url 'editor:dataset-metadata-wizard-new' 'editor:index' %}" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" role="button" aria-pressed="true">
             {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'Add New Dataset'%}
         </a>
         {% if new_dataset_wizard %}

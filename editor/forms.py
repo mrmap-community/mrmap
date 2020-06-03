@@ -6,16 +6,13 @@ Created on: 09.07.19
 
 """
 from dal import autocomplete
-from django.contrib import messages
-from django.core.exceptions import ObjectDoesNotExist
-from django.forms import ModelMultipleChoiceField, ModelChoiceField
+from django.forms import ModelMultipleChoiceField
 from django.utils.translation import gettext_lazy as _
 from django import forms
-from MapSkinner.forms import MrMapModelForm, MrMapForm
-from MapSkinner.iso19115.md_metadata import create_gmd_md_metadata
-from MapSkinner.messages import METADATA_ADDED_SUCCESS, DATASET_MD_EDITED
+from MapSkinner.forms import MrMapModelForm, MrMapWizardForm
 from service.helper.enums import MetadataEnum
-from service.models import Metadata, MetadataRelation, MetadataOrigin, MetadataType, Document, Keyword, Category
+from service.models import Metadata, MetadataRelation, Keyword, Category, \
+    MetadataLanguage
 from users.helper import user_helper
 
 
@@ -70,7 +67,7 @@ class MetadataEditorForm(MrMapModelForm):
         }
 
 
-class MetadataModelMutlipleChoiceField(ModelMultipleChoiceField):
+class MetadataModelMultipleChoiceField(ModelMultipleChoiceField):
     def label_from_instance(self, obj):
         """
             we need to override this function to show the id of the metadata object,
@@ -79,166 +76,11 @@ class MetadataModelMutlipleChoiceField(ModelMultipleChoiceField):
         return "{} #{}".format(obj.title, obj.id)
 
 
-class DatasetMetadataEditorForm(MrMapModelForm):
-    additional_related_objects = MetadataModelMutlipleChoiceField(
-                        queryset=None,
-                        widget=autocomplete.ModelSelect2Multiple(
-                               url='editor:metadata-autocomplete',
-                               attrs={
-                                        "data-containercss": {
-                                            "height": "3em",
-                                            "width": "3em",
-                                        },
-                               },
-                        ),
-                        required=False,)
-
-    def __init__(self, *args, **kwargs):
-        self.requesting_user = '' if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
-        #self.instance_id = -1 if 'instance_id' not in kwargs else kwargs.pop('instance_id')
-        # first call parent's constructor
-        super(DatasetMetadataEditorForm, self).__init__(*args, **kwargs)
-
-        # setup querysets
-        self.fields['additional_related_objects'].queryset = self.requesting_user.get_metadatas_as_qs(type=MetadataEnum.DATASET, inverse_match=True)
-
-        if 'instance' in kwargs:
-            instance = kwargs['instance']
-            self.fields['additional_related_objects'].queryset = self.fields['additional_related_objects'].queryset.exclude(id=instance.id)
-            metadata_relations = MetadataRelation.objects.filter(metadata_to=instance)
-            additional_related_objects = []
-            for metadata_relation in metadata_relations:
-                if metadata_relation.origin.name != 'capabilities':
-                    additional_related_objects.append(metadata_relation.metadata_from)
-            self.fields['additional_related_objects'].initial = additional_related_objects
-        else:
-            self.fields['additional_related_objects'].label = _('Related objects')
-            self.fields['additional_related_objects'].required = True
-            self.fields['created_by'] = ModelChoiceField(queryset=self.requesting_user.get_groups(), empty_label=None)
-
-        self.fields['keywords'].required = False
-        self.fields['languages'].required = False
-
-        self.has_autocomplete = True
-
-    class Meta:
-        model = Metadata
-        fields = [
-            "title",
-            "abstract",
-            "keywords",
-            "languages",
-        ]
-        help_texts = {
-            "title": _("Edit the title."),
-            "abstract": _("Edit the description. Keep it short and simple."),
-            "keywords": _(""),  # Since keywords are handled differently, this can be empty
-            "languages": _("Languages of the dataset")
-        }
-        widgets = {
-            "categories": autocomplete.ModelSelect2Multiple(
-                url='editor:category-autocomplete',
-                attrs={
-                    "data-containercss": {
-                        "height": "3em",
-                        "width": "3em",
-                    },
-                },
-            ),
-            'keywords': autocomplete.ModelSelect2Multiple(
-                url='editor:keyword-autocomplete',
-                attrs={
-                    "data-containerCss": {
-                        "height": "3em",
-                        "width": "3em",
-                    }
-                },
-            ),
-            'languages': autocomplete.ModelSelect2Multiple(
-                url='editor:language-autocomplete',
-                attrs={
-                    "data-containerCss": {
-                        "height": "3em",
-                        "width": "3em",
-                    }
-                },
-            ),
-        }
-
-    def save(self, commit=True):
-        # ToDo: is it possible to create save function without commit param?
-        m = super(DatasetMetadataEditorForm, self).save(commit=False)
-        is_new = False
-
-        if self.instance.id is None:
-            is_new = True
-            m.created_by = self.cleaned_data['created_by']
-            m.metadata_type = MetadataType.objects.get_or_create(type=MetadataEnum.DATASET.value)[0]
-
-        # ToDo: we need to save it here anyway, cause we creating RelatedMetadata objects below
-        if commit:
-            # ToDo: if an error bellow occurs, we need to rollback()
-            m.save()
-            self.save_m2m()
-
-        # 1: create new MetadataRelations for the instance, if the relation does not exist
-        additional_related_objects = self.cleaned_data['additional_related_objects']
-        for related_object in additional_related_objects:
-            related_object = Metadata.objects.get(id=related_object.id)
-            if is_new and related_object.service.is_active and m.is_active is False:
-                m.is_active = True
-            try:
-                MetadataRelation.objects.get(metadata_to=self.instance, metadata_from=related_object)
-                # no error; do nothing
-            except ObjectDoesNotExist:
-                # if object does not exist, we need to create it new
-                origin = MetadataOrigin.objects.get_or_create(name='MrMap')[0]
-                new_metadata_relation = MetadataRelation()
-                new_metadata_relation.metadata_from = related_object
-                new_metadata_relation.metadata_to = self.instance
-                new_metadata_relation.origin = origin
-                new_metadata_relation.relation_type = 'describedBy'
-                # ToDo: if an error occurs we need to rollback
-                new_metadata_relation.save()
-
-        # 2: remove all metadata relations which we don't need anymore
-        remove_candidates = MetadataRelation.objects.filter(metadata_to=self.instance)\
-                                                    .exclude(metadata_from__id__in=additional_related_objects)\
-                                                    .exclude(origin__name='capabilities')
-        for remove_candidate in remove_candidates:
-            # ToDo: if an error occurs we need to rollback
-            remove_candidate.delete()
-
-        # 3: generate Document object
-        if is_new:
-            orga = self.requesting_user.organization
-
-            dataset_metadata_document = create_gmd_md_metadata(m, orga)
-
-            doc = Document()
-            doc.related_metadata = m
-            doc.original_dataset_metadata_document = dataset_metadata_document
-            doc.current_dataset_metadata_document = dataset_metadata_document
-            doc.save()
-
-        m.save()
-        messages.success(self.request, METADATA_ADDED_SUCCESS)
-        user_helper.create_group_activity(m.created_by, self.user, DATASET_MD_EDITED,
-                                          "{}: {}".format(m.title, None))
-        return m
-
-
-class DatasetIdentificationForm(forms.Form):
-    prefix = _("identifiaction")
-    has_autocomplete_fields = True
-
+class DatasetIdentificationForm(MrMapWizardForm):
     title = forms.CharField(label=_('Title'),)
     abstract = forms.CharField(label=_('Abstract'), )
-    # encoding = forms.ModelChoiceField(label=_('Encoding'),)
-    # character_encoding = forms.ModelChoiceField(label=_('Character Encoding'),)
-    # coordinate_reference_system = forms.ModelChoiceField(label=_('Coordinate Reference System'),)
 
-    """additional_related_objects = MetadataModelMutlipleChoiceField(
+    additional_related_objects = MetadataModelMultipleChoiceField(
         queryset=None,
         widget=autocomplete.ModelSelect2Multiple(
             url='editor:metadata-autocomplete',
@@ -249,38 +91,49 @@ class DatasetIdentificationForm(forms.Form):
                 },
             },
         ),
-        required=False, )"""
+        required=False, )
+
+    languages = ModelMultipleChoiceField(
+        queryset=MetadataLanguage.objects.all(),
+        widget=autocomplete.ModelSelect2Multiple(
+                url='editor:language-autocomplete',
+                attrs={
+                    "data-containerCss": {
+                        "height": "3em",
+                        "width": "3em",
+                    }
+                },
+            )
+    )
 
     def __init__(self, *args, **kwargs):
-        self.current_view = '' if 'current_view' not in kwargs else kwargs.pop('current_view')
-        # first call parent's constructor
         super(DatasetIdentificationForm, self).__init__(
+                                                        has_autocomplete_fields=True,
                                                         *args,
-                                                        **kwargs,)
+                                                        **kwargs)
 
-
-
-        """self.fields['additional_related_objects'].queryset = self.requesting_user.get_metadatas_as_qs(
+        self.fields['additional_related_objects'].queryset = user_helper.get_user(self.request).get_metadatas_as_qs(
             type=MetadataEnum.DATASET, inverse_match=True)
 
-        # ToDo:
-        if 'instance' in kwargs:
-            instance = kwargs['instance']
-            self.fields['additional_related_objects'].queryset = self.fields['additional_related_objects'].queryset.exclude(id=instance.id)
-            metadata_relations = MetadataRelation.objects.filter(metadata_to=instance)
+        if self.instance_id:
+            # ToDo refactor this to DatasetMetadata Object
+            metadata = Metadata.objects.get(id=self.instance_id)
+            self.fields['title'].initial = metadata.title
+            self.fields['abstract'].initial = metadata.abstract
+            self.fields['languages'].initial = metadata.languages.all()
+            # ToDo: initial all fields
+
+            self.fields['additional_related_objects'].queryset = self.fields['additional_related_objects'].queryset.exclude(id=self.instance_id)
+            metadata_relations = MetadataRelation.objects.filter(metadata_to=self.instance_id)
             additional_related_objects = []
             for metadata_relation in metadata_relations:
                 if metadata_relation.origin.name != 'capabilities':
                     additional_related_objects.append(metadata_relation.metadata_from)
             self.fields['additional_related_objects'].initial = additional_related_objects
-"""
-
-class DatasetClassificationForm(forms.Form):
-    prefix = _("classification")
-    has_autocomplete_fields = True
 
 
-    keywords = MetadataModelMutlipleChoiceField(
+class DatasetClassificationForm(MrMapWizardForm):
+    keywords = ModelMultipleChoiceField(
         label=_('Keywords'),
         queryset=Keyword.objects.all(),
         widget=autocomplete.ModelSelect2Multiple(
@@ -293,7 +146,7 @@ class DatasetClassificationForm(forms.Form):
             },
         ),
         required=False, )
-    categories = MetadataModelMutlipleChoiceField(
+    categories = ModelMultipleChoiceField(
         label=_('Categories'),
         queryset=Category.objects.all(),
         widget=autocomplete.ModelSelect2Multiple(
@@ -308,9 +161,13 @@ class DatasetClassificationForm(forms.Form):
         required=False,)
 
     def __init__(self, *args, **kwargs):
-        self.current_view = '' if 'current_view' not in kwargs else kwargs.pop('current_view')
-        # first call parent's constructor
         super(DatasetClassificationForm, self).__init__(
+                                                        has_autocomplete_fields=True,
                                                         *args,
                                                         **kwargs,)
 
+        if self.instance_id:
+            # ToDo refactor this to DatasetMetadata Object
+            metadata = Metadata.objects.get(id=self.instance_id)
+            self.fields['keywords'].initial = metadata.keywords.all()
+            self.fields['categories'].initial = metadata.categories.all()

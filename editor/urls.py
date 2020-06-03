@@ -25,8 +25,8 @@ urlpatterns = [
     path('datasets/', index_datasets, name='datasets-index'),
     path('metadata/<metadata_id>', edit, name='edit'),
 
-    path('dataset/wizard/<current_view>', DatasetWizard.as_view(DATASET_WIZARD_FORMS), name="dataset-metadata-wizard-new"),
-    path('dataset/wizard/<current_view>/<instance_id>', DatasetWizard.as_view(DATASET_WIZARD_FORMS), name="dataset-metadata-wizard-instance"),
+    path('dataset/wizard/<current_view>', add_new_dataset_wizard, name="dataset-metadata-wizard-new"),
+    path('dataset/wizard/<current_view>/<instance_id>', edit_dataset_wizard, name="dataset-metadata-wizard-instance"),
 
     path('dataset/remove/<metadata_id>', remove_dataset, name='remove-dataset-metadata'),
     path('access/<id>', edit_access, name='edit_access'),

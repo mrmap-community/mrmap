@@ -17,6 +17,7 @@ from MrMap.responses import DefaultContext, BackendAjaxResponse
 from api.settings import API_CACHE_KEY_PREFIX
 from editor.forms import MetadataEditorForm, DatasetIdentificationForm, DatasetClassificationForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
+from editor.wizards import DATASET_WIZARD_FORMS, DatasetWizard
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter
 from service.helper.enums import OGCServiceEnum, MetadataEnum
 from service.models import RequestOperation, SecuredOperation, Metadata
@@ -207,6 +208,21 @@ def remove_dataset(request: HttpRequest, metadata_id: int):
     else:
         return HttpResponseRedirect(reverse("editor:datasets-index", ), status=303)
 
+
+@login_required
+@check_permission(Permission(can_add_dataset_metadata=True))
+def add_new_dataset_wizard(request: HttpRequest, current_view: str):
+    wizard_view = DatasetWizard.as_view(DATASET_WIZARD_FORMS)
+    return wizard_view(request=request, current_view=current_view)
+
+
+@login_required
+@check_permission(Permission(can_edit_dataset_metadata=True))
+# ToDo: Metadata should be replaced by DatasetMetadata
+@check_ownership(Metadata, 'instance_id')
+def edit_dataset_wizard(request,  current_view: str, instance_id: int):
+    wizard_view = DatasetWizard.as_view(DATASET_WIZARD_FORMS)
+    return wizard_view(request, current_view=current_view, instance_id=instance_id)
 
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))

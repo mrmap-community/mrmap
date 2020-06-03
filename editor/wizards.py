@@ -17,12 +17,14 @@ class DatasetWizard(SessionWizardView):
         context.update({'id_modal': 'new_dataset_wizard',
                         'modal_title': 'Add New Dataset',
                         'THEME': get_theme(user_helper.get_user(self.request)),
-                        'action_url': reverse('editor:dataset-metadata-wizard-instance', args=(form.current_view, self.kwargs.get('instance_id')))
-                                      if 'instance_id' in self.kwargs else reverse('editor:dataset-metadata-wizard-new', args=(form.current_view,)),
+                        'action_url': reverse('editor:dataset-metadata-wizard-instance',
+                                              args=(form.current_view, self.kwargs.get('instance_id')))
+                        if 'instance_id' in self.kwargs else reverse('editor:dataset-metadata-wizard-new',
+                                                                     args=(form.current_view,)),
                         'show_modal': True,
                         'fade_modal': True,
                         'current_view': self.kwargs['current_view'],
-        })
+                        })
 
         if bool(self.storage.data['step_data']):
             # this wizard is not new, prevent from bootstrap modal fading
@@ -51,7 +53,7 @@ class DatasetWizard(SessionWizardView):
     def done(self, form_list, **kwargs):
         for form in form_list:
             # ToDo: save input of all forms
-            i=0
+            i = 0
             pass
 
         return HttpResponseRedirect(reverse(self.kwargs['current_view'], ), status=303)

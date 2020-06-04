@@ -55,7 +55,14 @@ class EditorTestCase(TestCase):
             "title": "Karte RP",
             "version": OGCServiceVersionEnum.V_1_1_1,
             "type": OGCServiceEnum.WMS,
-            "uri": "https://www.geoportal.rlp.de/mapbender/php/mod_showMetadata.php/../wms.php?layer_id=38925&PHPSESSID=7qiruaoul2pdcadcohs7doeu07&withChilds=1",
+            "uri": "https://www.geoportal.rlp.de/mapbender/php/wms.php?layer_id=38925&PHPSESSID=1j8jjd4p7f5d0tfhb669q08no2&REQUEST=GetCapabilities&VERSION=1.1.1&SERVICE=WMS&withChilds=1",
+        }
+
+        self.test_wfs = {
+            "title": "WMS LANIS",
+            "version": OGCServiceVersionEnum.V_2_0_0,
+            "type": OGCServiceEnum.WFS,
+            "uri": "https://geodaten.naturschutz.rlp.de/kartendienste_naturschutz/mod_ogc/wfs_getmap.php?mapfile=group_gdide&REQUEST=GetCapabilities&VERSION=2.0.0&SERVICE=WFS",
         }
 
         # Since the registration of a service is performed async in an own process, the testing is pretty hard.
@@ -64,6 +71,7 @@ class EditorTestCase(TestCase):
         # THIS MEANS WE CAN NOT CHECK PERMISSIONS IN HERE; SINCE WE TESTS ON THE LOWER LEVEL OF THE PROCESS
 
         ## Creating a new wms service model instance
+        print("Create test service")
         service = service_helper.create_service(
             self.test_wms["type"],
             self.test_wms["version"],
@@ -72,6 +80,16 @@ class EditorTestCase(TestCase):
             self.group
         )
         self.service_wms = service
+
+        ## Creating a new wfs service model instance
+        service = service_helper.create_service(
+            self.test_wfs["type"],
+            self.test_wfs["version"],
+            self.test_wfs["uri"],
+            self.user,
+            self.group
+        )
+        self.service_wfs = service
 
     def _get_logged_in_client(self, user: MrMapUser):
         """ Helping function to encapsulate the login process

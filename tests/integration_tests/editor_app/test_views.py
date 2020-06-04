@@ -1,13 +1,10 @@
-import os
-
-from django.contrib.auth.hashers import make_password
 from django.test import TestCase, Client
-from django.utils import timezone
 
 from MrMap.settings import HOST_NAME, HTTP_OR_SSL, ROOT_URL
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
 from service.helper import service_helper
-from structure.models import Permission, Role, MrMapUser, MrMapGroup
+from structure.models import MrMapUser
+from tests.baker_recipes.db_setup import create_superadminuser
 
 
 class EditorTestCase(TestCase):
@@ -19,37 +16,9 @@ class EditorTestCase(TestCase):
 
         """
         # create superuser
-        self.perm = Permission()
-        self.perm.name = "_default_"
-        for key, val in self.perm.__dict__.items():
-            if not isinstance(val, bool) and 'can_' not in key:
-                continue
-            setattr(self.perm, key, True)
-        self.perm.save()
+        self.user = create_superadminuser()
 
-        role = Role.objects.create(
-            name="Testrole",
-            permission=self.perm,
-        )
-
-        self.pw = "test"
-        salt = str(os.urandom(25).hex())
-        pw = self.pw
-        self.user = MrMapUser.objects.create(
-            username="Testuser",
-            is_active=True,
-            salt=salt,
-            password=make_password(pw, salt=salt),
-            confirmed_dsgvo=timezone.now(),
-        )
-
-        self.group = MrMapGroup.objects.create(
-            name="Testgroup",
-            role=role,
-            created_by=self.user,
-        )
-
-        self.group.user_set.add(self.user)
+        self.group = self.user.groups.first()
 
         self.test_wms = {
             "title": "Karte RP",

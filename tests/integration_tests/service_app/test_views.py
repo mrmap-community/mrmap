@@ -1,17 +1,17 @@
-import os
-from django.contrib.auth.hashers import make_password
+
 from django.db.models import QuerySet
 from django.test import TestCase, Client
-from django.utils import timezone
+
 from MrMap.messages import SECURITY_PROXY_NOT_ALLOWED
-from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, HOST_NAME, HTTP_OR_SSL
+from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, HOST_NAME
 from service import tasks
 from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, OGCOperationEnum
 from service.models import Service, Layer, Document, Metadata
 from service.settings import SERVICE_OPERATION_URI_TEMPLATE
-from structure.models import MrMapUser, MrMapGroup, Role, Permission
+from structure.models import MrMapUser, MrMapGroup
+from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 
 
 class ServiceTestCase(TestCase):
@@ -27,38 +27,15 @@ class ServiceTestCase(TestCase):
         Returns:
 
         """
-        # create superuser
-        self.perm = Permission()
-        self.perm.name = "_default_"
-        for key, val in self.perm.__dict__.items():
-            if not isinstance(val, bool) and 'can_' not in key:
-                continue
-            setattr(self.perm, key, True)
-        self.perm.save()
-
-        role = Role.objects.create(
-            name="Testrole",
-            permission=self.perm,
-        )
-
+        # Superuser has been created in editor integration tests. Records can be fetched from test db
         self.pw = "test"
-        salt = str(os.urandom(25).hex())
-        pw = self.pw
-        self.user = MrMapUser.objects.create(
+        self.user = MrMapUser.objects.filter(
             username="Testuser",
-            is_active=True,
-            salt=salt,
-            password=make_password(pw, salt=salt),
-            confirmed_dsgvo=timezone.now(),
-        )
+        ).first()
 
-        self.group = MrMapGroup.objects.create(
+        self.group = MrMapGroup.objects.filter(
             name="Testgroup",
-            role=role,
-            created_by=self.user,
-        )
-
-        self.group.user_set.add(self.user)
+        ).first()
 
         self.test_wms = {
             "title": "Karte RP",
@@ -74,13 +51,12 @@ class ServiceTestCase(TestCase):
             "uri": "https://www.geoportal.rlp.de/mapbender/php/mod_showMetadata.php/../wfs.php?FEATURETYPE_ID=2672&PHPSESSID=7qiruaoul2pdcadcohs7doeu07",
         }
 
-
         # Since the registration of a service is performed async in an own process, the testing is pretty hard.
         # Therefore in here we won't perform the regular route testing, but rather run unit tests and check whether the
         # important components work as expected.
         # THIS MEANS WE CAN NOT CHECK PERMISSIONS IN HERE; SINCE WE TESTS ON THE LOWER LEVEL OF THE PROCESS
 
-        ## Creating a new service model instance
+        ## Creating a new service model instance for wms
         service = service_helper.create_service(
             self.test_wms["type"],
             self.test_wms["version"],
@@ -88,7 +64,24 @@ class ServiceTestCase(TestCase):
             self.user,
             self.group
         )
-        self.service = service
+        self.service_wms = service
+
+        ## Creating a new service model instance for wfs
+        service = service_helper.create_service(
+            self.test_wfs["type"],
+            self.test_wfs["version"],
+            self.test_wfs["uri"],
+            self.user,
+            self.group
+        )
+        self.service_wfs = service
+
+        self.cap_doc_wms = Document.objects.get(
+            related_metadata=self.service_wms.metadata
+        )
+        self.cap_doc_wfs = Document.objects.get(
+            related_metadata=self.service_wfs.metadata
+        )
 
     def _get_logged_in_client(self, user: MrMapUser):
         """ Helping function to encapsulate the login process
@@ -98,11 +91,7 @@ class ServiceTestCase(TestCase):
              user_id (int): The user (id) who shall be logged in
         """
         client = Client()
-        self.assertEqual(user.logged_in, False, msg="User already logged in")
-        response = client.post("/", data={"username": user.username, "password": self.pw})
-        user.refresh_from_db()
-        self.assertEqual(response.url, "{}{}/home".format(HTTP_OR_SSL, HOST_NAME), msg="Redirect wrong")
-        self.assertEqual(user.logged_in, True, msg="User not logged in")
+        self.client.login(username=self.user.username, password=PASSWORD)
         return client
 
     def _get_num_of_layers(self, xml_obj):
@@ -160,9 +149,7 @@ class ServiceTestCase(TestCase):
         Returns:
 
         """
-        cap_doc = Document.objects.get(
-            related_metadata=service.metadata
-        ).original_capability_document
+        cap_doc = self.cap_doc_wms.original_capability_document
         cap_uri = service.metadata.capabilities_original_uri
         connector = CommonConnector(url=cap_uri)
         connector.load()
@@ -312,7 +299,7 @@ class ServiceTestCase(TestCase):
         # from there, match to the ones we get after the service creation.
 
         child_layers = Layer.objects.filter(
-            parent_service=self.service
+            parent_service=self.service_wms
         )
         cap_xml = xml_helper.parse_xml(self.raw_data.service_capabilities_xml)
         checks = [
@@ -327,7 +314,7 @@ class ServiceTestCase(TestCase):
             #self.test_proxy_service,
         ]
         for check_func in checks:
-            check_func(self.service, child_layers, cap_xml)
+            check_func(self.service_wms, child_layers, cap_xml)
 
     def _test_proxy_is_set(self, metadata: Metadata, doc_unsecured: str, doc_secured: str):
         """ Tests whether the proxy was set properly.
@@ -507,10 +494,10 @@ class ServiceTestCase(TestCase):
         """
         # activate service
         # since activating runs async as well, we need to call this function directly
-        tasks.async_activate_service(self.service.id, self.user.id, not self.service.metadata.is_active)
-        self.service.refresh_from_db()
+        tasks.async_activate_service(self.service_wms.id, self.user.id, not self.service_wms.metadata.is_active)
+        self.service_wms.refresh_from_db()
 
-        service = self.service
+        service = self.service_wms
         metadata = service.metadata
 
         if metadata.is_service_type(OGCServiceEnum.WMS):

@@ -215,7 +215,7 @@ def add_new_dataset_wizard(request: HttpRequest, current_view: str):
     wizard_view = DatasetWizard.as_view(DATASET_WIZARD_FORMS)
     return wizard_view(request=request,
                        current_view=current_view,
-                       title=_(f'Add New Dataset'),
+                       title=_(format_html('<b>Add New Dataset</b>')),
                        id_modal='add_new_dataset_wizard',)
 
 
@@ -229,7 +229,7 @@ def edit_dataset_wizard(request,  current_view: str, instance_id: int):
     return wizard_view(request,
                        current_view=current_view,
                        instance_id=instance_id,
-                       title=_(f'Edit {metadata.title} Dataset'),
+                       title=_(format_html(f'<b>Edit</b> <i>{metadata.title}</i> <b>Dataset</b>')),
                        id_modal=f'edit_{metadata.id}_dataset_wizard',)
 
 @login_required

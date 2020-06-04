@@ -26,7 +26,7 @@ class DatasetWizard(SessionWizardView):
                         'modal_title': self.kwargs['title'],
                         'THEME': get_theme(user_helper.get_user(self.request)),
                         'action_url': reverse('editor:dataset-metadata-wizard-instance',
-                                              args=(form.current_view, self.kwargs.get('instance_id')))
+                                              args=(self.kwargs['current_view'], self.kwargs.get('instance_id')))
                         if 'instance_id' in self.kwargs else reverse('editor:dataset-metadata-wizard-new',
                                                                      args=(self.kwargs['current_view'],)),
                         'show_modal': True,

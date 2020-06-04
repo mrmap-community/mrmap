@@ -48,10 +48,10 @@ FONT_AWESOME_ICONS = {
     'PUBLISHER': format_html(ICON_PATTERN, 'fas', 'fa-address-card', ),
     'HOME': format_html(ICON_PATTERN, 'fas', 'fa-home', ),
     'API': format_html(ICON_PATTERN, 'fas', 'fa-hashtag', ),
-    'FIRST': format_html(ICON_PATTERN, 'fas', 'fa-arrow-from-right', ),
-    'BACK': format_html(ICON_PATTERN, 'fas', 'fa-arrow-left', ),
-    'NEXT': format_html(ICON_PATTERN, 'fas', 'fa-arrow-right', ),
-    'LAST': format_html(ICON_PATTERN, 'fas', 'fa-arrow-to-right', ),
+    'FIRST': format_html(ICON_PATTERN, 'fas', 'fa-fast-backward', ),
+    'BACK': format_html(ICON_PATTERN, 'fas', 'fa-step-backward', ),
+    'NEXT': format_html(ICON_PATTERN, 'fas', 'fa-step-forward', ),
+    'LAST': format_html(ICON_PATTERN, 'fas', 'fa-fast-forward', ),
 
 }
 

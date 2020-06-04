@@ -1,9 +1,10 @@
 from django.test import TestCase, Client
 
-from MrMap.settings import HOST_NAME, HTTP_OR_SSL, ROOT_URL
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
-from service.helper import service_helper
-from structure.models import MrMapUser
+from MrMap.settings import HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
+from service.helper import service_helper, xml_helper
+from service.models import Document
+from service.tasks import async_process_secure_operations_form
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 
@@ -17,6 +18,7 @@ class EditorTestCase(TestCase):
         Returns:
 
         """
+
         # create superuser
         cls.user = create_superadminuser()
 
@@ -62,6 +64,13 @@ class EditorTestCase(TestCase):
             cls.group
         )
         cls.service_wfs = service
+
+        cls.cap_doc_wms = Document.objects.get(
+            related_metadata=cls.service_wms.metadata
+        )
+        cls.cap_doc_wfs = Document.objects.get(
+            related_metadata=cls.service_wfs.metadata
+        )
 
     def _get_logged_out_client(self):
         """ Helping function to encapsulate the logout process
@@ -200,4 +209,172 @@ class EditorTestCase(TestCase):
         self.assertNotEqual(self.service_wms.metadata.abstract, new_val, msg="Metadata was not restored by logged in user!")
         self.assertNotEqual(self.service_wms.metadata.keywords.count(), 0, msg="Metadata was not restored by logged in user!")
 
+    def test_proxy_setting(self):
+        """ Tests whether the proxy can be set properly.
 
+        Returns:
+        """
+        metadata = self.service_wms.metadata
+
+        # To avoid running celery in a separate test instance, we do not call the route. Instead we call the logic, which
+        # is used to process access settings directly.
+        params = {
+            "use_proxy": "on",
+            "log_proxy": "on",
+        }
+        async_process_secure_operations_form(params, metadata.id)
+
+        self.cap_doc_wms.refresh_from_db()
+        doc_unsecured = self.cap_doc_wms.original_capability_document
+        doc_secured = self.cap_doc_wms.current_capability_document
+
+        # Check for all operations if the uris has been changed!
+        # Do not check for GetCapabilities, since we always change this uri during registration!
+        # Make sure all versions can be matched by the code - the xml structure differs a lot from version to version
+        service_version = metadata.get_service_version()
+
+        if metadata.is_service_type(OGCServiceEnum.WMS):
+            operations = [
+                OGCOperationEnum.GET_MAP.value,
+                OGCOperationEnum.GET_FEATURE_INFO.value,
+                OGCOperationEnum.DESCRIBE_LAYER.value,
+                OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
+                OGCOperationEnum.GET_STYLES.value,
+                OGCOperationEnum.PUT_STYLES.value,
+            ]
+        elif metadata.is_service_type(OGCServiceEnum.WFS):
+            operations = [
+                OGCOperationEnum.GET_FEATURE.value,
+                OGCOperationEnum.TRANSACTION.value,
+                OGCOperationEnum.LOCK_FEATURE.value,
+                OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
+            ]
+        else:
+            operations = []
+
+        # create xml documents from string documents and fetch only the relevant <Request> element for each
+        xml_unsecured = xml_helper.parse_xml(doc_unsecured)
+        request_unsecured = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Request"), xml_elem=xml_unsecured)
+        xml_secured = xml_helper.parse_xml(doc_secured)
+        request_secured = xml_helper.try_get_single_element_from_xml(elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("Request"), xml_elem=xml_secured)
+
+        for operation in operations:
+            # Get <OPERATION> element
+            operation_unsecured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format(operation), request_unsecured)
+            operation_secured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format(operation), request_secured)
+
+            if service_version == OGCServiceVersionEnum.V_1_0_0:
+                if metadata.is_service_type(OGCServiceEnum.WMS):
+                    # The WMS 1.0.0 specification uses <OPERATION> instead of <GetOPERATION> for any operation element.
+                    operation = operation.replace("Get", "")
+
+                    # Get <OPERATION> element again
+                    operation_unsecured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format(operation), request_unsecured)
+                    operation_secured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format(operation), request_secured)
+
+                # Version 1.0.0 holds the uris in the "onlineResource" attribute of <Get> and <Post>
+                get_unsecured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"), operation_unsecured)
+                get_secured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"), operation_secured)
+                post_unsecured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"), operation_unsecured)
+                post_secured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"), operation_secured)
+
+                online_res = "onlineResource"
+                get_unsecured = xml_helper.try_get_attribute_from_xml_element(get_unsecured, online_res)
+                get_secured = xml_helper.try_get_attribute_from_xml_element(get_secured, online_res)
+                post_unsecured = xml_helper.try_get_attribute_from_xml_element(post_unsecured, online_res)
+                post_secured = xml_helper.try_get_attribute_from_xml_element(post_secured, online_res)
+
+                # Assert that all get/post elements are not None
+                self.assertIsNotNone(get_secured, msg="The secured uri of '{}' is None!".format(operation))
+                self.assertIsNotNone(post_secured, msg="The secured uri of '{}' is None!".format(operation))
+
+                # Assert that the secured version is different from the unsecured one
+                self.assertNotEqual(get_unsecured, get_secured, msg="The uri of '{}' has not been secured!".format(operation))
+                self.assertNotEqual(post_unsecured, post_secured, msg="The uri of '{}' has not been secured!".format(operation))
+
+                # Assert that the HOST_NAME constant appears in the secured uri
+                self.assertContains(get_secured, HOST_NAME)
+                self.assertContains(post_secured, HOST_NAME)
+
+            elif service_version == OGCServiceVersionEnum.V_1_1_0 \
+                    or service_version == OGCServiceVersionEnum.V_2_0_0 \
+                    or service_version == OGCServiceVersionEnum.V_2_0_2:
+                # Only WFS
+                # Get <OPERATION> element again, since the operation is now identified using an attribute, not an element tag
+                operation_unsecured = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='" + operation + "']",
+                    request_unsecured
+                )
+                operation_secured = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation") + "[@name='" + operation + "']",
+                    request_secured
+                )
+
+                # Version 1.1.0 holds the uris in the href attribute of <Get> and <Post>
+                get_unsecured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"), operation_unsecured)
+                get_secured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get"), operation_secured)
+                post_unsecured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"), operation_unsecured)
+                post_secured = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post"), operation_secured)
+
+                get_unsecured = xml_helper.get_href_attribute(get_unsecured)
+                get_secured = xml_helper.get_href_attribute(get_secured)
+                post_unsecured = xml_helper.get_href_attribute(post_unsecured)
+                post_secured = xml_helper.get_href_attribute(post_secured)
+
+                # Assert that all get/post elements are not None
+                self.assertIsNotNone(get_secured, msg="The secured uri of '{}' is None!".format(operation))
+                self.assertIsNotNone(post_secured, msg="The secured uri of '{}' is None!".format(operation))
+
+                # Assert that the secured version is different from the unsecured one
+                self.assertNotEqual(get_unsecured, get_secured, msg="The uri of '{}' has not been secured!".format(operation))
+                self.assertNotEqual(post_unsecured, post_secured, msg="The uri of '{}' has not been secured!".format(operation))
+
+                # Assert that the HOST_NAME constant appears in the secured uri
+                self.assertContains(get_secured, HOST_NAME)
+                self.assertContains(post_secured, HOST_NAME)
+
+            elif service_version == OGCServiceVersionEnum.V_1_1_1 or service_version == OGCServiceVersionEnum.V_1_3_0:
+                # Version 1.1.1 holds the uris in the <OnlineResource> element inside <Get> and <Post>
+                get_unsecured = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    operation_unsecured
+                )
+                get_secured = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Get")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    operation_secured
+                )
+                post_unsecured = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    operation_unsecured
+                )
+                post_secured = xml_helper.try_get_single_element_from_xml(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Post")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource"),
+                    operation_secured
+                )
+
+                get_unsecured = xml_helper.get_href_attribute(get_unsecured)
+                get_secured = xml_helper.get_href_attribute(get_secured)
+                post_unsecured = xml_helper.get_href_attribute(post_unsecured)
+                post_secured = xml_helper.get_href_attribute(post_secured)
+
+                # Assert that both (secure/unsecure) uris are None or none of them
+                # This is possible for operations that are not supported by the service
+                if get_secured is not None and get_unsecured is not None:
+                    self.assertIsNotNone(get_secured, msg="The secured uri of '{}' is None!".format(operation))
+
+                    # Assert that the secured version is different from the unsecured one
+                    self.assertNotEqual(get_unsecured, get_secured, msg="The uri of '{}' has not been secured!".format(operation))
+
+                    # Assert that the HOST_NAME constant appears in the secured uri
+                    self.assertTrue(HOST_NAME in get_secured)
+
+                if post_secured is not None and post_unsecured is not None:
+                    self.assertIsNotNone(post_secured, msg="The secured uri of '{}' is None!".format(operation))
+                    self.assertNotEqual(post_unsecured, post_secured, msg="The uri of '{}' has not been secured!".format(operation))
+                    self.assertTrue(HOST_NAME in post_secured)
+            else:
+                pass

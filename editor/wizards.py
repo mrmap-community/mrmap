@@ -14,8 +14,8 @@ class DatasetWizard(SessionWizardView):
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
-        context.update({'id_modal': 'new_dataset_wizard',
-                        'modal_title': 'Add New Dataset',
+        context.update({'id_modal': self.kwargs['id_modal'],
+                        'modal_title': self.kwargs['title'],
                         'THEME': get_theme(user_helper.get_user(self.request)),
                         'action_url': reverse('editor:dataset-metadata-wizard-instance',
                                               args=(form.current_view, self.kwargs.get('instance_id')))

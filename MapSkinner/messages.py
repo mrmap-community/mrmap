@@ -65,8 +65,6 @@ METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED = _("You have to turn off the secured
 
 RESOURCE_NOT_FOUND = _("The requested resource could not be found.")
 
-MISSING_DATASET_ID_IN_METADATA = _("No datasetId found in metadata!")
-
 REQUEST_ACTIVATION_TIMEOVER = _("The request was not activated in time. Request was deleted.")
 
 PUBLISH_REQUEST_SENT = _("Publish request has been sent to the organization!")

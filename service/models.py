@@ -589,8 +589,8 @@ class Metadata(Resource):
     hits = models.IntegerField(default=0)
 
     ## for ISO metadata
-    dataset_id = models.CharField(max_length=255, null=True, blank=True)
-    dataset_id_code_space = models.CharField(max_length=255, null=True, blank=True)
+    #dataset_id = models.CharField(max_length=255, null=True, blank=True)
+    #dataset_id_code_space = models.CharField(max_length=255, null=True, blank=True)
 
     related_metadata = models.ManyToManyField(MetadataRelation)
     languages = models.ManyToManyField(MetadataLanguage)
@@ -2916,8 +2916,6 @@ class Dataset(Resource):
 
     distribution_function_code = models.CharField(max_length=255, choices=DISTRIBUTION_FUNCTION_CHOICES, default="dataset")
     distribution_function_code_list_url = models.CharField(max_length=1000, blank=True, null=True, default=CODE_LIST_URL_DEFAULT)
-
-    representative_fraction_denominator = models.IntegerField(null=True, blank=True)
 
     lineage_statement = models.TextField(null=True, blank=True)
 

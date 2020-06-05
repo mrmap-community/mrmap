@@ -141,7 +141,8 @@ document = Recipe(
     created_by=foreign_key(superadmin_group),
     original_capability_document="<test></test>",
     current_capability_document="<test></test>",
-    dataset_metadata_document="<test></test>",
+    original_dataset_metadata_document="<test></test>",
+    current_dataset_metadata_document="<test></test>",
     service_metadata_document="<test></test>",
 )
 

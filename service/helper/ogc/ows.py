@@ -216,7 +216,7 @@ class OGCWebService:
         for keyword in iso_metadata.keywords:
             self.service_identification_keywords.append(keyword)
         # add multiple other data that can not be found in the capabilities document
-        self.service_create_date = iso_metadata.create_date
+        self.service_create_date = iso_metadata.date_stamp
         self.service_last_change = iso_metadata.last_change_date
         self.service_iso_md_uri = iso_metadata.uri
         self.service_file_iso_identifier = iso_metadata.file_identifier

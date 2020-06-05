@@ -36,9 +36,13 @@ class ISOMetadata:
         self.uri = uri
         self.raw_metadata = None
 
+        self.character_set_code = None
+        self.md_standard_name = None
+        self.md_standard_version = None
+
         # referenced from mapbender metadata parsing
         self.file_identifier = None
-        self.create_date = None
+        self.date_stamp = None
         self.dataset_id = None
         self.dataset_id_code_space = None
         self.last_change_date = None
@@ -58,7 +62,6 @@ class ISOMetadata:
             "max_x": None,
             "max_y": None,
         }
-        # ToDo: datasetId / datasetIdCode missing
 
         self.polygonal_extent_exterior = []
         self.tmp_extent_begin = None
@@ -68,7 +71,14 @@ class ISOMetadata:
         self.spatial_res_type = None
         self.ground_resolution = None
         self.ref_system = None
+        self.ref_system_version = None
+        self.ref_system_authority = None
         self.lineage = None
+
+        self.use_limitation = None
+
+        self.distribution_function = None
+        self.fraction_denominator = None
 
         self.license_source_note = None
         self.license_json = None
@@ -121,7 +131,6 @@ class ISOMetadata:
         for attr in MIN_REQUIRED_ISO_MD:
             if attr is None:
                 self.is_broken = True
-
 
     def get_metadata(self):
         """ Start a network call to retrieve the original capabilities xml document.
@@ -215,10 +224,14 @@ class ISOMetadata:
         xml = self.raw_metadata
         xml_obj = xml_helper.parse_xml(xml)
         self.file_identifier = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:fileIdentifier/gco:CharacterString")
+        self.character_set_code = xml_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj, attribute="codeListValue", elem="//gmd:MD_Metadata/gmd:characterSet/gmd:MD_CharacterSetCode")
         if self.file_identifier is None:
             self.file_identifier = uuid.uuid4()
-        self.create_date = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:dateStamp/gco:Date")
+        self.date_stamp = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:dateStamp/gco:Date")
         self.last_change_date = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:dateStamp/gco:Date")
+
+        self.md_standard_name = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:metadataStandardName/gco:CharacterString")
+        self.md_standard_version = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:metadataStandardVersion/gco:CharacterString")
 
         # try to transform the last_change_date into a datetime object
         try:
@@ -292,9 +305,29 @@ class ISOMetadata:
             self.spatial_res_type = "groundDistance"
 
         self.ref_system = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier/gmd:code/gco:CharacterString")
+        self.ref_system_version = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier/gmd:version/gco:CharacterString")
+        self.ref_system_authority = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:referenceSystemInfo/gmd:MD_ReferenceSystem/gmd:referenceSystemIdentifier/gmd:RS_Identifier/gmd:authority/gmd:CI_Citation/gmd:title/gco:CharacterString")
         epsg_api = EpsgApi()
         if self.ref_system is not None:
             self.ref_system = "EPSG:{}".format(epsg_api.get_subelements(self.ref_system).get("code"))
+
+        # gmd:CI_OnLineFunctionCode
+        dist_func_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_OnLineFunctionCode"), xml_obj)
+        self.distribution_function = xml_helper.try_get_attribute_from_xml_element(
+            dist_func_elem,
+            "codeListValue",
+        )
+        del dist_func_elem
+
+        # gmd:MD_RepresentativeFraction
+        fraction_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_RepresentativeFraction"), xml_obj)
+        self.fraction_denominator = xml_helper.try_get_text_from_xml_element(fraction_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Integer"))
+        del fraction_elem
+
+        # gmd:useLimitation
+        limit_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("useLimitation"), xml_obj)
+        self.use_limitation = xml_helper.try_get_text_from_xml_element(limit_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"))
+        del limit_elem
 
         self.lineage = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:MD_Metadata/gmd:dataQualityInfo/gmd:DQ_DataQuality/gmd:lineage/gmd:LI_Lineage/gmd:statement/gco:CharacterString")
 
@@ -451,8 +484,88 @@ class ISOMetadata:
             metadata = Metadata()
             md_type = MetadataType.objects.get_or_create(type=type)[0]
             metadata.metadata_type = md_type
+            if metadata.is_dataset_metadata:
+                metadata.dataset = Dataset()
+                metadata.dataset.created_by = created_by
+            metadata.created_by = created_by
+            new = True
 
         metadata.uuid = self.file_identifier
+        metadata.identifier = self.file_identifier
+        metadata.abstract = self.abstract
+        metadata.access_constraints = self.access_constraints
+        if update or new:
+
+            # In case of a dataset, we need to fill the information into the dataset object
+            if metadata.is_dataset_metadata:
+                metadata.dataset = self._fill_dataset_db_model(metadata.dataset)
+
+            metadata = self._fill_metadata_db_model(metadata)
+            metadata.save()
+            metadata.dataset.save()
+
+            # create document object to persist the dataset metadata document
+            document = Document.objects.get_or_create(
+                related_metadata=metadata
+            )[0]
+            if type is MetadataEnum.DATASET.value:
+                document.original_dataset_metadata_document = self.raw_metadata
+                document.current_dataset_metadata_document = self.raw_metadata
+            elif type is MetadataEnum.SERVICE.value:
+                document.service_metadata_document = self.raw_metadata
+            else:
+                # ToDo: For future implementations
+                pass
+            document.save()
+
+            if update:
+                metadata.keywords.clear()
+            for kw in self.keywords:
+                keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+                metadata.keywords.add(keyword)
+        return metadata
+
+    def _fill_dataset_db_model(self, dataset: Dataset):
+        """ Fills a Dataset db record from the ISOMetadata data
+
+        Args:
+            dataset (Dataset): The old/empty object
+        Returns:
+             dataset (Dataset): The dataset object
+        """
+        try:
+            dataset.language_code = self.languages[0]
+        except IndexError:
+            # Fallback
+            dataset.language_code = "eng"
+
+        dataset.character_set_code = self.character_set_code or "utf8"
+        dataset.hierarchy_level_code = self.hierarchy_level
+        dataset.update_frequency_code = self.update_frequency
+        dataset.update_frequency_code = self.update_frequency
+        dataset.legal_restriction_code = None
+        dataset.date_stamp = self.date_stamp
+        dataset.metadata_standard_name = self.md_standard_name
+        dataset.metadata_standard_version = self.md_standard_version
+        dataset.reference_system_code = self.ref_system
+        dataset.reference_system_version = self.ref_system_version
+        dataset.reference_system_authority_title = self.ref_system_authority
+        dataset.md_identifier_code = self.file_identifier
+        dataset.distribution_function_code = self.distribution_function or "dataset"
+        dataset.lineage_statement = self.lineage
+        dataset.legal_restriction_other_constraints = self.access_constraints
+        dataset.use_limitation = self.use_limitation
+
+        return dataset
+
+    def _fill_metadata_db_model(self, metadata: Metadata):
+        """ Fills a Metadata db record from the ISOMetadata data
+
+        Args:
+            metadata (Metadata): The old/empty object
+        Returns:
+             metadata (Metadata): The metadata object
+        """
         metadata.identifier = self.file_identifier
         metadata.abstract = self.abstract
         metadata.access_constraints = self.access_constraints
@@ -483,45 +596,14 @@ class ISOMetadata:
         metadata.title = self.title
         metadata.origin = self.origin
         metadata.is_broken = self.is_broken
-        metadata.dataset_id = self.dataset_id
-        metadata.dataset_id_code_space = self.dataset_id_code_space
-        metadata.created_by = created_by
         metadata.save()
-
-        # Remove old formats, add new ones
-        metadata.formats.clear()
-        for _format in self.formats:
-            mime_type = MimeType.objects.get_or_create(
-                mime_type=_format,
-            )[0]
-            metadata.formats.add(mime_type)
 
         # Add links for dataset metadata
         # There is no capabilities link for dataset -> leave it None
         metadata.capabilities_uri = None
         metadata.service_metadata_uri = SERVICE_DATASET_URI_TEMPLATE.format(metadata.id)
         metadata.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(metadata.id)
+
         metadata.save()
-
-        # create document object to persist the dataset metadata document
-        document = Document.objects.get_or_create(
-            related_metadata=metadata
-        )[0]
-
-        if type is MetadataEnum.DATASET.value:
-            document.original_dataset_metadata_document = self.raw_metadata
-            document.current_dataset_metadata_document = self.raw_metadata
-        elif type is MetadataEnum.SERVICE.value:
-            document.service_metadata_document = self.raw_metadata
-        else:
-            # ToDo: For future implementations
-            pass
-
-        document.save()
-
-        metadata.keywords.clear()
-        for kw in self.keywords:
-            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
-            metadata.keywords.add(keyword)
 
         return metadata

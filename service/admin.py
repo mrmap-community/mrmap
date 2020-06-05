@@ -96,6 +96,14 @@ class TermsOfUseAdmin(admin.ModelAdmin):
     pass
 
 
+class LegalReportAdmin(admin.ModelAdmin):
+    list_display = ('id', 'title', 'explanation', 'date')
+
+
+class LegalDateAdmin(admin.ModelAdmin):
+    list_display = ('id', 'date_type_code')
+
+
 class ServiceAdmin(admin.ModelAdmin):
     list_display = ('id', 'is_active', 'is_deleted',  'servicetype', 'metadata', 'parent_service', 'published_for')
     pass
@@ -164,3 +172,8 @@ admin.site.register(Namespace, NamespaceAdmin)
 admin.site.register(ProxyLog, ProxyLogAdmin)
 admin.site.register(ExternalAuthentication, ExternalAuthenticationAdmin)
 admin.site.register(Style, StyleAdmin)
+
+# NOT NEEDED ADMIN PAGES CAN BE OUTCOMMENTED
+
+#admin.site.register(LegalDate, LegalDateAdmin)
+#admin.site.register(LegalReport, LegalReportAdmin)

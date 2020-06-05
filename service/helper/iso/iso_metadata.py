@@ -15,7 +15,7 @@ from django.contrib.gis.geos import Polygon
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db import transaction
 from django.utils.timezone import utc
-from lxml.etree import _Element
+from lxml.etree import _Element, Element
 
 from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from service.settings import INSPIRE_LEGISLATION_FILE, HTML_METADATA_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, \
@@ -25,7 +25,7 @@ from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, MetadataEnum
 from service.helper.epsg_api import EpsgApi
-from service.models import Metadata, Keyword, MetadataType, Document, MimeType
+from service.models import Metadata, Keyword, MetadataType, Document, Dataset, LegalDate, LegalReport
 from structure.models import Organization, MrMapGroup
 
 
@@ -79,6 +79,9 @@ class ISOMetadata:
 
         self.distribution_function = None
         self.fraction_denominator = None
+
+        self.legal_dates = []
+        self.legal_reports = []
 
         self.license_source_note = None
         self.license_json = None
@@ -215,6 +218,85 @@ class ISOMetadata:
             else:
                 self.polygonal_extent_exterior.append(self.parse_bbox(self.bounding_box))
 
+    def _parse_xml_legal_dates(self, xml_obj: Element):
+        """ Parses existing CI_Date elements from the MD_DataIdentification element
+
+        Args:
+            xml_obj (Element): The document xml element
+        Returns:
+
+        """
+        md_data_ident_elem = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"),
+            xml_obj
+        )
+        legal_date_elems = xml_helper.try_get_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Date"),
+            md_data_ident_elem
+        )
+        for legal_date_elem in legal_date_elems:
+            legal_date = LegalDate()
+            legal_date.date = xml_helper.try_get_text_from_xml_element(
+                legal_date_elem,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Date")
+            )
+            legal_date.date_type_code = xml_helper.try_get_attribute_from_xml_element(
+                legal_date_elem,
+                "codeListValue",
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_DateTypeCode")
+            )
+            legal_date.date_type_code_list_url = xml_helper.try_get_attribute_from_xml_element(
+                legal_date_elem,
+                "codeList",
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_DateTypeCode")
+            )
+            self.legal_dates.append(legal_date)
+
+    def _parse_xml_legal_reports(self, xml_obj: Element):
+        """ Parses existing CI_Date elements from the MD_DataIdentification element
+
+        Args:
+            xml_obj (Element): The document xml element
+        Returns:
+
+        """
+        data_quality_elem = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("DQ_DataQuality"),
+            xml_obj
+        )
+        report_elems = xml_helper.try_get_single_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("report"),
+            xml_obj
+        )
+        for report_elem in report_elems:
+            report = LegalReport()
+            report.title = xml_helper.try_get_text_from_xml_element(
+                report_elem,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("title") + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            report.explanation = xml_helper.try_get_text_from_xml_element(
+                report_elem,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("explanation") + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            legal_date = LegalDate()
+            legal_date.date = xml_helper.try_get_text_from_xml_element(
+                report_elem,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Date")
+            )
+            legal_date.date_type_code = xml_helper.try_get_attribute_from_xml_element(
+                report_elem,
+                "codeListValue",
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_DateTypeCode")
+            )
+            legal_date.date_type_code_list_url = xml_helper.try_get_attribute_from_xml_element(
+                report_elem,
+                "codeList",
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_DateTypeCode")
+            )
+            report.date = legal_date
+            self.legal_reports.append(report)
+
+
     def parse_xml(self):
         """ Reads the needed data from the xml and writes to an ISOMetadata instance (self)
 
@@ -232,6 +314,9 @@ class ISOMetadata:
 
         self.md_standard_name = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:metadataStandardName/gco:CharacterString")
         self.md_standard_version = xml_helper.try_get_text_from_xml_element(xml_obj, "//gmd:metadataStandardVersion/gco:CharacterString")
+
+        self._parse_xml_legal_dates(xml_obj)
+        self._parse_xml_legal_reports(xml_obj)
 
         # try to transform the last_change_date into a datetime object
         try:
@@ -490,10 +575,6 @@ class ISOMetadata:
             metadata.created_by = created_by
             new = True
 
-        metadata.uuid = self.file_identifier
-        metadata.identifier = self.file_identifier
-        metadata.abstract = self.abstract
-        metadata.access_constraints = self.access_constraints
         if update or new:
 
             # In case of a dataset, we need to fill the information into the dataset object
@@ -597,6 +678,15 @@ class ISOMetadata:
         metadata.origin = self.origin
         metadata.is_broken = self.is_broken
         metadata.save()
+
+        # save legal dates and reports
+        for report in self.legal_reports:
+            report.date.save()
+            report.save()
+            metadata.legal_reports.add(report)
+        for date in self.legal_dates:
+            date.save()
+            metadata.legal_dates.add(date)
 
         # Add links for dataset metadata
         # There is no capabilities link for dataset -> leave it None

@@ -10,6 +10,10 @@ class CategoryAdmin(admin.ModelAdmin):
     list_display = ('id', 'type', 'title_EN', 'online_link', 'origin')
 
 
+class DatasetAdmin(admin.ModelAdmin):
+    list_display = ('id', 'metadata', 'md_identifier_code')
+
+
 class CategoryOriginAdmin(admin.ModelAdmin):
     pass
 
@@ -31,10 +35,6 @@ class ServiceTypeAdmin(admin.ModelAdmin):
 
 
 class ModuleAdmin(admin.ModelAdmin):
-    pass
-
-
-class DatasetAdmin(admin.ModelAdmin):
     pass
 
 

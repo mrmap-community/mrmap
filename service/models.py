@@ -584,6 +584,8 @@ class Metadata(Resource):
     reference_system = models.ManyToManyField('ReferenceSystem', blank=True)
     dimensions = models.ManyToManyField('Dimension', blank=True)
     metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
+    legal_dates = models.ManyToManyField('LegalDate')
+    legal_reports = models.ManyToManyField('LegalReport')
     hits = models.IntegerField(default=0)
 
     ## for ISO metadata
@@ -2820,8 +2822,141 @@ class ReferenceSystem(models.Model):
 
 
 class Dataset(Resource):
-    time_begin = models.DateTimeField()
-    time_end = models.DateTimeField()
+    """ Representation of Dataset objects.
+
+    Datasets identify a real-life resource, like a shapefile. One dataset can be the source for multiple services.
+    Therefore one dataset record can describe multiple services as well.
+
+    """
+    SRS_AUTHORITIES_CHOICES = [
+        ("EPSG", "European Petroleum Survey Group (EPSG) Geodetic Parameter Registry"),
+    ]
+
+    CHARACTER_SET_CHOICES = [
+        ("utf8", "utf8"),
+        ("utf16", "utf16"),
+    ]
+
+    UPDATE_FREQUENCY_CHOICES = [
+        ("annually", "annually"),
+        ("asNeeded", "asNeeded"),
+        ("biannually", "biannually"),
+        ("irregular", "irregular"),
+        ("notPlanned", "notPlanned"),
+        ("unknown", "unknown"),
+    ]
+
+    LEGAL_RESTRICTION_CHOICES = [
+        ("copyright", "copyright"),
+        ("intellectualPropertyRights", "intellectualPropertyRights"),
+        ("license", "license"),
+        ("otherRestrictions", "otherRestrictions"),
+        ("patent", "patent"),
+        ("patentPending", "patentPending"),
+        ("restricted", "restricted"),
+        ("trademark", "trademark"),
+    ]
+
+    DISTRIBUTION_FUNCTION_CHOICES = [
+        ("download", "download"),
+        ("information", "information"),
+        ("offlineAccess", "offlineAccess"),
+        ("order", "order"),
+        ("search", "search"),
+    ]
+
+    DATA_QUALITY_SCOPE_CHOICES = [
+        ("attribute", "attribute"),
+        ("attributeType", "attributeType"),
+        ("collectionHardware", "collectionHardware"),
+        ("collectionSession", "collectionSession"),
+        ("dataset", "dataset"),
+        ("dimensionGroup", "dimensionGroup"),
+        ("feature", "feature"),
+        ("featureType", "featureType"),
+        ("fieldSession", "fieldSession"),
+        ("model", "model"),
+        ("nonGeographicDataset", "nonGeographicDataset"),
+        ("propertyType", "propertyType"),
+        ("series", "series"),
+        ("software", "software"),
+        ("service", "service"),
+        ("tile", "tile"),
+    ]
+
+    LANGUAGE_CODE_LIST_URL_DEFAULT = "https://standards.iso.org/iso/19139/Schemas/resources/codelist/ML_gmxCodelists.xml"
+    CODE_LIST_URL_DEFAULT = "https://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml"
+
+    metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, blank=True, null=True, related_name="dataset")
+    language_code = models.CharField(max_length=100, blank=True, null=True)
+    language_code_list_url = models.CharField(max_length=1000, blank=True, null=True, default=LANGUAGE_CODE_LIST_URL_DEFAULT)
+
+    character_set_code = models.CharField(max_length=255, choices=CHARACTER_SET_CHOICES, default="utf8")
+    character_set_code_list_url = models.CharField(max_length=1000, blank=True, null=True, default=CODE_LIST_URL_DEFAULT)
+
+    hierarchy_level_code = models.CharField(max_length=100, blank=True, null=True)
+    hierarchy_level_code_list_url = models.CharField(max_length=1000, blank=True, null=True, default=CODE_LIST_URL_DEFAULT)
+
+    update_frequency_code = models.CharField(max_length=255, choices=UPDATE_FREQUENCY_CHOICES, null=True, blank=True)
+    update_frequency_code_list_url = models.CharField(max_length=1000, blank=True, null=True, default=CODE_LIST_URL_DEFAULT)
+
+    legal_restriction_code = models.CharField(max_length=255, choices=LEGAL_RESTRICTION_CHOICES, null=True, blank=True)
+    legal_restriction_code_list_url = models.CharField(max_length=1000, blank=True, null=True, default=CODE_LIST_URL_DEFAULT)
+    legal_restriction_other_constraints = models.TextField(null=True, blank=True)
+
+    date_stamp = models.DateField(blank=True, null=True)
+    metadata_standard_name = models.CharField(max_length=255, blank=True, null=True)
+    metadata_standard_version = models.CharField(max_length=255, blank=True, null=True)
+    reference_system_authority_title = models.CharField(max_length=255, choices=SRS_AUTHORITIES_CHOICES, null=True, blank=True)
+    reference_system_code = models.CharField(max_length=255, null=True, blank=True)
+    reference_system_version = models.CharField(max_length=100, null=True, blank=True)
+    md_identifier_code = models.CharField(max_length=500, null=True, blank=True)
+
+    use_limitation = models.TextField(null=True, blank=True)
+
+    distribution_function_code = models.CharField(max_length=255, choices=DISTRIBUTION_FUNCTION_CHOICES, default="dataset")
+    distribution_function_code_list_url = models.CharField(max_length=1000, blank=True, null=True, default=CODE_LIST_URL_DEFAULT)
+
+    representative_fraction_denominator = models.IntegerField(null=True, blank=True)
+
+    lineage_statement = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return self.metadata.identifier
+
+
+class LegalReport(models.Model):
+    """ Representation of gmd:DQ_DomainConsistency objects.
+
+    """
+    title = models.TextField()
+    date = models.ForeignKey('LegalDate', on_delete=models.SET_NULL, null=True)
+    explanation = models.TextField()
+
+    def __str__(self):
+        return self.title
+
+
+class LegalDate(models.Model):
+    """ Representation of CI_DateType objects.
+
+    Multiple records can create a history of actions related to a database element.
+
+    """
+    DATE_TYPE_CODE_CHOICES = [
+        ("creation", "creation"),
+        ("publication", "publication"),
+        ("revision", "revision"),
+    ]
+
+    CODE_LIST_URL_DEFAULT = "https://standards.iso.org/iso/19139/resources/gmxCodelists.xml"
+
+    date = models.DateField()
+    date_type_code = models.CharField(max_length=255, choices=DATE_TYPE_CODE_CHOICES)
+    date_type_code_list_url = models.CharField(max_length=1000, default=CODE_LIST_URL_DEFAULT)
+
+    def __str__(self):
+        return self.date_type_code
 
 
 class MimeType(Resource):

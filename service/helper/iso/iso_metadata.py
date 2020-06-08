@@ -17,10 +17,10 @@ from django.db import transaction
 from django.utils.timezone import utc
 from lxml.etree import _Element, Element
 
-from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
+from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from service.settings import INSPIRE_LEGISLATION_FILE, HTML_METADATA_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, \
     SERVICE_DATASET_URI_TEMPLATE
-from MapSkinner import utils
+from MrMap import utils
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, MetadataEnum
@@ -50,8 +50,9 @@ class ISOMetadata:
         self.title = None
         self.abstract = None
         self.keywords = []
-        self.languages = []
+        self.language = None
         self.iso_categories = []
+        self.formats = []
         self.download_link = None
         self.transfer_size = None
         self.preview_image = None
@@ -168,7 +169,7 @@ class ISOMetadata:
         # Initialize datasetid
         self.dataset_id = 'undefined'
         code = xml_helper.try_get_text_from_xml_element(elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:citation/gmd:CI_Citation/gmd:identifier/gmd:MD_Identifier/gmd:code/gco:CharacterString'.format(xpath_type), xml_elem=xml_obj)
-        if code is not None and len(code) != '':
+        if code is not None and len(code) != 0:
             # new implementation:
             # http://inspire.ec.europa.eu/file/1705/download?token=iSTwpRWd&usg=AOvVaw18y1aTdkoMCBxpIz7tOOgu
             # from 2017-03-02 - the MD_Identifier - see C.2.5 Unique resource identifier - it is separated with a slash - the codespace should be everything after the last slash
@@ -320,7 +321,7 @@ class ISOMetadata:
         # try to transform the last_change_date into a datetime object
         try:
             self.last_change_date = parse(self.last_change_date)
-        except (ValueError, OverflowError, TypeError) as e:
+        except (ValueError, OverflowError, TypeError):
             # if this is not possible due to wrong input, just use the current time...
             self.last_change_date = timezone.now()
 
@@ -337,16 +338,25 @@ class ISOMetadata:
             if keyword.text is not None and keyword not in self.keywords:
                 self.keywords.append(xml_helper.try_get_text_from_xml_element(keyword))
 
-        languages = xml_helper.try_get_element_from_xml(xml_elem=xml_obj,
+        language = xml_helper.try_get_single_element_from_xml(xml_elem=xml_obj,
                                                         elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:language/gmd:LanguageCode".format(
                                                            xpath_type))
-        for language in languages:
-            if language.text is not None and languages not in self.languages:
-                self.languages.append(xml_helper.try_get_text_from_xml_element(language))
+        if language.text is not None:
+            self.language = xml_helper.try_get_text_from_xml_element(language)
 
         iso_categories = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:topicCategory/gmd:MD_TopicCategoryCode".format(xpath_type))
         for iso_category in iso_categories:
             self.iso_categories.append(xml_helper.try_get_text_from_xml_element(iso_category))
+
+        # Get all values from <gmd:distributionInfo> which declares the distributionFormat
+        formats = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//" + GENERIC_NAMESPACE_TEMPLATE.format("distributionFormat"))
+        for format_elem in formats:
+            # get the character value per format
+            name_elem = xml_helper.try_get_single_element_from_xml(xml_elem=format_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("name"))
+            if name_elem is None:
+                continue
+            val = xml_helper.try_get_text_from_xml_element(xml_elem=name_elem, elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"))
+            self.formats.append(val)
 
         self.download_link = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:onLine/gmd:CI_OnlineResource[gmd:function/gmd:CI_OnLineFunctionCode/@codeListValue="download"]/gmd:linkage/gmd:URL')
         self.transfer_size = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:distributionInfo/gmd:MD_Distribution/gmd:transferOptions/gmd:MD_DigitalTransferOptions/gmd:transferSize/gco:Real')
@@ -481,7 +491,6 @@ class ISOMetadata:
         Returns:
              polygon (Polygon): The polygon object created from the data
         """
-        polygon = Polygon()
         relative_ring_xpath = "./gml:Polygon/gml:exterior/gml:LinearRing/gml:posList"
         relative_coordinate_xpath = "./gml:Polygon/gml:exterior/gml:LinearRing/gml:coordinates"
         pos_list = xml_helper.try_get_element_from_xml(xml_elem=polygon_elem, elem=relative_ring_xpath)
@@ -544,16 +553,19 @@ class ISOMetadata:
         Returns:
             metadata (Metadata): A db model Metadata object
         """
-        # try to find the object by uuid and uri
         update = False
         new = False
+        # try to find the object by uuid and uri. If not existing yet, create a new record
         try:
             metadata = Metadata.objects.get(uuid=self.file_identifier, metadata_url=self.uri)
             # check if the parsed metadata might be newer
             # make sure both date time objects will be comparable
             persisted_change = metadata.last_remote_change.replace(tzinfo=utc)
             new_change = self.last_change_date.replace(tzinfo=utc)
-            if persisted_change <= new_change:
+            if persisted_change > new_change:
+                # Nothing to do here
+                return metadata
+            else:
                 update = True
         except ObjectDoesNotExist:
             # object does not seem to exist -> create it!
@@ -605,12 +617,7 @@ class ISOMetadata:
         Returns:
              dataset (Dataset): The dataset object
         """
-        try:
-            dataset.language_code = self.languages[0]
-        except IndexError:
-            # Fallback
-            dataset.language_code = "eng"
-
+        dataset.language_code = self.language
         dataset.character_set_code = self.character_set_code or "utf8"
         dataset.hierarchy_level_code = self.hierarchy_level
         dataset.update_frequency_code = self.update_frequency

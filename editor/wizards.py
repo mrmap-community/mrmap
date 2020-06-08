@@ -4,7 +4,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse, resolve
 from django.utils.html import format_html
 from formtools.wizard.views import SessionWizardView
-from MapSkinner.utils import get_theme
+from MrMap.utils import get_theme
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm
 from users.helper import user_helper
 from django.utils.translation import gettext_lazy as _

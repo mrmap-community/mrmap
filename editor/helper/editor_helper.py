@@ -13,14 +13,14 @@ from django.http import HttpRequest
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
-from MapSkinner.iso19115.md_data_identification import _create_gmd_descriptive_keywords, _create_gmd_language
-from MapSkinner.messages import EDITOR_INVALID_ISO_LINK
-from MapSkinner.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
-from MapSkinner.iso19115.iso19115_xml_skeletons import MD_KEYWORDS
+from MrMap.iso19115.md_data_identification import _create_gmd_descriptive_keywords, _create_gmd_language
+from MrMap.messages import EDITOR_INVALID_ISO_LINK
+from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
+
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, \
-    MetadataOrigin, SecuredOperation, MetadataLanguage
+    MetadataOrigin, SecuredOperation
 from service.helper import xml_helper
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY
 
@@ -203,15 +203,11 @@ def overwrite_dataset_metadata_document(metadata: Metadata):
                 'gmd:descriptiveKeywords']
 
     # overwrite language
-    if metadata.languages.all().count() > 0:
-        language = []
-        gmd_language = _create_gmd_language(metadata=metadata, as_list=True)
-        for element in gmd_language:
-            language.append(xmltodict.parse(element)['gmd:language'])
+    if metadata.language_code is not None:
         xml_dict['gmd:MD_Metadata'][
             'gmd:identificationInfo'][
             'gmd:MD_DataIdentification'][
-            'gmd:language'] = language
+            'gmd:language'] = _create_gmd_language(metadata=metadata)
     else:
         if 'gmd:language' in xml_dict['gmd:MD_Metadata'][
                                 'gmd:identificationInfo'][
@@ -284,8 +280,10 @@ def overwrite_capabilities_document(metadata: Metadata):
     _overwrite_capabilities_data(xml_obj, metadata)
 
     # write xml back to Document record
+    # Remove service_metadata_document as well, so it needs to be generated again!
     xml = xml_helper.xml_to_string(xml_obj_root)
     cap_doc.current_capability_document = xml
+    cap_doc.service_metadata_document = None
     cap_doc.save()
 
     # Delete all cached documents, which holds old state!
@@ -420,11 +418,7 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
         original_md.keywords.add(keyword)
 
     # Language updating
-    languages = editor_form.cleaned_data["languages"]
-    original_md.languages.clear()
-    for language in languages:
-        language = MetadataLanguage.objects.get(id=language.id)
-        original_md.languages.add(language)
+    original_md.language_code = editor_form.cleaned_data["language_code"]
 
     # Categories updating
     # Categories are provided as id's to prevent language related conflicts
@@ -454,10 +448,12 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     original_md.is_custom = True
     original_md.save()
 
-    if original_md.metadata_type.type == OGCServiceEnum.DATASET.value:
+    if original_md.is_dataset_metadata:
         overwrite_dataset_metadata_document(original_md)
     else:
         overwrite_capabilities_document(original_md)
+
+
 
 
 def overwrite_featuretype(original_ft: FeatureType, custom_ft: FeatureType, editor_form):

@@ -15,10 +15,10 @@ from service.settings import DEFAULT_SRS, SERVICE_OPERATION_URI_TEMPLATE, SERVIC
     HTML_METADATA_URI_TEMPLATE
 from service.settings import MD_RELATION_TYPE_VISUALIZES, \
     EXTERNAL_AUTHENTICATION_FILEPATH
-from MapSkinner.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
+from MrMap.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
-from MapSkinner.messages import SERVICE_GENERIC_ERROR
-from MapSkinner.utils import execute_threads, print_debug_mode
+from MrMap.messages import SERVICE_GENERIC_ERROR
+from MrMap.utils import execute_threads, print_debug_mode
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.enums import MetadataEnum
 from service.helper.epsg_api import EpsgApi
@@ -178,7 +178,7 @@ class OGCWebFeatureService(OGCWebService):
         )
 
         if async_task is not None:
-            task_helper.update_service_description(async_task, self.service_identification_title)
+            task_helper.update_service_description(async_task, self.service_identification_title, phase_descr="Parsing main capabilities")
 
         self.service_identification_abstract = xml_helper.try_get_text_from_xml_element(
             xml_elem=service_xml,
@@ -404,9 +404,6 @@ class OGCWebFeatureService(OGCWebService):
         Returns:
             feature_type_list(dict): A dict containing all different metadatas for this featuretype and it's children
         """
-        # update async task if this is called async
-        if async_task is not None and step_size is not None:
-            task_helper.update_progress_by_step(async_task, step_size)
 
         f_t = FeatureType()
         md = Metadata()
@@ -419,6 +416,12 @@ class OGCWebFeatureService(OGCWebService):
             xml_elem=feature_type,
             elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
         )
+
+        # update async task if this is called async
+        if async_task is not None and step_size is not None:
+            task_helper.update_progress_by_step(async_task, step_size)
+            task_helper.update_service_description(async_task, None, "Parsing {}".format(md.title))
+
         md.identifier = xml_helper.try_get_text_from_xml_element(
             xml_elem=feature_type,
             elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Name")
@@ -720,6 +723,7 @@ class OGCWebFeatureService(OGCWebService):
         if self.service_file_identifier is None:
             self.service_file_identifier = uuid.uuid4()
         md.uuid = self.service_file_identifier
+        md.identifier = self.service_file_identifier
         md.abstract = self.service_identification_abstract
         md.online_resource = self.service_provider_onlineresource_linkage
 
@@ -832,7 +836,7 @@ class OGCWebFeatureService(OGCWebService):
 
         # MimeTypes
         for mime_type in self.service_mime_type_list:
-            service.formats.add(mime_type)
+            md.formats.add(mime_type)
 
     def _create_feature_types(self, service: Service, group: MrMapGroup, contact: Contact):
         """ Iterates over parsed feature types and creates DB records for each
@@ -896,7 +900,7 @@ class OGCWebFeatureService(OGCWebService):
             # formats
             for _format in f_t.formats_list:
                 _format.save()
-                f_t.formats.add(_format)
+                md.formats.add(_format)
 
             # elements
             for _element in f_t.elements_list:
@@ -1260,6 +1264,7 @@ class OGCWebFeatureService_1_0_0(OGCWebFeatureService):
             # update async task if this is called async
             if async_task is not None and step_size is not None:
                 task_helper.update_progress_by_step(async_task, step_size)
+                task_helper.update_service_description(async_task, None, "Parsing {}".format(metadata.title))
 
 
 class OGCWebFeatureService_1_1_0(OGCWebFeatureService):

@@ -5,11 +5,19 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 15.08.19
 
 """
+from collections import OrderedDict, Iterable
+from time import time
+
+from django.db.models import QuerySet
 from rest_framework import serializers
 
+from MrMap.settings import EXEC_TIME_PRINT
+from MrMap.utils import print_debug_mode
 from service.forms import RegisterNewServiceWizardPage2
 from service.helper import service_helper
+from service.helper.enums import MetadataEnum
 from service.models import ServiceType, Metadata, Category, Dimension
+from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import MrMapGroup, Role, Permission
 
 
@@ -221,7 +229,7 @@ class LayerSerializer(ServiceSerializer):
     is_available = serializers.BooleanField()
     is_active = serializers.BooleanField()
     parent_service = serializers.PrimaryKeyRelatedField(read_only=True)
-    child_layer = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
+    child_layers = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
     servicetype = ServiceTypeSerializer()
 
 
@@ -291,3 +299,192 @@ class CatalogueMetadataSerializer(serializers.Serializer):
         model = Metadata
 
 
+def serialize_metadata_relation(md: Metadata):
+    """ Serializes the related_metadata of a metadata element into a list of dict elements
+
+    Faster version than using ModelSerializers
+
+    Args:
+        md (Metadata): The metadata element
+    Returns:
+         data_list (list): The list containing serialized dict elements
+    """
+    relations = []
+    md_relations = md.related_metadata.all()
+
+    for rel in md_relations:
+        md_from = rel.metadata_from
+        md_to = rel.metadata_to
+
+        rel_obj = OrderedDict()
+        rel_obj["relation_from"] = {
+            "id": md_from.id,
+            "type": md_from.metadata_type.type,
+            "identifier": md_from.identifier
+        }
+        rel_obj["relation_type"] = rel.relation_type
+        rel_obj["relation_to"] = {
+            "id": md_to.id,
+            "type": md_to.metadata_type.type,
+            "identifier": md_to.identifier
+        }
+
+        relations.append(rel_obj)
+
+    return relations
+
+
+def serialize_contact(md: Metadata):
+    """ Serializes the contact of a metadata element into a dict element
+
+    Faster version than using ModelSerializers
+
+    Args:
+        md (Metadata): The metadata element
+    Returns:
+         data_list (list): The list containing serialized dict elements
+    """
+    contact = OrderedDict()
+    md_contact = md.contact
+
+    if md_contact is None:
+        return None
+
+    contact["id"] = md_contact.id
+    contact["organization_name"] = md_contact.organization_name
+    contact["is_auto_generated"] = md_contact.is_auto_generated
+    contact["person_name"] = md_contact.person_name
+    contact["email"] = md_contact.email
+    contact["phone"] = md_contact.phone
+    contact["facsimile"] = md_contact.facsimile
+    contact["city"] = md_contact.city
+    contact["country"] = md_contact.country
+
+    return contact
+
+
+def serialize_dimensions(md: Metadata):
+    """ Serializes the dimensions of a metadata element into a list of dict elements
+
+    Faster version than using ModelSerializers
+
+    Args:
+        md (Metadata): The metadata element
+    Returns:
+         data_list (list): The list containing serialized dict elements
+    """
+    dimensions = []
+
+    for dim in md.dimensions.all():
+        dimension = OrderedDict()
+
+        dimension["type"] = dim.type
+        dimension["custom_name"] = dim.custom_name
+        dimension["units"] = dim.units
+        dimension["extent"] = dim.extent
+
+        dimensions.append(dimension)
+
+    return dimensions
+
+
+def serialize_categories(md: Metadata):
+    """ Serializes the categories of a metadata element into a list of dict elements
+
+    Faster version than using ModelSerializers
+
+    Args:
+        md (Metadata): The metadata element
+    Returns:
+         data_list (list): The list containing serialized dict elements
+    """
+    categories = []
+    for cat in md.categories.all():
+        category = OrderedDict()
+
+        category["id"] = cat.id
+        category["type"] = cat.type
+        category["title_EN"] = cat.title_EN
+        category["description_EN"] = cat.description_EN
+        category["title_locale_1"] = cat.title_locale_1
+        category["description_locale_1"] = cat.description_locale_1
+        category["title_locale_2"] = cat.title_locale_2
+        category["description_locale_2"] = cat.description_locale_2
+        category["symbol"] = cat.symbol
+        category["online_link"] = cat.online_link
+        category["metadata_count"] = cat.metadata_count
+
+        categories.append(category)
+
+    return categories
+
+
+def perform_catalogue_entry_serialization(md: Metadata):
+    """ Performs serialization for a single metadata object
+
+    Args:
+        md (Metadata): The metadata object
+    Returns:
+        serialized (OrderedDict): A dict object, containing the metadata catalogue data
+    """
+    # fetch keywords beforehand
+    keywords = md.keywords.all()
+
+    # fetch bounding geometry beforehand
+    bounding_geometry = md.bounding_geometry
+    if bounding_geometry is None:
+        bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
+
+    try:
+        if md.is_featuretype_metadata:
+            parent_service = md.featuretype.parent_service.id
+        else:
+            parent_service = md.service.parent_service.metadata.id
+    except Exception:
+        parent_service = None
+
+    serialized = OrderedDict()
+    serialized["id"] = md.id
+    serialized["identifier"] = md.identifier
+    serialized["type"] = md.metadata_type.type
+    serialized["title"] = md.title
+    serialized["abstract"] = md.abstract
+    serialized["spatial_extent_geojson"] = bounding_geometry.geojson
+    serialized["capabilities_uri"] = md.capabilities_uri
+    serialized["xml_metadata_uri"] = md.service_metadata_uri
+    serialized["html_metadata_uri"] = md.html_metadata_uri
+    serialized["fees"] = md.fees
+    serialized["access_constraints"] = md.access_constraints
+    serialized["terms_of_use"] = md.terms_of_use
+    serialized["parent_service"] = parent_service
+    serialized["keywords"] = [kw.keyword for kw in keywords]
+    serialized["organization"] = serialize_contact(md)
+    serialized["related_metadata"] = serialize_metadata_relation(md)
+    serialized["categories"] = serialize_categories(md)
+    serialized["dimensions"] = serialize_dimensions(md)
+
+    return serialized
+
+
+def serialize_catalogue_metadata(md_queryset: QuerySet):
+    """ Serializes a metadata QuerySet into a list of dict elements
+
+    Faster version than using ModelSerializers
+
+    Args:
+        md_queryset (QuerySet): The queryset containing the metadata elements
+    Returns:
+         data_list (list): The list containing serialized dict elements
+    """
+    # If no queryset but a single metadata is provided, we do not add everything into a
+    is_single_retrieve = not isinstance(md_queryset, Iterable)
+
+    if is_single_retrieve:
+        ret_val = perform_catalogue_entry_serialization(md_queryset)
+    else:
+        ret_val = []
+        for md in md_queryset:
+            serialized = perform_catalogue_entry_serialization(md)
+            ret_val.append(serialized)
+
+    return ret_val

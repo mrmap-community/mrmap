@@ -1,4 +1,4 @@
-#<img src="https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/pre_master/MapSkinner/static/images/mr_map.png" width="200">
+#<img src="https://git.osgeo.org/gitea/GDI-RP/MrMap/raw/branch/pre_master/MrMap/static/images/mr_map.png" width="200">
 Mr. Map is a service registry for web map services ([WMS](https://www.opengeospatial.org/standards/wms)) 
 and web feature services ([WFS](https://www.opengeospatial.org/standards/wfs)) as introduced by the 
 Open Geospatial Consortium [OGC](http://www.opengeospatial.org/).
@@ -22,7 +22,7 @@ Please read [FUNCTIONALITY.md](FUNCTIONALITY.md) for full list of Functions.
   
 
 ##Getting Started
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. Take a look at the [instructions](https://git.osgeo.org/gitea/GDI-RP/MapSkinner/src/branch/pre_master/install) in the install folder on how to deploy the project on a production system.
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. Take a look at the [instructions](https://git.osgeo.org/gitea/GDI-RP/MrMap/src/branch/pre_master/install) in the install folder on how to deploy the project on a production system.
 
 ###Install dependencies
 * install dependencies on [debian 10](INSTALLDEB10.md)
@@ -37,7 +37,7 @@ These instructions will get you a copy of the project up and running on your loc
 1. clone the project from the repo to your preferred install directory:
         
         (venv) $ cd `INSTALL-DIR`
-        (venv) $ git clone https://git.osgeo.org/gitea/GDI-RP/MapSkinner 
+        (venv) $ git clone https://git.osgeo.org/gitea/GDI-RP/MrMap 
 
     > all following commands are from within the project root directory run.
 
@@ -53,7 +53,7 @@ These instructions will get you a copy of the project up and running on your loc
 
 1. (Optional) Configure proxy:
     
-    Make sure the HTTP_PROXY variable in MapSkinner/settings.py is set correctly for your system
+    Make sure the HTTP_PROXY variable in MrMap/settings.py is set correctly for your system
 
 1. run setup routine to get initialized db with admin user for mr. map:
         
@@ -64,7 +64,7 @@ These instructions will get you a copy of the project up and running on your loc
        
 1. start up celery process (celery will do async jobs for us)
 
-        (venv) $ celery -A MapSkinner worker -l info
+        (venv) $ celery -A MrMap worker -l info
         
 1. start up mr. map
 
@@ -100,7 +100,7 @@ What to do here?
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull request to us.
 
 ##Versioning
-We use [SemVer](https://semver.org/) for versioning. For the versions available, see the [tags on this repositry](https://git.osgeo.org/gitea/GDI-RP/MapSkinner/releases).  
+We use [SemVer](https://semver.org/) for versioning. For the versions available, see the [tags on this repositry](https://git.osgeo.org/gitea/GDI-RP/MrMap/releases).  
 
 
 ##Authors

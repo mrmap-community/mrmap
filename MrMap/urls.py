@@ -1,4 +1,4 @@
-"""MapSkinner URL Configuration
+"""MrMap URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/2.1/topics/http/urls/
@@ -30,7 +30,8 @@ urlpatterns = [
     path('editor/', include('editor.urls')),
     path('captcha/', include('captcha.urls')),
     path("i18n/", include("django.conf.urls.i18n")),
-    path('api/', include('api.urls'))
+    path('api/', include('api.urls')),
+    path('csw/', include('csw.urls'))
 ]
 
 handler404 = "structure.views.handler404"

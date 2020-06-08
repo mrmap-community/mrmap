@@ -6,8 +6,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase, Client
 from django.urls import reverse
 
-from MapSkinner.messages import PASSWORD_SENT, EMAIL_IS_UNKNOWN
-from MapSkinner.settings import ROOT_URL
+from MrMap.messages import PASSWORD_SENT, EMAIL_IS_UNKNOWN
+from MrMap.settings import ROOT_URL
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 from structure.models import MrMapUser, UserActivation, Theme

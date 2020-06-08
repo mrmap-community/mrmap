@@ -10,9 +10,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse_lazy
 from django.utils.html import format_html
 
-from MapSkinner.consts import SERVICE_ADD
-from MapSkinner.messages import SERVICE_UPDATE_WRONG_TYPE
-from MapSkinner.validators import validate_get_request_uri
+from MrMap.consts import SERVICE_ADD
+from MrMap.messages import SERVICE_UPDATE_WRONG_TYPE
+from MrMap.validators import validate_get_request_uri
 from django.utils.translation import gettext_lazy as _
 
 from service.helper import service_helper

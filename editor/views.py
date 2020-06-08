@@ -6,14 +6,14 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
-from MapSkinner import utils
-from MapSkinner.cacher import PageCacher
-from MapSkinner.decorator import check_permission, check_ownership
-from MapSkinner.forms import MrMapFormList
-from MapSkinner.messages import METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
+from django.template.loader import render_to_string
+from MrMap import utils
+from MrMap.cacher import PageCacher
+from MrMap.decorator import check_permission, check_ownership
+from MrMap.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
-    SECURITY_PROXY_WARNING_ONLY_FOR_ROOT, DATASET_MD_EDITED, METADATA_ADDED_SUCCESS
-from MapSkinner.responses import BackendAjaxResponse, DefaultContext
+    SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
+from MrMap.responses import DefaultContext, BackendAjaxResponse
 from api.settings import API_CACHE_KEY_PREFIX
 from editor.forms import MetadataEditorForm, DatasetIdentificationForm, DatasetClassificationForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
@@ -285,7 +285,7 @@ def edit(request: HttpRequest, metadata_id: int):
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, "{}: {}".format(parent_service.metadata.title, metadata.title))
             return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
     else:
-        editor_form = MetadataEditorForm(instance=metadata)
+        editor_form = MetadataEditorForm(instance=metadata, request=request)
 
     template = "views/editor_metadata_index.html"
     editor_form.action_url = reverse("editor:edit", args=(metadata_id,))

@@ -7,13 +7,13 @@ check_django_settings(){
    cd /tmp/
    dottedname=`echo $1 | sed s/"\/"/"."/g`
    rm $dottedname
-   wget https://git.osgeo.org/gitea/GDI-RP/MapSkinner/raw/branch/pre_master/$1 -O $dottedname
+   wget https://git.osgeo.org/gitea/GDI-RP/MrMap/raw/branch/pre_master/$1 -O $dottedname
 
    while IFS="" read -r p || [ -n "$p" ]
      do
         h=`printf '%s\n' "$p" | cut -d = -f 1`
         h_full=`printf '%s\n' "$p"`
-        if ! grep -Fq "$h" ${installation_folder}/MapSkinner/$1
+        if ! grep -Fq "$h" ${installation_folder}/MrMap/$1
         then
             missing_items+=("$h_full")
          fi
@@ -58,29 +58,29 @@ custom_update(){
     fi
 }
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!
-Checking MapSkinner/settings.py
+Checking MrMap/settings.py
 !!!!!!!!!!!!!!!!!!!!!!!!!!"
-check_django_settings "MapSkinner/settings.py"
+check_django_settings "MrMap/settings.py"
 
 echo "!!!!!!!!!!!!!!!!!!!!!!!!!!
 Checking service/settings.py
 !!!!!!!!!!!!!!!!!!!!!!!!!!"
 check_django_settings "service/settings.py"
 
-cd ${installation_folder}MapSkinner/
+cd ${installation_folder}MrMap/
 echo "Backing up Django Configs"
-cp -av ${installation_folder}MapSkinner/MapSkinner/settings.py /tmp/settings.py_$(date +"%m_%d_%Y")
-cp -av ${installation_folder}MapSkinner/service/settings.py /tmp/service_settings.py_$(date +"%m_%d_%Y")
+cp -av ${installation_folder}MrMap/MrMap/settings.py /tmp/settings.py_$(date +"%m_%d_%Y")
+cp -av ${installation_folder}MrMap/service/settings.py /tmp/service_settings.py_$(date +"%m_%d_%Y")
 
 git reset --hard
 git pull
 
 echo "Restoring Django Configs"
-cp -av /tmp/settings.py_$(date +"%m_%d_%Y") ${installation_folder}MapSkinner/MapSkinner/settings.py
-cp -av /tmp/service_settings.py_$(date +"%m_%d_%Y") ${installation_folder}MapSkinner/service/settings.py
+cp -av /tmp/settings.py_$(date +"%m_%d_%Y") ${installation_folder}MrMap/MrMap/settings.py
+cp -av /tmp/service_settings.py_$(date +"%m_%d_%Y") ${installation_folder}MrMap/service/settings.py
 
 python -m pip install -r requirements.txt
-rm -r ${installation_folder}MapSkinner/static
+rm -r ${installation_folder}MrMap/static
 python manage.py collectstatic
 python manage.py compilemessages
 python manage.py makemigrations

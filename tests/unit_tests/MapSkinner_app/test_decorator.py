@@ -11,7 +11,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from django.test import TestCase, Client, RequestFactory
 
-from MapSkinner.decorator import log_proxy, check_permission, check_ownership
+from MrMap.decorator import log_proxy, check_permission, check_ownership
 from service.models import Metadata, ProxyLog, Service
 from structure.models import Permission, MrMapGroup, Organization
 from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service, create_testuser, \

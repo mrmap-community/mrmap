@@ -6,11 +6,11 @@ Created on: 17.04.19
 
 """
 import urllib
-from MapSkinner.themes import DARK_THEME, LIGHT_THEME
+from MrMap.themes import DARK_THEME, LIGHT_THEME
 from django.utils.html import format_html
 
 from structure.models import MrMapUser
-from MapSkinner.settings import DEBUG
+from MrMap.settings import DEBUG
 
 
 def print_debug_mode(string: str):

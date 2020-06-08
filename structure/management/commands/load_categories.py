@@ -11,7 +11,7 @@ import uuid
 from django.core.management import BaseCommand
 from django.db import transaction
 
-from MapSkinner.settings import CATEGORIES, CATEGORIES_LANG
+from MrMap.settings import CATEGORIES, CATEGORIES_LANG
 from service.helper.common_connector import CommonConnector
 from service.models import Category, CategoryOrigin
 

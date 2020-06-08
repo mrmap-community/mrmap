@@ -3,11 +3,11 @@ from django.template.loader import render_to_string
 from django.utils.html import format_html
 from django.urls import reverse
 
-from MapSkinner.forms import MrMapConfirmForm
-from MapSkinner.tables import MapSkinnerTable
+from MrMap.forms import MrMapConfirmForm
+from MrMap.tables import MrMapTable
 from service.models import Layer, FeatureType, MetadataRelation
-from MapSkinner.consts import *
-from MapSkinner.utils import get_theme, get_ok_nok_icon
+from MrMap.consts import *
+from MrMap.utils import get_theme, get_ok_nok_icon
 from django.utils.translation import gettext_lazy as _
 
 
@@ -38,7 +38,7 @@ def _get_delete_button(url, user):
                        format_html(get_theme(user)["ICONS"]["REMOVE"]),)
 
 
-class WmsServiceTable(MapSkinnerTable):
+class WmsServiceTable(MrMapTable):
     caption = _("Shows all WMS which are configured in your Mr. Map environment. You can Edit them if you want.")
 
     wms_title = tables.Column(accessor='title', verbose_name=_('Title'), )
@@ -97,7 +97,7 @@ class WmsServiceTable(MapSkinnerTable):
         return _get_undo_button(url, self.user)
 
 
-class WfsServiceTable(MapSkinnerTable):
+class WfsServiceTable(MrMapTable):
     caption = _("Shows all WFS which are configured in your Mr. Map environment. You can Edit them if you want.")
 
     wfs_title = tables.Column(accessor='title', verbose_name=_('Title'), )
@@ -156,7 +156,7 @@ class WfsServiceTable(MapSkinnerTable):
         return _get_undo_button(url, self.user)
 
 
-class DatasetTable(MapSkinnerTable):
+class DatasetTable(MrMapTable):
     caption = _("Shows all datasets which are configured in your Mr. Map environment. You can Edit them if you want.")
 
     dataset_title = tables.Column(accessor='title', verbose_name=_('Title'), )

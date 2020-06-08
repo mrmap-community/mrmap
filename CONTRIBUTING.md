@@ -5,11 +5,11 @@ When contributing to this repository, please first discuss the change you wish t
 Please follow the following steps on working in our Git:
 
 1. Create an issue
-    * Explain your problem precisely. Please use an issue style like [this](https://git.osgeo.org/gitea/hollsandre/MapSkinner/issues/45)
+    * Explain your problem precisely. Please use an issue style like [this](https://git.osgeo.org/gitea/GDI-RP/MrMap/issues/45)
 2. Tag the issue correctly (Discussion, Bug, Improvement, New Feature, ...)
 3. Assigne the correct person. If you are not sure who would be the correct one, just assigne someone. They will know if they can do it or delegate it further
 4. If your are responsible for the issue, create an own branch per issue. This workflow is nicely done in Gitlab, but Github does not support the automatic creation of a branch from an issue. However, if your issue has the name `#42 Great Issue`, please use the following as branch name `42_Great_Issue`. 
-5. **Always** fork the issue branch from the depending milestone branch your developing for. (See the [tags](https://git.osgeo.org/gitea/hollsandre/MapSkinner/releases))The master branch will only be pulled, if we want to get a current "milestone" status.
+5. **Always** fork the issue branch from the depending milestone branch your developing for. (See the [tags](https://git.osgeo.org/gitea/GDI-RP/MrMap/releases))The master branch will only be pulled, if we want to get a current "milestone" status.
 6. Work on the branch
 7. Use a good commit style as following described.
 8. When the work is done, create a Pull-Request and explain what you did. **Please note**: Always set the Pull-Request relation to **milestone --- your_branch**
@@ -17,9 +17,9 @@ Please follow the following steps on working in our Git:
 
 ##Issue Style
 Please use `markdown` for styling your issue. Always explain **what currently exists**, like how the bug can be triggered, followed by a **"wish" or suggestion** what **should** happen on this specific problem. Take a look on older Issues to get an idea:
-* [#44](https://git.osgeo.org/gitea/hollsandre/MapSkinner/issues/44)
-* [#45](https://git.osgeo.org/gitea/hollsandre/MapSkinner/issues/45)
-* [#36](https://git.osgeo.org/gitea/hollsandre/MapSkinner/issues/36)
+* [#44](https://git.osgeo.org/gitea/GDI-RP/MrMap/issues/44)
+* [#45](https://git.osgeo.org/gitea/GDI-RP/MrMap/issues/45)
+* [#36](https://git.osgeo.org/gitea/GDI-RP/MrMap/issues/36)
 
 ##Commit Style
 Commits are a great thing to rethink your last actions again and are useful for code review. So please follow the following style to improve the quality of your commits:

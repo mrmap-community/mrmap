@@ -6,9 +6,9 @@ from django.urls import reverse
 from django.utils import timezone
 from model_bakery import baker
 
-from MapSkinner.messages import ORGANIZATION_CAN_NOT_BE_OWN_PARENT, REQUEST_ACTIVATION_TIMEOVER, \
+from MrMap.messages import ORGANIZATION_CAN_NOT_BE_OWN_PARENT, REQUEST_ACTIVATION_TIMEOVER, \
     PUBLISH_PERMISSION_REMOVING_DENIED
-from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME
+from MrMap.settings import HTTP_OR_SSL, HOST_NAME
 from structure.forms import GroupForm, OrganizationForm, RemoveOrganizationForm, PublisherForOrganizationForm, \
     RemoveGroupForm
 from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING

@@ -18,18 +18,18 @@ from django.db import transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
 
-from MapSkinner.cacher import DocumentCacher
-from MapSkinner.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
-from MapSkinner.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
-from MapSkinner import utils
-from MapSkinner.utils import print_debug_mode
+from MrMap.cacher import DocumentCacher
+from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
+from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
+from MrMap import utils
+from MrMap.utils import print_debug_mode
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.iso.service_metadata_builder import ServiceMetadataBuilder
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
-    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES
+    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES
 from structure.models import MrMapGroup, Organization, MrMapUser
 from service.helper import xml_helper
 
@@ -59,6 +59,9 @@ class Keyword(models.Model):
 
     def __str__(self):
         return self.keyword
+
+    class Meta:
+        ordering = ['-id']
 
 
 class ProxyLog(models.Model):
@@ -580,20 +583,19 @@ class Metadata(Resource):
 
     # other
     keywords = models.ManyToManyField(Keyword)
-    categories = models.ManyToManyField('Category', blank=True)
-    reference_system = models.ManyToManyField('ReferenceSystem', blank=True)
-    dimensions = models.ManyToManyField('Dimension', blank=True)
+    formats = models.ManyToManyField('MimeType', blank=True)
+    categories = models.ManyToManyField('Category')
+    reference_system = models.ManyToManyField('ReferenceSystem')
+    dimensions = models.ManyToManyField('Dimension')
     metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
     legal_dates = models.ManyToManyField('LegalDate')
     legal_reports = models.ManyToManyField('LegalReport')
     hits = models.IntegerField(default=0)
 
-    ## for ISO metadata
-    #dataset_id = models.CharField(max_length=255, null=True, blank=True)
-    #dataset_id_code_space = models.CharField(max_length=255, null=True, blank=True)
-
+    # Related metadata creates Relations between metadata records by using the MetadataRelation table.
+    # Each MetadataRelation record might hold further information about the relation, e.g. 'describedBy', ...
     related_metadata = models.ManyToManyField(MetadataRelation)
-    languages = models.ManyToManyField(MetadataLanguage)
+    language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
     origin = None
 
     def __init__(self, *args, **kwargs):
@@ -602,6 +604,8 @@ class Metadata(Resource):
         self.keywords_list = []
         self.reference_system_list = []
         self.dimension_list = []
+        self.formats_list = []
+        self.categories_list = []
 
     def __str__(self):
         return self.title
@@ -769,6 +773,9 @@ class Metadata(Resource):
             if doc is None or len(doc) == 0:
                 # Well, there is one but no service_metadata_document is found inside
                 raise ObjectDoesNotExist
+            else:
+                # There is a capability_document in the db. Let's write it to cache, so it can be returned even faster
+                cacher.set(self.id, doc)
 
         except ObjectDoesNotExist as e:
             # There is no service metadata document in the database, we need to create it
@@ -780,7 +787,7 @@ class Metadata(Resource):
 
             # Write metadata to db as well
             cap_doc = Document.objects.get_or_create(related_metadata=self)[0]
-            cap_doc.service_metadata_document = doc
+            cap_doc.service_metadata_document = doc.decode("UTF-8")
             cap_doc.save()
 
         return doc
@@ -1048,22 +1055,26 @@ class Metadata(Resource):
     def find_max_bounding_box(self):
         """ Returns the largest bounding box of all children
 
-        Saves the found bounding box to bounding_geometry for faster access
-
         Returns:
 
         """
-        children = self.service.child_service.all()
-        max_box = self.bounding_geometry
-        for child in children:
-            bbox = child.layer.bbox_lat_lon
-            if max_box is None:
-                max_box = bbox
-            else:
-                ba = bbox.area
-                ma = max_box.area
-                if ba > ma:
-                    max_box = bbox
+        if self.metadata_type.type == MetadataEnum.SERVICE.value:
+            if self.service.servicetype.name == OGCServiceEnum.WMS.value:
+                children = Layer.objects.filter(
+                    parent_service__metadata=self
+                )
+            elif self.service.servicetype.name == OGCServiceEnum.WFS.value:
+                children = FeatureType.objects.filter(
+                    parent_service__metadata=self
+                )
+        elif self.metadata_type.type == MetadataEnum.LAYER.value:
+            children = Layer.objects.filter(
+                parent_layer__metadata=self
+            )
+        else:
+            return DEFAULT_SERVICE_BOUNDING_BOX
+        children_bboxes = {child.bbox_lat_lon.area: child.bbox_lat_lon for child in children}
+        max_box = children_bboxes.get(max(children_bboxes), None)
 
         if max_box is None:
             max_box = DEFAULT_SERVICE_BOUNDING_BOX
@@ -1247,10 +1258,7 @@ class Metadata(Resource):
         self.abstract = original_metadata_document.abstract
         self.title = original_metadata_document.title
 
-        language_list = []
-        for language in original_metadata_document.languages:
-            language_list.append(MetadataLanguage.objects.get_or_create(iso_639_2_tlc=language)[0])
-        self.languages.set(language_list)
+        self.language_code = original_metadata_document.language
 
         keyword_list = []
         for keyword in original_metadata_document.keywords:
@@ -1377,7 +1385,8 @@ class Metadata(Resource):
             subelement_md.use_proxy_uri = self.use_proxy_uri
             try:
                 subelement_md_doc = Document.objects.get(related_metadata=subelement_md)
-                subelement_md_doc.set_proxy(use_proxy)
+                if subelement_md_doc.current_capability_document is not None:
+                    subelement_md_doc.set_proxy(use_proxy)
             except ObjectDoesNotExist:
                 pass
             subelement_md.save()
@@ -1990,6 +1999,10 @@ class Document(Resource):
         Returns:
 
         """
+        if self.current_capability_document is None:
+            # Nothing to do here
+            return
+
         xml_obj = xml_helper.parse_xml(self.current_capability_document)
         if is_secured:
             uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.related_metadata.id)
@@ -2023,6 +2036,10 @@ class Document(Resource):
              nothing
         """
         cap_doc_curr = self.current_capability_document
+        if cap_doc_curr is None:
+            # Nothing to do here!
+            return
+
         xml_obj = xml_helper.parse_xml(cap_doc_curr)
         service_version = force_version or self.related_metadata.get_service_version()
         service_type = self.related_metadata.get_service_type()
@@ -2088,6 +2105,10 @@ class Document(Resource):
              nothing
         """
         cap_doc_curr = self.current_capability_document
+        if cap_doc_curr is None:
+            # Nothing to do here!
+            return
+
         xml_doc = xml_helper.parse_xml(cap_doc_curr)
 
         # get <LegendURL> elements
@@ -2193,6 +2214,9 @@ class Category(Resource):
     online_link = models.CharField(max_length=500, null=True)
     origin = models.ForeignKey(CategoryOrigin, on_delete=models.DO_NOTHING, null=True)
 
+    class Meta:
+        ordering = ['-id']
+
     def __str__(self):
         return self.title_EN + " (" + self.type + ")"
 
@@ -2250,7 +2274,7 @@ class Service(Resource):
     get_gml_objct_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_gml_objct_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
-    formats = models.ManyToManyField('MimeType', blank=True)
+    #formats = models.ManyToManyField('MimeType', blank=True)
 
     is_update_candidate_for = models.OneToOneField('self', on_delete=models.SET_NULL, related_name="has_update_candidate", null=True, default=None, blank=True)
     created_by_user = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True, blank=True)
@@ -2265,7 +2289,7 @@ class Service(Resource):
         # non persisting attributes
         self.root_layer = None
         self.feature_type_list = []
-        self.formats_list = []
+        #self.formats_list = []
         self.categories_list = []
 
     def __str__(self):
@@ -2324,21 +2348,6 @@ class Service(Resource):
              True if the servicetypes are equal, false otherwise
         """
         return self.servicetype.name == enum.value
-
-
-    def get_supported_formats(self):
-        """ Returns a list of supported formats.
-
-        If this is called for a top-level-service record, which does not provide a list of formats, the call will be
-        reached to the next child.
-
-        Returns:
-             formats (QuerySet): A query set of available formats
-        """
-        if self.metadata.is_root() and self.formats.all().count() == 0:
-            child = self.child_service.first()
-            return child.get_supported_formats()
-        return self.formats.all()
 
     def secure_access(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation, element=None):
         """ Secures a single element
@@ -3177,7 +3186,6 @@ class FeatureType(Resource):
     is_searchable = models.BooleanField(default=False)
     default_srs = models.ForeignKey(ReferenceSystem, on_delete=models.DO_NOTHING, null=True, related_name="default_srs")
     inspire_download = models.BooleanField(default=False)
-    formats = models.ManyToManyField(MimeType)
     elements = models.ManyToManyField('FeatureTypeElement')
     namespaces = models.ManyToManyField('Namespace')
     bbox_lat_lon = models.PolygonField(default=Polygon(
@@ -3195,7 +3203,6 @@ class FeatureType(Resource):
         # non persisting attributes
         self.additional_srs_list = []
         self.keywords_list = []
-        self.formats_list = []
         self.elements_list = []
         self.namespaces_list = []
         self.dataset_md_list = []

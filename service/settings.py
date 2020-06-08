@@ -9,13 +9,22 @@ Created on: 23.09.19
 import os
 
 from django.contrib.gis.geos import Polygon, GEOSGeometry
+from django.utils.translation import gettext_lazy as _
 
-from MapSkinner.settings import BASE_DIR, HTTP_OR_SSL, HOST_NAME
+from MrMap.settings import BASE_DIR, HTTP_OR_SSL, HOST_NAME
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
 
 # Some special things
 DEFAULT_CONNECTION_TYPE = ConnectionEnum.REQUESTS
 DEFAULT_SERVICE_VERSION = OGCServiceVersionEnum.V_1_1_1
+
+# Default metadata language
+## Has to match the language code, defined by ISO19115
+DEFAULT_MD_LANGUAGE = "ger"
+ISO_19115_LANG_CHOICES = [
+    ("ger", _("German")),
+    ("eng", _("English")),
+]
 
 # semantic relation types
 MD_RELATION_TYPE_VISUALIZES = "visualizes"
@@ -55,6 +64,7 @@ DEFAULT_SRS_STRING = "{}:{}".format(DEFAULT_SRS_FAMILY, DEFAULT_SRS)
 
 # Default service bounding box
 DEFAULT_SERVICE_BOUNDING_BOX = GEOSGeometry(Polygon.from_bbox([5.866699, 48.908059, 8.76709, 50.882243]), srid=DEFAULT_SRS)
+DEFAULT_SERVICE_BOUNDING_BOX_EMPTY = GEOSGeometry(Polygon.from_bbox([0.0, 0.0, 0.0, 0.0]), srid=DEFAULT_SRS)
 
 ALLOWED_SRS = [
     4326,
@@ -126,7 +136,7 @@ RENDER_TEXT_ON_IMG = False  # Whether to render 'Access denied for xy' on GetMap
 PREVIEW_MIME_TYPE_DEFAULT = "png"   # Specify a preferred default mime type (without "image/..." prefix) for rendering preview images (e.g. HTML metadata view)
 
 # PREVIEW IMAGE REQUESTING
-PLACEHOLDER_IMG_PATH = "MapSkinner/static/images/mr_map_404.png"
+PLACEHOLDER_IMG_PATH = "MrMap/static/images/mr_map_404.png"
 
 # PROXY LOG
 COUNT_DATA_PIXELS_ONLY = True  # If True, the response megapixel will be computed without transparent (alpha) pixel.

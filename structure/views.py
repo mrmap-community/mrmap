@@ -7,13 +7,13 @@ from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from MapSkinner.decorator import check_permission, check_ownership
-from MapSkinner.messages import PUBLISH_REQUEST_SENT, \
+from MrMap.decorator import check_permission, check_ownership
+from MrMap.messages import PUBLISH_REQUEST_SENT, \
     PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, \
     PUBLISH_PERMISSION_REMOVED, \
     SERVICE_REGISTRATION_ABORTED, \
     ORGANIZATION_SUCCESSFULLY_EDITED, GROUP_SUCCESSFULLY_EDITED, GROUP_SUCCESSFULLY_DELETED, GROUP_SUCCESSFULLY_CREATED
-from MapSkinner.responses import DefaultContext
+from MrMap.responses import DefaultContext
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.settings import PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW, PENDING_REQUEST_TYPE_PUBLISHING
 from structure.forms import GroupForm, OrganizationForm, PublisherForOrganizationForm, RemoveGroupForm, \

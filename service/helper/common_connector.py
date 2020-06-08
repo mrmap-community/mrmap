@@ -19,9 +19,9 @@ import re
 from django.http import HttpResponse
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
 
-from MapSkinner.utils import print_debug_mode
+from MrMap.utils import print_debug_mode
 from service.settings import DEFAULT_CONNECTION_TYPE, REQUEST_TIMEOUT
-from MapSkinner.settings import HTTP_PROXY, PROXIES
+from MrMap.settings import HTTP_PROXY, PROXIES
 from service.helper.enums import ConnectionEnum
 
 try:

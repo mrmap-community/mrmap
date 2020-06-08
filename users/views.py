@@ -21,12 +21,12 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from MapSkinner.messages import ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
+from MrMap.messages import ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
     ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, \
     LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, PASSWORD_CHANGE_OLD_PASSWORD_WRONG
-from MapSkinner.responses import DefaultContext
-from MapSkinner.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
-from MapSkinner.utils import print_debug_mode
+from MrMap.responses import DefaultContext
+from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
+from MrMap.utils import print_debug_mode
 from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
 from structure.forms import LoginForm, RegistrationForm

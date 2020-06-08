@@ -10,7 +10,7 @@ import urllib
 
 from celery import Task
 
-from MapSkinner.messages import SERVICE_REMOVED
+from MrMap.messages import SERVICE_REMOVED
 from service import tasks
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum

@@ -6,10 +6,11 @@ from abc import abstractmethod
 from celery import Task
 from django.contrib.gis.geos import Polygon
 from django.db import transaction
+from lxml.etree import Element
 from requests.exceptions import ReadTimeout
 
-from MapSkinner.messages import CONNECTION_TIMEOUT
-from MapSkinner.settings import GENERIC_NAMESPACE_TEMPLATE
+from MrMap.messages import CONNECTION_TIMEOUT
+from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
@@ -252,3 +253,54 @@ class OGCWebService:
             crypt_handler.write_key_to_file("{}/md_{}.key".format(EXTERNAL_AUTHENTICATION_FILEPATH, md.id), key)
             external_auth.encrypt(key)
             external_auth.save()
+
+
+class OWSException:
+    def __init__(self, exception: Exception):
+        self.exception = exception
+        try:
+            self.text = exception.args[0]
+        except IndexError:
+            self.text = "None"
+        try:
+            self.locator = exception.args[1]
+        except IndexError:
+            self.locator = "None"
+
+        self.namespace_map = {
+            None: XML_NAMESPACES["ows"],
+            "xsi": XML_NAMESPACES["xsi"],
+        }
+
+        self.xsi_ns = "{" + self.namespace_map["xsi"] + "}"
+        self.ows_ns = "{" + self.namespace_map[None] + "}"
+
+    def get_exception_report(self):
+        """ Creates an OWSExceptionReport from a given Exception object
+
+        Returns:
+             report (str): The exception report as string
+        """
+        root = Element(
+            "{}ExceptionReport".format(self.ows_ns),
+            nsmap=self.namespace_map,
+            attrib={
+                "{}schemaLocation".format(self.xsi_ns): "http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd",
+                "version": "1.2.0",
+            }
+        )
+        exception_elem = xml_helper.create_subelement(
+            root,
+            "{}Exception".format(self.ows_ns),
+            attrib={
+                "exceptionCode": self.exception.__class__.__name__,
+                "locator": self.locator,
+            }
+        )
+        text_elem = xml_helper.create_subelement(
+            exception_elem,
+            "{}ExceptionText".format(self.ows_ns)
+        )
+        text_elem.text = self.text
+
+        return xml_helper.xml_to_string(root, pretty_print=True)

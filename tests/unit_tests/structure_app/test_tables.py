@@ -7,7 +7,7 @@ Created on: 22.04.20
 """
 from django.test import TestCase, RequestFactory
 
-from MapSkinner.consts import STRUCTURE_INDEX_GROUP, STRUCTURE_INDEX_ORGANIZATION
+from MrMap.consts import STRUCTURE_INDEX_GROUP, STRUCTURE_INDEX_ORGANIZATION
 from structure.filters import GroupFilter, OrganizationFilter
 from structure.models import MrMapGroup, Organization
 from structure.tables import GroupTable, OrganizationTable

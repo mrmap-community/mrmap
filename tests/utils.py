@@ -15,8 +15,8 @@ from django.urls import reverse
 from django_filters import FilterSet
 from django_tables2 import RequestConfig
 
-from MapSkinner import utils
-from MapSkinner.tables import MapSkinnerTable
+from MrMap import utils
+from MrMap.tables import MrMapTable
 from structure.models import MrMapUser
 
 
@@ -31,8 +31,8 @@ def generate_random_string(len: int):
     return ''.join(random.choices(string.ascii_uppercase, k=len))
 
 
-def check_table_sorting(table: MapSkinnerTable, url_path_name: str, sorting_parameter: str):
-    """ Checks the sorting of a MapSkinnerTable object.
+def check_table_sorting(table: MrMapTable, url_path_name: str, sorting_parameter: str):
+    """ Checks the sorting of a MrMapTable object.
 
     This function returns two elements, so call it like
     ```
@@ -40,7 +40,7 @@ def check_table_sorting(table: MapSkinnerTable, url_path_name: str, sorting_para
     ```
 
     Args:
-        table (MapSkinnerTable): An instance of a MapSkinnerTable (or inherited)
+        table (MrMapTable): An instance of a MrMapTable (or inherited)
         url_path_name (str): Identifies the url path name like `structure:groups-index` where the table would be rendered
         sorting_parameter (str): Identifies the GET parameter name, that holds the ordering column name
     Returns:
@@ -79,12 +79,12 @@ def check_table_sorting(table: MapSkinnerTable, url_path_name: str, sorting_para
     return sorting_implementation_failed, sorting_results
 
 
-def check_table_filtering(table: MapSkinnerTable, filter_parameter: str, filter_class, queryset: QuerySet,
+def check_table_filtering(table: MrMapTable, filter_parameter: str, filter_class, queryset: QuerySet,
                           table_class, user: MrMapUser):
-    """ Checks if the filter functionality of a MapSkinnerTable is working
+    """ Checks if the filter functionality of a MrMapTable is working
 
     Args:
-        table (MapSkinnerTable): An instance of a MapSkinnerTable (or inherited)
+        table (MrMapTable): An instance of a MrMapTable (or inherited)
         filter_parameter (str): Identifies the parameter used for filtering in the table (e.g. 'gsearch' in Groups)
         filter_class: The class used for creating the table filter (e.g. GroupFilter)
         queryset (QuerySet): The queryset containing the data which is displayed in the table

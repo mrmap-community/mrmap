@@ -8,9 +8,9 @@ Created on: 28.05.19
 from django import forms
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
-from MapSkinner.messages import EMAIL_IS_UNKNOWN, PASSWORD_CHANGE_OLD_PASSWORD_WRONG
-from MapSkinner.settings import MIN_PASSWORD_LENGTH
-from MapSkinner.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
+from MrMap.messages import EMAIL_IS_UNKNOWN, PASSWORD_CHANGE_OLD_PASSWORD_WRONG
+from MrMap.settings import MIN_PASSWORD_LENGTH
+from MrMap.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from structure.models import MrMapUser, Theme
 
 

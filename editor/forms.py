@@ -9,10 +9,10 @@ from dal import autocomplete
 from django.forms import ModelMultipleChoiceField
 from django.utils.translation import gettext_lazy as _
 from django import forms
-from MapSkinner.forms import MrMapModelForm, MrMapWizardForm
+from MrMap.forms import MrMapModelForm, MrMapWizardForm
 from service.helper.enums import MetadataEnum
-from service.models import Metadata, MetadataRelation, Keyword, Category, \
-    MetadataLanguage
+from service.models import Metadata, MetadataRelation, Keyword, Category
+from service.settings import ISO_19115_LANG_CHOICES
 from users.helper import user_helper
 
 
@@ -79,7 +79,7 @@ class MetadataModelMultipleChoiceField(ModelMultipleChoiceField):
 class DatasetIdentificationForm(MrMapWizardForm):
     title = forms.CharField(label=_('Title'),)
     abstract = forms.CharField(label=_('Abstract'), )
-
+    language_code = forms.ChoiceField(label=_('Language'), choices=ISO_19115_LANG_CHOICES)
     additional_related_objects = MetadataModelMultipleChoiceField(
         queryset=None,
         widget=autocomplete.ModelSelect2Multiple(
@@ -92,19 +92,6 @@ class DatasetIdentificationForm(MrMapWizardForm):
             },
         ),
         required=False, )
-
-    languages = ModelMultipleChoiceField(
-        queryset=MetadataLanguage.objects.all(),
-        widget=autocomplete.ModelSelect2Multiple(
-                url='editor:language-autocomplete',
-                attrs={
-                    "data-containerCss": {
-                        "height": "3em",
-                        "width": "3em",
-                    }
-                },
-            )
-    )
 
     def __init__(self, *args, **kwargs):
         super(DatasetIdentificationForm, self).__init__(
@@ -120,7 +107,7 @@ class DatasetIdentificationForm(MrMapWizardForm):
             metadata = Metadata.objects.get(id=self.instance_id)
             self.fields['title'].initial = metadata.title
             self.fields['abstract'].initial = metadata.abstract
-            self.fields['languages'].initial = metadata.languages.all()
+            self.fields['language_code'].initial = metadata.language_code
             # ToDo: initial all fields
 
             self.fields['additional_related_objects'].queryset = self.fields['additional_related_objects'].queryset.exclude(id=self.instance_id)

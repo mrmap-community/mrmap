@@ -10,15 +10,15 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from requests.exceptions import ReadTimeout
-from MapSkinner import utils
-from MapSkinner.cacher import PreviewImageCacher
-from MapSkinner.consts import *
-from MapSkinner.decorator import check_permission, log_proxy, check_ownership
-from MapSkinner.messages import SERVICE_UPDATED, \
+from MrMap import utils
+from MrMap.cacher import PreviewImageCacher
+from MrMap.consts import *
+from MrMap.decorator import check_permission, log_proxy, check_ownership
+from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED
-from MapSkinner.responses import DefaultContext
+from MrMap.responses import DefaultContext
 from service import tasks
 from service.helper import xml_helper
 from service.filters import MetadataWmsFilter, MetadataWfsFilter
@@ -469,7 +469,7 @@ def get_service_preview(request: HttpRequest, metadata_id: int):
     bbox = str(bbox.extent).replace("(", "").replace(")", "")  # this is a little dumb, you may choose something better
 
     # Fetch a supported version of png
-    png_format = md.service.get_supported_formats().filter(
+    png_format = md.formats.filter(
         mime_type__icontains="image/"
     ).first()
 
@@ -854,6 +854,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
         current_service = get_object_or_404(Service, metadata__id=metadata_id)
         new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
         new_document = get_object_or_404(Document, related_metadata=new_service.metadata)
+
         if not current_service.is_service_type(OGCServiceEnum.WFS):
             new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent_layer=None)
             current_service.root_layer = get_object_or_404(Layer, parent_service=current_service, parent_layer=None)
@@ -880,8 +881,11 @@ def run_update_service(request: HttpRequest, metadata_id: int):
         if update_confirmation_form.is_valid():
             # UPDATE
             # First update the metadata of the whole service
-            md = update_helper.update_metadata(current_service.metadata, new_service.metadata,
-                                               new_service.keep_custom_md)
+            md = update_helper.update_metadata(
+                current_service.metadata,
+                new_service.metadata,
+                new_service.keep_custom_md
+            )
             md.save()
             current_service.metadata = md
 
@@ -1027,7 +1031,7 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
             params.update({'has_dataset_metadata': _check_for_dataset_metadata(service.metadata)})
 
     mime_types = {}
-    for mime in service.formats.all():
+    for mime in service_md.formats.all():
         op = mime_types.get(mime.operation)
         if op is None:
             op = []

@@ -37,11 +37,13 @@ active_wms_service_metadata = Recipe(
     is_active=True,
     metadata_type=foreign_key(service_metadatatype),
     created_by=foreign_key(superadmin_group),
+    formats=related(mimetype),
 )
 
 active_wms_layer_metadata = active_wms_service_metadata.extend(
     metadata_type=foreign_key(layer_metadatatype),
     identifier=seq("metadata_wms_layer"),
+    formats=related(mimetype),
 )
 
 
@@ -52,11 +54,13 @@ active_wfs_service_metadata = Recipe(
     is_active=True,
     metadata_type=foreign_key(service_metadatatype),
     created_by=foreign_key(superadmin_group),
+    formats=related(mimetype),
 )
 
 active_wfs_featuretype_metadata = active_wfs_service_metadata.extend(
     metadata_type=foreign_key(featuretype_metadatatype),
     identifier=seq("metadata_wfs_featuretype"),
+    formats=related(mimetype),
 )
 
 wms_v100_servicetype = Recipe(
@@ -78,7 +82,6 @@ active_root_wms_service = Recipe(
     metadata=foreign_key(active_wms_service_metadata),
     servicetype=foreign_key(wms_v100_servicetype),
     created_by=foreign_key(superadmin_group),
-    formats=related(mimetype),
 )
 
 active_wms_sublayer = Recipe(
@@ -90,7 +93,6 @@ active_wms_sublayer = Recipe(
     servicetype=foreign_key(wms_v100_servicetype),
     created_by=foreign_key(superadmin_group),
     parent_service=foreign_key(active_root_wms_service),
-    formats=related(mimetype),
 )
 
 active_root_wfs_service = Recipe(
@@ -100,7 +102,6 @@ active_root_wfs_service = Recipe(
     metadata=foreign_key(active_wfs_service_metadata),
     servicetype=foreign_key(wfs_v100_servicetype),
     created_by=foreign_key(superadmin_group),
-    formats=related(mimetype),
 )
 
 active_wfs_featuretype = Recipe(
@@ -109,7 +110,6 @@ active_wfs_featuretype = Recipe(
     metadata=foreign_key(active_wfs_featuretype_metadata),
     created_by=foreign_key(superadmin_group),
     parent_service=foreign_key(active_root_wfs_service),
-    formats=related(mimetype),
 )
 
 keyword = Recipe(

@@ -20,7 +20,7 @@ from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, \
-    MetadataOrigin, SecuredOperation, MetadataLanguage
+    MetadataOrigin, SecuredOperation
 from service.helper import xml_helper
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY
 

@@ -5,13 +5,10 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 09.07.19
 
 """
-from django.conf.urls import url
 from django.urls import path
 
-from editor.autocompletes import KeywordAutocomplete, CategoryAutocomplete, DatasetMetadataAutocomplete, \
-    MetadataLanguageAutocomplete
+from editor.autocompletes import KeywordAutocomplete, CategoryAutocomplete, DatasetMetadataAutocomplete
 from editor.views import *
-from editor.wizards import DATASET_WIZARD_FORMS, DatasetWizard
 
 app_name = 'editor'
 urlpatterns = [
@@ -19,7 +16,6 @@ urlpatterns = [
     path('keyword-autocomplete/', KeywordAutocomplete.as_view(create_field="keyword"), name="keyword-autocomplete"),
     path('category-autocomplete/', CategoryAutocomplete.as_view(), name="category-autocomplete"),
     path('metadata-autocomplete/', DatasetMetadataAutocomplete.as_view(), name="metadata-autocomplete"),
-    path('language-autocomplete/', MetadataLanguageAutocomplete.as_view(), name="language-autocomplete"),
     path('wms/', index_wms, name='wms-index'),
     path('wfs/', index_wfs, name='wfs-index'),
     path('datasets/', index_datasets, name='datasets-index'),

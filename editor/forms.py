@@ -11,8 +11,7 @@ from django.utils.translation import gettext_lazy as _
 from django import forms
 from MrMap.forms import MrMapModelForm, MrMapWizardForm
 from service.helper.enums import MetadataEnum
-from service.models import Metadata, MetadataRelation, Keyword, Category, \
-    MetadataLanguage
+from service.models import Metadata, MetadataRelation, Keyword, Category
 from service.settings import ISO_19115_LANG_CHOICES
 from users.helper import user_helper
 

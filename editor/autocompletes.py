@@ -6,11 +6,10 @@ Created on: 09.03.20
 
 """
 from dal import autocomplete
-from django.db.models import Q
 from django.http import HttpRequest
 
 from service.helper.enums import MetadataEnum
-from service.models import Keyword, Category, Metadata, MetadataLanguage
+from service.models import Keyword, Category
 from structure.models import Permission
 from users.helper.user_helper import get_user
 
@@ -109,23 +108,3 @@ class DatasetMetadataAutocomplete(autocomplete.Select2QuerySetView):
             so the user can differentiate the results where title is equal.
         """
         return '{} #{}'.format(result.title, result.id)
-
-
-class MetadataLanguageAutocomplete(autocomplete.Select2QuerySetView):
-    """ Provides an autocomplete functionality for dataset metadata records
-
-    """
-    def get_queryset(self):
-        """ Getter for the matching metadatas
-
-        Returns:
-             records (QuerySet): The matched records
-        """
-        records = MetadataLanguage.objects.all()
-        query = ""
-        if self.q:
-            # There are filtering parameters!
-            query = self.q
-        records = records.filter(Q(language__icontains=query) | Q(iso_639_2_tlc__icontains=query))
-
-        return records

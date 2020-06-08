@@ -14,7 +14,7 @@ from io import BytesIO
 
 from django.core.exceptions import ObjectDoesNotExist
 
-from monitoring.models import Monitoring as MonitoringResult, MonitoringCapability, MonitoringRun
+from monitoring.models import Monitoring as MonitoringResult, MonitoringCapability, MonitoringRun, MonitoringSetting
 from monitoring.helper.wmsHelper import WmsHelper
 from monitoring.helper.wfsHelper import WfsHelper
 from service.helper.crypto_handler import CryptoHandler
@@ -26,13 +26,11 @@ from service.helper.enums import OGCServiceEnum, MetadataEnum, OGCServiceVersion
 
 class Monitoring:
 
-    def __init__(self, metadata: Metadata, monitoring_run: MonitoringRun):
+    def __init__(self, metadata: Metadata, monitoring_run: MonitoringRun, monitoring_setting: MonitoringSetting):
         self.metadata = metadata
         self.linked_metadata = None
         self.monitoring_run = monitoring_run
-        # NOTE: Since there is no clear handling for which setting to use,
-        # we will always use the first (default) setting.
-        self.monitoring_settings = metadata.monitoring_setting.first()
+        self.monitoring_settings = monitoring_setting
 
     class ServiceStatus:
         """ Holds all required information about the service status.

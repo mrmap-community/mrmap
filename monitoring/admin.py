@@ -11,7 +11,7 @@ from monitoring.models import *
 
 
 class MonitoringSettingAdmin(admin.ModelAdmin):
-    list_display = ('id', 'interval', 'timeout')
+    list_display = ('id', 'interval', 'timeout', 'periodic_task')
 
 
 class MonitoringRunAdmin(admin.ModelAdmin):

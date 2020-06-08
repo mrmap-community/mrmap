@@ -7,12 +7,14 @@ Created on: 26.02.2020
 """
 
 from django.contrib.gis.db import models
+from django_celery_beat.models import PeriodicTask
 
 
 class MonitoringSetting(models.Model):
     metadatas = models.ManyToManyField('service.Metadata', related_name='monitoring_setting')
     interval = models.DurationField()
     timeout = models.IntegerField()
+    periodic_task = models.OneToOneField(PeriodicTask, on_delete=models.CASCADE, null=True, blank=True)
 
 
 class MonitoringRun(models.Model):

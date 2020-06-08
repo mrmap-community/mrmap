@@ -3,8 +3,9 @@ from django.template.loader import render_to_string
 from django.utils.html import format_html
 from django.urls import reverse
 
+from MrMap.forms import MrMapConfirmForm
 from MrMap.tables import MrMapTable
-from service.models import Layer, FeatureType
+from service.models import Layer, FeatureType, MetadataRelation
 from MrMap.consts import *
 from MrMap.utils import get_theme, get_ok_nok_icon
 from django.utils.translation import gettext_lazy as _
@@ -28,7 +29,6 @@ def _get_undo_button(url, user):
                        format_html(get_theme(user)["ICONS"]['UNDO']),)
 
 
-class WmsServiceTable(MrMapTable):
 def _get_delete_button(url, user):
     return format_html(URL_BTN_PATTERN,
                        BTN_CLASS,
@@ -156,7 +156,7 @@ class WfsServiceTable(MrMapTable):
         return _get_undo_button(url, self.user)
 
 
-class DatasetTable(MapSkinnerTable):
+class DatasetTable(MrMapTable):
     caption = _("Shows all datasets which are configured in your Mr. Map environment. You can Edit them if you want.")
 
     dataset_title = tables.Column(accessor='title', verbose_name=_('Title'), )

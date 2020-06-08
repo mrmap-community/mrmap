@@ -13,21 +13,16 @@ from django.http import HttpRequest
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
-from MrMap.cacher import DocumentCacher
-from MrMap.messages import EDITOR_INVALID_ISO_LINK, SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, \
-    SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
-from MrMap.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL, GENERIC_NAMESPACE_TEMPLATE
-from MrMap import utils
+from MrMap.iso19115.md_data_identification import _create_gmd_descriptive_keywords, _create_gmd_language
+from MrMap.messages import EDITOR_INVALID_ISO_LINK
+from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, MetadataEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum
 from service.helper.iso.iso_metadata import ISOMetadata
 from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, \
     MetadataOrigin, SecuredOperation, MetadataLanguage
 from service.helper import xml_helper
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY
-from service.tasks import async_secure_service_task
-import pyxb.utils.domutils as domutils
-import xmlschema
 
 
 def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _type: str):
@@ -461,7 +456,7 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     original_md.is_custom = True
     original_md.save()
 
-    if original_md.metadata_type.type == OGCServiceEnum.DATASET.value:
+    if original_md.is_dataset_metadata:
         overwrite_dataset_metadata_document(original_md)
     else:
         overwrite_capabilities_document(original_md)

@@ -9,7 +9,7 @@ from dal import autocomplete
 from django.forms import ModelMultipleChoiceField
 from django.utils.translation import gettext_lazy as _
 from django import forms
-from MapSkinner.forms import MrMapModelForm, MrMapWizardForm
+from MrMap.forms import MrMapModelForm, MrMapWizardForm
 from service.helper.enums import MetadataEnum
 from service.models import Metadata, MetadataRelation, Keyword, Category, \
     MetadataLanguage

@@ -1,9 +1,11 @@
+import json
+
 from django.test import TestCase, Client
 
 from MrMap.settings import HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper import service_helper, xml_helper
-from service.models import Document, ProxyLog, Layer
+from service.models import Document, ProxyLog, Layer, SecuredOperation
 from service.tasks import async_process_secure_operations_form
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
@@ -472,3 +474,123 @@ class EditorTestCase(TestCase):
         self.assertEqual(pre_proxy_logs_wfs_num + 1, post_proxy_logs_wfs_num, msg="More than one log record was created!")
         self.assertEqual(proxy_log_wfs.operation, "GetFeature", msg="Wrong operation type logged! Was {} but {} expected!".format(proxy_log_wms.operation, "GetMap"))
         self.assertGreater(proxy_log_wfs.response_wfs_num_features, 0, msg="Wrong returned feature count! Was {}!".format(proxy_log_wfs.response_wfs_num_features))
+
+    def test_access_securing(self):
+        """ Tests whether the securing of a service changes the returned restuls on GetFeature and GetMap.
+
+        Since we cannot qualify the content itself, we need to check the quantity inside the response.
+
+        First, secure WMS directly.
+        For WFS only activate proxy and proxy logging.
+
+        Then run a regular GetMap request on the WMS. An unsecured response would log img_height * img_width pixels in a log.
+        A secured response would log a smaller amount of pixels, since there will be parts cutted out!
+
+        For WFS we first need to fetch the amount of features an unsecured request would return -> we simply log it using LogProxy.
+        Afterwards we secure the WFS using a geometry and rerun the same request. We expect a lower amount of features in this request!
+
+        Returns:
+
+        """
+        # To avoid running celery in a separate test instance, we do not call the route. Instead we call the logic, which
+        # is used to process access settings directly.
+        params_wms = {
+            "use_proxy": "on",
+            "log_proxy": "on",
+            "secured-operation-groups": '[{"operation":"GetMap","groups":[{"groupId":"' + str(self.group.id) + '","polygons":"[{\\"type\\":\\"Feature\\",\\"properties\\":{},\\"geometry\\":{\\"type\\":\\"Polygon\\",\\"coordinates\\":[[[7.534046,50.325703],[7.534046,50.380049],[7.637043,50.380049],[7.637043,50.325703],[7.534046,50.325703]]]}}]","securedOperation":"-1","remove":"false"}]},{"operation":"GetFeatureInfo","groups":[{"groupId":"' + str(self.group.id) + '","polygons":"[{\\"type\\":\\"Feature\\",\\"properties\\":{},\\"geometry\\":{\\"type\\":\\"Polygon\\",\\"coordinates\\":[[[7.534046,50.325703],[7.534046,50.380049],[7.637043,50.380049],[7.637043,50.325703],[7.534046,50.325703]]]}}]","securedOperation":"-1","remove":"false"}]}]',
+        }
+        params_wfs = {
+            "use_proxy": "on",
+            "log_proxy": "on",
+        }
+        async_process_secure_operations_form(params_wms, self.service_wms.metadata.id)
+        async_process_secure_operations_form(params_wfs, self.service_wfs.metadata.id)
+
+        # Assert existing securedoperations for service and all subelements
+        wms_elements = [self.service_wms.metadata] + [elem.metadata for elem in self.service_wms.subelements]
+        wfs_elements = [self.service_wfs.metadata] + [elem.metadata for elem in self.service_wfs.subelements]
+        secured_operations_wms = SecuredOperation.objects.filter(
+            secured_metadata__in=wms_elements
+        )
+        secured_operations_wfs = SecuredOperation.objects.filter(
+            secured_metadata__in=wfs_elements
+        )
+
+        wms_operations = ["GetMap", "GetFeatureInfo"]
+        for op in secured_operations_wms:
+            self.assertTrue(op.operation in wms_operations, msg="Wrong operation stored in secured operation! Found {}!".format(op.operation))
+            self.assertEqual(op.allowed_group, self.group, msg="Wrong group got access! Expected {} but got {}!".format(self.group, op.allowed_group))
+            self.assertGreater(op.bounding_geometry.area, 0, msg="Invalid area size detected: {}".format(op.bounding_geometry.area))
+
+        for op in secured_operations_wfs:
+            self.assertEqual(op.operation, "GetFeature", msg="Wrong operation stored in secured operation!")
+            self.assertEqual(op.allowed_group, self.group, msg="Wrong group got access! Expected {} but got {}!".format(self.group, op.allowed_group))
+            self.assertGreater(op.bounding_geometry.area, 0, msg="Invalid area size detected: {}".format(op.bounding_geometry.area))
+
+        # Check request result!
+        # Run regular /operation request for WMS
+        root_layer = Layer.objects.get(
+            parent_service=self.service_wms,
+            parent_layer=None
+        )
+        client = self._get_logged_in_client()
+        url = "/service/metadata/{}/operation".format(self.service_wms.metadata.id)
+        param_width = 1000
+        param_height = 1000
+        params = {
+            "request": "GetMap",
+            "service": "WMS",
+            "bbox": "7.518260643092100182,50.31584133059208597,7.644704820723687178,50.38426523684209002",
+            "srs": "EPSG:4326",
+            "version": OGCServiceVersionEnum.V_1_1_1.value,
+            "width": str(param_width),
+            "height": str(param_height),
+            "layers": root_layer.identifier,
+            "format": "image/png",
+        }
+        response = self._run_request(params, url, "get", client)
+
+        self.assertEqual(response.status_code, 200, msg="Wrong")
+
+        full_logged_megapixel = round((param_height * param_height) / 1000000, 4)
+        proxy_log = ProxyLog.objects.get(
+            metadata=self.service_wms.metadata
+        )
+        self.assertLessEqual(proxy_log.response_wms_megapixel, full_logged_megapixel, msg="Logged megapixel ({}) not smaller than full image megapixel ({}). Securing might not worked!".format(proxy_log.response_wms_megapixel, full_logged_megapixel))
+
+        # First run an unsecured request, to get the amount of unsecured features that are returned!
+        feature = self.service_wfs.subelements[0]
+        url = "/service/metadata/{}/operation".format(self.service_wfs.metadata.id)
+        params = {
+            "request": "GetFeature",
+            "service": "WFS",
+            "bbox": "231368.05064287804998457,5410244.19714341126382351,515259.67860294174170122,5660069.34592645335942507,urn:ogc:def:crs:EPSG::25832",
+            "srsname": "urn:ogc:def:crs:EPSG::25832",
+            "version": OGCServiceVersionEnum.V_2_0_0.value,
+            "typenames": feature.metadata.identifier,
+            "typename": feature.metadata.identifier,
+        }
+        response = self._run_request(params, url, "get", client)
+
+        self.assertEqual(response.status_code, 200, msg="Wrong status code returned: {}".format(response.status_code))
+        proxy_log = ProxyLog.objects.get(
+            metadata=self.service_wfs.metadata
+        )
+        pre_num_logged_features = proxy_log.response_wfs_num_features
+
+        # Then run securing!
+        params_wfs = {
+            "use_proxy": "on",
+            "log_proxy": "on",
+            "secured-operation-groups": '[{"operation":"GetFeature","groups":[{"groupId":"' + str(self.group.id) + '","polygons":"[{\\"type\\": \\"Polygon\\", \\"coordinates\\": [[[6.207275, 48.950263], [6.207275, 49.886814], [7.327881, 49.886814], [7.327881, 48.950263], [6.207275, 48.950263]]]}]","securedOperation":"233","remove":"false"}]}]',
+        }
+        async_process_secure_operations_form(params_wfs, self.service_wfs.metadata.id)
+
+        # Get the new logged record for the WFS
+        proxy_log = ProxyLog.objects.get(
+            metadata=self.service_wfs.metadata
+        )
+        post_num_logged_features = proxy_log.response_wfs_num_features
+
+        self.assertLessEqual(post_num_logged_features, pre_num_logged_features, msg="Logged number of features ({}) not smaller than unsecured number of features ({}). Securing might not worked!".format(post_num_logged_features, pre_num_logged_features))
+

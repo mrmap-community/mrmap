@@ -300,7 +300,6 @@ def async_process_secure_operations_form(post_params: dict, md_id: int):
 
     # process form input
     sec_operations_groups = json.loads(post_params.get("secured-operation-groups", "{}"))
-
     is_secured = post_params.get("is_secured", "")
     is_secured = is_secured == "on"  # resolve True|False
 

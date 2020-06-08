@@ -3,7 +3,7 @@ from django.test import TestCase, Client
 from MrMap.settings import HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper import service_helper, xml_helper
-from service.models import Document
+from service.models import Document, ProxyLog, Layer
 from service.tasks import async_process_secure_operations_form
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
@@ -53,6 +53,7 @@ class EditorTestCase(TestCase):
             cls.user,
             cls.group
         )
+        service.activate_service(True)
         cls.service_wms = service
 
         ## Creating a new wfs service model instance
@@ -63,6 +64,7 @@ class EditorTestCase(TestCase):
             cls.user,
             cls.group
         )
+        service.activate_service(True)
         cls.service_wfs = service
 
         cls.cap_doc_wms = Document.objects.get(
@@ -378,3 +380,55 @@ class EditorTestCase(TestCase):
                     self.assertTrue(HOST_NAME in post_secured)
             else:
                 pass
+
+    def test_proxy_logging(self):
+        proxy_logs = ProxyLog.objects.filter(
+            metadata=self.service_wms.metadata
+        )
+        pre_proxy_logs_num = proxy_logs.count()
+
+        # To avoid running celery in a separate test instance, we do not call the route. Instead we call the logic, which
+        # is used to process access settings directly.
+        params = {
+            "use_proxy": "on",
+            "log_proxy": "on",
+        }
+        async_process_secure_operations_form(params, self.service_wms.metadata.id)
+        self.service_wms.metadata.refresh_from_db()
+        self.service_wms.refresh_from_db()
+        self.assertTrue(self.service_wms.metadata.log_proxy_access, msg="Test metadata logging access is not set!")
+
+        # Run regular /operation request
+        root_layer = Layer.objects.get(
+            parent_service=self.service_wms,
+            parent_layer=None
+        )
+        client = self._get_logged_in_client()
+        url = "/service/metadata/{}/operation".format(self.service_wms.metadata.id)
+        param_width = 100
+        param_height = 100
+        params = {
+            "request": "GetMap",
+            "service": "WMS",
+            "bbox": "7.518260643092100182,50.31584133059208597,7.644704820723687178,50.38426523684209002",
+            "srs": "EPSG:4326",
+            "version": OGCServiceVersionEnum.V_1_1_1.value,
+            "width": str(param_width),
+            "height": str(param_height),
+            "layers": root_layer.identifier,
+            "format": "image/png",
+        }
+        response = self._run_request(params, url, "get", client)
+        self.assertEqual(response.status_code, 200, msg="Request returned status code {}".format(response.status_code))
+
+        proxy_logs = ProxyLog.objects.filter(
+            metadata=self.service_wms.metadata
+        )
+        post_proxy_logs_num = proxy_logs.count()
+        proxy_log = proxy_logs.first()
+
+        self.assertNotEqual(pre_proxy_logs_num, post_proxy_logs_num, msg="No new proxy log record created!")
+        self.assertEqual(pre_proxy_logs_num + 1, post_proxy_logs_num, msg="More than one log record was created!")
+        self.assertEqual(proxy_log.operation, "GetMap", msg="Wrong operation type logged! Was {} but {} expected!".format(proxy_log.operation, "GetMap"))
+        expected_logged_megapixel = round((param_height * param_height) / 1000000, 4)
+        self.assertEqual(proxy_log.response_wms_megapixel, expected_logged_megapixel, msg="Wrong megapixel count! Was {} but {} expected!".format(proxy_log.response_wms_megapixel, expected_logged_megapixel))

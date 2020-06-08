@@ -285,7 +285,7 @@ def edit(request: HttpRequest, metadata_id: int):
             user_helper.create_group_activity(metadata.created_by, user, SERVICE_MD_EDITED, "{}: {}".format(parent_service.metadata.title, metadata.title))
             return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
     else:
-        editor_form = MetadataEditorForm(instance=metadata)
+        editor_form = MetadataEditorForm(instance=metadata, request=request)
 
     template = "views/editor_metadata_index.html"
     editor_form.action_url = reverse("editor:edit", args=(metadata_id,))

@@ -29,7 +29,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.iso.service_metadata_builder import ServiceMetadataBuilder
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
-    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES
+    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES
 from structure.models import MrMapGroup, Organization, MrMapUser
 from service.helper import xml_helper
 
@@ -592,12 +592,10 @@ class Metadata(Resource):
     legal_reports = models.ManyToManyField('LegalReport')
     hits = models.IntegerField(default=0)
 
-    ## for ISO metadata
-    #dataset_id = models.CharField(max_length=255, null=True, blank=True)
-    #dataset_id_code_space = models.CharField(max_length=255, null=True, blank=True)
-
+    # Related metadata creates Relations between metadata records by using the MetadataRelation table.
+    # Each MetadataRelation record might hold further information about the relation, e.g. 'describedBy', ...
     related_metadata = models.ManyToManyField(MetadataRelation)
-    languages = models.ManyToManyField(MetadataLanguage)
+    language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
     origin = None
 
     def __init__(self, *args, **kwargs):
@@ -1260,10 +1258,7 @@ class Metadata(Resource):
         self.abstract = original_metadata_document.abstract
         self.title = original_metadata_document.title
 
-        language_list = []
-        for language in original_metadata_document.languages:
-            language_list.append(MetadataLanguage.objects.get_or_create(iso_639_2_tlc=language)[0])
-        self.languages.set(language_list)
+        self.language_code = original_metadata_document.language
 
         keyword_list = []
         for keyword in original_metadata_document.keywords:

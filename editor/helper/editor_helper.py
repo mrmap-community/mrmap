@@ -203,15 +203,11 @@ def overwrite_dataset_metadata_document(metadata: Metadata):
                 'gmd:descriptiveKeywords']
 
     # overwrite language
-    if metadata.languages.all().count() > 0:
-        language = []
-        gmd_language = _create_gmd_language(metadata=metadata, as_list=True)
-        for element in gmd_language:
-            language.append(xmltodict.parse(element)['gmd:language'])
+    if metadata.language_code is not None:
         xml_dict['gmd:MD_Metadata'][
             'gmd:identificationInfo'][
             'gmd:MD_DataIdentification'][
-            'gmd:language'] = language
+            'gmd:language'] = _create_gmd_language(metadata=metadata)
     else:
         if 'gmd:language' in xml_dict['gmd:MD_Metadata'][
                                 'gmd:identificationInfo'][
@@ -422,11 +418,7 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
         original_md.keywords.add(keyword)
 
     # Language updating
-    languages = editor_form.cleaned_data["languages"]
-    original_md.languages.clear()
-    for language in languages:
-        language = MetadataLanguage.objects.get(id=language.id)
-        original_md.languages.add(language)
+    original_md.language_code = editor_form.cleaned_data["language_code"]
 
     # Categories updating
     # Categories are provided as id's to prevent language related conflicts

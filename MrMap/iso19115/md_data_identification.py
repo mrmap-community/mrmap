@@ -70,19 +70,19 @@ def _create_gmd_abstract(metadata: Metadata):
     return create_xml_element(ns=NS_GMD, tag_name="abstract", content=abstract)
 
 
-def _create_gmd_language(metadata: Metadata, as_list: bool = False):
+def _create_gmd_language(metadata: Metadata):
     language = ""
-    language_list = []
-    for _language in metadata.languages.all():
-        attributes = {
-            "codeList": "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#LanguageCode",
-            "codeListValue": _language.iso_639_2_tlc,
-        }
-        gmd_language_code = create_xml_element(ns=NS_GMD, tag_name="LanguageCode", content=_language.iso_639_2_tlc, attributes=attributes)
-        gmd_language_element = create_xml_element(ns=NS_GMD, tag_name="language", content=gmd_language_code)
-        language += gmd_language_element
-        language_list.append(gmd_language_element)
-    return language_list if as_list else language
+
+    attributes = {
+        "codeList": "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#LanguageCode",
+        "codeListValue": metadata.language_code,
+    }
+    gmd_language_code = create_xml_element(ns=NS_GMD, tag_name="LanguageCode", content=metadata.language_code,
+                                           attributes=attributes)
+    gmd_language_element = create_xml_element(ns=NS_GMD, tag_name="language", content=gmd_language_code)
+    language += gmd_language_element
+
+    return language
 
 
 def _create_gmd_descriptive_keywords(metadata: Metadata, as_list: bool = False):

@@ -50,7 +50,7 @@ class ISOMetadata:
         self.title = None
         self.abstract = None
         self.keywords = []
-        self.languages = []
+        self.language = None
         self.iso_categories = []
         self.formats = []
         self.download_link = None
@@ -338,12 +338,11 @@ class ISOMetadata:
             if keyword.text is not None and keyword not in self.keywords:
                 self.keywords.append(xml_helper.try_get_text_from_xml_element(keyword))
 
-        languages = xml_helper.try_get_element_from_xml(xml_elem=xml_obj,
+        language = xml_helper.try_get_single_element_from_xml(xml_elem=xml_obj,
                                                         elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:language/gmd:LanguageCode".format(
                                                            xpath_type))
-        for language in languages:
-            if language.text is not None and languages not in self.languages:
-                self.languages.append(xml_helper.try_get_text_from_xml_element(language))
+        if language.text is not None:
+            self.language = xml_helper.try_get_text_from_xml_element(language)
 
         iso_categories = xml_helper.try_get_element_from_xml(xml_elem=xml_obj, elem="//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:topicCategory/gmd:MD_TopicCategoryCode".format(xpath_type))
         for iso_category in iso_categories:
@@ -554,6 +553,8 @@ class ISOMetadata:
         Returns:
             metadata (Metadata): A db model Metadata object
         """
+        update = False
+        new = False
         # try to find the object by uuid and uri. If not existing yet, create a new record
         try:
             metadata = Metadata.objects.get(uuid=self.file_identifier, metadata_url=self.uri)
@@ -564,6 +565,8 @@ class ISOMetadata:
             if persisted_change > new_change:
                 # Nothing to do here
                 return metadata
+            else:
+                update = True
         except ObjectDoesNotExist:
             # object does not seem to exist -> create it!
             metadata = Metadata()
@@ -614,12 +617,7 @@ class ISOMetadata:
         Returns:
              dataset (Dataset): The dataset object
         """
-        try:
-            dataset.language_code = self.languages[0]
-        except IndexError:
-            # Fallback
-            dataset.language_code = "eng"
-
+        dataset.language_code = self.language
         dataset.character_set_code = self.character_set_code or "utf8"
         dataset.hierarchy_level_code = self.hierarchy_level
         dataset.update_frequency_code = self.update_frequency

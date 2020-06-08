@@ -55,6 +55,7 @@ DEFAULT_SRS_STRING = "{}:{}".format(DEFAULT_SRS_FAMILY, DEFAULT_SRS)
 
 # Default service bounding box
 DEFAULT_SERVICE_BOUNDING_BOX = GEOSGeometry(Polygon.from_bbox([5.866699, 48.908059, 8.76709, 50.882243]), srid=DEFAULT_SRS)
+DEFAULT_SERVICE_BOUNDING_BOX_EMPTY = GEOSGeometry(Polygon.from_bbox([0.0, 0.0, 0.0, 0.0]), srid=DEFAULT_SRS)
 
 ALLOWED_SRS = [
     4326,

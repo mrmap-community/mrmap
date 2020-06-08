@@ -72,7 +72,9 @@ XML_NAMESPACES = {
     "xsi": "http://www.w3.org/2001/XMLSchema-instance",
     "ave": "http://repository.gdi-de.org/schemas/adv/produkt/alkis-vereinfacht/1.0",
     "inspire_common": "http://inspire.ec.europa.eu/schemas/common/1.0",
+    "inspire_com": "http://inspire.ec.europa.eu/schemas/common/1.0",
     "inspire_vs": "http://inspire.ec.europa.eu/schemas/inspire_vs/1.0",
+    "inspire_ds": "http://inspire.ec.europa.eu/schemas/inspire_ds/1.0",
     "inspire_dls": "http://inspire.ec.europa.eu/schemas/inspire_dls/1.0",
     "epsg": "urn:x-ogp:spec:schema-xsd:EPSG:1.0:dataset",
     "ms": "http://mapserver.gis.umn.edu/mapserver",
@@ -182,8 +184,6 @@ TEMPLATES = [
     },
 ]
 
-
-
 WSGI_APPLICATION = 'MrMap.wsgi.application'
 
 # Database
@@ -277,6 +277,7 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # API
 from api.settings import REST_FRAMEWORK
+RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
 
 # Tests
 if 'test' in sys.argv:

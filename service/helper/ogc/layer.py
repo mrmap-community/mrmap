@@ -121,12 +121,15 @@ class OGCLayer:
         metadata.abstract = self.abstract
         metadata.online_resource = parent_service.metadata.online_resource
         metadata.capabilities_original_uri = parent_service.metadata.capabilities_original_uri
-        metadata.capabilities_uri = parent_service.metadata.capabilities_original_uri
         metadata.identifier = self.identifier
         metadata.contact = parent_service.metadata.contact
         metadata.access_constraints = parent_service.metadata.access_constraints
         metadata.is_active = False
         metadata.created_by = group
+
+        # Save metadata to use id afterwards
+        metadata.save()
+
         metadata.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(metadata.id) + "request={}".format(
             OGCOperationEnum.GET_CAPABILITIES.value)
         metadata.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(metadata.id)
@@ -262,4 +265,4 @@ class OGCLayer:
                     mime_type=_format,
                     created_by=group
                 )[0]
-                layer.formats.add(service_to_format)
+                layer.metadata.formats.add(service_to_format)

@@ -15,11 +15,14 @@ from lxml.etree import XMLSyntaxError, XPathEvalError
 from requests.exceptions import InvalidURL
 
 from MrMap import utils
+from MrMap.cacher import PageCacher
 from MrMap.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED, \
     SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING, \
     SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
 from MrMap.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
 from MrMap.utils import print_debug_mode
+from api.settings import API_CACHE_KEY_PREFIX
+from csw.settings import CSW_CACHE_PREFIX
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
     MetadataRelation, ProxyLog
@@ -111,6 +114,11 @@ def async_activate_service(service_id: int, user_id: int, is_active: bool):
         msg = SERVICE_ACTIVATED.format("")
     else:
         msg = SERVICE_DEACTIVATED.format("")
+
+    # clear page cacher for API and csw
+    page_cacher = PageCacher()
+    page_cacher.remove_pages(API_CACHE_KEY_PREFIX)
+    page_cacher.remove_pages(CSW_CACHE_PREFIX)
 
     user_helper.create_group_activity(service.metadata.created_by, user, msg, service.metadata.title)
 
@@ -280,8 +288,6 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
 @shared_task(name="async_process_secure_operations_form")
 @transaction.atomic
 def async_process_secure_operations_form(post_params: dict, md_id: int):
-    md = Metadata.objects.get(id=md_id)
-
     """ Processes the secure-operations input from the access-editor form of a service.
 
     Args:
@@ -290,6 +296,8 @@ def async_process_secure_operations_form(post_params: dict, md_id: int):
     Returns:
          nothing - directly changes the database
     """
+    md = Metadata.objects.get(id=md_id)
+
     # process form input
     sec_operations_groups = json.loads(post_params.get("secured-operation-groups", {}))
 

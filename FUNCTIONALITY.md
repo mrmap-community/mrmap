@@ -27,6 +27,9 @@ The system provides the following functionalities:
 * Dashboard
   * Have an overview on all newest activities of your groups, all your registered services or 
   pending publisher requests
-* Catalogue and API
+* JSON Catalogue and API
   * Find services using the catalogue JSON interface 
   * Have reading access to metadata, whole services, layers, organizations or groups
+* CSW 
+  * Functionally reduced implementation of a CSW
+  * Read-only access provided, no transactional functionality

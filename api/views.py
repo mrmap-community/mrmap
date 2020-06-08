@@ -1,5 +1,7 @@
 # Create your views here.
 from datetime import timedelta
+from collections import OrderedDict
+
 from celery.result import AsyncResult
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Count
@@ -27,7 +29,7 @@ from api.permissions import CanRegisterService, CanRemoveService, CanActivateSer
 
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, \
     MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer, CategorySerializer, \
-    MonitoringSerializer, MonitoringSummarySerializer
+    MonitoringSerializer, MonitoringSummarySerializer, serialize_catalogue_metadata
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
     LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER, \
     SUGGESTIONS_MAX_RESULTS, API_CACHE_KEY_PREFIX
@@ -285,10 +287,13 @@ class ServiceViewSet(viewsets.GenericViewSet):
                 return Response(status=423)
             serializer = LayerSerializer(tmp)
         except ObjectDoesNotExist:
-            tmp = Service.objects.get(metadata__id=pk)
-            if not tmp.metadata.is_active:
-                return Response(status=423)
-            serializer = ServiceSerializer(tmp)
+            try:
+                tmp = Service.objects.get(metadata__id=pk)
+                if not tmp.metadata.is_active:
+                    return Response(status=423)
+                serializer = ServiceSerializer(tmp)
+            except ObjectDoesNotExist:
+                return Response(RESOURCE_NOT_FOUND, status=404)
 
         return Response(serializer.data)
 
@@ -329,9 +334,11 @@ class ServiceViewSet(viewsets.GenericViewSet):
             return Response(data=response.data, status=404)
 
     def update(self, request, pk=None):
+        # Not supported
         pass
 
     def partial_update(self, request, pk=None):
+        # Not supported
         pass
 
     def destroy(self, request, pk=None):
@@ -427,18 +434,24 @@ class LayerViewSet(viewsets.GenericViewSet):
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
-        tmp = Layer.objects.get(metadata__id=pk)
-        if not tmp.metadata.is_active:
-            return Response(status=423)
-        return Response(LayerSerializer(tmp).data)
+        try:
+            tmp = Layer.objects.get(metadata__id=pk)
+            if not tmp.metadata.is_active:
+                return Response(status=423)
+            return Response(LayerSerializer(tmp).data)
+        except ObjectDoesNotExist:
+            return Response(RESOURCE_NOT_FOUND, status=404)
 
     def update(self, request, pk=None):
+        # Not supported
         pass
 
     def partial_update(self, request, pk=None):
+        # Not supported
         pass
 
     def destroy(self, request, pk=None):
+        # Not supported
         pass
 
 
@@ -544,18 +557,24 @@ class MetadataViewSet(viewsets.GenericViewSet):
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
-        tmp = Metadata.objects.get(id=pk)
-        if not tmp.is_active:
-            return Response(status=423)
-        return Response(MetadataSerializer(tmp).data)
+        try:
+            tmp = Metadata.objects.get(id=pk)
+            if not tmp.is_active:
+                return Response(status=423)
+            return Response(MetadataSerializer(tmp).data)
+        except ObjectDoesNotExist:
+            return Response(RESOURCE_NOT_FOUND, status=404)
 
     def update(self, request, pk=None):
+        # Not supported
         pass
 
     def partial_update(self, request, pk=None):
+        # Not supported
         pass
 
     def destroy(self, request, pk=None):
+        # Not supported
         pass
 
 
@@ -613,16 +632,22 @@ class GroupViewSet(viewsets.GenericViewSet):
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
-        tmp = MrMapGroup.objects.get(id=pk)
-        return Response(ServiceSerializer(tmp).data)
+        try:
+            tmp = MrMapGroup.objects.get(id=pk)
+            return Response(ServiceSerializer(tmp).data)
+        except ObjectDoesNotExist:
+            return Response(RESOURCE_NOT_FOUND, status=404)
 
     def update(self, request, pk=None):
+        # Not supported
         pass
 
     def partial_update(self, request, pk=None):
+        # Not supported
         pass
 
     def destroy(self, request, pk=None):
+        # Not supported
         pass
 
 
@@ -694,9 +719,27 @@ class CatalogueViewSet(viewsets.GenericViewSet):
         Returns:
              The queryset
         """
+        # Prefetches multiple related attributes to reduce the access time later!
         self.queryset = Metadata.objects.filter(
             is_active=True,
         )
+        prefetches = [
+            "keywords",
+            "categories",
+            "related_metadata",
+            "related_metadata__metadata_from",
+            "related_metadata__metadata_from__metadata_type",
+            "related_metadata__metadata_to",
+            "related_metadata__metadata_to__metadata_type",
+            "dimensions",
+            "contact",
+            "terms_of_use",
+            "featuretype__parent_service",
+            "service__parent_service",
+            "metadata_type",
+        ]
+        for prefetch in prefetches:
+            self.queryset = self.queryset.prefetch_related(prefetch)
 
         # filter by dimensions
         time_min = self.request.query_params.get("time-min", None) or None
@@ -748,17 +791,22 @@ class CatalogueViewSet(viewsets.GenericViewSet):
     @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
-        serializer = CatalogueMetadataSerializer(tmp, many=True)
-        return self.get_paginated_response(serializer.data)
+        data = serialize_catalogue_metadata(tmp)
+
+        return self.get_paginated_response(data)
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
     @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def retrieve(self, request, pk=None):
-        tmp = Metadata.objects.get(id=pk)
-        if not tmp.is_active:
-            return Response(status=423)
-        return Response(CatalogueMetadataSerializer(tmp).data)
+        try:
+            tmp = Metadata.objects.get(id=pk)
+            if not tmp.is_active:
+                return Response(status=423)
+            data = serialize_catalogue_metadata(tmp)
+            return Response(data)
+        except ObjectDoesNotExist:
+            return Response(RESOURCE_NOT_FOUND, status=404)
 
 
 class MonitoringViewSet(viewsets.ReadOnlyModelViewSet):
@@ -827,6 +875,7 @@ class SuggestionViewSet(viewsets.GenericViewSet):
         # Prefilter search on database access to reduce amount of work
         query = self.request.query_params.get("q", None)
         filter = view_helper.create_keyword_query_filter(query)
+        max_results = self.request.query_params.get("max", SUGGESTIONS_MAX_RESULTS)
 
         # Get matching keywords, count the number of relations to metadata records and order accordingly (most on top)
         self.queryset = Keyword.objects.filter(
@@ -835,11 +884,7 @@ class SuggestionViewSet(viewsets.GenericViewSet):
             metadata_count=Count('metadata')
         ).order_by(
             '-metadata_count'
-        )
-
-        # filter by max results
-        max_results = self.request.query_params.get("max", SUGGESTIONS_MAX_RESULTS)
-        self.queryset = view_helper.filter_queryset_keyword_max_results(self.queryset, max_results)
+        )[:max_results]
 
         return self.queryset
 
@@ -854,6 +899,7 @@ class SuggestionViewSet(viewsets.GenericViewSet):
                     result.keyword for result in tmp
                 ]
         }
+        data = OrderedDict(data)
         return self.get_paginated_response(data)
 
 

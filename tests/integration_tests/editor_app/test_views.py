@@ -382,10 +382,17 @@ class EditorTestCase(TestCase):
                 pass
 
     def test_proxy_logging(self):
-        proxy_logs = ProxyLog.objects.filter(
-            metadata=self.service_wms.metadata
-        )
-        pre_proxy_logs_num = proxy_logs.count()
+        """ Tests whether the proxy logger logs correctly.
+
+        Returns:
+        """
+        # Prefetch for WMS
+        proxy_logs_wms = ProxyLog.objects.filter(metadata=self.service_wms.metadata)
+        pre_proxy_logs_wms_num = proxy_logs_wms.count()
+
+        # Prefetch for WFS
+        proxy_logs_wfs = ProxyLog.objects.filter(metadata=self.service_wfs.metadata)
+        pre_proxy_logs_wfs_num = proxy_logs_wfs.count()
 
         # To avoid running celery in a separate test instance, we do not call the route. Instead we call the logic, which
         # is used to process access settings directly.
@@ -394,11 +401,18 @@ class EditorTestCase(TestCase):
             "log_proxy": "on",
         }
         async_process_secure_operations_form(params, self.service_wms.metadata.id)
+        async_process_secure_operations_form(params, self.service_wfs.metadata.id)
+
         self.service_wms.metadata.refresh_from_db()
         self.service_wms.refresh_from_db()
-        self.assertTrue(self.service_wms.metadata.log_proxy_access, msg="Test metadata logging access is not set!")
 
-        # Run regular /operation request
+        self.service_wfs.metadata.refresh_from_db()
+        self.service_wfs.refresh_from_db()
+
+        self.assertTrue(self.service_wms.metadata.log_proxy_access, msg="Test metadata logging access is not set for WMS!")
+        self.assertTrue(self.service_wfs.metadata.log_proxy_access, msg="Test metadata logging access is not set for WFS!")
+
+        # Run regular /operation request for WMS
         root_layer = Layer.objects.get(
             parent_service=self.service_wms,
             parent_layer=None
@@ -421,14 +435,40 @@ class EditorTestCase(TestCase):
         response = self._run_request(params, url, "get", client)
         self.assertEqual(response.status_code, 200, msg="Request returned status code {}".format(response.status_code))
 
-        proxy_logs = ProxyLog.objects.filter(
-            metadata=self.service_wms.metadata
-        )
-        post_proxy_logs_num = proxy_logs.count()
-        proxy_log = proxy_logs.first()
+        # Run regular /operation request for WFS
+        feature = self.service_wfs.subelements[0]
+        url = "/service/metadata/{}/operation".format(self.service_wfs.metadata.id)
+        params = {
+            "request": "GetFeature",
+            "service": "WFS",
+            "bbox": "231368.05064287804998457,5410244.19714341126382351,515259.67860294174170122,5660069.34592645335942507,urn:ogc:def:crs:EPSG::25832",
+            "srsname": "urn:ogc:def:crs:EPSG::25832",
+            "version": OGCServiceVersionEnum.V_2_0_0.value,
+            "typenames": feature.metadata.identifier,
+            "typename": feature.metadata.identifier,
+        }
+        response = self._run_request(params, url, "get", client)
+        self.assertEqual(response.status_code, 200, msg="Request returned status code {}".format(response.status_code))
 
-        self.assertNotEqual(pre_proxy_logs_num, post_proxy_logs_num, msg="No new proxy log record created!")
-        self.assertEqual(pre_proxy_logs_num + 1, post_proxy_logs_num, msg="More than one log record was created!")
-        self.assertEqual(proxy_log.operation, "GetMap", msg="Wrong operation type logged! Was {} but {} expected!".format(proxy_log.operation, "GetMap"))
+        # Postfetch for WMS
+        proxy_logs_wms = ProxyLog.objects.filter(metadata=self.service_wms.metadata)
+        post_proxy_logs_wms_num = proxy_logs_wms.count()
+        proxy_log_wms = proxy_logs_wms.first()
+
+        # Assertions for WMS Log
+        self.assertNotEqual(pre_proxy_logs_wms_num, post_proxy_logs_wms_num, msg="No new proxy log record created!")
+        self.assertEqual(pre_proxy_logs_wms_num + 1, post_proxy_logs_wms_num, msg="More than one log record was created!")
+        self.assertEqual(proxy_log_wms.operation, "GetMap", msg="Wrong operation type logged! Was {} but {} expected!".format(proxy_log_wms.operation, "GetMap"))
         expected_logged_megapixel = round((param_height * param_height) / 1000000, 4)
-        self.assertEqual(proxy_log.response_wms_megapixel, expected_logged_megapixel, msg="Wrong megapixel count! Was {} but {} expected!".format(proxy_log.response_wms_megapixel, expected_logged_megapixel))
+        self.assertEqual(proxy_log_wms.response_wms_megapixel, expected_logged_megapixel, msg="Wrong megapixel count! Was {} but {} expected!".format(proxy_log_wms.response_wms_megapixel, expected_logged_megapixel))
+
+        # Postfetch for WFS
+        proxy_logs_wfs = ProxyLog.objects.filter(metadata=self.service_wfs.metadata)
+        post_proxy_logs_wfs_num = proxy_logs_wfs.count()
+        proxy_log_wfs = proxy_logs_wfs.first()
+
+        # Assertions for WFS Log
+        self.assertNotEqual(pre_proxy_logs_wfs_num, post_proxy_logs_wfs_num, msg="No new proxy log record created!")
+        self.assertEqual(pre_proxy_logs_wfs_num + 1, post_proxy_logs_wfs_num, msg="More than one log record was created!")
+        self.assertEqual(proxy_log_wfs.operation, "GetFeature", msg="Wrong operation type logged! Was {} but {} expected!".format(proxy_log_wms.operation, "GetMap"))
+        self.assertGreater(proxy_log_wfs.response_wfs_num_features, 0, msg="Wrong returned feature count! Was {}!".format(proxy_log_wfs.response_wfs_num_features))

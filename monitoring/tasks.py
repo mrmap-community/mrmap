@@ -43,7 +43,7 @@ def run_monitoring(setting_id, *args, **kwargs):
     except (ObjectDoesNotExist, MultipleObjectsReturned):
         print(f'Could not retrieve setting with id {setting_id}')
         return
-    metadatas = setting.monitoring_setting.all()
+    metadatas = setting.metadatas.all()
     for metadata in metadatas:
         try:
             monitor = Monitor(metadata, monitoring_run, setting)

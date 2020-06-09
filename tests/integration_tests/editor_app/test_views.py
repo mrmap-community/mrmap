@@ -11,6 +11,9 @@ from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 
 
+OPERATION_BASE_URI_TEMPLATE = "/service/metadata/{}/operation"
+EDIT_BASE_URI_TEMPLATE = "/editor/metadata/{}"
+
 class EditorTestCase(TestCase):
 
     @classmethod
@@ -131,7 +134,7 @@ class EditorTestCase(TestCase):
 
         ## case 0: User not logged in -> tries to edit -> fails
         client = Client()
-        response = self._run_request(params, "/editor/metadata/{}".format(self.service_wms.metadata.id), "post", client)
+        self._run_request(params, EDIT_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id), "post", client)
         self.service_wms.refresh_from_db()
         self.assertNotEqual(self.service_wms.metadata.title, test_title, msg="Metadata title could be edited by not logged in user!")
         self.assertNotEqual(self.service_wms.metadata.abstract, test_abstract, msg="Metadata abstract could be edited by not logged in user!")
@@ -144,7 +147,7 @@ class EditorTestCase(TestCase):
         self.perm.can_edit_metadata_service = False
         self.perm.save()
 
-        response = self._run_request(params, "/editor/metadata/{}".format(self.service_wms.metadata.id), "post", client)
+        self._run_request(params, EDIT_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id), "post", client)
         self.service_wms.refresh_from_db()
         self.assertNotEqual(self.service_wms.metadata.title, test_title, msg="Metadata title could be edited by user without permission!")
         self.assertNotEqual(self.service_wms.metadata.abstract, test_abstract, msg="Metadata abstract could be edited by user without permission!")
@@ -156,7 +159,7 @@ class EditorTestCase(TestCase):
 
         ## case 1.2: User logged in -> tries to edit -> success
         client = self._get_logged_in_client()
-        response = self._run_request(params, "/editor/metadata/{}".format(self.service_wms.metadata.id), "post", client)
+        self._run_request(params, EDIT_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id), "post", client)
         self.service_wms.refresh_from_db()
         self.service_wms.metadata.refresh_from_db()
         self.assertEqual(self.service_wms.metadata.title, test_title, msg="Metadata title could not be edited by logged in user!")
@@ -206,7 +209,7 @@ class EditorTestCase(TestCase):
         self.perm.save()
 
         ## case 1.2: User logged in -> tries to restore -> success
-        response = self._run_request({}, url, "get", client)
+        self._run_request({}, url, "get", client)
         self.service_wms.metadata.refresh_from_db()
         self.service_wms.refresh_from_db()
         self.assertNotEqual(self.service_wms.metadata.title, new_val, msg="Metadata was not restored by logged in user!")
@@ -420,7 +423,7 @@ class EditorTestCase(TestCase):
             parent_layer=None
         )
         client = self._get_logged_in_client()
-        url = "/service/metadata/{}/operation".format(self.service_wms.metadata.id)
+        url = OPERATION_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id)
         param_width = 100
         param_height = 100
         params = {
@@ -439,7 +442,7 @@ class EditorTestCase(TestCase):
 
         # Run regular /operation request for WFS
         feature = self.service_wfs.subelements[0]
-        url = "/service/metadata/{}/operation".format(self.service_wfs.metadata.id)
+        url = OPERATION_BASE_URI_TEMPLATE.format(self.service_wfs.metadata.id)
         params = {
             "request": "GetFeature",
             "service": "WFS",
@@ -534,7 +537,7 @@ class EditorTestCase(TestCase):
             parent_layer=None
         )
         client = self._get_logged_in_client()
-        url = "/service/metadata/{}/operation".format(self.service_wms.metadata.id)
+        url = OPERATION_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id)
         param_width = 1000
         param_height = 1000
         params = {
@@ -560,7 +563,7 @@ class EditorTestCase(TestCase):
 
         # First run an unsecured request, to get the amount of unsecured features that are returned!
         feature = self.service_wfs.subelements[0]
-        url = "/service/metadata/{}/operation".format(self.service_wfs.metadata.id)
+        url = OPERATION_BASE_URI_TEMPLATE.format(self.service_wfs.metadata.id)
         params = {
             "request": "GetFeature",
             "service": "WFS",

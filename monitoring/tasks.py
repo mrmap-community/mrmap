@@ -19,19 +19,36 @@ from monitoring.monitoring import Monitoring as Monitor
 
 @beat_init.connect
 def init_periodic_tasks(sender, **kwargs):
-    monitoring_settings = MonitoringSetting.objects.filter(periodic_task__isnull=True)
+    """ Load MonitoringSettings and create/update PeriodicTask records
+
+    Args:
+        sender:
+        kwargs:
+    Returns:
+
+    """
+    monitoring_settings = MonitoringSetting.objects.all()
     for setting in monitoring_settings:
         interval = setting.interval.total_seconds()
-        schedule, created = IntervalSchedule.objects.get_or_create(every=interval, period=IntervalSchedule.SECONDS)
-        try:
-            task = PeriodicTask.objects.create(
-                interval=schedule, task='run_service_monitoring', name=f'monitoring_setting_{setting.id}',
-                args=f'[{setting.id}]'
-            )
-            setting.periodic_task = task
-            setting.save()
-        except ValidationError:
-            pass
+        interval = IntervalSchedule.objects.get_or_create(every=interval, period=IntervalSchedule.SECONDS)[0]
+
+        if setting.periodic_task is not None:
+            # Update interval to latest setting
+            setting.periodic_task.interval = interval
+            setting.periodic_task.save()
+        else:
+            # Create new PeriodicTask
+            try:
+                task = PeriodicTask.objects.create(
+                    interval=interval,
+                    task='run_service_monitoring',
+                    name=f'monitoring_setting_{setting.id}',
+                    args=f'[{setting.id}]'
+                )
+                setting.periodic_task = task
+                setting.save()
+            except ValidationError:
+                pass
 
 
 @shared_task(name='run_service_monitoring')

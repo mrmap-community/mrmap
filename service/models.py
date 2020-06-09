@@ -2916,9 +2916,6 @@ class Dataset(Resource):
     date_stamp = models.DateField(blank=True, null=True)
     metadata_standard_name = models.CharField(max_length=255, blank=True, null=True)
     metadata_standard_version = models.CharField(max_length=255, blank=True, null=True)
-    reference_system_authority_title = models.CharField(max_length=255, choices=SRS_AUTHORITIES_CHOICES, null=True, blank=True)
-    reference_system_code = models.CharField(max_length=255, null=True, blank=True)
-    reference_system_version = models.CharField(max_length=100, null=True, blank=True)
     md_identifier_code = models.CharField(max_length=500, null=True, blank=True)
 
     use_limitation = models.TextField(null=True, blank=True)

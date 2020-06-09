@@ -57,6 +57,21 @@ class MrMapWizardForm(forms.Form):
         return False
 
 
+class MrMapWizardModelForm(ModelForm):
+    def __init__(self, request: HttpRequest, instance_id: int = None, has_autocomplete_fields: bool = False, *args, **kwargs):
+        super(MrMapWizardModelForm, self).__init__(*args, **kwargs)
+        self.request = request
+        self.instance_id = instance_id
+        self.has_autocomplete_fields = has_autocomplete_fields
+
+    def has_required_fields(self):
+        for key in self.fields:
+            field_object = self.fields[key]
+            if field_object.required:
+                return True
+        return False
+
+
 class MrMapConfirmForm(MrMapForm):
     is_confirmed = forms.BooleanField()
 

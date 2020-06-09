@@ -9,9 +9,10 @@ from dal import autocomplete
 from django.forms import ModelMultipleChoiceField
 from django.utils.translation import gettext_lazy as _
 from django import forms
-from MrMap.forms import MrMapModelForm, MrMapWizardForm
+from MrMap.forms import MrMapModelForm, MrMapWizardForm, MrMapWizardModelForm
+from MrMap.widgets import BootstrapDateTimePickerInput, BootstrapDatePickerInput
 from service.helper.enums import MetadataEnum
-from service.models import Metadata, MetadataRelation, Keyword, Category
+from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem
 from service.settings import ISO_19115_LANG_CHOICES
 from users.helper import user_helper
 
@@ -80,6 +81,22 @@ class DatasetIdentificationForm(MrMapWizardForm):
     title = forms.CharField(label=_('Title'),)
     abstract = forms.CharField(label=_('Abstract'), )
     language_code = forms.ChoiceField(label=_('Language'), choices=ISO_19115_LANG_CHOICES)
+    character_set_code = forms.ChoiceField(label=_('Character Encoding'), choices=Dataset.CHARACTER_SET_CHOICES)
+    date_stamp = forms.DateField(label=_('Metadata creation date'),
+                                 widget=BootstrapDatePickerInput())
+    reference_system = ModelMultipleChoiceField(
+        queryset=None,
+        widget=autocomplete.ModelSelect2Multiple(
+            url='editor:reference-system-autocomplete',
+            attrs={
+                "data-containercss": {
+                    "height": "3em",
+                    "width": "3em",
+                }
+            }
+        ),
+        required=False,)
+
     additional_related_objects = MetadataModelMultipleChoiceField(
         queryset=None,
         widget=autocomplete.ModelSelect2Multiple(
@@ -101,13 +118,18 @@ class DatasetIdentificationForm(MrMapWizardForm):
 
         self.fields['additional_related_objects'].queryset = user_helper.get_user(self.request).get_metadatas_as_qs(
             type=MetadataEnum.DATASET, inverse_match=True)
+        self.fields['reference_system'].queryset = ReferenceSystem.objects.all()
 
         if self.instance_id:
-            # ToDo refactor this to DatasetMetadata Object
             metadata = Metadata.objects.get(id=self.instance_id)
+            dataset = Dataset.objects.get(id=metadata.dataset.id)
             self.fields['title'].initial = metadata.title
             self.fields['abstract'].initial = metadata.abstract
-            self.fields['language_code'].initial = metadata.language_code
+            self.fields['reference_system'].initial = metadata.reference_system.all()
+            self.fields['date_stamp'].initial = dataset.date_stamp
+            self.fields['language_code'].initial = dataset.language_code
+            self.fields['character_set_code'].initial = dataset.character_set_code
+
             # ToDo: initial all fields
 
             self.fields['additional_related_objects'].queryset = self.fields['additional_related_objects'].queryset.exclude(id=self.instance_id)
@@ -154,7 +176,30 @@ class DatasetClassificationForm(MrMapWizardForm):
                                                         **kwargs,)
 
         if self.instance_id:
-            # ToDo refactor this to DatasetMetadata Object
             metadata = Metadata.objects.get(id=self.instance_id)
             self.fields['keywords'].initial = metadata.keywords.all()
             self.fields['categories'].initial = metadata.categories.all()
+
+
+class DatasetTemporalExtentForm(MrMapWizardForm):
+    maintenance_and_update_frequency = forms.ChoiceField(label=_('Maintenance and update frequency'), choices=Dataset.UPDATE_FREQUENCY_CHOICES)
+
+    def __init__(self, *args, **kwargs):
+        super(DatasetTemporalExtentForm, self).__init__(*args, **kwargs)
+
+        if self.instance_id:
+            metadata = Metadata.objects.get(id=self.instance_id)
+            dataset = Dataset.objects.get(id=metadata.dataset.id)
+            self.fields['maintenance_and_update_frequency'].initial = dataset.update_frequency_code
+
+
+class DatasetLicenseConstraintsForm(MrMapWizardForm):
+    maintenance_and_update_frequency = forms.ChoiceField(label=_('Maintenance and update frequency'), choices=Dataset.UPDATE_FREQUENCY_CHOICES)
+
+    def __init__(self, *args, **kwargs):
+        super(DatasetLicenseConstraintsForm, self).__init__(*args, **kwargs)
+
+        if self.instance_id:
+            metadata = Metadata.objects.get(id=self.instance_id)
+            dataset = Dataset.objects.get(id=metadata.dataset.id)
+            self.fields['maintenance_and_update_frequency'].initial = dataset.update_frequency_code

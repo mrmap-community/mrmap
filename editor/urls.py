@@ -5,19 +5,20 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 09.07.19
 
 """
-from django.conf.urls import url
 from django.urls import path
-
-from editor.autocompletes import KeywordAutocomplete, CategoryAutocomplete, DatasetMetadataAutocomplete
+from editor.autocompletes import KeywordAutocomplete, CategoryAutocomplete, DatasetMetadataAutocomplete, \
+    ReferenceSystemAutocomplete
 from editor.views import *
-from editor.wizards import DATASET_WIZARD_FORMS, DatasetWizard
 
 app_name = 'editor'
 urlpatterns = [
     path('', index, name='index'),
+    # ToDo: move the autocomplete paths behind view to secure them
     path('keyword-autocomplete/', KeywordAutocomplete.as_view(create_field="keyword"), name="keyword-autocomplete"),
     path('category-autocomplete/', CategoryAutocomplete.as_view(), name="category-autocomplete"),
     path('metadata-autocomplete/', DatasetMetadataAutocomplete.as_view(), name="metadata-autocomplete"),
+    path('reference-system-autocomplete/', ReferenceSystemAutocomplete.as_view(), name="reference-system-autocomplete"),
+
     path('wms/', index_wms, name='wms-index'),
     path('wfs/', index_wfs, name='wfs-index'),
     path('datasets/', index_datasets, name='datasets-index'),

@@ -10,7 +10,7 @@ from django.db.models import Q
 from django.http import HttpRequest
 
 from service.helper.enums import MetadataEnum
-from service.models import Keyword, Category
+from service.models import Keyword, Category, ReferenceSystem
 from structure.models import Permission
 from users.helper.user_helper import get_user
 
@@ -109,3 +109,30 @@ class DatasetMetadataAutocomplete(autocomplete.Select2QuerySetView):
             so the user can differentiate the results where title is equal.
         """
         return '{} #{}'.format(result.title, result.id)
+
+
+class ReferenceSystemAutocomplete(autocomplete.Select2QuerySetView):
+    """ Provides an autocomplete functionality for categories records
+
+    """
+    def get_queryset(self):
+        """ Getter for the matching categories
+
+        Returns:
+             records (QuerySet): The matched records
+        """
+        records = ReferenceSystem.objects.all()
+        query=""
+        if self.q:
+            # There are filtering parameters!
+            query = self.q
+        records = records.filter(prefix__icontains=query)
+
+        return records
+
+    def get_result_label(self, result):
+        """
+            we need to override this function to show the id of the metadata object,
+            so the user can differentiate the results where title is equal.
+        """
+        return f'{result.prefix}{result.code}'

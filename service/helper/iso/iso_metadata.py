@@ -220,7 +220,7 @@ class ISOMetadata:
 
         # try to transform the last_change_date into a datetime object
         try:
-            self.last_change_date = parse(self.last_change_date)
+            self.last_change_date = parse(self.last_change_date, tzinfo=timezone.utc)
         except (ValueError, OverflowError, TypeError):
             # if this is not possible due to wrong input, just use the current time...
             self.last_change_date = timezone.now()

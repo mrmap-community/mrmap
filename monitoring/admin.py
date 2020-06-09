@@ -23,7 +23,7 @@ class MonitoringAdmin(admin.ModelAdmin):
 
 
 class MonitoringCapabilityAdmin(admin.ModelAdmin):
-    list_display = ('id', 'needs_update', 'diff')
+    list_display = ('id', 'metadata', 'needs_update', 'diff')
 
 
 admin.site.register(MonitoringSetting, MonitoringSettingAdmin)

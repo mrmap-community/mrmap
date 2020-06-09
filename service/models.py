@@ -599,7 +599,7 @@ class Metadata(Resource):
         self.categories_list = []
 
     def __str__(self):
-        return self.title
+        return "{} #{}".format(self.title, self.id)
 
     @property
     def is_service_metadata(self):

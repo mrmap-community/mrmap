@@ -315,5 +315,5 @@ MESSAGE_TAGS = {
     messages.ERROR: 'alert-danger',
 }
 
-MONITORING_REQUEST_TIMEOUT = 30  # minutes
-MONITORING_INTERVAL = 120  # minutes
+MONITORING_TIME = "23:59:00"
+MONITORING_REQUEST_TIMEOUT = 30  # seconds

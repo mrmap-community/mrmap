@@ -7,16 +7,13 @@ Created on: 06.05.19
 """
 from getpass import getpass
 
-import os
-from datetime import timedelta
-
-from django.contrib.auth.hashers import make_password
+from dateutil.parser import parse
 from django.core.management import BaseCommand, call_command
 from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from MrMap.settings import MONITORING_INTERVAL, MONITORING_REQUEST_TIMEOUT
+from MrMap.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
 from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
 from structure.settings import PUBLIC_ROLE_NAME, PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, SUPERUSER_ROLE_NAME
 from monitoring.models import MonitoringSetting
@@ -107,7 +104,7 @@ class Command(BaseCommand):
 
         self._create_default_monitoring_setting()
         msg = (
-            f"Default monitoring setting with interval {MONITORING_INTERVAL} and "
+            f"Default monitoring setting with check on {MONITORING_TIME} and "
             f"timeout {MONITORING_REQUEST_TIMEOUT} was created successfully"
         )
         self.stdout.write(self.style.SUCCESS(str(msg)))
@@ -194,8 +191,8 @@ class Command(BaseCommand):
         Returns:
             nothing
         """
-        interval = timedelta(minutes=MONITORING_INTERVAL)
+        mon_time = parse(MONITORING_TIME)
         monitoring_setting = MonitoringSetting.objects.get_or_create(
-            interval=interval, timeout=MONITORING_REQUEST_TIMEOUT
+            check_time=mon_time, timeout=MONITORING_REQUEST_TIMEOUT
         )[0]
         monitoring_setting.save()

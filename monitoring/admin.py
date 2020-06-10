@@ -15,15 +15,15 @@ class MonitoringSettingAdmin(admin.ModelAdmin):
 
 
 class MonitoringRunAdmin(admin.ModelAdmin):
-    list_display = ('id', 'start', 'end', 'duration')
+    list_display = ('uuid', 'start', 'end', 'duration')
 
 
 class MonitoringAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'timestamp', 'duration', 'status_code', 'error_msg', 'available', 'monitored_uri', 'monitoring_run')
+    list_display = ('uuid', 'metadata', 'timestamp', 'duration', 'status_code', 'error_msg', 'available', 'monitored_uri', 'monitoring_run')
 
 
 class MonitoringCapabilityAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'needs_update', 'diff')
+    list_display = ('uuid', 'metadata', 'needs_update', 'diff')
 
 
 admin.site.register(MonitoringSetting, MonitoringSettingAdmin)

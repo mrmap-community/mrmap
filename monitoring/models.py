@@ -5,6 +5,7 @@ Contact: suleiman@terrestris.de
 Created on: 26.02.2020
 
 """
+import uuid
 from django.contrib.gis.db import models
 from django.core.exceptions import ValidationError
 from django_celery_beat.models import PeriodicTask,CrontabSchedule
@@ -66,12 +67,17 @@ class MonitoringSetting(models.Model):
 
 
 class MonitoringRun(models.Model):
+    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4)
     start = models.DateTimeField(auto_now_add=True)
     end = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(null=True, blank=True)
 
+    class Meta:
+        ordering = ["-end"]
+
 
 class Monitoring(models.Model):
+    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4)
     metadata = models.ForeignKey('service.Metadata', on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True)
     duration = models.DurationField(null=True, blank=True)
@@ -80,6 +86,9 @@ class Monitoring(models.Model):
     available = models.BooleanField(null=True)
     monitored_uri = models.CharField(max_length=2000)
     monitoring_run = models.ForeignKey(MonitoringRun, on_delete=models.CASCADE)
+
+    class Meta:
+        ordering = ["-timestamp"]
 
 
 class MonitoringCapability(Monitoring):

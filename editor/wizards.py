@@ -1,17 +1,18 @@
-from django.contrib import messages
 from django.http import HttpResponseRedirect
 from django.template.loader import render_to_string
 from django.urls import reverse, resolve
 from django.utils.html import format_html
 from formtools.wizard.views import SessionWizardView
 from MrMap.utils import get_theme
-from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, DatasetTemporalExtentForm
+from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, DatasetTemporalExtentForm, \
+    DatasetLicenseConstraintsForm
 from users.helper import user_helper
 from django.utils.translation import gettext_lazy as _
 
 DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
                         (_("classification"), DatasetClassificationForm),
-                        (_("temporal extent"), DatasetTemporalExtentForm),]
+                        (_("Licenses/Constraints"), DatasetLicenseConstraintsForm),
+                        (_("maintenance information"), DatasetTemporalExtentForm),]
 
 
 class DatasetWizard(SessionWizardView):

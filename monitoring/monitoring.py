@@ -13,6 +13,7 @@ from PIL import Image, UnidentifiedImageError
 from io import BytesIO
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 
 from monitoring.models import Monitoring as MonitoringResult, MonitoringCapability, MonitoringRun, MonitoringSetting
 from monitoring.helper.wmsHelper import WmsHelper
@@ -49,6 +50,7 @@ class Monitoring:
             self.message = message
             self.duration = duration
 
+    @transaction.atomic
     def run_checks(self):
         """ Run checks for all ogc operations.
 
@@ -58,21 +60,20 @@ class Monitoring:
         self.get_linked_metadata()
 
         try:
-            service = self.metadata.service
+            check_obj = self.metadata.get_described_element()
         except ObjectDoesNotExist:
             pass
 
         if self.metadata.is_service_metadata:
-            service_type = service.servicetype.name.lower()
-            if service_type == OGCServiceEnum.WMS.value.lower():
-                self.check_wms(service, True)
-            elif service_type == OGCServiceEnum.WFS.value.lower():
-                self.check_wfs(service)
+            if self.metadata.is_service_type(OGCServiceEnum.WMS):
+                self.check_wms(check_obj)
+            elif self.metadata.is_service_type(OGCServiceEnum.WFS):
+                self.check_wfs(check_obj)
 
         elif self.metadata.is_layer_metadata:
-            self.check_layer(service)
+            self.check_layer(check_obj)
         elif self.metadata.is_featuretype_metadata:
-            self.check_featuretype(service)
+            self.check_featuretype(check_obj)
         elif self.metadata.is_dataset_metadata:
             self.check_dataset()
 
@@ -142,10 +143,9 @@ class Monitoring:
         """
         wms_helper = WmsHelper(service)
 
-        if capabilities_only:
-            if wms_helper.get_capabilities_url is not None:
-                self.check_get_capabilities(wms_helper.get_capabilities_url)
-        else:
+        if wms_helper.get_capabilities_url is not None:
+            self.check_get_capabilities(wms_helper.get_capabilities_url)
+        if not capabilities_only:
             wms_helper.set_operation_urls()
             if wms_helper.get_map_url is not None:
                 self.check_service(wms_helper.get_map_url)
@@ -171,9 +171,16 @@ class Monitoring:
             nothing
         """
         wms_helper = WmsHelper(service)
-        get_map_url = wms_helper.get_get_map_url()
-        if get_map_url is not None:
-            self.check_service(get_map_url, check_image=True)
+        urls_to_check = [
+            (wms_helper.get_get_map_url(), True),
+            (wms_helper.get_get_styles_url(), False),
+            (wms_helper.get_get_feature_info_url(), False),
+            (wms_helper.get_describe_layer_url(), False),
+        ]
+        for url in urls_to_check:
+            if url[0] is None:
+                continue
+            self.check_service(url[0], check_image=url[1])
 
     def check_featuretype(self, service: Service):
         """ Checks the status of a featuretype.
@@ -248,8 +255,8 @@ class Monitoring:
                     success = True
                 except UnidentifiedImageError:
                     success = False
-
-        return Monitoring.ServiceStatus(url, success, response_text, connector.status_code, duration)
+        service_status = Monitoring.ServiceStatus(url, success, response_text, connector.status_code, duration)
+        return service_status
 
     def has_wfs_member(self, xml):
         """Checks the existence of a (feature)Member for a wfs feature.

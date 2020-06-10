@@ -65,7 +65,7 @@ def run_monitoring(setting_id, *args, **kwargs):
         try:
             monitor = Monitor(metadata, monitoring_run, setting)
             monitor.run_checks()
-        except Exception:
+        except Exception as e:
             pass
     end_time = datetime.datetime.now(pytz.utc)
     duration = end_time - monitoring_run.start

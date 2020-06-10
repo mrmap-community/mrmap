@@ -657,6 +657,26 @@ class Metadata(Resource):
         """
         return self.get_service_type() == enum.value
 
+    def get_described_element(self):
+        """ Simple getter to return the 'real' described element.
+
+        Described elements are .service, .layer or .featuretype. Instead of doing these if-else checks
+        over and over again, this function directly returns the appropriate element.
+
+        Returns:
+
+        """
+        ret_val = None
+        if self.is_service_metadata:
+            ret_val = self.service
+        elif self.is_layer_metadata:
+            ret_val = Layer.objects.get(
+                metadata=self
+            )
+        elif self.is_featuretype_metadata:
+            ret_val = self.featuretype
+        return ret_val
+
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.
 

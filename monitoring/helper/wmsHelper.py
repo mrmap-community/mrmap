@@ -6,7 +6,7 @@ Created on: 26.02.2020
 
 """
 
-from service.models import Service
+from service.models import Service, Layer
 from service.helper.enums import OGCOperationEnum, OGCServiceVersionEnum, OGCServiceEnum
 from monitoring.helper.urlHelper import UrlHelper
 from django.core.exceptions import ObjectDoesNotExist
@@ -16,6 +16,16 @@ class WmsHelper:
 
     def __init__(self, service: Service):
         self.service = service
+        self.parent_service = service.parent_service if service.metadata.is_layer_metadata else service
+
+        # Prefetch useful attributes for requests
+        self.layer = self.service if self.service.metadata.is_layer_metadata else Layer.objects.get(
+            parent_service=self.service,
+            parent_layer=None
+        )
+        self.crs_srs_identifier = 'CRS' if self.service.servicetype.version == OGCServiceVersionEnum.V_1_3_0.value else 'SRS'
+        self.bbox = self.layer.bbox_lat_lon if self.layer.bbox_lat_lon.area > 0 else self.parent_service.metadata.find_max_bounding_box()
+
         self.get_capabilities_url = self.get_get_capabilities_url()
         self.get_styles_url = None
         self.get_legend_graphic_url = None
@@ -46,14 +56,14 @@ class WmsHelper:
             return
         service_version = OGCServiceVersionEnum.V_1_1_1.value
         service_type = OGCServiceEnum.WMS.value
-        try:
-            layers = self.service.layer.identifier
-        except ObjectDoesNotExist:
-            layers = ''
+        layers = self.layer.identifier
         request_type = OGCOperationEnum.GET_STYLES.value
 
         queries = [
-            ('SERVICE', service_type), ('REQUEST', request_type), ('VERSION', service_version), ('LAYERS', layers)
+            ('SERVICE', service_type),
+            ('REQUEST', request_type),
+            ('VERSION', service_version),
+            ('LAYERS', layers)
         ]
         url = UrlHelper.build(uri, queries)
         return url
@@ -68,16 +78,19 @@ class WmsHelper:
         if uri is None:
             return
         request_type = OGCOperationEnum.GET_LEGEND_GRAPHIC.value
-        try:
-            layer = self.service.layer.identifier
-        except ObjectDoesNotExist:
-            layer = ''
-        service_format = str(self.service.formats.all()[0])
-        if 'image/png' in [str(f) for f in self.service.formats.all()]:
-            service_format = 'image/png'
+        layer = self.layer.identifier
+        service_format = self.layer.metadata.formats.filter(
+            operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value
+        ).first().mime_type
+        version = self.service.servicetype.version
+        service_type = self.service.servicetype.name
 
         queries = [
-            ('REQUEST', request_type), ('LAYER', layer), ('FORMAT', service_format)
+            ('REQUEST', request_type),
+            ('LAYER', layer),
+            ('FORMAT', service_format),
+            ('SERVICE', service_type),
+            ('VERSION', version),
         ]
         url = UrlHelper.build(uri, queries)
         return url
@@ -95,12 +108,18 @@ class WmsHelper:
         # make sure that version is describeLayer specific version 1.1.1 and not wms version 1.3.0
         service_version = OGCServiceVersionEnum.V_1_1_1.value
         service_type = OGCServiceEnum.WMS.value
-        try:
-            layers = self.service.layer.identifier
-        except ObjectDoesNotExist:
-            layers = ''
+        width = 1
+        height = 1
+
+        layers = self.layer.identifier
+
         queries = [
-            ('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type), ('LAYERS', layers)
+            ('REQUEST', request_type),
+            ('VERSION', service_version),
+            ('SERVICE', service_type),
+            ('LAYERS', layers),
+            ('HEIGHT', height),
+            ('WIDTH', width),
         ]
         url = UrlHelper.build(uri, queries)
         return url
@@ -112,19 +131,15 @@ class WmsHelper:
             str: URL for getFeatureInfo request.
         """
         uri = self.service.get_feature_info_uri_GET
-        if uri is None:
+        if uri is None or not self.layer.is_queryable:
             return
         request_type = OGCOperationEnum.GET_FEATURE_INFO.value
         service_version = self.service.servicetype.version
         service_type = OGCServiceEnum.WMS.value
-        try:
-            layers = self.service.layer.identifier
-            crs = f'EPSG:{self.service.layer.bbox_lat_lon.crs.srid}'
-            bbox = ','.join(map(str, self.service.layer.bbox_lat_lon.extent))
-        except ObjectDoesNotExist:
-            layers = ''
-            crs = ''
-            bbox = ''
+
+        layers = self.layer.identifier
+        crs = f'EPSG:{self.bbox.crs.srid}'
+        bbox = ','.join(map(str, self.bbox.extent))
         styles = ''
         width = 1
         height = 1
@@ -133,8 +148,15 @@ class WmsHelper:
         y = 0
 
         queries = [
-            ('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type), ('LAYERS', layers),
-            ('CRS', crs), ('BBOX', bbox), ('STYLES', styles), ('WIDTH', width), ('HEIGHT', height),
+            ('REQUEST', request_type),
+            ('VERSION', service_version),
+            ('SERVICE', service_type),
+            ('LAYERS', layers),
+            (self.crs_srs_identifier, crs),
+            ('BBOX', bbox),
+            ('STYLES', styles),
+            ('WIDTH', width),
+            ('HEIGHT', height),
             ('QUERY_LAYERS', query_layers)
         ]
         if service_version.lower() == OGCServiceVersionEnum.V_1_3_0.value.lower():
@@ -153,27 +175,33 @@ class WmsHelper:
         uri = self.service.get_map_uri_GET
         if uri is None:
             return
+
+        # Fetch request parameters
         request_type = OGCOperationEnum.GET_MAP.value
         service_version = self.service.servicetype.version
         service_type = OGCServiceEnum.WMS.value
-        try:
-            layers = self.service.layer.identifier
-            crs = f'EPSG:{self.service.layer.bbox_lat_lon.crs.srid}'
-            bbox = ','.join(map(str, self.service.layer.bbox_lat_lon.extent))
-        except ObjectDoesNotExist:
-            layers = ''
-            crs = ''
-            bbox = ''
+
+        # Get bbox value for request
+        layers = self.layer.identifier
+        srs = f'EPSG:{self.bbox.crs.srid}'
+        bbox = ','.join(map(str, self.bbox.extent))
         styles = ''
         width = 1
         height = 1
-        service_format = str(self.service.formats.all()[0])
-        if 'image/png' in [str(f) for f in self.service.formats.all()]:
-            service_format = 'image/png'
+        service_format = self.layer.metadata.formats.filter(
+            operation=OGCOperationEnum.GET_MAP.value
+        ).first().mime_type
 
         queries = [
-            ('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type), ('LAYERS', layers),
-            ('CRS', crs), ('BBOX', bbox), ('STYLES', styles), ('WIDTH', width), ('HEIGHT', height),
+            ('REQUEST', request_type),
+            ('VERSION', service_version),
+            ('SERVICE', service_type),
+            ('LAYERS', layers),
+            (self.crs_srs_identifier, srs),
+            ('BBOX', bbox),
+            ('STYLES', styles),
+            ('WIDTH', width),
+            ('HEIGHT', height),
             ('FORMAT', service_format)
         ]
         url = UrlHelper.build(uri, queries)

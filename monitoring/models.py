@@ -5,16 +5,64 @@ Contact: suleiman@terrestris.de
 Created on: 26.02.2020
 
 """
-
 from django.contrib.gis.db import models
-from django_celery_beat.models import PeriodicTask
+from django.core.exceptions import ValidationError
+from django_celery_beat.models import PeriodicTask,CrontabSchedule
+
+from MrMap.settings import TIME_ZONE
 
 
 class MonitoringSetting(models.Model):
     metadatas = models.ManyToManyField('service.Metadata', related_name='monitoring_setting')
-    interval = models.DurationField()
+    check_time = models.TimeField()
     timeout = models.IntegerField()
     periodic_task = models.OneToOneField(PeriodicTask, on_delete=models.CASCADE, null=True, blank=True)
+
+    def update_periodic_tasks(self):
+        """ Updates related PeriodicTask record based on the current MonitoringSetting
+
+        Returns:
+
+        """
+        time = self.check_time
+        schedule = CrontabSchedule.objects.get_or_create(
+            minute=time.minute,
+            hour=time.hour,
+            timezone=TIME_ZONE,
+        )[0]
+
+        if self.periodic_task is not None:
+            # Update interval to latest setting
+            self.periodic_task.crontab = schedule
+            self.periodic_task.save()
+        else:
+            # Create new PeriodicTask
+            try:
+                task = PeriodicTask.objects.create(
+                    crontab=schedule,
+                    task='run_service_monitoring',
+                    name=f'monitoring_setting_{self.id}',
+                    args=f'[{self.id}]'
+                )
+                self.periodic_task = task
+            except ValidationError as e:
+                pass
+
+    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        """ Overwrites default save method.
+
+        Updates related PeriodicTask to match the current state of MonitoringSetting.
+
+        Args:
+            force_insert:
+            force_update:
+            using:
+            update_fields:
+        Returns:
+
+        """
+        self.update_periodic_tasks()
+        super().save(force_insert, force_update, using, update_fields)
 
 
 class MonitoringRun(models.Model):

@@ -21,7 +21,7 @@ from monitoring.helper.wfsHelper import WfsHelper
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.common_connector import CommonConnector
 from service.helper.xml_helper import parse_xml
-from service.models import Metadata, Document, Service, MetadataRelation
+from service.models import Metadata, Document, Service, MetadataRelation, FeatureType
 from service.helper.enums import OGCServiceEnum, MetadataEnum, OGCServiceVersionEnum
 
 
@@ -57,7 +57,6 @@ class Monitoring:
         Returns:
             nothing
         """
-        self.get_linked_metadata()
 
         try:
             check_obj = self.metadata.get_described_element()
@@ -76,21 +75,6 @@ class Monitoring:
             self.check_featuretype(check_obj)
         elif self.metadata.is_dataset_metadata:
             self.check_dataset()
-
-        self.check_linked_metadata()
-
-    def get_linked_metadata(self):
-        """ Gets the to the current metadata linked metadata.
-
-        Returns
-            nothing
-        """
-        self.linked_metadata = MetadataRelation.objects.filter(metadata_from=self.metadata)
-
-    def check_linked_metadata(self):
-        for metadata_relation in self.linked_metadata:
-            monitoring = Monitoring(metadata_relation.metadata_to, self.monitoring_run)
-            monitoring.run_checks()
 
     def check_wfs(self, service: Service):
         """ Check the availability of wfs operations.
@@ -119,14 +103,6 @@ class Monitoring:
                 wfs_helper.set_2_0_2_urls()
                 if wfs_helper.list_stored_queries is not None:
                     self.check_service(wfs_helper.list_stored_queries)
-
-            for featuretype in service.featuretypes.all():
-                describe_featuretype_url = wfs_helper.get_describe_featuretype_url(str(featuretype))
-                if describe_featuretype_url is not None:
-                    self.check_service(describe_featuretype_url)
-                get_feature_url = wfs_helper.get_get_feature_url(str(featuretype))
-                if get_feature_url is not None:
-                    self.check_service(get_feature_url, check_wfs_member=True)
 
     def check_wms(self, service: Service, capabilities_only: bool = False):
         """ Check the availability of wms operations.
@@ -182,20 +158,23 @@ class Monitoring:
                 continue
             self.check_service(url[0], check_image=url[1])
 
-    def check_featuretype(self, service: Service):
+    def check_featuretype(self, feature_type: FeatureType):
         """ Checks the status of a featuretype.
 
         Args:
-            service (Service): The service to check.
+            feature_type (FeatureType): The featuretype to check.
         Returns:
             nothing
         """
-        wfs_helper = WfsHelper(service)
-
-        for featuretype in service.featuretypes.all():
-            get_feature_url = wfs_helper.get_get_feature_url(str(featuretype))
-            if get_feature_url is not None:
-                self.check_service(get_feature_url, check_wfs_member=True)
+        wfs_helper = WfsHelper(feature_type)
+        urls_to_check = [
+            (wfs_helper.get_describe_featuretype_url(feature_type.metadata.identifier), True),
+            (wfs_helper.get_get_feature_url(feature_type.metadata.identifier), True),
+        ]
+        for url in urls_to_check:
+            if url[0] is None:
+                continue
+            self.check_service(url[0], check_wfs_member=url[1])
 
     def check_service(self, url: str, check_wfs_member: bool = False, check_image: bool = False):
         """ Checks the status of a service and calls the appropriate handlers.
@@ -399,8 +378,11 @@ class Monitoring:
             nothing
         """
         monitoring_result = MonitoringResult(
-            available=service_status.success, metadata=self.metadata, status_code=service_status.status,
-            duration=service_status.duration, monitored_uri=service_status.monitored_uri,
+            available=service_status.success,
+            metadata=self.metadata,
+            status_code=service_status.status,
+            duration=service_status.duration,
+            monitored_uri=service_status.monitored_uri,
             monitoring_run=self.monitoring_run
         )
         monitoring_result.save()

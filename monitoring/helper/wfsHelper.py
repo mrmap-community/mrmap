@@ -13,8 +13,9 @@ from monitoring.helper.urlHelper import UrlHelper
 
 class WfsHelper:
 
-    def __init__(self, service: Service):
+    def __init__(self, service):
         self.service = service
+        self.parent_service = service if service.metadata.is_root() else service.parent_service
         self.get_capabilities_url = self.get_get_capabilities_url()
         self.list_stored_queries = None
 
@@ -36,14 +37,18 @@ class WfsHelper:
         Returns:
             str: URL for GetCapabilities request.
         """
-        uri = self.service.get_capabilities_uri_GET
+        uri = self.parent_service.get_capabilities_uri_GET
         if uri is None:
             return
         request_type = OGCOperationEnum.GET_CAPABILITIES.value
-        service_version = self.service.servicetype.version
+        service_version = self.parent_service.servicetype.version
         service_type = OGCServiceEnum.WFS.value
 
-        queries = [('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type)]
+        queries = [
+            ('REQUEST', request_type),
+            ('VERSION', service_version),
+            ('SERVICE', service_type)
+        ]
         url = UrlHelper.build(uri, queries)
         return url
 
@@ -74,34 +79,31 @@ class WfsHelper:
         """
         uri = None
         try:
-            uri = self.service.describe_featuretype_uri_GET
+            # For WFS  describe_layer_uri_GET contains the describe feature url
+            uri = self.parent_service.describe_layer_uri_GET
         except AttributeError:
-            # TODO:
-            #   self.service.describe_featuretype_uri_GET is not implemented yet.
-            #   We can remove the try catch block as soon as this was done.
             pass
         if uri is None:
             return
         if type_name is None:
             return
         request_type = OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value
-        service_version = self.service.servicetype.version
+        service_version = self.parent_service.servicetype.version
         service_type = OGCServiceEnum.WFS.value
 
-        queries = None
-        if service_version == OGCServiceVersionEnum.V_1_0_0.value:
+        if service_version == OGCServiceVersionEnum.V_1_0_0.value \
+                or service_version == OGCServiceVersionEnum.V_1_1_0.value:
             queries = [
-                ('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type),
-                ('typeName', type_name)
-            ]
-        elif service_version == OGCServiceVersionEnum.V_1_1_0.value:
-            queries = [
-                ('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type),
+                ('REQUEST', request_type),
+                ('VERSION', service_version),
+                ('SERVICE', service_type),
                 ('typeName', type_name)
             ]
         else:
             queries = [
-                ('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type),
+                ('REQUEST', request_type),
+                ('VERSION', service_version),
+                ('SERVICE', service_type),
                 ('typeNames', type_name)
             ]
 
@@ -118,11 +120,9 @@ class WfsHelper:
         """
         uri = None
         try:
-            uri = self.service.get_feature_uri_GET
+            # For WFS get_feature_info_uri_GET holds the get feature url
+            uri = self.parent_service.get_feature_info_uri_GET
         except AttributeError:
-            # TODO:
-            #   self.service.get_feature_uri_GET is not implemented yet.
-            #   We can remove the try catch block as soon as this was done.
             pass
 
         if uri is None:
@@ -131,24 +131,25 @@ class WfsHelper:
             return
 
         request_type = OGCOperationEnum.GET_FEATURE.value
-        service_version = self.service.servicetype.version
+        service_version = self.parent_service.servicetype.version
         service_type = OGCServiceEnum.WFS.value
 
-        queries = None
-        if service_version == OGCServiceVersionEnum.V_1_0_0.value:
+        if service_version == OGCServiceVersionEnum.V_1_0_0.value \
+                or service_version == OGCServiceVersionEnum.V_1_1_0.value:
             queries = [
-                ('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type),
-                ('typeName', type_name), ('MAXFEATURES', 1)
-            ]
-        elif service_version == OGCServiceVersionEnum.V_1_1_0.value:
-            queries = [
-                ('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type),
-                ('typeName', type_name), ('MAXFEATURES', 1)
+                ('REQUEST', request_type),
+                ('VERSION', service_version),
+                ('SERVICE', service_type),
+                ('typeName', type_name),
+                ('MAXFEATURES', 1)
             ]
         else:
             queries = [
-                ('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type),
-                ('typeNames', type_name), ('COUNT', 1)
+                ('REQUEST', request_type),
+                ('VERSION', service_version),
+                ('SERVICE', service_type),
+                ('typeNames', type_name),
+                ('COUNT', 1)
             ]
 
         url = UrlHelper.build(uri, queries)

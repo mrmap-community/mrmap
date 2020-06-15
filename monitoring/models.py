@@ -39,12 +39,13 @@ class MonitoringSetting(models.Model):
         else:
             # Create new PeriodicTask
             try:
-                task = PeriodicTask.objects.create(
-                    crontab=schedule,
+                task = PeriodicTask.objects.get_or_create(
                     task='run_service_monitoring',
                     name=f'monitoring_setting_{self.id}',
                     args=f'[{self.id}]'
-                )
+                )[0]
+                task.crontab = schedule
+                task.save()
                 self.periodic_task = task
             except ValidationError as e:
                 pass

@@ -2273,8 +2273,6 @@ class Service(Resource):
     get_gml_objct_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_gml_objct_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
-    #formats = models.ManyToManyField('MimeType', blank=True)
-
     is_update_candidate_for = models.OneToOneField('self', on_delete=models.SET_NULL, related_name="has_update_candidate", null=True, default=None, blank=True)
     created_by_user = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True, blank=True)
     keep_custom_md = models.BooleanField(default=True)

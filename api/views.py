@@ -1,4 +1,5 @@
 # Create your views here.
+from datetime import timedelta
 from collections import OrderedDict
 
 from celery.result import AsyncResult
@@ -22,12 +23,13 @@ from MrMap.messages import SERVICE_NOT_FOUND, PARAMETER_ERROR, \
     RESOURCE_NOT_FOUND, SERVICE_REMOVED
 from MrMap.responses import DefaultContext, APIResponse
 from api import view_helper
+from monitoring.models import Monitoring, MonitoringRun
 from api.forms import TokenForm
 from api.permissions import CanRegisterService, CanRemoveService, CanActivateService
 
 from api.serializers import ServiceSerializer, LayerSerializer, OrganizationSerializer, GroupSerializer, \
     MetadataSerializer, CatalogueMetadataSerializer, PendingTaskSerializer, CategorySerializer, \
-    serialize_catalogue_metadata
+    MonitoringSerializer, MonitoringSummarySerializer, serialize_catalogue_metadata
 from api.settings import API_CACHE_TIME, API_ALLOWED_HTTP_METHODS, CATALOGUE_DEFAULT_ORDER, SERVICE_DEFAULT_ORDER, \
     LAYER_DEFAULT_ORDER, ORGANIZATION_DEFAULT_ORDER, METADATA_DEFAULT_ORDER, GROUP_DEFAULT_ORDER, \
     SUGGESTIONS_MAX_RESULTS, API_CACHE_KEY_PREFIX
@@ -805,6 +807,44 @@ class CatalogueViewSet(viewsets.GenericViewSet):
             return Response(data)
         except ObjectDoesNotExist:
             return Response(RESOURCE_NOT_FOUND, status=404)
+
+
+class MonitoringViewSet(viewsets.ReadOnlyModelViewSet):
+    """ Overview of the last Monitoring results
+
+    """
+    serializer_class = MonitoringSerializer
+
+    def get_queryset(self):
+        try:
+            monitoring_run = MonitoringRun.objects.latest('start')
+            monitorings = Monitoring.objects.filter(monitoring_run=monitoring_run)
+        except ObjectDoesNotExist:
+            return Monitoring.objects.all()
+        return monitorings
+
+    def retrieve(self, request, pk=None, *args, **kwargs):
+        tmp = Monitoring.objects.filter(metadata=pk).order_by('-timestamp')
+
+        if len(tmp) == 0:
+            return Response(status=404)
+
+        last_monitoring = tmp[0]
+        sum_response = 0
+        sum_availability = 0
+        for monitor in tmp:
+            sum_response += monitor.duration.microseconds
+            if monitor.available:
+                sum_availability += 1
+        avg_response_microseconds = sum_response / len(tmp)
+        avg_response_time = timedelta(microseconds=avg_response_microseconds)
+        avg_availability = sum_availability / len(tmp) * 100
+        result = {
+            'last_monitoring': last_monitoring,
+            'avg_response_time': avg_response_time,
+            'avg_availability_percent': avg_availability
+        }
+        return Response(MonitoringSummarySerializer(result).data)
 
 
 class SuggestionViewSet(viewsets.GenericViewSet):

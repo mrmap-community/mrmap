@@ -1,7 +1,11 @@
+import os
+from datetime import timedelta
 import json
 
 from django.test import TestCase, Client
 
+from monitoring.models import MonitoringSetting
+from structure.models import MrMapUser
 from MrMap.settings import HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper import service_helper, xml_helper
@@ -79,6 +83,9 @@ class EditorTestCase(TestCase):
             related_metadata=cls.service_wfs.metadata
         )
 
+        monitoring_setting = MonitoringSetting(interval=timedelta(microseconds=1000), timeout=1000)
+        monitoring_setting.save()
+
     def _get_logged_out_client(self):
         """ Helping function to encapsulate the logout process
 
@@ -87,6 +94,7 @@ class EditorTestCase(TestCase):
         """
         self.client.logout()
         return self.client
+
 
     def _get_logged_in_client(self):
         """ Helping function to encapsulate the login process

@@ -7,16 +7,16 @@ Created on: 06.05.19
 """
 from getpass import getpass
 
-import os
-
-from django.contrib.auth.hashers import make_password
+from dateutil.parser import parse
 from django.core.management import BaseCommand, call_command
 from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from MrMap.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
 from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
 from structure.settings import PUBLIC_ROLE_NAME, PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, SUPERUSER_ROLE_NAME
+from monitoring.models import MonitoringSetting
 
 
 class Command(BaseCommand):
@@ -102,6 +102,13 @@ class Command(BaseCommand):
         msg = "Superuser '" + name + "' added to organization '" + orga.organization_name + "'!"
         self.stdout.write(self.style.SUCCESS(msg))
 
+        self._create_default_monitoring_setting()
+        msg = (
+            f"Default monitoring setting with check on {MONITORING_TIME} and "
+            f"timeout {MONITORING_REQUEST_TIMEOUT} was created successfully"
+        )
+        self.stdout.write(self.style.SUCCESS(str(msg)))
+
     def _create_public_group(self, user: MrMapUser):
         """ Creates public group
 
@@ -178,3 +185,14 @@ class Command(BaseCommand):
 
         return orga
 
+    def _create_default_monitoring_setting(self):
+        """ Create default settings for monitoring
+
+        Returns:
+            nothing
+        """
+        mon_time = parse(MONITORING_TIME)
+        monitoring_setting = MonitoringSetting.objects.get_or_create(
+            check_time=mon_time, timeout=MONITORING_REQUEST_TIMEOUT
+        )[0]
+        monitoring_setting.save()

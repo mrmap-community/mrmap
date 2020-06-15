@@ -31,13 +31,13 @@ except ImportError:
 
 
 class CommonConnector:
-    def __init__(self, url=None, external_auth=None, connection_type=None):
+    def __init__(self, url=None, external_auth=None, connection_type=None, timeout=5):
         self._url = None
         self.external_auth = external_auth
         self.connection_type = connection_type if connection_type is not None else DEFAULT_CONNECTION_TYPE
         self.init_time = time.time()
         self.run_time = None
-        self.timeout = 5
+        self.timeout = timeout
         self.http_method = 'GET'
         self.http_version = '1.0'
         self.http_post_data = None

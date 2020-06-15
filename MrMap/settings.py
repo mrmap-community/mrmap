@@ -128,6 +128,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'api',
+    'django_celery_beat',
+    'monitoring',
     'bootstrap4',
     'fontawesome_5',
     'django_tables2',
@@ -271,6 +273,7 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # API
 from api.settings import REST_FRAMEWORK
@@ -311,3 +314,6 @@ MESSAGE_TAGS = {
     messages.WARNING: 'alert-warning',
     messages.ERROR: 'alert-danger',
 }
+
+MONITORING_TIME = "23:59:00"
+MONITORING_REQUEST_TIMEOUT = 30  # seconds

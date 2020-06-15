@@ -770,8 +770,8 @@ class OGCWebFeatureService(OGCWebService):
         service.get_capabilities_uri_GET = self.get_capabilities_uri.get("get", None)
         service.get_capabilities_uri_POST = self.get_capabilities_uri.get("post", None)
 
-        service.describe_layer_uri_GET = self.describe_feature_type_uri.get("get", None)
-        service.describe_layer_uri_POST = self.describe_feature_type_uri.get("post", None)
+        service.describe_feature_type_uri_GET = self.describe_feature_type_uri.get("get", None)
+        service.describe_feature_type_uri_POST = self.describe_feature_type_uri.get("post", None)
 
         service.get_feature_info_uri_GET = self.get_feature_uri.get("get", None)
         service.get_feature_info_uri_POST = self.get_feature_uri.get("post", None)

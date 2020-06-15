@@ -19,7 +19,9 @@ class WmsHelper:
         self.parent_service = service.parent_service if service.metadata.is_layer_metadata else service
 
         # Prefetch useful attributes for requests
-        self.layer = self.service if self.service.metadata.is_layer_metadata else Layer.objects.get(
+        self.layer = Layer.objects.get(
+            metadata=service.metadata
+        ) if self.service.metadata.is_layer_metadata else Layer.objects.get(
             parent_service=self.service,
             parent_layer=None
         )
@@ -108,8 +110,6 @@ class WmsHelper:
         # make sure that version is describeLayer specific version 1.1.1 and not wms version 1.3.0
         service_version = OGCServiceVersionEnum.V_1_1_1.value
         service_type = OGCServiceEnum.WMS.value
-        width = 1
-        height = 1
 
         layers = self.layer.identifier
 
@@ -118,8 +118,6 @@ class WmsHelper:
             ('VERSION', service_version),
             ('SERVICE', service_type),
             ('LAYERS', layers),
-            ('HEIGHT', height),
-            ('WIDTH', width),
         ]
         url = UrlHelper.build(uri, queries)
         return url

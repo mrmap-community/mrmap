@@ -27,6 +27,8 @@ class MonitoringCapabilityAdmin(admin.ModelAdmin):
 
 
 admin.site.register(MonitoringSetting, MonitoringSettingAdmin)
-admin.site.register(MonitoringRun, MonitoringRunAdmin)
 admin.site.register(Monitoring, MonitoringAdmin)
 admin.site.register(MonitoringCapability, MonitoringCapabilityAdmin)
+
+# Should not be visible for daily use
+#admin.site.register(MonitoringRun, MonitoringRunAdmin)

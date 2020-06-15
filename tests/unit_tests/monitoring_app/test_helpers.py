@@ -193,7 +193,7 @@ class MonitoringTests(TestCase):
         get_legend_graphic_url = wms_helper.get_get_legend_graphic_url()
         expected_url = (
             'https://www.wms.nrw.de/geobasis/wms_nw_dtk25?'
-            'REQUEST=GetLegendGraphic&LAYER=WMS_NW_DTK25&FORMAT=image/png'
+            'REQUEST=GetLegendGraphic&LAYER=WMS_NW_DTK25&FORMAT=image/png&SERVICE=wms&VERSION=1.3.0'
         )
         self.assertURLEqual(get_legend_graphic_url, expected_url)
 

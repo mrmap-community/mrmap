@@ -79,8 +79,7 @@ class WfsHelper:
         """
         uri = None
         try:
-            # For WFS  describe_layer_uri_GET contains the describe feature url
-            uri = self.parent_service.describe_layer_uri_GET
+            uri = self.parent_service.describe_feature_type_uri_GET
         except AttributeError:
             pass
         if uri is None:
@@ -120,8 +119,7 @@ class WfsHelper:
         """
         uri = None
         try:
-            # For WFS get_feature_info_uri_GET holds the get feature url
-            uri = self.parent_service.get_feature_info_uri_GET
+            uri = self.parent_service.get_feature_type_uri_GET
         except AttributeError:
             pass
 

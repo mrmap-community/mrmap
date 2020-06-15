@@ -1695,12 +1695,12 @@ class Document(Resource):
             ).parent_service
         op_uri_dict = {
             OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: {
-                "Get": service.describe_layer_uri_GET,
-                "Post": service.describe_layer_uri_POST,
+                "Get": service.describe_feature_type_uri_GET,
+                "Post": service.describe_feature_type_uri_POST,
             },
             OGCOperationEnum.GET_FEATURE.value: {
-                "Get": service.get_feature_info_uri_GET,
-                "Post": service.get_feature_info_uri_POST,
+                "Get": service.get_feature_type_uri_GET,
+                "Post": service.get_feature_type_uri_POST,
             },
             OGCOperationEnum.GET_PROPERTY_VALUE.value: {
                 "Get": service.get_property_value_uri_GET,
@@ -1754,12 +1754,12 @@ class Document(Resource):
 
         op_uri_dict = {
             "DescribeFeatureType": {
-                "Get": service.describe_layer_uri_GET,
-                "Post": service.describe_layer_uri_POST,
+                "Get": service.describe_feature_type_uri_GET,
+                "Post": service.describe_feature_type_uri_POST,
             },
             "GetFeature": {
-                "Get": service.get_feature_info_uri_GET,
-                "Post": service.get_feature_info_uri_POST,
+                "Get": service.get_feature_type_uri_GET,
+                "Post": service.get_feature_type_uri_POST,
             },
             "GetPropertyValue": {
                 "Get": service.get_property_value_uri_GET,
@@ -2240,36 +2240,55 @@ class Service(Resource):
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
 
+    # WMS | WFS
     get_capabilities_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_capabilities_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WMS
     get_map_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_map_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WMS
     get_feature_info_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_feature_info_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WMS
     describe_layer_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     describe_layer_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WMS
     get_legend_graphic_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_legend_graphic_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WMS
     get_styles_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_styles_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WFS
+    get_feature_type_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_feature_type_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    # WFS
+    describe_feature_type_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    describe_feature_type_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    # WFS
     transaction_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     transaction_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WFS
     get_property_value_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_property_value_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WFS
     list_stored_queries_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     list_stored_queries_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WFS
     describe_stored_queries_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     describe_stored_queries_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WFS
     get_gml_objct_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_gml_objct_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 

@@ -1,0 +1,297 @@
+{% load static i18n l10n %}
+<div class="input-group" id="{{ widget.leaflet_geometry_input_id }}" data-target-input="nearest">
+  {% include "django/forms/widgets/input.html" %}
+  <div class="input-group-append" data-toggle="collapse" data-target="#collapse_{{ widget.leaflet_geometry_input_id }}" aria-expanded="true" aria-controls="collapse_{{ widget.leaflet_geometry_input_id }}">
+    <div id="id_heading_{{ widget.leaflet_geometry_input_id }}" class="input-group-text">
+          <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Click to collapse leaflet client to draw a spatial area'%}">
+            <i class="fa fa-draw-polygon"></i>
+          </span>
+    </div>
+  </div>
+</div>
+<div id="id_accordion_{{ widget.leaflet_geometry_input_id }}">
+    <div id="collapse_{{ widget.leaflet_geometry_input_id }}" class="collapse" aria-labelledby="id_heading_{{ widget.leaflet_geometry_input_id }}" data-parent="#id_accordion_{{ widget.leaflet_geometry_input_id }}">
+        <div class="card mt-2">
+            <div class="card-header">{% trans 'Leaflet client for field ' %} <strong>{{widget.attrs.placeholder}}</strong></div>
+          <div class="card-body">
+                <link rel="stylesheet" href="{% static 'css/leaflet-geoman.min.css' %}" />
+                <div id="id_map_{{ widget.leaflet_geometry_input_id }}" style="height: 60vh; min-height: 400px;"></div>
+          </div>
+            <div class="card-footer">
+                <div class="row text-center">
+                    <div class="col">
+                        <button id="geometry-upload" type="button" class="btn {{ THEME.MODAL.BTN_INFO_COLOR }} " onclick="$('.geometry-upload').click();">
+                            <span>{% autoescape off %}{{THEME.ICONS.UPLOAD}}{% endautoescape %} </span>
+                            <span class="ml-2">{% trans 'Import GML3 or GeoJSON' %}</span>
+                        </button>
+                        <input class="d-none geometry-upload" type="file" title="{% trans 'Load geometry' %}"/>
+
+                    </div>
+                    <div class="col">
+                        <button id="geometry-download" type="button" class="btn {{ THEME.MODAL.BTN_INFO_COLOR }} geometry-download">
+                            <span>{% autoescape off %}{{THEME.ICONS.DOWNLOAD}}{% endautoescape %} </span>
+                            <span class="ml-2">{% trans 'Export as GeoJSON' %}</span>
+                        </button>
+                    </div>
+                </div>
+                {% with id_map='id_map_'|add:widget.leaflet_geometry_input_id %}
+                    <link rel="stylesheet" type="text/css" href="{% static '/css/leaflet.min.css' %}" media="all"/>
+                    <script type="text/javascript" src="{% static '/js/leaflet.js' %}"></script>
+                    <script type="application/javascript" src="{% static 'js/leaflet-geoman.min.js' %}"></script>
+                {% localize off %}
+                    <script type="application/javascript">
+                    var map_{{ id_map }};
+                    var initialized = false;
+                    function initializeLeafletClient(){
+                        if (!initialized) {
+                            map_{{ id_map }} = L.map('{{ id_map }}', {
+                                center: [{{ bbox.centroid.y }}, {{ bbox.centroid.x }}],
+                                zoom: {{ bbox.area }},
+                                layers: [
+                                    new L.TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                    })
+                                ],
+                            });
+
+                            map_{{ id_map }}.on('pm:remove', e => {
+                                var layers = [];
+                                map_{{ id_map }}.eachLayer(function(layer) {
+                                    if ( layer instanceof L.Polygon ) {
+                                        layers.push(layer);
+                                    }
+                                });
+                                if ( layers.length == 0 ) {
+                                    $('#{{widget.attrs.id}}').val("");
+                                } else {
+                                    var layer_group = L.layerGroup(layers);
+                                    $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
+                                }
+                            });
+
+                            map_{{ id_map }}.on('pm:create', e => {
+                                var layers = [];
+                                map_{{ id_map }}.eachLayer(function(layer) {
+                                    if ( layer instanceof L.Polygon ) {
+                                        layers.push(layer);
+                                    }
+                                });
+                                var layer_group = L.layerGroup(layers);
+                                $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
+
+                                // create a listener which is triggered when the polygon is edited
+                                e.layer.on('pm:edit', e => {
+                                    var layers = [];
+                                    map_{{ id_map }}.eachLayer(function(layer) {
+                                        if ( layer instanceof L.Polygon ) {
+                                            layers.push(layer);
+                                        }
+                                    });
+                                    var layer_group = L.layerGroup(layers);
+                                    $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
+                                });
+
+                                e.layer.on('pm:cut', e => {
+                                    // first remove the original layer... without this layer is still in the list of eachLayer iteration
+                                    map_{{ id_map }}.removeLayer(e.originalLayer);
+
+                                    var layers = [];
+                                    map_{{ id_map }}.eachLayer(function(layer) {
+                                        if ( layer instanceof L.Polygon ) {
+                                            layers.push(layer);
+                                        }
+                                    });
+                                    var layer_group = L.layerGroup(layers);
+                                    $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
+                                });
+                            });
+
+                            {% if geojson %}
+                                var polygon = new L.geoJSON({{ geojson|safe }}, {style: {fillColor: 'red', color: 'red'}});
+                                var bounds = polygon.getBounds();
+                                map_{{ id_map }}.addLayer( polygon );
+                                map_{{ id_map }}.fitBounds(bounds);
+
+                            {% else %}
+                                map_{{ id_map }}.fitBounds(
+                                    [
+                                        [{{ bbox.boundary.extent.1 }}, {{ bbox.boundary.extent.0 }}],
+                                        [{{ bbox.boundary.extent.3 }}, {{ bbox.boundary.extent.2 }}],
+                                    ]
+                                    );
+                            {% endif %}
+
+
+                            // set which controls should be available in the toolbar
+                            map_{{ id_map }}.pm.addControls({
+                              position: 'topright',
+                              drawCircle: false,
+                              drawCircleMarker: false,
+                              drawPolyline: false,
+                              drawRectangle: true,
+                              drawMarker: false,
+                              removalMode: true,
+                              cutPolygon: true, // cutting mode does some creepy stuff with the existing polygons. On remove event some layers still present on the map...
+                            });
+                            initialized = true;
+                        }
+                    }
+
+                    $(".geometry-download").click(function(){
+                        var file = new Blob([$('#{{widget.attrs.id}}').val()], {type: "geojson"});
+
+                        if (window.navigator.msSaveOrOpenBlob) // IE10+
+                            window.navigator.msSaveOrOpenBlob(file, filename);
+                        else { // Others
+                            var a = document.createElement("a"),
+                                    url = URL.createObjectURL(file);
+                            a.href = url;
+                            a.download = "geometry.geojson";
+                            document.body.appendChild(a);
+                            a.click();
+                            setTimeout(function() {
+                                document.body.removeChild(a);
+                                window.URL.revokeObjectURL(url);
+                            }, 0);
+                        }
+                    });
+
+                    $(".geometry-upload").change(function(){
+                        var elem = $(this)[0];
+                        var file = elem.files[0];
+                        var appType = file.type;
+
+                        var fileReader = new FileReader();
+                        fileReader.readAsText(file);
+
+                        // wait until fileReader finished reading
+                        fileReader.onload = function(e){
+                            content = e.target.result;
+
+                            // remove all old layers
+                            map_{{ id_map }}.eachLayer(function (layer) {
+                                if( layer instanceof L.TileLayer ){
+                                }else{
+                                    map_{{ id_map }}.removeLayer(layer);
+                                }
+                            });
+
+                            if(appType == "application/geo+json"){
+                                var geoJsonContent = JSON.parse(content);
+
+                                // create GeoJsonLayer
+                                tmpLayer = L.geoJSON(geoJsonContent, {style: {fillColor: 'red', color: 'red'}});
+
+                                // edit input field
+                                $('#{{widget.attrs.id}}').val(JSON.stringify(tmpLayer.toGeoJSON()));
+
+                                for(key in tmpLayer._layers){
+                                    var layer = tmpLayer._layers[key];
+                                    layer.addTo(map_{{ id_map }});
+
+                                    // create a listener which is triggered when the polygon is edited
+                                    layer.on('pm:edit', e => {
+                                        var layers = [];
+                                        map_{{ id_map }}.eachLayer(function(layer) {
+                                            if ( layer instanceof L.Polygon ) {
+                                                layers.push(layer);
+                                            }
+                                        });
+                                        var layer_group = L.layerGroup(layers);
+                                        $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
+                                    });
+
+                                    layer.on('pm:cut', e => {
+                                        // first remove the original layer... without this layer is still in the list of eachLayer iteration
+                                        map_{{ id_map }}.removeLayer(e.originalLayer);
+
+                                        var layers = [];
+                                        map_{{ id_map }}.eachLayer(function(layer) {
+                                            if ( layer instanceof L.Polygon ) {
+                                                layers.push(layer);
+                                            }
+                                        });
+                                        var layer_group = L.layerGroup(layers);
+                                        $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
+                                    });
+
+                                }
+
+                            }else if (appType == "application/gml+xml"){
+                                parser = new DOMParser();
+                                gmlDoc = parser.parseFromString(content, "text/xml");
+                                gmlDocPolygons = gmlDoc.getElementsByTagName("gml:Polygon");
+
+                                polygonsArray = []
+
+                                for(l = 0; l < gmlDocPolygons.length; l++){
+                                    poly = gmlDocPolygons[l];
+                                    points = poly.getElementsByTagName("gml:posList");
+
+                                    for(j = 0; j < points.length; j++){
+                                        var tmp = []
+                                        var point = points[j];
+                                        var p = point.innerHTML.split(" ");
+
+                                        for(i = 0; i < p.length; i+=2){
+                                            // point pairs
+                                            tmp.push([parseFloat(p[i+1]), parseFloat(p[i])]);
+                                        }
+                                        polygonsArray.push(tmp);
+                                    }
+                                }
+
+                                // create own layer for each polygon
+                                for(i = 0; i < polygonsArray.length; i++){
+                                    polygon = polygonsArray[i];
+                                    layer = L.polygon(polygon, {style: {fillColor: 'red', color: 'red'}}).addTo(map_{{ id_map }});
+
+                                    // edit input field
+                                    $('#{{widget.attrs.id}}').val(JSON.stringify(layer.toGeoJSON()));
+
+                                    // create a listener which is triggered when the polygon is edited
+                                    layer.on('pm:edit', e => {
+                                        var layers = [];
+                                        map_{{ id_map }}.eachLayer(function(layer) {
+                                            if ( layer instanceof L.Polygon ) {
+                                                layers.push(layer);
+                                            }
+                                        });
+                                        var layer_group = L.layerGroup(layers);
+                                        $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
+                                    });
+
+                                    layer.on('pm:cut', e => {
+                                        // first remove the original layer... without this layer is still in the list of eachLayer iteration
+                                        map_{{ id_map }}.removeLayer(e.originalLayer);
+
+                                        var layers = [];
+                                        map_{{ id_map }}.eachLayer(function(layer) {
+                                            if ( layer instanceof L.Polygon ) {
+                                                layers.push(layer);
+                                            }
+                                        });
+                                        var layer_group = L.layerGroup(layers);
+                                        $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
+                                    });
+                                }
+
+                            }else{
+                                alert("Unsupported geometry file type detected : '" + appType + "'");
+                            }
+                        }
+
+                    });
+                </script>
+                <script type="application/javascript">
+                    $('#collapse_{{ widget.leaflet_geometry_input_id }}').on('shown.bs.collapse', function (e) {
+                        initializeLeafletClient();
+                    })
+                </script>
+                {% endlocalize %}
+                {% endwith %}
+
+            </div>
+        </div>
+    </div>
+</div>

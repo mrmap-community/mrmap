@@ -5,13 +5,15 @@ from django.utils.html import format_html
 from formtools.wizard.views import SessionWizardView
 from MrMap.utils import get_theme
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, DatasetTemporalExtentForm, \
-    DatasetLicenseConstraintsForm
+    DatasetLicenseConstraintsForm, DatasetSpatialExtentForm
 from users.helper import user_helper
 from django.utils.translation import gettext_lazy as _
 
-DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
+DATASET_WIZARD_FORMS = [(_("spatial extent"), DatasetSpatialExtentForm),
+                        (_("identification"), DatasetIdentificationForm),
                         (_("classification"), DatasetClassificationForm),
-                        (_("Licenses/Constraints"), DatasetLicenseConstraintsForm),
+
+                        (_("licenses/constraints"), DatasetLicenseConstraintsForm),
                         (_("maintenance information"), DatasetTemporalExtentForm),]
 
 

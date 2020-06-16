@@ -154,3 +154,14 @@ def get_nested_attribute(obj, attrib_str: str):
 
     return val
 
+
+def get_dict_value_insensitive(d: dict, k: str):
+    """ Returns a value matching to a case insensitive key of a dict
+
+    Args:
+        d (dict): The dict
+        k (str): The key
+    Returns:
+        val: The matching value
+    """
+    return {key.lower(): val for key, val in d.items()}.get(k.lower(), None)

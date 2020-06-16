@@ -20,15 +20,15 @@
             <div class="card-footer">
                 <div class="row text-center">
                     <div class="col">
-                        <button id="geometry-upload" type="button" class="btn {{ THEME.MODAL.BTN_INFO_COLOR }} " onclick="$('.geometry-upload').click();">
+                        <button id="id_geometry_upload_{{ widget.leaflet_geometry_input_id }}" type="button" class="btn {{ THEME.MODAL.BTN_INFO_COLOR }} " onclick="$('#id_geometry_upload_input_{{ widget.leaflet_geometry_input_id }}').click();">
                             <span>{% autoescape off %}{{THEME.ICONS.UPLOAD}}{% endautoescape %} </span>
                             <span class="ml-2">{% trans 'Import GML3 or GeoJSON' %}</span>
                         </button>
-                        <input class="d-none geometry-upload" type="file" title="{% trans 'Load geometry' %}"/>
+                        <input id="id_geometry_upload_input_{{ widget.leaflet_geometry_input_id }}" class="d-none" type="file" title="{% trans 'Load geometry' %}"/>
 
                     </div>
                     <div class="col">
-                        <button id="geometry-download" type="button" class="btn {{ THEME.MODAL.BTN_INFO_COLOR }} geometry-download">
+                        <button id="id_geometry_download_{{ widget.leaflet_geometry_input_id }}" type="button" class="btn {{ THEME.MODAL.BTN_INFO_COLOR }} geometry-download">
                             <span>{% autoescape off %}{{THEME.ICONS.DOWNLOAD}}{% endautoescape %} </span>
                             <span class="ml-2">{% trans 'Export as GeoJSON' %}</span>
                         </button>
@@ -137,7 +137,8 @@
                         }
                     }
 
-                    $(".geometry-download").click(function(){
+                    $("#id_geometry_download_{{ widget.leaflet_geometry_input_id }}").click(function(){
+
                         var file = new Blob([$('#{{widget.attrs.id}}').val()], {type: "geojson"});
 
                         if (window.navigator.msSaveOrOpenBlob) // IE10+
@@ -156,7 +157,8 @@
                         }
                     });
 
-                    $(".geometry-upload").change(function(){
+                    $("#id_geometry_upload_input_{{ widget.leaflet_geometry_input_id }}").change(function(){
+                        console.log('upload');
                         var elem = $(this)[0];
                         var file = elem.files[0];
                         var appType = file.type;
@@ -185,9 +187,12 @@
                                 // edit input field
                                 $('#{{widget.attrs.id}}').val(JSON.stringify(tmpLayer.toGeoJSON()));
 
+                                var layers = []
+
                                 for(key in tmpLayer._layers){
                                     var layer = tmpLayer._layers[key];
                                     layer.addTo(map_{{ id_map }});
+                                    layers.push(layer)
 
                                     // create a listener which is triggered when the polygon is edited
                                     layer.on('pm:edit', e => {
@@ -215,6 +220,10 @@
                                         $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
                                     });
 
+                                    // set bound to all inserted layers
+                                    var layer_group = L.featureGroup(layers);
+                                    var bounds = layer_group.getBounds();
+                                    map_{{ id_map }}.fitBounds(bounds);
                                 }
 
                             }else if (appType == "application/gml+xml"){
@@ -241,10 +250,13 @@
                                     }
                                 }
 
+                                var layers = []
+
                                 // create own layer for each polygon
                                 for(i = 0; i < polygonsArray.length; i++){
                                     polygon = polygonsArray[i];
                                     layer = L.polygon(polygon, {style: {fillColor: 'red', color: 'red'}}).addTo(map_{{ id_map }});
+                                    layers.push(layer)
 
                                     // edit input field
                                     $('#{{widget.attrs.id}}').val(JSON.stringify(layer.toGeoJSON()));
@@ -275,6 +287,12 @@
                                         $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
                                     });
                                 }
+
+
+                                // set bound to all inserted layers
+                                var layer_group = L.featureGroup(layers);
+                                var bounds = layer_group.getBounds();
+                                map_{{ id_map }}.fitBounds(bounds);
 
                             }else{
                                 alert("Unsupported geometry file type detected : '" + appType + "'");

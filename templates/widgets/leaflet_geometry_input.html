@@ -149,14 +149,11 @@
 
                             // set which controls should be available in the toolbar
                             map_{{ id_map }}.pm.addControls({
-                              position: 'topright',
-                              drawCircle: false,
-                              drawCircleMarker: false,
-                              drawPolyline: false,
-                              drawRectangle: true,
-                              drawMarker: false,
-                              removalMode: true,
-                              cutPolygon: true, // cutting mode does some creepy stuff with the existing polygons. On remove event some layers still present on the map...
+                              {% autoescape off %}
+                              {% for key,value in geoman_controls.items %}
+                                    {{ key }}: {{ value }},
+                              {% endfor %}
+                              {% endautoescape %}
                             });
                             initialized = true;
                         }

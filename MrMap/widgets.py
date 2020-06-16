@@ -1,9 +1,17 @@
-from django.forms import DateTimeInput, DateInput, TextInput, Textarea
-
+from django.forms import DateTimeInput, DateInput, Textarea
 from MrMap.utils import get_theme
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX
 from users.helper import user_helper
-from django.utils.translation import gettext_lazy as _
+
+
+GEOMAN_CONTROLS = {'position': '\'topright\'',
+                   'drawCircle': 'false',
+                   'drawCircleMarker': 'false',
+                   'drawPolyline': 'false',
+                   'drawRectangle': 'true',
+                   'drawMarker': 'false',
+                   'removalMode': 'true',
+                   'cutPolygon': 'true', }
 
 
 class BootstrapDatePickerInput(DateInput):
@@ -63,6 +71,7 @@ class LeafletGeometryInput(Textarea):
                  request=None,
                  activate_download=True,
                  activate_upload=True,
+                 geoman_controls=GEOMAN_CONTROLS,
                  *args,
                  **kwargs):
         super(LeafletGeometryInput, self).__init__(*args, **kwargs)
@@ -71,6 +80,7 @@ class LeafletGeometryInput(Textarea):
         self.request = request
         self.activate_download = activate_download
         self.activate_upload = activate_upload
+        self.geoman_controls = geoman_controls
 
     def get_context(self,
                     name,
@@ -100,4 +110,5 @@ class LeafletGeometryInput(Textarea):
         context['THEME'] = get_theme(user_helper.get_user(request=self.request))
         context['activate_download'] = self.activate_download
         context['activate_upload'] = self.activate_upload
+        context['geoman_controls'] = self.geoman_controls
         return context

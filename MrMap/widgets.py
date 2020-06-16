@@ -55,15 +55,25 @@ class BootstrapDateTimePickerInput(DateTimeInput):
 class LeafletGeometryInput(TextInput):
     template_name = 'widgets/leaflet_geometry_input.html'
 
-    def __init__(self, bbox=None, geojson=None, request=None, *args, **kwargs):
-        i = 0
-
+    def __init__(self,
+                 bbox=None,
+                 geojson=None,
+                 request=None,
+                 activate_download=True,
+                 activate_upload=True,
+                 *args,
+                 **kwargs):
         super(LeafletGeometryInput, self).__init__(*args, **kwargs)
         self.bbox = bbox or DEFAULT_SERVICE_BOUNDING_BOX
         self.geojson = geojson
         self.request = request
+        self.activate_download = activate_download
+        self.activate_upload = activate_upload
 
-    def get_context(self, name, value, attrs):
+    def get_context(self,
+                    name,
+                    value,
+                    attrs):
         if 'id' in attrs:
             attrs['id'] = attrs['id'].replace(" ", "_").replace("-","_")
         leaflet_geometry_input_id = f'leaflet_geometry_input_id_{attrs["id"]}'
@@ -86,4 +96,6 @@ class LeafletGeometryInput(TextInput):
         context['bbox'] = self.bbox
         context['geojson'] = self.geojson
         context['THEME'] = get_theme(user_helper.get_user(request=self.request))
+        context['activate_download'] = self.activate_download
+        context['activate_upload'] = self.activate_upload
         return context

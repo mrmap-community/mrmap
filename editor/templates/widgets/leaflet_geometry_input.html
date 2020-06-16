@@ -19,20 +19,42 @@
           </div>
             <div class="card-footer">
                 <div class="row text-center">
+                    {% if activate_upload %}
                     <div class="col">
                         <button id="id_geometry_upload_{{ widget.leaflet_geometry_input_id }}" type="button" class="btn {{ THEME.MODAL.BTN_INFO_COLOR }} " onclick="$('#id_geometry_upload_input_{{ widget.leaflet_geometry_input_id }}').click();">
                             <span>{% autoescape off %}{{THEME.ICONS.UPLOAD}}{% endautoescape %} </span>
                             <span class="ml-2">{% trans 'Import GML3 or GeoJSON' %}</span>
                         </button>
                         <input id="id_geometry_upload_input_{{ widget.leaflet_geometry_input_id }}" class="d-none" type="file" title="{% trans 'Load geometry' %}"/>
-
+                    {% endif %}
                     </div>
+                    {% if activate_download %}
                     <div class="col">
                         <button id="id_geometry_download_{{ widget.leaflet_geometry_input_id }}" type="button" class="btn {{ THEME.MODAL.BTN_INFO_COLOR }} geometry-download">
                             <span>{% autoescape off %}{{THEME.ICONS.DOWNLOAD}}{% endautoescape %} </span>
                             <span class="ml-2">{% trans 'Export as GeoJSON' %}</span>
                         </button>
+                        <script type="application/javascript">
+                            $("#id_geometry_download_{{ widget.leaflet_geometry_input_id }}").click(function(){
+                                var file = new Blob([$('#{{widget.attrs.id}}').val()], {type: "geojson"});
+                                if (window.navigator.msSaveOrOpenBlob) // IE10+
+                                    window.navigator.msSaveOrOpenBlob(file, filename);
+                                else { // Others
+                                    var a = document.createElement("a"),
+                                            url = URL.createObjectURL(file);
+                                    a.href = url;
+                                    a.download = "geometry.geojson";
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    setTimeout(function() {
+                                        document.body.removeChild(a);
+                                        window.URL.revokeObjectURL(url);
+                                    }, 0);
+                                }
+                            });
+                        </script>
                     </div>
+                    {% endif %}
                 </div>
                 {% with id_map='id_map_'|add:widget.leaflet_geometry_input_id %}
                     <link rel="stylesheet" type="text/css" href="{% static '/css/leaflet.min.css' %}" media="all"/>
@@ -40,10 +62,64 @@
                     <script type="application/javascript" src="{% static 'js/leaflet-geoman.min.js' %}"></script>
                 {% localize off %}
                     <script type="application/javascript">
-                    var map_{{ id_map }};
-                    var initialized = false;
+                    var map_{{ id_map }};       // the map instance
+                    var initialized = false;    // the is_initialized flag
+
+                    function setBounds( layers ){
+                        // set bound to all inserted layers
+                        var layer_group = L.featureGroup(layers);
+                        var bounds = layer_group.getBounds();
+                        map_{{ id_map }}.fitBounds(bounds);
+                    }
+
+                    function getAllPolygons(){
+                        var layers = [];
+                        map_{{ id_map }}.eachLayer(function(layer) {
+                            if ( layer instanceof L.Polygon ) {
+                                layers.push(layer);
+                            }
+                        });
+                        return layers;
+                    }
+
+                    function updateGeoJsonInput( layers ){
+                        if ( layers.length == 0 ) {
+                            $('#{{widget.attrs.id}}').val("");
+                        } else {
+                            var layer_group = L.layerGroup(layers);
+                            $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
+                        }
+                    }
+
+                    function addEventListenersToLayer( layer ){
+                        // create a listener which is triggered when the created polygon is edited
+                        layer.on('pm:edit', e => {
+                            updateGeoJsonInput( getAllPolygons() );
+                        });
+
+                        layer.on('pm:cut', e => {
+                            // first remove the original layer... otherwise this layer is still in the list of eachLayer iteration
+                            map_{{ id_map }}.removeLayer(e.originalLayer);
+                            updateGeoJsonInput( getAllPolygons() );
+                        });
+                    }
+
+                    function addListeners(){
+                        // adds global remove listener
+                        map_{{ id_map }}.on('pm:remove', e => {
+                            updateGeoJsonInput( getAllPolygons() );
+                        });
+
+                        // adds global create listener
+                        map_{{ id_map }}.on('pm:create', e => {
+                            updateGeoJsonInput( getAllPolygons() );
+                            addEventListenersToLayer( e.layer );
+                        });
+                    }
+
                     function initializeLeafletClient(){
                         if (!initialized) {
+                            // create the map instance and save it to the var
                             map_{{ id_map }} = L.map('{{ id_map }}', {
                                 center: [{{ bbox.centroid.y }}, {{ bbox.centroid.x }}],
                                 zoom: {{ bbox.area }},
@@ -54,64 +130,14 @@
                                 ],
                             });
 
-                            map_{{ id_map }}.on('pm:remove', e => {
-                                var layers = [];
-                                map_{{ id_map }}.eachLayer(function(layer) {
-                                    if ( layer instanceof L.Polygon ) {
-                                        layers.push(layer);
-                                    }
-                                });
-                                if ( layers.length == 0 ) {
-                                    $('#{{widget.attrs.id}}').val("");
-                                } else {
-                                    var layer_group = L.layerGroup(layers);
-                                    $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
-                                }
-                            });
+                            addListeners();
 
-                            map_{{ id_map }}.on('pm:create', e => {
-                                var layers = [];
-                                map_{{ id_map }}.eachLayer(function(layer) {
-                                    if ( layer instanceof L.Polygon ) {
-                                        layers.push(layer);
-                                    }
-                                });
-                                var layer_group = L.layerGroup(layers);
-                                $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
-
-                                // create a listener which is triggered when the polygon is edited
-                                e.layer.on('pm:edit', e => {
-                                    var layers = [];
-                                    map_{{ id_map }}.eachLayer(function(layer) {
-                                        if ( layer instanceof L.Polygon ) {
-                                            layers.push(layer);
-                                        }
-                                    });
-                                    var layer_group = L.layerGroup(layers);
-                                    $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
-                                });
-
-                                e.layer.on('pm:cut', e => {
-                                    // first remove the original layer... without this layer is still in the list of eachLayer iteration
-                                    map_{{ id_map }}.removeLayer(e.originalLayer);
-
-                                    var layers = [];
-                                    map_{{ id_map }}.eachLayer(function(layer) {
-                                        if ( layer instanceof L.Polygon ) {
-                                            layers.push(layer);
-                                        }
-                                    });
-                                    var layer_group = L.layerGroup(layers);
-                                    $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
-                                });
-                            });
-
+                            // zoom in and fit the bound of all presented layers
                             {% if geojson %}
                                 var polygon = new L.geoJSON({{ geojson|safe }}, {style: {fillColor: 'red', color: 'red'}});
                                 var bounds = polygon.getBounds();
                                 map_{{ id_map }}.addLayer( polygon );
                                 map_{{ id_map }}.fitBounds(bounds);
-
                             {% else %}
                                 map_{{ id_map }}.fitBounds(
                                     [
@@ -120,7 +146,6 @@
                                     ]
                                     );
                             {% endif %}
-
 
                             // set which controls should be available in the toolbar
                             map_{{ id_map }}.pm.addControls({
@@ -137,28 +162,8 @@
                         }
                     }
 
-                    $("#id_geometry_download_{{ widget.leaflet_geometry_input_id }}").click(function(){
-
-                        var file = new Blob([$('#{{widget.attrs.id}}').val()], {type: "geojson"});
-
-                        if (window.navigator.msSaveOrOpenBlob) // IE10+
-                            window.navigator.msSaveOrOpenBlob(file, filename);
-                        else { // Others
-                            var a = document.createElement("a"),
-                                    url = URL.createObjectURL(file);
-                            a.href = url;
-                            a.download = "geometry.geojson";
-                            document.body.appendChild(a);
-                            a.click();
-                            setTimeout(function() {
-                                document.body.removeChild(a);
-                                window.URL.revokeObjectURL(url);
-                            }, 0);
-                        }
-                    });
-
+                    {% if activate_upload %}
                     $("#id_geometry_upload_input_{{ widget.leaflet_geometry_input_id }}").change(function(){
-                        console.log('upload');
                         var elem = $(this)[0];
                         var file = elem.files[0];
                         var appType = file.type;
@@ -194,36 +199,8 @@
                                     layer.addTo(map_{{ id_map }});
                                     layers.push(layer)
 
-                                    // create a listener which is triggered when the polygon is edited
-                                    layer.on('pm:edit', e => {
-                                        var layers = [];
-                                        map_{{ id_map }}.eachLayer(function(layer) {
-                                            if ( layer instanceof L.Polygon ) {
-                                                layers.push(layer);
-                                            }
-                                        });
-                                        var layer_group = L.layerGroup(layers);
-                                        $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
-                                    });
-
-                                    layer.on('pm:cut', e => {
-                                        // first remove the original layer... without this layer is still in the list of eachLayer iteration
-                                        map_{{ id_map }}.removeLayer(e.originalLayer);
-
-                                        var layers = [];
-                                        map_{{ id_map }}.eachLayer(function(layer) {
-                                            if ( layer instanceof L.Polygon ) {
-                                                layers.push(layer);
-                                            }
-                                        });
-                                        var layer_group = L.layerGroup(layers);
-                                        $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
-                                    });
-
-                                    // set bound to all inserted layers
-                                    var layer_group = L.featureGroup(layers);
-                                    var bounds = layer_group.getBounds();
-                                    map_{{ id_map }}.fitBounds(bounds);
+                                    addEventListenersToLayer( layer );
+                                    setBounds( layers );
                                 }
 
                             }else if (appType == "application/gml+xml"){
@@ -261,45 +238,17 @@
                                     // edit input field
                                     $('#{{widget.attrs.id}}').val(JSON.stringify(layer.toGeoJSON()));
 
-                                    // create a listener which is triggered when the polygon is edited
-                                    layer.on('pm:edit', e => {
-                                        var layers = [];
-                                        map_{{ id_map }}.eachLayer(function(layer) {
-                                            if ( layer instanceof L.Polygon ) {
-                                                layers.push(layer);
-                                            }
-                                        });
-                                        var layer_group = L.layerGroup(layers);
-                                        $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
-                                    });
-
-                                    layer.on('pm:cut', e => {
-                                        // first remove the original layer... without this layer is still in the list of eachLayer iteration
-                                        map_{{ id_map }}.removeLayer(e.originalLayer);
-
-                                        var layers = [];
-                                        map_{{ id_map }}.eachLayer(function(layer) {
-                                            if ( layer instanceof L.Polygon ) {
-                                                layers.push(layer);
-                                            }
-                                        });
-                                        var layer_group = L.layerGroup(layers);
-                                        $('#{{widget.attrs.id}}').val(JSON.stringify(layer_group.toGeoJSON()));
-                                    });
+                                    addEventListenersToLayer( layer );
                                 }
 
-
-                                // set bound to all inserted layers
-                                var layer_group = L.featureGroup(layers);
-                                var bounds = layer_group.getBounds();
-                                map_{{ id_map }}.fitBounds(bounds);
+                                setBounds( layers );
 
                             }else{
                                 alert("Unsupported geometry file type detected : '" + appType + "'");
                             }
                         }
-
                     });
+                    {% endif %}
                 </script>
                 <script type="application/javascript">
                     $('#collapse_{{ widget.leaflet_geometry_input_id }}').on('shown.bs.collapse', function (e) {

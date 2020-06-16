@@ -1,4 +1,4 @@
-from django.forms import DateTimeInput, DateInput, TextInput
+from django.forms import DateTimeInput, DateInput, TextInput, Textarea
 
 from MrMap.utils import get_theme
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX
@@ -52,7 +52,7 @@ class BootstrapDateTimePickerInput(DateTimeInput):
         return context
 
 
-class LeafletGeometryInput(TextInput):
+class LeafletGeometryInput(Textarea):
     template_name = 'widgets/leaflet_geometry_input.html'
 
     def __init__(self,

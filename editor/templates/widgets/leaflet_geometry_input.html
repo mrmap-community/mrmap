@@ -1,6 +1,6 @@
 {% load static i18n l10n %}
 <div class="input-group" id="{{ widget.leaflet_geometry_input_id }}" data-target-input="nearest">
-  {% include "django/forms/widgets/input.html" %}
+  {% include "django/forms/widgets/textarea.html" %}
   <div class="input-group-append" data-toggle="collapse" data-target="#collapse_{{ widget.leaflet_geometry_input_id }}" aria-expanded="true" aria-controls="collapse_{{ widget.leaflet_geometry_input_id }}">
     <div id="id_heading_{{ widget.leaflet_geometry_input_id }}" class="input-group-text">
           <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Click to collapse leaflet client to draw a spatial area'%}">

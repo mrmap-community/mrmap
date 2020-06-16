@@ -14,6 +14,7 @@ class BootstrapDatePickerInput(DateInput):
         if attrs is None:
             attrs = dict()
         attrs['data-target'] = '#{id}'.format(id=datetimepicker_id)
+        attrs['data-toggle'] = 'datetimepicker'
 
         if 'class' in attrs:
             classes = attrs['class'].split()
@@ -37,6 +38,7 @@ class BootstrapDateTimePickerInput(DateTimeInput):
         if attrs is None:
             attrs = dict()
         attrs['data-target'] = '#{id}'.format(id=datetimepicker_id)
+        attrs['data-toggle'] = 'datetimepicker'
 
         if 'class' in attrs:
             classes = attrs['class'].split()

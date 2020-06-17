@@ -26,7 +26,6 @@ from MrMap.utils import print_debug_mode
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.crypto_handler import CryptoHandler
-from service.helper.iso.service_metadata_builder import ServiceMetadataBuilder
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
     LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES
@@ -757,6 +756,7 @@ class Metadata(Resource):
         Returns:
             service_metadata_document (str): The xml document
         """
+        from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
         doc = None
         cacher = DocumentCacher(title="SERVICE_METADATA", version="0")
         try:
@@ -779,7 +779,7 @@ class Metadata(Resource):
 
         except ObjectDoesNotExist as e:
             # There is no service metadata document in the database, we need to create it
-            builder = ServiceMetadataBuilder(self.id, MetadataEnum.SERVICE)
+            builder = Iso19115MetadataBuilder(self.id, MetadataEnum.SERVICE)
             doc = builder.generate_service_metadata()
 
             # Write new creates service metadata to cache

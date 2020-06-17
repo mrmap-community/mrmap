@@ -9,6 +9,7 @@ import json
 
 from django.core.exceptions import ObjectDoesNotExist
 
+from service.models import Dataset, Layer
 from service.settings import INSPIRE_LEGISLATION_FILE, SERVICE_OPERATION_URI_TEMPLATE
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.helper import xml_helper
@@ -21,23 +22,29 @@ from django.utils import timezone
 from MrMap.settings import XML_NAMESPACES
 
 
-class ServiceMetadataBuilder:
+class Iso19115MetadataBuilder:
 
     def __init__(self, md_id: int, metadata_type: MetadataEnum, use_legislation_amendment=False):
         from service.models import Metadata, FeatureType
         self.metadata = Metadata.objects.get(id=md_id)
+        self.organization = self.metadata.contact
 
-        self.service_version = self.metadata.get_service_version()
-        self.service_type = self.metadata.get_service_type()
-        if self.metadata.is_service_type(OGCServiceEnum.WFS) and not self.metadata.is_root():
-            # Only WFS FeatureType metadata needs a special workaround
-            self.service = FeatureType.objects.get(
+        if not self.metadata.is_dataset_metadata:
+            self.service_version = self.metadata.get_service_version()
+            self.service_type = self.metadata.get_service_type()
+
+        if self.metadata.is_featuretype_metadata:
+            self.described_resource = FeatureType.objects.get(
                 metadata=self.metadata
             ).parent_service
+        elif self.metadata.is_dataset_metadata:
+            self.described_resource = Dataset.objects.get(metadata=self.metadata)
+        elif self.metadata.is_service_metadata:
+            self.described_resource = self.metadata.service
+        elif self.metadata.is_layer_metadata:
+            self.described_resource = Layer.objects.get(metadata=self.metadata)
         else:
-            self.service = self.metadata.service
-
-        self.organization = self.metadata.contact
+            raise NotImplementedError
         
         self.reduced_nsmap = {
             "gml": XML_NAMESPACES.get("gml", ""),

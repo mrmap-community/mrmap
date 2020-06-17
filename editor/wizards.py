@@ -11,7 +11,8 @@ from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
 from django.utils.translation import gettext_lazy as _
 
 from service.helper.enums import MetadataEnum
-from service.models import Dataset, Metadata, MetadataRelation, MetadataOrigin, MetadataType
+from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
+from service.models import Dataset, Metadata, MetadataRelation, MetadataOrigin, MetadataType, Document
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, DEFAULT_SRS
 
 DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
@@ -32,41 +33,65 @@ class DatasetWizard(MrMapWizard):
         Returns:
 
         """
-        # Create instances
-        metadata = Metadata()
-        metadata.uuid = uuid.uuid4()
-        metadata.identifier = metadata.uuid
-        metadata.metadata_type = MetadataType.objects.get_or_create(
-            type=MetadataEnum.DATASET.value
-        )[0]
-        metadata.is_active = True
+        instance_id = kwargs.pop("instance_id", None)
+        if instance_id is not None:
+            # Update
+            metadata = Metadata.objects.get(id=instance_id)
+            dataset = Dataset.objects.get(metadata=metadata)
+        else:
+            # New
+            # Create instances
+            metadata = Metadata()
+            metadata.uuid = uuid.uuid4()
+            metadata.identifier = metadata.uuid
+            metadata.metadata_type = MetadataType.objects.get_or_create(
+                type=MetadataEnum.DATASET.value
+            )[0]
+            metadata.is_active = True
 
-        dataset = Dataset()
-        dataset.is_active = True
-        dataset.md_identifier_code = metadata.identifier
+            dataset = Dataset()
+            dataset.is_active = True
+            dataset.md_identifier_code = metadata.identifier
+            dataset.metadata_standard_name = "ISO 19115 Geographic information - Metadata"
+            dataset.metadata_standard_version = "ISO 19115:2003(E)"
 
-        # Pre-save objects to be able to add M2M relations
-        metadata.save()
-        dataset.metadata = metadata
-        dataset.save()
-        metadata.metadata_url = reverse("service:get-dataset-metadata", args=(dataset.id,))
+            # Pre-save objects to be able to add M2M relations
+            metadata.save()
+            dataset.metadata = metadata
+            dataset.save()
+            metadata.metadata_url = reverse("service:get-dataset-metadata", args=(dataset.id,))
 
+        self._fill_form_list(form_list, metadata, dataset)
+
+        return HttpResponseRedirect(reverse(self.kwargs['current_view'], ), status=303)
+
+    @staticmethod
+    def _fill_form_list(form_list, metadata: Metadata, dataset: Dataset):
+        """ Iterates over all forms and applies the metadata changes on the objects
+
+        Args:
+            form_list: The list of forms
+            metadata: The metadata record
+            dataset: The dataset record
+        Returns:
+
+        """
         function_map = {
-            "DatasetIdentificationForm": self._fill_metadata_dataset_identification_form,
-            "DatasetClassificationForm": self._fill_metadata_dataset_classification_form,
-            "DatasetSpatialExtentForm": self._fill_metadata_dataset_spatial_extent_form,
-            "DatasetLicenseConstraintsForm": self._fill_metadata_dataset_licence_form,
-            "DatasetQualityForm": self._fill_metadata_dataset_quality_form,
+            "DatasetIdentificationForm": DatasetWizard._fill_metadata_dataset_identification_form,
+            "DatasetClassificationForm": DatasetWizard._fill_metadata_dataset_classification_form,
+            "DatasetSpatialExtentForm": DatasetWizard._fill_metadata_dataset_spatial_extent_form,
+            "DatasetLicenseConstraintsForm": DatasetWizard._fill_metadata_dataset_licence_form,
+            "DatasetQualityForm": DatasetWizard._fill_metadata_dataset_quality_form,
         }
 
         for form in form_list:
             form_class = type(form).__name__
             function_map[form_class](form.cleaned_data, metadata, dataset)
 
+        DatasetWizard._create_dataset_document(metadata, dataset)
+
         dataset.save()
         metadata.save()
-
-        return HttpResponseRedirect(reverse(self.kwargs['current_view'], ), status=303)
 
     @staticmethod
     def _fill_metadata_dataset_identification_form(data: dict, metadata: Metadata, dataset: Dataset):
@@ -177,3 +202,21 @@ class DatasetWizard(MrMapWizard):
         """
         dataset.update_frequency_code = data.get("maintenance_and_update_frequency", None)
         dataset.lineage_statement = data.get("lineage_statement", None)
+
+    @staticmethod
+    def _create_dataset_document(metadata: Metadata, dataset: Dataset):
+        """ Creates a Document record for the new Dataset entry
+
+        Args:
+            metadata (Metadata): The metadata record
+            dataset (Dataset): The dataset record
+        Returns:
+
+        """
+        document_obj = Document.objects.get_or_create(
+            related_metadata=metadata
+        )[0]
+        doc_builder = Iso19115MetadataBuilder(metadata.id, MetadataEnum.DATASET.value)
+        dataset_doc_string = doc_builder.generate_service_metadata()
+        document_obj.current_dataset_metadata_document = dataset_doc_string
+        document_obj.save()

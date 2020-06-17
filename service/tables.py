@@ -12,6 +12,7 @@ import json
 from MrMap.celery_app import app
 from celery.result import AsyncResult
 
+from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
 from MrMap.utils import get_theme, get_ok_nok_icon
 from MrMap.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
@@ -339,11 +340,21 @@ class ProxyLogTable(MrMapTable):
             "class": "text-center"
         }
 
-    id = tables.Column(accessor='id', verbose_name='ID')
-    metadata_title = tables.Column(accessor='metadata__title', verbose_name='User', )
-    user_name = tables.Column(accessor='user', verbose_name='User', )
-    timestamp = tables.Column(accessor='timestamp', verbose_name='Timestamp', )
-    operation = tables.Column(accessor='operation', verbose_name='Timestamp', )
+    id = MrMapColumn(accessor='id',
+                     verbose_name=_('ID'),
+                     tooltip=_("The id of the ProxyLog"))
+    metadata_title = MrMapColumn(accessor='metadata__title',
+                                 verbose_name='Service Title',
+                                 tooltip=_("The title of the related service"))
+    user_name = MrMapColumn(accessor='user',
+                            verbose_name=_('User'),
+                            tooltip=_("Name of the user which produced this log entry"))
+    timestamp = MrMapColumn(accessor='timestamp',
+                            verbose_name=_('Timestamp'),
+                            tooltip=_("Timestamp when the entry was produced"))
+    operation = MrMapColumn(accessor='operation',
+                            tooltip=_("Operation param of the request"),
+                            verbose_name=_('Operation'), )
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')

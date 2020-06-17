@@ -111,6 +111,7 @@ ALLOWED_HOSTS = [
 INSTALLED_APPS = [
     'dal',
     'dal_select2',
+    'django.forms',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -133,6 +134,7 @@ INSTALLED_APPS = [
     'bootstrap4',
     'fontawesome_5',
     'django_tables2',
+    'django_filters',
     'query_parameters',
     'django_nose',
     'mathfilters'
@@ -164,6 +166,8 @@ PASSWORD_HASHERS = [
 ]
 
 ROOT_URLCONF = 'MrMap.urls'
+
+FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
 
 TEMPLATES = [
     {

@@ -1187,6 +1187,7 @@ def get_metadata_legend(request: HttpRequest, metadata_id: int, style_id: int):
     response = con.content
     return HttpResponse(response, content_type="")
 
+
 @login_required
 @check_permission(Permission(can_access_logs=True))
 def logs_view(request: HttpRequest):
@@ -1207,7 +1208,7 @@ def logs_view(request: HttpRequest):
     template = "views/log_index.html"
     user = user_helper.get_user(request)
 
-    proxy_log_table = logger_helper.prepare_proxy_log_filter(request.GET.dict(), user)
+    proxy_log_table = logger_helper.prepare_proxy_log_filter(request, user)
 
     params = {
         "log_table": proxy_log_table
@@ -1230,7 +1231,7 @@ def logs_download(request: HttpRequest):
     """
     user = user_helper.get_user(request)
 
-    proxy_log_table = logger_helper.prepare_proxy_log_filter(request.GET.dict(), user)
+    proxy_log_table = logger_helper.prepare_proxy_log_filter(request, user)
 
     # Create empty response object and fill it with dynamic csv content
     response = HttpResponse(content_type="text/csv")

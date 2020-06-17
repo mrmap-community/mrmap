@@ -114,10 +114,12 @@ class DatasetWizard(MrMapWizard):
         dataset.date_stamp = data.get("date_stamp", None)
 
         ref_systems = data.get("reference_system", [])
+        metadata.reference_system.clear()
         for ref_system in ref_systems:
             metadata.reference_system.add(ref_system)
 
         additional_related_objects = data.get("additional_related_objects", [])
+        metadata.related_metadata.all().delete()
         for additional_object in additional_related_objects:
             md_relation = MetadataRelation()
             md_relation.metadata_to = metadata
@@ -129,6 +131,7 @@ class DatasetWizard(MrMapWizard):
             )[0]
             md_relation.save()
             additional_object.related_metadata.add(md_relation)
+            metadata.related_metadata.add(md_relation)
 
     @staticmethod
     def _fill_metadata_dataset_classification_form(data: dict, metadata: Metadata, dataset: Dataset):
@@ -141,10 +144,12 @@ class DatasetWizard(MrMapWizard):
         Returns:
 
         """
+        metadata.keywords.clear()
         keywords = data.get("keywords", [])
         for kw in keywords:
             metadata.keywords.add(kw)
 
+        metadata.categories.clear()
         categories = data.get("categories", [])
         for cat in categories:
             metadata.categories.add(cat)

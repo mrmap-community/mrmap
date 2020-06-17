@@ -114,6 +114,12 @@ class DatasetIdentificationForm(MrMapWizardForm):
         ),
         required=False, )
 
+    created_by = forms.ModelChoiceField(
+        label=_("Create with group"),
+        widget=forms.Select(attrs={'class': 'auto_submit_item'}),
+        queryset=None, to_field_name='id', initial=1
+    )
+
     def __init__(self, *args, **kwargs):
         super(DatasetIdentificationForm, self).__init__(has_autocomplete_fields=True,
                                                         *args,
@@ -122,6 +128,11 @@ class DatasetIdentificationForm(MrMapWizardForm):
         self.fields['additional_related_objects'].queryset = user_helper.get_user(self.request).get_metadatas_as_qs(
             type=MetadataEnum.DATASET, inverse_match=True)
         self.fields['reference_system'].queryset = ReferenceSystem.objects.all()
+
+        user = user_helper.get_user(request=kwargs.pop("request"))
+        user_groups = user.get_groups({"is_public_group": False})
+        self.fields["created_by"].queryset = user_groups
+        self.fields["created_by"].initial = user_groups.first()
 
         if self.instance_id:
             metadata = Metadata.objects.get(id=self.instance_id)

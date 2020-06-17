@@ -217,10 +217,12 @@ def remove_dataset(request: HttpRequest, metadata_id: int):
 @check_permission(Permission(can_add_dataset_metadata=True))
 def add_new_dataset_wizard(request: HttpRequest, current_view: str):
     wizard_view = DatasetWizard.as_view(DATASET_WIZARD_FORMS)
-    return wizard_view(request=request,
-                       current_view=current_view,
-                       title=_(format_html('<b>Add New Dataset</b>')),
-                       id_modal='add_new_dataset_wizard',)
+    return wizard_view(
+        request=request,
+        current_view=current_view,
+        title=_(format_html('<b>Add New Dataset</b>')),
+        id_modal='add_new_dataset_wizard',
+    )
 
 
 @login_required

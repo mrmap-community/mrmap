@@ -197,7 +197,7 @@ class DatasetTable(MrMapTable):
             "btn_value": get_theme(self.user)["ICONS"]['EDIT'],
             # ToDo 'editor:index' has to be a dynamic value from the current view where the user comes from
             "btn_url": reverse('editor:dataset-metadata-wizard-instance', args=('editor:index', record.id)),
-            "tooltip": format_html(_("Edit <strong>{} [{}]</strong> dataset"), record.title, record.id),
+            "tooltip": format_html(_("Edit {} [{}] dataset"), record.title, record.id),
             "tooltip_placement": "left",
         }
         edit_btn = render_to_string(template_name="sceletons/open-link-button.html",

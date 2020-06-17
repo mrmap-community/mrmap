@@ -566,8 +566,8 @@ class Metadata(Resource):
     status = models.IntegerField(null=True, blank=True)
     use_proxy_uri = models.BooleanField(default=False)
     log_proxy_access = models.BooleanField(default=False)
-    spatial_res_type = models.CharField(max_length=100, null=True)
-    spatial_res_value = models.CharField(max_length=100, null=True)
+    spatial_res_type = models.CharField(max_length=100, null=True, blank=True)
+    spatial_res_value = models.CharField(max_length=100, null=True, blank=True)
     is_broken = models.BooleanField(default=False)
     is_custom = models.BooleanField(default=False)
     is_inspire_conform = models.BooleanField(default=False)
@@ -584,12 +584,12 @@ class Metadata(Resource):
     # other
     keywords = models.ManyToManyField(Keyword)
     formats = models.ManyToManyField('MimeType', blank=True)
-    categories = models.ManyToManyField('Category')
+    categories = models.ManyToManyField('Category', blank=True)
     reference_system = models.ManyToManyField('ReferenceSystem')
-    dimensions = models.ManyToManyField('Dimension')
+    dimensions = models.ManyToManyField('Dimension', blank=True)
     metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
-    legal_dates = models.ManyToManyField('LegalDate')
-    legal_reports = models.ManyToManyField('LegalReport')
+    legal_dates = models.ManyToManyField('LegalDate', blank=True)
+    legal_reports = models.ManyToManyField('LegalReport', blank=True)
     hits = models.IntegerField(default=0)
 
     # Related metadata creates Relations between metadata records by using the MetadataRelation table.
@@ -2926,7 +2926,7 @@ class Dataset(Resource):
     lineage_statement = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return self.metadata.identifier
+        return self.metadata.title
 
 
 class LegalReport(models.Model):

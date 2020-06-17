@@ -99,7 +99,10 @@ class DatasetMetadataAutocomplete(autocomplete.Select2QuerySetView):
         if self.q:
             # There are filtering parameters!
             query = self.q
-        records = records.filter(title__icontains=query)
+        records = records.filter(
+            Q(title__icontains=query) |
+            Q(id__icontains=query)
+        )
 
         return records
 
@@ -126,7 +129,10 @@ class ReferenceSystemAutocomplete(autocomplete.Select2QuerySetView):
         if self.q:
             # There are filtering parameters!
             query = self.q
-        records = records.filter(prefix__icontains=query)
+        records = records.filter(
+            Q(prefix__icontains=query)
+            | Q(code__icontains=query)
+        )
 
         return records
 

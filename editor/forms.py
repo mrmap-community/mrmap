@@ -184,18 +184,6 @@ class DatasetClassificationForm(MrMapWizardForm):
             self.fields['categories'].initial = metadata.categories.all()
 
 
-class DatasetTemporalExtentForm(MrMapWizardForm):
-    maintenance_and_update_frequency = forms.ChoiceField(label=_('Maintenance and update frequency'), choices=Dataset.UPDATE_FREQUENCY_CHOICES)
-
-    def __init__(self, *args, **kwargs):
-        super(DatasetTemporalExtentForm, self).__init__(*args, **kwargs)
-
-        if self.instance_id:
-            metadata = Metadata.objects.get(id=self.instance_id)
-            dataset = Dataset.objects.get(id=metadata.dataset.id)
-            self.fields['maintenance_and_update_frequency'].initial = dataset.update_frequency_code
-
-
 class DatasetLicenseConstraintsForm(MrMapWizardForm):
     terms_of_use = forms.ChoiceField(label=_('Terms of use'),
                                      required=False,
@@ -239,3 +227,19 @@ class DatasetSpatialExtentForm(MrMapWizardForm):
                                                                            else data_for_bounding_geometry,
                                                                            request=self.request,)
             self.fields['bounding_geometry'].initial = metadata.bounding_geometry.geojson
+
+
+class DatasetQualityForm(MrMapWizardForm):
+    maintenance_and_update_frequency = forms.ChoiceField(label=_('Maintenance and update frequency'),
+                                                         choices=Dataset.UPDATE_FREQUENCY_CHOICES)
+    lineage_statement = forms.CharField(label=_('Lineage Statement'),
+                                        required=False)
+
+    def __init__(self, *args, **kwargs):
+        super(DatasetQualityForm, self).__init__(*args, **kwargs)
+
+        if self.instance_id:
+            metadata = Metadata.objects.get(id=self.instance_id)
+            dataset = Dataset.objects.get(id=metadata.dataset.id)
+            self.fields['lineage_statement'].initial = dataset.lineage_statement
+            self.fields['maintenance_and_update_frequency'].initial = dataset.update_frequency_code

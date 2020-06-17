@@ -1,15 +1,15 @@
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from MrMap.wizards import MrMapWizard
-from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, DatasetTemporalExtentForm, \
-    DatasetLicenseConstraintsForm, DatasetSpatialExtentForm
+from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
+    DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm
 from django.utils.translation import gettext_lazy as _
 
 DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
                         (_("classification"), DatasetClassificationForm),
                         (_("spatial extent"), DatasetSpatialExtentForm),
                         (_("licenses/constraints"), DatasetLicenseConstraintsForm),
-                        (_("maintenance information"), DatasetTemporalExtentForm),]
+                        (_("Quality"), DatasetQualityForm), ]
 
 
 class DatasetWizard(MrMapWizard):

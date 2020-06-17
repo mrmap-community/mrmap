@@ -5,10 +5,9 @@ from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, D
     DatasetLicenseConstraintsForm, DatasetSpatialExtentForm
 from django.utils.translation import gettext_lazy as _
 
-DATASET_WIZARD_FORMS = [(_("spatial extent"), DatasetSpatialExtentForm),
-                        (_("identification"), DatasetIdentificationForm),
+DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
                         (_("classification"), DatasetClassificationForm),
-
+                        (_("spatial extent"), DatasetSpatialExtentForm),
                         (_("licenses/constraints"), DatasetLicenseConstraintsForm),
                         (_("maintenance information"), DatasetTemporalExtentForm),]
 

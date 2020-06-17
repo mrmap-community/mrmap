@@ -32,7 +32,7 @@ urlpatterns = [
     path('detail/<metadata_id>', detail, name='detail'),
 
     path('logs/', logs_view, name='logs-view'),
-    path('logs/download/', logs_download, name='logs-view'),
+    path('logs/download/', logs_download, name='logs-download'),
 ]
 
 

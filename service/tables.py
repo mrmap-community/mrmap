@@ -341,7 +341,7 @@ class ProxyLogTable(MrMapTable):
         }
 
     id = MrMapColumn(accessor='id',
-                     verbose_name=_('ID'),
+                     verbose_name=_('Log ID'),
                      tooltip=_("The id of the ProxyLog"))
     metadata_title = MrMapColumn(accessor='metadata__title',
                                  verbose_name='Service Title',
@@ -359,6 +359,10 @@ class ProxyLogTable(MrMapTable):
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
         super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def render_metadata_title(record):
+        return "{} #{}".format(record.metadata.title, record.metadata.id)
 
     def fill_csv_response(self, response: HttpResponse):
         timestamp_now = datetime.datetime.now()

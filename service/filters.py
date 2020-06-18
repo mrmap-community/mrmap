@@ -69,27 +69,37 @@ class ProxyLogTableFilter(MrMapFilterSet):
         field_name='timestamp',
         method='filter_date_range',
         widget=BootstrapDatePickerRangeWidget(),
+        help_text=_("Search in a date range.")
     )
     s = django_filters.CharFilter(
         label=_("Service title"),
         field_name='metadata__title',
         lookup_expr='icontains',
+        help_text=_("Filter by the title of a service.")
     )
-    g = django_filters.CharFilter(
+    mid = django_filters.CharFilter(
+        label=_("Metadata ID"),
+        field_name='metadata__id',
+        help_text=_("Filter by the ID of the metadata (#123 in service title).")
+    )
+    g = django_filters.NumberFilter(
         label=_("Group"),
         field_name='metadata__created_by',
-        lookup_expr='name__icontains'
+        lookup_expr='id',
+        help_text=_("Filter by the ID of a group.")
     )
     u = django_filters.CharFilter(
         label=_("User"),
         field_name='user',
         lookup_expr='username__icontains',
+        help_text=_("Filter by a username.")
     )
     t = django_filters.ModelMultipleChoiceFilter(
         label=_("Service type"),
         field_name='metadata__service__servicetype',
         queryset=ServiceType.objects.all(),
-        widget=forms.CheckboxSelectMultiple
+        widget=forms.CheckboxSelectMultiple,
+        help_text=_("Filter by a service type.")
     )
 
     def filter_date_range(self, queryset, name, value):

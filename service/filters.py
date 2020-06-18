@@ -64,22 +64,51 @@ class MetadataWfsFilter(django_filters.FilterSet):
 
 
 class ProxyLogTableFilter(MrMapFilterSet):
-    time_search = django_filters.DateTimeFromToRangeFilter(label=_("Timestamp"),
-                                                           field_name='timestamp',
-                                                           widget=BootstrapDatePickerRangeWidget(),)
-    service_title_search = django_filters.CharFilter(label=_("Service title"),
-                                                     field_name='metadata__title',
-                                                     lookup_expr='icontains',)
-    group_search = django_filters.CharFilter(label=_("Group"),
-                                             field_name='metadata__created_by',
-                                             lookup_expr='name__icontains')
-    user_search = django_filters.CharFilter(label=_("User"),
-                                            field_name='user',
-                                            lookup_expr='username__icontains',)
-    service_type_search = django_filters.ModelMultipleChoiceFilter(label=_("Service type"),
-                                                                   field_name='metadata__service__servicetype',
-                                                                   queryset=ServiceType.objects.all(),
-                                                                   widget=forms.CheckboxSelectMultiple)
+    dr = django_filters.DateTimeFromToRangeFilter(
+        label=_("Timestamp"),
+        field_name='timestamp',
+        method='filter_date_range',
+        widget=BootstrapDatePickerRangeWidget(),
+    )
+    s = django_filters.CharFilter(
+        label=_("Service title"),
+        field_name='metadata__title',
+        lookup_expr='icontains',
+    )
+    g = django_filters.CharFilter(
+        label=_("Group"),
+        field_name='metadata__created_by',
+        lookup_expr='name__icontains'
+    )
+    u = django_filters.CharFilter(
+        label=_("User"),
+        field_name='user',
+        lookup_expr='username__icontains',
+    )
+    t = django_filters.ModelMultipleChoiceFilter(
+        label=_("Service type"),
+        field_name='metadata__service__servicetype',
+        queryset=ServiceType.objects.all(),
+        widget=forms.CheckboxSelectMultiple
+    )
+
+    def filter_date_range(self, queryset, name, value):
+        """ Replaces start and stop range DateTime with 00:00:00 and 23:59:59 to cover full days
+
+        Args:
+            queryset:
+            name:
+            value:
+        Returns:
+
+        """
+        start = value.start.replace(hour=0, minute=0, second=0)
+        stop = value.stop.replace(hour=23, minute=59, second=59)
+        queryset = queryset.filter(
+            timestamp__gte=start,
+            timestamp__lte=stop
+        )
+        return queryset
 
     class Meta:
         model = ProxyLog

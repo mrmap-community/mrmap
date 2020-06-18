@@ -1,10 +1,14 @@
 import django_filters
 from django import forms
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q
 
 from MrMap.filtersets import MrMapFilterSet
 from MrMap.widgets import BootstrapDatePickerRangeWidget
 from service.models import Metadata, Layer, FeatureType, ProxyLog, ServiceType
 from django.utils.translation import gettext_lazy as _
+
+from structure.models import MrMapGroup, MrMapUser
 
 
 class ChildLayerFilter(django_filters.FilterSet):
@@ -71,29 +75,6 @@ class ProxyLogTableFilter(MrMapFilterSet):
         widget=BootstrapDatePickerRangeWidget(),
         help_text=_("Search in a date range.")
     )
-    s = django_filters.CharFilter(
-        label=_("Service title"),
-        field_name='metadata__title',
-        lookup_expr='icontains',
-        help_text=_("Filter by the title of a service.")
-    )
-    mid = django_filters.CharFilter(
-        label=_("Metadata ID"),
-        field_name='metadata__id',
-        help_text=_("Filter by the ID of the metadata (#123 in service title).")
-    )
-    g = django_filters.NumberFilter(
-        label=_("Group"),
-        field_name='metadata__created_by',
-        lookup_expr='id',
-        help_text=_("Filter by the ID of a group.")
-    )
-    u = django_filters.CharFilter(
-        label=_("User"),
-        field_name='user',
-        lookup_expr='username__icontains',
-        help_text=_("Filter by a username.")
-    )
     t = django_filters.ModelMultipleChoiceFilter(
         label=_("Service type"),
         field_name='metadata__service__servicetype',
@@ -101,16 +82,73 @@ class ProxyLogTableFilter(MrMapFilterSet):
         widget=forms.CheckboxSelectMultiple,
         help_text=_("Filter by a service type.")
     )
+    s = django_filters.CharFilter(
+        label=_("Service title"),
+        field_name='metadata__title',
+        lookup_expr='icontains',
+        help_text=_("Filter by the title of a service.")
+    )
+    mid = django_filters.NumberFilter(
+        min_value=1,
+        label=_("Metadata ID"),
+        field_name='metadata__id',
+        help_text=_("Filter by the ID of the metadata (#123 in service title).")
+    )
+    u = django_filters.CharFilter(
+        label=_("User"),
+        field_name='user',
+        lookup_expr='username__icontains',
+        help_text=_("Filter by a username.")
+    )
+    g = django_filters.NumberFilter(
+        min_value=1,
+        label=_("User group"),
+        method="filter_logged_group",
+        help_text=_("Filter by the ID of a group.")
+    )
+
+    def filter_logged_group(self, queryset, name, value):
+        """ Filters by a group id, which the logged user must be a member of.
+
+        Due to our group->MrMapGroup architecture and the public group system, we need an extra filter method.
+
+        Args:
+            queryset: The queryset to be filtered
+            name: The parameter name
+            value: THe parameter value
+        Returns:
+            queryset: The filtered queryset
+        """
+        if value is not None:
+            try:
+                user_group = MrMapGroup.objects.get(id=value)
+                users = MrMapUser.objects.filter(
+                    groups=user_group
+                )
+
+                q =Q()
+                q |= Q(user__in=users)
+
+                # If a public group is requested, we need to make sure that GuestUser/AnonymousUser logs are returned as well
+                if user_group.is_public_group:
+                    q |= Q(user=None)
+
+                queryset = queryset.filter(
+                    q
+                )
+            except ObjectDoesNotExist:
+                pass
+        return queryset
 
     def filter_date_range(self, queryset, name, value):
         """ Replaces start and stop range DateTime with 00:00:00 and 23:59:59 to cover full days
 
         Args:
-            queryset:
-            name:
-            value:
+            queryset: The queryset to be filtered
+            name: The parameter name
+            value: THe parameter value
         Returns:
-
+            queryset: The filtered queryset
         """
         start = value.start.replace(hour=0, minute=0, second=0)
         stop = value.stop.replace(hour=23, minute=59, second=59)

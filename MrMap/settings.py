@@ -199,7 +199,7 @@ DATABASES = {
         'NAME': 'MrMap',
         'USER': 'postgres',
         'HOST': '127.0.0.1',
-        'PORT': '5432'
+        'PORT': '5432',
     }
 }
 
@@ -259,6 +259,7 @@ LOCALE_PATHS = (
     os.path.join(BASE_DIR, 'locale'),
 )
 
+DEFAULT_DATE_TIME_FORMAT = 'YYYY-MM-DD hh:mm:ss'
 
 TIME_ZONE = 'Europe/Berlin'
 

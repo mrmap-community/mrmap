@@ -296,7 +296,6 @@ class ISOMetadata:
             report.date = legal_date
             self.legal_reports.append(report)
 
-
     def parse_xml(self):
         """ Reads the needed data from the xml and writes to an ISOMetadata instance (self)
 

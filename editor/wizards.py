@@ -3,6 +3,7 @@ import uuid
 from json import JSONDecodeError
 
 from django.contrib.gis.geos import GEOSGeometry, Polygon, GeometryCollection
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from MrMap.wizards import MrMapWizard
@@ -10,6 +11,8 @@ from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
     DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm
 from django.utils.translation import gettext_lazy as _
 
+from editor.helper.editor_helper import overwrite_dataset_metadata_document
+from editor.settings import MR_MAP_DATASET_EDITOR_ORIGIN_NAME
 from service.helper.enums import MetadataEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
 from service.models import Dataset, Metadata, MetadataRelation, MetadataOrigin, MetadataType, Document
@@ -88,7 +91,11 @@ class DatasetWizard(MrMapWizard):
             form_class = type(form).__name__
             function_map[form_class](form.cleaned_data, metadata, dataset)
 
-        DatasetWizard._create_dataset_document(metadata, dataset)
+        try:
+            doc = Document.objects.get(related_metadata__id=metadata.id)
+            overwrite_dataset_metadata_document(metadata)
+        except ObjectDoesNotExist:
+            DatasetWizard._create_dataset_document(metadata, dataset)
 
         dataset.save()
         metadata.save()
@@ -119,7 +126,7 @@ class DatasetWizard(MrMapWizard):
             metadata.reference_system.add(ref_system)
 
         additional_related_objects = data.get("additional_related_objects", [])
-        metadata.related_metadata.all().delete()
+        metadata.related_metadata.filter(origin__name=MR_MAP_DATASET_EDITOR_ORIGIN_NAME).delete()
         for additional_object in additional_related_objects:
             md_relation = MetadataRelation()
             md_relation.metadata_to = metadata
@@ -127,7 +134,7 @@ class DatasetWizard(MrMapWizard):
             md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
             md_relation.internal = True
             md_relation.origin = MetadataOrigin.objects.get_or_create(
-                name="MrMap Dataset Editor"
+                name=MR_MAP_DATASET_EDITOR_ORIGIN_NAME
             )[0]
             md_relation.save()
             additional_object.related_metadata.add(md_relation)
@@ -176,8 +183,11 @@ class DatasetWizard(MrMapWizard):
         elif bounding_geometry.get("feature", None) is not None:
             geom = GEOSGeometry(str(bounding_geometry.get("feature")["geometry"]), srid=DEFAULT_SRS)
         else:
-            # No features provided
-            geom = None
+            try:
+                geom = GEOSGeometry(str(bounding_geometry), srid=DEFAULT_SRS)
+            except Exception:
+                # No features provided
+                geom = None
         metadata.bounding_geometry = geom
 
     @staticmethod

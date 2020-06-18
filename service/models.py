@@ -1253,7 +1253,7 @@ class Metadata(Resource):
         Returns:
              nothing, it changes the Metadata object itself
         """
-        from service.helper.iso.iso_metadata import ISOMetadata
+        from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
         original_metadata_document = ISOMetadata(uri=str(self.metadata_url), origin="capabilities")
         self.abstract = original_metadata_document.abstract
         self.title = original_metadata_document.title

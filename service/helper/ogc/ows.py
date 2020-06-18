@@ -15,7 +15,7 @@ from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, OGCServiceEnum
-from service.helper.iso.iso_metadata import ISOMetadata
+from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.models import RequestOperation, ExternalAuthentication, Metadata
 from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
 from structure.models import MrMapUser

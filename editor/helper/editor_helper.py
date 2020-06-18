@@ -13,12 +13,12 @@ from django.http import HttpRequest
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
-from MrMap.iso19115.md_data_identification import _create_gmd_descriptive_keywords, _create_gmd_language
+from service.helper.iso.iso19115.md_data_identification import _create_gmd_descriptive_keywords, _create_gmd_language
 from MrMap.messages import EDITOR_INVALID_ISO_LINK
 from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum
-from service.helper.iso.iso_metadata import ISOMetadata
+from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, \
     MetadataOrigin, SecuredOperation
 from service.helper import xml_helper

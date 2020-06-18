@@ -32,3 +32,8 @@ WFS_SECURED_OPERATIONS = [
     "GetFeature",
     "Transaction",
 ]
+
+""" Constant for MetadataOrigin
+
+"""
+MR_MAP_DATASET_EDITOR_ORIGIN_NAME = "MrMap Dataset Editor"

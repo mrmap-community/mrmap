@@ -49,6 +49,8 @@ FONT_AWESOME_ICONS = {
     'API': format_html(ICON_PATTERN, 'fas', 'fa-hashtag', ),
     'LOGS': format_html(ICON_PATTERN, 'fas', 'fa-stethoscope', ),
     'CSV': format_html(ICON_PATTERN, 'fas', 'fa-file-csv', ),
+    'FILTER': format_html(ICON_PATTERN, 'fas', 'fa-filter', ),
+
 }
 
 # dark theme settings

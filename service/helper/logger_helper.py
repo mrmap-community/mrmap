@@ -27,7 +27,7 @@ def prepare_proxy_log_filter(request: HttpRequest, user: MrMapUser):
 
     proxy_logs = ProxyLog.objects.filter(metadata__in=group_metadatas)
 
-    proxy_logs_filtered = ProxyLogTableFilter(request.GET, queryset=proxy_logs)
+    proxy_logs_filtered = ProxyLogTableFilter(data=request.GET, queryset=proxy_logs,)
     proxy_log_table = ProxyLogTable(proxy_logs_filtered.qs,
                                     user=user)
     proxy_log_table.filter = proxy_logs_filtered

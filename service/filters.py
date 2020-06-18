@@ -1,8 +1,9 @@
 import django_filters
-from django_filters.widgets import RangeWidget
+from django import forms
 
+from MrMap.filtersets import MrMapFilterSet
 from MrMap.widgets import BootstrapDatePickerRangeWidget
-from service.models import Metadata, Layer, FeatureType, ProxyLog, MetadataType, ServiceType
+from service.models import Metadata, Layer, FeatureType, ProxyLog, ServiceType
 from django.utils.translation import gettext_lazy as _
 
 
@@ -62,7 +63,7 @@ class MetadataWfsFilter(django_filters.FilterSet):
         fields = []
 
 
-class ProxyLogTableFilter(django_filters.FilterSet):
+class ProxyLogTableFilter(MrMapFilterSet):
     time_search = django_filters.DateTimeFromToRangeFilter(label=_("Timestamp"),
                                                            field_name='timestamp',
                                                            widget=BootstrapDatePickerRangeWidget(),)
@@ -77,7 +78,8 @@ class ProxyLogTableFilter(django_filters.FilterSet):
                                             lookup_expr='username__icontains',)
     service_type_search = django_filters.ModelMultipleChoiceFilter(label=_("Service type"),
                                                                    field_name='metadata__service__servicetype',
-                                                                   queryset=ServiceType.objects.all())
+                                                                   queryset=ServiceType.objects.all(),
+                                                                   widget=forms.CheckboxSelectMultiple)
 
     class Meta:
         model = ProxyLog

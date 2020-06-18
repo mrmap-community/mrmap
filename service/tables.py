@@ -362,7 +362,7 @@ class ProxyLogTable(MrMapTable):
 
     def fill_csv_response(self, response: HttpResponse):
         timestamp_now = datetime.datetime.now()
-        response['Content-Disposition'] = 'attachment; filename="MrMap_logs_{}.csv"'.format(timestamp_now.strftime("%Y-%m-%dT%H:%M:%S"))
+        response['Content-Disposition'] = f'attachment; filename="MrMap_logs_{timestamp_now.strftime("%Y-%m-%dT%H:%M:%S")}.csv"'
         csv_writer = csv.writer(response)
         csv_writer.writerow([
             _("ID"),
@@ -384,86 +384,3 @@ class ProxyLogTable(MrMapTable):
                 log.timestamp,
             ])
         return response
-
-    def filter_table(self, params: dict):
-        """ Filters a table based on given parameters
-
-        Args:
-            params (dict): Contains key-value pairs of parameters for filtering
-        Returns:
-
-        """
-        filter = {}
-
-        self._add_date_filter(params.get("ds", None), params.get("de", None), filter)
-        self._add_group_filter(params.get("g", None), filter)
-        self._add_user_filter(params.get("u", None), filter)
-        self._add_service_type_filter(params.get("t", None), filter)
-
-        # Use filter on queryset
-        self.data.data = self.data.data.filter(
-            **filter
-        )
-
-    def _add_date_filter(self, date_start: str, date_end: str, filter: dict):
-        """ Filters a table content by date-time strings
-
-        Args:
-            date_start (str): The start of the period
-            date_end (str): The end of the period
-        Returns:
-
-        """
-        # Convert strings to DateTime objects
-        date_start = parse(date_start) if date_start is not None else None
-        date_end = parse(date_end) if date_end is not None else None
-        if date_end is not None:
-            date_end = date_end.astimezone(timezone.utc)
-            filter["timestamp__lte"] = date_end
-        if date_start is not None:
-            date_start = date_start.astimezone(timezone.utc)
-            filter["timestamp__gte"] = date_start
-
-    def _add_group_filter(self, group_id: int, filter: dict):
-        """ Filters a table content by a group
-
-        Args:
-            group_id (int): The group id
-        Returns:
-
-        """
-        if group_id is not None:
-            filter["user__groups__id"] = group_id
-
-    def _add_user_filter(self, user_id: int, filter: dict):
-        """ Filters a table content by a user
-
-        Args:
-            user_id (int): The user id
-        Returns:
-
-        """
-        # Fill filter
-        if user_id is not None:
-
-            # Make sure the parameter is an int
-            if not isinstance(user_id, int):
-                user_id = int(user_id)
-
-            if user_id < 0:
-                # Indicator for anonymous user
-                filter["user"] = None
-            else:
-                filter["user__id"] = user_id
-
-    def _add_service_type_filter(self, srv_type: str, filter: dict):
-        """ Filters a table content by a service type
-
-        Args:
-            srv_type (int): The metadata type
-        Returns:
-
-        """
-        # Fill filter
-        if srv_type is not None:
-            filter["metadata__service__servicetype__name"] = srv_type

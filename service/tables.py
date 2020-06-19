@@ -1,11 +1,7 @@
 import csv
-import datetime
 
 import django_tables2 as tables
-from dateutil.parser import parse
 from django.db.models.functions import Length
-from django.http import HttpResponse
-from django.utils import timezone
 from django.utils.html import format_html
 from django.urls import reverse
 import json
@@ -364,10 +360,8 @@ class ProxyLogTable(MrMapTable):
     def render_metadata_title(record):
         return "{} #{}".format(record.metadata.title, record.metadata.id)
 
-    def fill_csv_response(self, response: HttpResponse):
-        timestamp_now = datetime.datetime.now()
-        response['Content-Disposition'] = f'attachment; filename="MrMap_logs_{timestamp_now.strftime("%Y-%m-%dT%H:%M:%S")}.csv"'
-        csv_writer = csv.writer(response)
+    def fill_csv_response(self, stream):
+        csv_writer = csv.writer(stream)
         csv_writer.writerow([
             _("ID"),
             _("Title"),
@@ -378,13 +372,15 @@ class ProxyLogTable(MrMapTable):
             _("Timestamp"),
         ])
         for log in self.data.data:
-            csv_writer.writerow([
-                log.id,
-                log.metadata.title,
-                log.user,
-                log.operation,
-                log.response_wfs_num_features,
-                log.response_wms_megapixel,
-                log.timestamp,
-            ])
-        return response
+            csv_writer.writerow(
+                [
+                    log.id,
+                    log.metadata.title,
+                    log.user,
+                    log.operation,
+                    log.response_wfs_num_features,
+                    log.response_wms_megapixel,
+                    log.timestamp,
+                ]
+            )
+        return stream.getvalue()

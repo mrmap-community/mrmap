@@ -181,7 +181,7 @@ class ServiceTestCase(TestCase):
                                  column, "CoupledMetadataTable"))
 
     def test_proxy_log_table_sorting(self):
-        """ Run test to check the sorting functionality of the group tables
+        """ Run test to check the sorting functionality of the ProxyLogTable
 
         Return:
 

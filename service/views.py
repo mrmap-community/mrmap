@@ -1,4 +1,6 @@
+
 import io
+from datetime import datetime
 from io import BytesIO
 from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
@@ -1230,11 +1232,20 @@ def logs_download(request: HttpRequest):
 
     """
     user = user_helper.get_user(request)
-
+    CSV = "text/csv"
     proxy_log_table = logger_helper.prepare_proxy_log_filter(request, user)
 
     # Create empty response object and fill it with dynamic csv content
-    response = HttpResponse(content_type="text/csv")
-    proxy_log_table.fill_csv_response(response)
+    stream = io.StringIO()
+    timestamp_now = datetime.now()
+    data = proxy_log_table.fill_csv_response(stream)
 
+    data_size = len(data)
+    # Stream files larger than 100 MB
+    if data_size > 100 * 1024 * 1024:
+        response = StreamingHttpResponse(data, content_type=CSV)
+    else:
+        response = HttpResponse(data, content_type=CSV)
+
+    response['Content-Disposition'] = f'attachment; filename="MrMap_logs_{timestamp_now.strftime("%Y-%m-%dT%H:%M:%S")}.csv"'
     return response

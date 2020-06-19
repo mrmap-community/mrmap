@@ -1,9 +1,11 @@
+from datetime import datetime
+
 from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key, related
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum
 from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType, Keyword, Category, \
-    Document, RequestOperation, MimeType, MetadataOrigin
-from tests.baker_recipes.structure_app.baker_recipes import superadmin_group
+    Document, RequestOperation, MimeType, MetadataOrigin, ProxyLog
+from tests.baker_recipes.structure_app.baker_recipes import superadmin_group, superadmin_user
 
 layer_metadatatype = Recipe(
     MetadataType,
@@ -151,4 +153,11 @@ metadata_origin = Recipe(
 
 operation = Recipe(
     RequestOperation,
+)
+
+proxy_log = Recipe(
+    ProxyLog,
+    metadata=foreign_key(active_wms_service_metadata),
+    operation="GetMap",
+    timestamp=datetime.now()
 )

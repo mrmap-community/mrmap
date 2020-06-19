@@ -343,7 +343,7 @@ class ProxyLogTable(MrMapTable):
     id = MrMapColumn(accessor='id',
                      verbose_name=_('Log ID'),
                      tooltip=_("The id of the ProxyLog"))
-    metadata_title = MrMapColumn(accessor='metadata__title',
+    metadata_title = MrMapColumn(accessor='metadata.title',
                                  verbose_name='Service Title',
                                  tooltip=_("The title of the related service"))
     user_name = MrMapColumn(accessor='user',

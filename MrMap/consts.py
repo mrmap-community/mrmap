@@ -15,6 +15,7 @@ SERVICE_INDEX = "service:index"
 SERVICE_DETAIL = "service:detail"
 SERVICE_ADD = "service:add"
 
+SERVICE_INDEX_LOG = "service:logs-view"
 
 STRUCTURE_DETAIL_GROUP = "structure:detail-group"
 STRUCTURE_INDEX_GROUP = "structure:groups-index"

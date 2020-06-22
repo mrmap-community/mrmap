@@ -41,13 +41,7 @@ def _prepare_group_table(request: HttpRequest, user: MrMapUser, ):
 
 
 def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, ):
-    org_ids_of_groups = []
-    for group in user.get_groups():
-        org_ids_of_groups.append(group.id)
-
-    all_orgs = Organization.objects.filter(created_by=user) | \
-               Organization.objects.filter(id__in=org_ids_of_groups) | \
-               Organization.objects.filter(id=user.organization.id if user.organization is not None else None)
+    all_orgs = Organization.objects.all()
 
     all_orgs = all_orgs.order_by(
         Case(When(id=user.organization.id if user.organization is not None else 0, then=0), default=1),

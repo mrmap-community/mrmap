@@ -13,8 +13,8 @@ from service.models import Dataset, Layer
 from service.settings import INSPIRE_LEGISLATION_FILE, SERVICE_OPERATION_URI_TEMPLATE
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.helper import xml_helper
-from lxml.etree import Element
-from collections import OrderedDict
+from lxml.etree import Element, _Element
+from collections import OrderedDict, Iterable
 from lxml import etree
 
 from django.utils import timezone
@@ -90,7 +90,7 @@ class Iso19115MetadataBuilder:
         self.use_legislation_amendment = use_legislation_amendment
 
     def generate_service_metadata(self):
-        """ Creates a service self.metadata as xml, following the ISO19115 standard
+        """ Creates a metadata document, following the ISO19115 standard
 
         As a guide to this generator, you may read the ISO19115 workbook:
         ftp://ftp.ncddc.noaa.gov/pub/Metadata/Online_ISO_Training/Intro_to_ISO/workbooks/MI_Metadata.pdf
@@ -106,24 +106,24 @@ class Iso19115MetadataBuilder:
             }
         )
 
-        subs = OrderedDict()
-        subs["{}fileIdentifier".format(self.gmd)] = self._create_file_identifier()
-        subs["{}language".format(self.gmd)] = self._create_language()
-        subs["{}characterSet".format(self.gmd)] = self._create_character_set()
-        subs["{}hierarchyLevel".format(self.gmd)] = self._create_hierarchy_level()
-        subs["{}hierarchyLevelName".format(self.gmd)] = self._create_hierarchy_level_name()
-        subs["{}contact".format(self.gmd)] = self._create_contact()
-        subs["{}dateStamp".format(self.gmd)] = self._create_date_stamp()
-        subs["{}metadataStandardName".format(self.gmd)] = self._create_metadata_standard_name()
-        subs["{}metadataStandardVersion".format(self.gmd)] = self._create_metadata_standard_version()
-        subs["{}identificationInfo".format(self.gmd)] = self._create_identification_info()
-        subs["{}distributionInfo".format(self.gmd)] = self._create_distribution_info()
-        subs["{}dataQualityInfo".format(self.gmd)] = self._create_data_quality_info()
+        subs = [
+            self._create_file_identifier,
+            self._create_language,
+            self._create_character_set,
+            self._create_hierarchy_level,
+            self._create_hierarchy_level_name,
+            self._create_contact,
+            self._create_date_stamp,
+            self._create_metadata_standard_name,
+            self._create_metadata_standard_version,
+            self._create_identification_info,
+            self._create_distribution_info,
+            self._create_data_quality_info,
+        ]
 
-        for sub, func in subs.items():
-            sub_element = xml_helper.create_subelement(root, sub)
-            sub_element_content = func
-            xml_helper.add_subelement(sub_element, sub_element_content)
+        for func in subs:
+            sub_element = func()
+            xml_helper.add_subelement(root, sub_element)
 
         doc = etree.tostring(root, xml_declaration=True, encoding="utf-8", pretty_print=True)
 
@@ -136,9 +136,13 @@ class Iso19115MetadataBuilder:
              ret_elem (_Element): The requested xml element
         """
         ret_elem = Element(
+            self.gmd + "fileIdentifier"
+        )
+        elem = Element(
             self.gco + "CharacterString"
         )
-        ret_elem.text = self.metadata.uuid
+        elem.text = self.metadata.uuid
+        xml_helper.add_subelement(ret_elem, elem)
         return ret_elem
 
     def _create_language(self):
@@ -147,16 +151,20 @@ class Iso19115MetadataBuilder:
         Returns:
              ret_elem (_Element): The requested xml element
         """
+        ret_elem = Element(
+            self.gmd + "language"
+        )
         lang = "ger"  # ToDo: Create here something dynamic so we can provide international self.metadata as well
         code_list = "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#LanguageCode"
-        ret_elem = Element(
+        elem = Element(
             self.gmd + "LanguageCode",
             attrib={
                 "codeList": code_list,
                 "codeListValue": lang,
             }
         )
-        ret_elem.text = lang
+        elem.text = lang
+        xml_helper.add_subelement(ret_elem, elem)
         return ret_elem
 
     def _create_character_set(self):
@@ -165,16 +173,20 @@ class Iso19115MetadataBuilder:
         Returns:
              ret_elem (_Element): The requested xml element
         """
+        ret_elem = Element(
+            self.gmd + "characterSet"
+        )
         char_set = "utf8"
         char_set_list = "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_CharacterSetCode"
-        ret_elem = Element(
+        elem = Element(
             self.gmd + "MD_CharacterSetCode",
             attrib={
                 "codeList": char_set_list,
                 "codeListValue": char_set,
             }
         )
-        ret_elem.text = char_set
+        elem.text = char_set
+        xml_helper.add_subelement(ret_elem, elem)
         return ret_elem
 
     def _create_hierarchy_level(self):
@@ -185,15 +197,18 @@ class Iso19115MetadataBuilder:
         """
         hierarchy_level = self.metadata.metadata_type.type
         hierarchy_level_list = "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_ScopeCode"
-        
         ret_elem = Element(
+            self.gmd + "hierarchyLevel"
+        )
+        elem = Element(
             self.gmd + "MD_ScopeCode",
             attrib={
                 "codeList": hierarchy_level_list,
                 "codeListValue": hierarchy_level,
             }
         )
-        ret_elem.text = hierarchy_level
+        elem.text = hierarchy_level
+        xml_helper.add_subelement(ret_elem, elem)
         return ret_elem
 
     def _create_hierarchy_level_name(self):
@@ -205,9 +220,13 @@ class Iso19115MetadataBuilder:
         name = self.hierarchy_names[self.service_type]["de"]  # ToDo: Find international solution for this
 
         ret_elem = Element(
+            self.gmd + "hierarchyLevelName"
+        )
+        elem = Element(
             self.gco + "CharacterString"
         )
-        ret_elem.text = name
+        elem.text = name
+        xml_helper.add_subelement(ret_elem, elem)
         return ret_elem
 
     def _create_contact(self):
@@ -216,6 +235,9 @@ class Iso19115MetadataBuilder:
         Returns:
              resp_party_elem (_Element): The responsible party xml element
         """
+        ret_elem = Element(
+            self.gmd + "contact"
+        )
 
         resp_party_elem = Element(
             self.gmd + "CI_ResponsibleParty"
@@ -272,7 +294,9 @@ class Iso19115MetadataBuilder:
         role_elem.append(role_content_elem)
         resp_party_elem.append(role_elem)
 
-        return resp_party_elem
+        xml_helper.add_subelement(ret_elem, resp_party_elem)
+
+        return ret_elem
 
     def _create_contact_info_element(self):
         """ Creates the <gmd:CI_Contact> element with it's subelements
@@ -527,7 +551,11 @@ class Iso19115MetadataBuilder:
         Returns:
              ret_elem (_Element): The requested xml element
         """
-        ret_elem = Element(self.gco + "Date")
+        ret_elem = Element(
+            self.gmd + "dateStamp"
+        )
+
+        elem = Element(self.gco + "Date")
 
         if self.metadata.last_remote_change is not None:
             date = self.metadata.last_remote_change
@@ -541,7 +569,9 @@ class Iso19115MetadataBuilder:
             date = timezone.now()
 
         date = date.date().__str__()
-        ret_elem.text = date
+        elem.text = date
+
+        xml_helper.add_subelement(ret_elem, elem)
 
         return ret_elem
 
@@ -552,9 +582,14 @@ class Iso19115MetadataBuilder:
              ret_elem (_Element): The requested xml element
         """
         ret_elem = Element(
+            self.gmd + "metadataStandardName"
+        )
+        elem = Element(
             self.gco + "CharacterString"
         )
-        ret_elem.text = "ISO 19115 Geographic information - Metadata"
+        elem.text = "ISO 19115 Geographic information - Metadata"
+
+        xml_helper.add_subelement(ret_elem, elem)
 
         return ret_elem
 
@@ -565,9 +600,14 @@ class Iso19115MetadataBuilder:
              ret_elem (_Element): The requested xml element
         """
         ret_elem = Element(
+            self.gmd + "metadataStandardVersion"
+        )
+        elem = Element(
             self.gco + "CharacterString"
         )
-        ret_elem.text = "ISO 19115:2003(E)"
+        elem.text = "ISO 19115:2003(E)"
+
+        xml_helper.add_subelement(ret_elem, elem)
 
         return ret_elem
 
@@ -578,8 +618,38 @@ class Iso19115MetadataBuilder:
              ret_elem (_Element): The requested xml element
         """
         ret_elem = Element(
-            self.srv + "SV_ServiceIdentification"
+            self.gmd + "identificationInfo"
         )
+
+        # First create basic identification infos, which can be found in service, as well as dataset metadata
+        id_info_elem = self._create_base_identification_info()
+
+        # Then add specific identification info to the base info
+        if self.service_type == OGCServiceEnum.DATASET.value:
+            self._create_data_identification_info(id_info_elem)
+        else:
+            self._create_sv_identification_info(id_info_elem)
+
+        xml_helper.add_subelement(ret_elem, id_info_elem)
+
+        return ret_elem
+
+    def _create_base_identification_info(self):
+        """ Creates the <gmd:identificationInfo> element
+
+        Only creates the elements, which are present in service as well as in dataset metadata
+
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        if self.service_type == OGCServiceEnum.DATASET.value:
+            ret_elem = Element(
+                self.gmd + "MD_DataIdentification"
+            )
+        else:
+            ret_elem = Element(
+                self.srv + "SV_ServiceIdentification"
+            )
 
         # gmd:citation
         citation_elem = self._create_citation()
@@ -668,7 +738,19 @@ class Iso19115MetadataBuilder:
         #     self.gmd + "aggregationInfo"
         # )
 
-        # gmd:serviceType
+        return ret_elem
+
+    def _create_sv_identification_info(self, upper_elem: Element):
+        """ Creates the <srv:SV_ServiceIdentification> element contents
+
+        Adds it's elements to a given base information element (upper_elem)
+
+        Args:
+            upper_elem (Element): The base info element
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        # srv:serviceType
         service_type_elem = Element(
             self.srv + "serviceType",
         )
@@ -685,9 +767,9 @@ class Iso19115MetadataBuilder:
         service_type_version = self.service_version
         locale_name_elem.text = "urn:ogc:serviceType:{}:{}".format(service_type, service_type_version)
         service_type_elem.append(locale_name_elem)
-        ret_elem.append(service_type_elem)
+        upper_elem.append(service_type_elem)
 
-        # gmd:serviceTypeVersion
+        # srv:serviceTypeVersion
         service_version_elem = Element(
             self.srv + "serviceTypeVersion",
         )
@@ -696,35 +778,35 @@ class Iso19115MetadataBuilder:
         )
         char_str_elem.text = service_type_version.value
         service_version_elem.append(char_str_elem)
-        ret_elem.append(service_version_elem)
+        upper_elem.append(service_version_elem)
 
-        # gmd:accessProperties
+        # srv:accessProperties
         # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
         # access_properties_elem = Element(
-        #     self.gmd + "accessProperties"
+        #     self.srv + "accessProperties"
         # )
 
-        # gmd:restrictions
+        # srv:restrictions
         # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
         # restrictions_elem = Element(
-        #     self.gmd + "restrictions"
+        #     self.srv + "restrictions"
         # )
 
-        # gmd:keywords
+        # srv:keywords
         # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
         # keywords_elem = Element(
-        #     self.gmd + "keywords"
+        #     self.srv + "keywords"
         # )
 
-        # gmd:extent
+        # srv:extent
         extent_elem = Element(
             self.srv + "extent"
         )
-        extent_content_elem = self._create_extent()
+        extent_content_elem = self._create_extent_geographic()
         extent_elem.append(extent_content_elem)
-        ret_elem.append(extent_elem)
+        upper_elem.append(extent_elem)
 
-        # gmd:couplingType
+        # srv:couplingType
         coupling_type_elem = Element(
             self.srv + "couplingType",
         )
@@ -736,29 +818,73 @@ class Iso19115MetadataBuilder:
             }
         )
         coupling_type_elem.append(coupling_type_content_elem)
-        ret_elem.append(coupling_type_elem)
+        upper_elem.append(coupling_type_elem)
 
-        # gmd:coupledResource
+        # srv:coupledResource
         # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
         # coupled_res_elem = Element(
-        #     self.gmd + "coupledResource"
+        #     self.srv + "coupledResource"
         # )
 
-        # gmd:containsOperations
+        # srv:containsOperations
         contains_op_elem = Element(
             self.srv + "containsOperations"
         )
         contains_op_content_elem = self._create_operation_metadata()
         contains_op_elem.append(contains_op_content_elem)
-        ret_elem.append(contains_op_elem)
+        upper_elem.append(contains_op_elem)
 
-        # gmd:operatesOn
+        # srv:operatesOn
         # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
         # operates_on_elem = Element(
-        #     self.gmd + "operatesOn"
+        #     self.srv + "operatesOn"
         # )
 
-        return ret_elem
+        return upper_elem
+
+    def _create_data_identification_info(self, upper_elem: Element):
+        """ Creates the <gmd:MD_DataIdentification> element contents
+
+        Adds it's elements to a given base information element (upper_elem)
+
+        Args:
+            upper_elem (Element): The base info element
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        elems = [
+            self._create_character_set,
+            self._create_language,
+            self._create_topic_category,
+            self._create_extent_geographic,
+        ]
+        
+        for func in elems:
+            elem = func()
+            if not isinstance(elem, _Element) and isinstance(elem, Iterable):
+                for e in elem:
+                    upper_elem.append(e)
+            else:
+                upper_elem.append(elem)
+
+    def _create_topic_category(self):
+        """ Creates the <gmd:topicCategory> element
+
+        Returns:
+             ret_list (list): A list of requested xml elements
+        """
+        ret_list = []
+        for category in self.metadata.categories.all():
+            topic_elem = Element(
+                self.gmd + "topicCategory"
+            )
+            code_elem = Element(
+                self.gmd + "MD_TopicCategoryCode"
+            )
+            topic_elem.append(code_elem)
+            code_elem.text = category.title_EN
+            ret_list.append(topic_elem)
+        return ret_list
 
     def _create_citation(self):
         """ Creates the <gmd:citation> element
@@ -959,7 +1085,7 @@ class Iso19115MetadataBuilder:
 
         return ret_elem
 
-    def _create_extent(self):
+    def _create_extent_geographic(self):
         """ Creates the <gmd:EX_Extent> element
 
         Returns:
@@ -1177,6 +1303,10 @@ class Iso19115MetadataBuilder:
              ret_elem (_Element): The requested xml element
         """
         ret_elem = Element(
+            self.gmd + "distributionInfo"
+        )
+
+        elem = Element(
             self.gmd + "MD_Distribution"
         )
 
@@ -1186,7 +1316,7 @@ class Iso19115MetadataBuilder:
         )
         distr_format_content_elem = self._create_distribution_format()
         distr_format_elem.append(distr_format_content_elem)
-        ret_elem.append(distr_format_elem)
+        elem.append(distr_format_elem)
 
         # gmd:distributor
         distributor_elem = Element(
@@ -1194,14 +1324,16 @@ class Iso19115MetadataBuilder:
         )
         distributor_content_elem = self._create_distributor()
         distributor_elem.append(distributor_content_elem)
-        ret_elem.append(distributor_elem)
+        elem.append(distributor_elem)
 
         # gmd:transferOptions
         transfer_options_elem = Element(
             self.gmd + "transferOptions"
         )
         transfer_options_elem.append(self._create_digital_transfer_options())
-        ret_elem.append(transfer_options_elem)
+        elem.append(transfer_options_elem)
+
+        xml_helper.add_subelement(ret_elem, elem)
 
         return ret_elem
 
@@ -1338,15 +1470,17 @@ class Iso19115MetadataBuilder:
              ret_elem (_Element): The requested xml element
         """
         ret_elem = Element(
+            self.gmd + "dataQualityInfo"
+        )
+        elem = Element(
             self.gmd + "DQ_DataQuality"
         )
-
         # gmd:scope
         scope_elem = Element(
             self.gmd + "scope"
         )
         scope_elem.append(self._create_scope())
-        ret_elem.append(scope_elem)
+        elem.append(scope_elem)
 
         # gmd:report
         legislation_groups = [
@@ -1364,13 +1498,15 @@ class Iso19115MetadataBuilder:
                     self.gmd + "report"
                 )
                 report_elem.append(self._create_report(legislation))
-                ret_elem.append(report_elem)
+                elem.append(report_elem)
 
         # gmd:lineage
         lineage_elem = Element(
             self.gmd + "lineage"
         )
-        ret_elem.append(lineage_elem)
+        elem.append(lineage_elem)
+
+        xml_helper.add_subelement(ret_elem, elem)
 
         return ret_elem
 
@@ -1395,7 +1531,7 @@ class Iso19115MetadataBuilder:
         extent_elem = Element(
             self.gmd + "extent"
         )
-        extent_elem.append(self._create_extent())
+        extent_elem.append(self._create_extent_geographic())
         ret_elem.append(extent_elem)
 
         # gmd:levelDescription

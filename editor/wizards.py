@@ -17,6 +17,8 @@ from service.helper.enums import MetadataEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
 from service.models import Dataset, Metadata, MetadataRelation, MetadataOrigin, MetadataType, Document
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, DEFAULT_SRS
+from structure.models import Organization, MrMapUser
+from users.helper import user_helper
 
 DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
                         (_("classification"), DatasetClassificationForm),
@@ -65,23 +67,26 @@ class DatasetWizard(MrMapWizard):
             dataset.save()
             metadata.metadata_url = reverse("service:get-dataset-metadata", args=(dataset.id,))
 
-        self._fill_form_list(form_list, metadata, dataset)
+        user = user_helper.get_user(request=self.request)
+        self._fill_form_list(form_list, metadata, dataset, user)
 
         return HttpResponseRedirect(reverse(self.kwargs['current_view'], ), status=303)
 
     @staticmethod
-    def _fill_form_list(form_list, metadata: Metadata, dataset: Dataset):
+    def _fill_form_list(form_list, metadata: Metadata, dataset: Dataset, user: MrMapUser):
         """ Iterates over all forms and applies the metadata changes on the objects
 
         Args:
             form_list: The list of forms
             metadata: The metadata record
             dataset: The dataset record
+            user: The performing user
         Returns:
 
         """
         function_map = {
             "DatasetIdentificationForm": DatasetWizard._fill_metadata_dataset_identification_form,
+            "DatasetResponsiblePartyForm": DatasetWizard._fill_metadata_dataset_responsible_party_form,
             "DatasetClassificationForm": DatasetWizard._fill_metadata_dataset_classification_form,
             "DatasetSpatialExtentForm": DatasetWizard._fill_metadata_dataset_spatial_extent_form,
             "DatasetLicenseConstraintsForm": DatasetWizard._fill_metadata_dataset_licence_form,
@@ -90,7 +95,10 @@ class DatasetWizard(MrMapWizard):
 
         for form in form_list:
             form_class = type(form).__name__
-            function_map[form_class](form.cleaned_data, metadata, dataset)
+            function_map[form_class](form.cleaned_data, metadata, dataset, user)
+
+        dataset.save()
+        metadata.save()
 
         try:
             doc = Document.objects.get(related_metadata__id=metadata.id)
@@ -98,17 +106,16 @@ class DatasetWizard(MrMapWizard):
         except ObjectDoesNotExist:
             DatasetWizard._create_dataset_document(metadata, dataset)
 
-        dataset.save()
-        metadata.save()
 
     @staticmethod
-    def _fill_metadata_dataset_identification_form(data: dict, metadata: Metadata, dataset: Dataset):
+    def _fill_metadata_dataset_identification_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
         """ Fills form data into Metadata/Dataset records
 
         Args:
             data (dict): Cleaned form data
             metadata (dict): The metadata record
             dataset (dict): The dataset record
+            user: The performing user
         Returns:
 
         """
@@ -142,13 +149,14 @@ class DatasetWizard(MrMapWizard):
             metadata.related_metadata.add(md_relation)
 
     @staticmethod
-    def _fill_metadata_dataset_classification_form(data: dict, metadata: Metadata, dataset: Dataset):
+    def _fill_metadata_dataset_classification_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
         """ Fills form data into Metadata/Dataset records
 
         Args:
             data (dict): Cleaned form data
             metadata (dict): The metadata record
             dataset (dict): The dataset record
+            user: The performing user
         Returns:
 
         """
@@ -163,13 +171,14 @@ class DatasetWizard(MrMapWizard):
             metadata.categories.add(cat)
 
     @staticmethod
-    def _fill_metadata_dataset_spatial_extent_form(data: dict, metadata: Metadata, dataset: Dataset):
+    def _fill_metadata_dataset_spatial_extent_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
         """ Fills form data into Metadata/Dataset records
 
         Args:
             data (dict): Cleaned form data
             metadata (dict): The metadata record
             dataset (dict): The dataset record
+            user: The performing user
         Returns:
 
         """
@@ -192,13 +201,14 @@ class DatasetWizard(MrMapWizard):
         metadata.bounding_geometry = geom
 
     @staticmethod
-    def _fill_metadata_dataset_licence_form(data: dict, metadata: Metadata, dataset: Dataset):
+    def _fill_metadata_dataset_licence_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
         """ Fills form data into Metadata/Dataset records
 
         Args:
             data (dict): Cleaned form data
             metadata (dict): The metadata record
             dataset (dict): The dataset record
+            user: The performing user
         Returns:
 
         """
@@ -206,18 +216,47 @@ class DatasetWizard(MrMapWizard):
         metadata.access_constraints = data.get("access_constraints", None)
 
     @staticmethod
-    def _fill_metadata_dataset_quality_form(data: dict, metadata: Metadata, dataset: Dataset):
+    def _fill_metadata_dataset_quality_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
         """ Fills form data into Metadata/Dataset records
 
         Args:
             data (dict): Cleaned form data
             metadata (dict): The metadata record
             dataset (dict): The dataset record
+            user: The performing user
         Returns:
 
         """
         dataset.update_frequency_code = data.get("maintenance_and_update_frequency", None)
         dataset.lineage_statement = data.get("lineage_statement", None)
+
+    @staticmethod
+    def _fill_metadata_dataset_responsible_party_form(data:dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
+        """ Fills form data into Metadata/Dataset records
+
+        Args:
+            data (dict): Cleaned form data
+            metadata (dict): The metadata record
+            dataset (dict): The dataset record
+            user: The performing user
+        Returns:
+
+        """
+        # Check on an existing organization
+        org = data.get("organization")
+        if org is None:
+            # A new org has to be created with minimal contact details
+            org = Organization(
+                organization_name=data.get("organization_name"),
+                is_auto_generated=True,
+                person_name=data.get("person_name"),
+                phone=data.get("phone"),
+                email=data.get("mail"),
+                facsimile=data.get("facsimile"),
+                created_by=user,
+            )
+            org.save()
+        metadata.contact = org
 
     @staticmethod
     def _create_dataset_document(metadata: Metadata, dataset: Dataset):
@@ -234,5 +273,5 @@ class DatasetWizard(MrMapWizard):
         )[0]
         doc_builder = Iso19115MetadataBuilder(metadata.id, MetadataEnum.DATASET)
         dataset_doc_string = doc_builder.generate_service_metadata()
-        document_obj.current_dataset_metadata_document = dataset_doc_string
+        document_obj.current_dataset_metadata_document = dataset_doc_string.decode("UTF-8")
         document_obj.save()

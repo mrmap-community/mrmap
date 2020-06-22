@@ -200,8 +200,11 @@ class DatasetLicenseConstraintsForm(MrMapWizardForm):
     terms_of_use = forms.ChoiceField(label=_('Terms of use'),
                                      required=False,
                                      choices=TermsOfUse.objects.all())
-    access_constraints = forms.CharField(label=_('Access constraints'),
-                                         required=False)
+    access_constraints = forms.CharField(
+        label=_('Access constraints'),
+        required=False,
+        widget=forms.Textarea()
+    )
 
     def __init__(self, *args, **kwargs):
         super(DatasetLicenseConstraintsForm, self).__init__(*args, **kwargs)
@@ -242,10 +245,15 @@ class DatasetSpatialExtentForm(MrMapWizardForm):
 
 
 class DatasetQualityForm(MrMapWizardForm):
-    maintenance_and_update_frequency = forms.ChoiceField(label=_('Maintenance and update frequency'),
-                                                         choices=Dataset.UPDATE_FREQUENCY_CHOICES)
-    lineage_statement = forms.CharField(label=_('Lineage Statement'),
-                                        required=False)
+    maintenance_and_update_frequency = forms.ChoiceField(
+        label=_('Maintenance and update frequency'),
+        choices=Dataset.UPDATE_FREQUENCY_CHOICES
+    )
+    lineage_statement = forms.CharField(
+        label=_('Lineage Statement'),
+        required=False,
+        widget=forms.Textarea()
+    )
 
     def __init__(self, *args, **kwargs):
         super(DatasetQualityForm, self).__init__(*args, **kwargs)
@@ -263,14 +271,26 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
                                           required=False,
                                           widget=forms.Select(attrs={'class': 'auto_submit_item'}),
                                           help_text=_('Select an existing organization to edit them or create a new one by select empty and fill the fields below.'))
-    person_name = forms.CharField(label=_('Person name'),
-                                  required=False,)
-    phone = forms.CharField(label=_('Phone'),
-                            required=False,)
-    mail = forms.CharField(label=_('Mail'),
-                           required=False,)
-    facsimile = forms.CharField(label=_('Facsimile'),
-                                required=False,)
+    organization_name = forms.CharField(
+        label=_('Organization name'),
+        required=False,
+    )
+    person_name = forms.CharField(
+        label=_('Person name'),
+        required=False,
+    )
+    phone = forms.CharField(
+        label=_('Phone'),
+        required=False,
+    )
+    mail = forms.CharField(
+        label=_('Mail'),
+        required=False,
+    )
+    facsimile = forms.CharField(
+        label=_('Facsimile'),
+        required=False,
+    )
 
     def __init__(self, *args, **kwargs):
         # This form containing organization as depending dropdown.
@@ -287,12 +307,14 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
             post_data_organization = kwargs['data'][f"{kwargs['prefix']}-organization"]
             if post_data_organization != '':
                 selected_organization = Organization.objects.get(id=post_data_organization)
-                data.update({f"{kwargs['prefix']}-person_name": selected_organization.person_name,
+                data.update({f"{kwargs['prefix']}-organization_name": selected_organization.organization_name,
+                             f"{kwargs['prefix']}-person_name": selected_organization.person_name,
                              f"{kwargs['prefix']}-phone": selected_organization.phone,
                              f"{kwargs['prefix']}-mail": selected_organization.email,
                              f"{kwargs['prefix']}-facsimile": selected_organization.facsimile, })
             else:
-                data.update({f"{kwargs['prefix']}-person_name": '',
+                data.update({f"{kwargs['prefix']}-organization_name": '',
+                             f"{kwargs['prefix']}-person_name": '',
                              f"{kwargs['prefix']}-phone": '',
                              f"{kwargs['prefix']}-mail": '',
                              f"{kwargs['prefix']}-facsimile": '', })

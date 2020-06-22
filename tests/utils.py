@@ -36,7 +36,7 @@ def check_table_sorting(table: MrMapTable, url_path_name: str, sorting_parameter
 
     This function returns two elements, so call it like
     ```
-    sorting_failed, sorting_results = _check_table_sorting(...)
+    sorting_failed, sorting_results = check_table_sorting(...)
     ```
 
     Args:
@@ -68,6 +68,11 @@ def check_table_sorting(table: MrMapTable, url_path_name: str, sorting_parameter
             try:
                 # Check if correctly sorted
                 post_sorting = [utils.get_nested_attribute(row.record, column.accessor).__str__() for row in table.rows]
+                try:
+                    # For numerical sorting, the strings have to be casted to Integer - if possible
+                    post_sorting = [int(p) for p in post_sorting]
+                except ValueError:
+                    pass
                 python_sorted = sorted(post_sorting, reverse=sorting == "-")
 
                 sorting_result = post_sorting == python_sorted

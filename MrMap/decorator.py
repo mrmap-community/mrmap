@@ -15,6 +15,7 @@ from django.urls import reverse
 
 from MrMap.messages import NO_PERMISSION, SERVICE_NOT_FOUND, RESOURCE_IS_OWNED_BY_ANOTHER_GROUP, \
     REQUESTING_USER_IS_NOT_MEMBER_OF_THE_GROUP, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION
+from MrMap.utils import get_dict_value_insensitive
 from service.models import Metadata, ProxyLog, Resource
 from structure.models import Permission, MrMapUser, MrMapGroup, Organization
 from users.helper import user_helper
@@ -121,6 +122,7 @@ def log_proxy(function):
             proxy_log = ProxyLog(
                 metadata=md,
                 uri=uri,
+                operation=get_dict_value_insensitive(request.GET.dict(), "request"),
                 post_body=post_body,
                 user=logged_user
             )

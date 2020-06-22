@@ -1,4 +1,6 @@
+
 import io
+from datetime import datetime
 from io import BytesIO
 from PIL import Image, UnidentifiedImageError
 from django.contrib import messages
@@ -20,7 +22,7 @@ from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MrMap.responses import DefaultContext
 from service import tasks
-from service.helper import xml_helper
+from service.helper import xml_helper, logger_helper
 from service.filters import MetadataWmsFilter, MetadataWfsFilter
 from service.forms import RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, RemoveServiceForm, UpdateServiceCheckForm, UpdateOldToNewElementsForm
@@ -30,7 +32,8 @@ from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVer
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
-from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable, UpdateServiceElements
+from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
+    ProxyLogTable
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
@@ -1185,3 +1188,64 @@ def get_metadata_legend(request: HttpRequest, metadata_id: int, style_id: int):
     con.load()
     response = con.content
     return HttpResponse(response, content_type="")
+
+
+@login_required
+@check_permission(Permission(can_access_logs=True))
+def logs_view(request: HttpRequest):
+    """ Renders a view for the ProxyLog entries
+
+    Possible parameters for log filtering are:
+        * ds (date-start): Date-time string
+        * de (date-end): Date-time string
+        * u (user): Id of a user
+        * g (group): Id of a group
+        * t (type): 'wms'|'wfs'
+
+    Args:
+        request (HttpRequest):
+    Returns:
+
+    """
+    template = "views/log_index.html"
+    user = user_helper.get_user(request)
+
+    proxy_log_table = logger_helper.prepare_proxy_log_filter(request, user)
+
+    params = {
+        "log_table": proxy_log_table
+    }
+    context = DefaultContext(request, params, user).get_context()
+    return render(request=request, template_name=template, context=context)
+
+
+@login_required
+@check_permission(Permission(can_download_logs=True))
+def logs_download(request: HttpRequest):
+    """ Provides the filtered ProxyLog table as csv download.
+
+    CSV is the only provided file type.
+
+    Args:
+        request (HttpRequest):
+    Returns:
+
+    """
+    user = user_helper.get_user(request)
+    CSV = "text/csv"
+    proxy_log_table = logger_helper.prepare_proxy_log_filter(request, user)
+
+    # Create empty response object and fill it with dynamic csv content
+    stream = io.StringIO()
+    timestamp_now = datetime.now()
+    data = proxy_log_table.fill_csv_response(stream)
+
+    data_size = len(data)
+    # Stream files larger than 100 MB
+    if data_size > 100 * 1024 * 1024:
+        response = StreamingHttpResponse(data, content_type=CSV)
+    else:
+        response = HttpResponse(data, content_type=CSV)
+
+    response['Content-Disposition'] = f'attachment; filename="MrMap_logs_{timestamp_now.strftime("%Y-%m-%dT%H:%M:%S")}.csv"'
+    return response

@@ -17,6 +17,7 @@ from threading import Thread
 from PIL import Image, ImageFont, ImageDraw
 from cryptography.fernet import InvalidToken
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import connection
 from lxml import etree
 
 from django.contrib.gis.geos import Polygon, GEOSGeometry, Point, GeometryCollection, MultiLineString
@@ -36,7 +37,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.request_builder import OGCRequestPOSTBuilder
-from service.models import Metadata, FeatureType, Layer, ProxyLog
+from service.models import Metadata, FeatureType, Layer, ProxyLog, SecuredOperation
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
@@ -1505,10 +1506,10 @@ class OGCOperationRequestHandler:
             thread_list = []
             results = Queue()
             thread_list.append(
-                Thread(target=lambda r: r.put(self.get_operation_response()), args=(results,))
+                Thread(target=lambda r: r.put(self.get_operation_response(), connection.close()), args=(results,))
             )
             thread_list.append(
-                Thread(target=lambda r, m, s: r.put(self._create_secured_service_mask(m, s)), args=(results, metadata, sec_ops))
+                Thread(target=lambda r, m, s: r.put(self._create_secured_service_mask(m, s), connection.close()), args=(results, metadata, sec_ops))
             )
             execute_threads(thread_list)
 

@@ -319,3 +319,11 @@ def create_operation(operation_name: OGCOperationEnum):
         "tests.baker_recipes.service_app.operation",
         operation_name=operation_name
     )
+
+
+def create_proxy_logs(user, num: int = 1):
+    return baker.make_recipe(
+        "tests.baker_recipes.service_app.proxy_log",
+        _quantity=num,
+        user=user,
+    )

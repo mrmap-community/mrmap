@@ -111,6 +111,7 @@ ALLOWED_HOSTS = [
 INSTALLED_APPS = [
     'dal',
     'dal_select2',
+    'django.forms',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -133,6 +134,7 @@ INSTALLED_APPS = [
     'bootstrap4',
     'fontawesome_5',
     'django_tables2',
+    'django_filters',
     'query_parameters',
     'django_nose',
     'mathfilters',
@@ -167,6 +169,8 @@ PASSWORD_HASHERS = [
 
 ROOT_URLCONF = 'MrMap.urls'
 
+FORM_RENDERER = 'django.forms.renderers.TemplatesSetting'
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -197,7 +201,7 @@ DATABASES = {
         'NAME': 'MrMap',
         'USER': 'postgres',
         'HOST': '127.0.0.1',
-        'PORT': '5432'
+        'PORT': '5432',
     }
 }
 
@@ -257,6 +261,7 @@ LOCALE_PATHS = (
     os.path.join(BASE_DIR, 'locale'),
 )
 
+DEFAULT_DATE_TIME_FORMAT = 'YYYY-MM-DD hh:mm:ss'
 
 TIME_ZONE = 'Europe/Berlin'
 

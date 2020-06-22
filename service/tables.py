@@ -1,3 +1,5 @@
+import csv
+
 import django_tables2 as tables
 from django.db.models.functions import Length
 from django.utils.html import format_html
@@ -6,6 +8,7 @@ import json
 from MrMap.celery_app import app
 from celery.result import AsyncResult
 
+from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
 from MrMap.utils import get_theme, get_ok_nok_icon
 from MrMap.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
@@ -323,3 +326,61 @@ class CoupledMetadataTable(MrMapTable):
 class UpdateServiceElements(MrMapTable):
     title = tables.Column(empty_values=[],)
     identifier = tables.Column(empty_values=[],)
+
+
+class ProxyLogTable(MrMapTable):
+    caption = _("Shows all logs for a service.")
+
+    class Meta:
+        row_attrs = {
+            "class": "text-center"
+        }
+
+    id = MrMapColumn(accessor='id',
+                     verbose_name=_('Log ID'),
+                     tooltip=_("The id of the ProxyLog"))
+    metadata_title = MrMapColumn(accessor='metadata.title',
+                                 verbose_name='Service Title',
+                                 tooltip=_("The title of the related service"))
+    user_name = MrMapColumn(accessor='user',
+                            verbose_name=_('User'),
+                            tooltip=_("Name of the user which produced this log entry"))
+    timestamp = MrMapColumn(accessor='timestamp',
+                            verbose_name=_('Timestamp'),
+                            tooltip=_("Timestamp when the entry was produced"))
+    operation = MrMapColumn(accessor='operation',
+                            tooltip=_("Operation param of the request"),
+                            verbose_name=_('Operation'), )
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def render_metadata_title(record):
+        return "{} #{}".format(record.metadata.title, record.metadata.id)
+
+    def fill_csv_response(self, stream):
+        csv_writer = csv.writer(stream)
+        csv_writer.writerow([
+            _("ID"),
+            _("Title"),
+            _("User"),
+            _("Operation"),
+            _("Delivered Features (WFS)"),
+            _("Delivered Megapixel (WMS)"),
+            _("Timestamp"),
+        ])
+        for log in self.data.data:
+            csv_writer.writerow(
+                [
+                    log.id,
+                    log.metadata.title,
+                    log.user,
+                    log.operation,
+                    log.response_wfs_num_features,
+                    log.response_wms_megapixel,
+                    log.timestamp,
+                ]
+            )
+        return stream.getvalue()

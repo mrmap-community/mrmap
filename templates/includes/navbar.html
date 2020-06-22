@@ -57,6 +57,11 @@
                     {% autoescape off %}{{THEME.ICONS.API}}{% endautoescape %} {% trans 'API' %}
                 </a>
             </li>
+            <li class="nav-item dropdown {% if PATH == 'logs' %}active{% endif %}">
+                <a class="nav-link" href="{% url 'service:logs-view' %}" title="{% trans 'Logs' %}">
+                    {% autoescape off %}{{THEME.ICONS.LOGS}}{% endautoescape %} {% trans 'Logs' %}
+                </a>
+            </li>
         </ul>
         <div>
             <a class="btn {{THEME.NAV.BTN_LIGHT}}" href="{% url 'account' %}" title="{% trans 'Account' %}" role="button">

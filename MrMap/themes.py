@@ -170,6 +170,7 @@ LIGHT_THEME = {
     'CARD': {
         'BG': 'bg-light',
         'TXT_COLOR': ' ',
+        'TXT_SUBTITLE_COLOR': 'text-muted',
         'BOARDER': 'border border-dark rounded',
         'LINK_COLOR': 'text-primary',
         'BTN_PRIMARY_COLOR': 'btn-primary',

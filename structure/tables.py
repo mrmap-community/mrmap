@@ -155,7 +155,7 @@ class GroupTable(MrMapTable):
         return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
                              href=url,
                              content=icon + ' ' + value,
-                             tooltip=tooltip)
+                             tooltip=tooltip, )
 
     def render_groups_organization(self, value, record):
         url = reverse('structure:detail-organization', args=(record.id,))
@@ -177,12 +177,15 @@ class OrganizationTable(MrMapTable):
     def render_orgs_organization_name(self, value, record):
         url = reverse('structure:detail-organization', args=(record.id,))
         icon = ''
+        tooltip = ''
         if self.user.organization is not None and self.user.organization.organization_name == value:
             icon = get_theme(self.user)['ICONS']['HOME']
+            tooltip = _('This is your current home organization')
 
         return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
                              href=url,
-                             content=icon + ' ' + value)
+                             content=icon + ' ' + value,
+                             tooltip=tooltip, )
 
     @staticmethod
     def render_orgs_is_auto_generated(value):

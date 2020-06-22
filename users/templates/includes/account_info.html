@@ -1,0 +1,13 @@
+{% extends 'sceletons/well.html' %}
+{% load static i18n %}
+{% load bootstrap4 %}
+{% block card-body %}
+<h5 class="mb-1 mr-3">
+    {% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %} <strong>{{user.username}}</strong>
+</h5>
+<p><small class="text-muted mb-1">{{user.email}}</small></p>
+<p><small class="text-muted">
+    {% trans 'joined on' %}
+    <strong>{{user.date_joined}}</strong>
+</small></p>
+{% endblock %}

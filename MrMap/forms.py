@@ -43,6 +43,11 @@ class MrMapForm(forms.Form):
 
 
 class MrMapWizardForm(forms.Form):
+    is_form_update = forms.BooleanField(label=_('form update'),
+                                        widget=forms.HiddenInput(attrs={'class': 'is_form_update'}),
+                                        initial=False,
+                                        required=False,)
+
     def __init__(self, request: HttpRequest, instance_id: int = None, has_autocomplete_fields: bool = False, *args, **kwargs):
         super(MrMapWizardForm, self).__init__(*args, **kwargs)
         self.request = request
@@ -86,9 +91,3 @@ class MrMapConfirmForm(MrMapForm):
         if is_confirmed is not True:
             self.add_error("is_confirmed", _("Check this field"))
         return cleaned_data
-
-
-class MrMapFormList:
-    def __init__(self, form_list: list, action_url: str):
-        self.form_list = form_list
-        self.action_url = action_url

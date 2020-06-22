@@ -52,7 +52,6 @@ class MrMapWizard(SessionWizardView):
                                    self.process_step(current_form))
         self.storage.set_step_files(self.steps.current, self.process_step_files(current_form))
 
-
         # ToDo: call super().render_goto_step instead to write duplicate code
         self.storage.current_step = goto_step
         next_form = self.get_form(

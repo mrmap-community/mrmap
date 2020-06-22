@@ -7,9 +7,9 @@ Created on: 13.02.2020
 
 This file holds all global constants
 """
+from django.utils.html import format_html
 
 DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE = "sceletons/django_tables2_bootstrap4_custom.html"
-
 
 SERVICE_INDEX = "service:index"
 SERVICE_DETAIL = "service:detail"
@@ -33,3 +33,13 @@ BTN_CLASS = "btn"
 BTN_SM_CLASS = "btn-sm"
 
 
+def construct_url(classes: str, href: str, content: str, tooltip: str = None):
+    url = format_html(f"<a class={classes} href='{href}'>{content}</a>")
+    if tooltip:
+        url = _construct_tooltip(tooltip=tooltip, content=url)
+    return url
+
+
+def _construct_tooltip(tooltip: str, content: str):
+    return format_html(
+        f"<span class='d-inline-block' tabindex='0' data-toggle='tooltip' title='{tooltip}'>{content}</span>")

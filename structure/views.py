@@ -27,7 +27,7 @@ from users.helper.user_helper import create_group_activity
 
 
 def _prepare_group_table(request: HttpRequest, user: MrMapUser, ):
-    user_groups = user.get_groups()
+    user_groups = user.get_groups().order_by(Case(When(name='Public', then=0)), 'name')
     user_groups_filtered = GroupFilter(request.GET, queryset=user_groups)
 
     groups_table = GroupTable(user_groups_filtered.qs,

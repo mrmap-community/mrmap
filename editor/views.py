@@ -2,6 +2,7 @@ import json
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Case, When
 from django.http import HttpRequest
 from django.shortcuts import render, redirect
 
@@ -247,7 +248,7 @@ def edit_access(request: HttpRequest, id: int):
         sec_ops = SecuredOperation.objects.filter(
             secured_metadata=md
         )
-        all_groups = MrMapGroup.objects.all().order_by('id')
+        all_groups = MrMapGroup.objects.all().order_by(Case(When(name='Public', then=0)), 'name')
         tmp = editor_helper.prepare_secured_operations_groups(operations, sec_ops, all_groups, md)
 
         spatial_restrictable_operations = [

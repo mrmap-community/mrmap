@@ -170,7 +170,7 @@ class DatasetTable(MrMapTable):
         super().__init__(*args, **kwargs)
 
     def render_dataset_title(self, value, record):
-        url = reverse('service:get-dataset-metadata', args=(record.id,))
+        url = reverse('service:get-metadata-html', args=(record.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
     def render_dataset_related_objects(self, record):

@@ -2,13 +2,13 @@ import json
 import uuid
 from json import JSONDecodeError
 
-from django.contrib.gis.geos import GEOSGeometry, Polygon, GeometryCollection
+from django.contrib.gis.geos import GEOSGeometry, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from MrMap.wizards import MrMapWizard
 from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
-    DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm
+    DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm
 from django.utils.translation import gettext_lazy as _
 
 from editor.helper.editor_helper import overwrite_dataset_metadata_document
@@ -20,6 +20,7 @@ from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, DEFAULT_SRS
 
 DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
                         (_("classification"), DatasetClassificationForm),
+                        (_("responsible party"), DatasetResponsiblePartyForm),
                         (_("spatial extent"), DatasetSpatialExtentForm),
                         (_("licenses/constraints"), DatasetLicenseConstraintsForm),
                         (_("Quality"), DatasetQualityForm), ]

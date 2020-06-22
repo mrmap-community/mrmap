@@ -14,6 +14,7 @@ from MrMap.widgets import BootstrapDateTimePickerInput, BootstrapDatePickerInput
 from service.helper.enums import MetadataEnum
 from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem, TermsOfUse
 from service.settings import ISO_19115_LANG_CHOICES, DEFAULT_SERVICE_BOUNDING_BOX
+from structure.models import Organization
 from users.helper import user_helper
 
 
@@ -254,3 +255,52 @@ class DatasetQualityForm(MrMapWizardForm):
             dataset = Dataset.objects.get(id=metadata.dataset.id)
             self.fields['lineage_statement'].initial = dataset.lineage_statement
             self.fields['maintenance_and_update_frequency'].initial = dataset.update_frequency_code
+
+
+class DatasetResponsiblePartyForm(MrMapWizardForm):
+    organization = forms.ModelChoiceField(label=_('Organization'),
+                                          queryset=None,
+                                          required=False,
+                                          widget=forms.Select(attrs={'class': 'auto_submit_item'}),
+                                          help_text=_('Select an existing organization to edit them or create a new one by select empty and fill the fields below.'))
+    person_name = forms.CharField(label=_('Person name'),
+                                  required=False,)
+    phone = forms.CharField(label=_('Phone'),
+                            required=False,)
+    mail = forms.CharField(label=_('Mail'),
+                           required=False,)
+    facsimile = forms.CharField(label=_('Facsimile'),
+                                required=False,)
+
+    def __init__(self, *args, **kwargs):
+        # This form containing organization as depending dropdown.
+        # If an existing organization is selected, all contact fields are prefilled
+        # If no organization is selected while form updating, all contact fields are setted to empty.
+        if 'data' in kwargs and \
+                kwargs['data'] is not None and \
+                f"{kwargs['prefix']}-is_form_update" in kwargs['data'] and \
+                kwargs['data'][f"{kwargs['prefix']}-is_form_update"] == 'True':
+
+            data = kwargs['data'].copy()
+            del data[f"{kwargs['prefix']}-is_form_update"]
+
+            post_data_organization = kwargs['data'][f"{kwargs['prefix']}-organization"]
+            if post_data_organization != '':
+                selected_organization = Organization.objects.get(id=post_data_organization)
+                data.update({f"{kwargs['prefix']}-person_name": selected_organization.person_name,
+                             f"{kwargs['prefix']}-phone": selected_organization.phone,
+                             f"{kwargs['prefix']}-mail": selected_organization.email,
+                             f"{kwargs['prefix']}-facsimile": selected_organization.facsimile, })
+            else:
+                data.update({f"{kwargs['prefix']}-person_name": '',
+                             f"{kwargs['prefix']}-phone": '',
+                             f"{kwargs['prefix']}-mail": '',
+                             f"{kwargs['prefix']}-facsimile": '', })
+
+            kwargs['data'] = data
+            super(DatasetResponsiblePartyForm, self).__init__(*args, **kwargs)
+        else:
+            super(DatasetResponsiblePartyForm, self).__init__(*args, **kwargs)
+
+        organizations = Organization.objects.filter(is_auto_generated=False)
+        self.fields['organization'].queryset = organizations

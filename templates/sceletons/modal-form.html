@@ -37,7 +37,7 @@
 
 <script type="application/javascript">
     $(function() {
-       $(".auto_submit_item").change(function() {
+       $("#id_modal_form_{{id_modal}} .auto_submit_item").change(function() {
          $('#id_is_form_update').val('True');
          $('#id_modal_form_{{id_modal}}').submit();
        });

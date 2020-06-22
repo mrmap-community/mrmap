@@ -15,7 +15,7 @@
                 {% block modal-header %}
                 {% endblock %}
             </div><!-- </modal-header> -->
-                <form action="{{action_url}}" method="post" id="id_form"><!-- <modal-form> -->
+                <form action="{{action_url}}" method="post" id="id_modal_form_{{id_modal}}"><!-- <modal-form> -->
                     {% csrf_token %}
                     <div class="modal-body"><!-- <modal-body> -->
                         {% if wizard.messages %}
@@ -123,3 +123,16 @@
         $('#id_modal_{{id_modal}}').modal('show');
     </script>
 {% endif %}
+
+<script type="application/javascript">
+    $(function() {
+       $('#id_modal_form_{{id_modal}} .auto_submit_item').change(function() {
+         $('#id_modal_form_{{id_modal}} .is_form_update').val('True');
+         var input = $("<input>")
+               .attr("type", "hidden")
+               .attr("name", "wizard_goto_step").val("{{ wizard.steps.current }}");
+         $('#id_modal_form_{{id_modal}}').append(input);
+         $('#id_modal_form_{{id_modal}}').submit();
+       });
+    });
+</script>

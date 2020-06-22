@@ -34,14 +34,18 @@ class Iso19115MetadataBuilder:
             self.service_type = self.metadata.get_service_type()
 
         if self.metadata.is_featuretype_metadata:
+            self.service_type = OGCServiceEnum.WFS.value
             self.described_resource = FeatureType.objects.get(
                 metadata=self.metadata
             ).parent_service
         elif self.metadata.is_dataset_metadata:
             self.described_resource = Dataset.objects.get(metadata=self.metadata)
+            self.service_type = OGCServiceEnum.DATASET.value
         elif self.metadata.is_service_metadata:
+            self.service_type = self.metadata.get_service_type()
             self.described_resource = self.metadata.service
         elif self.metadata.is_layer_metadata:
+            self.service_type = OGCServiceEnum.WMS.value
             self.described_resource = Layer.objects.get(metadata=self.metadata)
         else:
             raise NotImplementedError
@@ -75,6 +79,10 @@ class Iso19115MetadataBuilder:
             "wfs": {
                 "en": "Web feature service",
                 "de": "Downloaddienst",
+            },
+            "dataset": {
+                "en": "Dataset",
+                "de": "Datensatz",
             },
         }
 

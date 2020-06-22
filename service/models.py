@@ -2926,7 +2926,12 @@ class Dataset(Resource):
     lineage_statement = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return self.metadata.title
+        try:
+            ret_val = self.metadata.title
+        except (AttributeError, ObjectDoesNotExist):
+            ret_val = "None"
+
+        return ret_val
 
 
 class LegalReport(models.Model):

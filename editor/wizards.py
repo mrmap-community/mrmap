@@ -231,7 +231,7 @@ class DatasetWizard(MrMapWizard):
         document_obj = Document.objects.get_or_create(
             related_metadata=metadata
         )[0]
-        doc_builder = Iso19115MetadataBuilder(metadata.id, MetadataEnum.DATASET.value)
+        doc_builder = Iso19115MetadataBuilder(metadata.id, MetadataEnum.DATASET)
         dataset_doc_string = doc_builder.generate_service_metadata()
         document_obj.current_dataset_metadata_document = dataset_doc_string
         document_obj.save()

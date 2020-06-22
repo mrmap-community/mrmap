@@ -180,7 +180,7 @@ class OrganizationTable(MrMapTable):
         tooltip = ''
         if self.user.organization is not None and self.user.organization.organization_name == value:
             icon = get_theme(self.user)['ICONS']['HOME']
-            tooltip = _('This is your current home organization')
+            tooltip = _('This is your organization')
 
         return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
                              href=url,

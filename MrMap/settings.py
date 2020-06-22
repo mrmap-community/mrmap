@@ -137,7 +137,8 @@ INSTALLED_APPS = [
     'django_filters',
     'query_parameters',
     'django_nose',
-    'mathfilters'
+    'mathfilters',
+    'debug_toolbar',
 ]
 
 TEMPLATE_LOADERS = (
@@ -147,6 +148,7 @@ TEMPLATE_LOADERS = (
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.gzip.GZipMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.locale.LocaleMiddleware',
@@ -322,3 +324,10 @@ MESSAGE_TAGS = {
 
 MONITORING_TIME = "23:59:00"
 MONITORING_REQUEST_TIMEOUT = 30  # seconds
+
+
+# DJANGO DEBUG TOOLBAR
+# Add the IP for which the toolbar should be shown
+INTERNAL_IPS = [
+    "127.0.0.1"
+]

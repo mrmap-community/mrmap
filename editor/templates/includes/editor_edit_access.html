@@ -81,7 +81,16 @@
                                    data-sec-id="{{ group.sec_id }}">
                         </td>
                         <td>
-                            <label for="checkbox-sec-{{ group.group.id }}-{{ operation.operation.id }}">{{ group.group.name }} ({{ group.group.organization.organization_name }}) </label>
+                            <label for="checkbox-sec-{{ group.group.id }}-{{ operation.operation.id }}">
+                                {% if group.group.name == 'Public' %}
+                                    <span class='d-inline-block' tabindex='0' data-toggle='tooltip' title='{% trans "This is the anonymous public user group" %}'>
+                                        {% autoescape off %}{{THEME.ICONS.PUBLIC}}{% endautoescape %}
+                                        {{ group.group.name }} ({{ group.group.organization.organization_name }})
+                                    </span>
+                                {% else %}
+                                {{ group.group.name }} ({{ group.group.organization.organization_name }})
+                                {% endif %}
+                            </label>
                         </td>
                         <td>
                             {% if group.geo_json_geometry is None %}

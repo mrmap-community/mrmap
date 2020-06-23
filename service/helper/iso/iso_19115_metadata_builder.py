@@ -6,6 +6,7 @@ Created on: 25.09.19
 
 """
 import json
+from copy import copy
 
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -734,7 +735,9 @@ class Iso19115MetadataBuilder:
         point_of_contact_elem = Element(
             self.gmd + "pointOfContact"
         )
+        # _create_contact() returns the wrapping <gmd:contact> element, which is not needed here. We simply take the inner element and continue
         point_of_contact_content_elem = self._create_contact()
+        point_of_contact_content_elem = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format("CI_ResponsibleParty"), point_of_contact_content_elem)
         point_of_contact_elem.append(point_of_contact_content_elem)
         ret_elem.append(point_of_contact_elem)
 
@@ -1723,13 +1726,17 @@ class Iso19115MetadataBuilder:
         """
         doc = xml_helper.parse_xml(doc)
 
-        # Overwrtie
-        self._overwrite_dataset_metadata_identification_form_info(doc)
-        self._overwrite_dataset_metadata_classification_form_info(doc)
-        self._overwrite_dataset_metadata_responsible_party_form_info(doc)
-        self._overwrite_dataset_metadata_spatial_extent_form_info(doc)
-        self._overwrite_dataset_metadata_licenses_form_info(doc)
-        self._overwrite_dataset_metadata_quality_form_info(doc)
+        # Overwrite
+        funcs = [
+            self._overwrite_dataset_metadata_identification_form_info,
+            self._overwrite_dataset_metadata_classification_form_info,
+            self._overwrite_dataset_metadata_responsible_party_form_info,
+            self._overwrite_dataset_metadata_spatial_extent_form_info,
+            self._overwrite_dataset_metadata_licenses_form_info,
+            self._overwrite_dataset_metadata_quality_form_info,
+        ]
+        for func in funcs:
+            func(doc)
 
         doc = etree.tostring(doc, xml_declaration=True, encoding="utf-8", pretty_print=True)
 
@@ -1814,7 +1821,30 @@ class Iso19115MetadataBuilder:
         Returns:
 
         """
-        pass
+        root = doc.getroot()
+
+        # Remove existing contact information elem
+        contact_info_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("contact"), root)
+        for elem in contact_info_elems:
+            xml_helper.remove_element(elem)
+
+        # Add new elements
+        ## Contact info are available on first level and nested inside of gmd:MD_DataIdentification
+        contact_elem = self._create_contact()
+        xml_helper.add_subelement(root, contact_elem, after=GENERIC_NAMESPACE_TEMPLATE.format("hierarchyLevel"))
+
+        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), root)
+        point_of_contact_elem = Element(
+            self.gmd + "pointOfContact"
+        )
+        # _create_contact() returns the <gmd:contact> wrapping element, which is not needed here.
+        # We continue using the inner <gmd:CI_ResponsibleParty>
+        copy_contact_elem = copy(contact_elem)
+        point_of_contact_elem.append(
+            xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format("CI_ResponsibleParty"), copy_contact_elem)
+        )
+        xml_helper.add_subelement(ident_elem, point_of_contact_elem, after=GENERIC_NAMESPACE_TEMPLATE.format("abstract"))
+
 
     def _overwrite_dataset_metadata_spatial_extent_form_info(self, doc: Element):
         """ Overwrites the elements according to the Dataset Spatial Extent Form.

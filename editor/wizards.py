@@ -247,7 +247,7 @@ class DatasetWizard(MrMapWizard):
         org = data.get("organization")
         if org is None:
             # A new org has to be created with minimal contact details
-            org = Organization(
+            org = Organization.objects.get_or_create(
                 organization_name=data.get("organization_name"),
                 is_auto_generated=True,
                 person_name=data.get("person_name"),
@@ -255,8 +255,7 @@ class DatasetWizard(MrMapWizard):
                 email=data.get("mail"),
                 facsimile=data.get("facsimile"),
                 created_by=user,
-            )
-            org.save()
+            )[0]
         metadata.contact = org
 
     @staticmethod

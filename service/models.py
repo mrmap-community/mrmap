@@ -2825,6 +2825,7 @@ class ReferenceSystem(models.Model):
 
     class Meta:
         unique_together = ("code", "prefix")
+        ordering = ["-code"]
 
     def __str__(self):
         return str(self.code)

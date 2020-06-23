@@ -98,15 +98,14 @@ class DatasetWizard(MrMapWizard):
             function_map[form_class](form.cleaned_data, metadata, dataset, user)
 
         dataset.save()
+        metadata.is_custom = True
         metadata.save()
 
         try:
             doc = Document.objects.get(related_metadata__id=metadata.id)
             DatasetWizard._overwrite_dataset_document(metadata, doc)
-            #overwrite_dataset_metadata_document(metadata, doc)
         except ObjectDoesNotExist:
             DatasetWizard._create_dataset_document(metadata)
-
 
     @staticmethod
     def _fill_metadata_dataset_identification_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):

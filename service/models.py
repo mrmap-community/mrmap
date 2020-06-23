@@ -28,7 +28,7 @@ from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, Metadata
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
-    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES
+    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES, DEFAULT_SRS
 from structure.models import MrMapGroup, Organization, MrMapUser
 from service.helper import xml_helper
 
@@ -1246,10 +1246,10 @@ class Metadata(Resource):
         cap_doc.restore()
 
     def _restore_dataset_md(self, ):
-        """ Private function for retrieving single layer metadata
+        """ Private function for restoring dataset metadata
 
         Args:
-            service (OGCWebMapService): An empty OGCWebMapService object to load and parse the metadata
+
         Returns:
              nothing, it changes the Metadata object itself
         """
@@ -1260,10 +1260,35 @@ class Metadata(Resource):
 
         self.language_code = original_metadata_document.language
 
+        # Take the polygon with the largest area as bounding geometry
+        if len(original_metadata_document.polygonal_extent_exterior) > 0:
+            max_area_poly = None
+            for poly in original_metadata_document.polygonal_extent_exterior:
+                if max_area_poly is None:
+                    max_area_poly = poly
+                if max_area_poly.area < poly.area:
+                    max_area_poly = poly
+            self.bounding_geometry = max_area_poly
+        else:
+            self.bounding_geometry = Polygon([0.0, 0.0, 0.0, 0.0], srid=DEFAULT_SRS)
+
         keyword_list = []
         for keyword in original_metadata_document.keywords:
             keyword_list.append(Keyword.objects.get_or_create(keyword=keyword)[0])
         self.keywords.set(keyword_list)
+
+        category_list = []
+        for cat in original_metadata_document.iso_categories:
+            try:
+                category_list.append(Category.objects.get(title_EN=cat))
+            except ObjectDoesNotExist:
+                pass
+        self.categories.set(category_list)
+
+        self.reference_system.clear()
+
+        self.dataset.lineage_statement = original_metadata_document.lineage
+        self.dataset.character_set_code = original_metadata_document.character_set_code
 
         doc = Document.objects.get(related_metadata=self)
         doc.current_dataset_metadata_document = doc.original_dataset_metadata_document

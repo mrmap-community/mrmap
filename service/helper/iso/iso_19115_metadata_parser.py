@@ -648,8 +648,15 @@ class ISOMetadata:
         metadata.abstract = self.abstract
         metadata.access_constraints = self.access_constraints
 
+        # Take the polygon with the largest area as bounding geometry
         if len(self.polygonal_extent_exterior) > 0:
-            metadata.bounding_geometry = self.polygonal_extent_exterior[0]
+            max_area_poly = None
+            for poly in self.polygonal_extent_exterior:
+                if max_area_poly is None:
+                    max_area_poly = poly
+                if max_area_poly.area < poly.area:
+                    max_area_poly = poly
+            metadata.bounding_geometry = max_area_poly
 
         try:
             metadata.contact = Organization.objects.get_or_create(

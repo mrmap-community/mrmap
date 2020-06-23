@@ -49,6 +49,7 @@ These instructions will get you a copy of the project up and running on your loc
 
         (venv) $ python manage.py makemigrations service
         (venv) $ python manage.py makemigrations structure
+        (venv) $ python manage.py makemigrations monitoring
         (venv) $ python manage.py migrate
 
 1. (Optional) Configure proxy:
@@ -70,6 +71,11 @@ These instructions will get you a copy of the project up and running on your loc
 
         (venv) $ python manage.py runserver_plus
     > [runserver_plus](https://django-extensions.readthedocs.io/en/latest/runserver_plus.html) gives us more debug informations
+
+1. start up celery beat process
+
+        (venv) $ celery -A MrMap beat -l info
+   
 
 1. you should see the login page after opening http://127.0.0.1:8000:
 

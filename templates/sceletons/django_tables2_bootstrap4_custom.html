@@ -3,52 +3,80 @@
 {% load fontawesome_5 %}
 {% block table-wrapper %}
 {% load bootstrap4 %}
-{% load mr_map_filters %}
-<div class="row"><!--<t-head-->
-    {% if table.filter.form %}
-    <div class="col-md-7 col-lg-9 col-xl-10"><!--filter-->
-        <form action="" method="get" class="form form-inline">
-            <div class="col">
-                <div class="row">
-                    <div class="d-flex align-top">
-                        <div class="">
-                            {% bootstrap_form table.filter.form layout='inline' %}
+{% load django_tables2_extras %}
+    <div class="row"><!--<t-head-->
+        {% if table.filter.form %}
+        <div class="col-md-7 col-lg-9 col-xl-10"><!--filter-->
+            <div id="id_filter_accordion_{{table.table_id}}">
+                <div class="card">
+                    <div class="card-header" id="id_filter_card_header_{{table.table_id}}">
+                        <button id="id_filter_btn_{{table.table_id}}" class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}" data-toggle="collapse" data-target="#id_filter_collapse_{{table.table_id}}" aria-expanded="true" aria-controls="id_filter_collapse_{{table.table_id}}">
+                            {% autoescape off %}{{table.context.THEME.ICONS.FILTER}}{% endautoescape %} {% trans 'Filter table' %}
+                        </button>
+                    </div>
+                        <div id="id_filter_collapse_{{table.table_id}}" class="collapse {% if table.filter.data %} show {% endif %}" aria-labelledby="id_filter_card_header_{{table.table_id}}" data-parent="#id_filter_accordion_{{table.table_id}}">
+                            <div class="card-body">
+                                <form action="" method="get" class="form {% if table.filter.inline %} form-inline {% endif %}">
+                                    <div class="col">
+                                        <div class="row">
+                                            {% for field in table.filter.form %}
+                                            <div class="col">
+                                                {% if table.filter.inline %}
+                                                    {% bootstrap_field field layout='horizontal' show_label='sr-only' %}
+                                                {% else %}
+                                                    {% bootstrap_field field %}
+                                                {% endif %}
+                                            </div>
+                                            {% endfor %}
+                                            <div class="col">
+                                                <div class="d-flex align-items-end flex-column mt-auto">
+                                                    <div class="row mb-1">
+                                                    <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Filter the table' %}">
+                                                        <button type="submit" class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}">{% autoescape off %}{{table.context.THEME.ICONS.SEARCH}}{% endautoescape %}</button>
+                                                    </span>
+                                                    </div>
+                                                    <div class="row">
+                                                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Dismiss all filters' %}">
+                                                            <a class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}" href="{{ request.path }}">{% autoescape off %}{{table.context.THEME.ICONS.UNDO}}{% endautoescape %}</a>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
-                        <div class="">
-                            <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Search'%}">
-                                <button type="submit" class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}">{% autoescape off %}{{table.context.THEME.ICONS.SEARCH}}{% endautoescape %}</button>
-                            </span>
-                        </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% if table.pagination %}
+        <div class="col-md-5 col-lg-3 col-xl-2"><!--pagination-->
+            <div class="d-flex align-items-end flex-column mt-auto">
+            {% if table.pagination.page_size %}
+                <div class="dropdown d-inline-block">
+                    {% trans 'Show' %}
+                    <button class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="wmsPagingButton"
+                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ table.pagination.page_size }}
+                    </button>
+                    {% trans 'entries' %}
+                    <div class="dropdown-menu" aria-labelledby="wmsPagingButton">
+                        {% for page_size in table.pagination.page_size_options %}
+                        <a class="dropdown-item"
+                           href="{% if table.pagination.page_name in request.GET %}
+                                    {% querystring table.pagination.page_size_param=page_size table.pagination.page_name=1%}
+                                {% else %}
+                                    {% querystring table.pagination.page_size_param=page_size %}
+                                {% endif %}">{{ page_size }}</a>
+                        {% endfor %}
                     </div>
                 </div>
+            {% endif %}
             </div>
-        </form>
-    </div><!--</filter-->
-    {% endif %}
-    {% if table.pagination %}
-    <div class="col-md-5 col-lg-3 col-xl-2"><!--pagination-->
-        {% if table.pagination.page_size %}
-            <div class="dropdown d-inline-block">
-                {% trans 'Show' %}
-                <button class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="wmsPagingButton"
-                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ table.pagination.page_size }}
-                </button>
-                {% trans 'entries' %}
-                <div class="dropdown-menu" aria-labelledby="wmsPagingButton">
-                    {% for page_size in table.pagination.page_size_options %}
-                    <a class="dropdown-item"
-                       href="{% if table.pagination.page_name in request.GET %}
-                                {% querystring table.pagination.page_size_param=page_size table.pagination.page_name=1%}
-                            {% else %}
-                                {% querystring table.pagination.page_size_param=page_size %}
-                            {% endif %}">{{ page_size }}</a>
-                    {% endfor %}
-                </div>
-            </div>
+        </div><!--</pagination-->
         {% endif %}
-    </div><!--</pagination-->
-    {% endif %}
-</div><!--</t-head-->
+    </div><!--</t-head-->
 <div class="mt-3"><!--<t-content-->
     <div class="row">
     <div class="col">
@@ -66,8 +94,14 @@
                             <th scope="col" {{ column.attrs.th.as_html }}>
                                 {% if column.orderable %}
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <div class="">
-                                        {{ column.header }}
+                                    <div>
+                                        {% if column.column.tooltip %}
+                                            <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{{ column.column.tooltip }}">
+                                                {{ column.header }}
+                                            </span>
+                                        {% else %}
+                                            {{ column.header }}
+                                        {% endif %}
                                     </div>
                                     <div class="">
                                         <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{{tooltip}}">
@@ -96,7 +130,13 @@
 
                                     </div>
                                 {% else %}
-                                    {{ column.header }}
+                                    {% if column.column.tooltip %}
+                                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{{ column.column.tooltip }}">
+                                            {{ column.header }}
+                                        </span>
+                                    {% else %}
+                                        {{ column.header }}
+                                    {% endif %}
                                 {% endif %}
                                 </div>
                             </th>

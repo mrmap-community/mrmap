@@ -20,9 +20,10 @@ from django.utils import timezone
 
 from MrMap.cacher import DocumentCacher
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
-from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
+from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT, XML_NAMESPACES
 from MrMap import utils
 from MrMap.utils import print_debug_mode
+from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.crypto_handler import CryptoHandler
@@ -607,7 +608,7 @@ class Metadata(Resource):
         self.categories_list = []
 
     def __str__(self):
-        return self.title
+        return "{} ({}) #{}".format(self.title, self.metadata_type, self.id)
 
     @property
     def is_service_metadata(self):
@@ -664,6 +665,26 @@ class Metadata(Resource):
              True|False
         """
         return self.get_service_type() == enum.value
+
+    def get_described_element(self):
+        """ Simple getter to return the 'real' described element.
+
+        Described elements are .service, .layer or .featuretype. Instead of doing these if-else checks
+        over and over again, this function directly returns the appropriate element.
+
+        Returns:
+
+        """
+        ret_val = None
+        if self.is_service_metadata:
+            ret_val = self.service
+        elif self.is_layer_metadata:
+            ret_val = Layer.objects.get(
+                metadata=self
+            )
+        elif self.is_featuretype_metadata:
+            ret_val = self.featuretype
+        return ret_val
 
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.
@@ -972,6 +993,27 @@ class Metadata(Resource):
                     f_t.metadata.save()
 
         self.save()
+
+    def save(self, *args, **kwargs):
+        """ Overwriting the regular save function
+
+        Calls the regular save function without any changes and adds the created/updated
+        Metadata object to the MonitoringSetting.
+
+        Passes all args and kwargs to the regular save function.
+
+        Returns:
+            nothing
+        """
+        super().save(*args, **kwargs)
+
+        # Add created/updated object to the MonitoringSettings. Django does not add
+        # the same instance twice, so we do not have to check for updating specifically.
+        # NOTE: Since we do not have a clear handling for which setting to use, always use first (default) setting.
+        monitoring_setting = MonitoringSetting.objects.first()
+        if monitoring_setting is not None:
+            monitoring_setting.metadatas.add(self)
+            monitoring_setting.save()
 
     def delete(self, using=None, keep_parents=False, force=False):
         """ Overwriting of the regular delete function
@@ -1721,12 +1763,12 @@ class Document(Resource):
             ).parent_service
         op_uri_dict = {
             OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: {
-                "Get": service.describe_layer_uri_GET,
-                "Post": service.describe_layer_uri_POST,
+                "Get": service.describe_feature_type_uri_GET,
+                "Post": service.describe_feature_type_uri_POST,
             },
             OGCOperationEnum.GET_FEATURE.value: {
-                "Get": service.get_feature_info_uri_GET,
-                "Post": service.get_feature_info_uri_POST,
+                "Get": service.get_feature_type_uri_GET,
+                "Post": service.get_feature_type_uri_POST,
             },
             OGCOperationEnum.GET_PROPERTY_VALUE.value: {
                 "Get": service.get_property_value_uri_GET,
@@ -1780,12 +1822,12 @@ class Document(Resource):
 
         op_uri_dict = {
             "DescribeFeatureType": {
-                "Get": service.describe_layer_uri_GET,
-                "Post": service.describe_layer_uri_POST,
+                "Get": service.describe_feature_type_uri_GET,
+                "Post": service.describe_feature_type_uri_POST,
             },
             "GetFeature": {
-                "Get": service.get_feature_info_uri_GET,
-                "Post": service.get_feature_info_uri_POST,
+                "Get": service.get_feature_type_uri_GET,
+                "Post": service.get_feature_type_uri_POST,
             },
             "GetPropertyValue": {
                 "Get": service.get_property_value_uri_GET,
@@ -2266,40 +2308,57 @@ class Service(Resource):
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
 
+    # WMS | WFS
     get_capabilities_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_capabilities_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WMS
     get_map_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_map_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WMS
     get_feature_info_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_feature_info_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WMS
     describe_layer_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     describe_layer_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WMS
     get_legend_graphic_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_legend_graphic_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WMS
     get_styles_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_styles_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WFS
+    get_feature_type_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    get_feature_type_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    # WFS
+    describe_feature_type_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
+    describe_feature_type_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
+
+    # WFS
     transaction_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     transaction_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WFS
     get_property_value_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_property_value_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WFS
     list_stored_queries_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     list_stored_queries_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WFS
     describe_stored_queries_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     describe_stored_queries_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
 
+    # WFS
     get_gml_objct_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
     get_gml_objct_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    #formats = models.ManyToManyField('MimeType', blank=True)
 
     is_update_candidate_for = models.OneToOneField('self', on_delete=models.SET_NULL, related_name="has_update_candidate", null=True, default=None, blank=True)
     created_by_user = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True, blank=True)

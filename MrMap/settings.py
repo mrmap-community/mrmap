@@ -130,12 +130,16 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'api',
+    'django_celery_beat',
+    'monitoring',
     'bootstrap4',
     'fontawesome_5',
     'django_tables2',
+    'django_filters',
     'query_parameters',
     'django_nose',
-    'mathfilters'
+    'mathfilters',
+    'debug_toolbar',
 ]
 
 TEMPLATE_LOADERS = (
@@ -145,6 +149,7 @@ TEMPLATE_LOADERS = (
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.gzip.GZipMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.locale.LocaleMiddleware',
@@ -197,7 +202,7 @@ DATABASES = {
         'NAME': 'MrMap',
         'USER': 'postgres',
         'HOST': '127.0.0.1',
-        'PORT': '5432'
+        'PORT': '5432',
     }
 }
 
@@ -257,6 +262,7 @@ LOCALE_PATHS = (
     os.path.join(BASE_DIR, 'locale'),
 )
 
+DEFAULT_DATE_TIME_FORMAT = 'YYYY-MM-DD hh:mm:ss'
 
 TIME_ZONE = 'Europe/Berlin'
 
@@ -275,6 +281,7 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # API
 from api.settings import REST_FRAMEWORK
@@ -315,3 +322,13 @@ MESSAGE_TAGS = {
     messages.WARNING: 'alert-warning',
     messages.ERROR: 'alert-danger',
 }
+
+MONITORING_TIME = "23:59:00"
+MONITORING_REQUEST_TIMEOUT = 30  # seconds
+
+
+# DJANGO DEBUG TOOLBAR
+# Add the IP for which the toolbar should be shown
+INTERNAL_IPS = [
+    "127.0.0.1"
+]

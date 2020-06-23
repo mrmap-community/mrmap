@@ -46,10 +46,18 @@ class Permission(models.Model):
     can_remove_dataset_metadata = models.BooleanField(default=False)
 
     can_toggle_publish_requests = models.BooleanField(default=False)
+
+    can_create_monitoring_setting = models.BooleanField(default=False)
+    can_edit_monitoring_setting = models.BooleanField(default=False)
+    can_delete_monitoring_setting = models.BooleanField(default=False)
+
     can_remove_publisher = models.BooleanField(default=False)
     can_request_to_become_publisher = models.BooleanField(default=False)
 
     can_generate_api_token = models.BooleanField(default=False)
+
+    can_access_logs = models.BooleanField(default=False)
+    can_download_logs = models.BooleanField(default=False)
 
     # more permissions coming
 

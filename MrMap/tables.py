@@ -1,3 +1,6 @@
+import random
+import string
+
 from django.http import HttpRequest
 from django_tables2 import tables, RequestConfig
 from django_tables2.templatetags import django_tables2
@@ -48,3 +51,5 @@ class MrMapTable(tables.Table):
 
     def __init__(self, *args, **kwargs):
         super().__init__(template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, *args, **kwargs)
+        # Generate a random id for html template
+        self.table_id = ''.join(random.choice(string.ascii_lowercase) for i in range(10))

@@ -1,35 +1,40 @@
-certifi==2019.3.9
+# DJANGO
 Django==3.*
 django-extensions==2.2.9
 django-simple-captcha==0.5.12
+django-celery-beat==2.0.0
+django_redis==4.11.0
+djangorestframework==3.11.0
+django-filter==2.2.0
+django-bootstrap4==1.1.1
+django-fontawesome-5==1.0.18
+django-tables2==2.2.1
+django-query-parameters==0.2.3
+django-autocomplete-light==3.5.1
+django-mathfilters==1.0.0
+django-nose==1.4.6
+django-debug-toolbar==2.2
+django-formtools==2.2
+
+# OTHER
+certifi==2019.3.9
 idna==2.8
 lxml==4.3.3
-psycopg2-binary==2.8.5
+psycopg2==2.8.5
 pycurl==7.43.0.2
 pytz==2019.1
 requests==2.21.0
 sqlparse==0.3.0
 urllib3==1.24.3
 argon2-cffi==19.2.0
-Werkzeug==0.16.1
 celery==4.3.0
 redis==3.4.1
-django_redis==4.11.0
-djangorestframework==3.11.0
-django-filter==2.2.0
 Pillow==7.0.0
 cryptography==2.8
-django-bootstrap4==1.1.1
-django-fontawesome-5==1.0.18
-django-tables2==2.2.1
-django-query-parameters==0.2.3
-django-autocomplete-light==3.5.1
-django-formtools==2.2
 coverage==5.0.3
-django-nose==1.4.6
 model-bakery==1.1.0
 python-dateutil==2.8.1
-django-mathfilters==1.0.0
+
 # For git revision rendering
 dealer==2.1.0
 

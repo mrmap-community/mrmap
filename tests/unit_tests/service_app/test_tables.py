@@ -2,10 +2,13 @@ from django.core.exceptions import FieldError
 from django.test import TestCase, RequestFactory
 from django.urls import reverse
 from django_tables2 import RequestConfig
-from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
-from service.models import Metadata
+
+from MrMap.consts import SERVICE_INDEX_LOG
+from service.models import Metadata, ProxyLog
 from service.tables import WmsLayerTable, WfsServiceTable, WmsServiceTable, PendingTasksTable, ChildLayerTable, \
-    FeatureTypeTable, CoupledMetadataTable
+    FeatureTypeTable, CoupledMetadataTable, ProxyLogTable
+from tests.baker_recipes.db_setup import create_guest_groups, create_superadminuser, create_proxy_logs
+from tests.utils import check_table_sorting
 
 
 class ServiceTestCase(TestCase):
@@ -176,3 +179,33 @@ class ServiceTestCase(TestCase):
             self.assertEqual(exception, None,
                              msg="Field Error for field {} raised. Check your custom order function of table {}".format(
                                  column, "CoupledMetadataTable"))
+
+    def test_proxy_log_table_sorting(self):
+        """ Run test to check the sorting functionality of the ProxyLogTable
+
+        Return:
+
+        """
+        groups = create_guest_groups(how_much_groups=9)
+        user = create_superadminuser(groups=groups)
+        create_proxy_logs(user, 10)
+
+        # Get all logs, make sure the initial set is ordered by random
+        logs = ProxyLog.objects.all().order_by("?")
+        sorting_param = "sort"
+        table = ProxyLogTable(
+            logs,
+            order_by_field=sorting_param,
+            user=user
+        )
+        # Check table sorting
+        sorting_implementation_failed, sorting_results = check_table_sorting(
+            table=table,
+            url_path_name=SERVICE_INDEX_LOG,
+            sorting_parameter=sorting_param,
+        )
+
+        for key, val in sorting_results.items():
+            self.assertTrue(val, msg="ProxyLog table sorting not correct for column '{}'".format(key))
+        for key, val in sorting_implementation_failed.items():
+            self.assertFalse(val, msg="ProxyLog table sorting leads to error for column '{}'".format(key))

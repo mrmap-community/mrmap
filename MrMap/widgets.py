@@ -1,7 +1,9 @@
 from django.forms import DateTimeInput, DateInput, Textarea
 from MrMap.utils import get_theme
+from MrMap.settings import DEFAULT_DATE_TIME_FORMAT
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX
 from users.helper import user_helper
+from django_filters.widgets import SuffixedMultiWidget
 
 
 GEOMAN_CONTROLS = {'position': '\'topright\'',
@@ -43,6 +45,7 @@ class BootstrapDateTimePickerInput(DateTimeInput):
 
     def get_context(self, name, value, attrs):
         datetimepicker_id = 'datetimepicker_{name}'.format(name=name)
+        datetime_format = attrs.get("format", DEFAULT_DATE_TIME_FORMAT)
         if attrs is None:
             attrs = dict()
         attrs['data-target'] = '#{id}'.format(id=datetimepicker_id)
@@ -59,7 +62,23 @@ class BootstrapDateTimePickerInput(DateTimeInput):
 
         context = super().get_context(name, value, attrs)
         context['widget']['datetimepicker_id'] = datetimepicker_id
+        context['widget']['datetimepicker_format'] = datetime_format
         return context
+
+
+class BootstrapDatePickerRangeWidget(SuffixedMultiWidget):
+    template_name = 'django_filters/widgets/multiwidget.html'
+    suffixes = ['min', 'max']
+
+    def __init__(self, format: str = 'YYYY-MM-DD', attrs={}):
+        widgets = (BootstrapDateTimePickerInput, BootstrapDateTimePickerInput)
+        attrs["format"] = format
+        super().__init__(widgets, attrs)
+
+    def decompress(self, value):
+        if value:
+            return [value.start, value.stop]
+        return [None, None]
 
 
 class LeafletGeometryInput(Textarea):

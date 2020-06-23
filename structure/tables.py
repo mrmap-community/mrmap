@@ -5,7 +5,7 @@ from django.urls import reverse
 
 from MrMap.tables import MrMapTable
 from MrMap.utils import get_theme, get_ok_nok_icon
-from MrMap.consts import URL_PATTERN, URL_ICON_PATTERN
+from MrMap.consts import URL_PATTERN, URL_ICON_PATTERN, construct_url
 from django.utils.translation import gettext_lazy as _
 
 
@@ -146,7 +146,16 @@ class GroupTable(MrMapTable):
 
     def render_groups_name(self, value, record):
         url = reverse('structure:detail-group', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+        icon = ''
+        tooltip = ''
+        if value == 'Public':
+            icon = get_theme(self.user)['ICONS']['PUBLIC']
+            tooltip = _('This is the anonymous public user group')
+
+        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                             href=url,
+                             content=icon + ' ' + value,
+                             tooltip=tooltip)
 
     def render_groups_organization(self, value, record):
         url = reverse('structure:detail-organization', args=(record.id,))
@@ -166,13 +175,14 @@ class OrganizationTable(MrMapTable):
         super().__init__(*args, **kwargs)
 
     def render_orgs_organization_name(self, value, record):
-
         url = reverse('structure:detail-organization', args=(record.id,))
-        home_icon = ''
+        icon = ''
         if self.user.organization is not None and self.user.organization.organization_name == value:
-            home_icon = get_theme(self.user)['ICONS']['HOME']
+            icon = get_theme(self.user)['ICONS']['HOME']
 
-        return format_html(URL_ICON_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, home_icon, ' ' + value, )
+        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                             href=url,
+                             content=icon + ' ' + value)
 
     @staticmethod
     def render_orgs_is_auto_generated(value):

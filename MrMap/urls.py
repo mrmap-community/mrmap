@@ -16,6 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
+from MrMap.settings import DEBUG
 
 urlpatterns = [
     # path('', login, name="login"),
@@ -33,6 +34,12 @@ urlpatterns = [
     path('api/', include('api.urls')),
     path('csw/', include('csw.urls'))
 ]
+
+if DEBUG:
+    import debug_toolbar
+    urlpatterns.append(
+        path('__debug__/', include(debug_toolbar.urls))
+    )
 
 handler404 = "structure.views.handler404"
 handler500 = "structure.views.handler500"

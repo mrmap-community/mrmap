@@ -4,6 +4,7 @@ from django.forms import formset_factory
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
@@ -357,7 +358,7 @@ def edit_access(request: HttpRequest, id: int):
         sec_ops = SecuredOperation.objects.filter(
             secured_metadata=md
         )
-        all_groups = MrMapGroup.objects.all().order_by('id')
+        all_groups = MrMapGroup.objects.all().order_by(Case(When(name='Public', then=0)), 'name')
         tmp = editor_helper.prepare_secured_operations_groups(operations, sec_ops, all_groups, md)
 
         spatial_restrictable_operations = [

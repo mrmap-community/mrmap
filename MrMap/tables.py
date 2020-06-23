@@ -2,11 +2,17 @@ import random
 import string
 
 from django.http import HttpRequest
+from django.template.loader import render_to_string
+from django.urls import reverse
+from django.utils.html import format_html
 from django_tables2 import tables, RequestConfig
 from django_tables2.templatetags import django_tables2
 
-from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
+from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, BTN_SM_CLASS
 from MrMap.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_MAX, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
+from MrMap.utils import get_theme
+from structure.models import Permission
+from users.helper import user_helper
 
 
 def prepare_table_pagination_settings(request: HttpRequest, table: django_tables2, param_lead: str):
@@ -49,7 +55,25 @@ class MrMapTable(tables.Table):
         self.paginate(page=request.GET.get(self.pagination.get('page_name'), PAGE_DEFAULT),
                       per_page=request.GET.get(self.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
-    def __init__(self, *args, **kwargs):
+    def get_edit_btn(self, href: str, tooltip: str, tooltip_placement: str, permission: Permission):
+        if self.user.has_permission(permission):
+            context_edit_btn = {
+                "btn_size": BTN_SM_CLASS,
+                "btn_color": get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
+                "btn_value": get_theme(self.user)["ICONS"]['EDIT'],
+                "btn_url": href,
+                "tooltip": tooltip,
+                "tooltip_placement": tooltip_placement,
+            }
+            return render_to_string(template_name="sceletons/open-link-button.html",
+                                    context=context_edit_btn)
+        else:
+            return ''
+
+    def __init__(self, request=None, *args, **kwargs):
         super().__init__(template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, *args, **kwargs)
         # Generate a random id for html template
         self.table_id = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
+        self.request = request
+        self.user = user_helper.get_user(request)
+

@@ -36,6 +36,8 @@ from users.forms import PasswordResetForm, UserForm, PasswordChangeForm
 from users.helper import user_helper
 from django.urls import reverse
 
+from users.tables import SubscriptionTable
+
 
 def _prepare_account_view_params(user: MrMapUser):
     edit_account_form = UserForm(instance=user, initial={'theme': user.theme})
@@ -43,6 +45,8 @@ def _prepare_account_view_params(user: MrMapUser):
 
     password_change_form = PasswordChangeForm()
     password_change_form.action_url = reverse('password-change', )
+
+
 
     params = {
         "user": user,

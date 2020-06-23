@@ -28,8 +28,8 @@ def prepare_proxy_log_filter(request: HttpRequest, user: MrMapUser):
     proxy_logs = ProxyLog.objects.filter(metadata__in=group_metadatas)
 
     proxy_logs_filtered = ProxyLogTableFilter(data=request.GET, queryset=proxy_logs,)
-    proxy_log_table = ProxyLogTable(proxy_logs_filtered.qs,
-                                    user=user)
+    proxy_log_table = ProxyLogTable(data=proxy_logs_filtered.qs,
+                                    request=request)
     proxy_log_table.filter = proxy_logs_filtered
     # TODO: # since parameters could be changed directly in the uri, we need to make sure to avoid problems
     proxy_log_table.configure_pagination(request, 'logs-t')

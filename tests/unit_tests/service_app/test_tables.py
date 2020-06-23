@@ -20,9 +20,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        wms_table = WmsServiceTable(md_list,
+        wms_table = WmsServiceTable(data=md_list,
                                     order_by_field='swms',  # swms = sort wms
-                                    user=None, )
+                                    request=None, )
 
         for column in wms_table.columns.columns:
             request = self.factory.get(reverse("service:wms-index") + '?{}={}'.format("swms", column))
@@ -43,9 +43,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        wms_table = WmsLayerTable(md_list,
+        wms_table = WmsLayerTable(data=md_list,
                                   order_by_field='swms',  # swms = sort wms
-                                  user=None, )
+                                  request=None, )
 
         for column in wms_table.columns.columns:
             request = self.factory.get(reverse("service:wms-index") + '?{}={}'.format("swms", column))
@@ -66,9 +66,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        wfs_table = WfsServiceTable(md_list,
+        wfs_table = WfsServiceTable(data=md_list,
                                     order_by_field='swfs',  # swms = sort wms
-                                    user=None, )
+                                    request=None, )
 
         for column in wfs_table.columns.columns:
             request = self.factory.get(reverse("service:wfs-index") + '?{}={}'.format("swfs", column))
@@ -89,9 +89,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        table = PendingTasksTable(md_list,
+        table = PendingTasksTable(data=md_list,
                                   order_by_field='sort',  # swms = sort wms
-                                  user=None, )
+                                  request=None, )
 
         for column in table.columns.columns:
             request = self.factory.get(reverse("service:pending-tasks") + '?{}={}'.format("sort", column))
@@ -112,9 +112,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        table = ChildLayerTable(md_list,
+        table = ChildLayerTable(data=md_list,
                                 order_by_field='sort',  # swms = sort wms
-                                user=None, )
+                                request=None, )
 
         for column in table.columns.columns:
             # to match the reverse we use dummy id 1. It's ok, cause no request on views will be done
@@ -136,9 +136,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        table = FeatureTypeTable(md_list,
+        table = FeatureTypeTable(data=md_list,
                                  order_by_field='sort',  # swms = sort wms
-                                 user=None, )
+                                 request=None, )
 
         for column in table.columns.columns:
             # to match the reverse we use dummy id 1. It's ok, cause no request on views will be done
@@ -160,9 +160,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        table = CoupledMetadataTable(md_list,
+        table = CoupledMetadataTable(data=md_list,
                                      order_by_field='sort',  # swms = sort wms
-                                     user=None, )
+                                     request=None, )
 
         for column in table.columns.columns:
             # to match the reverse we use dummy id 1. It's ok, cause no request on views will be done
@@ -188,15 +188,21 @@ class ServiceTestCase(TestCase):
         """
         groups = create_guest_groups(how_much_groups=9)
         user = create_superadminuser(groups=groups)
+        request_factory = RequestFactory()
+        # Create an instance of a GET request.
+        request = request_factory.get('/')
+        # Recall that middleware are not supported. You can simulate a
+        # logged-in user by setting request.user manually.
+        request.user = user
         create_proxy_logs(user, 10)
 
         # Get all logs, make sure the initial set is ordered by random
         logs = ProxyLog.objects.all().order_by("?")
         sorting_param = "sort"
         table = ProxyLogTable(
-            logs,
+            data=logs,
             order_by_field=sorting_param,
-            user=user
+            request=request
         )
         # Check table sorting
         sorting_implementation_failed, sorting_results = check_table_sorting(

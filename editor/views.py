@@ -30,24 +30,24 @@ from editor.tables import *
 def _prepare_wms_table(request: HttpRequest, user: MrMapUser, ):
     # get all services that are registered by the user
     wms_services = user.get_services_as_qs(OGCServiceEnum.WMS)
-    wms_table_filtered = MetadataWmsFilter(request.GET, queryset=wms_services)
-    wms_table = WmsServiceTable(wms_table_filtered.qs,
-                                user=user,)
+    wms_table_filtered = MetadataWmsFilter(data=request.GET, queryset=wms_services)
+    wms_table = WmsServiceTable(data=wms_table_filtered.qs,
+                                request=request,)
     wms_table.filter = wms_table_filtered
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    wms_table.configure_pagination(request, 'wms-t')
+    wms_table.configure_pagination(request=request, param_lead='wms-t')
 
     return wms_table
 
 
 def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
     wfs_services = user.get_services_as_qs(OGCServiceEnum.WFS)
-    wfs_table_filtered = MetadataWfsFilter(request.GET, queryset=wfs_services)
-    wfs_table = WfsServiceTable(wfs_table_filtered.qs,
-                                user=user, )
+    wfs_table_filtered = MetadataWfsFilter(data=request.GET, queryset=wfs_services)
+    wfs_table = WfsServiceTable(data=wfs_table_filtered.qs,
+                                request=request, )
     wfs_table.filter = wfs_table_filtered
     # TODO: # since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    wfs_table.configure_pagination(request, 'wfs-t')
+    wfs_table.configure_pagination(request=request, param_lead='wfs-t')
 
     return wfs_table
 

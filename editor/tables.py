@@ -41,10 +41,6 @@ class WmsServiceTable(MrMapTable):
     wms_edit_access = tables.Column(verbose_name='Access', empty_values=[])
     wms_reset = tables.Column(verbose_name='Reset', empty_values=[])
 
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
-
     def render_wms_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
@@ -99,10 +95,6 @@ class WfsServiceTable(MrMapTable):
     wfs_edit_metadata = tables.Column(verbose_name='Edit', empty_values=[])
     wfs_edit_access = tables.Column(verbose_name='Access', empty_values=[])
     wfs_reset = tables.Column(verbose_name='Reset', empty_values=[])
-
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
 
     def render_wfs_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))

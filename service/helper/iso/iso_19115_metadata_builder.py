@@ -1136,7 +1136,7 @@ class Iso19115MetadataBuilder:
         return ret_elem
 
     def _create_extent_geographic(self):
-        """ Creates the <gmd:EX_Extent> element
+        """ Creates the <gmd:EX_Extent> element for geographic extents
 
         Returns:
              ret_elem (_Element): The requested xml element
@@ -1171,6 +1171,18 @@ class Iso19115MetadataBuilder:
             )
         ret_elem.append(geographic_elem)
 
+        return ret_elem
+
+    def _create_extent_temporal(self):
+        """ Creates the <gmd:EX_Extent> element for temporal extents
+
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        ret_elem = Element(
+            self.gmd + "EX_Extent"
+        )
+
         # gmd:temporalElement
         temp_elem = Element(
             self.gmd + "temporalElement",
@@ -1179,6 +1191,18 @@ class Iso19115MetadataBuilder:
             }
         )
         ret_elem.append(temp_elem)
+
+        return ret_elem
+
+    def _create_extent_vertical(self):
+        """ Creates the <gmd:EX_Extent> element for vertical extents
+
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        ret_elem = Element(
+            self.gmd + "EX_Extent"
+        )
 
         # gmd:verticalElement
         vertical_elem = Element(
@@ -1825,6 +1849,7 @@ class Iso19115MetadataBuilder:
 
         # Remove existing contact information elem
         contact_info_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("contact"), root)
+        contact_info_elems += xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("pointOfContact"), root)
         for elem in contact_info_elems:
             xml_helper.remove_element(elem)
 
@@ -1845,7 +1870,6 @@ class Iso19115MetadataBuilder:
         )
         xml_helper.add_subelement(ident_elem, point_of_contact_elem, after=GENERIC_NAMESPACE_TEMPLATE.format("abstract"))
 
-
     def _overwrite_dataset_metadata_spatial_extent_form_info(self, doc: Element):
         """ Overwrites the elements according to the Dataset Spatial Extent Form.
 
@@ -1854,7 +1878,29 @@ class Iso19115MetadataBuilder:
         Returns:
 
         """
-        pass
+        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), doc)
+
+        # get existing spatial extent element
+        extent_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("extent"), ident_elem)
+        # filter only geographic extents
+        geo_extent_elems = []
+        for extent in extent_elems:
+            elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("geographicElement"), extent)
+            if elem is not None:
+                geo_extent_elems.append(elem)
+        # Remove existing geographic extents
+        # Wrapping <gmd:extent> must be removed using getparent() twice
+        for geo_ext in geo_extent_elems:
+            extent_parent = geo_ext.getparent().getparent()
+            xml_helper.remove_element(extent_parent)
+
+        # Create new geographic extent
+        extent_elem = Element(
+            self.gmd + "extent"
+        )
+        new_geo_ext = self._create_extent_geographic()
+        extent_elem.append(new_geo_ext)
+        xml_helper.add_subelement(ident_elem, extent_elem, after=GENERIC_NAMESPACE_TEMPLATE.format("characterSet"))
 
     def _overwrite_dataset_metadata_licenses_form_info(self, doc: Element):
         """ Overwrites the elements according to the Dataset Licenses/Constraints Form.
@@ -1864,7 +1910,42 @@ class Iso19115MetadataBuilder:
         Returns:
 
         """
-        pass
+        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), doc)
+        other_constraints_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("otherConstraints"), doc)
+
+        # No such element found, we need to create it
+        if other_constraints_elem is None:
+            resource_constraint_elem = Element(
+                self.gmd + "resourceConstraints"
+            )
+            md_legal_constraint_elem = Element(
+                self.gmd + "MD_LegalConstraints"
+            )
+            access_constraint_elem = Element(
+                self.gmd + "accessConstraints"
+            )
+            md_restriction_code_elem = Element(
+                self.gmd + "MD_RestrictionCode",
+                attrib={
+                    "codeList": "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_RetrictionCode",
+                    "codeListValue": "otherRestrictions"
+                }
+            )
+            md_restriction_code_elem.text = "otherRestrictions"
+            other_constraints_elem = Element(
+                self.gmd + "otherConstraints"
+            )
+            char_str_elem = Element(
+                self.gmd + "CharacterString"
+            )
+            resource_constraint_elem.append(md_legal_constraint_elem)
+            md_legal_constraint_elem.append(access_constraint_elem)
+            md_legal_constraint_elem.append(other_constraints_elem)
+            other_constraints_elem.append(char_str_elem)
+
+            xml_helper.add_subelement(ident_elem, resource_constraint_elem, after=GENERIC_NAMESPACE_TEMPLATE.format("descriptiveKeywords"))
+
+        xml_helper.write_text_to_element(other_constraints_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"), self.metadata.access_constraints)
 
     def _overwrite_dataset_metadata_quality_form_info(self, doc: Element):
         """ Overwrites the elements according to the Dataset Quality Form.
@@ -1874,4 +1955,62 @@ class Iso19115MetadataBuilder:
         Returns:
 
         """
-        pass
+        dq_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("DQ_DataQuality"), doc)
+        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), doc)
+
+        # Overwrite lineage data, if element exists
+        lineage_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("lineage"), dq_elem)
+
+        if lineage_elem is None:
+           lineage_elem = Element(
+               self.gmd + "lineage"
+           )
+           li_lineage_elem = Element(
+               self.gmd + "LI_Lineage"
+           )
+           statement_elem = Element(
+               self.gmd + "statement"
+           )
+           char_str_elem = Element(
+               self.gmd + "CharacterString"
+           )
+           dq_elem.append(lineage_elem)
+           lineage_elem.append(li_lineage_elem)
+           li_lineage_elem.append(statement_elem)
+           statement_elem.append(char_str_elem)
+
+        xml_helper.write_text_to_element(
+            lineage_elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"),
+            self.described_resource.lineage_statement
+        )
+
+        # Change maintenance update frequency
+        update_frequ_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_MaintenanceFrequencyCode"), ident_elem)
+        if update_frequ_elem is None:
+            res_maintenance_elem = Element(
+                self.gmd + "resourceMaintenance"
+            )
+            md_maintenance_information_elem = Element(
+                self.gmd + "MD_MaintenanceInformation"
+            )
+            maintenance_update_frequ_elem = Element(
+                self.gmd + "maintenanceAndUpdateFrequency"
+            )
+            update_frequ_elem = Element(
+                self.gmd + "MD_MaintenanceFrequencyCode",
+                attrib={
+                    "codeListValue": self.described_resource.update_frequency_code,
+                    "codeList": self.described_resource.update_frequency_code_list_url,
+                }
+            )
+            ident_elem.append(res_maintenance_elem)
+            res_maintenance_elem.append(md_maintenance_information_elem)
+            md_maintenance_information_elem.append(maintenance_update_frequ_elem)
+            maintenance_update_frequ_elem.append(update_frequ_elem)
+
+        xml_helper.write_attribute(
+            update_frequ_elem,
+            attrib="codeListValue",
+            txt=self.described_resource.update_frequency_code
+        )

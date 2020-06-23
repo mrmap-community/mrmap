@@ -9,6 +9,7 @@ import json
 
 from django.core.exceptions import ObjectDoesNotExist
 
+from csw.utils.converter import DATE_STRF
 from service.models import Dataset, Layer
 from service.settings import INSPIRE_LEGISLATION_FILE, SERVICE_OPERATION_URI_TEMPLATE
 from service.helper.enums import MetadataEnum, OGCServiceEnum
@@ -756,11 +757,7 @@ class Iso19115MetadataBuilder:
         # )
 
         # gmd:descriptiveKeywords
-        descr_keywords_elem = Element(
-            self.gmd + "descriptiveKeywords"
-        )
-        descr_keywords_content_elem = self._create_keywords()
-        descr_keywords_elem.append(descr_keywords_content_elem)
+        descr_keywords_elem = self._create_keywords()
         ret_elem.append(descr_keywords_elem)
 
         # gmd:resourceSpecificUsage
@@ -1060,9 +1057,13 @@ class Iso19115MetadataBuilder:
         Returns:
              ret_elem (_Element): The requested xml element
         """
-        ret_elem = Element(
+        descr_keywords_elem = Element(
+            self.gmd + "descriptiveKeywords"
+        )
+        md_keywords_elem = Element(
             self.gmd + "MD_Keywords"
         )
+        descr_keywords_elem.append(md_keywords_elem)
 
         keywords = self.metadata.keywords.all()
         for keyword in keywords:
@@ -1073,10 +1074,11 @@ class Iso19115MetadataBuilder:
                 self.gco + "CharacterString"
             )
             char_str_elem.text = keyword.keyword
-            keyword_elem.append(char_str_elem)
-            ret_elem.append(keyword_elem)
 
-        return ret_elem
+            keyword_elem.append(char_str_elem)
+            md_keywords_elem.append(keyword_elem)
+
+        return descr_keywords_elem
 
     def _create_legal_constraints(self):
         """ Creates the <gmd:MD_LegalConstraints> element
@@ -1710,30 +1712,81 @@ class Iso19115MetadataBuilder:
         return ret_elem
 
     def overwrite_dataset_metadata(self, doc: str):
-        root = xml_helper.parse_xml(doc)
+        """ Overwrites a dataset metadata document.
+
+        Only overwrites elements, which can be modified using the Dataset Editor
+
+        Args:
+            doc (str): The document as string
+        Returns:
+             doc (str): The modified document
+        """
+        doc = xml_helper.parse_xml(doc)
 
         # Overwrtie
-        ##
+        self._overwrite_dataset_metadata_identification_form_info(doc)
+        self._overwrite_dataset_metadata_classification_form_info(doc)
+        self._overwrite_dataset_metadata_responsible_party_form_info(doc)
+        self._overwrite_dataset_metadata_spatial_extent_form_info(doc)
+        self._overwrite_dataset_metadata_licenses_form_info(doc)
+        self._overwrite_dataset_metadata_quality_form_info(doc)
 
-        doc = etree.tostring(root, xml_declaration=True, encoding="utf-8", pretty_print=True)
+        doc = etree.tostring(doc, xml_declaration=True, encoding="utf-8", pretty_print=True)
 
         return doc
 
+    def _overwrite_dataset_metadata_classification_form_info(self, doc: Element):
+        """ Overwrites the elements according to the Dataset Classification Form.
+
+        Args:
+            doc (Etree): The document as etree
+        Returns:
+
+        """
+        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), doc)
+
+        # Overwrite keyword elements
+        ## Remove existing elements
+        existing_keyword_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("descriptiveKeywords"), ident_elem)
+        for kw in existing_keyword_elems:
+            xml_helper.remove_element(kw)
+        ## Add new
+        descr_keywords_elem = self._create_keywords()
+        xml_helper.add_subelement(ident_elem, descr_keywords_elem, after=GENERIC_NAMESPACE_TEMPLATE.format("pointOfContact"))
+
+        # Overwrite topic category elements
+        ## Remove existing elements
+        existing_category_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("topicCategory"), ident_elem)
+        for cat in existing_category_elems:
+            xml_helper.remove_element(cat)
+        ## Add new
+        topic_category_elems = self._create_topic_category()
+        for elem in topic_category_elems:
+            xml_helper.add_subelement(ident_elem, elem, after=GENERIC_NAMESPACE_TEMPLATE.format("language"))
+
     def _overwrite_dataset_metadata_identification_form_info(self, doc: Element):
+        """ Overwrites the elements according to the Dataset Identification Form.
+
+        Args:
+            doc (Etree): The document as etree
+        Returns:
+
+        """
+        root = doc.getroot()
         # Overwrite language
-        lang_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode"), doc)
-        xml_helper.write_attribute(lang_elem, attrib=self.described_resource.language_code)
+        lang_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode"), root)
+        xml_helper.write_attribute(lang_elem, attrib="codeListValue", txt=self.described_resource.language_code)
         xml_helper.write_text_to_element(lang_elem, txt=self.described_resource.language_code)
 
         # Overwrite encoding
-        encoding_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_CharacterSetCode"), doc)
-        xml_helper.write_attribute(encoding_elem, attrib=self.described_resource.character_set_code)
+        encoding_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_CharacterSetCode"), root)
+        xml_helper.write_attribute(encoding_elem, attrib="codeListValue", txt=self.described_resource.character_set_code)
 
         # Overwrite dateStamp
-        date_stamp_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp"), doc)
-        xml_helper.write_text_to_element(date_stamp_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Date"), self.described_resource.date_stamp)
+        date_stamp_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp"), root)
+        xml_helper.write_text_to_element(date_stamp_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Date"), self.described_resource.date_stamp.strftime(DATE_STRF))
 
-        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("identificationInfo"), doc)
+        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("identificationInfo"), root)
 
         # Overwrite title
         title_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("title"), ident_elem)
@@ -1742,3 +1795,53 @@ class Iso19115MetadataBuilder:
         # Overwrite abstract
         abstract_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("abstract"), ident_elem)
         xml_helper.write_text_to_element(abstract_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString", self.metadata.abstract))
+
+        # Overwrite reference systems
+        ## First remove old onces
+        existing_ref_system_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("referenceSystemInfo"), root)
+        for elem in existing_ref_system_elems:
+            xml_helper.remove_element(elem)
+        ## Then create new
+        new_ref_system_elems = self._create_reference_system_info()
+        for elem in new_ref_system_elems:
+            xml_helper.add_subelement(root, elem, after=GENERIC_NAMESPACE_TEMPLATE.format("dateStamp"))
+
+    def _overwrite_dataset_metadata_responsible_party_form_info(self, doc: Element):
+        """ Overwrites the elements according to the Dataset Responsible Party Form.
+
+        Args:
+            doc (Etree): The document as etree
+        Returns:
+
+        """
+        pass
+
+    def _overwrite_dataset_metadata_spatial_extent_form_info(self, doc: Element):
+        """ Overwrites the elements according to the Dataset Spatial Extent Form.
+
+        Args:
+            doc (Etree): The document as etree
+        Returns:
+
+        """
+        pass
+
+    def _overwrite_dataset_metadata_licenses_form_info(self, doc: Element):
+        """ Overwrites the elements according to the Dataset Licenses/Constraints Form.
+
+        Args:
+            doc (Etree): The document as etree
+        Returns:
+
+        """
+        pass
+
+    def _overwrite_dataset_metadata_quality_form_info(self, doc: Element):
+        """ Overwrites the elements according to the Dataset Quality Form.
+
+        Args:
+            doc (Etree): The document as etree
+        Returns:
+
+        """
+        pass

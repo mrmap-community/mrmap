@@ -317,7 +317,7 @@ def create_subelement(xml_elem: _Element, tag_name, after: str = None, attrib: d
     return ret_element
 
 
-def add_subelement(parent_elem: _Element, sub_element: _Element):
+def add_subelement(parent_elem: _Element, sub_element: _Element, after: str = None):
     """ Adds an existing xml element after
 
     Args:
@@ -326,7 +326,12 @@ def add_subelement(parent_elem: _Element, sub_element: _Element):
     Returns:
          parent_elem: The modified xml element, holding the subelement as a child
     """
-    parent_elem.append(sub_element)
+    if after is not None:
+        after_element = try_get_single_element_from_xml("./{}".format(after), parent_elem)
+        after_element_index = parent_elem.index(after_element) + 1
+        parent_elem.insert(after_element_index, sub_element)
+    else:
+        parent_elem.append(sub_element)
     return parent_elem
 
 

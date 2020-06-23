@@ -279,7 +279,17 @@ class DatasetWizard(MrMapWizard):
 
     @staticmethod
     def _overwrite_dataset_document(metadata: Metadata, doc: Document = None):
+        """ Overwrites a Document record for an existing Dataset entry
+
+        Args:
+            metadata (Metadata): The metadata record
+            doc (Document): The document record
+        Returns:
+
+        """
         if doc is None:
             doc = Document.objects.get(related_metadata=metadata)
         doc_builder = Iso19115MetadataBuilder(metadata.id, MetadataEnum.DATASET)
-        dataset_doc_string = doc_builder.overwrite_dataset_metadata()
+        dataset_doc_string = doc_builder.overwrite_dataset_metadata(doc.current_dataset_metadata_document or doc.original_dataset_metadata_document)
+        doc.current_dataset_metadata_document = dataset_doc_string.decode("UTF-8")
+        doc.save()

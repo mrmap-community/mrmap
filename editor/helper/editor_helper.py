@@ -154,7 +154,7 @@ def _overwrite_capabilities_data(xml_obj: _Element, metadata: Metadata):
             pass
 
 
-def overwrite_dataset_metadata_document(metadata: Metadata):
+def overwrite_dataset_metadata_document(metadata: Metadata, doc: Document = None):
     """ Overwrites the dataset metadata document which is related to the provided metadata.
 
         Args:
@@ -162,8 +162,8 @@ def overwrite_dataset_metadata_document(metadata: Metadata):
         Returns:
              nothing
         """
-
-    doc = Document.objects.get(related_metadata=metadata)
+    if doc is None:
+        doc = Document.objects.get(related_metadata=metadata)
     xml_dict = xmltodict.parse(doc.current_dataset_metadata_document)
     # ToDo: try catch KeyErrors for all the following code
 
@@ -216,6 +216,10 @@ def overwrite_dataset_metadata_document(metadata: Metadata):
                 'gmd:identificationInfo'][
                 'gmd:MD_DataIdentification'][
                 'gmd:language']
+
+    # overwrite topicCategory
+    categories = metadata.categories.all()
+
 
     # save new dataset metadata document
     doc.current_dataset_metadata_document = xmltodict.unparse(xml_dict)

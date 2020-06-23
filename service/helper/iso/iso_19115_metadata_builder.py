@@ -19,7 +19,7 @@ from lxml import etree
 
 from django.utils import timezone
 
-from MrMap.settings import XML_NAMESPACES
+from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 
 
 class Iso19115MetadataBuilder:
@@ -116,6 +116,7 @@ class Iso19115MetadataBuilder:
             self._create_date_stamp,
             self._create_metadata_standard_name,
             self._create_metadata_standard_version,
+            self._create_reference_system_info,
             self._create_identification_info,
             self._create_distribution_info,
             self._create_data_quality_info,
@@ -123,7 +124,11 @@ class Iso19115MetadataBuilder:
 
         for func in subs:
             sub_element = func()
-            xml_helper.add_subelement(root, sub_element)
+            if not isinstance(sub_element, _Element) and isinstance(sub_element, Iterable):
+                for elem in sub_element:
+                    xml_helper.add_subelement(root, elem)
+            else:
+                xml_helper.add_subelement(root, sub_element)
 
         doc = etree.tostring(root, xml_declaration=True, encoding="utf-8", pretty_print=True)
 
@@ -610,6 +615,46 @@ class Iso19115MetadataBuilder:
         xml_helper.add_subelement(ret_elem, elem)
 
         return ret_elem
+
+    def _create_reference_system_info(self):
+        """ Creates the <gmd:referenceSystemInfo> element
+
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        ref_systems = self.metadata.reference_system.all()
+        ret_list = []
+
+        for ref_sys in ref_systems:
+            ret_elem = Element(
+                self.gmd + "referenceSystemInfo"
+            )
+            md_ref_sys_ident_elem = Element(
+                self.gmd + "MD_ReferenceSystem"
+            )
+            ref_sys_ident_elem = Element(
+                self.gmd + "referenceSystemIdentifier"
+            )
+            rs_ident_elem = Element(
+                self.gmd + "RS_Identifier"
+            )
+            code_elem = Element(
+                self.gmd + "code"
+            )
+            char_elem = Element(
+                self.gco + "CharacterString"
+            )
+            char_elem.text = "{}{}".format(ref_sys.prefix, ref_sys.code)
+
+            xml_helper.add_subelement(ret_elem, md_ref_sys_ident_elem)
+            xml_helper.add_subelement(md_ref_sys_ident_elem, ref_sys_ident_elem)
+            xml_helper.add_subelement(ref_sys_ident_elem, rs_ident_elem)
+            xml_helper.add_subelement(rs_ident_elem, code_elem)
+            xml_helper.add_subelement(code_elem, char_elem)
+
+            ret_list.append(ret_elem)
+
+        return ret_list
 
     def _create_identification_info(self):
         """ Creates the <gmd:identificationInfo> element
@@ -1663,3 +1708,37 @@ class Iso19115MetadataBuilder:
         ret_elem.append(date_type_elem)
 
         return ret_elem
+
+    def overwrite_dataset_metadata(self, doc: str):
+        root = xml_helper.parse_xml(doc)
+
+        # Overwrtie
+        ##
+
+        doc = etree.tostring(root, xml_declaration=True, encoding="utf-8", pretty_print=True)
+
+        return doc
+
+    def _overwrite_dataset_metadata_identification_form_info(self, doc: Element):
+        # Overwrite language
+        lang_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode"), doc)
+        xml_helper.write_attribute(lang_elem, attrib=self.described_resource.language_code)
+        xml_helper.write_text_to_element(lang_elem, txt=self.described_resource.language_code)
+
+        # Overwrite encoding
+        encoding_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_CharacterSetCode"), doc)
+        xml_helper.write_attribute(encoding_elem, attrib=self.described_resource.character_set_code)
+
+        # Overwrite dateStamp
+        date_stamp_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp"), doc)
+        xml_helper.write_text_to_element(date_stamp_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Date"), self.described_resource.date_stamp)
+
+        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("identificationInfo"), doc)
+
+        # Overwrite title
+        title_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("title"), ident_elem)
+        xml_helper.write_text_to_element(title_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"), self.metadata.title)
+
+        # Overwrite abstract
+        abstract_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("abstract"), ident_elem)
+        xml_helper.write_text_to_element(abstract_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString", self.metadata.abstract))

@@ -102,9 +102,10 @@ class DatasetWizard(MrMapWizard):
 
         try:
             doc = Document.objects.get(related_metadata__id=metadata.id)
-            overwrite_dataset_metadata_document(metadata)
+            DatasetWizard._overwrite_dataset_document(metadata, doc)
+            #overwrite_dataset_metadata_document(metadata, doc)
         except ObjectDoesNotExist:
-            DatasetWizard._create_dataset_document(metadata, dataset)
+            DatasetWizard._create_dataset_document(metadata)
 
 
     @staticmethod
@@ -259,12 +260,11 @@ class DatasetWizard(MrMapWizard):
         metadata.contact = org
 
     @staticmethod
-    def _create_dataset_document(metadata: Metadata, dataset: Dataset):
+    def _create_dataset_document(metadata: Metadata):
         """ Creates a Document record for the new Dataset entry
 
         Args:
             metadata (Metadata): The metadata record
-            dataset (Dataset): The dataset record
         Returns:
 
         """
@@ -273,5 +273,13 @@ class DatasetWizard(MrMapWizard):
         )[0]
         doc_builder = Iso19115MetadataBuilder(metadata.id, MetadataEnum.DATASET)
         dataset_doc_string = doc_builder.generate_service_metadata()
-        document_obj.current_dataset_metadata_document = dataset_doc_string.decode("UTF-8")
+        document_obj.original_dataset_metadata_document = dataset_doc_string.decode("UTF-8")
+        document_obj.current_dataset_metadata_document = document_obj.original_dataset_metadata_document
         document_obj.save()
+
+    @staticmethod
+    def _overwrite_dataset_document(metadata: Metadata, doc: Document = None):
+        if doc is None:
+            doc = Document.objects.get(related_metadata=metadata)
+        doc_builder = Iso19115MetadataBuilder(metadata.id, MetadataEnum.DATASET)
+        dataset_doc_string = doc_builder.overwrite_dataset_metadata()

@@ -293,6 +293,13 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
     )
 
     def __init__(self, *args, **kwargs):
+        if 'instance_id' in kwargs and kwargs['instance_id'] is not None:
+            metadata = Metadata.objects.get(id=kwargs['instance_id'])
+            init_organization = Organization.objects.filter(id=metadata.contact.id)
+            organizations = Organization.objects.filter(is_auto_generated=False) | init_organization
+        else:
+            organizations = Organization.objects.filter(is_auto_generated=False)
+
         # This form containing organization as depending dropdown.
         # If an existing organization is selected, all contact fields are prefilled
         # If no organization is selected while form updating, all contact fields are setted to empty.
@@ -322,7 +329,20 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
             kwargs['data'] = data
             super(DatasetResponsiblePartyForm, self).__init__(*args, **kwargs)
         else:
+            if 'instance_id' in kwargs and kwargs['instance_id'] is not None:
+                data = {}
+                if 'data' in kwargs and kwargs['data'] is not None:
+                    data = kwargs['data'].copy()
+
+                data.update({f"{kwargs['prefix']}-organization": str(metadata.contact.id),
+                             f"{kwargs['prefix']}-organization_name": metadata.contact.organization_name,
+                             f"{kwargs['prefix']}-person_name": metadata.contact.person_name,
+                             f"{kwargs['prefix']}-phone": metadata.contact.phone,
+                             f"{kwargs['prefix']}-mail": metadata.contact.email,
+                             f"{kwargs['prefix']}-facsimile": metadata.contact.facsimile,
+                             })
+                kwargs['data'] = data
+
             super(DatasetResponsiblePartyForm, self).__init__(*args, **kwargs)
 
-        organizations = Organization.objects.filter(is_auto_generated=False)
         self.fields['organization'].queryset = organizations

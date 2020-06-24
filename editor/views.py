@@ -217,7 +217,8 @@ def remove_dataset(request: HttpRequest, metadata_id: int):
 @login_required
 @check_permission(Permission(can_add_dataset_metadata=True))
 def add_new_dataset_wizard(request: HttpRequest, current_view: str):
-    wizard_view = DatasetWizard.as_view(DATASET_WIZARD_FORMS)
+    wizard_view = DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
+                                        ignore_uncomitted_forms=True)
     return wizard_view(
         request=request,
         current_view=current_view,
@@ -232,7 +233,8 @@ def add_new_dataset_wizard(request: HttpRequest, current_view: str):
 @check_ownership(Metadata, 'instance_id')
 def edit_dataset_wizard(request,  current_view: str, instance_id: int):
     metadata = get_object_or_404(Metadata, id=instance_id)
-    wizard_view = DatasetWizard.as_view(DATASET_WIZARD_FORMS)
+    wizard_view = DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
+                                        ignore_uncomitted_forms=True)
     return wizard_view(request,
                        current_view=current_view,
                        instance_id=instance_id,

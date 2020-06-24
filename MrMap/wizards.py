@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from django.http import HttpResponseRedirect
 from django.template.loader import render_to_string
 from django.urls import reverse, resolve
@@ -11,6 +13,11 @@ from django.utils.translation import gettext_lazy as _
 class MrMapWizard(SessionWizardView):
     template_name = "sceletons/modal-wizard-form.html"
     messages = []
+    ignore_uncomitted_forms = False
+
+    def __init__(self, ignore_uncomitted_forms=False, *args, **kwargs):
+        super(MrMapWizard, self).__init__(*args, **kwargs)
+        self.ignore_uncomitted_forms = ignore_uncomitted_forms
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
@@ -36,6 +43,7 @@ class MrMapWizard(SessionWizardView):
         form = form or self.get_form()
         context = self.get_context_data(form=form, **kwargs)
         context['wizard'].update({'messages': self.messages})
+        context['wizard'].update({'ignore_uncomitted_forms': self.ignore_uncomitted_forms})
 
         rendered_wizard = render_to_string(request=self.request,
                                            template_name=self.template_name,
@@ -65,35 +73,23 @@ class MrMapWizard(SessionWizardView):
 
     def process_step(self, form):
         self.messages = []
-        if self.steps.current == self.steps.last:
-            # check if the ignore optional tabs field is confirmed. if so got to step x. else go to step y.
-            if 'wizard_ignore_optional_data' in self.request.POST and \
-                    self.request.POST['wizard_ignore_optional_data'] == 'on':
-                optional_forms = []
-                for form_key in self.get_form_list():
-                    form_obj = self.get_form(
-                        step=form_key,
-                        data=self.storage.get_step_data(form_key),
-                        files=self.storage.get_step_files(form_key)
-                    )
-                    # x.1. self.get_form_list(): get the unbounded forms
-                    if not form_obj.is_bound and not form_key == self.steps.last:
-                        # x.2. for all unbounded forms check if they has required fields
-                        if form_obj.has_required_fields():
-                            # x.3. if the form has required fields, go default way
-                            self.messages.append(('info', _('There are unposted form datas.')))
-                            break
-                        else:
-                            optional_forms.append(form_key)
-                # x.4. if no unbounded form has required fields then remove them from the form_list
-                for optional_form in optional_forms:
-                    self.form_list.pop(optional_form)
-            else:
-                # y.1 add info to the form
-                self.messages.append(('info', _('There are unposted form datas.')))
-                self.messages.append(('info', _(format_html('If the forms containing only optional input, go to last step and check the <strong>Ignore optional forms</strong> checkbox if you want to ignore optional steps.'))))
-                pass
-                # y.2 go on with the default way
+        # ToDo: check if save button was hitted
+        if self.ignore_uncomitted_forms and 'wizard_save' in self.request.POST:
+            uncomitted_forms = []
+            for form_key in self.get_form_list():
+                form_obj = self.get_form(
+                    step=form_key,
+                    data=self.storage.get_step_data(form_key),
+                    files=self.storage.get_step_files(form_key)
+                )
+                # x.1. self.get_form_list(): get the unbounded forms
+                if not form_obj.is_bound and form_key != self.steps.current:
+                    uncomitted_forms.append(form_key)
+            # x.4. if no unbounded form has required fields then remove them from the form_list
+            for uncomitted_form in uncomitted_forms:
+                self.form_list.pop(uncomitted_form)
+            # set current commited form as last form
+            self.form_list.move_to_end(self.steps.current)
         return self.get_form_step_data(form)
 
     def get_form_kwargs(self, step):

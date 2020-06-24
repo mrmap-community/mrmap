@@ -572,7 +572,15 @@ class Metadata(Resource):
     is_custom = models.BooleanField(default=False)
     is_inspire_conform = models.BooleanField(default=False)
     has_inspire_downloads = models.BooleanField(default=False)
-    bounding_geometry = models.PolygonField(null=True, blank=True)
+    bounding_geometry = models.PolygonField(default=Polygon(
+        (
+            (0.0, 0.0),
+            (0.0, 0.0),
+            (0.0, 0.0),
+            (0.0, 0.0),
+            (0.0, 0.0),
+        )
+    ))
 
     # security
     is_secured = models.BooleanField(default=False)

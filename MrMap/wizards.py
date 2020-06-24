@@ -60,7 +60,9 @@ class MrMapWizard(SessionWizardView):
                                    self.process_step(current_form))
         self.storage.set_step_files(self.steps.current, self.process_step_files(current_form))
 
-        if self.storage.current_step == goto_step and self.request.POST[f"{current_form.prefix}-is_form_update"] == 'True':
+        if self.storage.current_step == goto_step and \
+                f"{current_form.prefix}-is_form_update" in self.request.POST and \
+                self.request.POST[f"{current_form.prefix}-is_form_update"] == 'True':
             return self.render(current_form)
 
         # ToDo: call super().render_goto_step instead to write duplicate code

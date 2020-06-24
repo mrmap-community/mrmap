@@ -30,6 +30,14 @@ DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
 
 class DatasetWizard(MrMapWizard):
 
+    def get_form_initial(self, step):
+        initial = self.initial_dict.get(step, {})
+        if step == "responsible party" and 'instance_id' in self.kwargs:
+            metadata = Metadata.objects.get(id=self.kwargs['instance_id'])
+            init_organization = Organization.objects.get(id=metadata.contact.id)
+            initial.update({'organization': init_organization.id})
+        return initial
+
     def done(self, form_list, **kwargs):
         """ Iterates over all forms and fills the Metadata/Dataset records accordingly
 

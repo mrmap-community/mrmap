@@ -59,7 +59,9 @@
                         <div class="container-fluid">
                         <div class="row">
                             <div class="col-sm">
-
+                                <a href="{% url current_view %}" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" role="button" aria-pressed="true">
+                                    {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss'%}
+                                </a>
                             </div>
                             <div class="col-sm">
                                 <div class="mx-auto text-center">
@@ -68,9 +70,6 @@
                             </div>
                             <div class="col-sm">
                                 <div class="float-right">
-                                    <a href="{% url current_view %}" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" role="button" aria-pressed="true">
-                                        {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss'%}
-                                    </a>
                                     {% if wizard.steps.prev %}
                                         <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the first step'%}">
                                             <button name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.first }}">

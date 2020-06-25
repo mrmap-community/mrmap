@@ -32,8 +32,8 @@ class DatasetWizard(MrMapWizard):
 
     def get_form_initial(self, step):
         initial = self.initial_dict.get(step, {})
-        if step == "responsible party" and 'instance_id' in self.kwargs:
-            metadata = Metadata.objects.get(id=self.kwargs['instance_id'])
+        if step == "responsible party" and self.instance_id:
+            metadata = Metadata.objects.get(id=self.instance_id)
             init_organization = Organization.objects.get(id=metadata.contact.id)
             initial.update({'organization': init_organization.id})
         return initial

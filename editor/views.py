@@ -217,29 +217,27 @@ def remove_dataset(request: HttpRequest, metadata_id: int):
 @login_required
 @check_permission(Permission(can_add_dataset_metadata=True))
 def add_new_dataset_wizard(request: HttpRequest, current_view: str):
-    wizard_view = DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
-                                        ignore_uncomitted_forms=True)
-    return wizard_view(
-        request=request,
-        current_view=current_view,
-        title=_(format_html('<b>Add New Dataset</b>')),
-        id_modal='add_new_dataset_wizard',
-    )
+    return DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
+                                 ignore_uncomitted_forms=True,
+                                 current_view=current_view,
+                                 title=_(format_html('<b>Add New Dataset</b>')),
+                                 id_wizard='add_new_dataset_wizard',
+                                 )(request=request)
 
 
 @login_required
 @check_permission(Permission(can_edit_dataset_metadata=True))
-# ToDo: Metadata should be replaced by DatasetMetadata
-@check_ownership(Metadata, 'instance_id')
-def edit_dataset_wizard(request,  current_view: str, instance_id: int):
-    metadata = get_object_or_404(Metadata, id=instance_id)
-    wizard_view = DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
-                                        ignore_uncomitted_forms=True)
-    return wizard_view(request,
-                       current_view=current_view,
-                       instance_id=instance_id,
-                       title=_(format_html(f'<b>Edit</b> <i>{metadata.title}</i> <b>Dataset</b>')),
-                       id_modal=f'edit_{metadata.id}_dataset_wizard',)
+@check_ownership(Metadata, 'metadata_id')
+def edit_dataset_wizard(request,  current_view: str, metadata_id: int):
+    metadata = get_object_or_404(Metadata, id=metadata_id)
+    return DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
+                                 ignore_uncomitted_forms=True,
+                                 current_view=current_view,
+                                 instance_id=metadata_id,
+                                 title=_(format_html(f'<b>Edit</b> <i>{metadata.title}</i> <b>Dataset</b>')),
+                                 id_wizard=f'edit_{metadata.id}_dataset_wizard',
+                                 )(request=request)
+
 
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))

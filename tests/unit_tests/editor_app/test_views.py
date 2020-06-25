@@ -17,9 +17,16 @@ from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 EDITOR_INDEX_NAME = 'editor:index'
 EDITOR_WMS_INDEX_NAME = 'editor:wms-index'
 EDITOR_WFS_INDEX_NAME = 'editor:wfs-index'
+
+EDITOR_DATASET_INDEX_NAME = 'editor:datasets-index'
+EDITOR_DATASET_WIZARD_NEW = 'editor:dataset-metadata-wizard-new'
+EDITOR_DATASET_WIZARD_EDIT = 'dataset-metadata-wizard-instance'
+EDITOR_REMOVE_DATASET = 'editor:remove-dataset-metadata'
+
 EDITOR_METADATA_EDITOR_NAME = 'editor:edit'
 EDITOR_ACCESS_EDITOR_NAME = 'editor:edit_access'
 EDITOR_ACCESS_GEOMETRY_EDITOR_NAME = 'editor:access_geometry_form'
+
 
 class EditorIndexViewTestCase(TestCase):
     """ Test case for basic index view of WMS and WFS editor

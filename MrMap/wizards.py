@@ -1,9 +1,5 @@
-from collections import OrderedDict
-
-from django.http import HttpResponseRedirect
 from django.template.loader import render_to_string
 from django.urls import reverse, resolve
-from django.utils.html import format_html
 from formtools.wizard.views import SessionWizardView
 from MrMap.utils import get_theme
 from users.helper import user_helper
@@ -12,25 +8,39 @@ from django.utils.translation import gettext_lazy as _
 
 class MrMapWizard(SessionWizardView):
     template_name = "sceletons/modal-wizard-form.html"
-    messages = []
     ignore_uncomitted_forms = False
+    current_view = None
+    instance_id = None
+    title = None
+    id_wizard = None
 
-    def __init__(self, ignore_uncomitted_forms=False, *args, **kwargs):
+    def __init__(self,
+                 current_view: str,
+                 instance_id: int = None,
+                 ignore_uncomitted_forms: bool = False,
+                 title: str = _('Wizard'),
+                 id_wizard: str = 'id_wizard',
+                 *args,
+                 **kwargs):
         super(MrMapWizard, self).__init__(*args, **kwargs)
         self.ignore_uncomitted_forms = ignore_uncomitted_forms
+        self.current_view = current_view
+        self.instance_id = instance_id
+        self.title = title
+        self.id_wizard = id_wizard
 
     def get_context_data(self, form, **kwargs):
         context = super().get_context_data(form=form, **kwargs)
-        context.update({'id_modal': self.kwargs['id_modal'],
-                        'modal_title': self.kwargs['title'],
+        context.update({'id_modal': self.id_wizard,
+                        'modal_title': self.title,
                         'THEME': get_theme(user_helper.get_user(self.request)),
                         'action_url': reverse('editor:dataset-metadata-wizard-instance',
-                                              args=(self.kwargs['current_view'], self.kwargs.get('instance_id')))
-                        if 'instance_id' in self.kwargs else reverse('editor:dataset-metadata-wizard-new',
-                                                                     args=(self.kwargs['current_view'],)),
+                                              args=(self.current_view, self.instance_id))
+                        if self.instance_id else reverse('editor:dataset-metadata-wizard-new',
+                                                         args=(self.current_view,)),
                         'show_modal': True,
                         'fade_modal': True,
-                        'current_view': self.kwargs['current_view'],
+                        'current_view': self.current_view,
                         })
 
         if bool(self.storage.data['step_data']):
@@ -42,13 +52,12 @@ class MrMapWizard(SessionWizardView):
     def render(self, form=None, **kwargs):
         form = form or self.get_form()
         context = self.get_context_data(form=form, **kwargs)
-        context['wizard'].update({'messages': self.messages})
         context['wizard'].update({'ignore_uncomitted_forms': self.ignore_uncomitted_forms})
 
         rendered_wizard = render_to_string(request=self.request,
                                            template_name=self.template_name,
                                            context=context)
-        view_function = resolve(reverse(f"{self.kwargs['current_view']}", ))
+        view_function = resolve(reverse(f"{self.current_view}", ))
         rendered_view = view_function.func(request=self.request, rendered_wizard=rendered_wizard)
         return rendered_view
 
@@ -74,8 +83,6 @@ class MrMapWizard(SessionWizardView):
         return self.render(next_form)
 
     def process_step(self, form):
-        self.messages = []
-        # ToDo: check if save button was hitted
         if self.ignore_uncomitted_forms and 'wizard_save' in self.request.POST:
             uncomitted_forms = []
             for form_key in self.get_form_list():
@@ -95,5 +102,5 @@ class MrMapWizard(SessionWizardView):
         return self.get_form_step_data(form)
 
     def get_form_kwargs(self, step):
-        return {'instance_id': self.kwargs['instance_id'] if 'instance_id' in self.kwargs else None,
+        return {'instance_id': self.instance_id,
                 'request': self.request, }

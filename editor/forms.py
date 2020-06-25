@@ -145,8 +145,6 @@ class DatasetIdentificationForm(MrMapWizardForm):
             self.fields['language_code'].initial = dataset.language_code
             self.fields['character_set_code'].initial = dataset.character_set_code
 
-            # ToDo: initial all fields
-
             self.fields['additional_related_objects'].queryset = self.fields['additional_related_objects'].queryset.exclude(id=self.instance_id)
             metadata_relations = MetadataRelation.objects.filter(metadata_to=self.instance_id)
             additional_related_objects = []

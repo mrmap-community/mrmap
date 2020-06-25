@@ -1,3 +1,5 @@
+from abc import ABC
+
 from django.template.loader import render_to_string
 from django.urls import reverse, resolve
 from formtools.wizard.views import SessionWizardView
@@ -6,7 +8,7 @@ from users.helper import user_helper
 from django.utils.translation import gettext_lazy as _
 
 
-class MrMapWizard(SessionWizardView):
+class MrMapWizard(SessionWizardView, ABC):
     template_name = "sceletons/modal-wizard-form.html"
     ignore_uncomitted_forms = False
     current_view = None
@@ -73,14 +75,7 @@ class MrMapWizard(SessionWizardView):
                 f"{current_form.prefix}-is_form_update" in self.request.POST and \
                 self.request.POST[f"{current_form.prefix}-is_form_update"] == 'True':
             return self.render(current_form)
-
-        # ToDo: call super().render_goto_step instead to write duplicate code
-        self.storage.current_step = goto_step
-        next_form = self.get_form(
-            data=self.storage.get_step_data(self.steps.current),
-            files=self.storage.get_step_files(self.steps.current))
-
-        return self.render(next_form)
+        return super(MrMapWizard, self).render_goto_step(goto_step=goto_step)
 
     def process_step(self, form):
         if self.ignore_uncomitted_forms and 'wizard_save' in self.request.POST:

@@ -47,10 +47,9 @@ class DatasetWizard(MrMapWizard):
         Returns:
 
         """
-        instance_id = kwargs.pop("instance_id", None)
-        if instance_id is not None:
+        if self.instance_id is not None:
             # Update
-            metadata = Metadata.objects.get(id=instance_id)
+            metadata = Metadata.objects.get(id=self.instance_id)
             dataset = Dataset.objects.get(metadata=metadata)
         else:
             # New
@@ -78,7 +77,7 @@ class DatasetWizard(MrMapWizard):
         user = user_helper.get_user(request=self.request)
         self._fill_form_list(form_list, metadata, dataset, user)
 
-        return HttpResponseRedirect(reverse(self.kwargs['current_view'], ), status=303)
+        return HttpResponseRedirect(reverse(self.current_view, ), status=303)
 
     @staticmethod
     def _fill_form_list(form_list, metadata: Metadata, dataset: Dataset, user: MrMapUser):

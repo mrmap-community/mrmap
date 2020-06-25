@@ -74,6 +74,12 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service = Non
         )
 
         baker.make_recipe(
+            'tests.baker_recipes.service_app.active_dataset',
+            created_by=group,
+            metadata=dataset_metadata,
+        )
+
+        baker.make_recipe(
             'tests.baker_recipes.service_app.document',
             related_metadata=dataset_metadata,
             created_by=group,
@@ -170,6 +176,12 @@ def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = Non
             'tests.baker_recipes.service_app.active_dataset_metadata',
             created_by=group,
             metadata_type=dataset_md_type,
+        )
+
+        baker.make_recipe(
+            'tests.baker_recipes.service_app.active_dataset',
+            created_by=group,
+            metadata=dataset_metadata,
         )
 
         baker.make_recipe(

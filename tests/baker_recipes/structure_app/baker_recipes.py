@@ -25,20 +25,34 @@ superadmin_permission = Recipe(
     can_create_organization=True,
     can_edit_organization=True,
     can_delete_organization=True,
+
     can_create_group=True,
     can_delete_group=True,
     can_edit_group=True,
+
     can_add_user_to_group=True,
     can_remove_user_from_group=True,
+
     can_edit_group_role=True,
+
     can_activate_service=True,
     can_update_service=True,
     can_register_service=True,
     can_remove_service=True,
     can_edit_metadata_service=True,
+
+    can_add_dataset_metadata=True,
+    can_edit_dataset_metadata=True,
+    can_remove_dataset_metadata=True,
     can_toggle_publish_requests=True,
+    can_create_monitoring_setting=True,
+    can_edit_monitoring_setting=True,
+    can_delete_monitoring_setting=True,
     can_remove_publisher=True,
     can_request_to_become_publisher=True,
+    can_generate_api_token=True,
+    can_access_logs=True,
+    can_download_logs=True,
 )
 
 guest_permission = Recipe(

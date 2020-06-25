@@ -1,11 +1,10 @@
 from datetime import datetime
-
 from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key, related
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum
 from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType, Keyword, Category, \
-    Document, RequestOperation, MimeType, MetadataOrigin, ProxyLog
-from tests.baker_recipes.structure_app.baker_recipes import superadmin_group, superadmin_user
+    Document, RequestOperation, MimeType, MetadataOrigin, ProxyLog, Dataset
+from tests.baker_recipes.structure_app.baker_recipes import superadmin_group
 
 layer_metadatatype = Recipe(
     MetadataType,
@@ -134,6 +133,13 @@ active_dataset_metadata = Recipe(
     identifier=seq("metadata_dataset_"),
     is_active=True,
     metadata_type=foreign_key(dataset_metadatatype),
+    created_by=foreign_key(superadmin_group),
+)
+
+active_dataset = Recipe(
+    Dataset,
+    metadata=foreign_key(active_dataset_metadata),
+    is_active=True,
     created_by=foreign_key(superadmin_group),
 )
 

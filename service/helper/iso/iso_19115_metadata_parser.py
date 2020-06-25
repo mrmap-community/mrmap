@@ -90,6 +90,8 @@ class ISOMetadata:
         self.access_constraints = None
         self.responsible_party = None
         self.contact_email = None
+        self.contact_phone = None
+        self.contact_person = None
         self.update_frequency = None
         self.valid_update_frequencies = [
             'continual',
@@ -433,6 +435,8 @@ class ISOMetadata:
 
         self.access_constraints = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:resourceConstraints/gmd:MD_LegalConstraints[gmd:accessConstraints/gmd:MD_RestrictionCode/@codeListValue="otherRestrictions"]/gmd:otherConstraints/gco:CharacterString'.format(xpath_type))
         self.responsible_party = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:pointOfContact/gmd:CI_ResponsibleParty/gmd:organisationName/gco:CharacterString'.format(xpath_type))
+        self.contact_person = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:pointOfContact/gmd:CI_ResponsibleParty/gmd:individualName/gco:CharacterString'.format(xpath_type))
+        self.contact_phone = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:pointOfContact/gmd:CI_ResponsibleParty/gmd:contactInfo/gmd:CI_Contact/gmd:phone/gmd:CI_Telephone/gmd:voice/gco:CharacterString'.format(xpath_type))
         self.contact_email = xml_helper.try_get_text_from_xml_element(xml_obj, '//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:pointOfContact/gmd:CI_ResponsibleParty/gmd:contactInfo/gmd:CI_Contact/gmd:address/gmd:CI_Address/gmd:electronicMailAddress/gco:CharacterString'.format(xpath_type))
         update_frequency = xml_helper.try_get_attribute_from_xml_element(xml_elem=xml_obj, attribute="codeListValue", elem='//gmd:MD_Metadata/gmd:identificationInfo/{}/gmd:resourceMaintenance/gmd:MD_MaintenanceInformation/gmd:maintenanceAndUpdateFrequency/gmd:MD_MaintenanceFrequencyCode'.format(xpath_type))
         if update_frequency in self.valid_update_frequencies:

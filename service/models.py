@@ -1308,6 +1308,13 @@ class Metadata(Resource):
         self.abstract = original_metadata_document.abstract
         self.title = original_metadata_document.title
 
+        self.contact = Organization.objects.get_or_create(
+            organization_name=original_metadata_document.responsible_party,
+            email=original_metadata_document.contact_email,
+            person_name=original_metadata_document.contact_person,
+            phone=original_metadata_document.contact_phone
+        )[0]
+
         self.language_code = original_metadata_document.language
 
         # Take the polygon with the largest area as bounding geometry

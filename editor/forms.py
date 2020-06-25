@@ -6,6 +6,7 @@ Created on: 09.07.19
 
 """
 from dal import autocomplete
+from django.db.models import Q
 from django.forms import ModelMultipleChoiceField
 from django.utils.translation import gettext_lazy as _
 from django import forms
@@ -266,18 +267,30 @@ class DatasetQualityForm(MrMapWizardForm):
 
 
 class DatasetResponsiblePartyForm(MrMapWizardForm):
-    organization = forms.ModelChoiceField(label=_('Organization'),
-                                          queryset=None,
-                                          required=False,
-                                          help_text=_('Select an other Organization to overwrite the original.'))
+    organization = forms.ModelChoiceField(
+        label=_('Organization'),
+        queryset=None,
+        required=False,
+        help_text=_('Select an other Organization to overwrite the original. You can select your organization and the ones you are allowed to publish for.')
+    )
 
     def __init__(self, *args, **kwargs):
+        user = user_helper.get_user(kwargs.get("request"))
+        user_groups = user.get_groups()
         if 'instance_id' in kwargs and kwargs['instance_id'] is not None:
             metadata = Metadata.objects.get(id=kwargs['instance_id'])
             init_organization = Organization.objects.filter(id=metadata.contact.id)
-            organizations = Organization.objects.filter(is_auto_generated=False) | init_organization
+            organizations = Organization.objects.filter(
+                Q(is_auto_generated=False) &
+                Q(can_publish_for__in=user_groups) |
+                Q(id=user.organization.id)
+            ) | init_organization
         else:
-            organizations = Organization.objects.filter(is_auto_generated=False)
+            organizations = Organization.objects.filter(
+                Q(is_auto_generated=False) &
+                Q(can_publish_for__in=user_groups) |
+                Q(id=user.organization.id)
+            )
 
         super(DatasetResponsiblePartyForm, self).__init__(*args, **kwargs)
 

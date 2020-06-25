@@ -734,7 +734,8 @@ class OGCWebFeatureService(OGCWebService):
         md.created_by = group
         md.capabilities_original_uri = self.service_connect_url
         md.capabilities_uri = self.service_connect_url
-        md.bounding_geometry = self.service_bounding_box
+        if self.service_bounding_box is not None:
+            md.bounding_geometry = self.service_bounding_box
 
         # Save metadata record so we can use M2M or id of record later
         md.save()

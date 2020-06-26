@@ -294,7 +294,8 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
                                          HTTP_REFERER=reverse('editor:index'),
                                          data=save_post_params,)
 
-        self.assertEqual(save_response.status_code, 302, )
+        # 303 is returned due to the FormWizard
+        self.assertEqual(save_response.status_code, 303, )
         self.assertTemplateUsed(response=save_response, template_name="views/editor_service_table_index.html")
 
 

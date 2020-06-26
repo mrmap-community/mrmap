@@ -1776,9 +1776,13 @@ class Iso19115MetadataBuilder:
         """
         ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), doc)
 
+        if ident_elem is None:
+            # Nothing to overwrtite
+            return
+
         # Overwrite keyword elements
         ## Remove existing elements
-        existing_keyword_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("descriptiveKeywords"), ident_elem)
+        existing_keyword_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("descriptiveKeywords"), ident_elem) or []
         for kw in existing_keyword_elems:
             xml_helper.remove_element(kw)
         ## Add new
@@ -1787,7 +1791,7 @@ class Iso19115MetadataBuilder:
 
         # Overwrite topic category elements
         ## Remove existing elements
-        existing_category_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("topicCategory"), ident_elem)
+        existing_category_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("topicCategory"), ident_elem) or []
         for cat in existing_category_elems:
             xml_helper.remove_element(cat)
         ## Add new
@@ -1829,7 +1833,7 @@ class Iso19115MetadataBuilder:
 
         # Overwrite reference systems
         ## First remove old onces
-        existing_ref_system_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("referenceSystemInfo"), root)
+        existing_ref_system_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("referenceSystemInfo"), root) or []
         for elem in existing_ref_system_elems:
             xml_helper.remove_element(elem)
         ## Then create new
@@ -1847,9 +1851,13 @@ class Iso19115MetadataBuilder:
         """
         root = doc.getroot()
 
+        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), root)
+        if ident_elem is None:
+            return
+
         # Remove existing contact information elem
-        contact_info_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("contact"), root)
-        contact_info_elems += xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("pointOfContact"), root)
+        contact_info_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("contact"), root) or []
+        contact_info_elems += xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("pointOfContact"), root) or []
         for elem in contact_info_elems:
             xml_helper.remove_element(elem)
 
@@ -1858,7 +1866,6 @@ class Iso19115MetadataBuilder:
         contact_elem = self._create_contact()
         xml_helper.add_subelement(root, contact_elem, after=GENERIC_NAMESPACE_TEMPLATE.format("hierarchyLevel"))
 
-        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), root)
         point_of_contact_elem = Element(
             self.gmd + "pointOfContact"
         )
@@ -1880,8 +1887,12 @@ class Iso19115MetadataBuilder:
         """
         ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), doc)
 
+        if ident_elem is None:
+            # Nothing to do here
+            return
+
         # get existing spatial extent element
-        extent_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("extent"), ident_elem)
+        extent_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("extent"), ident_elem) or []
         # filter only geographic extents
         geo_extent_elems = []
         for extent in extent_elems:
@@ -1912,6 +1923,10 @@ class Iso19115MetadataBuilder:
         """
         ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), doc)
         other_constraints_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("otherConstraints"), doc)
+
+        if ident_elem is None:
+            # Nothing to do here
+            return
 
         # No such element found, we need to create it
         if other_constraints_elem is None:
@@ -1957,6 +1972,10 @@ class Iso19115MetadataBuilder:
         """
         dq_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("DQ_DataQuality"), doc)
         ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), doc)
+
+        if ident_elem is None:
+            # Nothing to do here
+            return
 
         # Overwrite lineage data, if element exists
         lineage_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("lineage"), dq_elem)

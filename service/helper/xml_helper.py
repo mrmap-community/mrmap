@@ -328,7 +328,11 @@ def add_subelement(parent_elem: _Element, sub_element: _Element, after: str = No
     """
     if after is not None:
         after_element = try_get_single_element_from_xml("./{}".format(after), parent_elem)
-        after_element_index = parent_elem.index(after_element) + 1
+        if after_element is None:
+            # If this element could not be found, we append this element at the end
+            after_element_index = -1
+        else:
+            after_element_index = parent_elem.index(after_element) + 1
         parent_elem.insert(after_element_index, sub_element)
     else:
         parent_elem.append(sub_element)

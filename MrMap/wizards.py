@@ -1,5 +1,4 @@
 from abc import ABC
-
 from django.template.loader import render_to_string
 from django.urls import reverse, resolve
 from formtools.wizard.views import SessionWizardView
@@ -21,6 +20,7 @@ class MrMapWizard(SessionWizardView, ABC):
                  instance_id: int = None,
                  ignore_uncomitted_forms: bool = False,
                  title: str = _('Wizard'),
+                 # ToDo: random id for wizard as default
                  id_wizard: str = 'id_wizard',
                  *args,
                  **kwargs):
@@ -32,7 +32,7 @@ class MrMapWizard(SessionWizardView, ABC):
         self.id_wizard = id_wizard
 
     def get_context_data(self, form, **kwargs):
-        context = super().get_context_data(form=form, **kwargs)
+        context = super(MrMapWizard, self).get_context_data(form=form, **kwargs)
         context.update({'id_modal': self.id_wizard,
                         'modal_title': self.title,
                         'THEME': get_theme(user_helper.get_user(self.request)),
@@ -44,6 +44,7 @@ class MrMapWizard(SessionWizardView, ABC):
                         'fade_modal': True,
                         'current_view': self.current_view,
                         })
+        context['wizard'].update({'ignore_uncomitted_forms': self.ignore_uncomitted_forms})
 
         if bool(self.storage.data['step_data']):
             # this wizard is not new, prevent from bootstrap modal fading
@@ -52,16 +53,17 @@ class MrMapWizard(SessionWizardView, ABC):
         return context
 
     def render(self, form=None, **kwargs):
+        # we implement custom rendering, for that we need the current we to render the modal as string and
+        # pass it to the view where the wizard should be rendered
         form = form or self.get_form()
         context = self.get_context_data(form=form, **kwargs)
-        context['wizard'].update({'ignore_uncomitted_forms': self.ignore_uncomitted_forms})
 
         rendered_wizard = render_to_string(request=self.request,
                                            template_name=self.template_name,
                                            context=context)
+
         view_function = resolve(reverse(f"{self.current_view}", ))
-        rendered_view = view_function.func(request=self.request, rendered_wizard=rendered_wizard)
-        return rendered_view
+        return view_function.func(request=self.request, rendered_wizard=rendered_wizard)
 
     def render_goto_step(self, goto_step, **kwargs):
         # 1. save current form, we doesn't matter for validation for now.
@@ -78,6 +80,7 @@ class MrMapWizard(SessionWizardView, ABC):
         return super(MrMapWizard, self).render_goto_step(goto_step=goto_step)
 
     def process_step(self, form):
+        # we implement custom logic to ignore uncomitted forms
         if self.ignore_uncomitted_forms and 'wizard_save' in self.request.POST:
             uncomitted_forms = []
             for form_key in self.get_form_list():
@@ -97,5 +100,6 @@ class MrMapWizard(SessionWizardView, ABC):
         return self.get_form_step_data(form)
 
     def get_form_kwargs(self, step):
+        # pass instance_id and request to the forms
         return {'instance_id': self.instance_id,
                 'request': self.request, }

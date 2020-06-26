@@ -1,22 +1,19 @@
 import json
-
-from django.forms import formset_factory
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
-from django.template.loader import render_to_string
 from MrMap import utils
 from MrMap.cacher import PageCacher
 from MrMap.decorator import check_permission, check_ownership
-from MrMap.messages import FORM_INPUT_INVALID, METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
+from MrMap.messages import METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
     METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
     SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MrMap.responses import DefaultContext, BackendAjaxResponse
 from api.settings import API_CACHE_KEY_PREFIX
-from editor.forms import MetadataEditorForm, DatasetIdentificationForm, DatasetClassificationForm
+from editor.forms import MetadataEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from editor.wizards import DATASET_WIZARD_FORMS, DatasetWizard
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter
@@ -478,7 +475,6 @@ def restore(request: HttpRequest, metadata_id: int):
         else:
             params = {
                 "remove_dataset_form": remove_form,
-                # ToDo:
                 "show_restore_dataset_modal": True,
             }
             return index_datasets(request=request, update_params=params, status_code=422)

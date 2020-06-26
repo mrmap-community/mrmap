@@ -4,7 +4,7 @@ from model_bakery.recipe import Recipe, foreign_key, related
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum
 from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType, Keyword, Category, \
     Document, RequestOperation, MimeType, MetadataOrigin, ProxyLog, Dataset
-from tests.baker_recipes.structure_app.baker_recipes import superadmin_group
+from tests.baker_recipes.structure_app.baker_recipes import superadmin_group, superadmin_orga
 
 layer_metadatatype = Recipe(
     MetadataType,
@@ -134,6 +134,7 @@ active_dataset_metadata = Recipe(
     is_active=True,
     metadata_type=foreign_key(dataset_metadatatype),
     created_by=foreign_key(superadmin_group),
+    contact=foreign_key(superadmin_orga),
 )
 
 active_dataset = Recipe(
@@ -156,6 +157,7 @@ document = Recipe(
 
 metadata_origin = Recipe(
     MetadataOrigin,
+    name="capabilities"
 )
 
 operation = Recipe(

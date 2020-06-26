@@ -43,8 +43,13 @@ def create_superadminuser(groups: QuerySet = None, ):
     return superuser
 
 
-def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service = None, user: MrMapUser = None,
-                       contact: Organization = None, how_much_services: int = 1, how_much_sublayers: int = 1):
+def create_wms_service(group: MrMapGroup,
+                       is_update_candidate_for: Service = None,
+                       user: MrMapUser = None,
+                       contact: Organization = None,
+                       how_much_services: int = 1,
+                       how_much_sublayers: int = 1,
+                       md_relation_origin: str = None):
     service_md_type = MetadataType.objects.get_or_create(
         type=MetadataEnum.SERVICE.value
     )[0]
@@ -71,6 +76,7 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service = Non
             'tests.baker_recipes.service_app.active_dataset_metadata',
             created_by=group,
             metadata_type=dataset_md_type,
+            contact=contact,
         )
 
         baker.make_recipe(
@@ -85,9 +91,15 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service = Non
             created_by=group,
         )
 
-        md_origin = baker.make_recipe(
-            'tests.baker_recipes.service_app.metadata_origin',
-        )
+        if md_relation_origin:
+            md_origin = baker.make_recipe(
+                'tests.baker_recipes.service_app.metadata_origin',
+                name=md_relation_origin,
+            )
+        else:
+            md_origin = baker.make_recipe(
+                'tests.baker_recipes.service_app.metadata_origin',
+            )
 
         md_relation = MetadataRelation()
         md_relation.metadata_from = root_service_metadata
@@ -149,8 +161,14 @@ def create_wms_service(group: MrMapGroup, is_update_candidate_for: Service = Non
     return root_service_metadatas
 
 
-def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = None, user: MrMapUser = None,
-                       contact: Organization = None, how_much_services: int = 1, how_much_featuretypes: int = 1):
+def create_wfs_service(group: MrMapGroup,
+                       is_update_candidate_for: Service = None,
+                       user: MrMapUser = None,
+                       contact: Organization = None,
+                       how_much_services: int = 1,
+                       how_much_featuretypes: int = 1,
+                       md_relation_origin: str = None):
+
     service_md_type = MetadataType.objects.get_or_create(
         type=MetadataEnum.SERVICE.value
     )[0]
@@ -176,6 +194,7 @@ def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = Non
             'tests.baker_recipes.service_app.active_dataset_metadata',
             created_by=group,
             metadata_type=dataset_md_type,
+            contact=contact,
         )
 
         baker.make_recipe(
@@ -190,9 +209,15 @@ def create_wfs_service(group: MrMapGroup, is_update_candidate_for: Service = Non
             created_by=group,
         )
 
-        md_origin = baker.make_recipe(
-            'tests.baker_recipes.service_app.metadata_origin',
-        )
+        if md_relation_origin:
+            md_origin = baker.make_recipe(
+                'tests.baker_recipes.service_app.metadata_origin',
+                name=md_relation_origin,
+            )
+        else:
+            md_origin = baker.make_recipe(
+                'tests.baker_recipes.service_app.metadata_origin',
+            )
 
         md_relation = MetadataRelation()
         md_relation.metadata_from = root_service_metadata

@@ -48,7 +48,12 @@ class MrMapWizardForm(forms.Form):
                                         initial=False,
                                         required=False,)
 
-    def __init__(self, request: HttpRequest, instance_id: int = None, has_autocomplete_fields: bool = False, *args, **kwargs):
+    def __init__(self,
+                 request: HttpRequest,
+                 instance_id: int = None,
+                 has_autocomplete_fields: bool = False,
+                 *args,
+                 **kwargs):
         super(MrMapWizardForm, self).__init__(*args, **kwargs)
         self.request = request
         self.instance_id = instance_id

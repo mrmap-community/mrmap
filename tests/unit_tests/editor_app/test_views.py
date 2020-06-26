@@ -5,13 +5,15 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 27.04.20
 
 """
+from django.contrib.messages import get_messages
 from django.test import TestCase, Client
 from django.urls import reverse
 
 from editor.forms import MetadataEditorForm
 from editor.tables import WmsServiceTable, WfsServiceTable, DatasetTable
 from service.models import Metadata, MetadataRelation
-from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service, create_wfs_service
+from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service, create_wfs_service, \
+    create_public_organization
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 
 EDITOR_INDEX_NAME = 'editor:index'
@@ -235,14 +237,14 @@ class EditorDatasetWizardNewViewTestCase(TestCase):
 
 
 class EditorDatasetWizardInstanceViewTestCase(TestCase):
-    """ Test case for basic index view of WMS editor
-
-    """
     def setUp(self):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        self.wms_services = create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
+        self.organization = create_public_organization(user=self.user)
+        self.wms_services = create_wms_service(group=self.user.get_groups().first(),
+                                               how_much_services=10,
+                                               contact=self.organization[0])
 
     def test_get_wizard_instance_view(self):
         """ Test for checking whether the view is correctly rendered or not
@@ -261,3 +263,72 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
         self.assertEqual(len(response.context["dataset_table"].rows), 10)
         # see if paging is working... only 5 elements by default should be listed
         self.assertEqual(len(response.context["dataset_table"].page.object_list), 5)
+
+    def test_step_and_save_wizard_instance_view(self):
+        # todo: post some data to get the next step
+        datasets = self.user.get_datasets_as_qs()
+        step_post_params = {"wizard_goto_step": "classification",
+                            "dataset_wizard-current_step": "identification",
+                            "identification-is_form_update": "False",
+                            "identification-title": "Ahrhutstrasse",
+                            "identification-abstract": "Bebauungsplan+\"Ahrhutstraße\"",
+                            "identification-language_code": "ger",
+                            "identification-character_set_code": "utf8",
+                            "identification-date_stamp": "2020-06-23",
+                            "identification-created_by": self.user.get_groups().first().id}
+
+        save_post_params = {"dataset_wizard-current_step": "classification",
+                            "classification-is_form_update": "False",
+                            "classification-keywords": [],
+                            "wizard_save": "True"}
+
+        step_response = self.client.post(reverse('editor:dataset-metadata-wizard-instance',
+                                                 args=('editor:index', datasets[0].id)),
+                                         HTTP_REFERER=reverse('editor:index'),
+                                         data=step_post_params,)
+        self.assertEqual(step_response.status_code, 200, )
+        self.assertTemplateUsed(response=step_response, template_name="views/editor_service_table_index.html")
+
+        save_response = self.client.post(reverse('editor:dataset-metadata-wizard-instance',
+                                                 args=('editor:index', datasets[0].id)),
+                                         HTTP_REFERER=reverse('editor:index'),
+                                         data=save_post_params,)
+
+        self.assertEqual(save_response.status_code, 302, )
+        self.assertTemplateUsed(response=save_response, template_name="views/editor_service_table_index.html")
+
+
+class EditorDatasetWizardRemoveInstanceViewTestCase(TestCase):
+    def setUp(self):
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
+        self.wms_services = create_wms_service(group=self.user.get_groups().first(), how_much_services=1, md_relation_origin='MrMap')
+
+    def test_wizard_remove_instance_view(self):
+        """ Test for checking whether the view is correctly rendered or not
+
+        Returns:
+
+        """
+        datasets = self.user.get_datasets_as_qs()
+        post_data = {'is_confirmed': 'True'}
+
+        response = self.client.post(
+            reverse('editor:remove-dataset-metadata', args=(datasets[0].id, )),
+            data=post_data
+        )
+
+        self.assertEqual(response.status_code, 303, )
+        messages = [m.message for m in get_messages(response.wsgi_request)]
+        self.assertIn("Dataset successfully deleted.", messages)
+
+
+class EditorRestoreDatasetViewTestCase(TestCase):
+    def setUp(self):
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=PASSWORD)
+        self.wms_services = create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
+
+    # ToDo:

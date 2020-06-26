@@ -14,11 +14,11 @@ class PublisherTable(MrMapTable):
         row_attrs = {
             "class": "text-center"
         }
-    publisher_group = tables.Column(accessor='name', verbose_name='Group')
-    publisher_org = tables.Column(accessor='organization', verbose_name='Group organization')
+    publisher_group = tables.Column(accessor='name', verbose_name=_('Group'))
+    publisher_org = tables.Column(accessor='organization', verbose_name=_('Group organization'))
     publisher_action = tables.TemplateColumn(
         template_name="includes/detail/publisher_requests_accept_reject.html",
-        verbose_name='Action',
+        verbose_name=_('Action'),
         orderable=False,
         extra_context={
             "remove_publisher": True,
@@ -59,10 +59,10 @@ class PublishesForTable(MrMapTable):
         row_attrs = {
             "class": "text-center"
         }
-    publisher_org = tables.Column(accessor='organization_name', verbose_name='Organization')
+    publisher_org = tables.Column(accessor='organization_name', verbose_name=_('Organization'))
     publisher_action = tables.TemplateColumn(
         template_name="includes/detail/publisher_requests_accept_reject.html",
-        verbose_name='Action',
+        verbose_name=_('Action'),
         orderable=False,
         extra_context={
             "remove_publisher": True,
@@ -92,13 +92,13 @@ class PublisherRequestTable(MrMapTable):
         row_attrs = {
             "class": "text-center"
         }
-    publisher_group = tables.Column(accessor='group', verbose_name='Group')
-    publisher_org = tables.Column(accessor='group.organization', verbose_name='Group organization')
-    message = tables.Column(accessor='message', verbose_name='Message')
-    activation_until = tables.Column(accessor='activation_until', verbose_name='Activation until')
+    publisher_group = tables.Column(accessor='group', verbose_name=_('Group'))
+    publisher_org = tables.Column(accessor='group.organization', verbose_name=_('Group organization'))
+    message = tables.Column(accessor='message', verbose_name=_('Message'))
+    activation_until = tables.Column(accessor='activation_until', verbose_name=_('Activation until'))
     publisher_action = tables.TemplateColumn(
         template_name="includes/detail/publisher_requests_accept_reject.html",
-        verbose_name='Action',
+        verbose_name=_('Action'),
         orderable=False,
         extra_context={
         }
@@ -134,9 +134,9 @@ class PublisherRequestTable(MrMapTable):
 
 
 class GroupTable(MrMapTable):
-    groups_name = tables.Column(accessor='name', verbose_name='Name', )
-    groups_description = tables.Column(accessor='description', verbose_name='Description', )
-    groups_organization = tables.Column(accessor='organization.organization_name', verbose_name='Organization', )
+    groups_name = tables.Column(accessor='name', verbose_name=_('Name'), )
+    groups_description = tables.Column(accessor='description', verbose_name=_('Description'), )
+    groups_organization = tables.Column(accessor='organization.organization_name', verbose_name=_('Organization'), )
 
     caption = _("Shows all groups which are configured in your Mr. Map environment.")
 
@@ -163,10 +163,10 @@ class GroupTable(MrMapTable):
 
 
 class OrganizationTable(MrMapTable):
-    orgs_organization_name = tables.Column(accessor='organization_name', verbose_name='Name', )
-    orgs_description = tables.Column(accessor='description', verbose_name='Description', )
-    orgs_is_auto_generated = tables.Column(accessor='is_auto_generated', verbose_name='Real organization', )
-    orgs_parent = tables.Column(accessor='parent', verbose_name='Parent',)
+    orgs_organization_name = tables.Column(accessor='organization_name', verbose_name=_('Name'), )
+    orgs_description = tables.Column(accessor='description', verbose_name=_('Description'), )
+    orgs_is_auto_generated = tables.Column(accessor='is_auto_generated', verbose_name=_('Real organization'), )
+    orgs_parent = tables.Column(accessor='parent', verbose_name=_('Parent'),)
 
     caption = _("Shows all organizations which are configured in your Mr. Map environment.")
 

@@ -1628,191 +1628,161 @@ msgstr "Metadaten Datum"
 msgid "Properties of the dataset for "
 msgstr "Eigenschaften des Datensatzes für "
 
-# ToDo: Continue here!
-
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:13
 msgid "Topic category"
-msgstr ""
+msgstr "Kategorie"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:18
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:28
-#, fuzzy
-#| msgid "No keywords provided"
 msgid "No keywords provided!"
-msgstr "Keine Schlüsselwörter verfügbar"
+msgstr "Keine Schlüsselwörter vorhanden!"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:23
-#, fuzzy
-#| msgid "Keywords"
 msgid "Keyword value"
 msgstr "Schlüsselwörter"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:33
-#, fuzzy
-#| msgid "Additional reference systems:"
 msgid "Coordinate reference system"
-msgstr "Weitere Referenzsysteme:"
+msgstr "Referenzsysteme"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:43
 #: service/templates/metadata/tabs/content/wfs/featuretype/properties_tab.html:41
 #: service/templates/metadata/tabs/content/wms/layer/properties_tab.html:72
 #: service/templates/metadata/tabs/content/wms/root/properties_tab.html:27
 msgid "Extend in geographic Coordinates"
-msgstr ""
+msgstr "Ausdehnung in geografischen Koordinaten"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:54
 msgid "Temporal extent from"
-msgstr ""
+msgstr "Zeitliche Ausdehnung von"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:60
 msgid "Temporal extent to"
-msgstr ""
+msgstr "Zeitliche Ausdehnung bis"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:66
 msgid "Date of publication"
-msgstr ""
+msgstr "Veröffentlicht am"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:71
-#, fuzzy
-#| msgid "No spatial data provided!"
 msgid "No date of publication provided!"
-msgstr "Keine geographischen Daten verfügbar!"
+msgstr "Kein Datum verügbar!"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:76
 msgid "Date of last revision"
-msgstr ""
+msgstr "Letzte Revision am"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:81
-#, fuzzy
-#| msgid "No spatial data provided!"
 msgid "No date of last revision provided!"
-msgstr "Keine geographischen Daten verfügbar!"
+msgstr "Kein Datum verügbar!"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:86
-#, fuzzy
-#| msgid "Delete organization"
 msgid "Date of creation"
-msgstr "Entferne Organisation"
+msgstr "Erstellt am"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:91
-#, fuzzy
-#| msgid "No spatial data provided!"
 msgid "No date of creation provided!"
-msgstr "Keine geographischen Daten verfügbar!"
+msgstr "Kein Datum verfügbar!"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:96
 msgid "Encoding"
-msgstr ""
+msgstr "Zeichenkodierung"
 
 #: service/templates/metadata/tabs/content/dataset/terms_of_use_tab.html:4
 msgid "Terms of use of the dataset "
-msgstr ""
+msgstr "Nutzungsbedingungen für den Datensatz "
 
 #: service/templates/metadata/tabs/content/dataset/terms_of_use_tab.html:7
 #: service/templates/metadata/tabs/content/terms_of_use_tab.html:7
 msgid "Public access restrictions"
-msgstr ""
+msgstr "Einschränkung des öffentlichen Zugriffs"
 
 #: service/templates/metadata/tabs/content/dataset/terms_of_use_tab.html:11
 #: service/templates/metadata/tabs/content/terms_of_use_tab.html:11
 msgid "Information about costs/fees/licenses"
-msgstr ""
+msgstr "Kosten/Gebühren/Lizenzen"
 
 #: service/templates/metadata/tabs/content/interfaces_tab.html:4
 msgid "Interfaces informations for "
-msgstr ""
+msgstr "Schnittstelleninformationen für "
 
 #: service/templates/metadata/tabs/content/interfaces_tab.html:29
-#, fuzzy
-#| msgid "Show capabilities"
 msgid "Original Capabilities"
-msgstr "Zeige Capabilities"
+msgstr "Original Capabilities"
 
 #: service/templates/metadata/tabs/content/quality_tab.html:4
 msgid "Quality informations for "
-msgstr ""
+msgstr "Qualitätsinformationen für "
 
 #: service/templates/metadata/tabs/content/quality_tab.html:7
 msgid "Status"
-msgstr ""
+msgstr "Status"
 
 #: service/templates/metadata/tabs/content/quality_tab.html:14
 msgid "Availability"
-msgstr ""
+msgstr "Verfügbarkeit"
 
 #: service/templates/metadata/tabs/content/render_content_spatial_extent.html:3
 #: service/templates/metadata/tabs/content/wms/root/properties_tab.html:38
 msgid "Spatial extent"
-msgstr ""
+msgstr "Räumliche Ausdehnung"
 
 #: service/templates/metadata/tabs/content/terms_of_use_tab.html:4
 msgid "Terms of use informations for "
-msgstr ""
+msgstr "Nutzungsbedingungen für "
 
 #: service/templates/metadata/tabs/content/wfs/featuretype/interfaces_tab.html:4
 msgid "Interfaces of the featuretype for "
-msgstr ""
+msgstr "Schnittstellen des Featuretypes für "
 
 #: service/templates/metadata/tabs/content/wfs/featuretype/overview_tab.html:7
 msgid "Overview of the featuretype for "
-msgstr ""
+msgstr "Überblick für den Featuretype für "
 
 #: service/templates/metadata/tabs/content/wfs/featuretype/overview_tab.html:22
 #: service/templates/metadata/tabs/content/wms/layer/overview_tab.html:23
-#, fuzzy
-#| msgid "Parent service"
 msgid "Parent Service"
-msgstr "Übergeordneter Dienst"
+msgstr "Zugehöriger Dienst"
 
 #: service/templates/metadata/tabs/content/wfs/featuretype/overview_tab.html:27
 #: service/templates/metadata/tabs/content/wms/layer/overview_tab.html:35
-#, fuzzy
-#| msgid "Online resource"
 msgid "Name of resource"
-msgstr "Onlineresource"
+msgstr "Ressourcenname"
 
 #: service/templates/metadata/tabs/content/wfs/featuretype/properties_tab.html:6
 msgid "Properties of the featuretype for "
-msgstr ""
+msgstr "Eigenschaften des Featuretype für "
 
 #: service/templates/metadata/tabs/content/wfs/featuretype/properties_tab.html:9
-#, fuzzy
-#| msgid "Is searchable"
 msgid "is searchable"
 msgstr "Durchsuchbar"
 
 #: service/templates/metadata/tabs/content/wfs/featuretype/properties_tab.html:19
 msgid "is access secured"
-msgstr ""
+msgstr "Zugriff eingeschränkt"
 
 #: service/templates/metadata/tabs/content/wfs/featuretype/properties_tab.html:29
 #: service/templates/metadata/tabs/content/wms/layer/properties_tab.html:60
 #: service/templates/metadata/tabs/content/wms/root/properties_tab.html:17
-#, fuzzy
-#| msgid "Additional reference systems:"
 msgid "Coordinate Reference System"
-msgstr "Weitere Referenzsysteme:"
+msgstr "Referenzsystem"
 
 #: service/templates/metadata/tabs/content/wfs/featuretype/properties_tab.html:53
-#, fuzzy
-#| msgid "Dataset"
 msgid "Dataschema"
-msgstr "Datensatz"
+msgstr "Datenschema"
 
 #: service/templates/metadata/tabs/content/wfs/featuretype/properties_tab.html:60
 msgid "Type of geometry"
-msgstr ""
+msgstr "Geometrietyp"
 
 #: service/templates/metadata/tabs/content/wfs/featuretype/properties_tab.html:67
 #: service/templates/metadata/tabs/content/wms/layer/properties_tab.html:85
-#, fuzzy
-#| msgid "Get dataset metadata"
 msgid "Coupled dataset metadata"
-msgstr "Öffne Datensatz Metadaten"
+msgstr "Zugehörige Datensatz Metadaten"
 
 #: service/templates/metadata/tabs/content/wfs/root/overview_tab.html:7
 msgid "Overview of the wfs for "
-msgstr ""
+msgstr "Überblick WFS für "
 
 #: service/templates/metadata/tabs/content/wfs/root/overview_tab.html:37
 msgid "Featuretypes"
@@ -1820,55 +1790,45 @@ msgstr "Featuretypen"
 
 #: service/templates/metadata/tabs/content/wms/layer/interfaces_tab.html:4
 msgid "Interfaces of the layer for "
-msgstr ""
+msgstr "Schnittstellen des Layers für "
 
 #: service/templates/metadata/tabs/content/wms/layer/overview_tab.html:8
 msgid "Overview of the layer for "
-msgstr ""
+msgstr "Überblick Layer für "
 
 #: service/templates/metadata/tabs/content/wms/layer/overview_tab.html:29
-#, fuzzy
-#| msgid "Parent service"
 msgid "Parent Layer"
-msgstr "Übergeordneter Dienst"
+msgstr "Zugehöriger Dienst"
 
 #: service/templates/metadata/tabs/content/wms/layer/overview_tab.html:39
 #: service/templates/metadata/tabs/content/wms/root/overview_tab.html:31
-#, fuzzy
-#| msgid "Overview"
 msgid "Preview"
-msgstr "Übersicht"
+msgstr "Vorschau"
 
 #: service/templates/metadata/tabs/content/wms/layer/overview_tab.html:69
-#, fuzzy
-#| msgid "Layers"
 msgid "Child Layers"
-msgstr "Ebenen"
+msgstr "Unterebenen"
 
 #: service/templates/metadata/tabs/content/wms/layer/properties_tab.html:6
 msgid "Properties of the layer for "
-msgstr ""
+msgstr "Eigenschaften der Ebene für "
 
 #: service/templates/metadata/tabs/content/wms/layer/properties_tab.html:49
 #: service/templates/metadata/tabs/content/wms/root/properties_tab.html:7
-#, fuzzy
-#| msgid "Is queryable"
 msgid "is Queryable"
 msgstr "Abfragbar"
 
 #: service/templates/metadata/tabs/content/wms/root/overview_tab.html:6
 msgid "Overview of the wms for "
-msgstr ""
+msgstr "Überblick WMS für "
 
 #: service/templates/metadata/tabs/content/wms/root/overview_tab.html:21
-#, fuzzy
-#| msgid "Edit layer"
 msgid "Root layer"
-msgstr "Ebene bearbeiten"
+msgstr "Rootebene"
 
 #: service/templates/metadata/tabs/content/wms/root/properties_tab.html:4
 msgid "Properties of the wms for "
-msgstr ""
+msgstr "Eigenschaften des WMS für "
 
 #: service/templates/metadata/tabs/header/dataset_header.html:9
 #: service/templates/metadata/tabs/header/default_header.html:9
@@ -1879,7 +1839,7 @@ msgstr "Übersicht"
 #: service/templates/metadata/tabs/header/dataset_header.html:13
 #: service/templates/metadata/tabs/header/default_header.html:13
 msgid "Properties"
-msgstr ""
+msgstr "Eigenschaften"
 
 #: service/templates/metadata/tabs/header/dataset_header.html:17
 #: service/templates/metadata/tabs/header/default_header.html:17
@@ -1891,19 +1851,17 @@ msgstr "Kontakt"
 #: service/templates/metadata/tabs/header/default_header.html:21
 #: service/templates/metadata/tabs/header/wfs_root_header.html:17
 msgid "Terms Of Use"
-msgstr ""
+msgstr "Nutzungsbedingungen"
 
 #: service/templates/metadata/tabs/header/dataset_header.html:25
 #: service/templates/metadata/tabs/header/default_header.html:30
 #: service/templates/metadata/tabs/header/wfs_root_header.html:26
 msgid "Interfaces"
-msgstr ""
+msgstr "Schnittstellen"
 
 #: service/templates/modals/new_service.html:6
-#, fuzzy
-#| msgid "New service"
 msgid "Add new service"
-msgstr "Neuer Dienst"
+msgstr "Dienst hinzufügen"
 
 #: service/templates/modals/new_service.html:12
 #: service/templates/modals/update_service.html:16
@@ -1923,28 +1881,26 @@ msgid "No dataset metadata found"
 msgstr "Keine Datensatz Metadaten gefunden"
 
 #: service/views.py:771
-#, fuzzy
-#| msgid "No dataset metadata found"
 msgid "No updatecandidate was found."
-msgstr "Keine Datensatz Metadaten gefunden"
+msgstr "Kein Updatekandidat gefunden"
 
 #: service/views.py:773
 msgid "Update candidates will be deleted after 7 days."
-msgstr ""
+msgstr "Updatekandidaten werden nach 7 Tagen gelöscht."
 
 #: service/views.py:841
-#, fuzzy
-#| msgid "Account updated successfully!"
 msgid "Pending update successfully dismissed."
-msgstr "Account aktualisiert!"
+msgstr "Ausstehendes Update abgebrochen."
 
 #: service/views.py:843
 msgid "You are not the owner of this pending update. Rejected!"
-msgstr ""
+msgstr "Sie sind nicht der Eigentümer dieses Updates!"
 
 #: service/views.py:1014
 msgid "Shows informations about the featuretype which you are selected."
-msgstr ""
+msgstr "Zeigt Informationen über den Featuretype"
+
+# ToDo: Continue
 
 #: service/views.py:1021
 msgid "Shows informations about the service which you are selected."

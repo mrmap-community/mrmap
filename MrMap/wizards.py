@@ -14,20 +14,23 @@ class MrMapWizard(SessionWizardView, ABC):
     instance_id = None
     title = None
     id_wizard = None
+    required_forms = None
 
     def __init__(self,
                  current_view: str,
                  instance_id: int = None,
                  ignore_uncomitted_forms: bool = False,
+                 required_forms: list = None,
                  title: str = _('Wizard'),
                  # ToDo: random id for wizard as default
                  id_wizard: str = 'id_wizard',
                  *args,
                  **kwargs):
         super(MrMapWizard, self).__init__(*args, **kwargs)
-        self.ignore_uncomitted_forms = ignore_uncomitted_forms
         self.current_view = current_view
         self.instance_id = instance_id
+        self.ignore_uncomitted_forms = ignore_uncomitted_forms
+        self.required_forms = required_forms
         self.title = title
         self.id_wizard = id_wizard
 
@@ -80,7 +83,8 @@ class MrMapWizard(SessionWizardView, ABC):
         return super(MrMapWizard, self).render_goto_step(goto_step=goto_step)
 
     def process_step(self, form):
-        # we implement custom logic to ignore uncomitted forms
+        # we implement custom logic to ignore uncomitted forms,
+        # but if the uncomitted form is required, then we dont drop it
         if self.ignore_uncomitted_forms and 'wizard_save' in self.request.POST:
             uncomitted_forms = []
             for form_key in self.get_form_list():
@@ -93,8 +97,15 @@ class MrMapWizard(SessionWizardView, ABC):
                 if not form_obj.is_bound and form_key != self.steps.current:
                     uncomitted_forms.append(form_key)
             # x.4. if no unbounded form has required fields then remove them from the form_list
+            temp_form_list = self.form_list
             for uncomitted_form in uncomitted_forms:
-                self.form_list.pop(uncomitted_form)
+                # only pop non required forms
+                if self.required_forms is None or uncomitted_form not in self.required_forms:
+                    self.form_list.pop(uncomitted_form)
+                else:
+                    # there was an uncomitted required form. Go the default way
+                    self.form_list = temp_form_list
+                    return self.get_form_step_data(form)
             # set current commited form as last form
             self.form_list.move_to_end(self.steps.current)
         return self.get_form_step_data(form)

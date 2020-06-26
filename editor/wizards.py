@@ -27,8 +27,12 @@ DATASET_WIZARD_FORMS = [(_("identification"), DatasetIdentificationForm),
                         (_("licenses/constraints"), DatasetLicenseConstraintsForm),
                         (_("Quality"), DatasetQualityForm), ]
 
+DATASET_WIZARD_FORMS_REQUIRED = ['identification', 'classification', 'responsible party']
+
 
 class DatasetWizard(MrMapWizard):
+    def __init__(self, *args, **kwargs):
+        super(MrMapWizard, self).__init__(required_forms=DATASET_WIZARD_FORMS_REQUIRED, *args, **kwargs)
 
     def get_form_initial(self, step):
         initial = self.initial_dict.get(step, {})

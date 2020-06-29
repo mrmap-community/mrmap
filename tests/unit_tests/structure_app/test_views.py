@@ -50,11 +50,13 @@ class StructureIndexViewTestCase(TestCase):
         self.assertTemplateUsed(response, template_name="views/structure_index.html")
 
         self.assertIsInstance(response.context['groups'], GroupTable)
-        self.assertEqual(len(response.context['groups'].rows), 10)
+        num_groups = self.user.get_groups().count()
+        self.assertEqual(len(response.context['groups'].rows), num_groups)
         self.assertEqual(len(response.context['groups'].page.object_list), 5)
 
         self.assertIsInstance(response.context['organizations'], OrganizationTable)
-        self.assertEqual(len(response.context['organizations'].rows), 10)
+        num_orgas = Organization.objects.all().count()
+        self.assertEqual(len(response.context['organizations'].rows), num_orgas)
         self.assertEqual(len(response.context['organizations'].page.object_list), 5)
 
         self.assertIsInstance(response.context['new_group_form'], GroupForm)
@@ -68,7 +70,8 @@ class StructureIndexViewTestCase(TestCase):
         self.assertTemplateUsed(response, template_name="views/groups_index.html")
 
         self.assertIsInstance(response.context['groups'], GroupTable)
-        self.assertEqual(len(response.context['groups'].rows), 10)
+        num_groups = self.user.get_groups().count()
+        self.assertEqual(len(response.context['groups'].rows), num_groups)
         self.assertEqual(len(response.context['groups'].page.object_list), 5)
 
         self.assertIsInstance(response.context['new_group_form'], GroupForm)
@@ -83,7 +86,8 @@ class StructureIndexViewTestCase(TestCase):
         self.assertTemplateUsed(response, template_name="views/organizations_index.html")
 
         self.assertIsInstance(response.context['organizations'], OrganizationTable)
-        self.assertEqual(len(response.context['organizations'].rows), 10)
+        num_orgas = Organization.objects.all().count()
+        self.assertEqual(len(response.context['organizations'].rows), num_orgas)
         self.assertEqual(len(response.context['organizations'].page.object_list), 5)
 
         self.assertIsInstance(response.context['new_organization_form'], OrganizationForm)

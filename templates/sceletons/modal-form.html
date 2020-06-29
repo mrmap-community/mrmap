@@ -10,12 +10,15 @@
                     {% block modal-title %}
                     {% endblock %}
                 </h5>
+                {% block modal-header %}
+                {% endblock %}
             </div>
             <form id="id_modal_form_{{id_modal}}" action="{{form.action_url}}" method="post">
                 {% csrf_token %}
                 <div class="modal-body">
-                    {% if form %}
                     {% bootstrap_form form %}
+                    {% if form.has_autocomplete_fields %}
+                        {% include 'sceletons/autocomplete_form_media.html' %}
                     {% endif %}
                 </div>
                 <div class="modal-footer">
@@ -34,7 +37,7 @@
 
 <script type="application/javascript">
     $(function() {
-       $(".auto_submit_item").change(function() {
+       $("#id_modal_form_{{id_modal}} .auto_submit_item").change(function() {
          $('#id_is_form_update').val('True');
          $('#id_modal_form_{{id_modal}}').submit();
        });

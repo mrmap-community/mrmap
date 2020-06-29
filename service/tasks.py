@@ -322,11 +322,11 @@ def async_process_secure_operations_form(post_params: dict, md_id: int):
     # use_proxy=False and log_proxy=True is not allowed!
     # use_proxy=False and metadata.log_proxy_access is not allowed either!
     if not use_proxy and log_proxy:
-        AssertionError(SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING)
+        raise AssertionError(SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING)
 
     # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
     if md.has_external_authentication() and not use_proxy:
-        AssertionError(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
+        raise AssertionError(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
 
     # set new metadata proxy value and iterate over all children
     if use_proxy is not None and use_proxy != md.use_proxy_uri:

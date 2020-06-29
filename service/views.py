@@ -353,6 +353,7 @@ def remove(request: HttpRequest, metadata_id: int):
     """
     user = user_helper.get_user(request)
     metadata = get_object_or_404(Metadata, id=metadata_id)
+    # ToDo: change this form to MrMapConfirmForm
     remove_form = RemoveServiceForm(request.POST)
     if request.method == 'POST':
         if remove_form.is_valid() and request.POST.get("is_confirmed") == 'on':
@@ -437,10 +438,11 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
                 raise ObjectDoesNotExist
             return redirect("service:get-dataset-metadata", metadata_id=md.id)
         document = Document.objects.get(related_metadata=md)
-        document = document.dataset_metadata_document
+        document = document.current_dataset_metadata_document
         if document is None:
             raise ObjectDoesNotExist
     except ObjectDoesNotExist:
+        # ToDo: a datasetmetadata without a document is broken
         return HttpResponse(content=_("No dataset metadata found"), status=404)
     return HttpResponse(document, content_type='application/xml')
 
@@ -651,7 +653,8 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
             related_metadata=md
         )
         params['bounding_box'] = md.bounding_geometry
-        params['dataset_metadata'] = dataset_doc.get_dataset_metadata_as_dict()
+        #params['dataset_metadata'] = dataset_doc.get_dataset_metadata_as_dict()
+        params['dataset_metadata'] = md
         params.update({'capabilities_uri': reverse('service:get-dataset-metadata', args=(md.id,))})
 
     elif md.is_metadata_type(MetadataEnum.FEATURETYPE):
@@ -979,16 +982,15 @@ def _check_for_dataset_metadata(metadata: Metadata, ):
     Args:
         metadata:
     Returns:
-         A boolean, whether the requested element has a dataset metadata record or not
+         The document or none
     """
     try:
         md_2 = metadata.get_related_dataset_metadata()
-        Document.objects.get(
+        return Document.objects.get(
             related_metadata=md_2
         )
-        return True
     except ObjectDoesNotExist:
-        return False
+        return None
 
 
 @login_required
@@ -1015,19 +1017,19 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
 
     # catch featuretype
     if service_md.is_metadata_type(MetadataEnum.FEATURETYPE):
-        params.update({'caption': _("Shows informations about the featuretype which you are selected.")})
+        params.update({'caption': _("Shows informations about the featuretype.")})
         template = "views/featuretype_detail_no_base.html" if 'no-base' in request.GET else "views/featuretype_detail.html"
         service = service_md.featuretype
         layers_md_list = {}
         params.update({'has_dataset_metadata': _check_for_dataset_metadata(service.metadata)})
     else:
         if service_md.service.is_root:
-            params.update({'caption': _("Shows informations about the service which you are selected.")})
+            params.update({'caption': _("Shows informations about the service.")})
             service = service_md.service
             layers = Layer.objects.filter(parent_service=service_md.service)
             layers_md_list = layers.filter(parent_layer=None)
         else:
-            params.update({'caption': _("Shows informations about the sublayer which you are selected.")})
+            params.update({'caption': _("Shows informations about the sublayer.")})
             template = "views/sublayer_detail_no_base.html" if 'no-base' in request.GET else "views/sublayer_detail.html"
             service = Layer.objects.get(
                 metadata=service_md

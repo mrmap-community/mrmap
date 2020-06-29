@@ -2,7 +2,7 @@
 {% load static i18n tz %}
 
 {% block body %}
-<div class="container-fluid px-5">
+<div class="container-fluid px-5" >
     {% with 'WMS' as service_type %}
         {% with wms_table as table %}
                 {% include 'includes/editor_service_table.html' %}
@@ -10,6 +10,11 @@
     {% endwith %}
     {% with 'WFS' as service_type %}
         {% with wfs_table as table %}
+                {% include 'includes/editor_service_table.html' %}
+        {% endwith %}
+    {% endwith %}
+    {% with 'Datasets' as service_type %}
+        {% with dataset_table as table %}
                 {% include 'includes/editor_service_table.html' %}
         {% endwith %}
     {% endwith %}

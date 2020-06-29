@@ -116,6 +116,7 @@ def set_uri_GET_param(uri: str, param: str, val):
     return uri
 
 
+# ToDo: move this function to the MrMapUser model
 def get_theme(user: MrMapUser):
     if user is None or user.theme is None:
         return LIGHT_THEME

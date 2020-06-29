@@ -27,10 +27,9 @@ from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.crypto_handler import CryptoHandler
-from service.helper.iso.service_metadata_builder import ServiceMetadataBuilder
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
-    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES
+    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES, DEFAULT_SRS
 from structure.models import MrMapGroup, Organization, MrMapUser
 from service.helper import xml_helper
 
@@ -534,6 +533,15 @@ class ExternalAuthentication(models.Model):
         self.username = crypto_handler.message.decode("ascii")
 
 
+class MetadataLanguage(models.Model):
+    language = models.CharField(max_length=255)
+    # ISO639-2/T three letter code
+    iso_639_2_tlc = models.CharField(max_length=3)
+
+    def __str__(self):
+        return self.language
+
+
 class Metadata(Resource):
     id = models.BigAutoField(primary_key=True,)
     identifier = models.CharField(max_length=255, null=True)
@@ -550,43 +558,52 @@ class Metadata(Resource):
     html_metadata_uri = models.CharField(max_length=500, blank=True, null=True)
 
     contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, blank=True, null=True)
-    terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, null=True)
+    terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, blank=True, null=True)
     access_constraints = models.TextField(null=True, blank=True)
     fees = models.TextField(null=True, blank=True)
 
     last_remote_change = models.DateTimeField(null=True, blank=True)  # the date time, when the metadata was changed where it comes from
-    status = models.IntegerField(null=True)
+    status = models.IntegerField(null=True, blank=True)
     use_proxy_uri = models.BooleanField(default=False)
     log_proxy_access = models.BooleanField(default=False)
-    spatial_res_type = models.CharField(max_length=100, null=True)
-    spatial_res_value = models.CharField(max_length=100, null=True)
+    spatial_res_type = models.CharField(max_length=100, null=True, blank=True)
+    spatial_res_value = models.CharField(max_length=100, null=True, blank=True)
     is_broken = models.BooleanField(default=False)
     is_custom = models.BooleanField(default=False)
     is_inspire_conform = models.BooleanField(default=False)
     has_inspire_downloads = models.BooleanField(default=False)
-    bounding_geometry = models.PolygonField(null=True, blank=True)
+    bounding_geometry = models.PolygonField(default=Polygon(
+        (
+            (0.0, 0.0),
+            (0.0, 0.0),
+            (0.0, 0.0),
+            (0.0, 0.0),
+            (0.0, 0.0),
+        )
+    ))
 
     # security
     is_secured = models.BooleanField(default=False)
 
     # capabilities
-    authority_url = models.CharField(max_length=255, null=True)
+    authority_url = models.CharField(max_length=255, null=True, blank=True)
     metadata_url = models.CharField(max_length=255, null=True)
 
     # other
     keywords = models.ManyToManyField(Keyword)
     formats = models.ManyToManyField('MimeType', blank=True)
-    categories = models.ManyToManyField('Category')
+    categories = models.ManyToManyField('Category', blank=True)
     reference_system = models.ManyToManyField('ReferenceSystem')
-    dimensions = models.ManyToManyField('Dimension')
+    dimensions = models.ManyToManyField('Dimension', blank=True)
     metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
+    legal_dates = models.ManyToManyField('LegalDate', blank=True)
+    legal_reports = models.ManyToManyField('LegalReport', blank=True)
     hits = models.IntegerField(default=0)
 
-    ## for ISO metadata
-    dataset_id = models.CharField(max_length=255, null=True, blank=True)
-    dataset_id_code_space = models.CharField(max_length=255, null=True, blank=True)
-
+    # Related metadata creates Relations between metadata records by using the MetadataRelation table.
+    # Each MetadataRelation record might hold further information about the relation, e.g. 'describedBy', ...
     related_metadata = models.ManyToManyField(MetadataRelation)
+    language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
     origin = None
 
     def __init__(self, *args, **kwargs):
@@ -768,6 +785,7 @@ class Metadata(Resource):
         Returns:
             service_metadata_document (str): The xml document
         """
+        from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
         doc = None
         cacher = DocumentCacher(title="SERVICE_METADATA", version="0")
         try:
@@ -790,7 +808,7 @@ class Metadata(Resource):
 
         except ObjectDoesNotExist as e:
             # There is no service metadata document in the database, we need to create it
-            builder = ServiceMetadataBuilder(self.id, MetadataEnum.SERVICE)
+            builder = Iso19115MetadataBuilder(self.id, MetadataEnum.SERVICE)
             doc = builder.generate_service_metadata()
 
             # Write new creates service metadata to cache
@@ -1005,7 +1023,7 @@ class Metadata(Resource):
             monitoring_setting.metadatas.add(self)
             monitoring_setting.save()
 
-    def delete(self, using=None, keep_parents=False):
+    def delete(self, using=None, keep_parents=False, force=False):
         """ Overwriting of the regular delete function
 
         Checks if the current processed metadata is part of a MetadataRelation, which indicates, that it is still used
@@ -1015,6 +1033,7 @@ class Metadata(Resource):
         Args:
             using: The regular 'using' parameter
             keep_parents: The regular 'keep_parents' parameter
+            force: Forces the deletion in any case
         Returns:
             nothing
         """
@@ -1034,13 +1053,14 @@ class Metadata(Resource):
         dependencies = MetadataRelation.objects.filter(
             metadata_to=self
         )
-        if dependencies.count() > 1:
+        if dependencies.count() > 1 and force is False:
             # if there are more than one dependency, we should not remove it
             # the one dependency we can expect at least is the relation to the current metadata record
             return
         else:
             # if we have one or less relations to this metadata record, we can remove it anyway
             super().delete(using, keep_parents)
+
 
     def get_service_type(self):
         """ Performs a check on which service type is described by the metadata record
@@ -1275,14 +1295,75 @@ class Metadata(Resource):
         cap_doc = Document.objects.get(related_metadata=service.metadata)
         cap_doc.restore()
 
+    def _restore_dataset_md(self, ):
+        """ Private function for restoring dataset metadata
+
+        Args:
+
+        Returns:
+             nothing, it changes the Metadata object itself
+        """
+        from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
+        original_metadata_document = ISOMetadata(uri=str(self.metadata_url), origin="capabilities")
+        self.abstract = original_metadata_document.abstract
+        self.title = original_metadata_document.title
+
+        self.contact = Organization.objects.get_or_create(
+            organization_name=original_metadata_document.responsible_party,
+            email=original_metadata_document.contact_email,
+            person_name=original_metadata_document.contact_person,
+            phone=original_metadata_document.contact_phone
+        )[0]
+
+        self.language_code = original_metadata_document.language
+
+        # Take the polygon with the largest area as bounding geometry
+        if len(original_metadata_document.polygonal_extent_exterior) > 0:
+            max_area_poly = None
+            for poly in original_metadata_document.polygonal_extent_exterior:
+                if max_area_poly is None:
+                    max_area_poly = poly
+                if max_area_poly.area < poly.area:
+                    max_area_poly = poly
+            self.bounding_geometry = max_area_poly
+        else:
+            self.bounding_geometry = Polygon([0.0, 0.0, 0.0, 0.0], srid=DEFAULT_SRS)
+
+        keyword_list = []
+        for keyword in original_metadata_document.keywords:
+            keyword_list.append(Keyword.objects.get_or_create(keyword=keyword)[0])
+        self.keywords.set(keyword_list)
+
+        category_list = []
+        for cat in original_metadata_document.iso_categories:
+            try:
+                category_list.append(Category.objects.get(title_EN=cat))
+            except ObjectDoesNotExist:
+                pass
+        self.categories.set(category_list)
+
+        self.reference_system.clear()
+
+        self.dataset.lineage_statement = original_metadata_document.lineage
+        self.dataset.character_set_code = original_metadata_document.character_set_code
+
+        doc = Document.objects.get(related_metadata=self)
+        doc.current_dataset_metadata_document = doc.original_dataset_metadata_document
+        doc.save()
+
     def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None):
         """ Load original metadata from capabilities and ISO metadata
 
         Args:
             identifier (str): The identifier of a featureType or Layer (in xml often named 'name')
+            external_auth (ExternalAuthentication):
         Returns:
              nothing
         """
+        # catch dataset
+        if self.is_dataset_metadata:
+            self._restore_dataset_md()
+
         # identify whether this is a wfs or wms (we need to handle them in different ways)
         if self.is_service_type(OGCServiceEnum.WFS):
             self._restore_wfs(identifier, external_auth=external_auth)
@@ -1465,7 +1546,9 @@ class Document(Resource):
     original_capability_document = models.TextField(null=True, blank=True)
     current_capability_document = models.TextField(null=True, blank=True)
     service_metadata_document = models.TextField(null=True, blank=True)
-    dataset_metadata_document = models.TextField(null=True, blank=True)
+
+    original_dataset_metadata_document = models.TextField(null=True, blank=True)
+    current_dataset_metadata_document = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return self.related_metadata.title
@@ -1481,10 +1564,10 @@ class Document(Resource):
         """
         ret_dict = {}
 
-        if self.dataset_metadata_document is None:
+        if self.original_dataset_metadata_document is None:
             return ret_dict
 
-        xml = xml_helper.parse_xml(self.dataset_metadata_document)
+        xml = xml_helper.parse_xml(self.original_dataset_metadata_document)
 
         # Date
         date_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp"), xml)
@@ -2574,20 +2657,16 @@ class Service(Resource):
         self.metadata.save(update_last_modified=False)
         self.save(update_last_modified=False)
 
-    def persist_capabilities_doc(self, xml: str, is_update_candidate_for: Resource = None, created_by_user: MrMapUser = None):
+    def persist_capabilities_doc(self, xml: str):
         """ Persists the capabilities document
 
         Args:
             xml (str): The xml document as string
-            is_update_candidate_for:
-            created_by_user:
         Returns:
              nothing
         """
         # save original capabilities document
         cap_doc = Document()
-        cap_doc.is_update_candidate_for = is_update_candidate_for
-        cap_doc.created_by_user = created_by_user
         cap_doc.original_capability_document = xml
         cap_doc.related_metadata = self.metadata
         cap_doc.set_capabilities_secured()
@@ -2858,14 +2937,148 @@ class ReferenceSystem(models.Model):
 
     class Meta:
         unique_together = ("code", "prefix")
+        ordering = ["-code"]
 
     def __str__(self):
         return str(self.code)
 
 
 class Dataset(Resource):
-    time_begin = models.DateTimeField()
-    time_end = models.DateTimeField()
+    """ Representation of Dataset objects.
+
+    Datasets identify a real-life resource, like a shapefile. One dataset can be the source for multiple services.
+    Therefore one dataset record can describe multiple services as well.
+
+    """
+    SRS_AUTHORITIES_CHOICES = [
+        ("EPSG", "European Petroleum Survey Group (EPSG) Geodetic Parameter Registry"),
+    ]
+
+    CHARACTER_SET_CHOICES = [
+        ("utf8", "utf8"),
+        ("utf16", "utf16"),
+    ]
+
+    UPDATE_FREQUENCY_CHOICES = [
+        ("annually", "annually"),
+        ("asNeeded", "asNeeded"),
+        ("biannually", "biannually"),
+        ("irregular", "irregular"),
+        ("notPlanned", "notPlanned"),
+        ("unknown", "unknown"),
+    ]
+
+    LEGAL_RESTRICTION_CHOICES = [
+        ("copyright", "copyright"),
+        ("intellectualPropertyRights", "intellectualPropertyRights"),
+        ("license", "license"),
+        ("otherRestrictions", "otherRestrictions"),
+        ("patent", "patent"),
+        ("patentPending", "patentPending"),
+        ("restricted", "restricted"),
+        ("trademark", "trademark"),
+    ]
+
+    DISTRIBUTION_FUNCTION_CHOICES = [
+        ("download", "download"),
+        ("information", "information"),
+        ("offlineAccess", "offlineAccess"),
+        ("order", "order"),
+        ("search", "search"),
+    ]
+
+    DATA_QUALITY_SCOPE_CHOICES = [
+        ("attribute", "attribute"),
+        ("attributeType", "attributeType"),
+        ("collectionHardware", "collectionHardware"),
+        ("collectionSession", "collectionSession"),
+        ("dataset", "dataset"),
+        ("dimensionGroup", "dimensionGroup"),
+        ("feature", "feature"),
+        ("featureType", "featureType"),
+        ("fieldSession", "fieldSession"),
+        ("model", "model"),
+        ("nonGeographicDataset", "nonGeographicDataset"),
+        ("propertyType", "propertyType"),
+        ("series", "series"),
+        ("software", "software"),
+        ("service", "service"),
+        ("tile", "tile"),
+    ]
+
+    LANGUAGE_CODE_LIST_URL_DEFAULT = "https://standards.iso.org/iso/19139/Schemas/resources/codelist/ML_gmxCodelists.xml"
+    CODE_LIST_URL_DEFAULT = "https://www.isotc211.org/2005/resources/Codelist/gmxCodelists.xml"
+
+    metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, blank=True, null=True, related_name="dataset")
+    language_code = models.CharField(max_length=100, blank=True, null=True)
+    language_code_list_url = models.CharField(max_length=1000, blank=True, null=True, default=LANGUAGE_CODE_LIST_URL_DEFAULT)
+
+    character_set_code = models.CharField(max_length=255, choices=CHARACTER_SET_CHOICES, default="utf8")
+    character_set_code_list_url = models.CharField(max_length=1000, blank=True, null=True, default=CODE_LIST_URL_DEFAULT)
+
+    hierarchy_level_code = models.CharField(max_length=100, blank=True, null=True)
+    hierarchy_level_code_list_url = models.CharField(max_length=1000, blank=True, null=True, default=CODE_LIST_URL_DEFAULT)
+
+    update_frequency_code = models.CharField(max_length=255, choices=UPDATE_FREQUENCY_CHOICES, null=True, blank=True)
+    update_frequency_code_list_url = models.CharField(max_length=1000, blank=True, null=True, default=CODE_LIST_URL_DEFAULT)
+
+    legal_restriction_code = models.CharField(max_length=255, choices=LEGAL_RESTRICTION_CHOICES, null=True, blank=True)
+    legal_restriction_code_list_url = models.CharField(max_length=1000, blank=True, null=True, default=CODE_LIST_URL_DEFAULT)
+    legal_restriction_other_constraints = models.TextField(null=True, blank=True)
+
+    date_stamp = models.DateField(blank=True, null=True)
+    metadata_standard_name = models.CharField(max_length=255, blank=True, null=True)
+    metadata_standard_version = models.CharField(max_length=255, blank=True, null=True)
+    md_identifier_code = models.CharField(max_length=500, null=True, blank=True)
+
+    use_limitation = models.TextField(null=True, blank=True)
+
+    distribution_function_code = models.CharField(max_length=255, choices=DISTRIBUTION_FUNCTION_CHOICES, default="dataset")
+    distribution_function_code_list_url = models.CharField(max_length=1000, blank=True, null=True, default=CODE_LIST_URL_DEFAULT)
+
+    lineage_statement = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        try:
+            ret_val = self.metadata.title
+        except (AttributeError, ObjectDoesNotExist):
+            ret_val = "None"
+
+        return ret_val
+
+
+class LegalReport(models.Model):
+    """ Representation of gmd:DQ_DomainConsistency objects.
+
+    """
+    title = models.TextField()
+    date = models.ForeignKey('LegalDate', on_delete=models.SET_NULL, null=True)
+    explanation = models.TextField()
+
+    def __str__(self):
+        return self.title
+
+
+class LegalDate(models.Model):
+    """ Representation of CI_DateType objects.
+
+    Multiple records can create a history of actions related to a database element.
+
+    """
+    DATE_TYPE_CODE_CHOICES = [
+        ("creation", "creation"),
+        ("publication", "publication"),
+        ("revision", "revision"),
+    ]
+
+    CODE_LIST_URL_DEFAULT = "https://standards.iso.org/iso/19139/resources/gmxCodelists.xml"
+
+    date = models.DateField()
+    date_type_code = models.CharField(max_length=255, choices=DATE_TYPE_CODE_CHOICES)
+    date_type_code_list_url = models.CharField(max_length=1000, default=CODE_LIST_URL_DEFAULT)
+
+    def __str__(self):
+        return self.date_type_code
 
 
 class MimeType(Resource):

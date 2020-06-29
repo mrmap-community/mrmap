@@ -70,7 +70,7 @@ def check_ownership(klass, id_name: str):
                     messages.add_message(request, messages.ERROR, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_GROUP)
 
             elif isinstance(resource, Organization):
-                if user.organization == resource:
+                if user.organization == resource or user == resource.created_by:
                     return function(request=request, *args, **kwargs)
                 else:
                     messages.add_message(request, messages.ERROR, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION)

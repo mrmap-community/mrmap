@@ -1,4 +1,5 @@
 import django_filters
+from django.utils.translation import gettext_lazy as _
 from django.forms import TextInput, CheckboxInput, ChoiceField, CharField, CheckboxSelectMultiple, BooleanField
 from structure.models import MrMapGroup, Organization
 
@@ -6,7 +7,7 @@ from structure.models import MrMapGroup, Organization
 class GroupFilter(django_filters.FilterSet):
     # gsearch = Group search over all method
     gsearch = django_filters.CharFilter(method='filter_search_over_all',
-                                        label='Search')
+                                        label=_('Search'))
 
     @staticmethod
     def filter_search_over_all(queryset, name, value): # parameter name is needed cause 3 values are expected
@@ -22,13 +23,13 @@ class GroupFilter(django_filters.FilterSet):
 class OrganizationFilter(django_filters.FilterSet):
     # osearch = Organization search over all method
     osearch = django_filters.CharFilter(method='filter_search_over_all',
-                                        label='Search')
+                                        label=_('Search'))
 
     # oiag = Organization is_auto_generated
     oiag = django_filters.BooleanFilter(field_name='is_auto_generated',
                                         method='filter_oiag',
                                         widget=CheckboxInput(attrs={'class': 'ml-1'}),
-                                        label='Show all organizations'
+                                        label=_('Show all organizations')
                                         )
 
     @staticmethod

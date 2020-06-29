@@ -28,6 +28,7 @@ FONT_AWESOME_ICONS = {
     'SIGNUP': format_html(ICON_PATTERN, 'fas', 'fa-user-plus', ),
     'UNDO': format_html(ICON_PATTERN, 'fas', 'fa-undo', ),
     'CAPABILITIES': format_html(ICON_PATTERN, 'fas', 'fa-file-code', ),
+    'NEWSPAPER': format_html(ICON_PATTERN, 'far', 'fa-newspaper', ),
     'METADATA': format_html(ICON_PATTERN, 'fas', 'fa-file-alt', ),
     'ACCESS': format_html(ICON_PATTERN, 'fas', 'fa-key', ),
     'SORT_ALPHA_UP': format_html(ICON_PATTERN, 'fas', 'fa-sort-alpha-up', ),
@@ -51,6 +52,10 @@ FONT_AWESOME_ICONS = {
     'CSV': format_html(ICON_PATTERN, 'fas', 'fa-file-csv', ),
     'FILTER': format_html(ICON_PATTERN, 'fas', 'fa-filter', ),
     'PUBLIC': format_html(ICON_PATTERN, 'fas', 'fa-globe', ),
+    'FIRST': format_html(ICON_PATTERN, 'fas', 'fa-fast-backward', ),
+    'BACK': format_html(ICON_PATTERN, 'fas', 'fa-step-backward', ),
+    'NEXT': format_html(ICON_PATTERN, 'fas', 'fa-step-forward', ),
+    'LAST': format_html(ICON_PATTERN, 'fas', 'fa-fast-forward', ),
 
 }
 
@@ -170,6 +175,7 @@ LIGHT_THEME = {
     'CARD': {
         'BG': 'bg-light',
         'TXT_COLOR': ' ',
+        'TXT_SUBTITLE_COLOR': 'text-muted',
         'BOARDER': 'border border-dark rounded',
         'LINK_COLOR': 'text-primary',
         'BTN_PRIMARY_COLOR': 'btn-primary',

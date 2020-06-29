@@ -54,8 +54,7 @@ def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, ):
 def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, ):
     datasets = user.get_datasets_as_qs()
     datasets_table_filtered = MetadataDatasetFilter(request.GET, queryset=datasets)
-    datasets_table = DatasetTable(datasets_table_filtered.qs,
-                                  user=user,
+    datasets_table = DatasetTable(data=datasets_table_filtered.qs,
                                   request=request)
     datasets_table.filter = datasets_table_filtered
     # TODO: # since parameters could be changed directly in the uri, we need to make sure to avoid problems

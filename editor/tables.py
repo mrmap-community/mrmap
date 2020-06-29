@@ -1,6 +1,5 @@
 import django_tables2 as tables
 from django.template.loader import render_to_string
-from django.utils.html import format_html
 from django.urls import reverse
 
 from MrMap.forms import MrMapConfirmForm
@@ -155,11 +154,6 @@ class DatasetTable(MrMapTable):
     dataset_related_objects = tables.Column(verbose_name=_('Related objects'), empty_values=[])
     dataset_origins = tables.Column(verbose_name=_('Origins'), empty_values=[])
     dataset_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False)
-
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        self.request = kwargs.pop('request')
-        super().__init__(*args, **kwargs)
 
     def render_dataset_title(self, value, record):
         url = reverse('service:get-metadata-html', args=(record.id,))

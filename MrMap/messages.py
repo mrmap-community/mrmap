@@ -124,3 +124,4 @@ TD_POINT_HAS_NOT_ENOUGH_VALUES = _("2D-Points must hold two values for x and y."
 EMAIL_IS_UNKNOWN = _("Inserted email address is unknown.")
 
 SUBSCRIPTION_EDITING_SUCCESSFULL = _("Subscription edited successfully.")
+SUBSCRIPTION_REMOVED_TEMPLATE = _("Subscription for '{}' was removed.")

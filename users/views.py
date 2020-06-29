@@ -24,7 +24,7 @@ from django.utils.translation import gettext_lazy as _
 from MrMap.messages import ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
     ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, \
     LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, PASSWORD_CHANGE_OLD_PASSWORD_WRONG, \
-    RESOURCE_NOT_FOUND_OR_NOT_OWNER, FORM_INPUT_INVALID, SUBSCRIPTION_EDITING_SUCCESSFULL
+    RESOURCE_NOT_FOUND_OR_NOT_OWNER, FORM_INPUT_INVALID, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_REMOVED_TEMPLATE
 from MrMap.responses import DefaultContext
 from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from MrMap.utils import print_debug_mode
@@ -462,4 +462,26 @@ def subscription_edit_view(request: HttpRequest, id: str):
         # Not supported
         pass
 
+    return redirect("home")
+
+@login_required
+def subscription_remove(request: HttpRequest, id: str):
+    """ Removes a subscription
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (str): The uuid of the subscription as string
+    Returns:
+         A rendered view
+    """
+    user = user_helper.get_user(request)
+    try:
+        subscription = Subscription.objects.get(
+            id=id,
+            user=user
+        )
+        subscription.delete()
+        messages.success(request, SUBSCRIPTION_REMOVED_TEMPLATE.format(subscription.metadata.title))
+    except ObjectDoesNotExist:
+        messages.error(request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
     return redirect("home")

@@ -20,7 +20,7 @@ from django.utils import timezone
 
 from MrMap.cacher import DocumentCacher
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
-from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT, XML_NAMESPACES
+from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
 from MrMap.utils import print_debug_mode
 from monitoring.models import MonitoringSetting
@@ -1437,6 +1437,19 @@ class Metadata(Resource):
             # a featuretype does not have children - we can skip this case!
             pass
         self.save()
+
+    def inform_subscriptors(self):
+        """ Iterates over all related subscriptions and triggers the inform_subscriptor() method
+
+        Returns:
+
+        """
+        from users.models import Subscription
+        subscriptions = Subscription.objects.filter(
+            metadata=self
+        )
+        for sub in subscriptions:
+            sub.inform_subscriptor()
 
 
 class MetadataType(models.Model):

@@ -21,3 +21,43 @@ class Subscription(models.Model):
     notify_on_metadata_edit = models.BooleanField(default=True)
     notify_on_access_edit = models.BooleanField(default=True)
     created_on = models.DateTimeField(auto_now_add=True)
+
+    def inform_subscriptor(self):
+        """ Informs subscriptor on changes
+
+        Returns:
+
+        """
+        self._inform_subscriptor_update()
+        self._inform_subscriptor_metadata_edit()
+        self._inform_subscriptor_access_edit()
+
+    def _inform_subscriptor_update(self):
+        """ Informs subscriptor on updates
+
+        Returns:
+
+        """
+        if self.notify_on_update:
+            # ToDo: Send Mail!
+            pass
+
+    def _inform_subscriptor_metadata_edit(self):
+        """ Informs subscriptor on metadata changes
+
+        Returns:
+
+        """
+        if self.notify_on_metadata_edit:
+            # ToDo: Send Mail!
+            pass
+
+    def _inform_subscriptor_access_edit(self):
+        """ Informs subscriptor on access changes
+
+        Returns:
+
+        """
+        if self.notify_on_access_edit:
+            # ToDo: Send Mail!
+            pass

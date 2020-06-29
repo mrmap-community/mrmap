@@ -1011,19 +1011,19 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
 
     # catch featuretype
     if service_md.is_metadata_type(MetadataEnum.FEATURETYPE):
-        params.update({'caption': _("Shows informations about the featuretype which you are selected.")})
+        params.update({'caption': _("Shows informations about the featuretype.")})
         template = "views/featuretype_detail_no_base.html" if 'no-base' in request.GET else "views/featuretype_detail.html"
         service = service_md.featuretype
         layers_md_list = {}
         params.update({'has_dataset_metadata': _check_for_dataset_metadata(service.metadata)})
     else:
         if service_md.service.is_root:
-            params.update({'caption': _("Shows informations about the service which you are selected.")})
+            params.update({'caption': _("Shows informations about the service.")})
             service = service_md.service
             layers = Layer.objects.filter(parent_service=service_md.service)
             layers_md_list = layers.filter(parent_layer=None)
         else:
-            params.update({'caption': _("Shows informations about the sublayer which you are selected.")})
+            params.update({'caption': _("Shows informations about the sublayer.")})
             template = "views/sublayer_detail_no_base.html" if 'no-base' in request.GET else "views/sublayer_detail.html"
             service = Layer.objects.get(
                 metadata=service_md

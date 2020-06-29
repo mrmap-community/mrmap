@@ -102,18 +102,6 @@ class SubscriptionForm(forms.ModelForm):
             is_active=True,
         )
     )
-    notify_on_update = forms.BooleanField(
-        label=_("Notify on update"),
-        help_text=_("Sends an e-mai if the service has been updated.")
-    )
-    notify_on_metadata_edit = forms.BooleanField(
-        label=_("Notify on metadata changes"),
-        help_text=_("Sends an e-mai if the service's metadata has been changed.")
-    )
-    notify_on_access_edit = forms.BooleanField(
-        label=_("Notify on access changes"),
-        help_text=_("Sends an e-mai if the service's access has been changed.")
-    )
 
     class Meta:
         model = Subscription
@@ -123,10 +111,22 @@ class SubscriptionForm(forms.ModelForm):
             "notify_on_metadata_edit",
             "notify_on_access_edit",
         ]
+        help_texts = {
+            "notify_on_update": _("Sends an e-mai if the service has been updated."),
+            "notify_on_access_edit": _("Sends an e-mai if the service's access has been changed."),
+            "notify_on_metadata_edit": _("Sends an e-mai if the service's metadata has been changed."),
+        }
+        labels = {
+            "notify_on_update": _("Notify on update"),
+            "notify_on_access_edit": _("Notify on access changes"),
+            "notify_on_metadata_edit": _("Notify on metadata changes"),
+        }
 
     def __init__(self, *args, **kwargs):
+        is_edit = kwargs.pop("is_edit", False)
+
         super().__init__(*args, **kwargs)
 
-        if self.fields['metadata'].instance is not None:
+        if is_edit:
             # Prevent user from changing the subscribed metadata itself
             self.fields['metadata'].disabled = True

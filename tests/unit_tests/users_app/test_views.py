@@ -1,5 +1,4 @@
 import logging
-from unittest import SkipTest
 
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
@@ -7,8 +6,9 @@ from django.test import TestCase, Client
 from django.urls import reverse
 
 from MrMap.messages import PASSWORD_SENT, EMAIL_IS_UNKNOWN
-from MrMap.settings import ROOT_URL
-from tests.baker_recipes.db_setup import create_superadminuser
+from service.helper.enums import MetadataEnum
+from service.models import Metadata
+from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 from structure.models import MrMapUser, UserActivation, Theme
 from tests.test_data import get_contact_data, get_password_data, get_username_data, get_email_data
@@ -16,6 +16,7 @@ from django.utils import timezone
 from django.contrib.messages import get_messages
 
 from users.forms import PasswordChangeForm
+from users.models import Subscription
 
 REDIRECT_WRONG = "Redirect wrong"
 
@@ -430,3 +431,133 @@ class HomeViewTestCase(TestCase):
         self.logger.debug(response.__dict__)
         self.assertEqual(response.status_code, 200,)
         self.assertTemplateUsed(response=response, template_name="views/dashboard.html")
+
+
+class SubscriptionTestCase(TestCase):
+    def setUp(self):
+        # creates user object in db
+        self.user_password = PASSWORD
+        self.user = create_superadminuser()
+        self.client = Client()
+        self.client.login(username=self.user.username, password=self.user_password)
+        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
+        self.service_md = Metadata.objects.filter(
+            metadata_type__type=MetadataEnum.SERVICE.value
+        ).first()
+
+    def test_new_subscription(self):
+        """ Tests whether the creation logic is working
+
+        Returns:
+
+        """
+        pre_count_subscriptions = Subscription.objects.all().count()
+        new_sub_path = reverse("subscription-new")
+        post_params = {
+            "metadata": self.service_md.id,
+            "notify_on_update": True,
+            "notify_on_metadata_edit": True,
+            "notify_on_access_edit": True,
+        }
+        response = self.client.post(
+            path=new_sub_path,
+            data=post_params
+        )
+        post_count_subscriptions = Subscription.objects.all().count()
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(pre_count_subscriptions + 1, post_count_subscriptions)
+        try:
+            new_subscription = Subscription.objects.get(
+                metadata=self.service_md,
+                user=self.user
+            )
+            self.assertEqual(post_params["notify_on_update"], new_subscription.notify_on_update)
+            self.assertEqual(post_params["notify_on_metadata_edit"], new_subscription.notify_on_metadata_edit)
+            self.assertEqual(post_params["notify_on_access_edit"], new_subscription.notify_on_access_edit)
+        except ObjectDoesNotExist:
+            self.fail(msg="Subscription was not created for correct user or metadata!")
+
+        # Check that no duplicates can be created
+        self.client.post(
+            path=new_sub_path,
+            data=post_params
+        )
+        post_count_subscriptions = Subscription.objects.all().count()
+        self.assertEqual(pre_count_subscriptions + 1, post_count_subscriptions)
+
+    def test_edit_subscription(self):
+        """ Tests whether the edit logic is working
+
+        Returns:
+
+        """
+        sub = Subscription.objects.create(
+            metadata=self.service_md,
+            user=self.user,
+            notify_on_update=True,
+            notify_on_metadata_edit=True,
+            notify_on_access_edit=True,
+        )
+        edit_sub_route = reverse("subscription-edit", args=(sub.id,))
+        post_params = {
+            "metadata": self.service_md.id,
+            "notify_on_update": False,
+            "notify_on_metadata_edit": False,
+            "notify_on_access_edit": False,
+        }
+        response = self.client.post(
+            path=edit_sub_route,
+            data=post_params
+        )
+        sub.refresh_from_db()
+
+        # Assert redirect
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(sub.notify_on_update)
+        self.assertFalse(sub.notify_on_metadata_edit)
+        self.assertFalse(sub.notify_on_access_edit)
+
+        # Check that a subscription's metadata can not be changed
+        post_params = {
+            "metadata": Metadata.objects.filter(metadata_type__type=MetadataEnum.SERVICE.value).exclude(id=self.service_md.id).first(),
+            "notify_on_update": True,
+            "notify_on_metadata_edit": True,
+            "notify_on_access_edit": True,
+        }
+        response = self.client.post(
+            path=edit_sub_route,
+            data=post_params
+        )
+        sub.refresh_from_db()
+
+        # Assert redirect and same conditions as before
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(sub.metadata, self.service_md, msg="Subscription metadata could be changed!")
+        self.assertFalse(sub.notify_on_update)
+        self.assertFalse(sub.notify_on_metadata_edit)
+        self.assertFalse(sub.notify_on_access_edit)
+
+    def test_remove_subscription(self):
+        """ Tests whether the remove logic is working
+
+        Returns:
+
+        """
+        sub = Subscription.objects.create(
+            metadata=self.service_md,
+            user=self.user,
+            notify_on_update=True,
+            notify_on_metadata_edit=True,
+            notify_on_access_edit=True,
+        )
+        pre_sub_count = Subscription.objects.all().count()
+        remove_sub_rote = reverse("subscription-remove", args=(sub.id,))
+        response = self.client.get(
+            path=remove_sub_rote,
+        )
+        post_sub_count = Subscription.objects.all().count()
+        try:
+            sub.refresh_from_db()
+            self.fail("Subscription could not be removed!")
+        except ObjectDoesNotExist:
+            self.assertEqual(pre_sub_count - 1, post_sub_count, msg="Subscription removed but number of subscriptions didn't decrease.")

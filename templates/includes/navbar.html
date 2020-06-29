@@ -5,7 +5,7 @@
         <img class="navbar-logo" src="{% static '/images/mr_map.png' %}" width="30" height="30" alt=""
              title="Map your s*** together!" alt="{% trans 'Mr. Map logo' %}">
     </a>
-    <button class="navbar-toggler " type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+    <button class="navbar-toggler accordion" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
             aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
     </button>
@@ -50,6 +50,7 @@
                 <div class="dropdown-menu" aria-labelledby="navbarEditorDropdown">
                     <a class="dropdown-item" href="{% url 'editor:wms-index' %}">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %}</a>
                     <a class="dropdown-item" href="{% url 'editor:wfs-index' %}">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %}</a>
+                    <a class="dropdown-item" href="{% url 'editor:datasets-index' %}">{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} {% trans 'Datasets' %}</a>
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'api' %}active{% endif %}">

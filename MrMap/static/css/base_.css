@@ -50,12 +50,4 @@
   margin-bottom: 6rem; /* Margin bottom by footer height */
 }
 
-/* Accordion collapse icon customization
--------------------------------------------------- */
-[data-toggle="collapse"] .fa:before {
-  content: "\f139";
-}
 
-[data-toggle="collapse"].collapsed .fa:before {
-  content: "\f13a";
-}

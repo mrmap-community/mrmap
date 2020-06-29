@@ -21,6 +21,7 @@ SERVICE_ACTIVATED = _("Service {} activated")
 SERVICE_DEACTIVATED = _("Service {} deactivated")
 SERVICE_MD_RESTORED = _("Service metadata restored")
 GROUP_EDITED = _("Group edited")
+DATASET_MD_EDITED = _("Dataset metadata edited")
 
 ####################
 
@@ -58,13 +59,12 @@ REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION = _("Requesting user is not me
 
 METADATA_RESTORING_SUCCESS = _("Metadata restored to original")
 METADATA_EDITING_SUCCESS = _("Metadata editing successful")
+METADATA_ADDED_SUCCESS = _("Metadata added successful")
 METADATA_IS_ORIGINAL = _("Metadata is original. Reset aborted.")
 METADATA_PROXY_NOT_POSSIBLE_DUE_TO_SECURED = _("You have to turn off the secured access before you can turn off the proxy.")
 
 RESOURCE_NOT_FOUND = _("The requested resource could not be found.")
 RESOURCE_NOT_FOUND_OR_NOT_OWNER = _("The requested resource does not exist or you are not the owner.")
-
-MISSING_DATASET_ID_IN_METADATA = _("No datasetId found in metadata!")
 
 REQUEST_ACTIVATION_TIMEOVER = _("The request was not activated in time. Request was deleted.")
 

@@ -25,7 +25,7 @@ from MrMap.utils import execute_threads, print_debug_mode
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
 from service.helper.epsg_api import EpsgApi
-from service.helper.iso.iso_metadata import ISOMetadata
+from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
 from service.helper.ogc.layer import OGCLayer
 
@@ -773,7 +773,8 @@ class OGCWebMapService(OGCWebService):
         metadata.capabilities_uri = self.service_connect_url
         metadata.access_constraints = self.service_identification_accessconstraints
         metadata.fees = self.service_identification_fees
-        metadata.bounding_geometry = self.service_bounding_box
+        if self.service_bounding_box is not None:
+            metadata.bounding_geometry = self.service_bounding_box
         metadata.identifier = self.service_file_identifier
         metadata.is_active = False
         metadata.created_by = group

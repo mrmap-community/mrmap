@@ -6,28 +6,23 @@ Created on: 01.08.19
 
 """
 import json
-import urllib
-
+import xmltodict
 from django.contrib import messages
 from django.db import transaction
 from django.http import HttpRequest
-
 from lxml.etree import _Element
 from requests.exceptions import MissingSchema
 
-from MrMap.cacher import DocumentCacher
-from MrMap.messages import EDITOR_INVALID_ISO_LINK, SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, \
-    SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
-from MrMap.settings import XML_NAMESPACES, HOST_NAME, HTTP_OR_SSL, GENERIC_NAMESPACE_TEMPLATE
-from MrMap import utils
+from service.helper.iso.iso19115.md_data_identification import _create_gmd_descriptive_keywords, _create_gmd_language
+from MrMap.messages import EDITOR_INVALID_ISO_LINK
+from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, MetadataEnum
-from service.helper.iso.iso_metadata import ISOMetadata
-from service.models import Metadata, Keyword, Category, FeatureType, Document, MetadataRelation, \
-    MetadataOrigin, SecuredOperation, RequestOperation, Layer, Style
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum
+from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
+from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, \
+    MetadataOrigin, SecuredOperation
 from service.helper import xml_helper
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY
-from service.tasks import async_secure_service_task
 
 
 def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _type: str):
@@ -55,16 +50,22 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
         keyword_prefix = "{" + XML_NAMESPACES[ns_keyword_prefix_s] + "}"
         keyword_ns_map[ns_keyword_prefix_s] = XML_NAMESPACES[ns_keyword_prefix_s]
 
-    xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format(keyword_container_tag), xml_obj)
+    xml_keywords_list_obj = xml_helper.try_get_single_element_from_xml(
+        "./" + GENERIC_NAMESPACE_TEMPLATE.format(keyword_container_tag), xml_obj)
 
     if xml_keywords_list_obj is None:
         # there are no keywords in this capabilities for this element yet
         # we need to add an element first!
         try:
-            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Abstract".format(ns_prefix), nsmap=keyword_ns_map)
+            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj,
+                                                                 "{}{}".format(keyword_prefix, keyword_container_tag),
+                                                                 after="{}Abstract".format(ns_prefix),
+                                                                 nsmap=keyword_ns_map)
         except (TypeError, ValueError) as e:
             # there seems to be no <Abstract> element. We add simply after <Title> and also create a new Abstract element
-            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj, "{}{}".format(keyword_prefix, keyword_container_tag), after="{}Title".format(ns_prefix))
+            xml_keywords_list_obj = xml_helper.create_subelement(xml_obj,
+                                                                 "{}{}".format(keyword_prefix, keyword_container_tag),
+                                                                 after="{}Title".format(ns_prefix))
             xml_helper.create_subelement(
                 xml_obj,
                 "{}".format("Abstract"),
@@ -82,7 +83,8 @@ def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _typ
 
     # then add all edited
     for kw in metadata.keywords.all():
-        xml_keyword = xml_helper.create_subelement(xml_keywords_list_obj, "{}Keyword".format(keyword_prefix), nsmap=keyword_ns_map)
+        xml_keyword = xml_helper.create_subelement(xml_keywords_list_obj, "{}Keyword".format(keyword_prefix),
+                                                   nsmap=keyword_ns_map)
         xml_helper.write_text_to_element(xml_keyword, txt=kw.keyword)
 
 
@@ -137,7 +139,8 @@ def _overwrite_capabilities_data(xml_obj: _Element, metadata: Metadata):
     for key, val in elements.items():
         try:
             # Check if element exists to change it
-            key_xml_obj = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format(key), xml_obj)
+            key_xml_obj = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format(key),
+                                                                     xml_obj)
             if key_xml_obj is not None:
                 # Element exists, we can change it easily
                 xml_helper.write_text_to_element(xml_obj, "./" + GENERIC_NAMESPACE_TEMPLATE.format(key), val)
@@ -149,6 +152,78 @@ def _overwrite_capabilities_data(xml_obj: _Element, metadata: Metadata):
         except AttributeError as e:
             # for not is_root this will fail in AccessConstraints querying
             pass
+
+
+def overwrite_dataset_metadata_document(metadata: Metadata, doc: Document = None):
+    """ Overwrites the dataset metadata document which is related to the provided metadata.
+
+        Args:
+            metadata (Metadata):
+        Returns:
+             nothing
+        """
+    if doc is None:
+        doc = Document.objects.get(related_metadata=metadata)
+    xml_dict = xmltodict.parse(doc.current_dataset_metadata_document)
+    # ToDo: try catch KeyErrors for all the following code
+
+    # overwrite abstract
+    xml_dict['gmd:MD_Metadata'][
+        'gmd:identificationInfo'][
+        'gmd:MD_DataIdentification'][
+        'gmd:abstract'][
+        'gco:CharacterString'] = metadata.abstract
+
+    # overwrite title
+    xml_dict['gmd:MD_Metadata'][
+        'gmd:identificationInfo'][
+        'gmd:MD_DataIdentification'][
+        'gmd:citation'][
+        'gmd:CI_Citation'][
+        'gmd:title'][
+        'gco:CharacterString'] = metadata.title
+
+    # overwrite keywords
+    if metadata.keywords.all().count() > 0:
+        descriptive_keywords = []
+        gmd_descriptive_keywords = _create_gmd_descriptive_keywords(metadata=metadata, as_list=True)
+        for element in gmd_descriptive_keywords:
+            descriptive_keywords.append(xmltodict.parse(element)['gmd:descriptiveKeywords'])
+        xml_dict['gmd:MD_Metadata'][
+            'gmd:identificationInfo'][
+            'gmd:MD_DataIdentification'][
+            'gmd:descriptiveKeywords'] = descriptive_keywords
+    else:
+        if 'gmd:language' in xml_dict['gmd:MD_Metadata'][
+                                'gmd:identificationInfo'][
+                                'gmd:MD_DataIdentification']:
+            del xml_dict['gmd:MD_Metadata'][
+                'gmd:identificationInfo'][
+                'gmd:MD_DataIdentification'][
+                'gmd:descriptiveKeywords']
+
+    # overwrite language
+    if metadata.language_code is not None:
+        xml_dict['gmd:MD_Metadata'][
+            'gmd:identificationInfo'][
+            'gmd:MD_DataIdentification'][
+            'gmd:language'] = _create_gmd_language(metadata=metadata)
+    else:
+        if 'gmd:language' in xml_dict['gmd:MD_Metadata'][
+                                'gmd:identificationInfo'][
+                                'gmd:MD_DataIdentification']:
+            del xml_dict['gmd:MD_Metadata'][
+                'gmd:identificationInfo'][
+                'gmd:MD_DataIdentification'][
+                'gmd:language']
+
+    # overwrite topicCategory
+    categories = metadata.categories.all()
+
+
+    # save new dataset metadata document
+    doc.current_dataset_metadata_document = xmltodict.unparse(xml_dict)
+    doc.save()
 
 
 def overwrite_capabilities_document(metadata: Metadata):
@@ -179,13 +254,13 @@ def overwrite_capabilities_document(metadata: Metadata):
     cap_doc = Document.objects.get(related_metadata=parent_metadata)
 
     # overwrite all editable data
-    identifier = metadata.identifier
     xml_obj_root = xml_helper.parse_xml(cap_doc.current_capability_document)
 
     # find matching xml element in xml doc
     _type = metadata.get_service_type()
     _version = metadata.get_service_version()
 
+    identifier = metadata.identifier
     if is_root:
         if metadata.is_service_type(OGCServiceEnum.WFS):
             if _version is OGCServiceVersionEnum.V_2_0_0 or _version is OGCServiceVersionEnum.V_2_0_2:
@@ -289,8 +364,8 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
         md_relation.metadata_from = metadata
         md_relation.metadata_to = iso_md
         md_relation.origin = MetadataOrigin.objects.get_or_create(
-                name=iso_md.origin
-            )[0]
+            name=iso_md.origin
+        )[0]
         md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
         md_relation.save()
 
@@ -334,7 +409,8 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     original_md.title = custom_md.title
     original_md.abstract = custom_md.abstract
     original_md.access_constraints = custom_md.access_constraints
-    original_md.metadata_url = custom_md.metadata_url
+    # we need the metadata_url to reset dataset metadatas
+    # original_md.metadata_url = custom_md.metadata_url
     original_md.terms_of_use = custom_md.terms_of_use
     # get db objects from values
 
@@ -345,12 +421,18 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
         keyword = Keyword.objects.get_or_create(keyword=kw)[0]
         original_md.keywords.add(keyword)
 
+    # Language updating
+    original_md.language_code = editor_form.cleaned_data["language_code"]
+
     # Categories updating
     # Categories are provided as id's to prevent language related conflicts
-    categories = editor_form.cleaned_data["categories"]
-    original_md.categories.clear()
-    for category in categories:
-        original_md.categories.add(category)
+    try:
+        categories = editor_form.cleaned_data["categories"]
+        original_md.categories.clear()
+        for category in categories:
+            original_md.categories.add(category)
+    except KeyError:
+        pass
 
     # Categories are inherited by subelements
     subelement_mds = original_md.get_subelements_metadatas()
@@ -369,7 +451,12 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     # save metadata
     original_md.is_custom = True
     original_md.save()
-    overwrite_capabilities_document(original_md)
+
+    if original_md.is_dataset_metadata:
+        overwrite_dataset_metadata_document(original_md)
+    else:
+        overwrite_capabilities_document(original_md)
+
 
 
 

@@ -1,0 +1,133 @@
+<!-- Modal -->
+{% load bootstrap4 %}
+{% load i18n %}
+{# Usage: use with parameter on expanding template to declare show_modal, id_modal and form variable  #}
+<div class="modal {% if wizard.form.errors|length > 0  %} animated shake {% endif %} {% if fade_modal %} fade {% endif %}" id="id_modal_{{id_modal}}" data-backdrop="static" tabindex="-1" role="dialog"
+     aria-labelledby="id_modal_title_{{id_modal}}" aria-hidden="true"><!-- <modal> -->
+    <div class="modal-dialog modal-lg" role="document"><!-- <modal-dialog> -->
+        <div class="modal-content {{THEME.MODAL.BG_COLOR}} {{THEME.MODAL.TXT_COLOR}}"><!-- <modal-content> -->
+            <div class="modal-header"><!-- <modal-header> -->
+                <h5 class="modal-title" id="id_modal_title_{{id_modal}}"><!-- <modal-title> -->
+                    {{ modal_title }}
+                    {% block modal-title %}
+                    {% endblock %}
+                </h5><!-- </modal-title> -->
+                {% block modal-header %}
+                {% endblock %}
+            </div><!-- </modal-header> -->
+                <form action="{{action_url}}" method="post" id="id_modal_form_{{id_modal}}"><!-- <modal-form> -->
+                    {% csrf_token %}
+                    <div class="modal-body"><!-- <modal-body> -->
+                        {% if wizard.messages %}
+                            {% for key, value in wizard.messages %}
+                        <div class="alert alert-{{key}} alert-dismissible fade show" role="alert">
+                          {{value}}
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                          </button>
+                        </div>
+                            {% endfor %}
+                        {% endif %}
+                        <ul class="nav nav-tabs">
+                            {% for step in wizard.steps.all %}
+                              <li class="nav-item">
+                                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to step '%} <b>{{step}}</b>">
+                                    <button name="wizard_goto_step" type="submit" class="btn btn-link nav-link {% if step == wizard.steps.current %} active {% endif %}" value="{{ step }}">
+                                        {{ step|title }}
+                                    </button>
+                                </span>
+                              </li>
+                            {% endfor %}
+                        </ul>
+                        {{ wizard.management_form }}
+                        {% if wizard.form.forms %}
+                            {{ wizard.form.management_form }}
+                            {% for form in wizard.form.forms %}
+                                {% bootstrap_form form %}
+                                {% if form.has_autocomplete_fields %}
+                                    {% include 'sceletons/autocomplete_form_media.html' %}
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            {% bootstrap_form wizard.form %}
+                            {% if wizard.form.has_autocomplete_fields %}
+                                {% include 'sceletons/autocomplete_form_media.html' %}
+                            {% endif %}
+                        {% endif %}
+                    </div><!-- </modal-body> -->
+                    <div class="modal-footer"><!-- <modal-footer> -->
+                        <div class="container-fluid">
+                        <div class="row">
+                            <div class="col-sm">
+                                <a href="{% url current_view %}" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" role="button" aria-pressed="true">
+                                    {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss'%}
+                                </a>
+                            </div>
+                            <div class="col-sm">
+                                <div class="mx-auto text-center">
+                                    <p>Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}</p>
+                                </div>
+                            </div>
+                            <div class="col-sm">
+                                <div class="float-right">
+                                    {% if wizard.steps.prev %}
+                                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the first step'%}">
+                                            <button name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.first }}">
+                                                {% autoescape off %}{{THEME.ICONS.FIRST}}{% endautoescape %}
+                                            </button>
+                                        </span>
+                                        {% if wizard.steps.prev != wizard.steps.first %}
+                                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go one step backward'%}">
+                                            <button name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.prev }}">
+                                                {% autoescape off %}{{THEME.ICONS.BACK}}{% endautoescape %}
+                                            </button>
+                                        </span>
+                                        {% endif %}
+                                    {% endif %}
+                                    {% if wizard.ignore_uncomitted_forms %}
+                                        <button name="wizard_save" value="True" type="submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">
+                                            {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
+                                        </button>
+                                    {% endif %}
+                                    {% if wizard.steps.next %}
+                                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the next step'%}">
+                                            <button type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}">
+                                                {% autoescape off %}{{THEME.ICONS.NEXT}}{% endautoescape %}
+                                            </button>
+                                        </span>
+                                    {% endif %}
+                                    {% if wizard.steps.current != wizard.steps.last %}
+                                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" data-placement="top" data-html="true" title="{% trans 'Go to the last step'%}">
+                                            <button name="wizard_goto_step" type="submit" class="btn {{ THEME.MODAL.BTN_SECONDARY_COLOR }}" value="{{ wizard.steps.last }}">
+                                                {% autoescape off %}{{THEME.ICONS.LAST}}{% endautoescape %}
+                                            </button>
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+                    </div><!-- </modal-footer> -->
+                </form><!-- </modal-form> -->
+        </div><!-- </modal-content> -->
+    </div><!-- </modal-dialog> -->
+</div><!-- </modal> -->
+
+{% if show_modal %}
+    <script type="application/javascript">
+        $('#id_modal_{{id_modal}}').modal('show');
+    </script>
+{% endif %}
+
+<script type="application/javascript">
+    $(function() {
+       $('#id_modal_form_{{id_modal}} .auto_submit_item').change(function() {
+         $('#id_modal_form_{{id_modal}} .is_form_update').val('True');
+         var input = $("<input>")
+               .attr("type", "hidden")
+               .attr("name", "wizard_goto_step").val("{{ wizard.steps.current }}");
+         $('#id_modal_form_{{id_modal}}').append(input);
+         $('#id_modal_form_{{id_modal}}').submit();
+       });
+    });
+</script>

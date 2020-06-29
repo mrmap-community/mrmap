@@ -6,38 +6,51 @@ Created on: 25.09.19
 
 """
 import json
+from copy import copy
 
 from django.core.exceptions import ObjectDoesNotExist
 
+from csw.utils.converter import DATE_STRF
+from service.models import Dataset, Layer
 from service.settings import INSPIRE_LEGISLATION_FILE, SERVICE_OPERATION_URI_TEMPLATE
 from service.helper.enums import MetadataEnum, OGCServiceEnum
 from service.helper import xml_helper
-from lxml.etree import Element
-from collections import OrderedDict
+from lxml.etree import Element, _Element
+from collections import OrderedDict, Iterable
 from lxml import etree
 
 from django.utils import timezone
 
-from MrMap.settings import XML_NAMESPACES
+from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 
 
-class ServiceMetadataBuilder:
+class Iso19115MetadataBuilder:
 
     def __init__(self, md_id: int, metadata_type: MetadataEnum, use_legislation_amendment=False):
         from service.models import Metadata, FeatureType
         self.metadata = Metadata.objects.get(id=md_id)
+        self.organization = self.metadata.contact
 
-        self.service_version = self.metadata.get_service_version()
-        self.service_type = self.metadata.get_service_type()
-        if self.metadata.is_service_type(OGCServiceEnum.WFS) and not self.metadata.is_root():
-            # Only WFS FeatureType metadata needs a special workaround
-            self.service = FeatureType.objects.get(
+        if not self.metadata.is_dataset_metadata:
+            self.service_version = self.metadata.get_service_version()
+            self.service_type = self.metadata.get_service_type()
+
+        if self.metadata.is_featuretype_metadata:
+            self.service_type = OGCServiceEnum.WFS.value
+            self.described_resource = FeatureType.objects.get(
                 metadata=self.metadata
             ).parent_service
+        elif self.metadata.is_dataset_metadata:
+            self.described_resource = Dataset.objects.get(metadata=self.metadata)
+            self.service_type = OGCServiceEnum.DATASET.value
+        elif self.metadata.is_service_metadata:
+            self.service_type = self.metadata.get_service_type()
+            self.described_resource = self.metadata.service
+        elif self.metadata.is_layer_metadata:
+            self.service_type = OGCServiceEnum.WMS.value
+            self.described_resource = Layer.objects.get(metadata=self.metadata)
         else:
-            self.service = self.metadata.service
-
-        self.organization = self.metadata.contact
+            raise NotImplementedError
         
         self.reduced_nsmap = {
             "gml": XML_NAMESPACES.get("gml", ""),
@@ -69,13 +82,17 @@ class ServiceMetadataBuilder:
                 "en": "Web feature service",
                 "de": "Downloaddienst",
             },
+            "dataset": {
+                "en": "Dataset",
+                "de": "Datensatz",
+            },
         }
 
         self.metadata_type = metadata_type.value
         self.use_legislation_amendment = use_legislation_amendment
 
     def generate_service_metadata(self):
-        """ Creates a service self.metadata as xml, following the ISO19115 standard
+        """ Creates a metadata document, following the ISO19115 standard
 
         As a guide to this generator, you may read the ISO19115 workbook:
         ftp://ftp.ncddc.noaa.gov/pub/Metadata/Online_ISO_Training/Intro_to_ISO/workbooks/MI_Metadata.pdf
@@ -91,24 +108,29 @@ class ServiceMetadataBuilder:
             }
         )
 
-        subs = OrderedDict()
-        subs["{}fileIdentifier".format(self.gmd)] = self._create_file_identifier()
-        subs["{}language".format(self.gmd)] = self._create_language()
-        subs["{}characterSet".format(self.gmd)] = self._create_character_set()
-        subs["{}hierarchyLevel".format(self.gmd)] = self._create_hierarchy_level()
-        subs["{}hierarchyLevelName".format(self.gmd)] = self._create_hierarchy_level_name()
-        subs["{}contact".format(self.gmd)] = self._create_contact()
-        subs["{}dateStamp".format(self.gmd)] = self._create_date_stamp()
-        subs["{}metadataStandardName".format(self.gmd)] = self._create_metadata_standard_name()
-        subs["{}metadataStandardVersion".format(self.gmd)] = self._create_metadata_standard_version()
-        subs["{}identificationInfo".format(self.gmd)] = self._create_identification_info()
-        subs["{}distributionInfo".format(self.gmd)] = self._create_distribution_info()
-        subs["{}dataQualityInfo".format(self.gmd)] = self._create_data_quality_info()
+        subs = [
+            self._create_file_identifier,
+            self._create_language,
+            self._create_character_set,
+            self._create_hierarchy_level,
+            self._create_hierarchy_level_name,
+            self._create_contact,
+            self._create_date_stamp,
+            self._create_metadata_standard_name,
+            self._create_metadata_standard_version,
+            self._create_reference_system_info,
+            self._create_identification_info,
+            self._create_distribution_info,
+            self._create_data_quality_info,
+        ]
 
-        for sub, func in subs.items():
-            sub_element = xml_helper.create_subelement(root, sub)
-            sub_element_content = func
-            xml_helper.add_subelement(sub_element, sub_element_content)
+        for func in subs:
+            sub_element = func()
+            if not isinstance(sub_element, _Element) and isinstance(sub_element, Iterable):
+                for elem in sub_element:
+                    xml_helper.add_subelement(root, elem)
+            else:
+                xml_helper.add_subelement(root, sub_element)
 
         doc = etree.tostring(root, xml_declaration=True, encoding="utf-8", pretty_print=True)
 
@@ -121,9 +143,13 @@ class ServiceMetadataBuilder:
              ret_elem (_Element): The requested xml element
         """
         ret_elem = Element(
+            self.gmd + "fileIdentifier"
+        )
+        elem = Element(
             self.gco + "CharacterString"
         )
-        ret_elem.text = self.metadata.uuid
+        elem.text = self.metadata.uuid
+        xml_helper.add_subelement(ret_elem, elem)
         return ret_elem
 
     def _create_language(self):
@@ -132,16 +158,20 @@ class ServiceMetadataBuilder:
         Returns:
              ret_elem (_Element): The requested xml element
         """
+        ret_elem = Element(
+            self.gmd + "language"
+        )
         lang = "ger"  # ToDo: Create here something dynamic so we can provide international self.metadata as well
         code_list = "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#LanguageCode"
-        ret_elem = Element(
+        elem = Element(
             self.gmd + "LanguageCode",
             attrib={
                 "codeList": code_list,
                 "codeListValue": lang,
             }
         )
-        ret_elem.text = lang
+        elem.text = lang
+        xml_helper.add_subelement(ret_elem, elem)
         return ret_elem
 
     def _create_character_set(self):
@@ -150,16 +180,20 @@ class ServiceMetadataBuilder:
         Returns:
              ret_elem (_Element): The requested xml element
         """
+        ret_elem = Element(
+            self.gmd + "characterSet"
+        )
         char_set = "utf8"
         char_set_list = "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_CharacterSetCode"
-        ret_elem = Element(
+        elem = Element(
             self.gmd + "MD_CharacterSetCode",
             attrib={
                 "codeList": char_set_list,
                 "codeListValue": char_set,
             }
         )
-        ret_elem.text = char_set
+        elem.text = char_set
+        xml_helper.add_subelement(ret_elem, elem)
         return ret_elem
 
     def _create_hierarchy_level(self):
@@ -170,15 +204,18 @@ class ServiceMetadataBuilder:
         """
         hierarchy_level = self.metadata.metadata_type.type
         hierarchy_level_list = "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_ScopeCode"
-        
         ret_elem = Element(
+            self.gmd + "hierarchyLevel"
+        )
+        elem = Element(
             self.gmd + "MD_ScopeCode",
             attrib={
                 "codeList": hierarchy_level_list,
                 "codeListValue": hierarchy_level,
             }
         )
-        ret_elem.text = hierarchy_level
+        elem.text = hierarchy_level
+        xml_helper.add_subelement(ret_elem, elem)
         return ret_elem
 
     def _create_hierarchy_level_name(self):
@@ -190,9 +227,13 @@ class ServiceMetadataBuilder:
         name = self.hierarchy_names[self.service_type]["de"]  # ToDo: Find international solution for this
 
         ret_elem = Element(
+            self.gmd + "hierarchyLevelName"
+        )
+        elem = Element(
             self.gco + "CharacterString"
         )
-        ret_elem.text = name
+        elem.text = name
+        xml_helper.add_subelement(ret_elem, elem)
         return ret_elem
 
     def _create_contact(self):
@@ -201,6 +242,9 @@ class ServiceMetadataBuilder:
         Returns:
              resp_party_elem (_Element): The responsible party xml element
         """
+        ret_elem = Element(
+            self.gmd + "contact"
+        )
 
         resp_party_elem = Element(
             self.gmd + "CI_ResponsibleParty"
@@ -257,7 +301,9 @@ class ServiceMetadataBuilder:
         role_elem.append(role_content_elem)
         resp_party_elem.append(role_elem)
 
-        return resp_party_elem
+        xml_helper.add_subelement(ret_elem, resp_party_elem)
+
+        return ret_elem
 
     def _create_contact_info_element(self):
         """ Creates the <gmd:CI_Contact> element with it's subelements
@@ -512,7 +558,11 @@ class ServiceMetadataBuilder:
         Returns:
              ret_elem (_Element): The requested xml element
         """
-        ret_elem = Element(self.gco + "Date")
+        ret_elem = Element(
+            self.gmd + "dateStamp"
+        )
+
+        elem = Element(self.gco + "Date")
 
         if self.metadata.last_remote_change is not None:
             date = self.metadata.last_remote_change
@@ -526,7 +576,9 @@ class ServiceMetadataBuilder:
             date = timezone.now()
 
         date = date.date().__str__()
-        ret_elem.text = date
+        elem.text = date
+
+        xml_helper.add_subelement(ret_elem, elem)
 
         return ret_elem
 
@@ -537,9 +589,14 @@ class ServiceMetadataBuilder:
              ret_elem (_Element): The requested xml element
         """
         ret_elem = Element(
+            self.gmd + "metadataStandardName"
+        )
+        elem = Element(
             self.gco + "CharacterString"
         )
-        ret_elem.text = "ISO 19115 Geographic information - Metadata"
+        elem.text = "ISO 19115 Geographic information - Metadata"
+
+        xml_helper.add_subelement(ret_elem, elem)
 
         return ret_elem
 
@@ -550,11 +607,56 @@ class ServiceMetadataBuilder:
              ret_elem (_Element): The requested xml element
         """
         ret_elem = Element(
+            self.gmd + "metadataStandardVersion"
+        )
+        elem = Element(
             self.gco + "CharacterString"
         )
-        ret_elem.text = "ISO 19115:2003(E)"
+        elem.text = "ISO 19115:2003(E)"
+
+        xml_helper.add_subelement(ret_elem, elem)
 
         return ret_elem
+
+    def _create_reference_system_info(self):
+        """ Creates the <gmd:referenceSystemInfo> element
+
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        ref_systems = self.metadata.reference_system.all()
+        ret_list = []
+
+        for ref_sys in ref_systems:
+            ret_elem = Element(
+                self.gmd + "referenceSystemInfo"
+            )
+            md_ref_sys_ident_elem = Element(
+                self.gmd + "MD_ReferenceSystem"
+            )
+            ref_sys_ident_elem = Element(
+                self.gmd + "referenceSystemIdentifier"
+            )
+            rs_ident_elem = Element(
+                self.gmd + "RS_Identifier"
+            )
+            code_elem = Element(
+                self.gmd + "code"
+            )
+            char_elem = Element(
+                self.gco + "CharacterString"
+            )
+            char_elem.text = "{}{}".format(ref_sys.prefix, ref_sys.code)
+
+            xml_helper.add_subelement(ret_elem, md_ref_sys_ident_elem)
+            xml_helper.add_subelement(md_ref_sys_ident_elem, ref_sys_ident_elem)
+            xml_helper.add_subelement(ref_sys_ident_elem, rs_ident_elem)
+            xml_helper.add_subelement(rs_ident_elem, code_elem)
+            xml_helper.add_subelement(code_elem, char_elem)
+
+            ret_list.append(ret_elem)
+
+        return ret_list
 
     def _create_identification_info(self):
         """ Creates the <gmd:identificationInfo> element
@@ -563,8 +665,38 @@ class ServiceMetadataBuilder:
              ret_elem (_Element): The requested xml element
         """
         ret_elem = Element(
-            self.srv + "SV_ServiceIdentification"
+            self.gmd + "identificationInfo"
         )
+
+        # First create basic identification infos, which can be found in service, as well as dataset metadata
+        id_info_elem = self._create_base_identification_info()
+
+        # Then add specific identification info to the base info
+        if self.service_type == OGCServiceEnum.DATASET.value:
+            self._create_data_identification_info(id_info_elem)
+        else:
+            self._create_sv_identification_info(id_info_elem)
+
+        xml_helper.add_subelement(ret_elem, id_info_elem)
+
+        return ret_elem
+
+    def _create_base_identification_info(self):
+        """ Creates the <gmd:identificationInfo> element
+
+        Only creates the elements, which are present in service as well as in dataset metadata
+
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        if self.service_type == OGCServiceEnum.DATASET.value:
+            ret_elem = Element(
+                self.gmd + "MD_DataIdentification"
+            )
+        else:
+            ret_elem = Element(
+                self.srv + "SV_ServiceIdentification"
+            )
 
         # gmd:citation
         citation_elem = self._create_citation()
@@ -603,7 +735,9 @@ class ServiceMetadataBuilder:
         point_of_contact_elem = Element(
             self.gmd + "pointOfContact"
         )
+        # _create_contact() returns the wrapping <gmd:contact> element, which is not needed here. We simply take the inner element and continue
         point_of_contact_content_elem = self._create_contact()
+        point_of_contact_content_elem = xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format("CI_ResponsibleParty"), point_of_contact_content_elem)
         point_of_contact_elem.append(point_of_contact_content_elem)
         ret_elem.append(point_of_contact_elem)
 
@@ -626,11 +760,7 @@ class ServiceMetadataBuilder:
         # )
 
         # gmd:descriptiveKeywords
-        descr_keywords_elem = Element(
-            self.gmd + "descriptiveKeywords"
-        )
-        descr_keywords_content_elem = self._create_keywords()
-        descr_keywords_elem.append(descr_keywords_content_elem)
+        descr_keywords_elem = self._create_keywords()
         ret_elem.append(descr_keywords_elem)
 
         # gmd:resourceSpecificUsage
@@ -653,7 +783,19 @@ class ServiceMetadataBuilder:
         #     self.gmd + "aggregationInfo"
         # )
 
-        # gmd:serviceType
+        return ret_elem
+
+    def _create_sv_identification_info(self, upper_elem: Element):
+        """ Creates the <srv:SV_ServiceIdentification> element contents
+
+        Adds it's elements to a given base information element (upper_elem)
+
+        Args:
+            upper_elem (Element): The base info element
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        # srv:serviceType
         service_type_elem = Element(
             self.srv + "serviceType",
         )
@@ -670,9 +812,9 @@ class ServiceMetadataBuilder:
         service_type_version = self.service_version
         locale_name_elem.text = "urn:ogc:serviceType:{}:{}".format(service_type, service_type_version)
         service_type_elem.append(locale_name_elem)
-        ret_elem.append(service_type_elem)
+        upper_elem.append(service_type_elem)
 
-        # gmd:serviceTypeVersion
+        # srv:serviceTypeVersion
         service_version_elem = Element(
             self.srv + "serviceTypeVersion",
         )
@@ -681,35 +823,35 @@ class ServiceMetadataBuilder:
         )
         char_str_elem.text = service_type_version.value
         service_version_elem.append(char_str_elem)
-        ret_elem.append(service_version_elem)
+        upper_elem.append(service_version_elem)
 
-        # gmd:accessProperties
+        # srv:accessProperties
         # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
         # access_properties_elem = Element(
-        #     self.gmd + "accessProperties"
+        #     self.srv + "accessProperties"
         # )
 
-        # gmd:restrictions
+        # srv:restrictions
         # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
         # restrictions_elem = Element(
-        #     self.gmd + "restrictions"
+        #     self.srv + "restrictions"
         # )
 
-        # gmd:keywords
+        # srv:keywords
         # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
         # keywords_elem = Element(
-        #     self.gmd + "keywords"
+        #     self.srv + "keywords"
         # )
 
-        # gmd:extent
+        # srv:extent
         extent_elem = Element(
             self.srv + "extent"
         )
-        extent_content_elem = self._create_extent()
+        extent_content_elem = self._create_extent_geographic()
         extent_elem.append(extent_content_elem)
-        ret_elem.append(extent_elem)
+        upper_elem.append(extent_elem)
 
-        # gmd:couplingType
+        # srv:couplingType
         coupling_type_elem = Element(
             self.srv + "couplingType",
         )
@@ -721,29 +863,73 @@ class ServiceMetadataBuilder:
             }
         )
         coupling_type_elem.append(coupling_type_content_elem)
-        ret_elem.append(coupling_type_elem)
+        upper_elem.append(coupling_type_elem)
 
-        # gmd:coupledResource
+        # srv:coupledResource
         # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
         # coupled_res_elem = Element(
-        #     self.gmd + "coupledResource"
+        #     self.srv + "coupledResource"
         # )
 
-        # gmd:containsOperations
+        # srv:containsOperations
         contains_op_elem = Element(
             self.srv + "containsOperations"
         )
         contains_op_content_elem = self._create_operation_metadata()
         contains_op_elem.append(contains_op_content_elem)
-        ret_elem.append(contains_op_elem)
+        upper_elem.append(contains_op_elem)
 
-        # gmd:operatesOn
+        # srv:operatesOn
         # NOTE: We do not use this so far, but keep this in the code as a preparation for one day
         # operates_on_elem = Element(
-        #     self.gmd + "operatesOn"
+        #     self.srv + "operatesOn"
         # )
 
-        return ret_elem
+        return upper_elem
+
+    def _create_data_identification_info(self, upper_elem: Element):
+        """ Creates the <gmd:MD_DataIdentification> element contents
+
+        Adds it's elements to a given base information element (upper_elem)
+
+        Args:
+            upper_elem (Element): The base info element
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        elems = [
+            self._create_character_set,
+            self._create_language,
+            self._create_topic_category,
+            self._create_extent_geographic,
+        ]
+        
+        for func in elems:
+            elem = func()
+            if not isinstance(elem, _Element) and isinstance(elem, Iterable):
+                for e in elem:
+                    upper_elem.append(e)
+            else:
+                upper_elem.append(elem)
+
+    def _create_topic_category(self):
+        """ Creates the <gmd:topicCategory> element
+
+        Returns:
+             ret_list (list): A list of requested xml elements
+        """
+        ret_list = []
+        for category in self.metadata.categories.all():
+            topic_elem = Element(
+                self.gmd + "topicCategory"
+            )
+            code_elem = Element(
+                self.gmd + "MD_TopicCategoryCode"
+            )
+            topic_elem.append(code_elem)
+            code_elem.text = category.title_EN
+            ret_list.append(topic_elem)
+        return ret_list
 
     def _create_citation(self):
         """ Creates the <gmd:citation> element
@@ -874,9 +1060,13 @@ class ServiceMetadataBuilder:
         Returns:
              ret_elem (_Element): The requested xml element
         """
-        ret_elem = Element(
+        descr_keywords_elem = Element(
+            self.gmd + "descriptiveKeywords"
+        )
+        md_keywords_elem = Element(
             self.gmd + "MD_Keywords"
         )
+        descr_keywords_elem.append(md_keywords_elem)
 
         keywords = self.metadata.keywords.all()
         for keyword in keywords:
@@ -887,10 +1077,11 @@ class ServiceMetadataBuilder:
                 self.gco + "CharacterString"
             )
             char_str_elem.text = keyword.keyword
-            keyword_elem.append(char_str_elem)
-            ret_elem.append(keyword_elem)
 
-        return ret_elem
+            keyword_elem.append(char_str_elem)
+            md_keywords_elem.append(keyword_elem)
+
+        return descr_keywords_elem
 
     def _create_legal_constraints(self):
         """ Creates the <gmd:MD_LegalConstraints> element
@@ -944,8 +1135,8 @@ class ServiceMetadataBuilder:
 
         return ret_elem
 
-    def _create_extent(self):
-        """ Creates the <gmd:EX_Extent> element
+    def _create_extent_geographic(self):
+        """ Creates the <gmd:EX_Extent> element for geographic extents
 
         Returns:
              ret_elem (_Element): The requested xml element
@@ -980,6 +1171,18 @@ class ServiceMetadataBuilder:
             )
         ret_elem.append(geographic_elem)
 
+        return ret_elem
+
+    def _create_extent_temporal(self):
+        """ Creates the <gmd:EX_Extent> element for temporal extents
+
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        ret_elem = Element(
+            self.gmd + "EX_Extent"
+        )
+
         # gmd:temporalElement
         temp_elem = Element(
             self.gmd + "temporalElement",
@@ -988,6 +1191,18 @@ class ServiceMetadataBuilder:
             }
         )
         ret_elem.append(temp_elem)
+
+        return ret_elem
+
+    def _create_extent_vertical(self):
+        """ Creates the <gmd:EX_Extent> element for vertical extents
+
+        Returns:
+             ret_elem (_Element): The requested xml element
+        """
+        ret_elem = Element(
+            self.gmd + "EX_Extent"
+        )
 
         # gmd:verticalElement
         vertical_elem = Element(
@@ -1162,6 +1377,10 @@ class ServiceMetadataBuilder:
              ret_elem (_Element): The requested xml element
         """
         ret_elem = Element(
+            self.gmd + "distributionInfo"
+        )
+
+        elem = Element(
             self.gmd + "MD_Distribution"
         )
 
@@ -1171,7 +1390,7 @@ class ServiceMetadataBuilder:
         )
         distr_format_content_elem = self._create_distribution_format()
         distr_format_elem.append(distr_format_content_elem)
-        ret_elem.append(distr_format_elem)
+        elem.append(distr_format_elem)
 
         # gmd:distributor
         distributor_elem = Element(
@@ -1179,14 +1398,16 @@ class ServiceMetadataBuilder:
         )
         distributor_content_elem = self._create_distributor()
         distributor_elem.append(distributor_content_elem)
-        ret_elem.append(distributor_elem)
+        elem.append(distributor_elem)
 
         # gmd:transferOptions
         transfer_options_elem = Element(
             self.gmd + "transferOptions"
         )
         transfer_options_elem.append(self._create_digital_transfer_options())
-        ret_elem.append(transfer_options_elem)
+        elem.append(transfer_options_elem)
+
+        xml_helper.add_subelement(ret_elem, elem)
 
         return ret_elem
 
@@ -1323,15 +1544,17 @@ class ServiceMetadataBuilder:
              ret_elem (_Element): The requested xml element
         """
         ret_elem = Element(
+            self.gmd + "dataQualityInfo"
+        )
+        elem = Element(
             self.gmd + "DQ_DataQuality"
         )
-
         # gmd:scope
         scope_elem = Element(
             self.gmd + "scope"
         )
         scope_elem.append(self._create_scope())
-        ret_elem.append(scope_elem)
+        elem.append(scope_elem)
 
         # gmd:report
         legislation_groups = [
@@ -1349,13 +1572,15 @@ class ServiceMetadataBuilder:
                     self.gmd + "report"
                 )
                 report_elem.append(self._create_report(legislation))
-                ret_elem.append(report_elem)
+                elem.append(report_elem)
 
         # gmd:lineage
         lineage_elem = Element(
             self.gmd + "lineage"
         )
-        ret_elem.append(lineage_elem)
+        elem.append(lineage_elem)
+
+        xml_helper.add_subelement(ret_elem, elem)
 
         return ret_elem
 
@@ -1380,7 +1605,7 @@ class ServiceMetadataBuilder:
         extent_elem = Element(
             self.gmd + "extent"
         )
-        extent_elem.append(self._create_extent())
+        extent_elem.append(self._create_extent_geographic())
         ret_elem.append(extent_elem)
 
         # gmd:levelDescription
@@ -1512,3 +1737,299 @@ class ServiceMetadataBuilder:
         ret_elem.append(date_type_elem)
 
         return ret_elem
+
+    def overwrite_dataset_metadata(self, doc: str):
+        """ Overwrites a dataset metadata document.
+
+        Only overwrites elements, which can be modified using the Dataset Editor
+
+        Args:
+            doc (str): The document as string
+        Returns:
+             doc (str): The modified document
+        """
+        doc = xml_helper.parse_xml(doc)
+
+        # Overwrite
+        funcs = [
+            self._overwrite_dataset_metadata_identification_form_info,
+            self._overwrite_dataset_metadata_classification_form_info,
+            self._overwrite_dataset_metadata_responsible_party_form_info,
+            self._overwrite_dataset_metadata_spatial_extent_form_info,
+            self._overwrite_dataset_metadata_licenses_form_info,
+            self._overwrite_dataset_metadata_quality_form_info,
+        ]
+        for func in funcs:
+            func(doc)
+
+        doc = etree.tostring(doc, xml_declaration=True, encoding="utf-8", pretty_print=True)
+
+        return doc
+
+    def _overwrite_dataset_metadata_classification_form_info(self, doc: Element):
+        """ Overwrites the elements according to the Dataset Classification Form.
+
+        Args:
+            doc (Etree): The document as etree
+        Returns:
+
+        """
+        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), doc)
+
+        if ident_elem is None:
+            # Nothing to overwrtite
+            return
+
+        # Overwrite keyword elements
+        ## Remove existing elements
+        existing_keyword_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("descriptiveKeywords"), ident_elem) or []
+        for kw in existing_keyword_elems:
+            xml_helper.remove_element(kw)
+        ## Add new
+        descr_keywords_elem = self._create_keywords()
+        xml_helper.add_subelement(ident_elem, descr_keywords_elem, after=GENERIC_NAMESPACE_TEMPLATE.format("pointOfContact"))
+
+        # Overwrite topic category elements
+        ## Remove existing elements
+        existing_category_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("topicCategory"), ident_elem) or []
+        for cat in existing_category_elems:
+            xml_helper.remove_element(cat)
+        ## Add new
+        topic_category_elems = self._create_topic_category()
+        for elem in topic_category_elems:
+            xml_helper.add_subelement(ident_elem, elem, after=GENERIC_NAMESPACE_TEMPLATE.format("language"))
+
+    def _overwrite_dataset_metadata_identification_form_info(self, doc: Element):
+        """ Overwrites the elements according to the Dataset Identification Form.
+
+        Args:
+            doc (Etree): The document as etree
+        Returns:
+
+        """
+        root = doc.getroot()
+        # Overwrite language
+        lang_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode"), root)
+        xml_helper.write_attribute(lang_elem, attrib="codeListValue", txt=self.described_resource.language_code)
+        xml_helper.write_text_to_element(lang_elem, txt=self.described_resource.language_code)
+
+        # Overwrite encoding
+        encoding_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_CharacterSetCode"), root)
+        xml_helper.write_attribute(encoding_elem, attrib="codeListValue", txt=self.described_resource.character_set_code)
+
+        # Overwrite dateStamp
+        date_stamp_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp"), root)
+        xml_helper.write_text_to_element(date_stamp_elem, ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Date"), self.described_resource.date_stamp.strftime(DATE_STRF))
+
+        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("identificationInfo"), root)
+
+        # Overwrite title
+        title_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("title"), ident_elem)
+        xml_helper.write_text_to_element(title_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"), self.metadata.title)
+
+        # Overwrite abstract
+        abstract_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("abstract"), ident_elem)
+        xml_helper.write_text_to_element(abstract_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString", self.metadata.abstract))
+
+        # Overwrite reference systems
+        ## First remove old onces
+        existing_ref_system_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("referenceSystemInfo"), root) or []
+        for elem in existing_ref_system_elems:
+            xml_helper.remove_element(elem)
+        ## Then create new
+        new_ref_system_elems = self._create_reference_system_info()
+        for elem in new_ref_system_elems:
+            xml_helper.add_subelement(root, elem, after=GENERIC_NAMESPACE_TEMPLATE.format("dateStamp"))
+
+    def _overwrite_dataset_metadata_responsible_party_form_info(self, doc: Element):
+        """ Overwrites the elements according to the Dataset Responsible Party Form.
+
+        Args:
+            doc (Etree): The document as etree
+        Returns:
+
+        """
+        root = doc.getroot()
+
+        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), root)
+        if ident_elem is None:
+            return
+
+        # Remove existing contact information elem
+        contact_info_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("contact"), root) or []
+        contact_info_elems += xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("pointOfContact"), root) or []
+        for elem in contact_info_elems:
+            xml_helper.remove_element(elem)
+
+        # Add new elements
+        ## Contact info are available on first level and nested inside of gmd:MD_DataIdentification
+        contact_elem = self._create_contact()
+        xml_helper.add_subelement(root, contact_elem, after=GENERIC_NAMESPACE_TEMPLATE.format("hierarchyLevel"))
+
+        point_of_contact_elem = Element(
+            self.gmd + "pointOfContact"
+        )
+        # _create_contact() returns the <gmd:contact> wrapping element, which is not needed here.
+        # We continue using the inner <gmd:CI_ResponsibleParty>
+        copy_contact_elem = copy(contact_elem)
+        point_of_contact_elem.append(
+            xml_helper.try_get_single_element_from_xml("./" + GENERIC_NAMESPACE_TEMPLATE.format("CI_ResponsibleParty"), copy_contact_elem)
+        )
+        xml_helper.add_subelement(ident_elem, point_of_contact_elem, after=GENERIC_NAMESPACE_TEMPLATE.format("abstract"))
+
+    def _overwrite_dataset_metadata_spatial_extent_form_info(self, doc: Element):
+        """ Overwrites the elements according to the Dataset Spatial Extent Form.
+
+        Args:
+            doc (Etree): The document as etree
+        Returns:
+
+        """
+        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), doc)
+
+        if ident_elem is None:
+            # Nothing to do here
+            return
+
+        # get existing spatial extent element
+        extent_elems = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("extent"), ident_elem) or []
+        # filter only geographic extents
+        geo_extent_elems = []
+        for extent in extent_elems:
+            elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("geographicElement"), extent)
+            if elem is not None:
+                geo_extent_elems.append(elem)
+        # Remove existing geographic extents
+        # Wrapping <gmd:extent> must be removed using getparent() twice
+        for geo_ext in geo_extent_elems:
+            extent_parent = geo_ext.getparent().getparent()
+            xml_helper.remove_element(extent_parent)
+
+        # Create new geographic extent
+        extent_elem = Element(
+            self.gmd + "extent"
+        )
+        new_geo_ext = self._create_extent_geographic()
+        extent_elem.append(new_geo_ext)
+        xml_helper.add_subelement(ident_elem, extent_elem, after=GENERIC_NAMESPACE_TEMPLATE.format("characterSet"))
+
+    def _overwrite_dataset_metadata_licenses_form_info(self, doc: Element):
+        """ Overwrites the elements according to the Dataset Licenses/Constraints Form.
+
+        Args:
+            doc (Etree): The document as etree
+        Returns:
+
+        """
+        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), doc)
+        other_constraints_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("otherConstraints"), doc)
+
+        if ident_elem is None:
+            # Nothing to do here
+            return
+
+        # No such element found, we need to create it
+        if other_constraints_elem is None:
+            resource_constraint_elem = Element(
+                self.gmd + "resourceConstraints"
+            )
+            md_legal_constraint_elem = Element(
+                self.gmd + "MD_LegalConstraints"
+            )
+            access_constraint_elem = Element(
+                self.gmd + "accessConstraints"
+            )
+            md_restriction_code_elem = Element(
+                self.gmd + "MD_RestrictionCode",
+                attrib={
+                    "codeList": "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_RetrictionCode",
+                    "codeListValue": "otherRestrictions"
+                }
+            )
+            md_restriction_code_elem.text = "otherRestrictions"
+            other_constraints_elem = Element(
+                self.gmd + "otherConstraints"
+            )
+            char_str_elem = Element(
+                self.gmd + "CharacterString"
+            )
+            resource_constraint_elem.append(md_legal_constraint_elem)
+            md_legal_constraint_elem.append(access_constraint_elem)
+            md_legal_constraint_elem.append(other_constraints_elem)
+            other_constraints_elem.append(char_str_elem)
+
+            xml_helper.add_subelement(ident_elem, resource_constraint_elem, after=GENERIC_NAMESPACE_TEMPLATE.format("descriptiveKeywords"))
+
+        xml_helper.write_text_to_element(other_constraints_elem, "./" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"), self.metadata.access_constraints)
+
+    def _overwrite_dataset_metadata_quality_form_info(self, doc: Element):
+        """ Overwrites the elements according to the Dataset Quality Form.
+
+        Args:
+            doc (Etree): The document as etree
+        Returns:
+
+        """
+        dq_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("DQ_DataQuality"), doc)
+        ident_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification"), doc)
+
+        if ident_elem is None:
+            # Nothing to do here
+            return
+
+        # Overwrite lineage data, if element exists
+        lineage_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("lineage"), dq_elem)
+
+        if lineage_elem is None:
+           lineage_elem = Element(
+               self.gmd + "lineage"
+           )
+           li_lineage_elem = Element(
+               self.gmd + "LI_Lineage"
+           )
+           statement_elem = Element(
+               self.gmd + "statement"
+           )
+           char_str_elem = Element(
+               self.gmd + "CharacterString"
+           )
+           dq_elem.append(lineage_elem)
+           lineage_elem.append(li_lineage_elem)
+           li_lineage_elem.append(statement_elem)
+           statement_elem.append(char_str_elem)
+
+        xml_helper.write_text_to_element(
+            lineage_elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"),
+            self.described_resource.lineage_statement
+        )
+
+        # Change maintenance update frequency
+        update_frequ_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_MaintenanceFrequencyCode"), ident_elem)
+        if update_frequ_elem is None:
+            res_maintenance_elem = Element(
+                self.gmd + "resourceMaintenance"
+            )
+            md_maintenance_information_elem = Element(
+                self.gmd + "MD_MaintenanceInformation"
+            )
+            maintenance_update_frequ_elem = Element(
+                self.gmd + "maintenanceAndUpdateFrequency"
+            )
+            update_frequ_elem = Element(
+                self.gmd + "MD_MaintenanceFrequencyCode",
+                attrib={
+                    "codeListValue": self.described_resource.update_frequency_code,
+                    "codeList": self.described_resource.update_frequency_code_list_url,
+                }
+            )
+            ident_elem.append(res_maintenance_elem)
+            res_maintenance_elem.append(md_maintenance_information_elem)
+            md_maintenance_information_elem.append(maintenance_update_frequ_elem)
+            maintenance_update_frequ_elem.append(update_frequ_elem)
+
+        xml_helper.write_attribute(
+            update_frequ_elem,
+            attrib="codeListValue",
+            txt=self.described_resource.update_frequency_code
+        )

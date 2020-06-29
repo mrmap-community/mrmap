@@ -22,7 +22,7 @@ from MrMap.utils import execute_threads, print_debug_mode
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.enums import MetadataEnum
 from service.helper.epsg_api import EpsgApi
-from service.helper.iso.iso_metadata import ISOMetadata
+from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
@@ -734,7 +734,8 @@ class OGCWebFeatureService(OGCWebService):
         md.created_by = group
         md.capabilities_original_uri = self.service_connect_url
         md.capabilities_uri = self.service_connect_url
-        md.bounding_geometry = self.service_bounding_box
+        if self.service_bounding_box is not None:
+            md.bounding_geometry = self.service_bounding_box
 
         # Save metadata record so we can use M2M or id of record later
         md.save()

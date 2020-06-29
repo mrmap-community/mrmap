@@ -6,7 +6,7 @@ from django.db import models
 from django.utils import timezone
 
 from service.helper.crypto_handler import CryptoHandler
-from service.helper.enums import OGCServiceEnum
+from service.helper.enums import OGCServiceEnum, MetadataEnum
 from structure.settings import USER_ACTIVATION_TIME_WINDOW
 
 
@@ -40,6 +40,10 @@ class Permission(models.Model):
     can_register_service = models.BooleanField(default=False)
     can_remove_service = models.BooleanField(default=False)
     can_edit_metadata_service = models.BooleanField(default=False)
+
+    can_add_dataset_metadata = models.BooleanField(default=False)
+    can_edit_dataset_metadata = models.BooleanField(default=False)
+    can_remove_dataset_metadata = models.BooleanField(default=False)
 
     can_toggle_publish_requests = models.BooleanField(default=False)
 
@@ -174,6 +178,37 @@ class MrMapUser(AbstractUser):
             md_list = md_list.filter(service__servicetype__name=type.name.lower())
         return md_list
 
+    def get_metadatas_as_qs(self, type: MetadataEnum = None, inverse_match: bool = False):
+        """ Returns all metadatas which are related to the user
+
+        Returns:
+             md_list:
+        """
+        from service.models import Metadata
+
+        md_list = Metadata.objects.filter(
+                        created_by__in=self.get_groups(),
+                    ).order_by("title")
+        if type is not None:
+            if inverse_match:
+                md_list = md_list.all().exclude(metadata_type__type=type.name.lower())
+            else:
+                md_list = md_list.filter(metadata_type__type=type.name.lower())
+        return md_list
+
+    def get_datasets_as_qs(self, ):
+        """ Returns all datasets which are related to the user
+
+        Returns:
+             md_list:
+        """
+        from service.models import Metadata
+        md_list = Metadata.objects.filter(
+            metadata_type__type='dataset',
+            created_by__in=self.get_groups(),
+        ).order_by("title")
+        return md_list
+
     def get_groups(self, filter_by: dict = {}):
         """ Returns a queryset of all MrMapGroups related to the user
 
@@ -186,7 +221,7 @@ class MrMapUser(AbstractUser):
             }
 
         Returns:
-             list
+             queryset
         """
 
         groups = MrMapGroup.objects.filter(

@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-06-26 14:22+0200\n"
+"POT-Creation-Date: 2020-06-29 09:05+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -521,6 +521,65 @@ msgstr ""
 "Listet alle WMS, die für Sie registriert sind. Sie können diese bearbeiten, "
 "wenn Sie wollen."
 
+#: editor/tables.py:33 editor/tables.py:92 service/tables.py:34
+#: service/tables.py:140 service/tables.py:367
+#: service/templates/includes/wfs/featuretype_detail_table.html:17
+#: service/templates/includes/wms/child_layer_detail_table.html:21
+#: service/templates/metadata/tabs/content/dataset/overview_tab.html:9
+#: service/templates/metadata/tabs/content/wfs/featuretype/overview_tab.html:10
+#: service/templates/metadata/tabs/content/wfs/root/overview_tab.html:10
+#: service/templates/metadata/tabs/content/wms/layer/overview_tab.html:11
+#: service/templates/metadata/tabs/content/wms/root/overview_tab.html:9
+msgid "Title"
+msgstr "Titel"
+
+#: editor/tables.py:34 editor/tables.py:93 service/tables.py:35
+#: service/tables.py:142
+msgid "Active"
+msgstr "Aktiv"
+
+#: editor/tables.py:35 editor/tables.py:94 service/tables.py:39
+#: service/tables.py:146
+msgid "Data provider"
+msgstr "Datenanbieter"
+
+#: editor/tables.py:36 editor/tables.py:95 service/tables.py:40
+#: service/tables.py:147
+msgid "Registered by group"
+msgstr "Registriert durch Gruppe"
+
+#: editor/tables.py:37 editor/tables.py:96
+msgid "Original metadata"
+msgstr "Originale Metadaten"
+
+#: editor/tables.py:38 editor/tables.py:97 service/tables.py:36
+#: service/tables.py:143
+msgid "Secured access"
+msgstr "Abgesicherter Zugriff"
+
+#: editor/tables.py:39 editor/tables.py:98
+msgid "Last modified"
+msgstr "Zuletzt geändert"
+
+#: editor/tables.py:40 editor/tables.py:99
+#: service/templates/includes/detail/service_detail.html:59
+#: structure/templates/modals/edit_group.html:5
+#: structure/templates/modals/edit_organization.html:5
+#: users/templates/modals/edit_account.html:5
+msgid "Edit"
+msgstr "Bearbeiten"
+
+#: editor/tables.py:41 editor/tables.py:100
+#: service/templates/includes/detail/service_detail.html:63
+#: service/templates/includes/wfs/featuretype_detail.html:26
+#: service/templates/includes/wms/sublayer_detail.html:25
+msgid "Access"
+msgstr "Zugriff"
+
+#: editor/tables.py:42 editor/tables.py:101
+msgid "Reset"
+msgstr "Zurücksetzen"
+
 #: editor/tables.py:90
 msgid ""
 "Shows all WFS which are configured in your Mr. Map environment. You can Edit "
@@ -718,7 +777,7 @@ msgstr "Nach Nutzernamen filtern."
 
 #: service/filters.py:105
 msgid "User group"
-msgstr "Nutzergruppe"
+msgstr "Gruppe"
 
 #: service/filters.py:107
 msgid "Filter by the ID of a group."
@@ -803,9 +862,35 @@ msgstr ""
 "Wählen Sie den alten Elementnamen, falls dieses neue Feature nur umbenannt "
 "wurde."
 
+#: service/tables.py:37 service/tables.py:144
+msgid "Secured externally"
+msgstr "Extern abgesichert"
+
+#: service/tables.py:38 service/tables.py:145
+msgid "Version"
+msgstr "Version"
+
+#: service/tables.py:41 service/tables.py:148
+msgid "Registered for"
+msgstr "Registriere für"
+
+#: service/tables.py:42 service/tables.py:149
+msgid "Created on"
+msgstr "Erstellt am "
+
 #: service/tables.py:81
 msgid "Shows all WMS which are configured in your Mr. Map environment."
 msgstr "Zeigt alle WMS, die für Sie registriert sind."
+
+#: service/tables.py:88
+msgid "Layers"
+msgstr "Ebenen"
+
+#: service/tables.py:110
+#: service/templates/includes/wfs/featuretype_detail_table.html:9
+#: service/templates/includes/wms/child_layer_detail_table.html:13
+msgid "Parent service"
+msgstr "Übergeordneter Dienst"
 
 #: service/tables.py:112
 msgid ""
@@ -816,9 +901,35 @@ msgstr "Zeigt alle WMS Unterebenen, die für Sie registriert sind."
 msgid "Shows all WFS which are configured in your Mr. Map environment."
 msgstr "Zeigt alle WFS, die für Sie registriert sind."
 
+#: service/tables.py:141
+#: service/templates/metadata/tabs/content/wfs/root/overview_tab.html:37
+msgid "Featuretypes"
+msgstr "Featuretypen"
+
 #: service/tables.py:204
 msgid "Shows all currently running pending tasks."
 msgstr "Zeigt alle aktuell laufenden Prozesse."
+
+#: service/tables.py:206
+msgid " "
+msgstr " "
+
+#: service/tables.py:207
+#: service/templates/metadata/tabs/content/quality_tab.html:7
+msgid "Status"
+msgstr "Status"
+
+#: service/tables.py:208
+msgid "Service"
+msgstr "Dienst"
+
+#: service/tables.py:209
+msgid "Phase"
+msgstr "Phase"
+
+#: service/tables.py:210
+msgid "Progress"
+msgstr "Fortschritt"
 
 #: service/tables.py:229 service/tables.py:234
 msgid "unknown"
@@ -848,6 +959,10 @@ msgstr "Protokoll ID"
 msgid "The id of the ProxyLog"
 msgstr "Die ID des ProxyLogs"
 
+#: service/tables.py:343
+msgid "Service Title"
+msgstr "Diensttitel"
+
 #: service/tables.py:344
 msgid "The title of the related service"
 msgstr "Der Titel des zugehörigen Dienstes"
@@ -872,17 +987,6 @@ msgstr "Operation"
 msgid "ID"
 msgstr "ID"
 
-#: service/tables.py:367
-#: service/templates/includes/wfs/featuretype_detail_table.html:17
-#: service/templates/includes/wms/child_layer_detail_table.html:21
-#: service/templates/metadata/tabs/content/dataset/overview_tab.html:9
-#: service/templates/metadata/tabs/content/wfs/featuretype/overview_tab.html:10
-#: service/templates/metadata/tabs/content/wfs/root/overview_tab.html:10
-#: service/templates/metadata/tabs/content/wms/layer/overview_tab.html:11
-#: service/templates/metadata/tabs/content/wms/root/overview_tab.html:9
-msgid "Title"
-msgstr "Titel"
-
 #: service/tables.py:370
 msgid "Delivered Features (WFS)"
 msgstr "Ausgelieferte Features (WFS)"
@@ -903,25 +1007,12 @@ msgstr "Aktiv"
 msgid "Update"
 msgstr "Aktualisieren"
 
-#: service/templates/includes/detail/service_detail.html:59
-#: structure/templates/modals/edit_group.html:5
-#: structure/templates/modals/edit_organization.html:5
-#: users/templates/modals/edit_account.html:5
-msgid "Edit"
-msgstr "Bearbeiten"
-
 #: service/templates/includes/detail/service_detail.html:62
 #: service/templates/includes/detail/service_detail.html:83
 #: service/templates/includes/wfs/featuretype_detail.html:25
 #: service/templates/includes/wms/sublayer_detail.html:24
 msgid "Metadata"
 msgstr "Metadaten"
-
-#: service/templates/includes/detail/service_detail.html:63
-#: service/templates/includes/wfs/featuretype_detail.html:26
-#: service/templates/includes/wms/sublayer_detail.html:25
-msgid "Access"
-msgstr "Zugriff"
 
 #: service/templates/includes/detail/service_detail.html:72
 #: service/templates/metadata/tabs/content/dataset/interfaces_tab.html:7
@@ -1251,11 +1342,6 @@ msgstr "Datensatz Metadaten"
 msgid "Service Metadata"
 msgstr "Service Metadaten"
 
-#: service/templates/includes/wfs/featuretype_detail_table.html:9
-#: service/templates/includes/wms/child_layer_detail_table.html:13
-msgid "Parent service"
-msgstr "Übergeordneter Dienst"
-
 #: service/templates/includes/wfs/featuretype_detail_table.html:35
 msgid "Is searchable"
 msgstr "Durchsuchbar"
@@ -1528,10 +1614,6 @@ msgstr "Original Capabilities"
 msgid "Quality informations for "
 msgstr "Qualitätsinformationen für "
 
-#: service/templates/metadata/tabs/content/quality_tab.html:7
-msgid "Status"
-msgstr "Status"
-
 #: service/templates/metadata/tabs/content/quality_tab.html:14
 msgid "Availability"
 msgstr "Verfügbarkeit"
@@ -1597,10 +1679,6 @@ msgstr "Zugehörige Datensatz Metadaten"
 #: service/templates/metadata/tabs/content/wfs/root/overview_tab.html:7
 msgid "Overview of the wfs for "
 msgstr "Überblick WFS für "
-
-#: service/templates/metadata/tabs/content/wfs/root/overview_tab.html:37
-msgid "Featuretypes"
-msgstr "Featuretypen"
 
 #: service/templates/metadata/tabs/content/wms/layer/interfaces_tab.html:4
 msgid "Interfaces of the layer for "
@@ -2365,8 +2443,7 @@ msgstr "Geben Sie nur kommaseparierte Ziffern ein."
 #, python-format
 msgid "Ensure this value is %(limit_value)s (it is %(show_value)s)."
 msgstr ""
-"Stellen Sie sicher, dass der Wert %(limit_value)s ist (eingegeben: "
-"%(show_value))s"
+"Stellen Sie sicher, dass der Wert %(limit_value)s ist (eingegeben: %(show_value)s)"
 
 #: venv/lib/python3.7/site-packages/django/core/validators.py:343
 #, python-format
@@ -3989,27 +4066,6 @@ msgstr ""
 #~ "überschreiben. Sie können Ihre Organisation wählen sowie die, für welche "
 #~ "Sie veröffentlichen dürfen."
 
-#~ msgid "Active"
-#~ msgstr "Aktiv"
-
-#~ msgid "Data provider"
-#~ msgstr "Datenanbieter"
-
-#~ msgid "Registered by group"
-#~ msgstr "Registriert durch Gruppe"
-
-#~ msgid "Original metadata"
-#~ msgstr "Originale Metadaten"
-
-#~ msgid "Secured access"
-#~ msgstr "Abgesicherter Zugriff"
-
-#~ msgid "Last modified"
-#~ msgstr "Zuletzt geändert"
-
-#~ msgid "Reset"
-#~ msgstr "Zurücksetzen"
-
 #~ msgid ""
 #~ "Shows all datasets which are configured in your Mr. Map environment. You "
 #~ "can Edit them if you want."
@@ -4156,9 +4212,6 @@ msgstr ""
 #~ msgid "Get service metadata"
 #~ msgstr "Öffne Service Metadaten"
 
-#~ msgid "Service"
-#~ msgstr "Dienst"
-
 #~ msgid "Open original metadata in new tab"
 #~ msgstr "Öffne originale Metadaten in neuem Tab"
 
@@ -4277,12 +4330,6 @@ msgstr ""
 #~ "Dienst, kann der Registrierungsvorgang bis zu einer Minute dauern. Seien "
 #~ "Sie bitte geduldig.Klicken Sie nicht wild umher."
 
-#~ msgid "Phase"
-#~ msgstr "Phase"
-
-#~ msgid "Progress"
-#~ msgstr "Fortschritt"
-
 #~ msgid "Old Service"
 #~ msgstr "Alter Dienst"
 
@@ -4350,9 +4397,6 @@ msgstr ""
 
 #~ msgid "Results per page"
 #~ msgstr "Ergebnisse pro Seite"
-
-#~ msgid "Registered for"
-#~ msgstr "Registriere für"
 
 #~ msgid "None ¯\\_(ツ)_/¯"
 #~ msgstr "Keine ¯\\_(ツ)_/¯"

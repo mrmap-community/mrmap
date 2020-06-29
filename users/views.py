@@ -24,7 +24,8 @@ from django.utils.translation import gettext_lazy as _
 from MrMap.messages import ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
     ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, \
     LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, PASSWORD_CHANGE_OLD_PASSWORD_WRONG, \
-    RESOURCE_NOT_FOUND_OR_NOT_OWNER, FORM_INPUT_INVALID, SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_REMOVED_TEMPLATE
+    RESOURCE_NOT_FOUND_OR_NOT_OWNER, FORM_INPUT_INVALID, SUBSCRIPTION_EDITING_SUCCESSFULL, \
+    SUBSCRIPTION_REMOVED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE
 from MrMap.responses import DefaultContext
 from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from MrMap.utils import print_debug_mode
@@ -410,8 +411,17 @@ def subscription_new_view(request: HttpRequest):
         if form.is_valid():
             subscription = form.save(commit=False)
             subscription.user = user
-            subscription.save()
-            messages.success(request, SUBSCRIPTION_EDITING_SUCCESSFULL)
+            # Check if the service is already subscribed by user
+            sub_already_exists = Subscription.objects.filter(
+                user=user,
+                metadata=subscription.metadata,
+            ).exists()
+            if sub_already_exists:
+                messages.info(request, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE.format(subscription.metadata.title))
+                del subscription
+            else:
+                subscription.save()
+                messages.success(request, SUBSCRIPTION_EDITING_SUCCESSFULL)
         else:
             messages.error(request, FORM_INPUT_INVALID)
 
@@ -432,24 +442,22 @@ def subscription_edit_view(request: HttpRequest, id: str):
          A rendered view
     """
     user = user_helper.get_user(request)
-    form = SubscriptionForm()
+
+    try:
+        subscription = Subscription.objects.get(
+            id=id,
+            user=user,
+        )
+    except ObjectDoesNotExist:
+        messages.error(request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
+        return redirect('users:home')
+
+    form = SubscriptionForm(request.POST or None, instance=subscription)
     params = {}
 
     if request.method == 'GET':
-        try:
-            subscription = Subscription.objects.get(
-                id=id,
-                user=user,
-            )
-            form.instance = subscription
-            params["form"] = form
-
-            context = DefaultContext(request, params, user)
-            # ToDo: Render template
-
-        except ObjectDoesNotExist:
-            messages.error(request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
-            return redirect('users:home')
+        context = DefaultContext(request, params, user)
+        # ToDo: Render template
 
     elif request.method == 'POST':
         # Post changes/new subscription
@@ -463,6 +471,7 @@ def subscription_edit_view(request: HttpRequest, id: str):
         pass
 
     return redirect("home")
+
 
 @login_required
 def subscription_remove(request: HttpRequest, id: str):

@@ -125,3 +125,4 @@ EMAIL_IS_UNKNOWN = _("Inserted email address is unknown.")
 
 SUBSCRIPTION_EDITING_SUCCESSFULL = _("Subscription edited successfully.")
 SUBSCRIPTION_REMOVED_TEMPLATE = _("Subscription for '{}' was removed.")
+SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE = _("'{}' already subscribed.")

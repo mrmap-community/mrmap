@@ -94,6 +94,27 @@ class UserForm(forms.ModelForm):
 
 
 class SubscriptionForm(forms.ModelForm):
+    metadata = forms.ModelChoiceField(
+        label=_("Service"),
+        help_text=_("Select the service you want to subscribe. When you edit an existing subscription, you can not change this selection."),
+        queryset=Metadata.objects.filter(
+            metadata_type__type=MetadataEnum.SERVICE.value,
+            is_active=True,
+        )
+    )
+    notify_on_update = forms.BooleanField(
+        label=_("Notify on update"),
+        help_text=_("Sends an e-mai if the service has been updated.")
+    )
+    notify_on_metadata_edit = forms.BooleanField(
+        label=_("Notify on metadata changes"),
+        help_text=_("Sends an e-mai if the service's metadata has been changed.")
+    )
+    notify_on_access_edit = forms.BooleanField(
+        label=_("Notify on access changes"),
+        help_text=_("Sends an e-mai if the service's access has been changed.")
+    )
+
     class Meta:
         model = Subscription
         fields = [
@@ -105,7 +126,7 @@ class SubscriptionForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['metadata'].queryset = Metadata.objects.filter(
-            metadata_type__type=MetadataEnum.SERVICE.value,
-            is_active=True,
-        )
+
+        if self.fields['metadata'].instance is not None:
+            # Prevent user from changing the subscribed metadata itself
+            self.fields['metadata'].disabled = True

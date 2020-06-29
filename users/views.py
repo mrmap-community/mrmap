@@ -16,7 +16,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -25,7 +25,7 @@ from MrMap.messages import ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
     ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, \
     LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, PASSWORD_CHANGE_OLD_PASSWORD_WRONG, \
     RESOURCE_NOT_FOUND_OR_NOT_OWNER, FORM_INPUT_INVALID, SUBSCRIPTION_EDITING_SUCCESSFULL, \
-    SUBSCRIPTION_REMOVED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE
+    SUBSCRIPTION_REMOVED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SUBSCRIPTION_EDITING_UNSUCCESSFULL
 from MrMap.responses import DefaultContext
 from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from MrMap.utils import print_debug_mode
@@ -386,6 +386,7 @@ def subscription_index_view(request: HttpRequest):
     }
     context = DefaultContext(request, params, user)
     # ToDo: Render template
+    return HttpResponse()
 
 
 @login_required
@@ -452,7 +453,7 @@ def subscription_edit_view(request: HttpRequest, id: str):
         messages.error(request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
         return redirect('users:home')
 
-    form = SubscriptionForm(request.POST or None, instance=subscription)
+    form = SubscriptionForm(request.POST or None, instance=subscription, is_edit=True)
     params = {}
 
     if request.method == 'GET':
@@ -462,8 +463,13 @@ def subscription_edit_view(request: HttpRequest, id: str):
     elif request.method == 'POST':
         # Post changes/new subscription
         if form.is_valid():
-            subscription = form.save()
-            messages.success(request, SUBSCRIPTION_EDITING_SUCCESSFULL)
+            # Make sure the related metadata has not been changed
+            form_subscription = form.save(commit=False)
+            if form_subscription.metadata != subscription.metadata:
+                messages.error(request, SUBSCRIPTION_EDITING_UNSUCCESSFULL)
+            else:
+                form_subscription.save()
+                messages.success(request, SUBSCRIPTION_EDITING_SUCCESSFULL)
         else:
             messages.error(request, FORM_INPUT_INVALID)
     else:

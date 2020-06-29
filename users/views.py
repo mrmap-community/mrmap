@@ -23,7 +23,8 @@ from django.utils.translation import gettext_lazy as _
 
 from MrMap.messages import ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
     ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, \
-    LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, PASSWORD_CHANGE_OLD_PASSWORD_WRONG
+    LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, PASSWORD_CHANGE_OLD_PASSWORD_WRONG, \
+    RESOURCE_NOT_FOUND_OR_NOT_OWNER, FORM_INPUT_INVALID, SUBSCRIPTION_EDITING_SUCCESSFULL
 from MrMap.responses import DefaultContext
 from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from MrMap.utils import print_debug_mode
@@ -32,10 +33,11 @@ from service.models import Metadata
 from structure.forms import LoginForm, RegistrationForm
 from structure.models import MrMapUser, UserActivation, PendingRequest, GroupActivity, Organization, MrMapGroup
 from structure.settings import PUBLIC_GROUP_NAME
-from users.forms import PasswordResetForm, UserForm, PasswordChangeForm
+from users.forms import PasswordResetForm, UserForm, PasswordChangeForm, SubscriptionForm
 from users.helper import user_helper
 from django.urls import reverse
 
+from users.models import Subscription
 from users.tables import SubscriptionTable
 
 
@@ -363,3 +365,101 @@ def register(request: HttpRequest):
 
     context = DefaultContext(request, params)
     return render(request=request, template_name=template, context=context.get_context())
+
+
+@login_required
+def subscription_index_view(request: HttpRequest):
+    """ Renders an overview of all subscriptions of the performing user
+
+    Args:
+        request (HttpRequest): The incoming request
+    Returns:
+         A rendered view
+    """
+    user = user_helper.get_user(request)
+    subscriptions = Subscription.objects.filter(
+        user=user
+    )
+    params = {
+        "subscriptions": subscriptions
+    }
+    context = DefaultContext(request, params, user)
+    # ToDo: Render template
+
+
+@login_required
+def subscription_new_view(request: HttpRequest):
+    """ Renders a view for editing a subscription
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (str): The uuid of the subscription as string
+    Returns:
+         A rendered view
+    """
+    form = SubscriptionForm(request.POST or None)
+    user = user_helper.get_user(request)
+    params = {}
+
+    if request.method == 'GET':
+        params["form"] = form
+        context = DefaultContext(request, params, user)
+        # ToDo: Render template
+
+    elif request.method == 'POST':
+        if form.is_valid():
+            subscription = form.save(commit=False)
+            subscription.user = user
+            subscription.save()
+            messages.success(request, SUBSCRIPTION_EDITING_SUCCESSFULL)
+        else:
+            messages.error(request, FORM_INPUT_INVALID)
+
+    else:
+        # Not supported
+        pass
+    return redirect("home")
+
+
+@login_required
+def subscription_edit_view(request: HttpRequest, id: str):
+    """ Renders a view for editing a subscription
+
+    Args:
+        request (HttpRequest): The incoming request
+        id (str): The uuid of the subscription as string
+    Returns:
+         A rendered view
+    """
+    user = user_helper.get_user(request)
+    form = SubscriptionForm()
+    params = {}
+
+    if request.method == 'GET':
+        try:
+            subscription = Subscription.objects.get(
+                id=id,
+                user=user,
+            )
+            form.instance = subscription
+            params["form"] = form
+
+            context = DefaultContext(request, params, user)
+            # ToDo: Render template
+
+        except ObjectDoesNotExist:
+            messages.error(request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
+            return redirect('users:home')
+
+    elif request.method == 'POST':
+        # Post changes/new subscription
+        if form.is_valid():
+            subscription = form.save()
+            messages.success(request, SUBSCRIPTION_EDITING_SUCCESSFULL)
+        else:
+            messages.error(request, FORM_INPUT_INVALID)
+    else:
+        # Not supported
+        pass
+
+    return redirect("home")

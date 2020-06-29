@@ -11,7 +11,10 @@ from django.utils.translation import gettext_lazy as _
 from MrMap.messages import EMAIL_IS_UNKNOWN, PASSWORD_CHANGE_OLD_PASSWORD_WRONG
 from MrMap.settings import MIN_PASSWORD_LENGTH
 from MrMap.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
+from service.helper.enums import MetadataEnum
+from service.models import Metadata
 from structure.models import MrMapUser, Theme
+from users.models import Subscription
 
 
 class PasswordResetForm(forms.Form):
@@ -88,3 +91,21 @@ class UserForm(forms.ModelForm):
             "confirmed_survey",
             "theme",
         ]
+
+
+class SubscriptionForm(forms.ModelForm):
+    class Meta:
+        model = Subscription
+        fields = [
+            "metadata",
+            "notify_on_update",
+            "notify_on_metadata_edit",
+            "notify_on_access_edit",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['metadata'].queryset = Metadata.objects.filter(
+            metadata_type__type=MetadataEnum.SERVICE.value,
+            is_active=True,
+        )

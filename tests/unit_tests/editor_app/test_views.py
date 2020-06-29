@@ -265,17 +265,22 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
         self.assertEqual(len(response.context["dataset_table"].page.object_list), 5)
 
     def test_step_and_save_wizard_instance_view(self):
-        # todo: post some data to get the next step
         datasets = self.user.get_datasets_as_qs()
-        step_post_params = {"wizard_goto_step": "classification",
+        step_post_params = {"wizard_goto_step": "responsible party",
                             "dataset_wizard-current_step": "identification",
                             "identification-is_form_update": "False",
                             "identification-title": "Ahrhutstrasse",
-                            "identification-abstract": "Bebauungsplan+\"Ahrhutstraße\"",
+                            "identification-abstract": "Bebauungsplan \"Ahrhutstraße\"",
                             "identification-language_code": "ger",
                             "identification-character_set_code": "utf8",
                             "identification-date_stamp": "2020-06-23",
                             "identification-created_by": self.user.get_groups().first().id}
+
+        step2_post_params = {"wizard_goto_step": "classification",
+                             "dataset_wizard-current_step": "responsible party",
+                             "responsible party-is_form_update": "False",
+                             "responsible party-organization": "",
+                             }
 
         save_post_params = {"dataset_wizard-current_step": "classification",
                             "classification-is_form_update": "False",
@@ -287,7 +292,17 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
                                          HTTP_REFERER=reverse('editor:index'),
                                          data=step_post_params,)
         self.assertEqual(step_response.status_code, 200, )
+        self.assertTrue('name="dataset_wizard-current_step" value="responsible party"' in step_response.context['new_dataset_wizard'], msg='The current step was not responsible party ')
         self.assertTemplateUsed(response=step_response, template_name="views/editor_service_table_index.html")
+
+        step2_response = self.client.post(reverse('editor:dataset-metadata-wizard-instance',
+                                                  args=('editor:index', datasets[0].id)),
+                                          HTTP_REFERER=reverse('editor:index'),
+                                          data=step2_post_params,)
+
+        self.assertEqual(step2_response.status_code, 200, )
+        self.assertTrue('name="dataset_wizard-current_step" value="classification"' in step2_response.context['new_dataset_wizard'], msg='The current step was not classification ')
+        self.assertTemplateUsed(response=step2_response, template_name="views/editor_service_table_index.html")
 
         save_response = self.client.post(reverse('editor:dataset-metadata-wizard-instance',
                                                  args=('editor:index', datasets[0].id)),
@@ -296,18 +311,18 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
 
         # 303 is returned due to the FormWizard
         self.assertEqual(save_response.status_code, 303, )
-        self.assertTemplateUsed(response=save_response, template_name="views/editor_service_table_index.html")
+        self.assertEqual('/editor/', save_response.url)
 
 
-class EditorDatasetWizardRemoveInstanceViewTestCase(TestCase):
+class EditorDatasetRemoveInstanceViewTestCase(TestCase):
     def setUp(self):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
         self.wms_services = create_wms_service(group=self.user.get_groups().first(), how_much_services=1, md_relation_origin='MrMap')
 
-    def test_wizard_remove_instance_view(self):
-        """ Test for checking whether the view is correctly rendered or not
+    def test_remove_instance_view(self):
+        """ Test for checking whether the dataset is removed or not
 
         Returns:
 

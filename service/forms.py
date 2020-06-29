@@ -118,7 +118,6 @@ class UpdateServiceCheckForm(forms.Form):
                 self.add_error(None, SERVICE_UPDATE_WRONG_TYPE)
 
         has_update_candidate_for_service = None
-        has_update_candidate_for_document = None
         try:
             # Get service object from db
             has_update_candidate_for_service = Service.objects.get(is_update_candidate_for=self.current_service)

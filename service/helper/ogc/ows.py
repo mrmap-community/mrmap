@@ -15,7 +15,7 @@ from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, OGCServiceEnum
-from service.helper.iso.iso_metadata import ISOMetadata
+from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.models import RequestOperation, ExternalAuthentication, Metadata
 from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
 from structure.models import MrMapUser
@@ -217,7 +217,7 @@ class OGCWebService:
         for keyword in iso_metadata.keywords:
             self.service_identification_keywords.append(keyword)
         # add multiple other data that can not be found in the capabilities document
-        self.service_create_date = iso_metadata.create_date
+        self.service_create_date = iso_metadata.date_stamp
         self.service_last_change = iso_metadata.last_change_date
         self.service_iso_md_uri = iso_metadata.uri
         self.service_file_iso_identifier = iso_metadata.file_identifier

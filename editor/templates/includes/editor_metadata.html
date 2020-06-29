@@ -21,14 +21,18 @@
             Featuretype:
         {% elif service_metadata.is_layer_metadata %}
             Layer:
+        {% elif service_metadata.metadata_type.type == 'dataset' %}
+            Dataset:
         {% endif %}
         {{ service_metadata.title }}
     </h5>
 {% endblock %}
 {% block card-header-subtitle-right %}
+    {% if service_metadata.metadata_type.type != 'dataset' %}
         <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'service:detail' service_metadata.id %}">
             <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Service detail view' %}</span>
         </a>
+    {% endif %}
 {% endblock %}
 
 
@@ -36,7 +40,7 @@
 
 <div class="row">
    <div class="col">
-       <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service_metadata.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
+       <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% if service_metadata.metadata_type.type == 'dataset' %} {% url 'editor:restore-dataset-metadata' service_metadata.id %} {% else %} {% url 'editor:restore' service_metadata.id %} {% endif %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
    </div>
 </div>
 
@@ -47,7 +51,7 @@
            <div class="row">
                 <div class="col">
                     {% bootstrap_form form %}
-                    {% include 'includes/editor_metadata_autocompletes.html' %}
+                    {% include 'sceletons/autocomplete_form_media.html' %}
                 </div>
             </div>
             <div class="row">

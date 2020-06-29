@@ -351,6 +351,7 @@ def remove(request: HttpRequest, metadata_id: int):
     """
     user = user_helper.get_user(request)
     metadata = get_object_or_404(Metadata, id=metadata_id)
+    # ToDo: change this form to MrMapConfirmForm
     remove_form = RemoveServiceForm(request.POST)
     if request.method == 'POST':
         if remove_form.is_valid() and request.POST.get("is_confirmed") == 'on':
@@ -435,10 +436,11 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
                 raise ObjectDoesNotExist
             return redirect("service:get-dataset-metadata", metadata_id=md.id)
         document = Document.objects.get(related_metadata=md)
-        document = document.dataset_metadata_document
+        document = document.current_dataset_metadata_document
         if document is None:
             raise ObjectDoesNotExist
     except ObjectDoesNotExist:
+        # ToDo: a datasetmetadata without a document is broken
         return HttpResponse(content=_("No dataset metadata found"), status=404)
     return HttpResponse(document, content_type='application/xml')
 
@@ -649,7 +651,8 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
             related_metadata=md
         )
         params['bounding_box'] = md.bounding_geometry
-        params['dataset_metadata'] = dataset_doc.get_dataset_metadata_as_dict()
+        #params['dataset_metadata'] = dataset_doc.get_dataset_metadata_as_dict()
+        params['dataset_metadata'] = md
         params.update({'capabilities_uri': reverse('service:get-dataset-metadata', args=(md.id,))})
 
     elif md.is_metadata_type(MetadataEnum.FEATURETYPE):
@@ -973,16 +976,15 @@ def _check_for_dataset_metadata(metadata: Metadata, ):
     Args:
         metadata:
     Returns:
-         A boolean, whether the requested element has a dataset metadata record or not
+         The document or none
     """
     try:
         md_2 = metadata.get_related_dataset_metadata()
-        Document.objects.get(
+        return Document.objects.get(
             related_metadata=md_2
         )
-        return True
     except ObjectDoesNotExist:
-        return False
+        return None
 
 
 @login_required

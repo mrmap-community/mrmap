@@ -9,6 +9,7 @@ Created on: 23.09.19
 import os
 
 from django.contrib.gis.geos import Polygon, GEOSGeometry
+from django.utils.translation import gettext_lazy as _
 
 from MrMap.settings import BASE_DIR, HTTP_OR_SSL, HOST_NAME
 from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
@@ -16,6 +17,14 @@ from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
 # Some special things
 DEFAULT_CONNECTION_TYPE = ConnectionEnum.REQUESTS
 DEFAULT_SERVICE_VERSION = OGCServiceVersionEnum.V_1_1_1
+
+# Default metadata language
+## Has to match the language code, defined by ISO19115
+DEFAULT_MD_LANGUAGE = "ger"
+ISO_19115_LANG_CHOICES = [
+    ("ger", _("German")),
+    ("eng", _("English")),
+]
 
 # semantic relation types
 MD_RELATION_TYPE_VISUALIZES = "visualizes"

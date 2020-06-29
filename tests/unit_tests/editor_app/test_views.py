@@ -361,6 +361,6 @@ class EditorRestoreDatasetViewTestCase(TestCase):
             HTTP_REFERER=reverse('editor:index'),
         )
 
-        self.assertEqual(response.status_code, 303, )
+        self.assertEqual(response.status_code, 302, )
         messages = [m.message for m in get_messages(response.wsgi_request)]
         self.assertIn(METADATA_IS_ORIGINAL, messages)

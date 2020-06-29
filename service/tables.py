@@ -31,15 +31,15 @@ class ServiceTable(MrMapTable):
             "class": "align-middle",
         }
     }
-    wms_title = tables.Column(accessor='title', verbose_name='Title', empty_values=[], attrs=attrs)
-    wms_active = tables.Column(accessor='is_active', verbose_name='Active', attrs=attrs)
-    wms_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', attrs=attrs)
-    wms_secured_externally = tables.Column(accessor='external_authentication', verbose_name='Secured externally', empty_values=[False,], attrs=attrs)
-    wms_version = tables.Column(accessor='service.servicetype.version', verbose_name='Version', attrs=attrs)
-    wms_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', attrs=attrs)
-    wms_registered_by_group = tables.Column(accessor='service.created_by', verbose_name='Registered by group', attrs=attrs)
-    wms_registered_for = tables.Column(accessor='service.published_for', verbose_name='Registered for', attrs=attrs)
-    wms_created_on = tables.Column(accessor='created', verbose_name='Created on', attrs=attrs)
+    wms_title = tables.Column(accessor='title', verbose_name=_('Title'), empty_values=[], attrs=attrs)
+    wms_active = tables.Column(accessor='is_active', verbose_name=_('Active'), attrs=attrs)
+    wms_secured_access = tables.Column(accessor='is_secured', verbose_name=_('Secured access'), attrs=attrs)
+    wms_secured_externally = tables.Column(accessor='external_authentication', verbose_name=_('Secured externally'), empty_values=[False,], attrs=attrs)
+    wms_version = tables.Column(accessor='service.servicetype.version', verbose_name=_('Version'), attrs=attrs)
+    wms_data_provider = tables.Column(accessor='contact.organization_name', verbose_name=_('Data provider'), attrs=attrs)
+    wms_registered_by_group = tables.Column(accessor='service.created_by', verbose_name=_('Registered by group'), attrs=attrs)
+    wms_registered_for = tables.Column(accessor='service.published_for', verbose_name=_('Registered for'), attrs=attrs)
+    wms_created_on = tables.Column(accessor='created', verbose_name=_('Created on'), attrs=attrs)
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
@@ -85,7 +85,7 @@ class WmsServiceTable(ServiceTable):
             "class": "align-middle",
         }
     }
-    wms_layers = tables.Column(verbose_name='Layers', empty_values=[], attrs=attrs)
+    wms_layers = tables.Column(verbose_name=_('Layers'), empty_values=[], attrs=attrs)
 
     class Meta:
         sequence = ("wms_title", "wms_layers", "...")
@@ -107,7 +107,7 @@ class WmsServiceTable(ServiceTable):
 
 
 class WmsLayerTable(ServiceTable):
-    wms_parent_service = tables.Column(verbose_name='Parent service', empty_values=[], )
+    wms_parent_service = tables.Column(verbose_name=_('Parent service'), empty_values=[], )
 
     caption = _("Shows all WMS sublayers which are configured in your Mr. Map environment.")
 
@@ -137,16 +137,16 @@ class WfsServiceTable(MrMapTable):
             "class": "text-center"
         }
 
-    wfs_title = tables.Column(accessor='title', verbose_name='Title', )
-    wfs_featuretypes = tables.Column(verbose_name='Featuretypes', empty_values=[], )
-    wfs_active = tables.Column(accessor='is_active', verbose_name='Active', )
-    wfs_secured_access = tables.Column(accessor='is_secured', verbose_name='Secured access', )
-    wfs_secured_externally = tables.Column(accessor='external_authentication', verbose_name='Secured externally', empty_values=[False,], )
-    wfs_version = tables.Column(accessor='service.servicetype.version', verbose_name='Version', )
-    wfs_data_provider = tables.Column(accessor='contact.organization_name', verbose_name='Data provider', )
-    wfs_registered_by_group = tables.Column(accessor='service.created_by', verbose_name='Registered by group', )
-    wfs_registered_for = tables.Column(accessor='service.published_for', verbose_name='Registered for', )
-    wfs_created_on = tables.Column(accessor='created', verbose_name='Created on', )
+    wfs_title = tables.Column(accessor='title', verbose_name=_('Title'), )
+    wfs_featuretypes = tables.Column(verbose_name=_('Featuretypes'), empty_values=[], )
+    wfs_active = tables.Column(accessor='is_active', verbose_name=_('Active'), )
+    wfs_secured_access = tables.Column(accessor='is_secured', verbose_name=_('Secured access'), )
+    wfs_secured_externally = tables.Column(accessor='external_authentication', verbose_name=_('Secured externally'), empty_values=[False,], )
+    wfs_version = tables.Column(accessor='service.servicetype.version', verbose_name=_('Version'), )
+    wfs_data_provider = tables.Column(accessor='contact.organization_name', verbose_name=_('Data provider'), )
+    wfs_registered_by_group = tables.Column(accessor='service.created_by', verbose_name=_('Registered by group'), )
+    wfs_registered_for = tables.Column(accessor='service.published_for', verbose_name=_('Registered for'), )
+    wfs_created_on = tables.Column(accessor='created', verbose_name=_('Created on'), )
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
@@ -203,11 +203,11 @@ class WfsServiceTable(MrMapTable):
 class PendingTasksTable(MrMapTable):
     caption = _("Shows all currently running pending tasks.")
 
-    pt_cancle = tables.Column(verbose_name=' ', empty_values=[], orderable=False, )
-    pt_status = tables.Column(verbose_name='Status', empty_values=[], orderable=False, )
-    pt_service = tables.Column(verbose_name='Service', empty_values=[], orderable=False,)
-    pt_phase = tables.Column(verbose_name='Phase', empty_values=[], orderable=False,)
-    pt_progress = tables.Column(verbose_name='Progress', empty_values=[], orderable=False,)
+    pt_cancle = tables.Column(verbose_name=_(' '), empty_values=[], orderable=False, )
+    pt_status = tables.Column(verbose_name=_('Status'), empty_values=[], orderable=False, )
+    pt_service = tables.Column(verbose_name=_('Service'), empty_values=[], orderable=False,)
+    pt_phase = tables.Column(verbose_name=_('Phase'), empty_values=[], orderable=False,)
+    pt_progress = tables.Column(verbose_name=_('Progress'), empty_values=[], orderable=False,)
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user')
@@ -340,7 +340,7 @@ class ProxyLogTable(MrMapTable):
                      verbose_name=_('Log ID'),
                      tooltip=_("The id of the ProxyLog"))
     metadata_title = MrMapColumn(accessor='metadata.title',
-                                 verbose_name='Service Title',
+                                 verbose_name=_('Service Title'),
                                  tooltip=_("The title of the related service"))
     user_name = MrMapColumn(accessor='user',
                             verbose_name=_('User'),

@@ -9,6 +9,7 @@ from django.contrib.messages import get_messages
 from django.test import TestCase, Client
 from django.urls import reverse
 
+from MrMap.messages import METADATA_RESTORING_SUCCESS, METADATA_IS_ORIGINAL
 from editor.forms import MetadataEditorForm
 from editor.tables import WmsServiceTable, WfsServiceTable, DatasetTable
 from service.models import Metadata, MetadataRelation
@@ -347,4 +348,19 @@ class EditorRestoreDatasetViewTestCase(TestCase):
         self.client.login(username=self.user.username, password=PASSWORD)
         self.wms_services = create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
 
-    # ToDo:
+    def test_restore_non_custom_instance_view(self):
+        """ Test for checking whether the dataset is restored or not
+
+        Returns:
+
+        """
+        datasets = self.user.get_datasets_as_qs()
+
+        response = self.client.get(
+            reverse('editor:restore-dataset-metadata', args=(datasets[0].id,)),
+            HTTP_REFERER=reverse('editor:index'),
+        )
+
+        self.assertEqual(response.status_code, 303, )
+        messages = [m.message for m in get_messages(response.wsgi_request)]
+        self.assertIn(METADATA_IS_ORIGINAL, messages)

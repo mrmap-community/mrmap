@@ -165,7 +165,7 @@ class OGCLayer:
         layer.uuid = uuid.uuid4()
         layer.metadata = metadata
         layer.identifier = self.identifier
-        layer.servicetype = parent_service.servicetype
+        layer.service_type = parent_service.service_type
         layer.position = self.position
         layer.parent_layer = parent_layer
         layer.parent_service = parent_service

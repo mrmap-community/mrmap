@@ -25,7 +25,7 @@ from MrMap import utils
 from MrMap.utils import print_debug_mode
 from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
@@ -595,7 +595,7 @@ class Metadata(Resource):
     categories = models.ManyToManyField('Category', blank=True)
     reference_system = models.ManyToManyField('ReferenceSystem')
     dimensions = models.ManyToManyField('Dimension', blank=True)
-    metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
+    metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True, choices=MetadataEnum.as_choices())
     legal_dates = models.ManyToManyField('LegalDate', blank=True)
     legal_reports = models.ManyToManyField('LegalReport', blank=True)
     hits = models.IntegerField(default=0)
@@ -1070,7 +1070,7 @@ class Metadata(Resource):
         """
         service_type = None
         if self.is_root():
-            return self.service.servicetype.name
+            return self.service.service_type.name
         elif self.is_metadata_type(MetadataEnum.LAYER):
             service_type = 'wms'
         elif self.is_metadata_type(MetadataEnum.FEATURETYPE):
@@ -1096,7 +1096,7 @@ class Metadata(Resource):
                 raise TypeError(PARAMETER_ERROR.format("SERVICE"))
         else:
             service = self.service
-        service_version = service.servicetype.version
+        service_version = service.service_type.version
         for v in OGCServiceVersionEnum:
             if v.value == service_version:
                 return v
@@ -1109,11 +1109,11 @@ class Metadata(Resource):
 
         """
         if self.metadata_type.type == MetadataEnum.SERVICE.value:
-            if self.service.servicetype.name == OGCServiceEnum.WMS.value:
+            if self.service.service_type.name == OGCServiceEnum.WMS.value:
                 children = Layer.objects.filter(
                     parent_service__metadata=self
                 )
-            elif self.service.servicetype.name == OGCServiceEnum.WFS.value:
+            elif self.service.service_type.name == OGCServiceEnum.WFS.value:
                 children = FeatureType.objects.filter(
                     parent_service__metadata=self
                 )
@@ -1221,7 +1221,7 @@ class Metadata(Resource):
         """
         from service.helper.ogc.wms import OGCWebMapServiceFactory
         from service.helper import service_helper
-        service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
+        service_version = service_helper.resolve_version_enum(self.service.service_type.version)
         service = None
         service = OGCWebMapServiceFactory()
         service = service.get_ogc_wms(version=service_version, service_connect_url=self.capabilities_original_uri)
@@ -1267,7 +1267,7 @@ class Metadata(Resource):
             service = self.service
         else:
             service = self.featuretype.service
-        service_version = service_helper.resolve_version_enum(service.servicetype.version)
+        service_version = service_helper.resolve_version_enum(service.service_type.version)
         service_tmp = OGCWebFeatureServiceFactory()
         service_tmp = service_tmp.get_ogc_wfs(version=service_version, service_connect_url=self.capabilities_original_uri)
         if service_tmp is None:
@@ -1529,16 +1529,19 @@ class MetadataType(models.Model):
 
 class Document(Resource):
     id = models.BigAutoField(primary_key=True)
-    related_metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
-    original_capability_document = models.TextField(null=True, blank=True)
-    current_capability_document = models.TextField(null=True, blank=True)
-    service_metadata_document = models.TextField(null=True, blank=True)
+    metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name='documents')
+    document_type = models.CharField(max_length=255, null=True, choices=DocumentEnum.as_choices())
+    content = models.TextField(null=True, blank=True)
+    is_original = models.BooleanField(default=False)
 
-    original_dataset_metadata_document = models.TextField(null=True, blank=True)
-    current_dataset_metadata_document = models.TextField(null=True, blank=True)
+    #original_capability_document = models.TextField(null=True, blank=True)
+    #current_capability_document = models.TextField(null=True, blank=True)
+    #service_metadata_document = models.TextField(null=True, blank=True)
+    #original_dataset_metadata_document = models.TextField(null=True, blank=True)
+    #current_dataset_metadata_document = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return self.related_metadata.title
+        return self.metadata.title
 
     def get_dataset_metadata_as_dict(self):
         """ Parses the persisted dataset_metadata_document into a dict
@@ -1705,7 +1708,7 @@ class Document(Resource):
             , xml_obj
         )
         request_objs = request_objs.getchildren()
-        service = self.related_metadata.service
+        service = self.metadata.service
         op_uri_dict = {
             "GetMap": {
                 "Get": service.get_map_uri_GET,
@@ -1771,10 +1774,10 @@ class Document(Resource):
             , xml_obj
         )
         try:
-            service = self.related_metadata.service
+            service = self.metadata.service
         except ObjectDoesNotExist:
             service = FeatureType.objects.get(
-                metadata=self.related_metadata
+                metadata=self.metadata
             ).parent_service
         op_uri_dict = {
             OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: {
@@ -1829,10 +1832,10 @@ class Document(Resource):
         operation_objs = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation"), xml_obj)
 
         try:
-            service = self.related_metadata.service
+            service = self.metadata.service
         except ObjectDoesNotExist:
             service = FeatureType.objects.get(
-                metadata=self.related_metadata
+                metadata=self.metadata
             ).parent_service
 
         op_uri_dict = {
@@ -1902,7 +1905,7 @@ class Document(Resource):
             , xml_obj
         )
         request_objs = request_objs.getchildren()
-        service = self.related_metadata.service
+        service = self.metadata.service
         op_uri_dict = {
             "GetMap": {
                 "Get": service.get_map_uri_GET,
@@ -1959,14 +1962,14 @@ class Document(Resource):
         """
 
         # change some external linkage to internal links for the current_capability_document
-        uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.related_metadata.id)
+        uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.metadata.id)
         xml = xml_helper.parse_xml(self.original_capability_document)
 
         # wms and wfs have to be handled differently!
         # Furthermore each standard has a different handling of attributes and elements ...
-        service_version = self.related_metadata.get_service_version().value
+        service_version = self.metadata.get_service_version().value
 
-        if self.related_metadata.is_service_type(OGCServiceEnum.WMS):
+        if self.metadata.is_service_type(OGCServiceEnum.WMS):
 
             if service_version == "1.0.0":
                 # additional things to change for WMS 1.0.0
@@ -2012,7 +2015,7 @@ class Document(Resource):
                     "{http://www.w3.org/1999/xlink}href",
                     uri)
 
-        elif self.related_metadata.is_service_type(OGCServiceEnum.WFS):
+        elif self.metadata.is_service_type(OGCServiceEnum.WFS):
             if service_version == "1.0.0":
                 xml_helper.write_text_to_element(
                     xml,
@@ -2087,16 +2090,16 @@ class Document(Resource):
 
         xml_obj = xml_helper.parse_xml(self.current_capability_document)
         if is_secured:
-            uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.related_metadata.id)
+            uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.metadata.id)
         else:
             uri = ""
-        _version = force_version or self.related_metadata.get_service_version()
-        if self.related_metadata.is_service_type(OGCServiceEnum.WMS):
+        _version = force_version or self.metadata.get_service_version()
+        if self.metadata.is_service_type(OGCServiceEnum.WMS):
             if _version is OGCServiceVersionEnum.V_1_0_0:
                 self._set_wms_1_0_0_operation_secured(xml_obj, uri, is_secured)
             else:
                 self._set_wms_operations_secured(xml_obj, uri, is_secured)
-        elif self.related_metadata.is_service_type(OGCServiceEnum.WFS):
+        elif self.metadata.is_service_type(OGCServiceEnum.WFS):
             if _version is OGCServiceVersionEnum.V_1_0_0:
                 self._set_wfs_1_0_0_operations_secured(xml_obj, uri, is_secured)
             else:
@@ -2123,8 +2126,8 @@ class Document(Resource):
             return
 
         xml_obj = xml_helper.parse_xml(cap_doc_curr)
-        service_version = force_version or self.related_metadata.get_service_version()
-        service_type = self.related_metadata.get_service_type()
+        service_version = force_version or self.metadata.get_service_version()
+        service_type = self.metadata.get_service_type()
 
         is_wfs = service_type == OGCServiceEnum.WFS.value
         is_wfs_1_0_0 = is_wfs and service_version == OGCServiceVersionEnum.V_1_0_0.value
@@ -2206,16 +2209,16 @@ class Document(Resource):
             uri = None
 
             if is_secured and not legend_uri.startswith(ROOT_URL):
-                parent_md = self.related_metadata
+                parent_md = self.metadata
 
-                if not self.related_metadata.is_root():
-                    parent_md = self.related_metadata.service.parent_service.metadata
+                if not self.metadata.is_root():
+                    parent_md = self.metadata.service.parent_service.metadata
 
                 style_id = Style.objects.get(
                     legend_uri=legend_uri,
                     layer__parent_service__metadata=parent_md,
                 ).id
-                uri = SERVICE_LEGEND_URI_TEMPLATE.format(self.related_metadata.id, style_id)
+                uri = SERVICE_LEGEND_URI_TEMPLATE.format(self.metadata.id, style_id)
 
             elif not is_secured and legend_uri.startswith(ROOT_URL):
                 # restore the original legend uri by using the layer identifier
@@ -2305,7 +2308,7 @@ class Category(Resource):
 
 class ServiceType(models.Model):
     name = models.CharField(max_length=100)
-    version = models.CharField(max_length=100)
+    version = models.CharField(max_length=100, choices=OGCServiceVersionEnum.as_choices())
     specification = models.URLField(blank=False, null=True)
 
     def __str__(self):
@@ -2317,7 +2320,7 @@ class Service(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)
-    servicetype = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
+    service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
     categories = models.ManyToManyField(Category, blank=True)
     is_root = models.BooleanField(default=False)
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
@@ -2379,7 +2382,7 @@ class Service(Resource):
     created_by_user = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True, blank=True)
     keep_custom_md = models.BooleanField(default=True)
 
-    # used to store ows linked_service_metadata until parsing
+    # used to store ows linked_service_metadata until parsing is finished
     # will not be part of the db
     linked_service_metadata = None
 
@@ -2446,7 +2449,7 @@ class Service(Resource):
         Returns:
              True if the servicetypes are equal, false otherwise
         """
-        return self.servicetype.name == enum.value
+        return self.service_type.name == enum.value
 
     def secure_access(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation, element=None):
         """ Secures a single element
@@ -2655,7 +2658,7 @@ class Service(Resource):
         # save original capabilities document
         cap_doc = Document()
         cap_doc.original_capability_document = xml
-        cap_doc.related_metadata = self.metadata
+        cap_doc.metadata = self.metadata
         cap_doc.set_capabilities_secured()
 
 

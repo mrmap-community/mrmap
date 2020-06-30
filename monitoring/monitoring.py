@@ -89,7 +89,7 @@ class Monitoring:
             nothing
         """
         wfs_helper = WfsHelper(service)
-        version = service.servicetype.version
+        version = service.service_type.version
 
         if wfs_helper.get_capabilities_url is not None:
             self.check_get_capabilities(wfs_helper.get_capabilities_url)
@@ -246,7 +246,7 @@ class Monitoring:
             bool: true, if xml has member, false otherwise
         """
         service = self.metadata.service
-        version = service.servicetype.version
+        version = service.service_type.version
         if version == OGCServiceVersionEnum.V_1_0_0.value:
             return len([child for child in xml.getroot() if child.tag.endswith('featureMember')]) != 1
         if version == OGCServiceVersionEnum.V_1_1_0.value:

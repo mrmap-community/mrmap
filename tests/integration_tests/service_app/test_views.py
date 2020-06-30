@@ -242,11 +242,11 @@ class ServiceTestCase(TestCase):
         service = self.service_wms
         layers = service.subelements
 
-        self.assertEqual(service.servicetype.name, self.test_wms.get("type").value)
-        self.assertEqual(service.servicetype.version, self.test_wms.get("version").value)
+        self.assertEqual(service.service_type.name, self.test_wms.get("type").value)
+        self.assertEqual(service.service_type.version, self.test_wms.get("version").value)
         for layer in layers:
-            self.assertEqual(layer.servicetype.name, self.test_wms.get("type").value)
-            self.assertEqual(layer.servicetype.version, self.test_wms.get("version").value)
+            self.assertEqual(layer.service_type.name, self.test_wms.get("type").value)
+            self.assertEqual(layer.service_type.version, self.test_wms.get("version").value)
 
     def test_new_service_check_reference_systems(self):
         """ Tests whether the layers have all their reference systems, which are provided by the capabilities document.

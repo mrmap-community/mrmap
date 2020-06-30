@@ -25,7 +25,7 @@ class WmsHelper:
             parent_service=self.service,
             parent_layer=None
         )
-        self.crs_srs_identifier = 'CRS' if self.service.servicetype.version == OGCServiceVersionEnum.V_1_3_0.value else 'SRS'
+        self.crs_srs_identifier = 'CRS' if self.service.service_type.version == OGCServiceVersionEnum.V_1_3_0.value else 'SRS'
         self.bbox = self.layer.bbox_lat_lon if self.layer.bbox_lat_lon.area > 0 else self.parent_service.metadata.find_max_bounding_box()
 
         self.get_capabilities_url = self.get_get_capabilities_url()
@@ -84,8 +84,8 @@ class WmsHelper:
         service_format = self.layer.metadata.formats.filter(
             operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value
         ).first().mime_type
-        version = self.service.servicetype.version
-        service_type = self.service.servicetype.name
+        version = self.service.service_type.version
+        service_type = self.service.service_type.name
 
         queries = [
             ('REQUEST', request_type),
@@ -132,7 +132,7 @@ class WmsHelper:
         if uri is None or not self.layer.is_queryable:
             return
         request_type = OGCOperationEnum.GET_FEATURE_INFO.value
-        service_version = self.service.servicetype.version
+        service_version = self.service.service_type.version
         service_type = OGCServiceEnum.WMS.value
 
         layers = self.layer.identifier
@@ -176,7 +176,7 @@ class WmsHelper:
 
         # Fetch request parameters
         request_type = OGCOperationEnum.GET_MAP.value
-        service_version = self.service.servicetype.version
+        service_version = self.service.service_type.version
         service_type = OGCServiceEnum.WMS.value
 
         # Get bbox value for request
@@ -216,7 +216,7 @@ class WmsHelper:
             # Return None if uri is not defined so that service check fails
             return
         request_type = OGCOperationEnum.GET_CAPABILITIES.value
-        service_version = self.service.servicetype.version
+        service_version = self.service.service_type.version
         service_type = OGCServiceEnum.WMS.value
 
         queries = [('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type)]

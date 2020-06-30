@@ -764,7 +764,7 @@ class OGCWebFeatureService(OGCWebService):
             name=self.service_type.value,
             version=self.service_version.value
         )[0]
-        service.servicetype = service_type
+        service.service_type = service_type
         service.created_by = group
         service.published_for = orga_published_for
 

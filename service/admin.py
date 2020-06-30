@@ -43,9 +43,9 @@ class KeywordAdmin(admin.ModelAdmin):
 
 
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'related_metadata', 'is_active', 'created')
+    list_display = ('id', 'metadata', 'is_active', 'created')
     list_filter = ('is_active',)
-    search_fields = ['id', 'related_metadata__id', ]
+    search_fields = ['id', 'metadata__id', ]
 
 
 class MetadataOriginAdmin(admin.ModelAdmin):
@@ -105,7 +105,7 @@ class LegalDateAdmin(admin.ModelAdmin):
 
 
 class ServiceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'is_active', 'is_deleted',  'servicetype', 'metadata', 'parent_service', 'published_for')
+    list_display = ('id', 'is_active', 'is_deleted',  'service_type', 'metadata', 'parent_service', 'published_for')
     pass
 
 

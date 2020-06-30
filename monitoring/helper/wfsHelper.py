@@ -62,7 +62,7 @@ class WfsHelper:
         if uri is None:
             return
         request_type = OGCOperationEnum.LIST_STORED_QUERIES.value
-        service_version = self.service.servicetype.version
+        service_version = self.service.service_type.version
         service_type = OGCServiceEnum.WFS.value
 
         queries = [('REQUEST', request_type), ('VERSION', service_version), ('SERVICE', service_type)]

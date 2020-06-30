@@ -56,8 +56,8 @@ class CapabilityXMLBuilder:
         self.service = service
         self.parent_service = parent_service
 
-        self.service_type = self.service.servicetype.name
-        self.service_version = force_version or self.service.servicetype.version
+        self.service_type = self.service.service_type.name
+        self.service_version = force_version or self.service.service_type.version
 
         self.namespaces = {
             "sld": XML_NAMESPACES["sld"],
@@ -955,7 +955,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         )
         xml_helper.write_text_to_element(elem, txt="text/xml")
 
-        uri = doc.related_metadata.metadata_url
+        uri = doc.metadata.metadata_url
         xml_helper.create_subelement(
             metadata_elem,
             "{}OnlineResource".format(self.default_ns),

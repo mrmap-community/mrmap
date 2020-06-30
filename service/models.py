@@ -2871,6 +2871,7 @@ class Layer(Service):
             else:
                 # since we have no more dependencies on this metadata, we can set it inactive
                 md.metadata_to.is_active = new_status
+                md.metadata_to.set_documents_active_status(new_status)
                 md.metadata_to.save()
                 md.save()
 

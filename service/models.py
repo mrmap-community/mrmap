@@ -819,6 +819,7 @@ class Metadata(Resource):
                 document_type=DocumentEnum.METADATA.value,
                 is_original=False,
             )[0]
+            cap_doc.is_active = self.is_active
             cap_doc.content = doc.decode("UTF-8")
             cap_doc.save()
 
@@ -875,6 +876,7 @@ class Metadata(Resource):
                 document_type=DocumentEnum.CAPABILITY.value,
                 is_original=False,
             )[0]
+            cap_doc.is_active = self.is_active
             cap_doc.content = cap_xml
 
             # Do not forget to proxy the links inside the document, if needed

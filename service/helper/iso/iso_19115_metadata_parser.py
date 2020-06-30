@@ -23,7 +23,7 @@ from service.settings import INSPIRE_LEGISLATION_FILE, HTML_METADATA_URI_TEMPLAT
 from MrMap import utils
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ConnectionEnum, MetadataEnum
+from service.helper.enums import ConnectionEnum, MetadataEnum, DocumentEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Metadata, Keyword, MetadataType, Document, Dataset, LegalDate, LegalReport
 from structure.models import Organization, MrMapGroup
@@ -592,18 +592,35 @@ class ISOMetadata:
             metadata.dataset.save()
 
             # create document object to persist the dataset metadata document
-            document = Document.objects.get_or_create(
-                related_metadata=metadata
-            )[0]
             if type is MetadataEnum.DATASET.value:
-                document.original_dataset_metadata_document = self.raw_metadata
-                document.current_dataset_metadata_document = self.raw_metadata
+                orig_document = Document.objects.get_or_create(
+                    metadata=metadata,
+                    document_type=DocumentEnum.METADATA.value,
+                    is_original=True,
+                )[0]
+                curr_document = Document.objects.get_or_create(
+                    metadata=metadata,
+                    document_type=DocumentEnum.METADATA.value,
+                    is_original=False,
+                )[0]
+                orig_document.content = self.raw_metadata
+                curr_document.content = self.raw_metadata
+
+                orig_document.save()
+                curr_document.save()
+
             elif type is MetadataEnum.SERVICE.value:
-                document.service_metadata_document = self.raw_metadata
+                orig_document = Document.objects.get_or_create(
+                    metadata=metadata,
+                    document_type=DocumentEnum.METADATA.value,
+                    is_original=True,
+                )[0]
+                orig_document.content = self.raw_metadata
+                orig_document.save()
+
             else:
                 # ToDo: For future implementations
                 pass
-            document.save()
 
             if update:
                 metadata.keywords.clear()

@@ -435,10 +435,12 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
             if md is None:
                 raise ObjectDoesNotExist
             return redirect("service:get-dataset-metadata", metadata_id=md.id)
-        document = Document.objects.get(related_metadata=md)
-        document = document.current_dataset_metadata_document
-        if document is None:
-            raise ObjectDoesNotExist
+        document = Document.objects.get(
+            metadata=md,
+            document_type=DocumentEnum.METADATA.value,
+            is_original=False,
+        )
+        document = document.content
     except ObjectDoesNotExist:
         # ToDo: a datasetmetadata without a document is broken
         return HttpResponse(content=_("No dataset metadata found"), status=404)
@@ -647,11 +649,7 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
     if md.is_metadata_type(MetadataEnum.DATASET):
         base_template = 'metadata/base/dataset/dataset_metadata_as_html.html'
         params['contact'] = collect_contact_data(md.contact)
-        dataset_doc = Document.objects.get(
-            related_metadata=md
-        )
         params['bounding_box'] = md.bounding_geometry
-        #params['dataset_metadata'] = dataset_doc.get_dataset_metadata_as_dict()
         params['dataset_metadata'] = md
         params.update({'capabilities_uri': reverse('service:get-dataset-metadata', args=(md.id,))})
 
@@ -857,7 +855,12 @@ def run_update_service(request: HttpRequest, metadata_id: int):
     if request.method == 'POST':
         current_service = get_object_or_404(Service, metadata__id=metadata_id)
         new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
-        new_document = get_object_or_404(Document, related_metadata=new_service.metadata)
+        new_document = get_object_or_404(
+            Document,
+            metadata=new_service.metadata,
+            document_type=DocumentEnum.CAPABILITY.value,
+            is_original=True,
+        )
 
         if not current_service.is_service_type(OGCServiceEnum.WFS):
             new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent_layer=None)
@@ -915,7 +918,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
                     new_service.keep_custom_md
                 )
 
-            update_helper.update_capability_document(current_service, new_document.original_capability_document)
+            update_helper.update_capability_document(current_service, new_document.content)
 
             current_service.save()
             user_helper.create_group_activity(
@@ -971,7 +974,7 @@ def wfs_index(request: HttpRequest):
 
 
 def _check_for_dataset_metadata(metadata: Metadata, ):
-    """ Checks whether an metadata object has a dataset metadata record.
+    """ Checks whether a metadata object has a dataset metadata record.
 
     Args:
         metadata:
@@ -981,7 +984,8 @@ def _check_for_dataset_metadata(metadata: Metadata, ):
     try:
         md_2 = metadata.get_related_dataset_metadata()
         return Document.objects.get(
-            related_metadata=md_2
+            metadata=md_2,
+            document_type=DocumentEnum.METADATA.value,
         )
     except ObjectDoesNotExist:
         return None

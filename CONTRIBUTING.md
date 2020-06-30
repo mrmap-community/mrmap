@@ -173,8 +173,8 @@ def update_service(request: HttpRequest, id: int):
         elif new_service.service_type.name == ServiceTypes.WMS.value:
             old_service = update_helper.update_wms_elements(old_service, new_service, diff, links, keep_custom_metadata)
 
-        cap_document = CapabilityDocument.objects.get(related_metadata=old_service.metadata)
-        cap_document.current_capability_document = xml
+        cap_document = CapabilityDocument.objects.get(metadata=old_service.metadata)
+        cap_document.content = xml
         cap_document.save()
 
         old_service.save()

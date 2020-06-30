@@ -17,7 +17,7 @@ from service.helper.iso.iso19115.md_data_identification import _create_gmd_descr
 from MrMap.messages import EDITOR_INVALID_ISO_LINK
 from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum, DocumentEnum
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, \
     MetadataOrigin, SecuredOperation
@@ -163,8 +163,12 @@ def overwrite_dataset_metadata_document(metadata: Metadata, doc: Document = None
              nothing
         """
     if doc is None:
-        doc = Document.objects.get(related_metadata=metadata)
-    xml_dict = xmltodict.parse(doc.current_dataset_metadata_document)
+        doc = Document.objects.get(
+            metadata=metadata,
+            is_original=False,
+            document_type=DocumentEnum.METADATA.value,
+        )
+    xml_dict = xmltodict.parse(doc.content)
     # ToDo: try catch KeyErrors for all the following code
 
     # overwrite abstract
@@ -220,9 +224,8 @@ def overwrite_dataset_metadata_document(metadata: Metadata, doc: Document = None
     # overwrite topicCategory
     categories = metadata.categories.all()
 
-
     # save new dataset metadata document
-    doc.current_dataset_metadata_document = xmltodict.unparse(xml_dict)
+    doc.content = xmltodict.unparse(xml_dict)
     doc.save()
 
 
@@ -251,10 +254,14 @@ def overwrite_capabilities_document(metadata: Metadata):
     # Make sure the Document record already exist by fetching the current capability xml
     # This is a little trick to auto-generate Document records which did not exist before!
     parent_metadata.get_current_capability_xml(parent_metadata.get_service_version().value)
-    cap_doc = Document.objects.get(related_metadata=parent_metadata)
+    cap_doc = Document.objects.get(
+        metadata=parent_metadata,
+        document_type=DocumentEnum.CAPABILITY.value,
+        is_original=False,
+    )
 
     # overwrite all editable data
-    xml_obj_root = xml_helper.parse_xml(cap_doc.current_capability_document)
+    xml_obj_root = xml_helper.parse_xml(cap_doc.content)
 
     # find matching xml element in xml doc
     _type = metadata.get_service_type()
@@ -286,9 +293,13 @@ def overwrite_capabilities_document(metadata: Metadata):
     # write xml back to Document record
     # Remove service_metadata_document as well, so it needs to be generated again!
     xml = xml_helper.xml_to_string(xml_obj_root)
-    cap_doc.current_capability_document = xml
-    cap_doc.service_metadata_document = None
+    cap_doc.content = xml
     cap_doc.save()
+    service_metadata_doc = Document.objects.filter(
+        metadata=metadata,
+        document_type=DocumentEnum.METADATA.value,
+    )
+    service_metadata_doc.delete()
 
     # Delete all cached documents, which holds old state!
     metadata.clear_cached_documents()
@@ -319,8 +330,12 @@ def _remove_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links:
             rel_md = metadata.service.parent_service.metadata
         elif service_type == 'wfs':
             rel_md = metadata.featuretype.parent_service.metadata
-    cap_doc = Document.objects.get(related_metadata=rel_md)
-    cap_doc_txt = cap_doc.current_capability_document
+    cap_doc = Document.objects.get(
+        metadata=rel_md,
+        is_original=False,
+        document_type=DocumentEnum.CAPABILITY.value,
+    )
+    cap_doc_txt = cap_doc.content
     xml_cap_obj = xml_helper.parse_xml(cap_doc_txt).getroot()
 
     # if there are links in existing_iso_links that do not show up in md_links -> remove them
@@ -334,7 +349,7 @@ def _remove_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links:
             for elem in xml_iso_element:
                 xml_helper.remove_element(elem)
     cap_doc_txt = xml_helper.xml_to_string(xml_cap_obj)
-    cap_doc.current_capability_document = cap_doc_txt
+    cap_doc.content = cap_doc_txt
     cap_doc.save()
 
 

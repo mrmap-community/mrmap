@@ -86,8 +86,8 @@ def create_wms_service(group: MrMapGroup,
         )
 
         baker.make_recipe(
-            'tests.baker_recipes.service_app.document',
-            related_metadata=dataset_metadata,
+            'tests.baker_recipes.service_app.metadata_document',
+            metadata=dataset_metadata,
             created_by=group,
         )
 
@@ -108,8 +108,8 @@ def create_wms_service(group: MrMapGroup,
         md_relation.save()
 
         baker.make_recipe(
-            'tests.baker_recipes.service_app.document',
-            related_metadata=root_service_metadata,
+            'tests.baker_recipes.service_app.capability_document',
+            metadata=root_service_metadata,
             created_by=group,
         )
 
@@ -204,8 +204,8 @@ def create_wfs_service(group: MrMapGroup,
         )
 
         baker.make_recipe(
-            'tests.baker_recipes.service_app.document',
-            related_metadata=dataset_metadata,
+            'tests.baker_recipes.service_app.metadata_document',
+            metadata=dataset_metadata,
             created_by=group,
         )
 
@@ -227,8 +227,8 @@ def create_wfs_service(group: MrMapGroup,
         md_relation.save()
 
         baker.make_recipe(
-            'tests.baker_recipes.service_app.document',
-            related_metadata=root_service_metadata,
+            'tests.baker_recipes.service_app.capability_document',
+            metadata=root_service_metadata,
             created_by=group,
         )
 

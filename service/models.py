@@ -717,10 +717,10 @@ class Metadata(Resource):
 
         # Set document records value to None
         upper_elements_docs = Document.objects.filter(
-            related_metadata__in=upper_elements_metadatas
+            metadata__in=upper_elements_metadatas
         )
         for doc in upper_elements_docs:
-            doc.current_capability_document = None
+            doc.content = None
             doc.save()
 
         for md in upper_elements_metadatas:
@@ -783,7 +783,7 @@ class Metadata(Resource):
         If no service metadata is persisted in the database, we generate one.
 
         Returns:
-            service_metadata_document (str): The xml document
+            doc (str): The xml document
         """
         from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
         doc = None
@@ -796,15 +796,14 @@ class Metadata(Resource):
 
             # If we reach this point, we found no cached document. Check the db!
             # Try to fetch an existing Document record from the db
-            cap_doc = Document.objects.get_or_create(related_metadata=self)[0]
-            doc = cap_doc.service_metadata_document
+            cap_doc = Document.objects.get(
+                metadata=self,
+                document_type=DocumentEnum.METADATA.value,
+            )
+            doc = cap_doc.content
 
-            if doc is None or len(doc) == 0:
-                # Well, there is one but no service_metadata_document is found inside
-                raise ObjectDoesNotExist
-            else:
-                # There is a capability_document in the db. Let's write it to cache, so it can be returned even faster
-                cacher.set(self.id, doc)
+            # There is a capability_document in the db. Let's write it to cache, so it can be returned even faster
+            cacher.set(self.id, doc)
 
         except ObjectDoesNotExist as e:
             # There is no service metadata document in the database, we need to create it
@@ -815,8 +814,12 @@ class Metadata(Resource):
             cacher.set(str(self.id), doc)
 
             # Write metadata to db as well
-            cap_doc = Document.objects.get_or_create(related_metadata=self)[0]
-            cap_doc.service_metadata_document = doc.decode("UTF-8")
+            cap_doc = Document.objects.get_or_create(
+                metadata=self,
+                document_type=DocumentEnum.METADATA.value,
+                is_original=False,
+            )[0]
+            cap_doc.content = doc.decode("UTF-8")
             cap_doc.save()
 
         return doc
@@ -844,16 +847,15 @@ class Metadata(Resource):
 
             # If we reach this point, we found no cached document. Check the db!
             # Try to fetch an existing Document record from the db
-            cap_doc = Document.objects.get(related_metadata=self)
+            cap_doc = Document.objects.get(
+                metadata=self,
+                document_type=DocumentEnum.CAPABILITY.value,
+                is_original=False,
+            )
 
-            cap_xml = cap_doc.current_capability_document
-
-            if cap_xml is None or len(cap_xml) == 0:
-                # Well, there is a Document record but no current_capability_document is found inside
-                raise ObjectDoesNotExist
-            else:
-                # There is a capability_document in the db. Let's write it to cache, so it can be returned even faster
-                cacher.set(self.id, cap_xml)
+            cap_xml = cap_doc.content
+            # There is content in the db. Let's write it to cache, so it can be returned even faster
+            cacher.set(self.id, cap_xml)
 
         except ObjectDoesNotExist as e:
             # This means we have no Document record or the current_capability value is None.
@@ -868,15 +870,12 @@ class Metadata(Resource):
             cacher.set(self.id, cap_xml)
 
             # If no Document record existed, we create it now!
-            if cap_doc is None:
-                cap_doc = Document(
-                    related_metadata=self,
-                    original_capability_document=cap_xml,
-                    current_capability_document=cap_xml,
-                )
-            else:
-                # There is a Document record but the current_capability was None. We set this value now
-                cap_doc.current_capability_document = cap_xml
+            cap_doc = Document.objects.get_or_create(
+                metadata=self,
+                document_type=DocumentEnum.CAPABILITY.value,
+                is_original=False,
+            )[0]
+            cap_doc.content = cap_xml
 
             # Do not forget to proxy the links inside the document, if needed
             if self.use_proxy_uri:
@@ -885,7 +884,7 @@ class Metadata(Resource):
 
             cap_doc.save()
 
-        return cap_doc.current_capability_document
+        return cap_doc.content
 
     def _create_capability_xml(self, force_version: str = None):
         """ Creates a capability xml from the current state of the service object
@@ -1173,7 +1172,9 @@ class Metadata(Resource):
             rel_md = self
         else:
             rel_md = self.service.parent_service.metadata
-        cap_doc = Document.objects.get(related_metadata=rel_md)
+        cap_doc = Document.objects.get(
+            metadata=rel_md
+        )
         cap_doc.restore_subelement(identifier)
 
     def _restore_feature_type_md(self, service, external_auth: ExternalAuthentication = None):
@@ -1208,7 +1209,9 @@ class Metadata(Resource):
             rel_md = self
         else:
             rel_md = self.featuretype.parent_service.metadata
-        cap_doc = Document.objects.get(related_metadata=rel_md)
+        cap_doc = Document.objects.get(
+            metadata=rel_md
+        )
         cap_doc.restore_subelement(identifier)
 
     def _restore_wms(self, external_auth: ExternalAuthentication = None):
@@ -1246,7 +1249,9 @@ class Metadata(Resource):
         self.is_custom = False
         self.use_proxy_uri = False
 
-        cap_doc = Document.objects.get(related_metadata=self)
+        cap_doc = Document.objects.get(
+            metadata=self
+        )
         cap_doc.restore()
 
     def _restore_wfs(self, identifier: str = None, external_auth: ExternalAuthentication = None):
@@ -1292,7 +1297,9 @@ class Metadata(Resource):
         self.is_custom = False
         self.use_proxy_uri = False
 
-        cap_doc = Document.objects.get(related_metadata=service.metadata)
+        cap_doc = Document.objects.get(
+            metadata=service.metadata
+        )
         cap_doc.restore()
 
     def _restore_dataset_md(self, ):
@@ -1347,8 +1354,12 @@ class Metadata(Resource):
         self.dataset.lineage_statement = original_metadata_document.lineage
         self.dataset.character_set_code = original_metadata_document.character_set_code
 
-        doc = Document.objects.get(related_metadata=self)
-        doc.current_dataset_metadata_document = doc.original_dataset_metadata_document
+        doc = Document.objects.get_or_create(
+            metadata=self,
+            document_type=DocumentEnum.METADATA.value,
+            is_original=True,
+        )[0]
+        doc.content = doc.original_dataset_metadata_document
         doc.save()
 
     def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None):
@@ -1395,7 +1406,9 @@ class Metadata(Resource):
         """
         try:
             cap_doc = Document.objects.get(
-                related_metadata=self
+                metadata=self,
+                document_type=DocumentEnum.CAPABILITY.value,
+                is_original=False,
             )
             cap_doc.set_proxy(is_secured)
         except ObjectDoesNotExist:
@@ -1410,7 +1423,7 @@ class Metadata(Resource):
 
         """
         docs = Document.objects.filter(
-            related_metadata=self
+            metadata=self
         )
         for doc in docs:
             doc.is_active = is_active
@@ -1451,7 +1464,11 @@ class Metadata(Resource):
 
         # change capabilities document if there is one (subelements may not have any documents yet)
         try:
-            root_md_doc = Document.objects.get(related_metadata=root_md)
+            root_md_doc = Document.objects.get(
+                metadata=root_md,
+                document_type=DocumentEnum.CAPABILITY.value,
+                is_original=False
+            )
             root_md_doc.set_proxy(use_proxy)
         except ObjectDoesNotExist:
             pass
@@ -1466,8 +1483,12 @@ class Metadata(Resource):
         for subelement_md in subelements_mds:
             subelement_md.use_proxy_uri = self.use_proxy_uri
             try:
-                subelement_md_doc = Document.objects.get(related_metadata=subelement_md)
-                if subelement_md_doc.current_capability_document is not None:
+                subelement_md_doc = Document.objects.get_or_create(
+                    metadata=subelement_md,
+                    document_type=DocumentEnum.CAPABILITY.value,
+                    is_original=False
+                )[0]
+                if subelement_md_doc.content is not None:
                     subelement_md_doc.set_proxy(use_proxy)
             except ObjectDoesNotExist:
                 pass
@@ -1534,12 +1555,6 @@ class Document(Resource):
     content = models.TextField(null=True, blank=True)
     is_original = models.BooleanField(default=False)
 
-    #original_capability_document = models.TextField(null=True, blank=True)
-    #current_capability_document = models.TextField(null=True, blank=True)
-    #service_metadata_document = models.TextField(null=True, blank=True)
-    #original_dataset_metadata_document = models.TextField(null=True, blank=True)
-    #current_dataset_metadata_document = models.TextField(null=True, blank=True)
-
     def __str__(self):
         return self.metadata.title
 
@@ -1554,10 +1569,10 @@ class Document(Resource):
         """
         ret_dict = {}
 
-        if self.original_dataset_metadata_document is None:
+        if self.content is None:
             return ret_dict
 
-        xml = xml_helper.parse_xml(self.original_dataset_metadata_document)
+        xml = xml_helper.parse_xml(self.content)
 
         # Date
         date_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp"), xml)
@@ -1963,7 +1978,7 @@ class Document(Resource):
 
         # change some external linkage to internal links for the current_capability_document
         uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.metadata.id)
-        xml = xml_helper.parse_xml(self.original_capability_document)
+        xml = xml_helper.parse_xml(self.content)
 
         # wms and wfs have to be handled differently!
         # Furthermore each standard has a different handling of attributes and elements ...
@@ -2069,7 +2084,7 @@ class Document(Resource):
                 )
 
         xml = xml_helper.xml_to_string(xml)
-        self.current_capability_document = xml
+        self.content = xml
 
         if auto_save:
             self.save()
@@ -2084,11 +2099,11 @@ class Document(Resource):
         Returns:
 
         """
-        if self.current_capability_document is None:
+        if self.content is None:
             # Nothing to do here
             return
 
-        xml_obj = xml_helper.parse_xml(self.current_capability_document)
+        xml_obj = xml_helper.parse_xml(self.content)
         if is_secured:
             uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.metadata.id)
         else:
@@ -2105,7 +2120,7 @@ class Document(Resource):
             else:
                 self._set_wfs_operations_secured(xml_obj, uri, is_secured)
 
-        self.current_capability_document = xml_helper.xml_to_string(xml_obj)
+        self.content = xml_helper.xml_to_string(xml_obj)
 
         if auto_save:
             self.save()
@@ -2120,7 +2135,7 @@ class Document(Resource):
         Returns:
              nothing
         """
-        cap_doc_curr = self.current_capability_document
+        cap_doc_curr = self.content
         if cap_doc_curr is None:
             # Nothing to do here!
             return
@@ -2174,7 +2189,7 @@ class Document(Resource):
             else:
                 xml_helper.set_attribute(xml_metadata, attr, uri)
         xml_obj_str = xml_helper.xml_to_string(xml_obj)
-        self.current_capability_document = xml_obj_str
+        self.content = xml_obj_str
 
         if auto_save:
             self.save()
@@ -2189,7 +2204,7 @@ class Document(Resource):
         Returns:
              nothing
         """
-        cap_doc_curr = self.current_capability_document
+        cap_doc_curr = self.content
         if cap_doc_curr is None:
             # Nothing to do here!
             return
@@ -2229,7 +2244,7 @@ class Document(Resource):
                 xml_helper.set_attribute(xml_elem, attr, uri)
 
         xml_doc_str = xml_helper.xml_to_string(xml_doc)
-        self.current_capability_document = xml_doc_str
+        self.content = xml_doc_str
 
         if auto_save:
             self.save()
@@ -2240,7 +2255,12 @@ class Document(Resource):
         Returns:
              nothing
         """
-        self.current_capability_document = self.original_capability_document
+        original_doc = Document.objects.get(
+            is_original=True,
+            metadata=self.metadata,
+            document_type=DocumentEnum.CAPABILITY.value
+        )
+        self.content = original_doc.content
         self.save()
 
     def restore_subelement(self, identifier: str):
@@ -2251,9 +2271,14 @@ class Document(Resource):
         Returns:
              nothing
         """
+        original_doc = Document.objects.get(
+            is_original=True,
+            metadata=self.metadata,
+            document_type=DocumentEnum.CAPABILITY.value
+        )
         # only restored the layer and it's children
-        cap_doc_curr_obj = xml_helper.parse_xml(self.current_capability_document)
-        cap_doc_orig_obj = xml_helper.parse_xml(self.original_capability_document)
+        cap_doc_curr_obj = xml_helper.parse_xml(self.content)
+        cap_doc_orig_obj = xml_helper.parse_xml(original_doc.content)
 
         xml_layer_obj_curr = xml_helper.find_element_where_text(cap_doc_curr_obj, identifier)[0]
         xml_layer_obj_orig = xml_helper.find_element_where_text(cap_doc_orig_obj, identifier)[0]
@@ -2267,7 +2292,7 @@ class Document(Resource):
         parent_curr.insert(orig_index, xml_layer_obj_orig)
         parent_curr.remove(xml_layer_obj_curr)
 
-        self.current_capability_document = xml_helper.xml_to_string(cap_doc_curr_obj)
+        self.content = xml_helper.xml_to_string(cap_doc_curr_obj)
         self.save()
 
 
@@ -2656,9 +2681,11 @@ class Service(Resource):
              nothing
         """
         # save original capabilities document
-        cap_doc = Document()
-        cap_doc.original_capability_document = xml
-        cap_doc.metadata = self.metadata
+        cap_doc = Document(
+            content=xml,
+            metadata=self.metadata,
+            is_original=True
+        )
         cap_doc.set_capabilities_secured()
 
 

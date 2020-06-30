@@ -16,7 +16,7 @@ from django.db.models import QuerySet
 from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from csw.utils.parameter import ParameterResolver
 from service.helper import xml_helper
-from service.helper.enums import MetadataEnum
+from service.helper.enums import MetadataEnum, DocumentEnum
 from service.models import Metadata, Document
 
 GMD_SCHEMA = "http://www.isotc211.org/2005/gmd"
@@ -206,9 +206,10 @@ class Iso19115MetadataConverter(MetadataConverter):
         """
         if returned_md.is_dataset_metadata:
             doc = Document.objects.get(
-                related_metadata=returned_md
+                metadata=returned_md,
+                document_type=DocumentEnum.METADATA.value,
             )
-            xml = doc.dataset_metadata_document
+            xml = doc.content
         else:
             xml = returned_md.get_service_metadata_xml()
 

@@ -7,7 +7,7 @@ from django.test import TestCase, Client
 from monitoring.models import MonitoringSetting
 from structure.models import MrMapUser
 from MrMap.settings import HOST_NAME, GENERIC_NAMESPACE_TEMPLATE
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, DocumentEnum
 from service.helper import service_helper, xml_helper
 from service.models import Document, ProxyLog, Layer, SecuredOperation
 from service.tasks import async_process_secure_operations_form
@@ -77,10 +77,14 @@ class EditorTestCase(TestCase):
         cls.service_wfs = service
 
         cls.cap_doc_wms = Document.objects.get(
-            related_metadata=cls.service_wms.metadata
+            metadata=cls.service_wms.metadata,
+            document_type=DocumentEnum.CAPABILITY.value,
+            is_original=True
         )
         cls.cap_doc_wfs = Document.objects.get(
-            related_metadata=cls.service_wfs.metadata
+            metadata=cls.service_wfs.metadata,
+            document_type=DocumentEnum.CAPABILITY.value,
+            is_original=True
         )
 
     def _get_logged_out_client(self):
@@ -236,8 +240,12 @@ class EditorTestCase(TestCase):
         async_process_secure_operations_form(params, metadata.id)
 
         self.cap_doc_wms.refresh_from_db()
-        doc_unsecured = self.cap_doc_wms.original_capability_document
-        doc_secured = self.cap_doc_wms.current_capability_document
+        doc_unsecured = self.cap_doc_wms.content
+        doc_secured = Document.objects.get(
+            metadata=metadata,
+            document_type=DocumentEnum.CAPABILITY.value,
+            is_original=False,
+        ).content
 
         # Check for all operations if the uris has been changed!
         # Do not check for GetCapabilities, since we always change this uri during registration!

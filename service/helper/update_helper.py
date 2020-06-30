@@ -12,6 +12,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from editor.forms import MetadataEditorForm
+from service.helper.enums import DocumentEnum
 from service.models import Service, Layer, FeatureType, Metadata, ReferenceSystem, MimeType, MetadataType, Document
 
 
@@ -86,16 +87,25 @@ def update_capability_document(current_service: Service, new_capabilities: str):
     Returns:
          nothing
     """
-    cap_document = Document.objects.get(related_metadata=current_service.metadata)
-    cap_document.original_capability_document = new_capabilities
+    cap_document = Document.objects.get(
+        metadata=current_service.metadata,
+        is_original=True,
+        document_type=DocumentEnum.CAPABILITY.value
+    )
+    cap_document.content = new_capabilities
+    cap_document.save()
 
     # Remove cached document
     current_service.metadata.clear_cached_documents()
 
-    # By deleting the current_capability_document, the system is forced to create a current capability document from the
+    # By deleting the current capability document, the system is forced to create a current capability document from the
     # state at this time
-    cap_document.current_capability_document = None
-    cap_document.save()
+    current_cap_doc = Document.objects.filter(
+        metadata=current_service.metadata,
+        is_original=False,
+        document_type=DocumentEnum.CAPABILITY.value
+    )
+    current_cap_doc.delete()
 
 
 @transaction.atomic

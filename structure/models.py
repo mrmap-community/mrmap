@@ -175,7 +175,7 @@ class MrMapUser(AbstractUser):
             service__is_deleted=False,
         ).order_by("title")
         if type is not None:
-            md_list = md_list.filter(service__servicetype__name=type.name.lower())
+            md_list = md_list.filter(service__service_type__name=type.name.lower())
         return md_list
 
     def get_metadatas_as_qs(self, type: MetadataEnum = None, inverse_match: bool = False):

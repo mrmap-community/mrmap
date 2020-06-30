@@ -122,13 +122,13 @@ def home_view(request: HttpRequest):
     template = "views/dashboard.html"
     user_groups = user.get_groups()
     user_services_wms = Metadata.objects.filter(
-        service__servicetype__name="wms",
+        service__service_type__name="wms",
         service__is_root=True,
         created_by__in=user_groups,
         service__is_deleted=False,
     ).count()
     user_services_wfs = Metadata.objects.filter(
-        service__servicetype__name="wfs",
+        service__service_type__name="wfs",
         service__is_root=True,
         created_by__in=user_groups,
         service__is_deleted=False,

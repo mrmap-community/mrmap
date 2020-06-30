@@ -114,7 +114,7 @@ class UpdateServiceCheckForm(forms.Form):
             self.url_dict = service_helper.split_service_uri(uri)
             new_service_type = self.url_dict.get("service")
 
-            if self.current_service.servicetype.name != new_service_type.value:
+            if self.current_service.service_type.name != new_service_type.value:
                 self.add_error(None, SERVICE_UPDATE_WRONG_TYPE)
 
         has_update_candidate_for_service = None

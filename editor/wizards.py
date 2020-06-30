@@ -290,17 +290,7 @@ class DatasetWizard(MrMapWizard):
             is_original=False,
             document_type=DocumentEnum.METADATA.value
         )[0]
-
-        orig_document_obj = Document.objects.get_or_create(
-            metadata=metadata,
-            is_original=True,
-            document_type=DocumentEnum.METADATA.value
-        )[0]
-
-        orig_document_obj.content = dataset_doc_string
         curr_document_obj.content = dataset_doc_string
-
-        orig_document_obj.save()
         curr_document_obj.save()
 
     @staticmethod

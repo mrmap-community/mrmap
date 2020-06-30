@@ -591,36 +591,13 @@ class ISOMetadata:
             metadata.save()
             metadata.dataset.save()
 
-            # create document object to persist the dataset metadata document
-            if type is MetadataEnum.DATASET.value:
-                orig_document = Document.objects.get_or_create(
-                    metadata=metadata,
-                    document_type=DocumentEnum.METADATA.value,
-                    is_original=True,
-                )[0]
-                curr_document = Document.objects.get_or_create(
-                    metadata=metadata,
-                    document_type=DocumentEnum.METADATA.value,
-                    is_original=False,
-                )[0]
-                orig_document.content = self.raw_metadata
-                curr_document.content = self.raw_metadata
-
-                orig_document.save()
-                curr_document.save()
-
-            elif type is MetadataEnum.SERVICE.value:
-                orig_document = Document.objects.get_or_create(
-                    metadata=metadata,
-                    document_type=DocumentEnum.METADATA.value,
-                    is_original=True,
-                )[0]
-                orig_document.content = self.raw_metadata
-                orig_document.save()
-
-            else:
-                # ToDo: For future implementations
-                pass
+            orig_document = Document.objects.get_or_create(
+                metadata=metadata,
+                document_type=DocumentEnum.METADATA.value,
+                is_original=True,
+            )[0]
+            orig_document.content = self.raw_metadata
+            orig_document.save()
 
             if update:
                 metadata.keywords.clear()

@@ -41,7 +41,7 @@ class WfsHelper:
         if uri is None:
             return
         request_type = OGCOperationEnum.GET_CAPABILITIES.value
-        service_version = self.parent_service.servicetype.version
+        service_version = self.parent_service.service_type.version
         service_type = OGCServiceEnum.WFS.value
 
         queries = [
@@ -87,7 +87,7 @@ class WfsHelper:
         if type_name is None:
             return
         request_type = OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value
-        service_version = self.parent_service.servicetype.version
+        service_version = self.parent_service.service_type.version
         service_type = OGCServiceEnum.WFS.value
 
         if service_version == OGCServiceVersionEnum.V_1_0_0.value \
@@ -129,7 +129,7 @@ class WfsHelper:
             return
 
         request_type = OGCOperationEnum.GET_FEATURE.value
-        service_version = self.parent_service.servicetype.version
+        service_version = self.parent_service.service_type.version
         service_type = OGCServiceEnum.WFS.value
 
         if service_version == OGCServiceVersionEnum.V_1_0_0.value \

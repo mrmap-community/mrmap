@@ -22,10 +22,10 @@ class EditorFiltersTestCase(TestCase):
         create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
         create_wfs_service(group=self.user.get_groups().first(), how_much_services=10)
         self.wms_service_metadatas = Metadata.objects.filter(
-            service__servicetype__name=OGCServiceEnum.WMS.value
+            service__service_type__name=OGCServiceEnum.WMS.value
         )
         self.wfs_service_metadatas = Metadata.objects.filter(
-            service__servicetype__name=OGCServiceEnum.WFS.value
+            service__service_type__name=OGCServiceEnum.WFS.value
         )
 
     def test_editor_wms_filtering(self):

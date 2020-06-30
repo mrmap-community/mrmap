@@ -80,7 +80,7 @@ def _prepare_wms_table(request: HttpRequest):
         show_service = True
 
     md_list_wms = Metadata.objects.filter(
-        service__servicetype__name=OGCServiceEnum.WMS.value,
+        service__service_type__name=OGCServiceEnum.WMS.value,
         service__is_root=show_service,
         created_by__in=user.get_groups(),
         is_deleted=False,
@@ -125,7 +125,7 @@ def _prepare_wfs_table(request: HttpRequest):
     """
     user = user_helper.get_user(request)
     md_list_wfs = Metadata.objects.filter(
-        service__servicetype__name=OGCServiceEnum.WFS.value,
+        service__service_type__name=OGCServiceEnum.WFS.value,
         created_by__in=user.get_groups(),
         is_deleted=False,
         service__is_update_candidate_for=None
@@ -435,11 +435,13 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
             if md is None:
                 raise ObjectDoesNotExist
             return redirect("service:get-dataset-metadata", metadata_id=md.id)
-        document = Document.objects.get(
+        documents = Document.objects.filter(
             metadata=md,
             document_type=DocumentEnum.METADATA.value,
-            is_original=False,
+            is_active=True,
         )
+        # prefer current metadata document (is_original=false), otherwise take the original one
+        document = documents.get(is_original=False) if documents.filter(is_original=False).exists() else documents.get(is_original=True)
         document = document.content
     except ObjectDoesNotExist:
         # ToDo: a datasetmetadata without a document is broken
@@ -600,16 +602,17 @@ def _get_capabilities(request: HttpRequest, metadata_id: int):
                 raise ValueError("No xml document was retrieved. Content was :'{}'".format(xml))
 
             # we fake the persisted service version, so the document setters will change the correct elements in the xml
-            # md.service.servicetype.version = version_param
+            # md.service.service_type.version = version_param
             doc = Document(
-                original_capability_document=xml,
-                current_capability_document=xml,
-                related_metadata=md
+                content=xml,
+                metadata=md,
+                document_type=DocumentEnum.CAPABILITY.value,
+                is_original=True
             )
             doc.set_capabilities_secured(auto_save=False)
             if md.use_proxy_uri:
                 doc.set_proxy(True, auto_save=False, force_version=version_param)
-            doc = doc.current_capability_document
+            doc = doc.content
         except (ReadTimeout, TimeoutError, ConnectionError) as e:
             # the remote server does not respond - we must deliver our stored capabilities document, which is not the requested version
             return HttpResponse(content=SERVICE_CAPABILITIES_UNAVAILABLE)

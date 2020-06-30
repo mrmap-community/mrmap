@@ -190,10 +190,10 @@ class ServiceAddViewTestCase(TestCase):
         self.assertIsInstance(response.context['new_service_form'], RegisterNewServiceWizardPage1)
         self.assertFormError(response, 'new_service_form', 'get_request_uri', 'The given uri is not valid cause there is no request parameter.')
 
-    def test_post_new_service_wizard_page1_invalid_servicetype(self):
+    def test_post_new_service_wizard_page1_invalid_service_type(self):
         post_params = {
             'page': '1',
-            'get_request_uri': get_capabilitites_url().get('invalid_servicetype')
+            'get_request_uri': get_capabilitites_url().get('invalid_service_type')
         }
 
         response = self.client.post(reverse('service:add'), data=post_params)
@@ -466,7 +466,7 @@ class NewUpdateServiceViewTestCase(TestCase):
         self.assertTrue(response.context['show_update_form'])
         self.assertFormError(response, 'update_service_form', 'get_capabilities_uri', 'The given uri is not valid cause there is no service parameter.')
 
-    def test_post_invalid_servicetype_update_service_page1(self):
+    def test_post_invalid_service_type_update_service_page1(self):
         params = {
             'page': '1',
             'get_capabilities_uri': get_capabilitites_url().get('valid_wfs_version_202'),

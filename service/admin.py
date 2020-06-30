@@ -43,7 +43,7 @@ class KeywordAdmin(admin.ModelAdmin):
 
 
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'is_active', 'created')
+    list_display = ('id', 'metadata', 'document_type', 'is_original', 'is_active', 'created')
     list_filter = ('is_active',)
     search_fields = ['id', 'metadata__id', ]
 

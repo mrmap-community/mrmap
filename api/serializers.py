@@ -165,7 +165,7 @@ class ServiceSerializer(serializers.Serializer):
     published_for = serializers.PrimaryKeyRelatedField(read_only=True)
     metadata = serializers.PrimaryKeyRelatedField(read_only=True)
     is_root = serializers.BooleanField()
-    servicetype = ServiceTypeSerializer()
+    service_type = ServiceTypeSerializer()
 
     def create(self, validated_data):
         """ Creates a new service
@@ -231,7 +231,7 @@ class LayerSerializer(ServiceSerializer):
     is_active = serializers.BooleanField()
     parent_service = serializers.PrimaryKeyRelatedField(read_only=True)
     child_layers = serializers.PrimaryKeyRelatedField(read_only=True, many=True)
-    servicetype = ServiceTypeSerializer()
+    service_type = ServiceTypeSerializer()
 
 
 class CategorySerializer(serializers.ModelSerializer):

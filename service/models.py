@@ -2472,7 +2472,7 @@ class Service(Resource):
         Args:
             enum (OGCServiceEnum): The enum
         Returns:
-             True if the servicetypes are equal, false otherwise
+             True if the service_types are equal, false otherwise
         """
         return self.service_type.name == enum.value
 
@@ -2684,7 +2684,8 @@ class Service(Resource):
         cap_doc = Document(
             content=xml,
             metadata=self.metadata,
-            is_original=True
+            is_original=True,
+            document_type=DocumentEnum.CAPABILITY.value
         )
         cap_doc.set_capabilities_secured()
 
@@ -3377,7 +3378,7 @@ class FeatureType(Resource):
         from service.helper import service_helper
         if self.parent_service is None:
             return
-        service_version = service_helper.resolve_version_enum(self.parent_service.servicetype.version)
+        service_version = service_helper.resolve_version_enum(self.parent_service.service_type.version)
         service = None
         if self.parent_service.is_service_type(OGCServiceEnum.WFS):
             service = OGCWebFeatureServiceFactory()

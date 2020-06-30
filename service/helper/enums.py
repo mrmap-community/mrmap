@@ -7,7 +7,7 @@ class EnumChoice(Enum):
     """
     @classmethod
     def as_choices(cls):
-        return [(enum.name, enum.value) for enum in cls]
+        return [(enum.value, enum.name) for enum in cls]
 
 
 class ConnectionEnum(EnumChoice):

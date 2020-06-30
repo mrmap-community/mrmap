@@ -64,13 +64,13 @@ active_wfs_featuretype_metadata = active_wfs_service_metadata.extend(
     formats=related(mimetype),
 )
 
-wms_v100_servicetype = Recipe(
+wms_v100_service_type = Recipe(
     ServiceType,
     name=OGCServiceEnum.WMS.value,
     version=OGCServiceVersionEnum.V_1_0_0,
 )
 
-wfs_v100_servicetype = Recipe(
+wfs_v100_service_type = Recipe(
     ServiceType,
     name=OGCServiceEnum.WFS.value,
     version=OGCServiceVersionEnum.V_1_0_0,
@@ -81,7 +81,7 @@ active_root_wms_service = Recipe(
     is_active=True,
     is_root=True,
     metadata=foreign_key(active_wms_service_metadata),
-    servicetype=foreign_key(wms_v100_servicetype),
+    service_type=foreign_key(wms_v100_service_type),
     created_by=foreign_key(superadmin_group),
 )
 
@@ -91,7 +91,7 @@ active_wms_sublayer = Recipe(
     is_active=True,
     is_root=False,
     metadata=foreign_key(active_wms_layer_metadata),
-    servicetype=foreign_key(wms_v100_servicetype),
+    service_type=foreign_key(wms_v100_service_type),
     created_by=foreign_key(superadmin_group),
     parent_service=foreign_key(active_root_wms_service),
 )
@@ -101,7 +101,7 @@ active_root_wfs_service = Recipe(
     is_active=True,
     is_root=True,
     metadata=foreign_key(active_wfs_service_metadata),
-    servicetype=foreign_key(wfs_v100_servicetype),
+    service_type=foreign_key(wfs_v100_service_type),
     created_by=foreign_key(superadmin_group),
 )
 

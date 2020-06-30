@@ -118,9 +118,11 @@ class DatasetWizard(MrMapWizard):
                 document_type=DocumentEnum.METADATA.value,
                 is_original=False,
             )
+            doc.is_active = metadata.is_active
             DatasetWizard._overwrite_dataset_document(metadata, doc)
         except ObjectDoesNotExist:
             DatasetWizard._create_dataset_document(metadata)
+
 
     @staticmethod
     def _fill_metadata_dataset_identification_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
@@ -212,7 +214,7 @@ class DatasetWizard(MrMapWizard):
                 geom = GEOSGeometry(str(bounding_geometry), srid=DEFAULT_SRS)
             except Exception:
                 # No features provided
-                geom = None
+                return
         metadata.bounding_geometry = geom
 
     @staticmethod
@@ -290,6 +292,7 @@ class DatasetWizard(MrMapWizard):
             is_original=False,
             document_type=DocumentEnum.METADATA.value
         )[0]
+        curr_document_obj.is_active = metadata.is_active
         curr_document_obj.content = dataset_doc_string
         curr_document_obj.save()
 

@@ -17,7 +17,7 @@ from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, get_object_or_404
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -36,7 +36,7 @@ from service.models import Metadata
 from structure.forms import LoginForm, RegistrationForm
 from structure.models import MrMapUser, UserActivation, PendingRequest, GroupActivity, Organization, MrMapGroup
 from structure.settings import PUBLIC_GROUP_NAME
-from users.forms import PasswordResetForm, UserForm, PasswordChangeForm, SubscriptionForm
+from users.forms import PasswordResetForm, UserForm, PasswordChangeForm, SubscriptionForm, SubscriptionRemoveForm
 from users.helper import user_helper
 from django.urls import reverse, resolve
 
@@ -490,7 +490,7 @@ def subscription_edit_view(request: HttpRequest, subscription_id: str, current_v
 
 
 @login_required
-def subscription_remove(request: HttpRequest, id: str):
+def subscription_remove(request: HttpRequest, subscription_id: str, current_view: str):
     """ Removes a subscription
 
     Args:
@@ -500,13 +500,30 @@ def subscription_remove(request: HttpRequest, id: str):
          A rendered view
     """
     user = user_helper.get_user(request)
-    try:
-        subscription = Subscription.objects.get(
-            id=id,
-            user=user
-        )
-        subscription.delete()
-        messages.success(request, SUBSCRIPTION_REMOVED_TEMPLATE.format(subscription.metadata.title))
-    except ObjectDoesNotExist:
-        messages.error(request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
-    return redirect("home")
+
+    subscription = get_object_or_404(klass=Subscription,
+                                     id=subscription_id,
+                                     user=user)
+
+    form = SubscriptionRemoveForm(data=request.POST or None,
+                                  request=request,
+                                  reverse_lookup='subscription-remove',
+                                  reverse_args=[subscription_id, current_view],
+                                  current_view=current_view,
+                                  form_title=_(f'Remove Subscription for service <strong>{subscription.metadata}</strong>'),
+                                  )
+
+    if request.method == 'GET':
+        return form.render_view()
+
+    elif request.method == 'POST':
+        if form.is_valid():
+            try:
+                subscription.delete()
+                messages.success(request, SUBSCRIPTION_REMOVED_TEMPLATE.format(subscription.metadata.title))
+            except ObjectDoesNotExist:
+                messages.error(request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
+        else:
+            return form.render_view()
+
+    return HttpResponseRedirect(reverse(current_view, ), status=303)

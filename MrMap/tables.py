@@ -56,6 +56,21 @@ class MrMapTable(tables.Table):
         else:
             return ''
 
+    def get_remove_btn(self, href: str, tooltip: str, tooltip_placement: str, permission: Permission):
+        if self.user.has_permission(permission):
+            context_edit_btn = {
+                "btn_size": BTN_SM_CLASS,
+                "btn_color": get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+                "btn_value": get_theme(self.user)["ICONS"]['REMOVE'],
+                "btn_url": href,
+                "tooltip": tooltip,
+                "tooltip_placement": tooltip_placement,
+            }
+            return render_to_string(template_name="sceletons/open-link-button.html",
+                                    context=context_edit_btn)
+        else:
+            return ''
+
     def prepare_table_pagination_settings(self, request: HttpRequest, param_lead: str):
         return self.prepare_list_pagination_settings(request, list(self.rows), param_lead)
 

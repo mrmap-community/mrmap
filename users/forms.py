@@ -11,7 +11,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse, resolve
 from django.utils.translation import gettext_lazy as _
 
-from MrMap.forms import MrMapForm, MrMapModelForm
+from MrMap.forms import MrMapForm, MrMapModelForm, MrMapConfirmForm
 from MrMap.messages import EMAIL_IS_UNKNOWN, PASSWORD_CHANGE_OLD_PASSWORD_WRONG
 from MrMap.responses import DefaultContext
 from MrMap.settings import MIN_PASSWORD_LENGTH
@@ -133,3 +133,8 @@ class SubscriptionForm(MrMapModelForm):
         if is_edit:
             # Prevent user from changing the subscribed metadata itself
             self.fields['metadata'].disabled = True
+
+
+class SubscriptionRemoveForm(MrMapConfirmForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(is_confirmed_label=_('Do you realy want to remove this subscription?'), *args, **kwargs)

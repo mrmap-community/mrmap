@@ -5,7 +5,7 @@ from MrMap.consts import URL_PATTERN
 from MrMap.tables import MrMapTable
 from django.utils.translation import gettext_lazy as _
 
-from MrMap.utils import get_theme
+from MrMap.utils import get_theme, get_ok_nok_icon
 from structure.models import Permission
 from users.models import Subscription
 
@@ -51,10 +51,30 @@ class SubscriptionTable(MrMapTable):
         url = reverse('service:detail', args=(record.metadata.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
+    @staticmethod
+    def render_notify_on_update(value):
+        return get_ok_nok_icon(value)
+
+    @staticmethod
+    def render_notify_on_metadata_edit(value):
+        return get_ok_nok_icon(value)
+
+    @staticmethod
+    def render_notify_on_access_edit(value):
+        return get_ok_nok_icon(value)
+
     def render_actions(self, record):
-        return format_html(self.get_edit_btn(
+        edit_btn = format_html(self.get_edit_btn(
             href=reverse('subscription-edit', args=(record.id, self.current_view)),
-            tooltip=format_html(_(f"Edit subscription {record.metadata.title} [{record.metadata.id}] dataset"),),
+            tooltip=format_html(_(f"Edit subscription <strong>{record.metadata.title} [{record.metadata.id}]</strong> dataset"),),
             tooltip_placement='left',
             permission=Permission()
         ))
+        remove_btn = format_html(self.get_remove_btn(
+            href=reverse('subscription-remove', args=(record.id, self.current_view)),
+            tooltip=format_html(_(f"Remove subscription <strong>{record.metadata.title} [{record.metadata.id}]</strong> dataset"),),
+            tooltip_placement='left',
+            permission=Permission()
+        ))
+
+        return format_html(f"{edit_btn} {remove_btn}")

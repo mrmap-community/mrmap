@@ -3,6 +3,7 @@ from django import forms
 from django.http import HttpRequest
 from django.template.loader import render_to_string
 from django.urls import reverse, resolve
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from MrMap.responses import DefaultContext
 from users.helper import user_helper
@@ -30,7 +31,7 @@ class MrMapModalForm:
         self.form_id = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
         self.request = request
         self.requesting_user = user_helper.get_user(request)
-        self.form_title = form_title
+        self.form_title = format_html(form_title)
         self.has_autocomplete_fields = has_autocomplete_fields
         self.reverse_lookup = reverse_lookup
         self.reverse_args = reverse_args
@@ -160,8 +161,7 @@ class MrMapWizardModelForm(ModelForm):
 class MrMapConfirmForm(MrMapForm):
     is_confirmed = forms.BooleanField()
 
-    def __init__(self, *args, **kwargs):
-        is_confirmed_label = '' if 'is_confirmed_label' not in kwargs else kwargs.pop('is_confirmed_label')
+    def __init__(self, is_confirmed_label: str = '', *args, **kwargs):
         super(MrMapConfirmForm, self).__init__(*args, **kwargs)
         self.fields["is_confirmed"].label = is_confirmed_label
 

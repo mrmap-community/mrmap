@@ -67,13 +67,13 @@ active_wfs_featuretype_metadata = active_wfs_service_metadata.extend(
 wms_v100_service_type = Recipe(
     ServiceType,
     name=OGCServiceEnum.WMS.value,
-    version=OGCServiceVersionEnum.V_1_0_0,
+    version=OGCServiceVersionEnum.V_1_0_0.value,
 )
 
 wfs_v100_service_type = Recipe(
     ServiceType,
     name=OGCServiceEnum.WFS.value,
-    version=OGCServiceVersionEnum.V_1_0_0,
+    version=OGCServiceVersionEnum.V_1_0_0.value,
 )
 
 active_root_wms_service = Recipe(

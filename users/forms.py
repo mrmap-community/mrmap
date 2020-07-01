@@ -7,8 +7,13 @@ Created on: 28.05.19
 """
 from django import forms
 from django.core.exceptions import ObjectDoesNotExist
+from django.template.loader import render_to_string
+from django.urls import reverse, resolve
 from django.utils.translation import gettext_lazy as _
+
+from MrMap.forms import MrMapForm, MrMapModelForm
 from MrMap.messages import EMAIL_IS_UNKNOWN, PASSWORD_CHANGE_OLD_PASSWORD_WRONG
+from MrMap.responses import DefaultContext
 from MrMap.settings import MIN_PASSWORD_LENGTH
 from MrMap.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from service.helper.enums import MetadataEnum
@@ -93,7 +98,7 @@ class UserForm(forms.ModelForm):
         ]
 
 
-class SubscriptionForm(forms.ModelForm):
+class SubscriptionForm(MrMapModelForm):
     metadata = forms.ModelChoiceField(
         label=_("Service"),
         help_text=_("Select the service you want to subscribe. When you edit an existing subscription, you can not change this selection."),

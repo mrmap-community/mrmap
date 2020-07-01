@@ -20,7 +20,7 @@ urlpatterns = [
     path('register/', register, name='register'),
     path('activate/<activation_hash>', activate_user, name='activate-user'),
     path('subscription', subscription_index_view, name='subscription-index'),
-    path('subscription/new', subscription_new_view, name='subscription-new'),
+    path('subscription/new/<current_view>', subscription_new_view, name='subscription-new'),
     path('subscription/<id>/edit', subscription_edit_view, name='subscription-edit'),
     path('subscription/<id>/remove', subscription_remove, name='subscription-remove'),
 ]

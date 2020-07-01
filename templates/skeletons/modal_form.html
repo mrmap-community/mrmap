@@ -1,5 +1,7 @@
 <!-- Modal -->
 {% load bootstrap4 %}
+{% load i18n %}
+
 {# Usage: use with parameter on expanding template to declare show_modal, id_modal and form variable  #}
 <div class="modal {% if form.errors|length > 0  %} animated shake {% endif %} {% if not show_modal %} fade {% endif %}" id="id_modal_{{id_modal}}" data-backdrop="static" tabindex="-1" role="dialog"
      aria-labelledby="id_modal_title_{{id_modal}}" aria-hidden="true">
@@ -8,11 +10,7 @@
             <div class="modal-header">
                 <h5 class="modal-title" id="id_modal_title_{{id_modal}}">
                     {{form.form_title}}
-                    {% block modal-title %}
-                    {% endblock %}
                 </h5>
-                {% block modal-header %}
-                {% endblock %}
             </div>
             <form id="id_modal_form_{{id_modal}}" action="{{form.action_url}}" method="post">
                 {% csrf_token %}
@@ -23,8 +21,12 @@
                     {% endif %}
                 </div>
                 <div class="modal-footer">
-                    {% block modal-footer %}
-                    {% endblock %}
+                    <a class="btn {{ THEME.MODAL.BTN_WARNING_COLOR }}" href="{% url form.current_view %}" role="button">
+                        {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss' %}
+                    </a>
+                    <button type="button submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">
+                            {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
+                    </button>
                 </div>
             </form>
         </div>
@@ -44,4 +46,3 @@
        });
     });
 </script>
-

@@ -16,14 +16,16 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.views.generic import CreateView
 
 from MrMap.messages import ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
     ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, \
-    LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, PASSWORD_CHANGE_OLD_PASSWORD_WRONG, \
+    LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
     RESOURCE_NOT_FOUND_OR_NOT_OWNER, FORM_INPUT_INVALID, SUBSCRIPTION_EDITING_SUCCESSFULL, \
     SUBSCRIPTION_REMOVED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SUBSCRIPTION_EDITING_UNSUCCESSFULL
 from MrMap.responses import DefaultContext
@@ -36,27 +38,10 @@ from structure.models import MrMapUser, UserActivation, PendingRequest, GroupAct
 from structure.settings import PUBLIC_GROUP_NAME
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm, SubscriptionForm
 from users.helper import user_helper
-from django.urls import reverse
+from django.urls import reverse, resolve
 
 from users.models import Subscription
 from users.tables import SubscriptionTable
-
-
-def _prepare_account_view_params(user: MrMapUser):
-    edit_account_form = UserForm(instance=user, initial={'theme': user.theme})
-    edit_account_form.action_url = reverse('account-edit', )
-
-    password_change_form = PasswordChangeForm()
-    password_change_form.action_url = reverse('password-change', )
-
-
-
-    params = {
-        "user": user,
-        "edit_account_form": edit_account_form,
-        "password_change_form": password_change_form,
-    }
-    return params
 
 
 def login_view(request: HttpRequest):
@@ -159,24 +144,41 @@ def home_view(request: HttpRequest):
 
 
 @login_required
-def account(request: HttpRequest, params=None):
+def account(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
     """ Renders an overview of the user's account information
 
     Args:
-        params:
         request (HttpRequest): The incoming request
-        user (MrMapUser): The user
+        update_params:
+        status_code (MrMapUser): The user
     Returns:
          A rendered view
     """
     template = "views/account.html"
-    user = user_helper.get_user(request)
-    render_params = _prepare_account_view_params(user)
-    if params:
-        render_params.update(params)
 
-    context = DefaultContext(request, render_params, user)
-    return render(request=request, template_name=template, context=context.get_context())
+    user = user_helper.get_user(request)
+    edit_account_form = UserForm(instance=user, initial={'theme': user.theme})
+    edit_account_form.action_url = reverse('account-edit', )
+
+    password_change_form = PasswordChangeForm()
+    password_change_form.action_url = reverse('password-change', )
+
+    user = user_helper.get_user(request)
+
+    subscription_table = SubscriptionTable(request=request)
+
+    params = {
+        "edit_account_form": edit_account_form,
+        "password_change_form": password_change_form,
+        "subscriptions": subscription_table,
+        "current_view": 'account',
+    }
+
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
 
 
 @login_required
@@ -201,9 +203,9 @@ def password_change(request: HttpRequest):
         else:
             return account(
                 request=request,
-                params={'password_change_form': form,
-                        'show_password_change_form': True,
-                        }
+                update_params={'password_change_form': form,
+                               'show_password_change_form': True,
+                               }
             )
 
     return redirect(reverse("home"))
@@ -228,8 +230,8 @@ def account_edit(request: HttpRequest):
         messages.add_message(request, messages.SUCCESS, ACCOUNT_UPDATE_SUCCESS)
         return redirect("account")
 
-    return account(request=request, params={"edit_account_form": form,
-                                            "show_edit_account_form": True})
+    return account(request=request, update_params={"edit_account_form": form,
+                                                   "show_edit_account_form": True})
 
 
 def activate_user(request: HttpRequest, activation_hash: str):
@@ -390,23 +392,26 @@ def subscription_index_view(request: HttpRequest):
 
 
 @login_required
-def subscription_new_view(request: HttpRequest):
+def subscription_new_view(request: HttpRequest, current_view: str):
     """ Renders a view for editing a subscription
 
     Args:
         request (HttpRequest): The incoming request
-        id (str): The uuid of the subscription as string
+        current_view (str): The current view where the request comes from
     Returns:
          A rendered view
     """
-    form = SubscriptionForm(request.POST or None)
     user = user_helper.get_user(request)
-    params = {}
+
+    form = SubscriptionForm(data=request.POST or None,
+                            request=request,
+                            reverse_lookup='subscription-new',
+                            current_view=current_view,
+                            form_title=_('New Subscription'),
+                            )
 
     if request.method == 'GET':
-        params["form"] = form
-        context = DefaultContext(request, params, user)
-        # ToDo: Render template
+        return form.render_view()
 
     elif request.method == 'POST':
         if form.is_valid():
@@ -423,13 +428,13 @@ def subscription_new_view(request: HttpRequest):
             else:
                 subscription.save()
                 messages.success(request, SUBSCRIPTION_EDITING_SUCCESSFULL)
+                return HttpResponseRedirect(reverse(current_view, ), status=303)
         else:
             messages.error(request, FORM_INPUT_INVALID)
+            form.fade_modal = False
+            return form.render_view()
 
-    else:
-        # Not supported
-        pass
-    return redirect("home")
+    return HttpResponseRedirect(reverse(current_view, ), status=303)
 
 
 @login_required

@@ -1,13 +1,8 @@
 import random
 import string
-
 from django.http import HttpRequest
 from django.template.loader import render_to_string
-from django.urls import reverse
-from django.utils.html import format_html
 from django_tables2 import tables, RequestConfig
-from django_tables2.templatetags import django_tables2
-
 from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, BTN_SM_CLASS
 from MrMap.settings import PAGE_SIZE_OPTIONS, PAGE_SIZE_MAX, PAGE_SIZE_DEFAULT, PAGE_DEFAULT
 from MrMap.utils import get_theme
@@ -21,12 +16,20 @@ class MrMapTable(tables.Table):
     page_field = None
     caption = ""
 
-    def __init__(self, request=None, *args, **kwargs):
-        super(MrMapTable, self).__init__(template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, *args, **kwargs)
+    def __init__(self, request=None, query_filter=None, query_class=None, *args, **kwargs):
         # Generate a random id for html template
         self.table_id = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
         self.request = request
         self.user = user_helper.get_user(request)
+
+        if query_class:
+            if query_filter:
+                data = query_class.objects.filter(query_filter)
+            else:
+                data = query_class.objects.all()
+            kwargs['data'] = data
+
+        super(MrMapTable, self).__init__(template_name=DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE, *args, **kwargs)
 
     def configure_pagination(self, request: HttpRequest, param_lead: str):
         RequestConfig(request).configure(self)

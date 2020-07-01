@@ -4,14 +4,25 @@
 {% endblock %}
 
 {% block body %}
-<div class="container-fluid px-5">
-    <div class="row w-100">
+<div class="container-fluid">
+    <div class="row">
         <div class="col-md-3">
             {% include 'includes/account_info.html' %}
         </div>
-        <div class="col w-100">
-            {% include 'includes/account_change.html' %}
+        <div class="col-md-9">
+            <div class="row w-100">
+                <div class="col">
+                    {% include 'includes/account_change.html' %}
+                </div>
+            </div>
+            <div class="row w-100">
+                <div class="col">
+
+                    {% include 'includes/subscriptions.html' %}
+                </div>
+            </div>
         </div>
+
     </div>
 </div>
 {% endblock %}

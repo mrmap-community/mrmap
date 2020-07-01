@@ -4,6 +4,7 @@ from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
 from django.utils.translation import gettext_lazy as _
 from structure.models import Permission
+from users.models import Subscription
 
 
 class SubscriptionTable(MrMapTable):
@@ -38,6 +39,9 @@ class SubscriptionTable(MrMapTable):
         empty_values=[],
         orderable=False
     )
+
+    def __init__(self, *args, **kwargs):
+        super(SubscriptionTable, self).__init__(query_class=Subscription, *args, **kwargs)
 
     def render_subscription_actions(self, record):
         # ToDo 'editor:index' has to be a dynamic value from the current view where the user comes from

@@ -46,6 +46,7 @@ def async_increase_hits(metadata_id: int):
 
 
 @shared_task(name="async_activate_service")
+@transaction.atomic
 def async_activate_service(service_id: int, user_id: int, is_active: bool):
     """ Async call for activating a service, its subelements and all of their related metadata
 
@@ -60,52 +61,38 @@ def async_activate_service(service_id: int, user_id: int, is_active: bool):
 
     # get service and change status
     service = Service.objects.get(id=service_id)
-    new_status = is_active
-    service.metadata.is_active = new_status
-    service.metadata.save(update_last_modified=False)
-    service.is_active = new_status
-    service.save(update_last_modified=False)
 
-    service.metadata.set_documents_active_status(new_status)
+    elements = service.subelements + [service]
+    for element in elements:
+        element.is_active = is_active
+        element.save(update_last_modified=False)
 
-    # get root_layer of service and start changing of all statuses
-    # also check all related metadata and activate them too
-    if service.is_service_type(OGCServiceEnum.WMS):
-        service.activate_service(new_status)
-        root_layer = Layer.objects.get(parent_service=service, parent_layer=None)
-        root_layer.activate_layer_recursive(new_status)
+        md = element.metadata
+        md.is_active = is_active
+        md.set_documents_active_status(is_active)
+        md.save(update_last_modified=False)
 
-    # activate features/related dataset metadata
-    elif service.is_service_type(OGCServiceEnum.WFS):
-        featuretypes = service.featuretypes.all()
+        # activate related metadata (if exists)
+        md_relations = MetadataRelation.objects.filter(
+            metadata_from=md
+        )
+        for relation in md_relations:
+            related_md = relation.metadata_to
 
-        for featuretype in featuretypes:
-            ft_metadata = featuretype.metadata
-            ft_metadata.set_documents_active_status(new_status)
-            ft_metadata.is_active = new_status
-
-            # activate related metadata (if it exists)
-            md_relations = MetadataRelation.objects.filter(
-                metadata_from=ft_metadata
+            # Check for dependencies before toggling active status
+            # We are only interested in dependencies from activated metadatas
+            relations_from_others = MetadataRelation.objects.filter(
+                metadata_to=related_md,
+                metadata_from__is_active=True
             )
-            for relation in md_relations:
-                related_md = relation.metadata_to
-
-                # Check for dependencies before toggling active status
-                # We are only interested in dependencies from activated metadatas
-                relations_from_others = MetadataRelation.objects.filter(
-                    metadata_to=related_md,
-                    metadata_from__is_active=True
-                )
-                if relations_from_others.count() > 1 and new_status is False:
-                    # If there are more than our relation and we want to deactivate, we do NOT proceed
-                    continue
-                else:
-                    # If there are no other dependencies OR we just want to activate the resource, we are good to go
-                    related_md.set_documents_active_status(new_status)
-                    related_md.is_active = new_status
-                    related_md.save()
-            ft_metadata.save()
+            if relations_from_others.count() > 1 and is_active is False:
+                # If there are more than our relation and we want to deactivate, we do NOT proceed
+                continue
+            else:
+                # If there are no other dependencies OR we just want to activate the resource, we are good to go
+                related_md.set_documents_active_status(is_active)
+                related_md.is_active = is_active
+                related_md.save()
 
     # Formating using an empty string here is correct, since these are the messages we show in
     # the group activity list. We reuse a message template, which uses a '{}' placeholder.

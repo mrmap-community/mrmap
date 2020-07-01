@@ -13,6 +13,7 @@ from service.helper.ogc import operation_request_handler
 from service.helper.service_comparator import ServiceComparator
 from service.models import Layer, FeatureType, Service, Metadata
 from service.tables import WmsServiceTable, WfsServiceTable, PendingTasksTable
+from service.tasks import async_activate_service
 from structure.models import PendingTask, GroupActivity
 from tests.baker_recipes.db_setup import *
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
@@ -719,6 +720,9 @@ class GetDatasetMetadataViewTestCase(TestCase):
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
         self.wms_metadata = create_wms_service(group=self.user.get_groups().first(), how_much_services=1)[0]
+
+        # Activate metadata
+        async_activate_service(self.wms_metadata.service.id, self.user.id, True)
 
     def test_get_dataset_metadata_redirect_to_dataset(self):
         response = self.client.get(

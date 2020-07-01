@@ -1485,11 +1485,12 @@ class Metadata(Resource):
         for subelement_md in subelements_mds:
             subelement_md.use_proxy_uri = self.use_proxy_uri
             try:
-                subelement_md_doc = Document.objects.get_or_create(
+                # If there exists already a capabilities document for a subelement, we need to change the links there as well
+                subelement_md_doc = Document.objects.get(
                     metadata=subelement_md,
                     document_type=DocumentEnum.CAPABILITY.value,
                     is_original=False
-                )[0]
+                )
                 if subelement_md_doc.content is not None:
                     subelement_md_doc.set_proxy(use_proxy)
             except ObjectDoesNotExist:

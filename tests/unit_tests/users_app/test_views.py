@@ -501,9 +501,9 @@ class SubscriptionTestCase(TestCase):
         edit_sub_route = reverse("subscription-edit", args=(sub.id,))
         post_params = {
             "metadata": self.service_md.id,
-            "notify_on_update": False,
-            "notify_on_metadata_edit": False,
-            "notify_on_access_edit": False,
+            "notify_on_update": "False",
+            "notify_on_metadata_edit": "False",
+            "notify_on_access_edit": "False",
         }
         response = self.client.post(
             path=edit_sub_route,
@@ -518,11 +518,12 @@ class SubscriptionTestCase(TestCase):
         self.assertFalse(sub.notify_on_access_edit)
 
         # Check that a subscription's metadata can not be changed
+        # Regular changes of notifications will be persisted
         post_params = {
-            "metadata": Metadata.objects.filter(metadata_type__type=MetadataEnum.SERVICE.value).exclude(id=self.service_md.id).first(),
-            "notify_on_update": True,
-            "notify_on_metadata_edit": True,
-            "notify_on_access_edit": True,
+            "metadata": Metadata.objects.filter(metadata_type__type=MetadataEnum.SERVICE.value).exclude(id=self.service_md.id).first().id,
+            "notify_on_update": "True",
+            "notify_on_metadata_edit": "True",
+            "notify_on_access_edit": "True",
         }
         response = self.client.post(
             path=edit_sub_route,
@@ -533,9 +534,6 @@ class SubscriptionTestCase(TestCase):
         # Assert redirect and same conditions as before
         self.assertEqual(response.status_code, 302)
         self.assertEqual(sub.metadata, self.service_md, msg="Subscription metadata could be changed!")
-        self.assertFalse(sub.notify_on_update)
-        self.assertFalse(sub.notify_on_metadata_edit)
-        self.assertFalse(sub.notify_on_access_edit)
 
     def test_remove_subscription(self):
         """ Tests whether the remove logic is working

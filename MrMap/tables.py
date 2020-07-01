@@ -16,12 +16,15 @@ class MrMapTable(tables.Table):
     page_field = None
     caption = ""
 
-    def __init__(self, request=None, query_filter=None, query_class=None, *args, **kwargs):
+    def __init__(self, request=None, query_filter=None, query_class=None, current_view=None, *args, **kwargs):
         # Generate a random id for html template
         self.table_id = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
         self.request = request
         self.user = user_helper.get_user(request)
+        self.current_view = current_view
 
+        # He we set the data kw dynamic by the query_class and query_filter,
+        # so we don't need to set the data kw in every view again and again
         if query_class:
             if query_filter:
                 data = query_class.objects.filter(query_filter)

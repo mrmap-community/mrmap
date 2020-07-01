@@ -4,10 +4,7 @@ from django.http import HttpRequest
 from django.template.loader import render_to_string
 from django.urls import reverse, resolve
 from django.utils.translation import gettext_lazy as _
-
-from MrMap.consts import BTN_SM_CLASS
 from MrMap.responses import DefaultContext
-from MrMap.utils import get_theme
 from users.helper import user_helper
 import random
 import string
@@ -21,6 +18,7 @@ class MrMapModalForm:
                  has_autocomplete_fields: bool = False,
                  # ToDo: in future reverse_lookup and current_view become a non default kw
                  reverse_lookup: str = None,
+                 reverse_args: list = None,
                  current_view: str = None,
                  template_name: str = None,
                  default_context: dict = None,
@@ -35,8 +33,9 @@ class MrMapModalForm:
         self.form_title = form_title
         self.has_autocomplete_fields = has_autocomplete_fields
         self.reverse_lookup = reverse_lookup
+        self.reverse_args = reverse_args
         self.current_view = current_view
-        self.action_url = reverse(self.reverse_lookup, args=(self.current_view, ))
+        self.action_url = reverse(self.reverse_lookup, args=reverse_args)
         self.template_name = template_name or 'skeletons/modal_form.html'
         self.default_context = default_context or DefaultContext(request, {}, self.requesting_user).context
         self.show_modal = show_modal
@@ -63,6 +62,7 @@ class MrMapForm(forms.Form, MrMapModalForm):
                  has_autocomplete_fields: bool = False,
                  # ToDo: in future reverse_lookup and current_view become a non default kw
                  reverse_lookup: str = None,
+                 reverse_args: list = None,
                  current_view: str = None,
                  template_name: str = None,
                  default_context: dict = None,
@@ -75,6 +75,7 @@ class MrMapForm(forms.Form, MrMapModalForm):
                                 form_title,
                                 has_autocomplete_fields,
                                 reverse_lookup,
+                                reverse_args,
                                 current_view,
                                 template_name,
                                 default_context,
@@ -92,6 +93,7 @@ class MrMapModelForm(ModelForm, MrMapModalForm):
                  has_autocomplete_fields: bool = False,
                  # ToDo: in future reverse_lookup and current_view become a non default kw
                  reverse_lookup: str = None,
+                 reverse_args: list = None,
                  current_view: str = None,
                  template_name: str = None,
                  default_context: dict = None,
@@ -104,6 +106,7 @@ class MrMapModelForm(ModelForm, MrMapModalForm):
                                 form_title,
                                 has_autocomplete_fields,
                                 reverse_lookup,
+                                reverse_args,
                                 current_view,
                                 template_name,
                                 default_context,

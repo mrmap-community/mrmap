@@ -127,9 +127,7 @@ class SubscriptionForm(MrMapModelForm):
             "notify_on_metadata_edit": _("Notify on metadata changes"),
         }
 
-    def __init__(self, *args, **kwargs):
-        is_edit = kwargs.pop("is_edit", False)
-
+    def __init__(self, is_edit: bool = False, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         if is_edit:

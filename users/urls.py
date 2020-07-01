@@ -21,6 +21,6 @@ urlpatterns = [
     path('activate/<activation_hash>', activate_user, name='activate-user'),
     path('subscription', subscription_index_view, name='subscription-index'),
     path('subscription/new/<current_view>', subscription_new_view, name='subscription-new'),
-    path('subscription/<id>/edit', subscription_edit_view, name='subscription-edit'),
-    path('subscription/<id>/remove', subscription_remove, name='subscription-remove'),
+    path('subscription/<subscription_id>/edit/<current_view>', subscription_edit_view, name='subscription-edit'),
+    path('subscription/<subscription_id>/remove/<current_view>', subscription_remove, name='subscription-remove'),
 ]

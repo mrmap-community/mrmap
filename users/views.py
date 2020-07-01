@@ -165,7 +165,8 @@ def account(request: HttpRequest, update_params: dict = None, status_code: int =
 
     user = user_helper.get_user(request)
 
-    subscription_table = SubscriptionTable(request=request)
+    subscription_table = SubscriptionTable(request=request,
+                                           current_view='account')
 
     params = {
         "edit_account_form": edit_account_form,
@@ -406,6 +407,7 @@ def subscription_new_view(request: HttpRequest, current_view: str):
     form = SubscriptionForm(data=request.POST or None,
                             request=request,
                             reverse_lookup='subscription-new',
+                            reverse_args=[current_view],
                             current_view=current_view,
                             form_title=_('New Subscription'),
                             )
@@ -430,7 +432,6 @@ def subscription_new_view(request: HttpRequest, current_view: str):
                 messages.success(request, SUBSCRIPTION_EDITING_SUCCESSFULL)
                 return HttpResponseRedirect(reverse(current_view, ), status=303)
         else:
-            messages.error(request, FORM_INPUT_INVALID)
             form.fade_modal = False
             return form.render_view()
 
@@ -438,12 +439,13 @@ def subscription_new_view(request: HttpRequest, current_view: str):
 
 
 @login_required
-def subscription_edit_view(request: HttpRequest, id: str):
+def subscription_edit_view(request: HttpRequest, subscription_id: str, current_view: str):
     """ Renders a view for editing a subscription
 
     Args:
         request (HttpRequest): The incoming request
-        id (str): The uuid of the subscription as string
+        subscription_id (str): The uuid of the subscription as string
+        current_view: The current view where the request comes from
     Returns:
          A rendered view
     """
@@ -451,19 +453,25 @@ def subscription_edit_view(request: HttpRequest, id: str):
 
     try:
         subscription = Subscription.objects.get(
-            id=id,
+            id=subscription_id,
             user=user,
         )
     except ObjectDoesNotExist:
         messages.error(request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
         return redirect('users:home')
 
-    form = SubscriptionForm(request.POST or None, instance=subscription, is_edit=True)
-    params = {}
+    form = SubscriptionForm(data=request.POST or None,
+                            instance=subscription,
+                            is_edit=True,
+                            request=request,
+                            reverse_lookup='subscription-edit',
+                            reverse_args=[subscription_id, current_view],
+                            current_view=current_view,
+                            form_title=_('New Subscription'),
+                            )
 
     if request.method == 'GET':
-        context = DefaultContext(request, params, user)
-        # ToDo: Render template
+        return form.render_view()
 
     elif request.method == 'POST':
         # Post changes/new subscription
@@ -476,12 +484,9 @@ def subscription_edit_view(request: HttpRequest, id: str):
                 form_subscription.save()
                 messages.success(request, SUBSCRIPTION_EDITING_SUCCESSFULL)
         else:
-            messages.error(request, FORM_INPUT_INVALID)
-    else:
-        # Not supported
-        pass
+            return form.render_view()
 
-    return redirect("home")
+    return HttpResponseRedirect(reverse(current_view, ), status=303)
 
 
 @login_required

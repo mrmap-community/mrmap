@@ -105,9 +105,9 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
                              'title': child.metadata.title,
                              'sublayers_count': child_child_layers.count()}, )
 
-        child_layer_table = ChildLayerTable(children,
+        child_layer_table = ChildLayerTable(data=children,
                                             order_by='title',
-                                            user=None,)
+                                            request=None,)
 
         child_layer_table.configure_pagination(request, 'cl-t')
 
@@ -142,10 +142,10 @@ def collect_wms_root_data(md: Metadata):
                   'title': layer.metadata.title,
                   'sublayers_count': child_child_layers.count()}]
 
-    sub_layer_table = ChildLayerTable(sub_layer,
+    sub_layer_table = ChildLayerTable(data=sub_layer,
                                       orderable=False,
                                       show_header=False,
-                                      user=None,)
+                                      request=None,)
 
     params['children'] = sub_layer_table
     params['fees'] = md.fees
@@ -179,9 +179,9 @@ def collect_wfs_root_data(md: Metadata, request: HttpRequest):
                              'title': child.metadata.title,
                              })
 
-    featuretype_table = FeatureTypeTable(featuretypes,
+    featuretype_table = FeatureTypeTable(data=featuretypes,
                                          order_by='title',
-                                         user=None,)
+                                         request=None,)
     featuretype_table.configure_pagination(request, 'ft-t')
     featuretype_table.filter = featuretypes_filtered
 
@@ -215,10 +215,10 @@ def collect_metadata_related_objects(md: Metadata, request: HttpRequest,):
 
         # build django tables2 table
         related_metadata_table = CoupledMetadataTable(
-            metadatas_dict_array,
+            data=metadatas_dict_array,
             order_by='title',
             show_header=show_header,
-            user=None,)
+            request=None,)
 
         related_metadata_table.configure_pagination(request, 'rm-t')
 

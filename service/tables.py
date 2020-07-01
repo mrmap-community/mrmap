@@ -41,10 +41,6 @@ class ServiceTable(MrMapTable):
     wms_registered_for = tables.Column(accessor='service.published_for', verbose_name=_('Registered for'), attrs=attrs)
     wms_created_on = tables.Column(accessor='created', verbose_name=_('Created on'), attrs=attrs)
 
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
-
     def render_wms_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
@@ -148,10 +144,6 @@ class WfsServiceTable(MrMapTable):
     wfs_registered_for = tables.Column(accessor='service.published_for', verbose_name=_('Registered for'), )
     wfs_created_on = tables.Column(accessor='created', verbose_name=_('Created on'), )
 
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
-
     def render_wfs_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
@@ -209,10 +201,6 @@ class PendingTasksTable(MrMapTable):
     pt_phase = tables.Column(verbose_name=_('Phase'), empty_values=[], orderable=False,)
     pt_progress = tables.Column(verbose_name=_('Progress'), empty_values=[], orderable=False,)
 
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
-
     def render_pt_cancle(self, record):
         url = reverse('structure:remove-task', args=(record.id,))
         return _get_close_button(url, self.user)
@@ -264,10 +252,6 @@ class ChildLayerTable(MrMapTable):
 
     caption = _("Shows all child layer of current WMS.")
 
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
-
     @staticmethod
     def render_child_layer_title(record):
         url = reverse('service:get-metadata-html', args=(record['id'],))
@@ -290,10 +274,6 @@ class FeatureTypeTable(MrMapTable):
 
     caption = _("Shows all featuretypes of current WFS.")
 
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
-
     @staticmethod
     def render_featuretype_title(record):
         url = reverse('service:get-metadata-html', args=(record['id'],))
@@ -309,10 +289,6 @@ class CoupledMetadataTable(MrMapTable):
     coupled_metadata_title = tables.Column(empty_values=[], order_by='title', )
 
     caption = _("Shows all coupled metadata of current service.")
-
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
 
     @staticmethod
     def render_coupled_metadata_title(record):
@@ -351,10 +327,6 @@ class ProxyLogTable(MrMapTable):
     operation = MrMapColumn(accessor='operation',
                             tooltip=_("Operation param of the request"),
                             verbose_name=_('Operation'), )
-
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
 
     @staticmethod
     def render_metadata_title(record):

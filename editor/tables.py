@@ -1,6 +1,5 @@
 import django_tables2 as tables
 from django.template.loader import render_to_string
-from django.utils.html import format_html
 from django.urls import reverse
 
 from MrMap.forms import MrMapConfirmForm
@@ -51,10 +50,6 @@ class WmsServiceTable(MrMapTable):
     wms_edit_metadata = tables.Column(verbose_name=_('Edit'), empty_values=[])
     wms_edit_access = tables.Column(verbose_name=_('Access'), empty_values=[])
     wms_reset = tables.Column(verbose_name=_('Reset'), empty_values=[])
-
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
 
     def render_wms_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))
@@ -111,10 +106,6 @@ class WfsServiceTable(MrMapTable):
     wfs_edit_access = tables.Column(verbose_name=_('Access'), empty_values=[])
     wfs_reset = tables.Column(verbose_name=_('Reset'), empty_values=[])
 
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
-
     def render_wfs_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))
         return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
@@ -163,11 +154,6 @@ class DatasetTable(MrMapTable):
     dataset_related_objects = tables.Column(verbose_name=_('Related objects'), empty_values=[])
     dataset_origins = tables.Column(verbose_name=_('Origins'), empty_values=[])
     dataset_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False)
-
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        self.request = kwargs.pop('request')
-        super().__init__(*args, **kwargs)
 
     def render_dataset_title(self, value, record):
         url = reverse('service:get-metadata-html', args=(record.id,))

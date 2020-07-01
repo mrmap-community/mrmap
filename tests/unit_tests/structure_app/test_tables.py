@@ -48,6 +48,12 @@ class StructureTablesTestCase(TestCase):
         self.user.refresh_from_db()
 
         self.request_factory = RequestFactory()
+        # Create an instance of a GET request.
+        self.request = self.request_factory.get('/')
+        # Recall that middleware are not supported. You can simulate a
+        # logged-in user by setting request.user manually.
+        self.request.user = self.user
+
         self.groups_url_path_name = STRUCTURE_INDEX_GROUP
         self.orgs_url_path_name = STRUCTURE_INDEX_ORGANIZATION
 
@@ -61,9 +67,9 @@ class StructureTablesTestCase(TestCase):
         groups = MrMapGroup.objects.all().order_by("?")
         sorting_param = "sg"
         table = GroupTable(
-            groups,
+            data=groups,
             order_by_field=sorting_param,
-            user=self.user
+            request=self.request
         )
         # Check table sorting
         sorting_implementation_failed, sorting_results = utils.check_table_sorting(
@@ -87,9 +93,9 @@ class StructureTablesTestCase(TestCase):
         filter_param = "gsearch"
         sorting_param = "sg"
         table = GroupTable(
-            groups,
+            data=groups,
             order_by_field=sorting_param,
-            user=self.user
+            request=self.request
         )
 
         filter_results = utils.check_table_filtering(
@@ -114,9 +120,9 @@ class StructureTablesTestCase(TestCase):
         orgs = Organization.objects.all().order_by("?")
         sorting_param = "so"
         table = OrganizationTable(
-            orgs,
+            data=orgs,
             order_by_field=sorting_param,
-            user=self.user
+            request=self.request
         )
         # Check table sorting
         sorting_implementation_failed, sorting_results = utils.check_table_sorting(
@@ -140,9 +146,9 @@ class StructureTablesTestCase(TestCase):
         filter_param = "osearch"
         sorting_param = "so"
         table = OrganizationTable(
-            orgs,
+            data=orgs,
             order_by_field=sorting_param,
-            user=self.user
+            request=self.request
         )
 
         filter_results = utils.check_table_filtering(

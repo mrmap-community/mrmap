@@ -107,7 +107,14 @@ def check_table_filtering(table: MrMapTable, filter_parameter: str, filter_class
 
             # Generic approach to filter on various types of tables
             table_filter = filter_class({filter_parameter: filter_for}, queryset)
-            filtered_table = table_class(table_filter.qs, user=user)
+
+            request_factory = RequestFactory()
+            # Create an instance of a GET request.
+            request = request_factory.get('/')
+            # Recall that middleware are not supported. You can simulate a
+            # logged-in user by setting request.user manually.
+            request.user = user
+            filtered_table = table_class(data=table_filter.qs, request=request)
 
             # Iterate over each row in the filtered table and check if all values inside the current column are valid
             for tmp_row in filtered_table.rows:

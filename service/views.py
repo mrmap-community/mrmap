@@ -87,16 +87,16 @@ def _prepare_wms_table(request: HttpRequest):
         service__is_update_candidate_for=None
     ).order_by("title")
 
-    wms_table_filtered = MetadataWmsFilter(request.GET, queryset=md_list_wms)
+    wms_table_filtered = MetadataWmsFilter(data=request.GET, queryset=md_list_wms)
 
     if show_service:
-        wms_table = WmsServiceTable(wms_table_filtered.qs,
+        wms_table = WmsServiceTable(data=wms_table_filtered.qs,
                                     order_by_field='swms',  # swms = sort wms
-                                    user=user, )
+                                    request=request, )
     else:
-        wms_table = WmsLayerTable(wms_table_filtered.qs,
+        wms_table = WmsLayerTable(data=wms_table_filtered.qs,
                                   order_by_field='swms',  # swms = sort wms
-                                  user=user, )
+                                  request=request, )
 
     # add boolean field to filter.form; this is needed, cause the search form sends it if show layer dropdown is set
     # add it after table is created; otherwise we get a KeyError
@@ -105,7 +105,7 @@ def _prepare_wms_table(request: HttpRequest):
 
     wms_table.filter = wms_table_filtered
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    wms_table.configure_pagination(request, 'wms-t')
+    wms_table.configure_pagination(request=request, param_lead='wms-t')
 
     params = {
         "wms_table": wms_table,
@@ -131,14 +131,14 @@ def _prepare_wfs_table(request: HttpRequest):
         service__is_update_candidate_for=None
     ).order_by("title")
 
-    wfs_table_filtered = MetadataWfsFilter(request.GET, queryset=md_list_wfs)
-    wfs_table = WfsServiceTable(wfs_table_filtered.qs,
+    wfs_table_filtered = MetadataWfsFilter(data=request.GET, queryset=md_list_wfs)
+    wfs_table = WfsServiceTable(data=wfs_table_filtered.qs,
                                 order_by_field='swfs',  # swms = sort wms
-                                user=user, )
+                                request=request, )
 
     wfs_table.filter = wfs_table_filtered
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    wfs_table.configure_pagination(request, 'wfs-t')
+    wfs_table.configure_pagination(request=request, param_lead='wfs-t')
 
     params = {
         "wfs_table": wfs_table,
@@ -288,8 +288,9 @@ def index(request: HttpRequest, update_params=None, status_code=None):
 
     # get pending tasks
     pt = PendingTask.objects.filter(created_by__in=user.get_groups())
-    pt_table = PendingTasksTable(pt,
-                                 orderable=False, user=user, )
+    pt_table = PendingTasksTable(data=pt,
+                                 orderable=False,
+                                 request=request, )
 
     params = {
         "pt_table": pt_table,
@@ -326,8 +327,9 @@ def pending_tasks(request: HttpRequest):
 
     # get pending tasks
     pt = PendingTask.objects.filter(created_by__in=user.get_groups())
-    pt_table = PendingTasksTable(pt,
-                                 orderable=False, user=user, )
+    pt_table = PendingTasksTable(data=pt,
+                                 orderable=False,
+                                 request=request, )
     params = {
         "pt_table": pt_table,
         "user": user,
@@ -693,8 +695,9 @@ def wms_index(request: HttpRequest):
 
     # get pending tasks
     pt = PendingTask.objects.filter(created_by__in=user.get_groups())
-    pt_table = PendingTasksTable(pt,
-                                 orderable=False, user=user, )
+    pt_table = PendingTasksTable(data=pt,
+                                 orderable=False,
+                                 request=request, )
 
     params = {
         "pt_table": pt_table,
@@ -797,14 +800,16 @@ def pending_update_service(request: HttpRequest, metadata_id: int, update_params
     for element in diff_elements.get("removed"):
         removed_elements_md.append(element.metadata)
 
-    updated_elements_table = UpdateServiceElements(updated_elements_md,
+    updated_elements_table = UpdateServiceElements(data=updated_elements_md,
                                                    order_by_field='updated',
-                                                   )
-    updated_elements_table.configure_pagination(request, 'updated-t')
+                                                   request=request)
+    updated_elements_table.configure_pagination(request=request,
+                                                param_lead='updated-t')
 
-    removed_elements_table = UpdateServiceElements(removed_elements_md,
-                                                   order_by_field='removed', )
-    removed_elements_table.configure_pagination(request, 'removed-t')
+    removed_elements_table = UpdateServiceElements(data=removed_elements_md,
+                                                   order_by_field='removed',
+                                                   request=request)
+    removed_elements_table.configure_pagination(request=request, param_lead='removed-t')
 
     params = {
         "current_service": current_service,
@@ -955,8 +960,9 @@ def wfs_index(request: HttpRequest):
 
     # get pending tasks
     pending_tasks = PendingTask.objects.filter(created_by__in=user.get_groups())
-    pt_table = PendingTasksTable(pending_tasks,
-                                 orderable=False, user=user, )
+    pt_table = PendingTasksTable(data=pending_tasks,
+                                 orderable=False,
+                                 request=request, )
 
     params = {
         "pt_table": pt_table,

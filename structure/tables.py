@@ -25,10 +25,6 @@ class PublisherTable(MrMapTable):
         }
     )
 
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
-
     def render_publisher_group(self, value, record):
         """ Renders publisher_group as link to detail view of group
 
@@ -70,10 +66,6 @@ class PublishesForTable(MrMapTable):
         }
     )
 
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
-
     def render_publisher_org(self, value, record):
         """ Renders publisher_org as link to detail view of organization
 
@@ -103,10 +95,6 @@ class PublisherRequestTable(MrMapTable):
         extra_context={
         }
     )
-
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
 
     def render_publisher_group(self, value, record):
         """ Renders publisher_group as link to detail view of group
@@ -140,10 +128,6 @@ class GroupTable(MrMapTable):
 
     caption = _("Shows all groups which are configured in your Mr. Map environment.")
 
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
-
     def render_groups_name(self, value, record):
         url = reverse('structure:detail-group', args=(record.id,))
         icon = ''
@@ -169,10 +153,6 @@ class OrganizationTable(MrMapTable):
     orgs_parent = tables.Column(accessor='parent', verbose_name=_('Parent'),)
 
     caption = _("Shows all organizations which are configured in your Mr. Map environment.")
-
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        super().__init__(*args, **kwargs)
 
     def render_orgs_organization_name(self, value, record):
         url = reverse('structure:detail-organization', args=(record.id,))

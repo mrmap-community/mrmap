@@ -7,11 +7,19 @@ Created on: 28.05.19
 """
 from django import forms
 from django.core.exceptions import ObjectDoesNotExist
+from django.template.loader import render_to_string
+from django.urls import reverse, resolve
 from django.utils.translation import gettext_lazy as _
+
+from MrMap.forms import MrMapForm, MrMapModelForm, MrMapConfirmForm
 from MrMap.messages import EMAIL_IS_UNKNOWN, PASSWORD_CHANGE_OLD_PASSWORD_WRONG
+from MrMap.responses import DefaultContext
 from MrMap.settings import MIN_PASSWORD_LENGTH
 from MrMap.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
+from service.helper.enums import MetadataEnum
+from service.models import Metadata
 from structure.models import MrMapUser, Theme
+from users.models import Subscription
 
 
 class PasswordResetForm(forms.Form):
@@ -88,3 +96,45 @@ class UserForm(forms.ModelForm):
             "confirmed_survey",
             "theme",
         ]
+
+
+class SubscriptionForm(MrMapModelForm):
+    metadata = forms.ModelChoiceField(
+        label=_("Service"),
+        help_text=_("Select the service you want to subscribe. When you edit an existing subscription, you can not change this selection."),
+        queryset=Metadata.objects.filter(
+            metadata_type__type=MetadataEnum.SERVICE.value,
+            is_active=True,
+        )
+    )
+
+    class Meta:
+        model = Subscription
+        fields = [
+            "metadata",
+            "notify_on_update",
+            "notify_on_metadata_edit",
+            "notify_on_access_edit",
+        ]
+        help_texts = {
+            "notify_on_update": _("Sends an e-mai if the service has been updated."),
+            "notify_on_access_edit": _("Sends an e-mai if the service's access has been changed."),
+            "notify_on_metadata_edit": _("Sends an e-mai if the service's metadata has been changed."),
+        }
+        labels = {
+            "notify_on_update": _("Notify on update"),
+            "notify_on_access_edit": _("Notify on access changes"),
+            "notify_on_metadata_edit": _("Notify on metadata changes"),
+        }
+
+    def __init__(self, is_edit: bool = False, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if is_edit:
+            # Prevent user from changing the subscribed metadata itself
+            self.fields['metadata'].disabled = True
+
+
+class SubscriptionRemoveForm(MrMapConfirmForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(is_confirmed_label=_('Do you realy want to remove this subscription?'), *args, **kwargs)

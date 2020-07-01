@@ -28,11 +28,11 @@ from users.helper.user_helper import create_group_activity
 
 def _prepare_group_table(request: HttpRequest, user: MrMapUser, ):
     user_groups = user.get_groups().order_by(Case(When(name='Public', then=0)), 'name')
-    user_groups_filtered = GroupFilter(request.GET, queryset=user_groups)
+    user_groups_filtered = GroupFilter(data=request.GET, queryset=user_groups)
 
-    groups_table = GroupTable(user_groups_filtered.qs,
+    groups_table = GroupTable(data=user_groups_filtered.qs,
                               order_by_field='sg',  # sg = sort groups
-                              user=user, )
+                              request=request, )
     groups_table.filter = user_groups_filtered
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
     groups_table.configure_pagination(request, 'groups-t')
@@ -47,11 +47,11 @@ def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, ):
         Case(When(id=user.organization.id if user.organization is not None else 0, then=0), default=1),
         'organization_name')
 
-    all_orgs_filtered = OrganizationFilter(request.GET, queryset=all_orgs)
+    all_orgs_filtered = OrganizationFilter(data=request.GET, queryset=all_orgs)
 
-    all_orgs_table = OrganizationTable(all_orgs_filtered.qs,
+    all_orgs_table = OrganizationTable(data=all_orgs_filtered.qs,
                                        order_by_field='so',  # so = sort organizations
-                                       user=user, )
+                                       request=request, )
     all_orgs_table.filter = all_orgs_filtered
     # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
     all_orgs_table.configure_pagination(request, 'orgs-t')
@@ -184,14 +184,14 @@ def detail_organizations(request: HttpRequest, org_id: int, update_params=None, 
     # list publishers and requests
     pub_requests = PendingRequest.objects.filter(type=PENDING_REQUEST_TYPE_PUBLISHING, organization=org_id)
     pub_requests_table = PublisherRequestTable(
-        pub_requests,
-        user=user,
+        data=pub_requests,
+        request=request,
     )
 
     all_publishing_groups = MrMapGroup.objects.filter(publish_for_organizations__id=org_id)
     publisher_table = PublisherTable(
-        all_publishing_groups,
-        user=user,
+        data=all_publishing_groups,
+        request=request,
     )
 
     edit_form = OrganizationForm(instance=org, is_edit=True, requesting_user=user)
@@ -483,8 +483,8 @@ def detail_group(request: HttpRequest, group_id: int, update_params=None, status
 
     publisher_for = group.publish_for_organizations.all()
     all_publisher_table = PublishesForTable(
-        publisher_for,
-        user=user,
+        data=publisher_for,
+        request=request,
     )
 
     subgroups = MrMapGroup.objects.filter(parent_group=group)

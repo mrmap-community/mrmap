@@ -56,7 +56,7 @@ FONT_AWESOME_ICONS = {
     'BACK': format_html(ICON_PATTERN, 'fas', 'fa-step-backward', ),
     'NEXT': format_html(ICON_PATTERN, 'fas', 'fa-step-forward', ),
     'LAST': format_html(ICON_PATTERN, 'fas', 'fa-fast-forward', ),
-
+    'SUBSCRIPTION': format_html(ICON_PATTERN, 'fas', 'fa-bullhorn', ),
 }
 
 # dark theme settings

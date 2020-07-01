@@ -41,9 +41,23 @@ class MrMapTable(tables.Table):
         self.paginate(page=request.GET.get(self.pagination.get('page_name'), PAGE_DEFAULT),
                       per_page=request.GET.get(self.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
+    def get_link(self, href: str, value: str, tooltip: str, tooltip_placement: str, permission: Permission):
+        if self.user.has_permission(permission):
+            context = {
+                "href": href,
+                "value": value,
+                "link_color": get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                "tooltip": tooltip,
+                "tooltip_placement": tooltip_placement,
+            }
+            return render_to_string(template_name="sceletons/open-link.html",
+                                    context=context)
+        else:
+            return ''
+
     def get_edit_btn(self, href: str, tooltip: str, tooltip_placement: str, permission: Permission):
         if self.user.has_permission(permission):
-            context_edit_btn = {
+            context = {
                 "btn_size": BTN_SM_CLASS,
                 "btn_color": get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
                 "btn_value": get_theme(self.user)["ICONS"]['EDIT'],
@@ -52,13 +66,13 @@ class MrMapTable(tables.Table):
                 "tooltip_placement": tooltip_placement,
             }
             return render_to_string(template_name="sceletons/open-link-button.html",
-                                    context=context_edit_btn)
+                                    context=context)
         else:
             return ''
 
     def get_remove_btn(self, href: str, tooltip: str, tooltip_placement: str, permission: Permission):
         if self.user.has_permission(permission):
-            context_edit_btn = {
+            context = {
                 "btn_size": BTN_SM_CLASS,
                 "btn_color": get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
                 "btn_value": get_theme(self.user)["ICONS"]['REMOVE'],
@@ -67,7 +81,7 @@ class MrMapTable(tables.Table):
                 "tooltip_placement": tooltip_placement,
             }
             return render_to_string(template_name="sceletons/open-link-button.html",
-                                    context=context_edit_btn)
+                                    context=context)
         else:
             return ''
 

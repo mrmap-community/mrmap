@@ -20,6 +20,8 @@ class MrMapModalForm:
                  # ToDo: in future reverse_lookup and current_view become a non default kw
                  reverse_lookup: str = None,
                  reverse_args: list = None,
+                 # Todo: action_url as constructor kw is deprecated
+                 action_url: str = None,
                  current_view: str = None,
                  template_name: str = None,
                  default_context: dict = None,
@@ -36,7 +38,7 @@ class MrMapModalForm:
         self.reverse_lookup = reverse_lookup
         self.reverse_args = reverse_args
         self.current_view = current_view
-        self.action_url = reverse(self.reverse_lookup, args=reverse_args)
+        self.action_url = reverse(self.reverse_lookup, args=reverse_args) if reverse_lookup else action_url
         self.template_name = template_name or 'skeletons/modal_form.html'
         self.default_context = default_context or DefaultContext(request, {}, self.requesting_user).context
         self.show_modal = show_modal
@@ -64,6 +66,8 @@ class MrMapForm(forms.Form, MrMapModalForm):
                  # ToDo: in future reverse_lookup and current_view become a non default kw
                  reverse_lookup: str = None,
                  reverse_args: list = None,
+                 # Todo: action_url as constructor kw is deprecated
+                 action_url: str = None,
                  current_view: str = None,
                  template_name: str = None,
                  default_context: dict = None,
@@ -77,6 +81,7 @@ class MrMapForm(forms.Form, MrMapModalForm):
                                 has_autocomplete_fields,
                                 reverse_lookup,
                                 reverse_args,
+                                action_url,
                                 current_view,
                                 template_name,
                                 default_context,
@@ -95,6 +100,8 @@ class MrMapModelForm(ModelForm, MrMapModalForm):
                  # ToDo: in future reverse_lookup and current_view become a non default kw
                  reverse_lookup: str = None,
                  reverse_args: list = None,
+                 # Todo: action_url as constructor kw is deprecated
+                 action_url: str = None,
                  current_view: str = None,
                  template_name: str = None,
                  default_context: dict = None,
@@ -108,6 +115,7 @@ class MrMapModelForm(ModelForm, MrMapModalForm):
                                 has_autocomplete_fields,
                                 reverse_lookup,
                                 reverse_args,
+                                action_url,
                                 current_view,
                                 template_name,
                                 default_context,

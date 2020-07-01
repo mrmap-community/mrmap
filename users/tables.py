@@ -48,8 +48,14 @@ class SubscriptionTable(MrMapTable):
         super(SubscriptionTable, self).__init__(query_class=Subscription, *args, **kwargs)
 
     def render_subscribed_services(self, record, value):
-        url = reverse('service:detail', args=(record.metadata.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(self.get_link(
+            href=reverse('service:detail', args=(record.metadata.id,)),
+            value=value,
+            tooltip=format_html(
+                _(f"Go to the detail view of service <strong>{record.metadata.title} [{record.metadata.id}]</strong>"), ),
+            tooltip_placement='left',
+            permission=Permission()
+        ))
 
     @staticmethod
     def render_notify_on_update(value):

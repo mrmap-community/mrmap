@@ -452,7 +452,7 @@ class SubscriptionTestCase(TestCase):
 
         """
         pre_count_subscriptions = Subscription.objects.all().count()
-        new_sub_path = reverse("subscription-new")
+        new_sub_path = reverse("subscription-new", args=('account', ))
         post_params = {
             "metadata": self.service_md.id,
             "notify_on_update": True,
@@ -464,7 +464,7 @@ class SubscriptionTestCase(TestCase):
             data=post_params
         )
         post_count_subscriptions = Subscription.objects.all().count()
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 303)
         self.assertEqual(pre_count_subscriptions + 1, post_count_subscriptions)
         try:
             new_subscription = Subscription.objects.get(
@@ -498,7 +498,7 @@ class SubscriptionTestCase(TestCase):
             notify_on_metadata_edit=True,
             notify_on_access_edit=True,
         )
-        edit_sub_route = reverse("subscription-edit", args=(sub.id,))
+        edit_sub_route = reverse("subscription-edit", args=(sub.id, 'account'))
         post_params = {
             "metadata": self.service_md.id,
             "notify_on_update": "False",
@@ -512,7 +512,7 @@ class SubscriptionTestCase(TestCase):
         sub.refresh_from_db()
 
         # Assert redirect
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 303)
         self.assertFalse(sub.notify_on_update)
         self.assertFalse(sub.notify_on_metadata_edit)
         self.assertFalse(sub.notify_on_access_edit)
@@ -532,7 +532,7 @@ class SubscriptionTestCase(TestCase):
         sub.refresh_from_db()
 
         # Assert redirect and same conditions as before
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 303)
         self.assertEqual(sub.metadata, self.service_md, msg="Subscription metadata could be changed!")
 
     def test_remove_subscription(self):
@@ -549,9 +549,10 @@ class SubscriptionTestCase(TestCase):
             notify_on_access_edit=True,
         )
         pre_sub_count = Subscription.objects.all().count()
-        remove_sub_rote = reverse("subscription-remove", args=(sub.id,))
-        response = self.client.get(
+        remove_sub_rote = reverse("subscription-remove", args=(sub.id, 'account'))
+        response = self.client.post(
             path=remove_sub_rote,
+            data={'is_confirmed': 'True'}
         )
         post_sub_count = Subscription.objects.all().count()
         try:

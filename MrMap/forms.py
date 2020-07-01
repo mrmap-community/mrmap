@@ -25,7 +25,7 @@ class MrMapModalForm:
                  current_view: str = None,
                  template_name: str = None,
                  default_context: dict = None,
-                 show_modal: bool = True,
+                 show_modal: bool = False,
                  fade_modal: bool = True,
                  *args,
                  **kwargs, ):
@@ -71,7 +71,8 @@ class MrMapForm(forms.Form, MrMapModalForm):
                  current_view: str = None,
                  template_name: str = None,
                  default_context: dict = None,
-                 show_modal: bool = True,
+                 # ToDo: show_modal default should be true
+                 show_modal: bool = False,
                  fade_modal: bool = True,
                  *args,
                  **kwargs):
@@ -105,7 +106,8 @@ class MrMapModelForm(ModelForm, MrMapModalForm):
                  current_view: str = None,
                  template_name: str = None,
                  default_context: dict = None,
-                 show_modal: bool = True,
+                 # ToDo: show_modal default should be true
+                 show_modal: bool = False,
                  fade_modal: bool = True,
                  *args,
                  **kwargs):
@@ -169,7 +171,8 @@ class MrMapWizardModelForm(ModelForm):
 class MrMapConfirmForm(MrMapForm):
     is_confirmed = forms.BooleanField()
 
-    def __init__(self, is_confirmed_label: str = '', *args, **kwargs):
+    def __init__(self, *args, **kwargs):
+        is_confirmed_label = '' if 'is_confirmed_label' not in kwargs else kwargs.pop('is_confirmed_label')
         super(MrMapConfirmForm, self).__init__(*args, **kwargs)
         self.fields["is_confirmed"].label = is_confirmed_label
 

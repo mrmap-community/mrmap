@@ -410,6 +410,8 @@ def subscription_new_view(request: HttpRequest, current_view: str):
                             reverse_args=[current_view],
                             current_view=current_view,
                             form_title=_('New Subscription'),
+                            # ToDo: show_modal will be default True in future
+                            show_modal=True,
                             )
 
     if request.method == 'GET':
@@ -468,6 +470,8 @@ def subscription_edit_view(request: HttpRequest, subscription_id: str, current_v
                             reverse_args=[subscription_id, current_view],
                             current_view=current_view,
                             form_title=_('New Subscription'),
+                            # ToDo: show_modal will be default True in future
+                            show_modal=True,
                             )
 
     if request.method == 'GET':
@@ -511,6 +515,8 @@ def subscription_remove(request: HttpRequest, subscription_id: str, current_view
                                   reverse_args=[subscription_id, current_view],
                                   current_view=current_view,
                                   form_title=_(f'Remove Subscription for service <strong>{subscription.metadata}</strong>'),
+                                  # ToDo: show_modal will be default True in future
+                                  show_modal=True,
                                   )
 
     if request.method == 'GET':

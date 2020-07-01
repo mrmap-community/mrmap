@@ -433,7 +433,8 @@ def restore(request: HttpRequest, metadata_id: int):
 
     metadata = Metadata.objects.get(id=metadata_id)
 
-    remove_form = MrMapConfirmForm(request.POST,
+    remove_form = MrMapConfirmForm(data=request.POST,
+                                   request=request,
                                    action_url=reverse("editor:restore-dataset-metadata", args=[metadata_id, ]),
                                    is_confirmed_label=_("Do you really want to restore this dataset?"))
     if request.method == 'POST':

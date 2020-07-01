@@ -33,6 +33,8 @@ class RegisterNewServiceWizardPage1(forms.Form):
 
 
 class RegisterNewServiceWizardPage2(forms.Form):
+
+    show_modal = True
     action_url = reverse_lazy(SERVICE_ADD, )
     page = forms.IntegerField(required=False, widget=forms.HiddenInput(), initial=2)
     is_form_update = forms.BooleanField(required=False, widget=forms.HiddenInput(), initial=False)
@@ -82,6 +84,7 @@ class RegisterNewServiceWizardPage2(forms.Form):
             self.fields["password"].required = True
             self.fields["authentication_type"].disabled = False
             self.fields["authentication_type"].required = True
+
 
 
 class RemoveServiceForm(forms.Form):

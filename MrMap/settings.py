@@ -158,6 +158,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.RemoteUserMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'dealer.contrib.django.Middleware',
 ]
 
 # Password hashes
@@ -332,3 +333,6 @@ MONITORING_REQUEST_TIMEOUT = 30  # seconds
 INTERNAL_IPS = [
     "127.0.0.1"
 ]
+
+## DEALER Settings
+DEALER_PATH = BASE_DIR

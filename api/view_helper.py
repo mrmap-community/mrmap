@@ -260,7 +260,7 @@ def filter_queryset_metadata_type(queryset, type: str):
     Returns:
         queryset: The given queryset which only contains matching elements
     """
-    filter_identifier = "service__servicetype__name"
+    filter_identifier = "service__service_type__name"
     single_types = [
         "dataset",
         "feature",
@@ -379,6 +379,6 @@ def filter_queryset_service_type(queryset, type):
     """
     if type is not None:
         queryset = queryset.filter(
-            servicetype__name=type
+            service_type__name=type
         )
     return queryset

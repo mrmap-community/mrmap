@@ -99,7 +99,7 @@ class MonitoringTests(TestCase):
 
         metadatas = Metadata.objects.all()
         wfs_services = [m for m in metadatas if m.metadata_type.type == MetadataEnum.SERVICE.value]
-        wfs = [m for m in wfs_services if m.service.servicetype.name == OGCServiceEnum.WFS.value]
+        wfs = [m for m in wfs_services if m.service.service_type.name == OGCServiceEnum.WFS.value]
         cls.metadata_wfs = wfs[0]
         cls.metadata_wms = Metadata.objects.filter(identifier=cls.wms_layername)[0]
 

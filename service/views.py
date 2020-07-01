@@ -28,7 +28,7 @@ from service.forms import RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, RemoveServiceForm, UpdateServiceCheckForm, UpdateOldToNewElementsForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum
+from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum, DocumentEnum
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
@@ -80,7 +80,7 @@ def _prepare_wms_table(request: HttpRequest):
         show_service = True
 
     md_list_wms = Metadata.objects.filter(
-        service__servicetype__name=OGCServiceEnum.WMS.value,
+        service__service_type__name=OGCServiceEnum.WMS.value,
         service__is_root=show_service,
         created_by__in=user.get_groups(),
         is_deleted=False,
@@ -125,7 +125,7 @@ def _prepare_wfs_table(request: HttpRequest):
     """
     user = user_helper.get_user(request)
     md_list_wfs = Metadata.objects.filter(
-        service__servicetype__name=OGCServiceEnum.WFS.value,
+        service__service_type__name=OGCServiceEnum.WFS.value,
         created_by__in=user.get_groups(),
         is_deleted=False,
         service__is_update_candidate_for=None
@@ -437,10 +437,14 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
             if md is None:
                 raise ObjectDoesNotExist
             return redirect("service:get-dataset-metadata", metadata_id=md.id)
-        document = Document.objects.get(related_metadata=md)
-        document = document.current_dataset_metadata_document
-        if document is None:
-            raise ObjectDoesNotExist
+        documents = Document.objects.filter(
+            metadata=md,
+            document_type=DocumentEnum.METADATA.value,
+            is_active=True,
+        )
+        # prefer current metadata document (is_original=false), otherwise take the original one
+        document = documents.get(is_original=False) if documents.filter(is_original=False).exists() else documents.get(is_original=True)
+        document = document.content
     except ObjectDoesNotExist:
         # ToDo: a datasetmetadata without a document is broken
         return HttpResponse(content=_("No dataset metadata found"), status=404)
@@ -600,16 +604,17 @@ def _get_capabilities(request: HttpRequest, metadata_id: int):
                 raise ValueError("No xml document was retrieved. Content was :'{}'".format(xml))
 
             # we fake the persisted service version, so the document setters will change the correct elements in the xml
-            # md.service.servicetype.version = version_param
+            # md.service.service_type.version = version_param
             doc = Document(
-                original_capability_document=xml,
-                current_capability_document=xml,
-                related_metadata=md
+                content=xml,
+                metadata=md,
+                document_type=DocumentEnum.CAPABILITY.value,
+                is_original=True
             )
             doc.set_capabilities_secured(auto_save=False)
             if md.use_proxy_uri:
                 doc.set_proxy(True, auto_save=False, force_version=version_param)
-            doc = doc.current_capability_document
+            doc = doc.content
         except (ReadTimeout, TimeoutError, ConnectionError) as e:
             # the remote server does not respond - we must deliver our stored capabilities document, which is not the requested version
             return HttpResponse(content=SERVICE_CAPABILITIES_UNAVAILABLE)
@@ -649,11 +654,7 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
     if md.is_metadata_type(MetadataEnum.DATASET):
         base_template = 'metadata/base/dataset/dataset_metadata_as_html.html'
         params['contact'] = collect_contact_data(md.contact)
-        dataset_doc = Document.objects.get(
-            related_metadata=md
-        )
         params['bounding_box'] = md.bounding_geometry
-        #params['dataset_metadata'] = dataset_doc.get_dataset_metadata_as_dict()
         params['dataset_metadata'] = md
         params.update({'capabilities_uri': reverse('service:get-dataset-metadata', args=(md.id,))})
 
@@ -862,7 +863,12 @@ def run_update_service(request: HttpRequest, metadata_id: int):
     if request.method == 'POST':
         current_service = get_object_or_404(Service, metadata__id=metadata_id)
         new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
-        new_document = get_object_or_404(Document, related_metadata=new_service.metadata)
+        new_document = get_object_or_404(
+            Document,
+            metadata=new_service.metadata,
+            document_type=DocumentEnum.CAPABILITY.value,
+            is_original=True,
+        )
 
         if not current_service.is_service_type(OGCServiceEnum.WFS):
             new_service.root_layer = get_object_or_404(Layer, parent_service=new_service, parent_layer=None)
@@ -920,7 +926,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
                     new_service.keep_custom_md
                 )
 
-            update_helper.update_capability_document(current_service, new_document.original_capability_document)
+            update_helper.update_capability_document(current_service, new_document.content)
 
             current_service.save()
             user_helper.create_group_activity(
@@ -977,7 +983,7 @@ def wfs_index(request: HttpRequest):
 
 
 def _check_for_dataset_metadata(metadata: Metadata, ):
-    """ Checks whether an metadata object has a dataset metadata record.
+    """ Checks whether a metadata object has a dataset metadata record.
 
     Args:
         metadata:
@@ -987,7 +993,8 @@ def _check_for_dataset_metadata(metadata: Metadata, ):
     try:
         md_2 = metadata.get_related_dataset_metadata()
         return Document.objects.get(
-            related_metadata=md_2
+            metadata=md_2,
+            document_type=DocumentEnum.METADATA.value,
         )
     except ObjectDoesNotExist:
         return None

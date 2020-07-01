@@ -25,7 +25,7 @@ from MrMap import utils
 from MrMap.utils import print_debug_mode
 from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
@@ -595,7 +595,7 @@ class Metadata(Resource):
     categories = models.ManyToManyField('Category', blank=True)
     reference_system = models.ManyToManyField('ReferenceSystem')
     dimensions = models.ManyToManyField('Dimension', blank=True)
-    metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True)
+    metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True, choices=MetadataEnum.as_choices())
     legal_dates = models.ManyToManyField('LegalDate', blank=True)
     legal_reports = models.ManyToManyField('LegalReport', blank=True)
     hits = models.IntegerField(default=0)
@@ -717,10 +717,10 @@ class Metadata(Resource):
 
         # Set document records value to None
         upper_elements_docs = Document.objects.filter(
-            related_metadata__in=upper_elements_metadatas
+            metadata__in=upper_elements_metadatas
         )
         for doc in upper_elements_docs:
-            doc.current_capability_document = None
+            doc.content = None
             doc.save()
 
         for md in upper_elements_metadatas:
@@ -783,7 +783,7 @@ class Metadata(Resource):
         If no service metadata is persisted in the database, we generate one.
 
         Returns:
-            service_metadata_document (str): The xml document
+            doc (str): The xml document
         """
         from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
         doc = None
@@ -796,15 +796,14 @@ class Metadata(Resource):
 
             # If we reach this point, we found no cached document. Check the db!
             # Try to fetch an existing Document record from the db
-            cap_doc = Document.objects.get_or_create(related_metadata=self)[0]
-            doc = cap_doc.service_metadata_document
+            cap_doc = Document.objects.get(
+                metadata=self,
+                document_type=DocumentEnum.METADATA.value,
+            )
+            doc = cap_doc.content
 
-            if doc is None or len(doc) == 0:
-                # Well, there is one but no service_metadata_document is found inside
-                raise ObjectDoesNotExist
-            else:
-                # There is a capability_document in the db. Let's write it to cache, so it can be returned even faster
-                cacher.set(self.id, doc)
+            # There is a capability_document in the db. Let's write it to cache, so it can be returned even faster
+            cacher.set(self.id, doc)
 
         except ObjectDoesNotExist as e:
             # There is no service metadata document in the database, we need to create it
@@ -815,8 +814,13 @@ class Metadata(Resource):
             cacher.set(str(self.id), doc)
 
             # Write metadata to db as well
-            cap_doc = Document.objects.get_or_create(related_metadata=self)[0]
-            cap_doc.service_metadata_document = doc.decode("UTF-8")
+            cap_doc = Document.objects.get_or_create(
+                metadata=self,
+                document_type=DocumentEnum.METADATA.value,
+                is_original=False,
+            )[0]
+            cap_doc.is_active = self.is_active
+            cap_doc.content = doc.decode("UTF-8")
             cap_doc.save()
 
         return doc
@@ -844,16 +848,15 @@ class Metadata(Resource):
 
             # If we reach this point, we found no cached document. Check the db!
             # Try to fetch an existing Document record from the db
-            cap_doc = Document.objects.get(related_metadata=self)
+            cap_doc = Document.objects.get(
+                metadata=self,
+                document_type=DocumentEnum.CAPABILITY.value,
+                is_original=False,
+            )
 
-            cap_xml = cap_doc.current_capability_document
-
-            if cap_xml is None or len(cap_xml) == 0:
-                # Well, there is a Document record but no current_capability_document is found inside
-                raise ObjectDoesNotExist
-            else:
-                # There is a capability_document in the db. Let's write it to cache, so it can be returned even faster
-                cacher.set(self.id, cap_xml)
+            cap_xml = cap_doc.content
+            # There is content in the db. Let's write it to cache, so it can be returned even faster
+            cacher.set(self.id, cap_xml)
 
         except ObjectDoesNotExist as e:
             # This means we have no Document record or the current_capability value is None.
@@ -868,15 +871,13 @@ class Metadata(Resource):
             cacher.set(self.id, cap_xml)
 
             # If no Document record existed, we create it now!
-            if cap_doc is None:
-                cap_doc = Document(
-                    related_metadata=self,
-                    original_capability_document=cap_xml,
-                    current_capability_document=cap_xml,
-                )
-            else:
-                # There is a Document record but the current_capability was None. We set this value now
-                cap_doc.current_capability_document = cap_xml
+            cap_doc = Document.objects.get_or_create(
+                metadata=self,
+                document_type=DocumentEnum.CAPABILITY.value,
+                is_original=False,
+            )[0]
+            cap_doc.is_active = self.is_active
+            cap_doc.content = cap_xml
 
             # Do not forget to proxy the links inside the document, if needed
             if self.use_proxy_uri:
@@ -885,7 +886,7 @@ class Metadata(Resource):
 
             cap_doc.save()
 
-        return cap_doc.current_capability_document
+        return cap_doc.content
 
     def _create_capability_xml(self, force_version: str = None):
         """ Creates a capability xml from the current state of the service object
@@ -1070,7 +1071,7 @@ class Metadata(Resource):
         """
         service_type = None
         if self.is_root():
-            return self.service.servicetype.name
+            return self.service.service_type.name
         elif self.is_metadata_type(MetadataEnum.LAYER):
             service_type = 'wms'
         elif self.is_metadata_type(MetadataEnum.FEATURETYPE):
@@ -1096,7 +1097,7 @@ class Metadata(Resource):
                 raise TypeError(PARAMETER_ERROR.format("SERVICE"))
         else:
             service = self.service
-        service_version = service.servicetype.version
+        service_version = service.service_type.version
         for v in OGCServiceVersionEnum:
             if v.value == service_version:
                 return v
@@ -1109,11 +1110,11 @@ class Metadata(Resource):
 
         """
         if self.metadata_type.type == MetadataEnum.SERVICE.value:
-            if self.service.servicetype.name == OGCServiceEnum.WMS.value:
+            if self.service.service_type.name == OGCServiceEnum.WMS.value:
                 children = Layer.objects.filter(
                     parent_service__metadata=self
                 )
-            elif self.service.servicetype.name == OGCServiceEnum.WFS.value:
+            elif self.service.service_type.name == OGCServiceEnum.WFS.value:
                 children = FeatureType.objects.filter(
                     parent_service__metadata=self
                 )
@@ -1173,7 +1174,9 @@ class Metadata(Resource):
             rel_md = self
         else:
             rel_md = self.service.parent_service.metadata
-        cap_doc = Document.objects.get(related_metadata=rel_md)
+        cap_doc = Document.objects.get(
+            metadata=rel_md
+        )
         cap_doc.restore_subelement(identifier)
 
     def _restore_feature_type_md(self, service, external_auth: ExternalAuthentication = None):
@@ -1208,7 +1211,9 @@ class Metadata(Resource):
             rel_md = self
         else:
             rel_md = self.featuretype.parent_service.metadata
-        cap_doc = Document.objects.get(related_metadata=rel_md)
+        cap_doc = Document.objects.get(
+            metadata=rel_md
+        )
         cap_doc.restore_subelement(identifier)
 
     def _restore_wms(self, external_auth: ExternalAuthentication = None):
@@ -1221,7 +1226,7 @@ class Metadata(Resource):
         """
         from service.helper.ogc.wms import OGCWebMapServiceFactory
         from service.helper import service_helper
-        service_version = service_helper.resolve_version_enum(self.service.servicetype.version)
+        service_version = service_helper.resolve_version_enum(self.service.service_type.version)
         service = None
         service = OGCWebMapServiceFactory()
         service = service.get_ogc_wms(version=service_version, service_connect_url=self.capabilities_original_uri)
@@ -1246,7 +1251,9 @@ class Metadata(Resource):
         self.is_custom = False
         self.use_proxy_uri = False
 
-        cap_doc = Document.objects.get(related_metadata=self)
+        cap_doc = Document.objects.get(
+            metadata=self
+        )
         cap_doc.restore()
 
     def _restore_wfs(self, identifier: str = None, external_auth: ExternalAuthentication = None):
@@ -1267,7 +1274,7 @@ class Metadata(Resource):
             service = self.service
         else:
             service = self.featuretype.service
-        service_version = service_helper.resolve_version_enum(service.servicetype.version)
+        service_version = service_helper.resolve_version_enum(service.service_type.version)
         service_tmp = OGCWebFeatureServiceFactory()
         service_tmp = service_tmp.get_ogc_wfs(version=service_version, service_connect_url=self.capabilities_original_uri)
         if service_tmp is None:
@@ -1292,7 +1299,9 @@ class Metadata(Resource):
         self.is_custom = False
         self.use_proxy_uri = False
 
-        cap_doc = Document.objects.get(related_metadata=service.metadata)
+        cap_doc = Document.objects.get(
+            metadata=service.metadata
+        )
         cap_doc.restore()
 
     def _restore_dataset_md(self, ):
@@ -1347,8 +1356,12 @@ class Metadata(Resource):
         self.dataset.lineage_statement = original_metadata_document.lineage
         self.dataset.character_set_code = original_metadata_document.character_set_code
 
-        doc = Document.objects.get(related_metadata=self)
-        doc.current_dataset_metadata_document = doc.original_dataset_metadata_document
+        doc = Document.objects.get_or_create(
+            metadata=self,
+            document_type=DocumentEnum.METADATA.value,
+            is_original=True,
+        )[0]
+        doc.content = doc.original_dataset_metadata_document
         doc.save()
 
     def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None):
@@ -1395,7 +1408,9 @@ class Metadata(Resource):
         """
         try:
             cap_doc = Document.objects.get(
-                related_metadata=self
+                metadata=self,
+                document_type=DocumentEnum.CAPABILITY.value,
+                is_original=False,
             )
             cap_doc.set_proxy(is_secured)
         except ObjectDoesNotExist:
@@ -1410,7 +1425,7 @@ class Metadata(Resource):
 
         """
         docs = Document.objects.filter(
-            related_metadata=self
+            metadata=self
         )
         for doc in docs:
             doc.is_active = is_active
@@ -1451,7 +1466,11 @@ class Metadata(Resource):
 
         # change capabilities document if there is one (subelements may not have any documents yet)
         try:
-            root_md_doc = Document.objects.get(related_metadata=root_md)
+            root_md_doc = Document.objects.get(
+                metadata=root_md,
+                document_type=DocumentEnum.CAPABILITY.value,
+                is_original=False
+            )
             root_md_doc.set_proxy(use_proxy)
         except ObjectDoesNotExist:
             pass
@@ -1466,8 +1485,13 @@ class Metadata(Resource):
         for subelement_md in subelements_mds:
             subelement_md.use_proxy_uri = self.use_proxy_uri
             try:
-                subelement_md_doc = Document.objects.get(related_metadata=subelement_md)
-                if subelement_md_doc.current_capability_document is not None:
+                # If there exists already a capabilities document for a subelement, we need to change the links there as well
+                subelement_md_doc = Document.objects.get(
+                    metadata=subelement_md,
+                    document_type=DocumentEnum.CAPABILITY.value,
+                    is_original=False
+                )
+                if subelement_md_doc.content is not None:
                     subelement_md_doc.set_proxy(use_proxy)
             except ObjectDoesNotExist:
                 pass
@@ -1542,16 +1566,13 @@ class MetadataType(models.Model):
 
 class Document(Resource):
     id = models.BigAutoField(primary_key=True)
-    related_metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE)
-    original_capability_document = models.TextField(null=True, blank=True)
-    current_capability_document = models.TextField(null=True, blank=True)
-    service_metadata_document = models.TextField(null=True, blank=True)
-
-    original_dataset_metadata_document = models.TextField(null=True, blank=True)
-    current_dataset_metadata_document = models.TextField(null=True, blank=True)
+    metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name='documents')
+    document_type = models.CharField(max_length=255, null=True, choices=DocumentEnum.as_choices())
+    content = models.TextField(null=True, blank=True)
+    is_original = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.related_metadata.title
+        return self.metadata.title
 
     def get_dataset_metadata_as_dict(self):
         """ Parses the persisted dataset_metadata_document into a dict
@@ -1564,10 +1585,10 @@ class Document(Resource):
         """
         ret_dict = {}
 
-        if self.original_dataset_metadata_document is None:
+        if self.content is None:
             return ret_dict
 
-        xml = xml_helper.parse_xml(self.original_dataset_metadata_document)
+        xml = xml_helper.parse_xml(self.content)
 
         # Date
         date_elem = xml_helper.try_get_single_element_from_xml(".//" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp"), xml)
@@ -1718,7 +1739,7 @@ class Document(Resource):
             , xml_obj
         )
         request_objs = request_objs.getchildren()
-        service = self.related_metadata.service
+        service = self.metadata.service
         op_uri_dict = {
             "GetMap": {
                 "Get": service.get_map_uri_GET,
@@ -1784,10 +1805,10 @@ class Document(Resource):
             , xml_obj
         )
         try:
-            service = self.related_metadata.service
+            service = self.metadata.service
         except ObjectDoesNotExist:
             service = FeatureType.objects.get(
-                metadata=self.related_metadata
+                metadata=self.metadata
             ).parent_service
         op_uri_dict = {
             OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: {
@@ -1842,10 +1863,10 @@ class Document(Resource):
         operation_objs = xml_helper.try_get_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation"), xml_obj)
 
         try:
-            service = self.related_metadata.service
+            service = self.metadata.service
         except ObjectDoesNotExist:
             service = FeatureType.objects.get(
-                metadata=self.related_metadata
+                metadata=self.metadata
             ).parent_service
 
         op_uri_dict = {
@@ -1915,7 +1936,7 @@ class Document(Resource):
             , xml_obj
         )
         request_objs = request_objs.getchildren()
-        service = self.related_metadata.service
+        service = self.metadata.service
         op_uri_dict = {
             "GetMap": {
                 "Get": service.get_map_uri_GET,
@@ -1972,14 +1993,14 @@ class Document(Resource):
         """
 
         # change some external linkage to internal links for the current_capability_document
-        uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.related_metadata.id)
-        xml = xml_helper.parse_xml(self.original_capability_document)
+        uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.metadata.id)
+        xml = xml_helper.parse_xml(self.content)
 
         # wms and wfs have to be handled differently!
         # Furthermore each standard has a different handling of attributes and elements ...
-        service_version = self.related_metadata.get_service_version().value
+        service_version = self.metadata.get_service_version().value
 
-        if self.related_metadata.is_service_type(OGCServiceEnum.WMS):
+        if self.metadata.is_service_type(OGCServiceEnum.WMS):
 
             if service_version == "1.0.0":
                 # additional things to change for WMS 1.0.0
@@ -2025,7 +2046,7 @@ class Document(Resource):
                     "{http://www.w3.org/1999/xlink}href",
                     uri)
 
-        elif self.related_metadata.is_service_type(OGCServiceEnum.WFS):
+        elif self.metadata.is_service_type(OGCServiceEnum.WFS):
             if service_version == "1.0.0":
                 xml_helper.write_text_to_element(
                     xml,
@@ -2079,7 +2100,7 @@ class Document(Resource):
                 )
 
         xml = xml_helper.xml_to_string(xml)
-        self.current_capability_document = xml
+        self.content = xml
 
         if auto_save:
             self.save()
@@ -2094,28 +2115,28 @@ class Document(Resource):
         Returns:
 
         """
-        if self.current_capability_document is None:
+        if self.content is None:
             # Nothing to do here
             return
 
-        xml_obj = xml_helper.parse_xml(self.current_capability_document)
+        xml_obj = xml_helper.parse_xml(self.content)
         if is_secured:
-            uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.related_metadata.id)
+            uri = SERVICE_OPERATION_URI_TEMPLATE.format(self.metadata.id)
         else:
             uri = ""
-        _version = force_version or self.related_metadata.get_service_version()
-        if self.related_metadata.is_service_type(OGCServiceEnum.WMS):
+        _version = force_version or self.metadata.get_service_version()
+        if self.metadata.is_service_type(OGCServiceEnum.WMS):
             if _version is OGCServiceVersionEnum.V_1_0_0:
                 self._set_wms_1_0_0_operation_secured(xml_obj, uri, is_secured)
             else:
                 self._set_wms_operations_secured(xml_obj, uri, is_secured)
-        elif self.related_metadata.is_service_type(OGCServiceEnum.WFS):
+        elif self.metadata.is_service_type(OGCServiceEnum.WFS):
             if _version is OGCServiceVersionEnum.V_1_0_0:
                 self._set_wfs_1_0_0_operations_secured(xml_obj, uri, is_secured)
             else:
                 self._set_wfs_operations_secured(xml_obj, uri, is_secured)
 
-        self.current_capability_document = xml_helper.xml_to_string(xml_obj)
+        self.content = xml_helper.xml_to_string(xml_obj)
 
         if auto_save:
             self.save()
@@ -2130,14 +2151,14 @@ class Document(Resource):
         Returns:
              nothing
         """
-        cap_doc_curr = self.current_capability_document
+        cap_doc_curr = self.content
         if cap_doc_curr is None:
             # Nothing to do here!
             return
 
         xml_obj = xml_helper.parse_xml(cap_doc_curr)
-        service_version = force_version or self.related_metadata.get_service_version()
-        service_type = self.related_metadata.get_service_type()
+        service_version = force_version or self.metadata.get_service_version()
+        service_type = self.metadata.get_service_type()
 
         is_wfs = service_type == OGCServiceEnum.WFS.value
         is_wfs_1_0_0 = is_wfs and service_version == OGCServiceVersionEnum.V_1_0_0.value
@@ -2184,7 +2205,7 @@ class Document(Resource):
             else:
                 xml_helper.set_attribute(xml_metadata, attr, uri)
         xml_obj_str = xml_helper.xml_to_string(xml_obj)
-        self.current_capability_document = xml_obj_str
+        self.content = xml_obj_str
 
         if auto_save:
             self.save()
@@ -2199,7 +2220,7 @@ class Document(Resource):
         Returns:
              nothing
         """
-        cap_doc_curr = self.current_capability_document
+        cap_doc_curr = self.content
         if cap_doc_curr is None:
             # Nothing to do here!
             return
@@ -2219,16 +2240,16 @@ class Document(Resource):
             uri = None
 
             if is_secured and not legend_uri.startswith(ROOT_URL):
-                parent_md = self.related_metadata
+                parent_md = self.metadata
 
-                if not self.related_metadata.is_root():
-                    parent_md = self.related_metadata.service.parent_service.metadata
+                if not self.metadata.is_root():
+                    parent_md = self.metadata.service.parent_service.metadata
 
                 style_id = Style.objects.get(
                     legend_uri=legend_uri,
                     layer__parent_service__metadata=parent_md,
                 ).id
-                uri = SERVICE_LEGEND_URI_TEMPLATE.format(self.related_metadata.id, style_id)
+                uri = SERVICE_LEGEND_URI_TEMPLATE.format(self.metadata.id, style_id)
 
             elif not is_secured and legend_uri.startswith(ROOT_URL):
                 # restore the original legend uri by using the layer identifier
@@ -2239,7 +2260,7 @@ class Document(Resource):
                 xml_helper.set_attribute(xml_elem, attr, uri)
 
         xml_doc_str = xml_helper.xml_to_string(xml_doc)
-        self.current_capability_document = xml_doc_str
+        self.content = xml_doc_str
 
         if auto_save:
             self.save()
@@ -2250,7 +2271,12 @@ class Document(Resource):
         Returns:
              nothing
         """
-        self.current_capability_document = self.original_capability_document
+        original_doc = Document.objects.get(
+            is_original=True,
+            metadata=self.metadata,
+            document_type=DocumentEnum.CAPABILITY.value
+        )
+        self.content = original_doc.content
         self.save()
 
     def restore_subelement(self, identifier: str):
@@ -2261,9 +2287,14 @@ class Document(Resource):
         Returns:
              nothing
         """
+        original_doc = Document.objects.get(
+            is_original=True,
+            metadata=self.metadata,
+            document_type=DocumentEnum.CAPABILITY.value
+        )
         # only restored the layer and it's children
-        cap_doc_curr_obj = xml_helper.parse_xml(self.current_capability_document)
-        cap_doc_orig_obj = xml_helper.parse_xml(self.original_capability_document)
+        cap_doc_curr_obj = xml_helper.parse_xml(self.content)
+        cap_doc_orig_obj = xml_helper.parse_xml(original_doc.content)
 
         xml_layer_obj_curr = xml_helper.find_element_where_text(cap_doc_curr_obj, identifier)[0]
         xml_layer_obj_orig = xml_helper.find_element_where_text(cap_doc_orig_obj, identifier)[0]
@@ -2277,7 +2308,7 @@ class Document(Resource):
         parent_curr.insert(orig_index, xml_layer_obj_orig)
         parent_curr.remove(xml_layer_obj_curr)
 
-        self.current_capability_document = xml_helper.xml_to_string(cap_doc_curr_obj)
+        self.content = xml_helper.xml_to_string(cap_doc_curr_obj)
         self.save()
 
 
@@ -2318,7 +2349,7 @@ class Category(Resource):
 
 class ServiceType(models.Model):
     name = models.CharField(max_length=100)
-    version = models.CharField(max_length=100)
+    version = models.CharField(max_length=100, choices=OGCServiceVersionEnum.as_choices())
     specification = models.URLField(blank=False, null=True)
 
     def __str__(self):
@@ -2330,7 +2361,7 @@ class Service(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)
-    servicetype = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
+    service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
     categories = models.ManyToManyField(Category, blank=True)
     is_root = models.BooleanField(default=False)
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
@@ -2392,7 +2423,7 @@ class Service(Resource):
     created_by_user = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True, blank=True)
     keep_custom_md = models.BooleanField(default=True)
 
-    # used to store ows linked_service_metadata until parsing
+    # used to store ows linked_service_metadata until parsing is finished
     # will not be part of the db
     linked_service_metadata = None
 
@@ -2457,9 +2488,9 @@ class Service(Resource):
         Args:
             enum (OGCServiceEnum): The enum
         Returns:
-             True if the servicetypes are equal, false otherwise
+             True if the service_types are equal, false otherwise
         """
-        return self.servicetype.name == enum.value
+        return self.service_type.name == enum.value
 
     def secure_access(self, is_secured: bool, group: MrMapGroup, operation: RequestOperation, group_polygons: dict, sec_op: SecuredOperation, element=None):
         """ Secures a single element
@@ -2666,9 +2697,12 @@ class Service(Resource):
              nothing
         """
         # save original capabilities document
-        cap_doc = Document()
-        cap_doc.original_capability_document = xml
-        cap_doc.related_metadata = self.metadata
+        cap_doc = Document(
+            content=xml,
+            metadata=self.metadata,
+            is_original=True,
+            document_type=DocumentEnum.CAPABILITY.value
+        )
         cap_doc.set_capabilities_secured()
 
 
@@ -2853,6 +2887,7 @@ class Layer(Service):
             else:
                 # since we have no more dependencies on this metadata, we can set it inactive
                 md.metadata_to.is_active = new_status
+                md.metadata_to.set_documents_active_status(new_status)
                 md.metadata_to.save()
                 md.save()
 
@@ -3360,7 +3395,7 @@ class FeatureType(Resource):
         from service.helper import service_helper
         if self.parent_service is None:
             return
-        service_version = service_helper.resolve_version_enum(self.parent_service.servicetype.version)
+        service_version = service_helper.resolve_version_enum(self.parent_service.service_type.version)
         service = None
         if self.parent_service.is_service_type(OGCServiceEnum.WFS):
             service = OGCWebFeatureServiceFactory()

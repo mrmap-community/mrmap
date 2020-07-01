@@ -9,7 +9,7 @@ from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, HOST_NAME
 from service import tasks
 from service.helper import service_helper, xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, OGCOperationEnum
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, OGCOperationEnum, DocumentEnum
 from service.models import Service, Document, Metadata
 from service.settings import SERVICE_OPERATION_URI_TEMPLATE, ALLOWED_SRS
 from tests.baker_recipes.db_setup import create_superadminuser
@@ -73,10 +73,12 @@ class ServiceTestCase(TestCase):
         cls.service_wfs = service
 
         cls.cap_doc_wms = Document.objects.get(
-            related_metadata=cls.service_wms.metadata
+            metadata=cls.service_wms.metadata,
+            document_type=DocumentEnum.CAPABILITY.value,
         )
         cls.cap_doc_wfs = Document.objects.get(
-            related_metadata=cls.service_wfs.metadata
+            metadata=cls.service_wfs.metadata,
+            document_type=DocumentEnum.CAPABILITY.value,
         )
 
     def _get_logged_in_client(self):
@@ -109,7 +111,7 @@ class ServiceTestCase(TestCase):
         """
         service = self.service_wms
         layers = service.subelements
-        cap_xml = xml_helper.parse_xml(self.cap_doc_wms.original_capability_document)
+        cap_xml = xml_helper.parse_xml(self.cap_doc_wms.content)
 
         num_layers_xml = self._get_num_of_layers(cap_xml)
         num_layers_service = len(layers)
@@ -143,7 +145,7 @@ class ServiceTestCase(TestCase):
         service = self.service_wms
         layers = service.subelements
 
-        cap_doc = self.cap_doc_wms.original_capability_document
+        cap_doc = self.cap_doc_wms.content
         cap_uri = service.metadata.capabilities_original_uri
         connector = CommonConnector(url=cap_uri)
         connector.load()
@@ -178,7 +180,7 @@ class ServiceTestCase(TestCase):
         """
         service = self.service_wms
         layers = service.subelements
-        cap_xml = xml_helper.parse_xml(self.cap_doc_wms.original_capability_document)
+        cap_xml = xml_helper.parse_xml(self.cap_doc_wms.content)
 
         xml_title = xml_helper.try_get_text_from_xml_element(cap_xml, "//Service/Title")
         xml_abstract = xml_helper.try_get_text_from_xml_element(cap_xml, "//Service/Abstract")
@@ -242,11 +244,11 @@ class ServiceTestCase(TestCase):
         service = self.service_wms
         layers = service.subelements
 
-        self.assertEqual(service.servicetype.name, self.test_wms.get("type").value)
-        self.assertEqual(service.servicetype.version, self.test_wms.get("version").value)
+        self.assertEqual(service.service_type.name, self.test_wms.get("type").value)
+        self.assertEqual(service.service_type.version, self.test_wms.get("version").value)
         for layer in layers:
-            self.assertEqual(layer.servicetype.name, self.test_wms.get("type").value)
-            self.assertEqual(layer.servicetype.version, self.test_wms.get("version").value)
+            self.assertEqual(layer.service_type.name, self.test_wms.get("type").value)
+            self.assertEqual(layer.service_type.version, self.test_wms.get("version").value)
 
     def test_new_service_check_reference_systems(self):
         """ Tests whether the layers have all their reference systems, which are provided by the capabilities document.
@@ -257,7 +259,7 @@ class ServiceTestCase(TestCase):
 
         """
         layers = self.service_wms.subelements
-        cap_xml = self.cap_doc_wms.original_capability_document
+        cap_xml = self.cap_doc_wms.content
 
         for layer in layers:
             xml_layer_obj = xml_helper.try_get_single_element_from_xml("//Name[text()='{}']/parent::Layer".format(layer.identifier), cap_xml)

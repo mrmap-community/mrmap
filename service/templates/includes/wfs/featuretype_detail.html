@@ -35,9 +35,9 @@
                     {% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Dataset Metadata' %}
                 </button>
                 <div class="dropdown-menu" aria-labelledby="id_dataset_metadata_dropdown">
-                    <a class="dropdown-item" target="_blank" href="{% url 'service:get-metadata-html' has_dataset_metadata.related_metadata.id %}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
-                    <a class="dropdown-item" target="_blank" href="{% url 'service:get-dataset-metadata' has_dataset_metadata.related_metadata.id %}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
-                    <a class="dropdown-item" target="_blank" href="{% url 'editor:edit' has_dataset_metadata.related_metadata.id %}">{% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit' %}</a>
+                    <a class="dropdown-item" target="_blank" href="{% url 'service:get-metadata-html' has_dataset_metadata.metadata.id %}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
+                    <a class="dropdown-item" target="_blank" href="{% url 'service:get-dataset-metadata' has_dataset_metadata.metadata.id %}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
+                    <a class="dropdown-item" target="_blank" href="{% url 'editor:edit' has_dataset_metadata.metadata.id %}">{% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit' %}</a>
                 </div>
             </div>
                 </div><!--</col>-->

@@ -22,7 +22,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.common_connector import CommonConnector
 from service.helper.xml_helper import parse_xml
 from service.models import Metadata, Document, Service, MetadataRelation, FeatureType
-from service.helper.enums import OGCServiceEnum, MetadataEnum, OGCServiceVersionEnum
+from service.helper.enums import OGCServiceEnum, MetadataEnum, OGCServiceVersionEnum, DocumentEnum
 
 
 class Monitoring:
@@ -89,7 +89,7 @@ class Monitoring:
             nothing
         """
         wfs_helper = WfsHelper(service)
-        version = service.servicetype.version
+        version = service.service_type.version
 
         if wfs_helper.get_capabilities_url is not None:
             self.check_get_capabilities(wfs_helper.get_capabilities_url)
@@ -246,7 +246,7 @@ class Monitoring:
             bool: true, if xml has member, false otherwise
         """
         service = self.metadata.service
-        version = service.servicetype.version
+        version = service.service_type.version
         if version == OGCServiceVersionEnum.V_1_0_0.value:
             return len([child for child in xml.getroot() if child.tag.endswith('featureMember')]) != 1
         if version == OGCServiceVersionEnum.V_1_1_0.value:
@@ -270,8 +270,12 @@ class Monitoring:
         Returns:
             nothing
         """
-        document = Document.objects.get(related_metadata=self.metadata)
-        original_document = document.original_capability_document
+        document = Document.objects.get(
+            metadata=self.metadata,
+            is_original=True,
+            document_type=DocumentEnum.CAPABILITY.value
+        )
+        original_document = document.content
         self.check_document(url, original_document)
 
     def check_dataset(self):
@@ -289,8 +293,12 @@ class Monitoring:
             nothing
         """
         url = self.metadata.metadata_url
-        document = Document.objects.get(related_metadata=self.metadata)
-        original_document = document.dataset_metadata_document
+        document = Document.objects.get(
+            metadata=self.metadata,
+            document_type=DocumentEnum.METADATA.value,
+            is_original=True,
+        )
+        original_document = document.content
         self.check_document(url, original_document)
 
     def check_document(self, url, original_document):

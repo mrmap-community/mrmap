@@ -77,7 +77,7 @@ class ProxyLogTableFilter(MrMapFilterSet):
     )
     t = django_filters.ModelMultipleChoiceFilter(
         label=_("Service type"),
-        field_name='metadata__service__servicetype',
+        field_name='metadata__service__service_type',
         queryset=ServiceType.objects.all(),
         widget=forms.CheckboxSelectMultiple,
         help_text=_("Filter by a service type.")

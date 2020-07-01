@@ -13,7 +13,7 @@ from django.utils.translation import gettext_lazy as _
 
 from editor.helper.editor_helper import overwrite_dataset_metadata_document
 from editor.settings import MR_MAP_DATASET_EDITOR_ORIGIN_NAME
-from service.helper.enums import MetadataEnum
+from service.helper.enums import MetadataEnum, DocumentEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
 from service.models import Dataset, Metadata, MetadataRelation, MetadataOrigin, MetadataType, Document
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, DEFAULT_SRS
@@ -113,10 +113,16 @@ class DatasetWizard(MrMapWizard):
         metadata.save()
 
         try:
-            doc = Document.objects.get(related_metadata__id=metadata.id)
+            doc = Document.objects.get(
+                metadata__id=metadata.id,
+                document_type=DocumentEnum.METADATA.value,
+                is_original=False,
+            )
+            doc.is_active = metadata.is_active
             DatasetWizard._overwrite_dataset_document(metadata, doc)
         except ObjectDoesNotExist:
             DatasetWizard._create_dataset_document(metadata)
+
 
     @staticmethod
     def _fill_metadata_dataset_identification_form(data: dict, metadata: Metadata, dataset: Dataset, user: MrMapUser):
@@ -208,7 +214,7 @@ class DatasetWizard(MrMapWizard):
                 geom = GEOSGeometry(str(bounding_geometry), srid=DEFAULT_SRS)
             except Exception:
                 # No features provided
-                geom = None
+                return
         metadata.bounding_geometry = geom
 
     @staticmethod
@@ -277,14 +283,18 @@ class DatasetWizard(MrMapWizard):
         Returns:
 
         """
-        document_obj = Document.objects.get_or_create(
-            related_metadata=metadata
-        )[0]
         doc_builder = Iso19115MetadataBuilder(metadata.id, MetadataEnum.DATASET)
         dataset_doc_string = doc_builder.generate_service_metadata()
-        document_obj.original_dataset_metadata_document = dataset_doc_string.decode("UTF-8")
-        document_obj.current_dataset_metadata_document = document_obj.original_dataset_metadata_document
-        document_obj.save()
+        dataset_doc_string = dataset_doc_string.decode("UTF-8")
+
+        curr_document_obj = Document.objects.get_or_create(
+            metadata=metadata,
+            is_original=False,
+            document_type=DocumentEnum.METADATA.value
+        )[0]
+        curr_document_obj.is_active = metadata.is_active
+        curr_document_obj.content = dataset_doc_string
+        curr_document_obj.save()
 
     @staticmethod
     def _overwrite_dataset_document(metadata: Metadata, doc: Document = None):
@@ -296,9 +306,7 @@ class DatasetWizard(MrMapWizard):
         Returns:
 
         """
-        if doc is None:
-            doc = Document.objects.get(related_metadata=metadata)
         doc_builder = Iso19115MetadataBuilder(metadata.id, MetadataEnum.DATASET)
-        dataset_doc_string = doc_builder.overwrite_dataset_metadata(doc.current_dataset_metadata_document or doc.original_dataset_metadata_document)
-        doc.current_dataset_metadata_document = dataset_doc_string.decode("UTF-8")
+        dataset_doc_string = doc_builder.overwrite_dataset_metadata(doc.content)
+        doc.content = dataset_doc_string.decode("UTF-8")
         doc.save()

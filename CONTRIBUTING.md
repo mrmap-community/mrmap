@@ -149,7 +149,7 @@ def update_service(request: HttpRequest, id: int):
 
     if update_confirmed:
         # check cross service update attempt
-        if old_service.servicetype.name != new_service_type.value:
+        if old_service.service_type.name != new_service_type.value:
             # cross update attempt -> forbidden!
             messages.add_message(request, messages.ERROR, SERVICE_UPDATE_WRONG_TYPE)
             return BackendAjaxResponse(html="", redirect="{}/service/detail/{}".format(ROOT_URL, str(old_service.metadata.id))).get_response()
@@ -167,14 +167,14 @@ def update_service(request: HttpRequest, id: int):
         old_service = update_helper.update_service(old_service, new_service)
         old_service.last_modified = timezone.now()
 
-        if new_service.servicetype.name == ServiceTypes.WFS.value:
+        if new_service.service_type.name == ServiceTypes.WFS.value:
             old_service = update_helper.update_wfs_elements(old_service, new_service, diff, links, keep_custom_metadata)
 
-        elif new_service.servicetype.name == ServiceTypes.WMS.value:
+        elif new_service.service_type.name == ServiceTypes.WMS.value:
             old_service = update_helper.update_wms_elements(old_service, new_service, diff, links, keep_custom_metadata)
 
-        cap_document = CapabilityDocument.objects.get(related_metadata=old_service.metadata)
-        cap_document.current_capability_document = xml
+        cap_document = CapabilityDocument.objects.get(metadata=old_service.metadata)
+        cap_document.content = xml
         cap_document.save()
 
         old_service.save()

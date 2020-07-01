@@ -9,6 +9,7 @@ import json
 import urllib
 
 from celery import Task
+from django.db import transaction
 
 from MrMap.messages import SERVICE_REMOVED
 from service import tasks
@@ -272,6 +273,7 @@ def create_new_service(form, user: MrMapUser):
     return pending_task_db
 
 
+@transaction.atomic
 def remove_service(metadata: Metadata, user: MrMapUser):
     """ Removes a service, referenced by its metadata object
 

@@ -949,7 +949,11 @@ class Iso19115MetadataBuilder:
         title_elem = Element(
             self.gmd + "title"
         )
-        title_elem.text = self.metadata.title
+        char_str_elem = Element(
+            self.gco + "CharacterString"
+        )
+        char_str_elem.text = self.metadata.title
+        title_elem.append(char_str_elem)
         ci_citation_elem.append(title_elem)
 
         # gmd:alternateTitle
@@ -1997,12 +2001,15 @@ class Iso19115MetadataBuilder:
            lineage_elem.append(li_lineage_elem)
            li_lineage_elem.append(statement_elem)
            statement_elem.append(char_str_elem)
-
-        xml_helper.write_text_to_element(
-            lineage_elem,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"),
-            self.described_resource.lineage_statement
-        )
+        try:
+            xml_helper.write_text_to_element(
+                lineage_elem,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"),
+                self.described_resource.lineage_statement
+            )
+        except AttributeError:
+            # If lineage is empty, the element exists butthere is no gco:CharacterString which can be changed
+            pass
 
         # Change maintenance update frequency
         update_frequ_elem = xml_helper.try_get_single_element_from_xml("//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_MaintenanceFrequencyCode"), ident_elem)

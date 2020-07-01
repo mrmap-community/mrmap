@@ -16,7 +16,7 @@ from lxml.etree import Element, QName
 from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE, HTTP_OR_SSL, HOST_NAME
 from MrMap.utils import print_debug_mode
 from service.helper import xml_helper
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, MetadataEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, MetadataEnum, DocumentEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Service, Metadata, Layer, Document, FeatureType
 from service.settings import SERVICE_OPERATION_URI_TEMPLATE, MD_RELATION_TYPE_DESCRIBED_BY, \
@@ -56,8 +56,8 @@ class CapabilityXMLBuilder:
         self.service = service
         self.parent_service = parent_service
 
-        self.service_type = self.service.servicetype.name
-        self.service_version = force_version or self.service.servicetype.version
+        self.service_type = self.service.service_type.name
+        self.service_version = force_version or self.service.service_type.version
 
         self.namespaces = {
             "sld": XML_NAMESPACES["sld"],
@@ -85,15 +85,13 @@ class CapabilityXMLBuilder:
         self.original_doc = None
         try:
             doc = Document.objects.get(
-                related_metadata=parent_service.metadata
+                metadata=parent_service.metadata,
+                is_original=True,
+                document_type=DocumentEnum.CAPABILITY.value
             )
-            self.original_doc = doc.original_capability_document
-            if self.original_doc is None:
-                raise ObjectDoesNotExist
-            else:
-                self.original_doc = xml_helper.parse_xml(
-                    self.original_doc
-                )
+            self.original_doc = xml_helper.parse_xml(
+                doc.content
+            )
         except ObjectDoesNotExist:
             # If no document can be found in the databse, we have to fetch the original remote document
             self.original_doc = xml_helper.parse_xml(
@@ -554,12 +552,16 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         # metadata document object.
         try:
             original_doc = Document.objects.get(
-                related_metadata=self.service.metadata,
-            ).original_capability_document
+                metadata=self.service.metadata,
+                document_type=DocumentEnum.CAPABILITY.value,
+                is_original=True,
+            ).content
             if original_doc is None:
                 original_doc = Document.objects.get(
-                    related_metadata=self.service.parent_service.metadata,
-                ).original_capability_document
+                    metadata=self.service.parent_service.metadata,
+                    document_type=DocumentEnum.CAPABILITY.value,
+                    is_original=True,
+                ).content
         except ObjectDoesNotExist as e:
             return
         original_doc = xml_helper.parse_xml(original_doc)
@@ -934,13 +936,6 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         dataset_md = md.get_related_dataset_metadata()
         if dataset_md is None:
             return
-        try:
-            doc = Document.objects.get(
-                related_metadata=dataset_md
-            )
-        except ObjectDoesNotExist as e:
-            # If there is no related Metadata, we can skip this element
-            return
 
         metadata_elem = xml_helper.create_subelement(
             layer_elem,
@@ -955,7 +950,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         )
         xml_helper.write_text_to_element(elem, txt="text/xml")
 
-        uri = doc.related_metadata.metadata_url
+        uri = dataset_md.metadata_url
         xml_helper.create_subelement(
             metadata_elem,
             "{}OnlineResource".format(self.default_ns),

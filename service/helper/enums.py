@@ -1,7 +1,16 @@
 from enum import Enum
 
 
-class ConnectionEnum(Enum):
+class EnumChoice(Enum):
+    """ Provides basic functionality for Enums
+
+    """
+    @classmethod
+    def as_choices(cls):
+        return [(enum.value, enum.name) for enum in cls]
+
+
+class ConnectionEnum(EnumChoice):
     """ Defines all possible connection types
 
     """
@@ -10,7 +19,7 @@ class ConnectionEnum(Enum):
     URLLIB = "urllib"
 
 
-class OGCServiceVersionEnum(Enum):
+class OGCServiceVersionEnum(EnumChoice):
     """ Defines all supported versions
 
     """
@@ -24,7 +33,7 @@ class OGCServiceVersionEnum(Enum):
     V_2_0_2 = "2.0.2"
 
 
-class OGCServiceEnum(Enum):
+class OGCServiceEnum(EnumChoice):
     """ Defines all supported service types
 
     """
@@ -35,7 +44,7 @@ class OGCServiceEnum(Enum):
     DATASET = "dataset"
 
 
-class OGCOperationEnum(Enum):
+class OGCOperationEnum(EnumChoice):
     """ Defines all known operation names
 
     """
@@ -62,12 +71,20 @@ class OGCOperationEnum(Enum):
     DESCRIBE_STORED_QUERIES = "DescribeStoredQueries"
 
 
-class MetadataEnum(Enum):
+class MetadataEnum(EnumChoice):
     """ Defines all metadata types
 
     """
-
     DATASET = "dataset"
     SERVICE = "service"
     LAYER = "layer"
     FEATURETYPE = "featuretype"
+
+
+class DocumentEnum(EnumChoice):
+    """ Defines all document types
+
+    """
+    CAPABILITY = "Capability"
+    METADATA = "Metadata"
+

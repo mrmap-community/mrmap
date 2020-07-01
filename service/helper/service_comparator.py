@@ -34,7 +34,7 @@ class ServiceComparator:
             service_a (Service): The first service to be compared
             service_b (Service): The second service to be compared
         """
-        if service_a.servicetype.name != service_b.servicetype.name:
+        if service_a.service_type.name != service_b.service_type.name:
             raise Exception("INVALID SERVICE ARGUMENTS. Service types not matching")
         self.service_a = service_a
         self.service_b = service_b

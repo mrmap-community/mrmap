@@ -810,7 +810,7 @@ class OGCWebMapService(OGCWebService):
         service = Service()
         service.availability = 0.0
         service.is_available = False
-        service.servicetype = service_type
+        service.service_type = service_type
         service.published_for = orga_published_for
         service.created_by = group
         service.get_capabilities_uri_GET = self.get_capabilities_uri_GET

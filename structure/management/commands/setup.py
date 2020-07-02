@@ -13,7 +13,8 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from MrMap.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME
+from MrMap.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME, LICENCES
+from service.models import Licence
 from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
 from structure.settings import PUBLIC_ROLE_NAME, PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, SUPERUSER_ROLE_NAME
 from monitoring.models import MonitoringSetting
@@ -34,15 +35,6 @@ class Command(BaseCommand):
             self._run_superuser_default_setup()
             # then load the default categories
             call_command('load_categories')
-
-    def _create_themes(self):
-        """ Adds default dark and light theme for frontend
-
-        Returns:
-
-        """
-        Theme.objects.get_or_create(name='DARK')
-        Theme.objects.get_or_create(name='LIGHT')
 
     def _run_superuser_default_setup(self):
         """ Encapsules the main setup for creating all default objects and the superuser
@@ -92,7 +84,6 @@ class Command(BaseCommand):
         group.user_set.add(superuser)
         group.save()
 
-
         # handle root organization
         orga = self._create_default_organization()
         superuser.organization = orga
@@ -109,7 +100,25 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS(str(msg)))
 
-    def _create_public_group(self, user: MrMapUser):
+        num_licences = self._create_default_licences()
+        self.stdout.write(self.style.SUCCESS(
+            str(
+                "{} default licences have been added.".format(num_licences)
+            )
+        ))
+
+    @staticmethod
+    def _create_themes():
+        """ Adds default dark and light theme for frontend
+
+        Returns:
+
+        """
+        Theme.objects.get_or_create(name='DARK')
+        Theme.objects.get_or_create(name='LIGHT')
+
+    @staticmethod
+    def _create_public_group(user: MrMapUser):
         """ Creates public group
 
         Args:
@@ -137,7 +146,8 @@ class Command(BaseCommand):
             group.created_by = user
         return group
 
-    def _create_superuser_group(self, user: MrMapUser):
+    @staticmethod
+    def _create_superuser_group(user: MrMapUser):
         """ Creates default group, default role for group and default superuser permission for role
 
         Args:
@@ -161,7 +171,8 @@ class Command(BaseCommand):
             group.created_by = user
         return group
 
-    def _create_default_role(self):
+    @staticmethod
+    def _create_default_role():
         """ Create default role for average user -> has no permissions
 
         Returns:
@@ -175,7 +186,8 @@ class Command(BaseCommand):
             role.description = _("The default role for all groups. Has no permissions.")
         role.save()
 
-    def _create_default_organization(self):
+    @staticmethod
+    def _create_default_organization():
         """ Create default organization for superuser
 
         Returns:
@@ -185,7 +197,8 @@ class Command(BaseCommand):
 
         return orga
 
-    def _create_default_monitoring_setting(self):
+    @staticmethod
+    def _create_default_monitoring_setting():
         """ Create default settings for monitoring
 
         Returns:
@@ -196,3 +209,21 @@ class Command(BaseCommand):
             check_time=mon_time, timeout=MONITORING_REQUEST_TIMEOUT
         )[0]
         monitoring_setting.save()
+
+    @staticmethod
+    def _create_default_licences():
+        """ Creates an initial amount of licences
+
+        Returns:
+
+        """
+        for licence in LICENCES:
+            Licence.objects.get_or_create(
+                name=licence.get("name", None),
+                identifier=licence.get("identifier", None),
+                description=licence.get("description", None),
+                description_url=licence.get("description_url", None),
+                symbol_url=licence.get("symbol_url", None),
+                is_open_data=licence.get("is_open_data", False),
+            )
+        return len(LICENCES)

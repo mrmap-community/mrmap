@@ -13,7 +13,7 @@ from django import forms
 from MrMap.forms import MrMapModelForm, MrMapWizardForm, MrMapWizardModelForm
 from MrMap.widgets import BootstrapDateTimePickerInput, BootstrapDatePickerInput, LeafletGeometryInput
 from service.helper.enums import MetadataEnum
-from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem, TermsOfUse
+from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem, Licence
 from service.settings import ISO_19115_LANG_CHOICES, DEFAULT_SERVICE_BOUNDING_BOX
 from structure.models import Organization
 from users.helper import user_helper
@@ -25,7 +25,7 @@ class MetadataEditorForm(MrMapModelForm):
         super(MetadataEditorForm, self).__init__(*args, **kwargs)
 
         # there's a `fields` property now
-        self.fields['terms_of_use'].required = False
+        self.fields['licence'].required = False
         self.fields['categories'].required = False
         self.fields['keywords'].required = False
         self.has_autocomplete = True
@@ -36,7 +36,7 @@ class MetadataEditorForm(MrMapModelForm):
             "title",
             "abstract",
             "access_constraints",
-            "terms_of_use",
+            "licence",
             "keywords",
             "categories",
         ]
@@ -44,7 +44,7 @@ class MetadataEditorForm(MrMapModelForm):
             "title": _("Edit the title."),
             "abstract": _("Edit the description. Keep it short and simple."),
             "access_constraints": _("Edit the access constraints."),
-            "terms_of_use": _("Select another licence."),
+            "licence": _("Select another licence."),
             "keywords": _(""),  # Since keywords are handled differently, this can be empty
             "categories": _("Select categories for this resource."),
         }
@@ -196,9 +196,9 @@ class DatasetClassificationForm(MrMapWizardForm):
 
 
 class DatasetLicenseConstraintsForm(MrMapWizardForm):
-    terms_of_use = forms.ChoiceField(label=_('Terms of use'),
+    licence = forms.ChoiceField(label=_('Terms of use'),
                                      required=False,
-                                     choices=TermsOfUse.objects.all())
+                                     choices=Licence.objects.all())
     access_constraints = forms.CharField(
         label=_('Access constraints'),
         required=False,
@@ -210,7 +210,7 @@ class DatasetLicenseConstraintsForm(MrMapWizardForm):
 
         if self.instance_id:
             metadata = Metadata.objects.get(id=self.instance_id)
-            self.fields['terms_of_use'].initial = metadata.terms_of_use
+            self.fields['licence'].initial = metadata.licence
             self.fields['access_constraints'].initial = metadata.access_constraints
 
 

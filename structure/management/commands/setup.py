@@ -35,6 +35,7 @@ class Command(BaseCommand):
             self._run_superuser_default_setup()
             # then load the default categories
             call_command('load_categories')
+            call_command('load_licences')
 
     def _run_superuser_default_setup(self):
         """ Encapsules the main setup for creating all default objects and the superuser
@@ -99,13 +100,6 @@ class Command(BaseCommand):
             f"timeout {MONITORING_REQUEST_TIMEOUT} was created successfully"
         )
         self.stdout.write(self.style.SUCCESS(str(msg)))
-
-        num_licences = self._create_default_licences()
-        self.stdout.write(self.style.SUCCESS(
-            str(
-                "{} default licences have been added.".format(num_licences)
-            )
-        ))
 
     @staticmethod
     def _create_themes():
@@ -209,21 +203,3 @@ class Command(BaseCommand):
             check_time=mon_time, timeout=MONITORING_REQUEST_TIMEOUT
         )[0]
         monitoring_setting.save()
-
-    @staticmethod
-    def _create_default_licences():
-        """ Creates an initial amount of licences
-
-        Returns:
-
-        """
-        for licence in LICENCES:
-            Licence.objects.get_or_create(
-                name=licence.get("name", None),
-                identifier=licence.get("identifier", None),
-                description=licence.get("description", None),
-                description_url=licence.get("description_url", None),
-                symbol_url=licence.get("symbol_url", None),
-                is_open_data=licence.get("is_open_data", False),
-            )
-        return len(LICENCES)

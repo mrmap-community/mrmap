@@ -10,9 +10,11 @@
             <div id="id_filter_accordion_{{table.table_id}}">
                 <div class="card">
                     <div class="card-header" id="id_filter_card_header_{{table.table_id}}">
-                        <button id="id_filter_btn_{{table.table_id}}" class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}" data-toggle="collapse" data-target="#id_filter_collapse_{{table.table_id}}" aria-expanded="true" aria-controls="id_filter_collapse_{{table.table_id}}">
-                            {% autoescape off %}{{table.context.THEME.ICONS.FILTER}}{% endautoescape %} {% trans 'Filter table' %}
-                        </button>
+                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Click to open filter options' %}">
+                            <button id="id_filter_btn_{{table.table_id}}" class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}" data-toggle="collapse" data-target="#id_filter_collapse_{{table.table_id}}" aria-expanded="true" aria-controls="id_filter_collapse_{{table.table_id}}">
+                                {% autoescape off %}{{table.context.THEME.ICONS.FILTER}}{% endautoescape %} {% trans 'Filter table' %}
+                            </button>
+                        </span>
                     </div>
                         <div id="id_filter_collapse_{{table.table_id}}" class="collapse {% if table.filter_set.data %} show {% endif %}" aria-labelledby="id_filter_card_header_{{table.table_id}}" data-parent="#id_filter_accordion_{{table.table_id}}">
                             <div class="card-body">
@@ -57,9 +59,12 @@
             {% if table.pagination.page_size %}
                 <div class="dropdown d-inline-block">
                     {% trans 'Show' %}
-                    <button class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="wmsPagingButton"
-                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ table.pagination.page_size }}
-                    </button>
+                    <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Switch the items per page' %}">
+                        <button class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="wmsPagingButton"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            {{ table.pagination.page_size }}
+                        </button>
+                    </span>
                     {% trans 'entries' %}
                     <div class="dropdown-menu" aria-labelledby="wmsPagingButton">
                         {% for page_size in table.pagination.page_size_options %}

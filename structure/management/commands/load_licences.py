@@ -21,20 +21,21 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         self.stdout.write(self.style.NOTICE("Load licences..."))
-        num_new_licences, num_updated_licences = self._create_default_licences()
+        num_new_licences, num_updated_licences, num_deactivated_licences = self._create_default_licences()
         self.stdout.write(self.style.SUCCESS(
             str(
-                "{} licences have been added.\n{} licences have been updated.".format(num_new_licences, num_updated_licences)
+                "{} licences have been added.\n{} licences have been updated.\n{} licences have been deactivated.".format(num_new_licences, num_updated_licences, num_deactivated_licences)
             )
         ))
 
     @staticmethod
-    def _create_default_licences() -> (int, int):
+    def _create_default_licences() -> (int, int, int):
         """ Creates an initial amount of licences
 
         Returns:
 
         """
+        # Create / Update licences
         num_new_licences = 0
         num_updated_licences = 0
         for licence in LICENCES:
@@ -52,6 +53,18 @@ class Command(BaseCommand):
             existing_licence.description_url = licence.get("description_url", None)
             existing_licence.symbol_url = licence.get("symbol_url", None)
             existing_licence.is_open_data = licence.get("is_open_data", False)
+            existing_licence.is_active = True
 
             existing_licence.save()
-        return num_new_licences, num_updated_licences
+
+        # Deactivate licences, which are not present in LICENCES anymore
+        num_deactivated_licences = 0
+        active_licences = Licence.objects.filter(is_active=True)
+        identifier_keys = [licence["identifier"] for licence in LICENCES]
+        for licence in active_licences:
+            if licence.identifier not in identifier_keys:
+                licence.is_active = False
+                licence.save()
+                num_deactivated_licences += 1
+
+        return num_new_licences, num_updated_licences, num_deactivated_licences

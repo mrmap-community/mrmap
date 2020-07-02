@@ -54,7 +54,7 @@ We use mapserver to produce the masks for spatial restrictions.
 ##Install and setup postgresql
 1. install all dependencies:
         
-        $ sudo apt install postgresql postgresql-client postgis
+        $ sudo apt install postgresql postgresql-client postgis postgresql-server-dev-11
         
 1. login as postgres
 

@@ -785,7 +785,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    #@method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
+    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         data = serialize_catalogue_metadata(tmp)

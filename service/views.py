@@ -431,7 +431,7 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
     try:
-        if md.metadata_type.type != OGCServiceEnum.DATASET.value:
+        if md.metadata_type != OGCServiceEnum.DATASET.value:
             # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
             md = md.get_related_dataset_metadata()
             if md is None:

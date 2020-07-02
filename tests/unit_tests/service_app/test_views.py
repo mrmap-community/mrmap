@@ -733,7 +733,7 @@ class GetDatasetMetadataViewTestCase(TestCase):
     def test_get_dataset_metadata(self):
         dataset_md = MetadataRelation.objects.get(
             metadata_from=self.wms_metadata,
-            metadata_to__metadata_type__type=OGCServiceEnum.DATASET.value
+            metadata_to__metadata_type=OGCServiceEnum.DATASET.value
         )
         dataset_md = dataset_md.metadata_to
 

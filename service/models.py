@@ -544,6 +544,7 @@ class MetadataLanguage(models.Model):
 
 
 class Metadata(Resource):
+    from MrMap.validators import validate_metadata_enum_choices
     id = models.BigAutoField(primary_key=True,)
     identifier = models.CharField(max_length=255, null=True)
     title = models.CharField(max_length=255)
@@ -588,22 +589,22 @@ class Metadata(Resource):
 
     # capabilities
     authority_url = models.CharField(max_length=255, null=True, blank=True)
-    metadata_url = models.CharField(max_length=255, null=True)
+    metadata_url = models.CharField(max_length=255, null=True, blank=True)
 
     # other
     keywords = models.ManyToManyField(Keyword)
     formats = models.ManyToManyField('MimeType', blank=True)
     categories = models.ManyToManyField('Category', blank=True)
-    reference_system = models.ManyToManyField('ReferenceSystem')
+    reference_system = models.ManyToManyField('ReferenceSystem', blank=True)
     dimensions = models.ManyToManyField('Dimension', blank=True)
-    metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True, choices=MetadataEnum.as_choices())
+    metadata_type = models.CharField(max_length=255, null=True, blank=True, choices=MetadataEnum.as_choices(), validators=[validate_metadata_enum_choices])
     legal_dates = models.ManyToManyField('LegalDate', blank=True)
     legal_reports = models.ManyToManyField('LegalReport', blank=True)
     hits = models.IntegerField(default=0)
 
     # Related metadata creates Relations between metadata records by using the MetadataRelation table.
     # Each MetadataRelation record might hold further information about the relation, e.g. 'describedBy', ...
-    related_metadata = models.ManyToManyField(MetadataRelation)
+    related_metadata = models.ManyToManyField(MetadataRelation, blank=True)
     language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
     origin = None
 
@@ -663,7 +664,7 @@ class Metadata(Resource):
         Returns:
              True if the metadata_type is equal, false otherwise
         """
-        return self.metadata_type.type == enum.value
+        return self.metadata_type == enum.value
 
     def is_service_type(self, enum: OGCServiceEnum):
         """ Returns whether the described service element of this metadata is of the given OGCServiceEnum
@@ -929,7 +930,7 @@ class Metadata(Resource):
         try:
             dataset_md = MetadataRelation.objects.get(
                 metadata_from=self,
-                metadata_to__metadata_type__type=OGCServiceEnum.DATASET.value
+                metadata_to__metadata_type=OGCServiceEnum.DATASET.value
             )
             dataset_md = dataset_md.metadata_to
             return dataset_md
@@ -1110,7 +1111,7 @@ class Metadata(Resource):
         Returns:
 
         """
-        if self.metadata_type.type == MetadataEnum.SERVICE.value:
+        if self.metadata_type == MetadataEnum.SERVICE.value:
             if self.service.service_type.name == OGCServiceEnum.WMS.value:
                 children = Layer.objects.filter(
                     parent_service__metadata=self
@@ -1119,7 +1120,7 @@ class Metadata(Resource):
                 children = FeatureType.objects.filter(
                     parent_service__metadata=self
                 )
-        elif self.metadata_type.type == MetadataEnum.LAYER.value:
+        elif self.metadata_type == MetadataEnum.LAYER.value:
             children = Layer.objects.filter(
                 parent_layer__metadata=self
             )
@@ -1558,17 +1559,11 @@ class Metadata(Resource):
             sub.inform_subscriptor()
 
 
-class MetadataType(models.Model):
-    type = models.CharField(max_length=255, blank=True, null=True, unique=True)
-
-    def __str__(self):
-        return self.type
-
-
 class Document(Resource):
+    from MrMap.validators import validate_document_enum_choices
     id = models.BigAutoField(primary_key=True)
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name='documents')
-    document_type = models.CharField(max_length=255, null=True, choices=DocumentEnum.as_choices())
+    document_type = models.CharField(max_length=255, null=True, choices=DocumentEnum.as_choices(), validators=[validate_document_enum_choices])
     content = models.TextField(null=True, blank=True)
     is_original = models.BooleanField(default=False)
 

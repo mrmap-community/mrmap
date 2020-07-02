@@ -15,7 +15,7 @@ from editor.helper.editor_helper import overwrite_dataset_metadata_document
 from editor.settings import MR_MAP_DATASET_EDITOR_ORIGIN_NAME
 from service.helper.enums import MetadataEnum, DocumentEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
-from service.models import Dataset, Metadata, MetadataRelation, MetadataOrigin, MetadataType, Document
+from service.models import Dataset, Metadata, MetadataRelation, MetadataOrigin, Document
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, DEFAULT_SRS
 from structure.models import Organization, MrMapUser
 from users.helper import user_helper
@@ -61,9 +61,7 @@ class DatasetWizard(MrMapWizard):
             metadata = Metadata()
             metadata.uuid = uuid.uuid4()
             metadata.identifier = metadata.uuid
-            metadata.metadata_type = MetadataType.objects.get_or_create(
-                type=MetadataEnum.DATASET.value
-            )[0]
+            metadata.metadata_type = MetadataEnum.DATASET.value
             metadata.is_active = True
 
             dataset = Dataset()

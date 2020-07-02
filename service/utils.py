@@ -197,7 +197,7 @@ def collect_metadata_related_objects(md: Metadata, request: HttpRequest,):
     # get all related Metadata objects
     metadata_relations = MetadataRelation.objects.filter(
         metadata_from=md,
-        metadata_to__metadata_type__type=MetadataEnum.DATASET.value
+        metadata_to__metadata_type=MetadataEnum.DATASET.value
     )
 
     # if no related metadata found, skip

@@ -1799,7 +1799,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             nothing
         """
         dataset_mds = feature_type_obj.metadata.related_metadata.filter(
-            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+            metadata_to__metadata_type=MetadataEnum.DATASET.value,
         )
         for dataset_md in dataset_mds:
             try:
@@ -2164,7 +2164,7 @@ class CapabilityWFS110Builder(CapabilityWFSBuilder):
             nothing
         """
         dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+            metadata_to__metadata_type=MetadataEnum.DATASET.value,
         )
         for dataset_md in dataset_mds:
             try:
@@ -2239,7 +2239,7 @@ class CapabilityWFS200Builder(CapabilityWFSBuilder):
             nothing
         """
         dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+            metadata_to__metadata_type=MetadataEnum.DATASET.value,
         )
         for dataset_md in dataset_mds:
             try:
@@ -2310,7 +2310,7 @@ class CapabilityWFS202Builder(CapabilityWFSBuilder):
             nothing
         """
         dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+            metadata_to__metadata_type=MetadataEnum.DATASET.value,
         )
         for dataset_md in dataset_mds:
             try:

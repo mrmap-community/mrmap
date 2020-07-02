@@ -4,7 +4,7 @@ from django.contrib.gis.geos import Polygon
 
 from service.helper.enums import MetadataEnum, OGCOperationEnum
 from service.helper.epsg_api import EpsgApi
-from service.models import Service, Metadata, MetadataType, Layer, Keyword, ReferenceSystem, MetadataRelation, \
+from service.models import Service, Metadata, Layer, Keyword, ReferenceSystem, MetadataRelation, \
     MetadataOrigin, Dimension, MimeType
 from service.settings import SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE, \
     ALLOWED_SRS, MD_RELATION_TYPE_DESCRIBED_BY
@@ -114,7 +114,7 @@ class OGCLayer:
              metadata (Metadata): The persisted metadata object
         """
         metadata = Metadata()
-        md_type = MetadataType.objects.get_or_create(type=MetadataEnum.LAYER.value)[0]
+        md_type = MetadataEnum.LAYER.value
         metadata.metadata_type = md_type
         metadata.title = self.title
         metadata.uuid = uuid.uuid4()

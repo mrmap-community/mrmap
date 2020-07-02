@@ -52,10 +52,6 @@ class MetadataOriginAdmin(admin.ModelAdmin):
     list_display = ('id', 'name',)
 
 
-class MetadataTypeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'type',)
-
-
 class MetadataLanguageAdmin(admin.ModelAdmin):
     list_display = ('id', 'language', 'iso_639_2_tlc',)
     list_filter = ('language', 'iso_639_2_tlc',)
@@ -158,7 +154,6 @@ admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(Keyword, KeywordAdmin)
 admin.site.register(MetadataLanguage, MetadataLanguageAdmin)
 admin.site.register(MetadataOrigin, MetadataOriginAdmin)
-admin.site.register(MetadataType, MetadataTypeAdmin)
 admin.site.register(Metadata, MetadataAdmin)
 admin.site.register(MetadataRelation, MetadataRelationAdmin)
 admin.site.register(Licence, TermsOfUseAdmin)

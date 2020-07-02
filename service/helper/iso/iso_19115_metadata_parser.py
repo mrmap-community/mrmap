@@ -25,7 +25,7 @@ from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import ConnectionEnum, MetadataEnum, DocumentEnum
 from service.helper.epsg_api import EpsgApi
-from service.models import Metadata, Keyword, MetadataType, Document, Dataset, LegalDate, LegalReport
+from service.models import Metadata, Keyword, Document, Dataset, LegalDate, LegalReport
 from structure.models import Organization, MrMapGroup
 
 
@@ -573,7 +573,7 @@ class ISOMetadata:
         except ObjectDoesNotExist:
             # object does not seem to exist -> create it!
             metadata = Metadata()
-            md_type = MetadataType.objects.get_or_create(type=type)[0]
+            md_type = type
             metadata.metadata_type = md_type
             if metadata.is_dataset_metadata:
                 metadata.dataset = Dataset()

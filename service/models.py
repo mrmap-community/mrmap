@@ -17,6 +17,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from MrMap.cacher import DocumentCacher
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
@@ -2339,8 +2340,16 @@ class Licence(Resource):
         Returns:
              string (str): As described above
         """
-        descrs = ["<b>{}</b>: {}".format(licence.identifier, licence.description) for licence in Licence.objects.filter(is_active=True)]
-        return "<br>".join(descrs)
+        descrs = [
+            "<a href='{}' target='_blank'>{}</a>".format(
+                licence.description_url, licence.identifier
+            ) for licence in Licence.objects.filter(
+                is_active=True
+            )
+        ]
+        descr_str = "<br>".join(descrs)
+        descr_str = _("Explanations: <br>") + descr_str
+        return descr_str
 
 
 class CategoryOrigin(models.Model):

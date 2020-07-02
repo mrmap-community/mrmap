@@ -426,7 +426,7 @@ def overwrite_metadata(original_md: Metadata, custom_md: Metadata, editor_form):
     original_md.access_constraints = custom_md.access_constraints
     # we need the metadata_url to reset dataset metadatas
     # original_md.metadata_url = custom_md.metadata_url
-    original_md.terms_of_use = custom_md.terms_of_use
+    original_md.licence = custom_md.licence
     # get db objects from values
 
     # Keyword updating

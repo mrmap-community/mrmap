@@ -557,8 +557,8 @@ class Metadata(Resource):
 
     html_metadata_uri = models.CharField(max_length=500, blank=True, null=True)
 
-    contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, blank=True, null=True)
-    terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, blank=True, null=True)
+    contact = models.ForeignKey(Organization, on_delete=models.SET_NULL, blank=True, null=True)
+    licence = models.ForeignKey('Licence', on_delete=models.SET_NULL, blank=True, null=True)
     access_constraints = models.TextField(null=True, blank=True)
     fees = models.TextField(null=True, blank=True)
 
@@ -2312,12 +2312,16 @@ class Document(Resource):
         self.save()
 
 
-class TermsOfUse(Resource):
-    name = models.CharField(max_length=100)
-    symbol_url = models.CharField(max_length=100)
+class Licence(Resource):
+    name = models.CharField(max_length=255)
+    identifier = models.CharField(max_length=255, unique=True)
+    symbol_url = models.URLField(null=True)
     description = models.TextField()
+    description_url = models.URLField(null=True)
     is_open_data = models.BooleanField(default=False)
-    fees = models.CharField(max_length=100)
+
+    def __str__(self):
+        return "{} ({})".format(self.identifier, self.name)
 
 
 class CategoryOrigin(models.Model):

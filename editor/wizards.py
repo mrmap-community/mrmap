@@ -229,7 +229,7 @@ class DatasetWizard(MrMapWizard):
         Returns:
 
         """
-        metadata.terms_of_use = data.get("terms_of_use", None) or None
+        metadata.licence = data.get("licence", None) or None
         metadata.access_constraints = data.get("access_constraints", None)
 
     @staticmethod

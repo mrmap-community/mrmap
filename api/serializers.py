@@ -288,7 +288,7 @@ class CatalogueMetadataSerializer(serializers.Serializer):
     html_metadata_uri = serializers.CharField(read_only=True)
     fees = serializers.CharField(read_only=True)
     access_constraints = serializers.CharField(read_only=True)
-    terms_of_use = serializers.PrimaryKeyRelatedField(read_only=True)
+    licence = serializers.PrimaryKeyRelatedField(read_only=True)
     parent_service = serializers.IntegerField(read_only=True, source="service.parent_service.metadata.id")
     organization = OrganizationSerializer(read_only=True, source="contact")
     related_metadata = MetadataRelationSerializer(read_only=True, many=True)
@@ -481,7 +481,7 @@ def perform_catalogue_entry_serialization(md: Metadata):
     serialized["html_metadata_uri"] = md.html_metadata_uri
     serialized["fees"] = md.fees
     serialized["access_constraints"] = md.access_constraints
-    serialized["terms_of_use"] = md.terms_of_use
+    serialized["licence"] = md.licence
     serialized["parent_service"] = parent_service
     serialized["keywords"] = [kw.keyword for kw in keywords]
     serialized["organization"] = serialize_contact(md)

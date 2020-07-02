@@ -733,7 +733,7 @@ class CatalogueViewSet(viewsets.GenericViewSet):
             "related_metadata__metadata_to__metadata_type",
             "dimensions",
             "contact",
-            "terms_of_use",
+            "licence",
             "featuretype__parent_service",
             "service__parent_service",
             "metadata_type",

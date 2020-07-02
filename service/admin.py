@@ -93,7 +93,7 @@ class MetadataRelationAdmin(admin.ModelAdmin):
 
 
 class TermsOfUseAdmin(admin.ModelAdmin):
-    pass
+    list_display = ('identifier', 'name', 'is_open_data')
 
 
 class LegalReportAdmin(admin.ModelAdmin):
@@ -161,7 +161,7 @@ admin.site.register(MetadataOrigin, MetadataOriginAdmin)
 admin.site.register(MetadataType, MetadataTypeAdmin)
 admin.site.register(Metadata, MetadataAdmin)
 admin.site.register(MetadataRelation, MetadataRelationAdmin)
-admin.site.register(TermsOfUse, TermsOfUseAdmin)
+admin.site.register(Licence, TermsOfUseAdmin)
 admin.site.register(ReferenceSystem, ReferenceSystemAdmin)
 admin.site.register(Service, ServiceAdmin)
 admin.site.register(MimeType, MimeTypeAdmin)

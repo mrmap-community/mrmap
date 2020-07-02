@@ -89,7 +89,7 @@ LICENCES = [
         "identifier": "dl-de-by-nc-1.0",
         "symbol_url": None,
         "description": "Datenlizenz Deutschland – Namensnennung – nicht-kommerziell – Version 1.0",
-        "description_url": "http://www.daten-deutschland.de/bibliothek/Datenlizenz_Deutschland/dl-de-by-nc-1.0",
+        "description_url": "https://www.govdata.de/dl-de/by-nc-1-0",
         "is_open_data": False,
     },
     {
@@ -97,7 +97,7 @@ LICENCES = [
         "identifier": "dl-de-by-1.0",
         "symbol_url": None,
         "description": "Datenlizenz Deutschland – Namensnennung – Version 1.0",
-        "description_url": "http://www.daten-deutschland.de/bibliothek/Datenlizenz_Deutschland/dl-de-by-1.0",
+        "description_url": "https://www.govdata.de/dl-de/by-1-0",
         "is_open_data": True,
     },
     {

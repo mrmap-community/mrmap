@@ -199,7 +199,8 @@ class DatasetLicenseConstraintsForm(MrMapWizardForm):
     licence = forms.ChoiceField(
         label=_('Terms of use'),
         required=False,
-        choices=Licence.objects.all()
+        choices=Licence.as_choices(),
+        help_text=Licence.get_descriptions_help_text()
     )
     access_constraints = forms.CharField(
         label=_('Access constraints'),

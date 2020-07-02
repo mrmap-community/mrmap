@@ -2323,6 +2323,25 @@ class Licence(Resource):
     def __str__(self):
         return "{} ({})".format(self.identifier, self.name)
 
+    @classmethod
+    def as_choices(cls):
+        """ Returns a list of (identifier, name) to be used as choices in a form
+
+        Returns:
+             tuple_list (list): As described above
+        """
+        return [(licence.identifier, licence.__str__()) for licence in Licence.objects.filter(is_active=True)]
+
+    @classmethod
+    def get_descriptions_help_text(cls):
+        """ Returns a string containing all active Licence records for rendering as help_text in a form
+
+        Returns:
+             string (str): As described above
+        """
+        descrs = ["<b>{}</b>: {}".format(licence.identifier, licence.description) for licence in Licence.objects.filter(is_active=True)]
+        return "<br>".join(descrs)
+
 
 class CategoryOrigin(models.Model):
     name = models.CharField(max_length=255)

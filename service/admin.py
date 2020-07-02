@@ -93,7 +93,7 @@ class MetadataRelationAdmin(admin.ModelAdmin):
 
 
 class TermsOfUseAdmin(admin.ModelAdmin):
-    list_display = ('identifier', 'name', 'is_open_data')
+    list_display = ('identifier', 'name', 'is_open_data', 'is_active')
 
 
 class LegalReportAdmin(admin.ModelAdmin):

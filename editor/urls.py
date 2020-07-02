@@ -22,14 +22,14 @@ urlpatterns = [
     path('wms/', index_wms, name='wms-index'),
     path('wfs/', index_wfs, name='wfs-index'),
     path('datasets/', index_datasets, name='datasets-index'),
-    path('metadata/<metadata_id>', edit, name='edit'),
+    path('metadata/<metadata_id>/<current_view>', edit, name='edit'),
 
     path('dataset/wizard/<current_view>', add_new_dataset_wizard, name="dataset-metadata-wizard-new"),
     path('dataset/wizard/<current_view>/<metadata_id>', edit_dataset_wizard, name="dataset-metadata-wizard-instance"),
 
-    path('dataset/remove/<metadata_id>', remove_dataset, name='remove-dataset-metadata'),
+    path('dataset/remove/<metadata_id>/<current_view>', remove_dataset, name='remove-dataset-metadata'),
     path('access/<id>', edit_access, name='edit_access'),
     path('access/<id>/geometry-form/', access_geometry_form, name='access_geometry_form'),
-    path('restore/<metadata_id>', restore, name='restore'),
-    path('restore-dataset-metadata/<metadata_id>', restore_dataset_metadata, name='restore-dataset-metadata'),
+    path('restore/<metadata_id>/<current_view>', restore, name='restore'),
+    path('restore-dataset-metadata/<metadata_id>/<current_view>', restore_dataset_metadata, name='restore-dataset-metadata'),
 ]

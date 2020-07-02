@@ -66,7 +66,7 @@ class MrMapWizard(SessionWizardView, ABC):
                                            context=context)
 
         view_function = resolve(reverse(f"{self.current_view}", ))
-        return view_function.func(request=self.request, rendered_wizard=rendered_wizard)
+        return view_function.func(request=self.request, update_params={'rendered_modal': rendered_wizard})
 
     def render_goto_step(self, goto_step, **kwargs):
         # 1. save current form, we doesn't matter for validation for now.

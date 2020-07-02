@@ -5,7 +5,7 @@
 {% load bootstrap4 %}
 {% load mr_map_filters %}
     <div class="row"><!--<t-head-->
-        {% if table.filter.form %}
+        {% if table.filter_set.form %}
         <div class="col-md-7 col-lg-9 col-xl-10"><!--filter-->
             <div id="id_filter_accordion_{{table.table_id}}">
                 <div class="card">
@@ -14,14 +14,14 @@
                             {% autoescape off %}{{table.context.THEME.ICONS.FILTER}}{% endautoescape %} {% trans 'Filter table' %}
                         </button>
                     </div>
-                        <div id="id_filter_collapse_{{table.table_id}}" class="collapse {% if table.filter.data %} show {% endif %}" aria-labelledby="id_filter_card_header_{{table.table_id}}" data-parent="#id_filter_accordion_{{table.table_id}}">
+                        <div id="id_filter_collapse_{{table.table_id}}" class="collapse {% if table.filter_set.data %} show {% endif %}" aria-labelledby="id_filter_card_header_{{table.table_id}}" data-parent="#id_filter_accordion_{{table.table_id}}">
                             <div class="card-body">
-                                <form action="" method="get" class="form {% if table.filter.inline %} form-inline {% endif %}">
+                                <form action="" method="get" class="form {% if table.filter_set.inline %} form-inline {% endif %}">
                                     <div class="col">
                                         <div class="row">
-                                            {% for field in table.filter.form %}
+                                            {% for field in table.filter_set.form %}
                                             <div class="col">
-                                                {% if table.filter.inline %}
+                                                {% if table.filter_set.inline %}
                                                     {% bootstrap_field field layout='horizontal' show_label='sr-only' %}
                                                 {% else %}
                                                     {% bootstrap_field field %}

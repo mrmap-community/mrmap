@@ -177,7 +177,7 @@ def remove_dataset(request: HttpRequest, metadata_id: int):
         A rendered view
     """
     metadata = get_object_or_404(Metadata, id=metadata_id)
-    if metadata.metadata_type.type != 'dataset':
+    if metadata.metadata_type != MetadataEnum.DATASET.value:
         messages.success(request, message=_("You can't delete metadata record"))
         return HttpResponseRedirect(reverse("editor:datasets-index",), status=303)
 
@@ -252,7 +252,7 @@ def edit(request: HttpRequest, metadata_id: int):
     user = user_helper.get_user(request)
 
     metadata = get_object_or_404(Metadata, id=metadata_id)
-    if metadata.metadata_type.type == 'dataset':
+    if metadata.metadata_type == MetadataEnum.DATASET.value:
         return HttpResponseRedirect(reverse("editor:edit-dataset-metadata", args=(metadata_id,)), status=303)
 
     if request.method == 'POST':

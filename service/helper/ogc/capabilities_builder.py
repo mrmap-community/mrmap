@@ -143,6 +143,25 @@ class CapabilityXMLBuilder:
         xml = xml_builder._generate_xml()
         return xml
 
+    def _generate_licence_related_constraints(self) -> (str, str):
+        """ Generates the string content for fees and access constraints elements based on a given metadata
+
+        Returns:
+             fees (str): The fees string
+             access_constraints (str): The access constraints string
+        """
+        md = self.metadata
+        fees = md.fees
+        access_constraints = md.access_constraints
+
+        licence = md.licence
+        if licence is not None:
+            appendix = "\n {} ({}), \n {}, \n {}".format(licence.name, licence.identifier, licence.description, licence.description_url)
+            fees += appendix
+            access_constraints += appendix
+
+        return fees, access_constraints
+
     def _generate_simple_elements_from_dict(self, upper_elem: Element, contents: dict, ns: str=None):
         """ Generate multiple subelements of a xml object
 
@@ -403,9 +422,10 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         self._generate_service_contact_information_xml(service_elem)
 
         # Create generic xml end elements
+        fees, access_constraints = self._generate_licence_related_constraints()
         contents = OrderedDict({
-            "{}Fees": service_md.fees,
-            "{}AccessConstraints": service_md.access_constraints,
+            "{}Fees": fees,
+            "{}AccessConstraints": access_constraints,
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
 
@@ -1304,9 +1324,10 @@ class CapabilityWMS130Builder(CapabilityWMSBuilder):
         self._generate_service_contact_information_xml(service_elem)
 
         # Create end of <Service> elements
+        fees, access_constraints = self._generate_licence_related_constraints()
         contents = OrderedDict({
-            "{}Fees": service_md.fees,
-            "{}AccessConstraints": service_md.access_constraints,
+            "{}Fees": fees,
+            "{}AccessConstraints": access_constraints,
             "{}MaxWidth": "",  # ToDo: Implement md.service.max_width in registration
             "{}MaxHeight": "",  # ToDo: Implement md.service.max_height in registration
         })
@@ -1545,10 +1566,11 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
         self._generate_keyword_xml(service_elem, self.service.metadata)
         self._generate_service_type(service_elem)
 
+        fees, access_constraints = self._generate_licence_related_constraints()
         contents = OrderedDict({
             "{}ServiceTypeVersion": self.service_version,
-            "{}Fees": self.service.metadata.fees,
-            "{}AccessConstraints": self.service.metadata.access_constraints,
+            "{}Fees": fees,
+            "{}AccessConstraints": access_constraints,
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
 
@@ -1799,7 +1821,7 @@ class CapabilityWFSBuilder(CapabilityXMLBuilder):
             nothing
         """
         dataset_mds = feature_type_obj.metadata.related_metadata.filter(
-            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+            metadata_to__metadata_type=MetadataEnum.DATASET.value,
         )
         for dataset_md in dataset_mds:
             try:
@@ -1849,7 +1871,6 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
 
         # WFS 1.0.0 expects a /Service/Name
         self.default_identifier = "WFS"
-
 
     def _generate_xml(self):
         """ Generate an xml capabilities document from the metadata object
@@ -1917,9 +1938,10 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         self._generate_online_resource_xml(service_elem, service_md)
 
         # Create generic xml end elements
+        fees, access_constraints = self._generate_licence_related_constraints()
         contents = OrderedDict({
-            "{}Fees": service_md.fees,
-            "{}AccessConstraints": service_md.access_constraints,
+            "{}Fees": fees,
+            "{}AccessConstraints": access_constraints,
         })
         self._generate_simple_elements_from_dict(service_elem, contents)
 
@@ -1964,7 +1986,7 @@ class CapabilityWFS100Builder(CapabilityWFSBuilder):
         Returns:
             nothing
         """
-        capability_elem =  xml_helper.create_subelement(upper_elem, "{}Capability".format(self.default_ns))
+        capability_elem = xml_helper.create_subelement(upper_elem, "{}Capability".format(self.default_ns))
 
         # Request
         self._generate_capability_request_xml(capability_elem)
@@ -2164,7 +2186,7 @@ class CapabilityWFS110Builder(CapabilityWFSBuilder):
             nothing
         """
         dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+            metadata_to__metadata_type=MetadataEnum.DATASET.value,
         )
         for dataset_md in dataset_mds:
             try:
@@ -2239,7 +2261,7 @@ class CapabilityWFS200Builder(CapabilityWFSBuilder):
             nothing
         """
         dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+            metadata_to__metadata_type=MetadataEnum.DATASET.value,
         )
         for dataset_md in dataset_mds:
             try:
@@ -2310,7 +2332,7 @@ class CapabilityWFS202Builder(CapabilityWFSBuilder):
             nothing
         """
         dataset_mds = self.metadata.related_metadata.filter(
-            metadata_to__metadata_type__type=MetadataEnum.DATASET.value,
+            metadata_to__metadata_type=MetadataEnum.DATASET.value,
         )
         for dataset_md in dataset_mds:
             try:

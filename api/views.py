@@ -728,15 +728,12 @@ class CatalogueViewSet(viewsets.GenericViewSet):
             "categories",
             "related_metadata",
             "related_metadata__metadata_from",
-            "related_metadata__metadata_from__metadata_type",
             "related_metadata__metadata_to",
-            "related_metadata__metadata_to__metadata_type",
             "dimensions",
             "contact",
             "licence",
             "featuretype__parent_service",
             "service__parent_service",
-            "metadata_type",
         ]
         for prefetch in prefetches:
             self.queryset = self.queryset.prefetch_related(prefetch)

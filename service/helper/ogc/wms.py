@@ -31,7 +31,7 @@ from service.helper.ogc.layer import OGCLayer
 
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
-    MetadataRelation, MetadataOrigin, MetadataType, Style, ExternalAuthentication
+    MetadataRelation, MetadataOrigin, Style, ExternalAuthentication
 from service.settings import MD_RELATION_TYPE_VISUALIZES
 from structure.models import Organization, MrMapGroup
 from structure.models import MrMapUser
@@ -760,7 +760,7 @@ class OGCWebMapService(OGCWebService):
              metadata (Metadata): The persisted metadata record
         """
         metadata = Metadata()
-        md_type = MetadataType.objects.get_or_create(type=MetadataEnum.SERVICE.value)[0]
+        md_type = MetadataEnum.SERVICE.value
         metadata.metadata_type = md_type
         if self.service_file_iso_identifier is None:
             # We didn't found any file identifier in the document -> we create one

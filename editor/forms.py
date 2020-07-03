@@ -44,7 +44,7 @@ class MetadataEditorForm(MrMapModelForm):
             "title": _("Edit the title."),
             "abstract": _("Edit the description. Keep it short and simple."),
             "access_constraints": _("Edit the access constraints."),
-            "licence": _("Select another licence."),
+            "licence": Licence.get_descriptions_help_text(),
             "keywords": _(""),  # Since keywords are handled differently, this can be empty
             "categories": _("Select categories for this resource."),
         }

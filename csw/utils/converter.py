@@ -313,7 +313,7 @@ class DublinCoreMetadataConverter(MetadataConverter):
         attribute_element_map[IDENTIFIER_TEMPLATE.format(self.dc_ns)] = md.identifier
         attribute_element_map[TITLE_TEMPLATE.format(self.dc_ns)] = md.title
         attribute_element_map[TYPE_TEMPLATE.format(
-            self.dc_ns)] = md.metadata_type.type if md.metadata_type.type == MetadataEnum.DATASET.value else "service"
+            self.dc_ns)] = md.metadata_type if md.metadata_type == MetadataEnum.DATASET.value else MetadataEnum.SERVICE.value
 
         # Create xml elements from mapped information
         self._create_xml_from_map(record_elem, attribute_element_map)
@@ -360,7 +360,7 @@ class DublinCoreMetadataConverter(MetadataConverter):
         attribute_element_map[IDENTIFIER_TEMPLATE.format(self.dc_ns)] = md.identifier
         attribute_element_map[TITLE_TEMPLATE.format(self.dc_ns)] = md.title
         attribute_element_map[TYPE_TEMPLATE.format(
-            self.dc_ns)] = md.metadata_type.type if md.metadata_type.type == MetadataEnum.DATASET.value else "service"
+            self.dc_ns)] = md.metadata_type if md.metadata_type == MetadataEnum.DATASET.value else MetadataEnum.SERVICE.value
         attribute_element_map["{}subject".format(self.dc_ns)] = [kw.keyword for kw in md.keywords.all()]
         attribute_element_map["{}format".format(self.dc_ns)] = [format.mime_type for format in md.formats.all()]
         attribute_element_map["{}modified".format(self.dct_ns)] = md.last_modified.strftime(DATE_STRF)
@@ -392,7 +392,7 @@ class DublinCoreMetadataConverter(MetadataConverter):
         attribute_element_map["{}abstract".format(self.dct_ns)] = md.abstract
         attribute_element_map["{}description".format(self.dc_ns)] = md.abstract
         attribute_element_map[TYPE_TEMPLATE.format(
-            self.dc_ns)] = md.metadata_type.type if md.metadata_type.type == MetadataEnum.DATASET.value else "service"
+            self.dc_ns)] = md.metadata_type if md.metadata_type == MetadataEnum.DATASET.value else MetadataEnum.SERVICE.value
         attribute_element_map["{}subject".format(self.dc_ns)] = [kw.keyword for kw in md.keywords.all()]
         attribute_element_map["{}format".format(self.dc_ns)] = [format.mime_type for format in md.formats.all()]
         attribute_element_map["{}modified".format(self.dct_ns)] = md.last_modified.strftime(DATE_STRF)

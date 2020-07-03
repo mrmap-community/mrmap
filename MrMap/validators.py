@@ -1,10 +1,8 @@
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
-from django.utils.deconstruct import deconstructible
 from django.utils.translation import gettext_lazy as _
 
-from service.helper import service_helper
-from service.helper.enums import OGCServiceEnum
+from service.helper.enums import OGCServiceEnum, DocumentEnum, MetadataEnum
 
 password_has_lower_case_letter = RegexValidator(
     regex='[a-z]',
@@ -57,6 +55,7 @@ USERNAME_VALIDATORS = [validate_username_has_special_characters]
 
 
 def _get_request_uri_has_no_request_parameter(value):
+    from service.helper import service_helper
     url_dict = service_helper.split_service_uri(value)
 
     if "request" in url_dict and url_dict["request"] is not None:
@@ -72,6 +71,7 @@ def _get_request_uri_has_no_request_parameter(value):
 
 
 def _get_request_uri_has_no_version_parameter(value):
+    from service.helper import service_helper
     url_dict = service_helper.split_service_uri(value)
     # currently supported version for wms 1.3.0, 1.1.1, 1.1.0, 1.0.0
     # currently supported version for wfs 2.0.2, 2.0.0, 1.1.0, 1.0.0
@@ -108,6 +108,7 @@ def _get_request_uri_has_no_version_parameter(value):
 
 
 def _get_request_uri_has_no_service_parameter(value):
+    from service.helper import service_helper
     url_dict = service_helper.split_service_uri(value)
 
     if "service" not in url_dict or url_dict["service"] is None:
@@ -134,3 +135,27 @@ def validate_get_request_uri(value):
 
     if len(validation_errors) > 0:
         raise ValidationError(validation_errors)
+
+
+def validate_document_enum_choices(value):
+    return validate_choice(value, DocumentEnum.as_choices())
+
+
+def validate_metadata_enum_choices(value):
+    return validate_choice(value, MetadataEnum.as_choices())
+
+
+def validate_choice(value, choices: list):
+    """ Validates a given value against a choices list of tuples
+
+    Args:
+        value:
+        choices:
+    Returns:
+
+    """
+    choice_values = [choice[0] for choice in choices]
+    if value not in choice_values:
+        raise ValidationError(
+            "Given value '{}' is not matching possible choices!".format(value)
+        )

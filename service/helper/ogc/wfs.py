@@ -26,7 +26,7 @@ from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
-    FeatureTypeElement, MetadataRelation, MetadataOrigin, MetadataType, RequestOperation, ExternalAuthentication
+    FeatureTypeElement, MetadataRelation, MetadataOrigin, RequestOperation, ExternalAuthentication
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
 from structure.models import Organization, MrMapUser, MrMapGroup, Contact
 
@@ -407,7 +407,7 @@ class OGCWebFeatureService(OGCWebService):
 
         f_t = FeatureType()
         md = Metadata()
-        md_type = MetadataType.objects.get_or_create(type=MetadataEnum.FEATURETYPE.value)[0]
+        md_type = MetadataEnum.FEATURETYPE.value
         md.metadata_type = md_type
         md.uuid = uuid.uuid4()
         f_t.metadata = md
@@ -717,7 +717,8 @@ class OGCWebFeatureService(OGCWebService):
              md (Metadata): The persisted metadata record
         """
         md = Metadata()
-        md_type = MetadataType.objects.get_or_create(type=MetadataEnum.SERVICE.value)[0]
+        md_type = MetadataEnum.SERVICE.value
+        print(md_type)
         md.metadata_type = md_type
         md.title = self.service_identification_title
         if self.service_file_identifier is None:

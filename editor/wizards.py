@@ -15,7 +15,7 @@ from editor.helper.editor_helper import overwrite_dataset_metadata_document
 from editor.settings import MR_MAP_DATASET_EDITOR_ORIGIN_NAME
 from service.helper.enums import MetadataEnum, DocumentEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
-from service.models import Dataset, Metadata, MetadataRelation, MetadataOrigin, Document
+from service.models import Dataset, Metadata, MetadataRelation, MetadataOrigin, Document, Licence
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, DEFAULT_SRS
 from structure.models import Organization, MrMapUser
 from users.helper import user_helper
@@ -227,7 +227,9 @@ class DatasetWizard(MrMapWizard):
         Returns:
 
         """
-        metadata.licence = data.get("licence", None) or None
+        metadata.licence = Licence.objects.get(
+            identifier=data.get("licence", None)
+        )
         metadata.access_constraints = data.get("access_constraints", None)
 
     @staticmethod

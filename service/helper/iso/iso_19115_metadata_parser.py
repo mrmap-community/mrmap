@@ -23,14 +23,14 @@ from service.settings import INSPIRE_LEGISLATION_FILE, HTML_METADATA_URI_TEMPLAT
 from MrMap import utils
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import ConnectionEnum, MetadataEnum, DocumentEnum
+from service.helper.enums import ConnectionEnum, MetadataEnum, DocumentEnum, ResourceOriginEnum
 from service.helper.epsg_api import EpsgApi
 from service.models import Metadata, Keyword, Document, Dataset, LegalDate, LegalReport
 from structure.models import Organization, MrMapGroup
 
 
 class ISOMetadata:
-    def __init__(self, uri: str, origin: str = "capabilities"):
+    def __init__(self, uri: str, origin: str = ResourceOriginEnum.CAPABILITIES.value):
         self.section = "all" # serviceIdentification, serviceProvider, operationMetadata, contents, all
 
         self.uri = uri

@@ -89,3 +89,19 @@ class DocumentEnum(EnumChoice):
     CAPABILITY = "Capability"
     METADATA = "Metadata"
 
+
+class ResourceOriginEnum(EnumChoice):
+    """ Defines origins from where a resource could be coming from
+
+    """
+    CAPABILITIES = "Capabilities"
+    UPLOAD = "Upload"
+    EDITOR = "Editor"
+
+
+class CategorySourceEnum(EnumChoice):
+    """ Defines sources for categories
+
+    """
+    ISO = "iso"
+    INSPIRE = "inspire"

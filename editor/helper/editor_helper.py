@@ -17,10 +17,9 @@ from service.helper.iso.iso19115.md_data_identification import _create_gmd_descr
 from MrMap.messages import EDITOR_INVALID_ISO_LINK
 from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum, DocumentEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum, DocumentEnum, ResourceOriginEnum
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
-from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, \
-    MetadataOrigin, SecuredOperation
+from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, SecuredOperation
 from service.helper import xml_helper
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY
 
@@ -372,15 +371,13 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
         if link in existing_iso_links:
             continue
         # ... otherwise create a new iso metadata object
-        iso_md = ISOMetadata(link, "editor")
+        iso_md = ISOMetadata(link, ResourceOriginEnum.EDITOR.value)
         iso_md = iso_md.to_db_model(created_by=metadata.created_by)
         iso_md.save()
         md_relation = MetadataRelation()
         md_relation.metadata_from = metadata
         md_relation.metadata_to = iso_md
-        md_relation.origin = MetadataOrigin.objects.get_or_create(
-            name=iso_md.origin
-        )[0]
+        md_relation.origin = iso_md.origin
         md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
         md_relation.save()
 

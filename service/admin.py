@@ -48,10 +48,6 @@ class DocumentAdmin(admin.ModelAdmin):
     search_fields = ['id', 'metadata__id', ]
 
 
-class MetadataOriginAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name',)
-
-
 class MetadataLanguageAdmin(admin.ModelAdmin):
     list_display = ('id', 'language', 'iso_639_2_tlc',)
     list_filter = ('language', 'iso_639_2_tlc',)
@@ -65,7 +61,7 @@ class MetadataAdmin(admin.ModelAdmin):
 
 
 class MetadataRelationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata_from_link', 'relation_type', 'metadata_to_link', 'origin_link')
+    list_display = ('id', 'metadata_from_link', 'relation_type', 'metadata_to_link')
     list_filter = ('relation_type',)
     search_fields = ['metadata_from__title', 'metadata_to__title',]
 
@@ -80,12 +76,6 @@ class MetadataRelationAdmin(admin.ModelAdmin):
 
     metadata_to_link.allow_tags = True
     metadata_to_link.short_description = "metadata_to"
-
-    def origin_link(self, obj):
-        return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadataorigin_change", args=(obj.origin.id,)), escape(obj.origin)))
-
-    origin_link.allow_tags = True
-    origin_link.short_description = "origin"
 
 
 class TermsOfUseAdmin(admin.ModelAdmin):
@@ -153,7 +143,6 @@ admin.site.register(Module, ModuleAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(Keyword, KeywordAdmin)
 admin.site.register(MetadataLanguage, MetadataLanguageAdmin)
-admin.site.register(MetadataOrigin, MetadataOriginAdmin)
 admin.site.register(Metadata, MetadataAdmin)
 admin.site.register(MetadataRelation, MetadataRelationAdmin)
 admin.site.register(Licence, TermsOfUseAdmin)

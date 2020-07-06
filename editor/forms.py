@@ -12,7 +12,7 @@ from django.utils.translation import gettext_lazy as _
 from django import forms
 from MrMap.forms import MrMapModelForm, MrMapWizardForm, MrMapWizardModelForm
 from MrMap.widgets import BootstrapDateTimePickerInput, BootstrapDatePickerInput, LeafletGeometryInput
-from service.helper.enums import MetadataEnum
+from service.helper.enums import MetadataEnum, ResourceOriginEnum
 from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem, Licence
 from service.settings import ISO_19115_LANG_CHOICES, DEFAULT_SERVICE_BOUNDING_BOX
 from structure.models import Organization
@@ -150,7 +150,7 @@ class DatasetIdentificationForm(MrMapWizardForm):
             metadata_relations = MetadataRelation.objects.filter(metadata_to=self.instance_id)
             additional_related_objects = []
             for metadata_relation in metadata_relations:
-                if metadata_relation.origin.name != 'capabilities':
+                if metadata_relation.origin != ResourceOriginEnum.CAPABILITIES.value:
                     additional_related_objects.append(metadata_relation.metadata_from)
             self.fields['additional_related_objects'].initial = additional_related_objects
 

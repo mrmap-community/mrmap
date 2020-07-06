@@ -39,7 +39,7 @@ class MrMapTable(tables.Table):
         # He we set the data kw dynamic by the query_class and query_filter,
         # so we don't need to set the data kw in every view again and again
         # ToDo: it's a little bit messy... refactor this if/else
-        if queryset:
+        if queryset is not None:
             if filter_set_class:
                 self._configure_filter_set()
                 kwargs['data'] = self.filter_set.qs

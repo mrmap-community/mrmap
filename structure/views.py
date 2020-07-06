@@ -26,35 +26,32 @@ from users.helper import user_helper
 from users.helper.user_helper import create_group_activity
 
 
-def _prepare_group_table(request: HttpRequest, user: MrMapUser, ):
+def _prepare_group_table(request: HttpRequest, user: MrMapUser, current_view: str):
     user_groups = user.get_groups().order_by(Case(When(name='Public', then=0)), 'name')
-    user_groups_filtered = GroupFilter(data=request.GET, queryset=user_groups)
-
-    groups_table = GroupTable(data=user_groups_filtered.qs,
+    groups_table = GroupTable(request=request,
+                              queryset=user_groups,
                               order_by_field='sg',  # sg = sort groups
-                              request=request, )
-    groups_table.filter = user_groups_filtered
-    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    groups_table.configure_pagination(request, 'groups-t')
+                              filter_set_class=GroupFilter,
+                              current_view=current_view,
+                              param_lead='group-t',
+                              )
 
     return {"groups": groups_table, }
 
 
-def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, ):
+def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, current_view: str):
     all_orgs = Organization.objects.all()
 
     all_orgs = all_orgs.order_by(
         Case(When(id=user.organization.id if user.organization is not None else 0, then=0), default=1),
         'organization_name')
 
-    all_orgs_filtered = OrganizationFilter(data=request.GET, queryset=all_orgs)
-
-    all_orgs_table = OrganizationTable(data=all_orgs_filtered.qs,
-                                       order_by_field='so',  # so = sort organizations
-                                       request=request, )
-    all_orgs_table.filter = all_orgs_filtered
-    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    all_orgs_table.configure_pagination(request, 'orgs-t')
+    all_orgs_table = GroupTable(request=request,
+                                queryset=all_orgs,
+                                order_by_field='so',  # sg = sort groups
+                                filter_set_class=OrganizationFilter,
+                                current_view=current_view,
+                                param_lead='orgs-t',)
 
     return {"organizations": all_orgs_table, }
 
@@ -76,10 +73,11 @@ def index(request: HttpRequest):
     params = {
         "new_group_form": group_form,
         "new_organization_form": organization_form,
+        "current_view": 'structure:index',
     }
 
-    params.update(_prepare_group_table(request, user))
-    params.update(_prepare_orgs_table(request, user))
+    params.update(_prepare_group_table(request=request, user=user, current_view='structure:index'))
+    params.update(_prepare_orgs_table(request=request, user=user, current_view='structure:index'))
 
     context = DefaultContext(request, params, user)
     return render(request=request, template_name=template, context=context.get_context())
@@ -119,8 +117,9 @@ def groups_index(request: HttpRequest, update_params=None, status_code=None):
 
     params = {
         "new_group_form": group_form,
+        "current_view": "structure:groups-index",
     }
-    params.update(_prepare_group_table(request, user))
+    params.update(_prepare_group_table(request=request, user=user, current_view='structure:groups-index'))
 
     if update_params:
         params.update(update_params)
@@ -150,8 +149,9 @@ def organizations_index(request: HttpRequest, update_params=None, status_code=No
 
     params = {
         "new_organization_form": organization_form,
+        "current_view": "structure:organizations-index",
     }
-    params.update(_prepare_orgs_table(request, user))
+    params.update(_prepare_orgs_table(request=request, user=user, current_view='structure:organizations-index'))
 
     if update_params:
         params.update(update_params)

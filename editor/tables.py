@@ -12,7 +12,7 @@ from structure.models import Permission
 def _get_action_btns_for_service_table(self, record):
     btns = ''
     btns += self.get_btn(
-        href=reverse('editor:edit', args=(record.id, self.current_view)),
+        href=reverse('editor:edit', args=(record.id, ))+f"?current-view={self.current_view}",
         btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
         btn_value=get_theme(self.user)["ICONS"]['EDIT'],
         permission=Permission(can_edit_metadata_service=True),
@@ -28,7 +28,7 @@ def _get_action_btns_for_service_table(self, record):
         tooltip_placement='left', )
 
     btns += self.get_btn(
-        href=reverse('editor:restore', args=(record.id, self.current_view)),
+        href=reverse('editor:restore', args=(record.id,))+f"?current-view={self.current_view}",
         btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
         btn_value=get_theme(self.user)["ICONS"]['UNDO'],
         permission=Permission(can_edit_metadata_service=True),
@@ -162,14 +162,14 @@ class DatasetTable(MrMapTable):
                 break
 
         btns = ''
-        btns += self.get_btn(href=reverse('editor:dataset-metadata-wizard-instance', args=(self.current_view, record.id)),
+        btns += self.get_btn(href=reverse('editor:dataset-metadata-wizard-instance', args=(record.id,))+f"?current-view={self.current_view}",
                              permission=Permission(can_edit_dataset_metadata=True),
                              tooltip=format_html(_(f"Edit <strong>{record.title} [{record.id}]</strong> dataset")),
                              tooltip_placement='left',
                              btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
                              btn_value=get_theme(self.user)["ICONS"]['EDIT'],)
 
-        btns += self.get_btn(href=reverse('editor:restore-dataset-metadata', args=(record.id, self.current_view)),
+        btns += self.get_btn(href=reverse('editor:restore-dataset-metadata', args=(record.id,))+f"?current-view={self.current_view}",
                              permission=Permission(can_restore_dataset_metadata=True),
                              tooltip=format_html(_(f"Restore <strong>{record.title} [{record.id}]</strong> dataset")),
                              tooltip_placement='left',
@@ -177,7 +177,7 @@ class DatasetTable(MrMapTable):
                              btn_value=get_theme(self.user)["ICONS"]['UNDO'],
                              ) if not is_mr_map_origin else ''
 
-        btns += self.get_btn(href=reverse('editor:remove-dataset-metadata', args=(record.id, self.current_view)),
+        btns += self.get_btn(href=reverse('editor:remove-dataset-metadata', args=(record.id,))+f"?current-view={self.current_view}",
                              permission=Permission(can_remove_dataset_metadata=True),
                              tooltip=format_html(_(f"Remove <strong>{record.title} [{record.id}]</strong> dataset"), ),
                              tooltip_placement='left',

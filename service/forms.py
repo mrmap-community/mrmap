@@ -11,6 +11,7 @@ from django.urls import reverse_lazy
 from django.utils.html import format_html
 
 from MrMap.consts import SERVICE_ADD
+from MrMap.forms import MrMapForm
 from MrMap.messages import SERVICE_UPDATE_WRONG_TYPE
 from MrMap.validators import validate_get_request_uri
 from django.utils.translation import gettext_lazy as _
@@ -86,14 +87,7 @@ class RegisterNewServiceWizardPage2(forms.Form):
             self.fields["authentication_type"].required = True
 
 
-
-class RemoveServiceForm(forms.Form):
-    action_url = ''
-    is_confirmed = forms.BooleanField(label=_('Do you really want to remove this service?'))
-
-
-class UpdateServiceCheckForm(forms.Form):
-    action_url = ''
+class UpdateServiceCheckForm(MrMapForm):
     url_dict = ''
     get_capabilities_uri = forms.URLField(
         validators=[validate_get_request_uri]

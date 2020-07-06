@@ -1,3 +1,5 @@
+import random
+import string
 from abc import ABC
 from django.template.loader import render_to_string
 from django.urls import reverse, resolve
@@ -22,8 +24,7 @@ class MrMapWizard(SessionWizardView, ABC):
                  ignore_uncomitted_forms: bool = False,
                  required_forms: list = None,
                  title: str = _('Wizard'),
-                 # ToDo: random id for wizard as default
-                 id_wizard: str = 'id_wizard',
+                 id_wizard: str = ''.join(random.choice(string.ascii_lowercase) for i in range(10)),
                  *args,
                  **kwargs):
         super(MrMapWizard, self).__init__(*args, **kwargs)
@@ -40,9 +41,8 @@ class MrMapWizard(SessionWizardView, ABC):
                         'modal_title': self.title,
                         'THEME': get_theme(user_helper.get_user(self.request)),
                         'action_url': reverse('editor:dataset-metadata-wizard-instance',
-                                              args=(self.current_view, self.instance_id))
-                        if self.instance_id else reverse('editor:dataset-metadata-wizard-new',
-                                                         args=(self.current_view,)),
+                                              args=(self.instance_id))+f"?current-view={self.current_view}"
+                        if self.instance_id else reverse('editor:dataset-metadata-wizard-new',)+f"?current-view={self.current_view}",
                         'show_modal': True,
                         'fade_modal': True,
                         'current_view': self.current_view,

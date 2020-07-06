@@ -15,6 +15,8 @@ from MrMap.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
+from structure.models import Permission
+
 
 def _get_close_button(url, user):
     return format_html(URL_BTN_PATTERN,
@@ -26,6 +28,7 @@ def _get_close_button(url, user):
 
 
 class ServiceTable(MrMapTable):
+
     attrs = {
         "th": {
             "class": "align-middle",
@@ -40,6 +43,43 @@ class ServiceTable(MrMapTable):
     wms_registered_by_group = tables.Column(accessor='service.created_by', verbose_name=_('Registered by group'), attrs=attrs)
     wms_registered_for = tables.Column(accessor='service.published_for', verbose_name=_('Registered for'), attrs=attrs)
     wms_created_on = tables.Column(accessor='created', verbose_name=_('Created on'), attrs=attrs)
+    wms_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False)
+
+    def _get_action_btns_for_service_table(self, record):
+        btns = ''
+        btns += self.get_btn(
+            href=reverse('service:activate', args=(record.id, ))+f"?current-view={self.current_view}",
+            btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR" if record.is_active else "BTN_SUCCESS_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]["NOK" if record.is_active else 'OK'],
+            permission=Permission(can_edit_metadata_service=True),
+            tooltip=format_html(_(f"{'Deactivate' if record.is_active else 'Activate'} service <strong>{record.title} [{record.id}]</strong>"), ),
+            tooltip_placement='left', )
+
+        btns += self.get_btn(
+            href=reverse('service:new-pending-update', args=(record.id, ))+f"?current-view={self.current_view}",
+            btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['UPDATE'],
+            permission=Permission(can_update_service=True),
+            tooltip=format_html(_(f"Update service: <strong>{record.title} [{record.id}]</strong>"), ),
+            tooltip_placement='left', )
+
+        btns += self.get_btn(
+            href=reverse('editor:edit_access', args=(record.id,)),
+            btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['EDIT'],
+            permission=Permission(can_edit_metadata_service=True),
+            tooltip=format_html(_(f"Edit access of <strong>{record.title} [{record.id}]</strong> service"), ),
+            tooltip_placement='left', )
+
+        btns += self.get_btn(
+            href=reverse('editor:restore', args=(record.id, ))+f"?current-view={self.current_view}",
+            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['UNDO'],
+            permission=Permission(can_edit_metadata_service=True),
+            tooltip=format_html(_(f"Restore <strong>{record.title} [{record.id}]</strong> metadata"), ),
+            tooltip_placement='left',
+        )
+        return format_html(btns)
 
     def render_wms_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))
@@ -71,6 +111,9 @@ class ServiceTable(MrMapTable):
             return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
         else:
             return value
+
+    def render_wms_actions(self, record):
+        return self._get_action_btns_for_service_table(record)
 
 
 class WmsServiceTable(ServiceTable):
@@ -143,6 +186,7 @@ class WfsServiceTable(MrMapTable):
     wfs_registered_by_group = tables.Column(accessor='service.created_by', verbose_name=_('Registered by group'), )
     wfs_registered_for = tables.Column(accessor='service.published_for', verbose_name=_('Registered for'), )
     wfs_created_on = tables.Column(accessor='created', verbose_name=_('Created on'), )
+    wfs_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False)
 
     def render_wfs_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))

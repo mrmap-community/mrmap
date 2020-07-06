@@ -13,7 +13,8 @@ from django.db import transaction
 
 from MrMap.settings import CATEGORIES, CATEGORIES_LANG
 from service.helper.common_connector import CommonConnector
-from service.models import Category, CategoryOrigin
+from service.helper.enums import CategorySourceEnum
+from service.models import Category
 
 
 class Command(BaseCommand):
@@ -26,53 +27,29 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write(self.style.NOTICE("Load categories..."))
 
-        # check category origins
-        origins = self.check_category_origins()
+        for category_src, category_url in CATEGORIES.items():
+            # parse english at first, other languages afterwards
+            raw_categories = self.get_category_json(category_url, "en")
+            self.create_categories_en(raw_categories, category_src)
 
-        for origin in origins:
-            # parse english at first, the other languages afterwards
-            raw_categories = self.get_category_json(origin, "en")
-            self.create_categories_en(raw_categories, origin)
             for lang_key, lang_val in CATEGORIES_LANG.items():
-                raw_categories = self.get_category_json(origin, lang_val)
-                self.update_categories(raw_categories, lang_key, origin)
+                raw_categories = self.get_category_json(category_url, lang_val)
+                self.update_categories(raw_categories, lang_key, category_src)
 
-    def get_category_json(self, origin, language):
+
+    def get_category_json(self, category_url, language):
         """ Loads the json response from a connector class
 
         Args:
-            origin: The category origin object which holds the required uri
+            category_url: The uri where the definitions can be loaded from
             language: The language which shall be fetched
         Returns:
              response (str): The response body content
         """
-        uri_lang = origin.uri.format(language)
+        uri_lang = category_url.format(language)
         connector = CommonConnector(uri_lang)
         connector.load()
         return connector.content
-
-    def check_category_origins(self):
-        """ Checks if the category origins exist and creates them if not.
-
-        Returns:
-             ret_list (list): Contains all category origin objects
-        """
-        ret_list = []
-        for origins_key, origins_val in CATEGORIES.items():
-            if isinstance(origins_val, list):
-                for val in origins_val:
-                    origin = CategoryOrigin.objects.get_or_create(
-                        name=origins_key,
-                        uri=val
-                    )[0]
-                    ret_list.append(origin)
-            else:
-                origin = CategoryOrigin.objects.get_or_create(
-                    name=origins_key,
-                    uri=origins_val
-                )[0]
-                ret_list.append(origin)
-        return ret_list
 
     def update_categories(self, raw_categories: str, lang_key, origin):
         """ Updates the languages for the previously created categories.
@@ -85,24 +62,27 @@ class Command(BaseCommand):
         """
         # to make it more maintainable, we only use one function which decides dynamically how the json is accessed
         # based on the parsed type of origin
-        if origin.name == "iso":
+        if origin == CategorySourceEnum.ISO.value:
             label = "label"
             descr = "definition"
             text = "text"
             link = "id"
-        else:
+        elif origin == CategorySourceEnum.INSPIRE.value:
             label = "preferredLabel"
             descr = "definition"
             text = "string"
             link = "uri"
+        else:
+            # For future implementation
+            pass
 
         ret_list = []
         # iterate for another language over all categories and set the correct translated attributes
         items = json.loads(raw_categories.decode("utf-8"))
-        if origin.name == "iso":
+        if origin == CategorySourceEnum.ISO.value:
             items = items["metadata-codelist"]["containeditems"]
         for item in items:
-            if origin.name == "iso":
+            if origin == CategorySourceEnum.ISO.value:
                 item = item["value"]
             category = Category.objects.get(online_link=item[link])
             if lang_key == "locale_1":
@@ -117,44 +97,46 @@ class Command(BaseCommand):
                 pass
             category.save()
             ret_list.append(category)
-        self.stdout.write(self.style.SUCCESS("Added language '{}' to {} themes.".format(lang_key, origin.name)))
+        self.stdout.write(self.style.SUCCESS("Added language '{}' to {} themes.".format(lang_key, origin)))
         return ret_list
 
-    def create_categories_en(self, raw_categories: str, origin: CategoryOrigin):
+    def create_categories_en(self, raw_categories: str, origin):
         """ Create initial category objects by parsing the english version of inspire theme api
 
         Args:
             raw_categories (str): The raw response body from the API
-            origin (CategoryOrigin): The origin object to which these categories belong to
+            origin : The origin object to which these categories belong to
         Returns:
              ret_list (list): Contains all retrieved category objects in english language
         """
         # to make it more maintainable, we only use one function which decides dynamically how the json is accessed
         # based on the parsed type of origin
-        if origin.name == "iso":
+        if origin == CategorySourceEnum.ISO.value:
             label = "label"
             descr = "definition"
             text = "text"
             link = "id"
-        else:
+        elif origin == CategorySourceEnum.INSPIRE.value:
             label = "preferredLabel"
             descr = "definition"
             text = "string"
             link = "uri"
+        else:
+            # For future implementation
+            pass
 
         ret_list = []
         items = json.loads(raw_categories.decode("utf-8"))
-        if origin.name == "iso":
+        if origin == CategorySourceEnum.ISO.value:
             items = items["metadata-codelist"]["containeditems"]
         for item in items:
-            if origin.name == "iso":
+            if origin == CategorySourceEnum.ISO.value:
                 item = item["value"]
             category = Category.objects.get_or_create(
-                type=origin.name,
+                type=origin,
                 title_EN=item[label][text],
                 description_EN=item[descr][text],
                 online_link=item[link],
-                origin=origin
             )
             is_new = category[1]
             category = category[0]
@@ -164,5 +146,5 @@ class Command(BaseCommand):
                 category.is_active = True
                 category.save()
             ret_list.append(category)
-        self.stdout.write(self.style.SUCCESS("Created initial english {} themes.".format(origin.name)))
+        self.stdout.write(self.style.SUCCESS("Created initial english {} themes.".format(origin)))
         return ret_list

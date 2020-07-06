@@ -7,15 +7,11 @@ from django.template.defaultfilters import escape
 
 
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('id', 'type', 'title_EN', 'online_link', 'origin')
+    list_display = ('id', 'type', 'title_EN', 'online_link')
 
 
 class DatasetAdmin(admin.ModelAdmin):
     list_display = ('id', 'metadata', 'md_identifier_code')
-
-
-class CategoryOriginAdmin(admin.ModelAdmin):
-    pass
 
 
 class DimensionAdmin(admin.ModelAdmin):
@@ -137,7 +133,6 @@ admin.site.register(Document, DocumentAdmin)
 admin.site.register(RequestOperation, RequestOperationAdmin)
 admin.site.register(SecuredOperation, SecuredOperationAdmin)
 admin.site.register(Category, CategoryAdmin)
-admin.site.register(CategoryOrigin, CategoryOriginAdmin)
 admin.site.register(ServiceType, ServiceTypeAdmin)
 admin.site.register(Module, ModuleAdmin)
 admin.site.register(Dataset, DatasetAdmin)

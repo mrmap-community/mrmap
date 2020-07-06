@@ -27,7 +27,7 @@ from MrMap.utils import print_debug_mode
 from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
-    ResourceOriginEnum
+    ResourceOriginEnum, CategorySourceEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
@@ -2341,16 +2341,8 @@ class Licence(Resource):
         return descr_str
 
 
-class CategoryOrigin(models.Model):
-    name = models.CharField(max_length=255)
-    uri = models.CharField(max_length=500)
-
-    def __str__(self):
-        return self.name
-
-
 class Category(Resource):
-    type = models.CharField(max_length=255)
+    type = models.CharField(max_length=255, choices=CategorySourceEnum.as_choices())
     title_locale_1 = models.CharField(max_length=255, null=True)
     title_locale_2 = models.CharField(max_length=255, null=True)
     title_EN = models.CharField(max_length=255, null=True)
@@ -2359,7 +2351,6 @@ class Category(Resource):
     description_EN = models.TextField(null=True)
     symbol = models.CharField(max_length=500, null=True)
     online_link = models.CharField(max_length=500, null=True)
-    origin = models.ForeignKey(CategoryOrigin, on_delete=models.DO_NOTHING, null=True)
 
     class Meta:
         ordering = ['-id']

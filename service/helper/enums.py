@@ -105,3 +105,11 @@ class CategorySourceEnum(EnumChoice):
     """
     ISO = "iso"
     INSPIRE = "inspire"
+
+    @classmethod
+    def all_values_as_list(cls):
+        return [enum.value for enum in cls]
+
+    @classmethod
+    def all_names_as_list(cls):
+        return [enum.name for enum in cls]

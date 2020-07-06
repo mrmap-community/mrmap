@@ -196,10 +196,10 @@ class DatasetClassificationForm(MrMapWizardForm):
 
 
 class DatasetLicenseConstraintsForm(MrMapWizardForm):
-    licence = forms.ChoiceField(
+    licence = forms.ModelChoiceField(
         label=_('Terms of use'),
         required=False,
-        choices=Licence.as_choices(),
+        queryset=Licence.objects.filter(is_active=True),
         help_text=Licence.get_descriptions_help_text()
     )
     access_constraints = forms.CharField(

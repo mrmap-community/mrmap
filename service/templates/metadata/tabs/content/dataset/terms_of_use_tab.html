@@ -4,14 +4,23 @@
     <caption class="d-none">{% trans 'Terms of use of the dataset ' %}{{ title }}</caption>
     <tbody>
     <tr>
-        <th scope="row">{% trans 'Public access restrictions' %}</th>
+        <th scope="row">{% trans 'Access constraints' %}</th>
         <td itemprop="publishingPrinciples">{{ access_constraints }}</td>
     </tr>
     <tr>
-        <th scope="row">{% trans 'Information about costs/fees/licenses' %}</th>
+        <th scope="row">{% trans 'Fees' %}</th>
         <td itemprop="license">
-            {% comment %} TODO: mapbender presents here links to the description of the licence {% endcomment %}
             {{ fees }}
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">{% trans 'Licence' %}</th>
+        <td itemprop="license">
+            {% if licence is not None %}
+                <a href="{{ licence.description_url }}" target="_blank" title="{{ licence.description }}">{{ licence }}</a>
+            {% else %}
+                {% trans 'None' %}
+            {% endif %}
         </td>
     </tr>
     </tbody>

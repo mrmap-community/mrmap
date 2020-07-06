@@ -44,6 +44,7 @@ def collect_featuretype_data(md: Metadata):
     if md.featuretype.parent_service:
         params['parent_service'] = md.featuretype.parent_service
         params['fees'] = md.featuretype.parent_service.metadata.fees
+        params['licence'] = md.featuretype.parent_service.metadata.licence
 
     params['bounding_box'] = md.bounding_geometry
     params['name_of_the_resource'] = md.identifier
@@ -73,6 +74,7 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
     if md.service.parent_service:
         params['parent_service'] = md.service.parent_service
         params['fees'] = md.service.parent_service.metadata.fees
+        params['licence'] = md.service.parent_service.metadata.licence
 
     try:
         # is it a root layer?
@@ -149,6 +151,7 @@ def collect_wms_root_data(md: Metadata):
 
     params['children'] = sub_layer_table
     params['fees'] = md.fees
+    params['licence'] = md.licence
 
     return params
 
@@ -161,6 +164,7 @@ def collect_wfs_root_data(md: Metadata, request: HttpRequest):
         params['contact'] = collect_contact_data(md.service.published_for)
 
     params['fees'] = md.service.metadata.fees
+    params['licence'] = md.service.metadata.licence
 
     featuretypes = FeatureType.objects.filter(
         parent_service=md.service

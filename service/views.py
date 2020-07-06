@@ -656,6 +656,8 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
         params['contact'] = collect_contact_data(md.contact)
         params['bounding_box'] = md.bounding_geometry
         params['dataset_metadata'] = md
+        params['fees'] = md.fees
+        params['licence'] = md.licence
         params.update({'capabilities_uri': reverse('service:get-dataset-metadata', args=(md.id,))})
 
     elif md.is_metadata_type(MetadataEnum.FEATURETYPE):

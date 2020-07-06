@@ -227,9 +227,7 @@ class DatasetWizard(MrMapWizard):
         Returns:
 
         """
-        metadata.licence = Licence.objects.get(
-            identifier=data.get("licence", None)
-        )
+        metadata.licence = data.get("licence", None)
         metadata.access_constraints = data.get("access_constraints", None)
 
     @staticmethod

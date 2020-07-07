@@ -2320,15 +2320,22 @@ class Licence(Resource):
         Returns:
              string (str): As described above
         """
-        descrs = [
-            "<a href='{}' target='_blank'>{}</a>".format(
-                licence.description_url, licence.identifier
-            ) for licence in Licence.objects.filter(
-                is_active=True
-            )
-        ]
-        descr_str = "<br>".join(descrs)
-        descr_str = _("Explanations: <br>") + descr_str
+        from django.db.utils import ProgrammingError
+
+        try:
+            descrs = [
+                "<a href='{}' target='_blank'>{}</a>".format(
+                    licence.description_url, licence.identifier
+                ) for licence in Licence.objects.filter(
+                    is_active=True
+                )
+            ]
+            descr_str = "<br>".join(descrs)
+            descr_str = _("Explanations: <br>") + descr_str
+        except ProgrammingError:
+            # This will happen on an initial installation. The Licence table won't be created yet, but this function
+            # will be called on makemigrations.
+            descr_str = ""
         return descr_str
 
 

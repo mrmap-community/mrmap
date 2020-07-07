@@ -99,7 +99,7 @@ class ResourceOriginEnum(EnumChoice):
     EDITOR = "Editor"
 
 
-class CategorySourceEnum(EnumChoice):
+class CategoryOriginEnum(EnumChoice):
     """ Defines sources for categories
 
     """

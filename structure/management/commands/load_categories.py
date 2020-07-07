@@ -13,7 +13,7 @@ from django.db import transaction
 
 from MrMap.settings import CATEGORIES, CATEGORIES_LANG
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import CategorySourceEnum
+from service.helper.enums import CategoryOriginEnum
 from service.models import Category
 
 
@@ -62,12 +62,12 @@ class Command(BaseCommand):
         """
         # to make it more maintainable, we only use one function which decides dynamically how the json is accessed
         # based on the parsed type of origin
-        if origin == CategorySourceEnum.ISO.value:
+        if origin == CategoryOriginEnum.ISO.value:
             label = "label"
             descr = "definition"
             text = "text"
             link = "id"
-        elif origin == CategorySourceEnum.INSPIRE.value:
+        elif origin == CategoryOriginEnum.INSPIRE.value:
             label = "preferredLabel"
             descr = "definition"
             text = "string"
@@ -79,10 +79,10 @@ class Command(BaseCommand):
         ret_list = []
         # iterate for another language over all categories and set the correct translated attributes
         items = json.loads(raw_categories.decode("utf-8"))
-        if origin == CategorySourceEnum.ISO.value:
+        if origin == CategoryOriginEnum.ISO.value:
             items = items["metadata-codelist"]["containeditems"]
         for item in items:
-            if origin == CategorySourceEnum.ISO.value:
+            if origin == CategoryOriginEnum.ISO.value:
                 item = item["value"]
             category = Category.objects.get(online_link=item[link])
             if lang_key == "locale_1":
@@ -111,12 +111,12 @@ class Command(BaseCommand):
         """
         # to make it more maintainable, we only use one function which decides dynamically how the json is accessed
         # based on the parsed type of origin
-        if origin == CategorySourceEnum.ISO.value:
+        if origin == CategoryOriginEnum.ISO.value:
             label = "label"
             descr = "definition"
             text = "text"
             link = "id"
-        elif origin == CategorySourceEnum.INSPIRE.value:
+        elif origin == CategoryOriginEnum.INSPIRE.value:
             label = "preferredLabel"
             descr = "definition"
             text = "string"
@@ -127,10 +127,10 @@ class Command(BaseCommand):
 
         ret_list = []
         items = json.loads(raw_categories.decode("utf-8"))
-        if origin == CategorySourceEnum.ISO.value:
+        if origin == CategoryOriginEnum.ISO.value:
             items = items["metadata-codelist"]["containeditems"]
         for item in items:
-            if origin == CategorySourceEnum.ISO.value:
+            if origin == CategoryOriginEnum.ISO.value:
                 item = item["value"]
             category = Category.objects.get_or_create(
                 type=origin,

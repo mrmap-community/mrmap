@@ -17,7 +17,7 @@ from editor.forms import MetadataEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from editor.wizards import DATASET_WIZARD_FORMS, DatasetWizard
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter
-from service.helper.enums import OGCServiceEnum, MetadataEnum
+from service.helper.enums import OGCServiceEnum, MetadataEnum, ResourceOriginEnum
 from service.models import RequestOperation, SecuredOperation, Metadata
 from service.tasks import async_process_secure_operations_form
 from structure.models import MrMapUser, Permission, MrMapGroup
@@ -184,7 +184,7 @@ def remove_dataset(request: HttpRequest, metadata_id: int):
     relations = MetadataRelation.objects.filter(metadata_to=metadata)
     is_mr_map_origin = True
     for relation in relations:
-        if relation.origin.name != "MrMap":
+        if relation.origin != ResourceOriginEnum.EDITOR.value:
             is_mr_map_origin = False
             break
     if is_mr_map_origin is not True:

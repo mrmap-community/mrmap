@@ -2,7 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from model_bakery import baker, seq
 from structure.models import MrMapUser, Organization
-from service.helper.enums import MetadataEnum, OGCOperationEnum
+from service.helper.enums import MetadataEnum, OGCOperationEnum, ResourceOriginEnum
 from service.models import Service, MetadataRelation
 from structure.models import MrMapGroup
 from tests.utils import generate_random_string
@@ -86,14 +86,9 @@ def create_wms_service(group: MrMapGroup,
         )
 
         if md_relation_origin:
-            md_origin = baker.make_recipe(
-                'tests.baker_recipes.service_app.metadata_origin',
-                name=md_relation_origin,
-            )
+            md_origin = md_relation_origin
         else:
-            md_origin = baker.make_recipe(
-                'tests.baker_recipes.service_app.metadata_origin',
-            )
+            md_origin = ResourceOriginEnum.CAPABILITIES.value
 
         md_relation = MetadataRelation()
         md_relation.metadata_from = root_service_metadata
@@ -198,14 +193,9 @@ def create_wfs_service(group: MrMapGroup,
         )
 
         if md_relation_origin:
-            md_origin = baker.make_recipe(
-                'tests.baker_recipes.service_app.metadata_origin',
-                name=md_relation_origin,
-            )
+            md_origin = md_relation_origin
         else:
-            md_origin = baker.make_recipe(
-                'tests.baker_recipes.service_app.metadata_origin',
-            )
+            md_origin = ResourceOriginEnum.CAPABILITIES.value
 
         md_relation = MetadataRelation()
         md_relation.metadata_from = root_service_metadata

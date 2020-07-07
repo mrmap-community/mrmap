@@ -17,7 +17,7 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.messages import constants as messages
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
-from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum
+from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, CategorySourceEnum
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -50,8 +50,8 @@ PAGE_SIZE_MAX = 100
 PAGE_DEFAULT = 1
 
 CATEGORIES = {
-    "inspire": "https://www.eionet.europa.eu/gemet/getTopmostConcepts?thesaurus_uri=http://inspire.ec.europa.eu/theme/&language={}",
-    "iso": "http://inspire.ec.europa.eu/metadata-codelist/TopicCategory/TopicCategory.{}.json",
+    CategorySourceEnum.INSPIRE.value: "https://www.eionet.europa.eu/gemet/getTopmostConcepts?thesaurus_uri=http://inspire.ec.europa.eu/theme/&language={}",
+    CategorySourceEnum.ISO.value: "http://inspire.ec.europa.eu/metadata-codelist/TopicCategory/TopicCategory.{}.json",
 }
 
 CATEGORIES_LANG = {

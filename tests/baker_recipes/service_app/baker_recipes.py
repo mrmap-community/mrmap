@@ -1,9 +1,9 @@
 from datetime import datetime
 from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key, related
-from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, DocumentEnum
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, DocumentEnum, ResourceOriginEnum
 from service.models import Metadata, Service, ServiceType, Layer, FeatureType, Keyword, Category, \
-    Document, RequestOperation, MimeType, MetadataOrigin, ProxyLog, Dataset
+    Document, RequestOperation, MimeType, ProxyLog, Dataset
 from tests.baker_recipes.structure_app.baker_recipes import superadmin_group, superadmin_orga
 
 
@@ -141,11 +141,6 @@ metadata_document = Recipe(
     content="<test></test>",
     is_original=True,
     document_type=DocumentEnum.METADATA.value,
-)
-
-metadata_origin = Recipe(
-    MetadataOrigin,
-    name="capabilities"
 )
 
 operation = Recipe(

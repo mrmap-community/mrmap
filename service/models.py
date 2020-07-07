@@ -26,7 +26,8 @@ from MrMap import utils
 from MrMap.utils import print_debug_mode
 from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
+    ResourceOriginEnum, CategorySourceEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
@@ -439,19 +440,12 @@ class SecuredOperation(models.Model):
         super().delete(using, keep_parents)
 
 
-class MetadataOrigin(models.Model):
-    name = models.CharField(max_length=255)
-
-    def __str__(self):
-        return self.name
-
-
 class MetadataRelation(models.Model):
     metadata_from = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_from")
     metadata_to = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_to")
     relation_type = models.CharField(max_length=255, null=True, blank=True)
     internal = models.BooleanField(default=False)
-    origin = models.ForeignKey(MetadataOrigin, on_delete=models.CASCADE)
+    origin = models.CharField(max_length=255, choices=ResourceOriginEnum.as_choices(), null=True, blank=True)
 
     def __str__(self):
         return "{} {} {}".format(self.metadata_from.title, self.relation_type, self.metadata_to.title)
@@ -532,15 +526,6 @@ class ExternalAuthentication(models.Model):
         crypto_handler.crypt_message = self.username.encode("ascii")
         crypto_handler.decrypt()
         self.username = crypto_handler.message.decode("ascii")
-
-
-class MetadataLanguage(models.Model):
-    language = models.CharField(max_length=255)
-    # ISO639-2/T three letter code
-    iso_639_2_tlc = models.CharField(max_length=3)
-
-    def __str__(self):
-        return self.language
 
 
 class Metadata(Resource):
@@ -1468,11 +1453,22 @@ class Metadata(Resource):
 
         # change capabilities document if there is one (subelements may not have any documents yet)
         try:
-            root_md_doc = Document.objects.get(
+            root_md_doc = Document.objects.get_or_create(
                 metadata=root_md,
                 document_type=DocumentEnum.CAPABILITY.value,
                 is_original=False
-            )
+            )[0]
+
+            if root_md_doc.content is None:
+                # There is no content yet inside - we take it from the original one
+                orig_doc = Document.objects.get(
+                    metadata=root_md,
+                    document_type=DocumentEnum.CAPABILITY.value,
+                    is_original=True
+                )
+                root_md_doc.content = orig_doc.content
+                root_md_doc.is_active = orig_doc.is_active
+
             root_md_doc.set_proxy(use_proxy)
         except ObjectDoesNotExist:
             pass
@@ -2180,7 +2176,9 @@ class Document(Resource):
             if not metadata_uri.startswith(own_uri_prefix):
                 # find metadata record which matches the metadata uri
                 try:
-                    dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
+                    dataset_md_record = Metadata.objects.get(
+                        metadata_url=metadata_uri,
+                    )
                     uri = SERVICE_DATASET_URI_TEMPLATE.format(dataset_md_record.id)
                 except ObjectDoesNotExist:
                     # This is a bad situation... Only possible if the registered service has not been updated BUT the
@@ -2335,28 +2333,27 @@ class Licence(Resource):
         Returns:
              string (str): As described above
         """
-        descrs = [
-            "<a href='{}' target='_blank'>{}</a>".format(
-                licence.description_url, licence.identifier
-            ) for licence in Licence.objects.filter(
-                is_active=True
-            )
-        ]
-        descr_str = "<br>".join(descrs)
-        descr_str = _("Explanations: <br>") + descr_str
+        from django.db.utils import ProgrammingError
+
+        try:
+            descrs = [
+                "<a href='{}' target='_blank'>{}</a>".format(
+                    licence.description_url, licence.identifier
+                ) for licence in Licence.objects.filter(
+                    is_active=True
+                )
+            ]
+            descr_str = "<br>".join(descrs)
+            descr_str = _("Explanations: <br>") + descr_str
+        except ProgrammingError:
+            # This will happen on an initial installation. The Licence table won't be created yet, but this function
+            # will be called on makemigrations.
+            descr_str = ""
         return descr_str
 
 
-class CategoryOrigin(models.Model):
-    name = models.CharField(max_length=255)
-    uri = models.CharField(max_length=500)
-
-    def __str__(self):
-        return self.name
-
-
 class Category(Resource):
-    type = models.CharField(max_length=255)
+    type = models.CharField(max_length=255, choices=CategorySourceEnum.as_choices())
     title_locale_1 = models.CharField(max_length=255, null=True)
     title_locale_2 = models.CharField(max_length=255, null=True)
     title_EN = models.CharField(max_length=255, null=True)
@@ -2365,7 +2362,6 @@ class Category(Resource):
     description_EN = models.TextField(null=True)
     symbol = models.CharField(max_length=500, null=True)
     online_link = models.CharField(max_length=500, null=True)
-    origin = models.ForeignKey(CategoryOrigin, on_delete=models.DO_NOTHING, null=True)
 
     class Meta:
         ordering = ['-id']

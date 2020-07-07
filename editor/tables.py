@@ -4,6 +4,7 @@ from django.urls import reverse
 
 from MrMap.forms import MrMapConfirmForm
 from MrMap.tables import MrMapTable
+from service.helper.enums import ResourceOriginEnum
 from service.models import Layer, FeatureType, MetadataRelation
 from MrMap.consts import *
 from MrMap.utils import get_theme, get_ok_nok_icon
@@ -171,7 +172,7 @@ class DatasetTable(MrMapTable):
         relations = MetadataRelation.objects.filter(metadata_to=record)
         origin_list = []
         for relation in relations:
-            origin_list.append(relation.origin.name+' [{}]'.format(relation.metadata_from.id))
+            origin_list.append(relation.origin +' [{}]'.format(relation.metadata_from.id))
         return format_html(', '.join(origin_list))
 
     def render_dataset_actions(self, record):
@@ -242,7 +243,7 @@ class DatasetTable(MrMapTable):
         relations = MetadataRelation.objects.filter(metadata_to=record)
         is_mr_map_origin = True
         for relation in relations:
-            if relation.origin.name != "MrMap":
+            if relation.origin != ResourceOriginEnum.EDITOR.value:
                 is_mr_map_origin = False
                 break
 

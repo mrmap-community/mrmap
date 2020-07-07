@@ -12,6 +12,7 @@ from django.urls import reverse
 from MrMap.messages import METADATA_RESTORING_SUCCESS, METADATA_IS_ORIGINAL
 from editor.forms import MetadataEditorForm
 from editor.tables import WmsServiceTable, WfsServiceTable, DatasetTable
+from service.helper.enums import ResourceOriginEnum
 from service.models import Metadata, MetadataRelation
 from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service, create_wfs_service, \
     create_public_organization
@@ -320,7 +321,11 @@ class EditorDatasetRemoveInstanceViewTestCase(TestCase):
         self.user = create_superadminuser()
         self.client = Client()
         self.client.login(username=self.user.username, password=PASSWORD)
-        self.wms_services = create_wms_service(group=self.user.get_groups().first(), how_much_services=1, md_relation_origin='MrMap')
+        self.wms_services = create_wms_service(
+            group=self.user.get_groups().first(),
+            how_much_services=1,
+            md_relation_origin=ResourceOriginEnum.EDITOR.value
+        )
 
     def test_remove_instance_view(self):
         """ Test for checking whether the dataset is removed or not

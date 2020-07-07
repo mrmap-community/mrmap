@@ -44,12 +44,6 @@ class DocumentAdmin(admin.ModelAdmin):
     search_fields = ['id', 'metadata__id', ]
 
 
-class MetadataLanguageAdmin(admin.ModelAdmin):
-    list_display = ('id', 'language', 'iso_639_2_tlc',)
-    list_filter = ('language', 'iso_639_2_tlc',)
-    search_fields = ['id', 'language', 'iso_639_2_tlc', ]
-
-
 class MetadataAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'service', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact', 'uuid')
     list_filter = ('metadata_type', 'is_active', 'is_broken')
@@ -137,7 +131,6 @@ admin.site.register(ServiceType, ServiceTypeAdmin)
 admin.site.register(Module, ModuleAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(Keyword, KeywordAdmin)
-admin.site.register(MetadataLanguage, MetadataLanguageAdmin)
 admin.site.register(Metadata, MetadataAdmin)
 admin.site.register(MetadataRelation, MetadataRelationAdmin)
 admin.site.register(Licence, TermsOfUseAdmin)

@@ -528,15 +528,6 @@ class ExternalAuthentication(models.Model):
         self.username = crypto_handler.message.decode("ascii")
 
 
-class MetadataLanguage(models.Model):
-    language = models.CharField(max_length=255)
-    # ISO639-2/T three letter code
-    iso_639_2_tlc = models.CharField(max_length=3)
-
-    def __str__(self):
-        return self.language
-
-
 class Metadata(Resource):
     from MrMap.validators import validate_metadata_enum_choices
     id = models.BigAutoField(primary_key=True,)

@@ -560,7 +560,7 @@ class ISOMetadata:
         new = False
         # try to find the object by uuid and uri. If not existing yet, create a new record
         try:
-            metadata = Metadata.objects.get(uuid=self.file_identifier, metadata_url=self.uri)
+            metadata = Metadata.objects.get(identifier=self.file_identifier, metadata_url=self.uri)
             # check if the parsed metadata might be newer
             # make sure both date time objects will be comparable
             persisted_change = metadata.last_remote_change.replace(tzinfo=utc)

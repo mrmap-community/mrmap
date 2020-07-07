@@ -2176,7 +2176,9 @@ class Document(Resource):
             if not metadata_uri.startswith(own_uri_prefix):
                 # find metadata record which matches the metadata uri
                 try:
-                    dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
+                    dataset_md_record = Metadata.objects.get(
+                        metadata_url=metadata_uri,
+                    )
                     uri = SERVICE_DATASET_URI_TEMPLATE.format(dataset_md_record.id)
                 except ObjectDoesNotExist:
                     # This is a bad situation... Only possible if the registered service has not been updated BUT the

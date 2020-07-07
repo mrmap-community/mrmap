@@ -718,7 +718,6 @@ class OGCWebFeatureService(OGCWebService):
         """
         md = Metadata()
         md_type = MetadataEnum.SERVICE.value
-        print(md_type)
         md.metadata_type = md_type
         md.title = self.service_identification_title
         if self.service_file_identifier is None:

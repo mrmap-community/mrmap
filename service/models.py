@@ -1453,11 +1453,22 @@ class Metadata(Resource):
 
         # change capabilities document if there is one (subelements may not have any documents yet)
         try:
-            root_md_doc = Document.objects.get(
+            root_md_doc = Document.objects.get_or_create(
                 metadata=root_md,
                 document_type=DocumentEnum.CAPABILITY.value,
                 is_original=False
-            )
+            )[0]
+
+            if root_md_doc.content is None:
+                # There is no content yet inside - we take it from the original one
+                orig_doc = Document.objects.get(
+                    metadata=root_md,
+                    document_type=DocumentEnum.CAPABILITY.value,
+                    is_original=True
+                )
+                root_md_doc.content = orig_doc.content
+                root_md_doc.is_active = orig_doc.is_active
+
             root_md_doc.set_proxy(use_proxy)
         except ObjectDoesNotExist:
             pass

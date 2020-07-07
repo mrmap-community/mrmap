@@ -27,7 +27,7 @@ from MrMap.utils import print_debug_mode
 from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
-    ResourceOriginEnum, CategorySourceEnum
+    ResourceOriginEnum, CategoryOriginEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
@@ -2353,7 +2353,7 @@ class Licence(Resource):
 
 
 class Category(Resource):
-    type = models.CharField(max_length=255, choices=CategorySourceEnum.as_choices())
+    type = models.CharField(max_length=255, choices=CategoryOriginEnum.as_choices())
     title_locale_1 = models.CharField(max_length=255, null=True)
     title_locale_2 = models.CharField(max_length=255, null=True)
     title_EN = models.CharField(max_length=255, null=True)

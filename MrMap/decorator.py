@@ -132,3 +132,26 @@ def log_proxy(function):
     wrap.__doc__ = function.__doc__
     wrap.__name__ = function.__name__
     return wrap
+
+
+def resolve_metadata_public_id(function):
+    def wrap(request, *args, **kwargs):
+        if 'metadata_id' in kwargs:
+            try:
+                int(kwargs["metadata_id"])
+                # We could cast the id to an integer. This means a public integer has been provided. We need to redirect
+                # to the entry using the uuid
+                try:
+                    md = Metadata.objects.get(public_id=kwargs["metadata_id"])
+                    request.path = request.path.replace("/{}".format(kwargs["metadata_id"]), "/{}".format(str(md.id)))
+                    return redirect(request.build_absolute_uri())
+                except ObjectDoesNotExist:
+                    # This means there was an integer given but it can not be resolved to any public_id!
+                    pass
+            except ValueError:
+                pass
+        return function(request=request, *args, **kwargs)
+
+    wrap.__doc__ = function.__doc__
+    wrap.__name__ = function.__name__
+    return wrap

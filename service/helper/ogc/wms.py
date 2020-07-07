@@ -765,7 +765,6 @@ class OGCWebMapService(OGCWebService):
         if self.service_file_iso_identifier is None:
             # We didn't found any file identifier in the document -> we create one
             self.service_file_iso_identifier = uuid.uuid4()
-        metadata.uuid = self.service_file_iso_identifier
         metadata.title = self.service_identification_title
         metadata.abstract = self.service_identification_abstract
         metadata.online_resource = self.service_provider_onlineresource_linkage

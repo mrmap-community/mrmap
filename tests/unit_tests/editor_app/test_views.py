@@ -137,7 +137,7 @@ class EditorMetadataEditViewTestCase(TestCase):
         """
         metadata = Metadata.objects.all().first()
         response = self.client.get(
-            reverse(EDITOR_METADATA_EDITOR_NAME, args=(metadata.id,)),
+            reverse(EDITOR_METADATA_EDITOR_NAME, args=(str(metadata.id),)),
         )
         self.assertEqual(response.status_code, 200, )
         self.assertTemplateUsed(response=response, template_name="views/editor_metadata_index.html")
@@ -162,7 +162,7 @@ class EditorAccessEditViewTestCase(TestCase):
         """
         metadata = Metadata.objects.all().first()
         response = self.client.get(
-            reverse(EDITOR_ACCESS_EDITOR_NAME, args=(metadata.id,)),
+            reverse(EDITOR_ACCESS_EDITOR_NAME, args=(str(metadata.id),)),
         )
         self.assertEqual(response.status_code, 200, )
         self.assertTemplateUsed(response=response, template_name="views/editor_edit_access_index.html")
@@ -177,7 +177,7 @@ class EditorAccessEditViewTestCase(TestCase):
         """
         metadata = Metadata.objects.all().first()
         response = self.client.get(
-            reverse(EDITOR_ACCESS_GEOMETRY_EDITOR_NAME, args=(metadata.id,)),
+            reverse(EDITOR_ACCESS_GEOMETRY_EDITOR_NAME, args=(str(metadata.id),)),
         )
         self.assertEqual(response.status_code, 200, )
         self.assertTemplateUsed(response=response, template_name="views/access_geometry_form.html")

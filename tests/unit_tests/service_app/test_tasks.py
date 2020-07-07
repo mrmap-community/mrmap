@@ -68,10 +68,9 @@ class ServiceTaskTestCase(TestCase):
 
         Returns:
         """
-        service_id = self.metadata.service.id
         curr_state = self.metadata.is_active
         new_state = not curr_state
-        async_activate_service(service_id, self.user.id, new_state)
+        async_activate_service(str(self.metadata.id), self.user.id, new_state)
 
         self.metadata.refresh_from_db()
         self.assertNotEqual(curr_state, self.metadata.is_active, msg="Async activation did not work for service level.")
@@ -157,7 +156,7 @@ class ServiceTaskTestCase(TestCase):
         geometry = GEOSGeometry(geometry, DEFAULT_SRS)
 
         async_secure_service_task(
-            self.metadata.id,
+            str(self.metadata.id),
             is_secured,
             self.group.id,
             self.operation.id,

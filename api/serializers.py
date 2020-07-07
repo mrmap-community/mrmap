@@ -141,7 +141,7 @@ class MetadataSerializer(serializers.Serializer):
     """ Serializer for Metadata model
 
     """
-    id = serializers.IntegerField()
+    id = serializers.UUIDField()
     metadata_type = serializers.CharField()
     identifier = serializers.CharField()
     title = serializers.CharField()
@@ -161,8 +161,7 @@ class ServiceSerializer(serializers.Serializer):
     """ Serializer for Service model
 
     """
-    id = serializers.IntegerField()
-    uuid = serializers.UUIDField()
+    id = serializers.UUIDField()
     published_for = serializers.PrimaryKeyRelatedField(read_only=True)
     metadata = serializers.PrimaryKeyRelatedField(read_only=True)
     is_root = serializers.BooleanField()
@@ -223,8 +222,7 @@ class LayerSerializer(ServiceSerializer):
     """ Serializer for Layer model
 
     """
-    id = serializers.IntegerField()
-    uuid = serializers.UUIDField()
+    id = serializers.UUIDField()
     identifier = serializers.CharField()
     preview_image = serializers.CharField()
     preview_extent = serializers.CharField()

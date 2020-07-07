@@ -21,7 +21,7 @@ urlpatterns = [
     path('run-update/<metadata_id>', run_update_service, name='run-update'),
 
     path('remove/<metadata_id>', remove, name='remove'),
-    path('activate/<service_id>', activate, name='activate'),
+    path('activate/<metadata_id>', activate, name='activate'),
     path('add/', add, name='add'),
 
     path('pending-tasks/', pending_tasks, name="pending-tasks"),
@@ -34,5 +34,4 @@ urlpatterns = [
     path('logs/', logs_view, name='logs-view'),
     path('logs/download/', logs_download, name='logs-download'),
 ]
-
 

@@ -15,7 +15,7 @@ from requests.exceptions import ReadTimeout
 from MrMap import utils
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
-from MrMap.decorator import check_permission, log_proxy, check_ownership
+from MrMap.decorator import check_permission, log_proxy, check_ownership, resolve_metadata_public_id
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
@@ -370,25 +370,26 @@ def remove(request: HttpRequest, metadata_id: int):
 
 
 @login_required
+@resolve_metadata_public_id
 @check_permission(Permission(can_activate_service=True))
-@check_ownership(Service, 'service_id')
-def activate(request: HttpRequest, service_id: int):
+@check_ownership(Metadata, 'metadata_id')
+def activate(request: HttpRequest, metadata_id: int):
     """ (De-)Activates a service and all of its layers
 
     Args:
-        service_id:
+        metadata_id:
         request:
     Returns:
          redirects to service:index
     """
     user = user_helper.get_user(request)
 
-    md = get_object_or_404(Metadata, service__id=service_id)
+    md = get_object_or_404(Metadata, id=metadata_id)
     md.is_active = not md.is_active
     md.save()
 
     # run activation async!
-    tasks.async_activate_service.delay(service_id, user.id, md.is_active)
+    tasks.async_activate_service.delay(metadata_id, user.id, md.is_active)
 
     # If metadata WAS active, then it will be deactivated now
     if md.is_active:
@@ -400,6 +401,7 @@ def activate(request: HttpRequest, service_id: int):
     return HttpResponseRedirect(reverse("service:detail", args=(md.id,)), status=303)
 
 
+@resolve_metadata_public_id
 def get_service_metadata(request: HttpRequest, metadata_id: int):
     """ Returns the service metadata xml file for a given metadata id
 
@@ -419,6 +421,7 @@ def get_service_metadata(request: HttpRequest, metadata_id: int):
     return HttpResponse(doc, content_type=APP_XML)
 
 
+@resolve_metadata_public_id
 def get_dataset_metadata(request: HttpRequest, metadata_id: int):
     """ Returns the dataset metadata xml file for a given metadata id
 
@@ -451,6 +454,7 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
     return HttpResponse(document, content_type='application/xml')
 
 
+@resolve_metadata_public_id
 def get_service_preview(request: HttpRequest, metadata_id: int):
     """ Returns the service metadata preview as png for a given metadata id
 
@@ -533,6 +537,7 @@ def get_service_preview(request: HttpRequest, metadata_id: int):
     return HttpResponse(response, content_type=content_type)
 
 
+@resolve_metadata_public_id
 def _get_capabilities(request: HttpRequest, metadata_id: int):
     """ Returns the current capabilities xml file
 
@@ -622,6 +627,7 @@ def _get_capabilities(request: HttpRequest, metadata_id: int):
     return HttpResponse(doc, content_type='application/xml')
 
 
+@resolve_metadata_public_id
 def get_metadata_html(request: HttpRequest, metadata_id: int):
     """ Returns the metadata as html rendered view
         Args:
@@ -1095,6 +1101,7 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
 
 
 @csrf_exempt
+@resolve_metadata_public_id
 @log_proxy
 def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id: int):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.

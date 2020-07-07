@@ -1,4 +1,5 @@
 import logging
+import uuid
 from unittest import mock
 
 from django.contrib.messages import get_messages
@@ -294,9 +295,16 @@ class ServiceRemoveViewTestCase(TestCase):
         perm.can_remove_service = False
         perm.save()
 
-        response = self.client.post(reverse('service:remove',
-                                    args=[self.wms_service_metadatas[0].id]),
-                                    HTTP_REFERER=reverse('service:remove', args=[self.wms_service_metadatas[0].id]),)
+        response = self.client.post(
+            reverse(
+                'service:remove',
+                args=[str(self.wms_service_metadatas[0].id)]
+            ),
+            HTTP_REFERER=reverse(
+                'service:remove',
+                args=[str(self.wms_service_metadatas[0].id)]
+            ),
+        )
         self.assertEqual(response.status_code, 302)
         messages = [m.message for m in get_messages(response.wsgi_request)]
         self.assertIn('You do not have permissions for this!', messages)
@@ -313,12 +321,12 @@ class ServiceActivateViewTestCase(TestCase):
 
     def test_activate_service(self):
 
-        service = self.wms_service_metadatas[0].service
-        response = self.client.post(reverse('service:activate', args=[service.id]),)
+        md = self.wms_service_metadatas[0]
+        response = self.client.post(reverse('service:activate', args=[md.id]),)
         self.assertEqual(response.status_code, 303)
         messages = [m.message for m in get_messages(response.wsgi_request)]
 
-        activated_status = service.metadata.is_active
+        activated_status = md.is_active
         if activated_status:
             self.assertIn(SERVICE_DEACTIVATED.format(self.wms_service_metadatas[0].title), messages)
         else:
@@ -330,10 +338,10 @@ class ServiceActivateViewTestCase(TestCase):
         perm.can_activate_service = False
         perm.save()
 
-        service = self.wms_service_metadatas[0].service
+        md = self.wms_service_metadatas[0]
         response = self.client.post(reverse('service:activate',
-                                            args=[service.id]),
-                                    HTTP_REFERER=reverse('service:activate', args=[service.id]), )
+                                            args=[str(md.id)]),
+                                    HTTP_REFERER=reverse('service:activate', args=[str(md.id)]), )
         self.assertEqual(response.status_code, 302)
         messages = [m.message for m in get_messages(response.wsgi_request)]
         self.assertIn('You do not have permissions for this!', messages)
@@ -396,7 +404,7 @@ class ServiceDetailViewTestCase(TestCase):
         self.assertTemplateUsed(response, template_name="views/featuretype_detail_no_base.html")
 
     def test_get_detail_404(self):
-        response = self.client.post(reverse('service:detail', args=[9999]), )
+        response = self.client.post(reverse('service:detail', args=[uuid.uuid4()]), )
         self.assertEqual(response.status_code, 404)
 
     def test_get_detail_context(self):
@@ -611,7 +619,7 @@ class RunUpdateServiceViewTestCase(TestCase):
             data.update({'new_elem_{}'.format(element.metadata.identifier): -1})
 
         response = self.client.post(
-            reverse('service:run-update', args=(self.wms_metadata.id,)),
+            reverse('service:run-update', args=(str(self.wms_metadata.id),)),
             data=data,
         )
 
@@ -648,7 +656,7 @@ class RunUpdateServiceViewTestCase(TestCase):
             data.update({'new_elem_{}'.format(element.metadata.identifier): -1})
 
         response = self.client.post(
-            reverse('service:run-update', args=(self.wfs_metadata.id,)),
+            reverse('service:run-update', args=(str(self.wfs_metadata.id),)),
             data=data
         )
         self.assertEqual(response.status_code, 303)
@@ -722,7 +730,7 @@ class GetDatasetMetadataViewTestCase(TestCase):
         self.wms_metadata = create_wms_service(group=self.user.get_groups().first(), how_much_services=1)[0]
 
         # Activate metadata
-        async_activate_service(self.wms_metadata.service.id, self.user.id, True)
+        async_activate_service(self.wms_metadata.id, self.user.id, True)
 
     def test_get_dataset_metadata_redirect_to_dataset(self):
         response = self.client.get(

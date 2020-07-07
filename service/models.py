@@ -14,6 +14,7 @@ from PIL import Image
 from dateutil.parser import parse
 from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.validators import MinValueValidator
 from django.db import transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
@@ -37,7 +38,8 @@ from service.helper import xml_helper
 
 
 class Resource(models.Model):
-    uuid = models.CharField(max_length=255, default=uuid.uuid4())
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    public_id = models.PositiveIntegerField(unique=True, validators=[MinValueValidator(1)], null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(MrMapGroup, on_delete=models.SET_NULL, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)
@@ -530,7 +532,6 @@ class ExternalAuthentication(models.Model):
 
 class Metadata(Resource):
     from MrMap.validators import validate_metadata_enum_choices
-    id = models.BigAutoField(primary_key=True,)
     identifier = models.CharField(max_length=255, null=True)
     title = models.CharField(max_length=255)
     abstract = models.TextField(null=True, blank=True)
@@ -1557,7 +1558,6 @@ class Metadata(Resource):
 
 class Document(Resource):
     from MrMap.validators import validate_document_enum_choices
-    id = models.BigAutoField(primary_key=True)
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=255, null=True, choices=DocumentEnum.as_choices(), validators=[validate_document_enum_choices])
     content = models.TextField(null=True, blank=True)
@@ -2380,7 +2380,6 @@ class ServiceType(models.Model):
 
 
 class Service(Resource):
-    id = models.BigAutoField(primary_key=True)
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)

@@ -57,7 +57,6 @@ class DatasetWizard(MrMapWizard):
             # New
             # Create instances
             metadata = Metadata()
-            metadata.uuid = uuid.uuid4()
             metadata.identifier = metadata.uuid
             metadata.metadata_type = MetadataEnum.DATASET.value
             metadata.is_active = True

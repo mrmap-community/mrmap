@@ -47,11 +47,11 @@ def async_increase_hits(metadata_id: int):
 
 @shared_task(name="async_activate_service")
 @transaction.atomic
-def async_activate_service(service_id: int, user_id: int, is_active: bool):
+def async_activate_service(metadata_id: int, user_id: int, is_active: bool):
     """ Async call for activating a service, its subelements and all of their related metadata
 
     Args:
-        service_id (int): The service parameter
+        metadata_id (int): The service parameter
         user_id (int): The user id of the performing user
 
     Returns:
@@ -60,7 +60,7 @@ def async_activate_service(service_id: int, user_id: int, is_active: bool):
     user = MrMapUser.objects.get(id=user_id)
 
     # get service and change status
-    service = Service.objects.get(id=service_id)
+    service = Service.objects.get(metadata__id=metadata_id)
 
     elements = service.subelements + [service]
     for element in elements:

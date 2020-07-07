@@ -35,6 +35,12 @@
         {% include 'includes/index/wfs.html' %}
     {% endif %}
 
+    {% with 'Datasets' as service_type %}
+        {% with dataset_table as table %}
+                {% include 'includes/index/datasets.html' %}
+        {% endwith %}
+    {% endwith %}
+
     {% if 'can_register_service' in user_permissions %}
         {% with form=new_service_form %}
             {% with 'new_service' as id_modal %}

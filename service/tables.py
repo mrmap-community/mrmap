@@ -15,6 +15,7 @@ from MrMap.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
+from service.models import MetadataRelation
 from structure.models import Permission
 
 
@@ -27,7 +28,61 @@ def _get_close_button(url, user):
                        format_html(get_theme(user)["ICONS"]['WINDOW_CLOSE']),)
 
 
-class ServiceTable(MrMapTable):
+def _get_action_btns_for_service_table(table, record):
+    btns = ''
+    btns += table.get_btn(
+        href=reverse('service:activate', args=(record.id, ))+f"?current-view={table.current_view}",
+        btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR" if record.is_active else "BTN_SUCCESS_COLOR"],
+        btn_value=get_theme(table.user)["ICONS"]["NOK" if record.is_active else 'OK'],
+        permission=Permission(can_edit_metadata_service=True),
+        tooltip=format_html(_(f"{'Deactivate' if record.is_active else 'Activate'} service <strong>{record.title} [{record.id}]</strong>"), ),
+        tooltip_placement='left', )
+
+    btns += table.get_btn(
+        href=reverse('service:new-pending-update', args=(record.id, ))+f"?current-view={table.current_view}",
+        btn_color=get_theme(table.user)["TABLE"]["BTN_INFO_COLOR"],
+        btn_value=get_theme(table.user)["ICONS"]['UPDATE'],
+        permission=Permission(can_update_service=True),
+        tooltip=format_html(_(f"Update service: <strong>{record.title} [{record.id}]</strong>"), ),
+        tooltip_placement='left', )
+
+    btns += table.get_btn(
+        href=reverse('editor:edit', args=(record.id,)) + f"?current-view={table.current_view}",
+        btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR"],
+        btn_value=get_theme(table.user)["ICONS"]['EDIT'],
+        permission=Permission(can_edit_metadata_service=True),
+        tooltip=format_html(_(f"Edit metadata of <strong>{record.title} [{record.id}]</strong>"), ),
+        tooltip_placement='left', )
+
+    btns += table.get_btn(
+        href=reverse('editor:edit_access', args=(record.id,)),
+        btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR"],
+        btn_value=get_theme(table.user)["ICONS"]['EDIT'],
+        permission=Permission(can_edit_metadata_service=True),
+        tooltip=format_html(_(f"Edit access of <strong>{record.title} [{record.id}]</strong> service"), ),
+        tooltip_placement='left', )
+
+    btns += table.get_btn(
+        href=reverse('editor:restore', args=(record.id, ))+f"?current-view={table.current_view}",
+        btn_color=get_theme(table.user)["TABLE"]["BTN_DANGER_COLOR"],
+        btn_value=get_theme(table.user)["ICONS"]['UNDO'],
+        permission=Permission(can_edit_metadata_service=True),
+        tooltip=format_html(_(f"Restore <strong>{record.title} [{record.id}]</strong> metadata"), ),
+        tooltip_placement='left',
+    )
+
+    btns += table.get_btn(
+        href=reverse('service:remove', args=(record.id,)) + f"?current-view={table.current_view}",
+        btn_color=get_theme(table.user)["TABLE"]["BTN_DANGER_COLOR"],
+        btn_value=get_theme(table.user)["ICONS"]['REMOVE'],
+        permission=Permission(can_remove_service=True),
+        tooltip=format_html(_(f"Remove <strong>{record.title} [{record.id}]</strong> metadata"), ),
+        tooltip_placement='left',
+    )
+    return format_html(btns)
+
+
+class WmsServiceTable(MrMapTable):
 
     attrs = {
         "th": {
@@ -43,43 +98,7 @@ class ServiceTable(MrMapTable):
     wms_registered_by_group = tables.Column(accessor='service.created_by', verbose_name=_('Registered by group'), attrs=attrs)
     wms_registered_for = tables.Column(accessor='service.published_for', verbose_name=_('Registered for'), attrs=attrs)
     wms_created_on = tables.Column(accessor='created', verbose_name=_('Created on'), attrs=attrs)
-    wms_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False)
-
-    def _get_action_btns_for_service_table(self, record):
-        btns = ''
-        btns += self.get_btn(
-            href=reverse('service:activate', args=(record.id, ))+f"?current-view={self.current_view}",
-            btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR" if record.is_active else "BTN_SUCCESS_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]["NOK" if record.is_active else 'OK'],
-            permission=Permission(can_edit_metadata_service=True),
-            tooltip=format_html(_(f"{'Deactivate' if record.is_active else 'Activate'} service <strong>{record.title} [{record.id}]</strong>"), ),
-            tooltip_placement='left', )
-
-        btns += self.get_btn(
-            href=reverse('service:new-pending-update', args=(record.id, ))+f"?current-view={self.current_view}",
-            btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]['UPDATE'],
-            permission=Permission(can_update_service=True),
-            tooltip=format_html(_(f"Update service: <strong>{record.title} [{record.id}]</strong>"), ),
-            tooltip_placement='left', )
-
-        btns += self.get_btn(
-            href=reverse('editor:edit_access', args=(record.id,)),
-            btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]['EDIT'],
-            permission=Permission(can_edit_metadata_service=True),
-            tooltip=format_html(_(f"Edit access of <strong>{record.title} [{record.id}]</strong> service"), ),
-            tooltip_placement='left', )
-
-        btns += self.get_btn(
-            href=reverse('editor:restore', args=(record.id, ))+f"?current-view={self.current_view}",
-            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]['UNDO'],
-            permission=Permission(can_edit_metadata_service=True),
-            tooltip=format_html(_(f"Restore <strong>{record.title} [{record.id}]</strong> metadata"), ),
-            tooltip_placement='left',
-        )
-        return format_html(btns)
+    wms_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False, attrs={"td": {"style": "white-space:nowrap;"}})
 
     def render_wms_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))
@@ -113,10 +132,10 @@ class ServiceTable(MrMapTable):
             return value
 
     def render_wms_actions(self, record):
-        return self._get_action_btns_for_service_table(record)
+        return _get_action_btns_for_service_table(self, record)
 
 
-class WmsServiceTable(ServiceTable):
+class WmsTableWms(WmsServiceTable):
     caption = _("Shows all WMS which are configured in your Mr. Map environment.")
 
     attrs = {
@@ -145,7 +164,7 @@ class WmsServiceTable(ServiceTable):
         return queryset, True
 
 
-class WmsLayerTable(ServiceTable):
+class WmsLayerTableWms(WmsServiceTable):
     wms_parent_service = tables.Column(verbose_name=_('Parent service'), empty_values=[], )
 
     caption = _("Shows all WMS sublayers which are configured in your Mr. Map environment.")
@@ -186,7 +205,7 @@ class WfsServiceTable(MrMapTable):
     wfs_registered_by_group = tables.Column(accessor='service.created_by', verbose_name=_('Registered by group'), )
     wfs_registered_for = tables.Column(accessor='service.published_for', verbose_name=_('Registered for'), )
     wfs_created_on = tables.Column(accessor='created', verbose_name=_('Created on'), )
-    wfs_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False)
+    wfs_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False, attrs={"td": {"style": "white-space:nowrap;"}})
 
     def render_wfs_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))
@@ -227,6 +246,9 @@ class WfsServiceTable(MrMapTable):
             return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
         else:
             return value
+
+    def render_wfs_actions(self, record):
+        return _get_action_btns_for_service_table(self, record)
 
     @staticmethod
     def order_wfs_featuretypes(queryset, is_descending):
@@ -400,3 +422,65 @@ class ProxyLogTable(MrMapTable):
                 ]
             )
         return stream.getvalue()
+
+
+class DatasetTable(MrMapTable):
+    caption = _("Shows all datasets which are configured in your Mr. Map environment. You can Edit them if you want.")
+
+    dataset_title = tables.Column(accessor='title', verbose_name=_('Title'), )
+    dataset_related_objects = tables.Column(verbose_name=_('Related objects'), empty_values=[])
+    dataset_origins = tables.Column(verbose_name=_('Origins'), empty_values=[])
+    dataset_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False, attrs={"td": {"style": "white-space:nowrap;"}})
+
+    def render_dataset_title(self, value, record):
+        url = reverse('service:get-metadata-html', args=(record.id,))
+        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+
+    def render_dataset_related_objects(self, record):
+        relations = MetadataRelation.objects.filter(metadata_to=record)
+        link_list = []
+        for relation in relations:
+            url = reverse('service:detail', args=(relation.metadata_from.id,))
+            link_list.append(format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, relation.metadata_from.title+' [{}]'.format(relation.metadata_from.id), ))
+        return format_html(', '.join(link_list))
+
+    def render_dataset_origins(self, record):
+        relations = MetadataRelation.objects.filter(metadata_to=record)
+        origin_list = []
+        for relation in relations:
+            origin_list.append(relation.origin.name+' [{}]'.format(relation.metadata_from.id))
+        return format_html(', '.join(origin_list))
+
+    def render_dataset_actions(self, record):
+        relations = MetadataRelation.objects.filter(metadata_to=record)
+        is_mr_map_origin = True
+        for relation in relations:
+            if relation.origin.name != "MrMap":
+                is_mr_map_origin = False
+                break
+
+        btns = ''
+        btns += self.get_btn(href=reverse('editor:dataset-metadata-wizard-instance', args=(record.id,))+f"?current-view={self.current_view}",
+                             permission=Permission(can_edit_dataset_metadata=True),
+                             tooltip=format_html(_(f"Edit <strong>{record.title} [{record.id}]</strong> dataset")),
+                             tooltip_placement='left',
+                             btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
+                             btn_value=get_theme(self.user)["ICONS"]['EDIT'],)
+
+        btns += self.get_btn(href=reverse('editor:restore-dataset-metadata', args=(record.id,))+f"?current-view={self.current_view}",
+                             permission=Permission(can_restore_dataset_metadata=True),
+                             tooltip=format_html(_(f"Restore <strong>{record.title} [{record.id}]</strong> dataset")),
+                             tooltip_placement='left',
+                             btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+                             btn_value=get_theme(self.user)["ICONS"]['UNDO'],
+                             ) if not is_mr_map_origin else ''
+
+        btns += self.get_btn(href=reverse('editor:remove-dataset-metadata', args=(record.id,))+f"?current-view={self.current_view}",
+                             permission=Permission(can_remove_dataset_metadata=True),
+                             tooltip=format_html(_(f"Remove <strong>{record.title} [{record.id}]</strong> dataset"), ),
+                             tooltip_placement='left',
+                             btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+                             btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
+                             ) if is_mr_map_origin else ''
+
+        return format_html(btns)

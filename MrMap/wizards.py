@@ -41,7 +41,7 @@ class MrMapWizard(SessionWizardView, ABC):
                         'modal_title': self.title,
                         'THEME': get_theme(user_helper.get_user(self.request)),
                         'action_url': reverse('editor:dataset-metadata-wizard-instance',
-                                              args=(self.instance_id))+f"?current-view={self.current_view}"
+                                              args=(self.instance_id,))+f"?current-view={self.current_view}"
                         if self.instance_id else reverse('editor:dataset-metadata-wizard-new',)+f"?current-view={self.current_view}",
                         'show_modal': True,
                         'fade_modal': True,

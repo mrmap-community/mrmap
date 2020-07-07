@@ -46,12 +46,12 @@ def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, current_view: str
         Case(When(id=user.organization.id if user.organization is not None else 0, then=0), default=1),
         'organization_name')
 
-    all_orgs_table = GroupTable(request=request,
-                                queryset=all_orgs,
-                                order_by_field='so',  # sg = sort groups
-                                filter_set_class=OrganizationFilter,
-                                current_view=current_view,
-                                param_lead='orgs-t',)
+    all_orgs_table = OrganizationTable(request=request,
+                                       queryset=all_orgs,
+                                       order_by_field='so',  # sg = sort groups
+                                       filter_set_class=OrganizationFilter,
+                                       current_view=current_view,
+                                       param_lead='orgs-t',)
 
     return {"organizations": all_orgs_table, }
 

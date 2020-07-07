@@ -1,6 +1,8 @@
 import json
 
 from django.template.loader import render_to_string
+from django.urls import reverse
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -12,167 +14,19 @@ from MrMap.cacher import PageCacher
 from MrMap.decorator import check_permission, check_ownership
 from MrMap.forms import MrMapConfirmForm
 from MrMap.messages import METADATA_RESTORING_SUCCESS, METADATA_EDITING_SUCCESS, \
-    METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, NO_PERMISSION, EDITOR_ACCESS_RESTRICTED, \
+    METADATA_IS_ORIGINAL, SERVICE_MD_RESTORED, SERVICE_MD_EDITED, EDITOR_ACCESS_RESTRICTED, \
     SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MrMap.responses import DefaultContext, BackendAjaxResponse
 from api.settings import API_CACHE_KEY_PREFIX
 from editor.forms import MetadataEditorForm
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from editor.wizards import DATASET_WIZARD_FORMS, DatasetWizard
-from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter
 from service.helper.enums import OGCServiceEnum, MetadataEnum
-from service.models import RequestOperation, SecuredOperation, Metadata
+from service.models import RequestOperation, SecuredOperation, Metadata, MetadataRelation
 from service.tasks import async_process_secure_operations_form
-from structure.models import MrMapUser, Permission, MrMapGroup
+from structure.models import Permission, MrMapGroup
 from users.helper import user_helper
 from editor.helper import editor_helper
-from editor.tables import *
-
-
-def _prepare_wms_table(request: HttpRequest, user: MrMapUser, current_view: str):
-    return WmsServiceTable(request=request,
-                           filter_set_class=MetadataWmsFilter,
-                           queryset=user.get_services_as_qs(OGCServiceEnum.WMS),
-                           current_view=current_view,
-                           param_lead='wms-t',)
-
-
-def _prepare_wfs_table(request: HttpRequest, user: MrMapUser, current_view: str):
-    return WfsServiceTable(request=request,
-                           filter_set_class=MetadataWfsFilter,
-                           queryset=user.get_services_as_qs(OGCServiceEnum.WFS),
-                           current_view=current_view,
-                           param_lead='wfs-t', )
-
-
-def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, current_view: str):
-    return DatasetTable(request=request,
-                        filter_set_class=MetadataDatasetFilter,
-                        queryset=user.get_datasets_as_qs(),
-                        current_view=current_view,
-                        param_lead='dataset-t',)
-
-
-@login_required
-@check_permission(Permission(can_edit_metadata_service=True))
-def index(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
-    """ The index view of the editor app.
-
-    Lists all services with information of custom set metadata.
-
-    Args:
-        request: The incoming request
-
-    Returns:
-    """
-    user = user_helper.get_user(request)
-    template = "views/editor_service_table_index.html"
-
-    params = {
-        "wms_table": _prepare_wms_table(request=request, user=user, current_view='editor:index'),
-        "wfs_table": _prepare_wfs_table(request=request, user=user, current_view='editor:index'),
-        "dataset_table": _prepare_dataset_table(request=request, user=user, current_view='editor:index'),
-        "current_view": 'editor:index',
-    }
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=status_code)
-
-
-@login_required
-@check_permission(Permission(can_edit_metadata_service=True))
-def index_wms(request: HttpRequest, update_params=None, status_code: int = 200, ):
-    """ The index view of the editor app.
-
-    Lists all services with information of custom set metadata.
-
-    Args:
-        request: The incoming request
-    Returns:
-    """
-    user = user_helper.get_user(request)
-
-    template = "views/editor_service_table_index_wms.html"
-
-    params = {
-        "wms_table": _prepare_wms_table(request=request, user=user, current_view='editor:wms-index'),
-        "current_view": "editr:wms-index"
-    }
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
-
-
-@login_required
-@check_permission(Permission(can_edit_metadata_service=True))
-def index_wfs(request: HttpRequest, update_params=None, status_code: int = 200, ):
-    """ The index view of the editor app.
-
-    Lists all services with information of custom set metadata.
-
-    Args:
-        request: The incoming request
-    Returns:
-    """
-    user = user_helper.get_user(request)
-
-    template = "views/editor_service_table_index_wfs.html"
-
-    params = {
-        "wfs_table": _prepare_wfs_table(request=request, user=user, current_view='editor:wfs-index'),
-        "current_view": "editor:wfs-index"
-    }
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
-
-
-@login_required
-@check_permission(Permission(can_edit_metadata_service=True))
-def index_datasets(request: HttpRequest, update_params=None, status_code: int = 200, ):
-    """ The index view of the editor app.
-
-    Lists all datasets with information of custom set metadata.
-
-    Args:
-        request: The incoming request
-        update_params:
-        status_code:
-    Returns:
-    """
-    user = user_helper.get_user(request)
-
-    template = "views/editor_service_table_index_datasets.html"
-
-    params = {
-        "dataset_table": _prepare_dataset_table(request=request,
-                                                user=user,
-                                                current_view='editor:datasets-index'),
-        "current_view": 'editor:datasets-index',
-    }
-
-    if update_params:
-        params.update(update_params)
-
-    context = DefaultContext(request, params, user)
-    return render(request=request,
-                  template_name=template,
-                  context=context.get_context(),
-                  status=status_code)
-
-
-"""
-    Post views below
-"""
 
 
 @login_required

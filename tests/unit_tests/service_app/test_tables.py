@@ -5,24 +5,31 @@ from django_tables2 import RequestConfig
 
 from MrMap.consts import SERVICE_INDEX_LOG
 from service.models import Metadata, ProxyLog
-from service.tables import WmsLayerTable, WfsServiceTable, WmsServiceTable, PendingTasksTable, ChildLayerTable, \
+from service.tables import WmsLayerTableWms, WfsServiceTable, WmsTableWms, PendingTasksTable, ChildLayerTable, \
     FeatureTypeTable, CoupledMetadataTable, ProxyLogTable
-from tests.baker_recipes.db_setup import create_guest_groups, create_superadminuser, create_proxy_logs
+from tests.baker_recipes.db_setup import create_guest_groups, create_superadminuser, create_proxy_logs, create_testuser
 from tests.utils import check_table_sorting
+
+TEST_URI = "http://test.com?request=GetTest"
 
 
 class ServiceTestCase(TestCase):
 
     def setUp(self):
+        self.default_user = create_testuser()
         self.factory = RequestFactory()
+        self.request = self.factory.get(
+            TEST_URI,
+        )
+        self.request.user = self.default_user
 
     def test_wms_service_table_sorting(self):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        wms_table = WmsServiceTable(data=md_list,
-                                    order_by_field='swms',  # swms = sort wms
-                                    request=None, )
+        wms_table = WmsTableWms(queryset=md_list,
+                                order_by_field='swms',  # swms = sort wms
+                                request=self.request, )
 
         for column in wms_table.columns.columns:
             request = self.factory.get(reverse("service:wms-index") + '?{}={}'.format("swms", column))
@@ -43,9 +50,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        wms_table = WmsLayerTable(data=md_list,
-                                  order_by_field='swms',  # swms = sort wms
-                                  request=None, )
+        wms_table = WmsLayerTableWms(queryset=md_list,
+                                     order_by_field='swms',  # swms = sort wms
+                                     request=self.request, )
 
         for column in wms_table.columns.columns:
             request = self.factory.get(reverse("service:wms-index") + '?{}={}'.format("swms", column))
@@ -66,9 +73,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        wfs_table = WfsServiceTable(data=md_list,
+        wfs_table = WfsServiceTable(queryset=md_list,
                                     order_by_field='swfs',  # swms = sort wms
-                                    request=None, )
+                                    request=self.request, )
 
         for column in wfs_table.columns.columns:
             request = self.factory.get(reverse("service:wfs-index") + '?{}={}'.format("swfs", column))
@@ -89,9 +96,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        table = PendingTasksTable(data=md_list,
+        table = PendingTasksTable(queryset=md_list,
                                   order_by_field='sort',  # swms = sort wms
-                                  request=None, )
+                                  request=self.request, )
 
         for column in table.columns.columns:
             request = self.factory.get(reverse("service:pending-tasks") + '?{}={}'.format("sort", column))
@@ -112,9 +119,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        table = ChildLayerTable(data=md_list,
+        table = ChildLayerTable(queryset=md_list,
                                 order_by_field='sort',  # swms = sort wms
-                                request=None, )
+                                request=self.request, )
 
         for column in table.columns.columns:
             # to match the reverse we use dummy id 1. It's ok, cause no request on views will be done
@@ -136,9 +143,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        table = FeatureTypeTable(data=md_list,
+        table = FeatureTypeTable(queryset=md_list,
                                  order_by_field='sort',  # swms = sort wms
-                                 request=None, )
+                                 request=self.request, )
 
         for column in table.columns.columns:
             # to match the reverse we use dummy id 1. It's ok, cause no request on views will be done
@@ -160,9 +167,9 @@ class ServiceTestCase(TestCase):
         # we just need an empty queryset
         md_list = Metadata.objects.all()
 
-        table = CoupledMetadataTable(data=md_list,
+        table = CoupledMetadataTable(queryset=md_list,
                                      order_by_field='sort',  # swms = sort wms
-                                     request=None, )
+                                     request=self.request, )
 
         for column in table.columns.columns:
             # to match the reverse we use dummy id 1. It's ok, cause no request on views will be done

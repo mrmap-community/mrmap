@@ -393,7 +393,7 @@ def subscription_index_view(request: HttpRequest):
 
 
 @login_required
-def subscription_new_view(request: HttpRequest, current_view: str):
+def subscription_new_view(request: HttpRequest, ):
     """ Renders a view for editing a subscription
 
     Args:
@@ -407,8 +407,6 @@ def subscription_new_view(request: HttpRequest, current_view: str):
     form = SubscriptionForm(data=request.POST or None,
                             request=request,
                             reverse_lookup='subscription-new',
-                            reverse_args=[current_view],
-                            current_view=current_view,
                             form_title=_('New Subscription'),
                             # ToDo: show_modal will be default True in future
                             show_modal=True,
@@ -432,16 +430,16 @@ def subscription_new_view(request: HttpRequest, current_view: str):
             else:
                 subscription.save()
                 messages.success(request, SUBSCRIPTION_EDITING_SUCCESSFULL)
-                return HttpResponseRedirect(reverse(current_view, ), status=303)
+                return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
         else:
             form.fade_modal = False
             return form.render_view()
 
-    return HttpResponseRedirect(reverse(current_view, ), status=303)
+    return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
 
 
 @login_required
-def subscription_edit_view(request: HttpRequest, subscription_id: str, current_view: str):
+def subscription_edit_view(request: HttpRequest, subscription_id: str, ):
     """ Renders a view for editing a subscription
 
     Args:
@@ -467,8 +465,7 @@ def subscription_edit_view(request: HttpRequest, subscription_id: str, current_v
                             is_edit=True,
                             request=request,
                             reverse_lookup='subscription-edit',
-                            reverse_args=[subscription_id, current_view],
-                            current_view=current_view,
+                            reverse_args=[subscription_id,],
                             form_title=_('New Subscription'),
                             # ToDo: show_modal will be default True in future
                             show_modal=True,
@@ -490,11 +487,11 @@ def subscription_edit_view(request: HttpRequest, subscription_id: str, current_v
         else:
             return form.render_view()
 
-    return HttpResponseRedirect(reverse(current_view, ), status=303)
+    return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
 
 
 @login_required
-def subscription_remove(request: HttpRequest, subscription_id: str, current_view: str):
+def subscription_remove(request: HttpRequest, subscription_id: str, ):
     """ Removes a subscription
 
     Args:
@@ -512,8 +509,7 @@ def subscription_remove(request: HttpRequest, subscription_id: str, current_view
     form = SubscriptionRemoveForm(data=request.POST or None,
                                   request=request,
                                   reverse_lookup='subscription-remove',
-                                  reverse_args=[subscription_id, current_view],
-                                  current_view=current_view,
+                                  reverse_args=[subscription_id, ],
                                   form_title=_(f'Remove Subscription for service <strong>{subscription.metadata}</strong>'),
                                   # ToDo: show_modal will be default True in future
                                   show_modal=True,
@@ -532,4 +528,4 @@ def subscription_remove(request: HttpRequest, subscription_id: str, current_view
         else:
             return form.render_view()
 
-    return HttpResponseRedirect(reverse(current_view, ), status=303)
+    return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)

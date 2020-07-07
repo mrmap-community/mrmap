@@ -268,7 +268,7 @@ class PasswordChangeTestCase(TestCase):
 
     def test_user_password_change_invalid_password_again(self):
         response = self.client.post(
-            reverse('password-change', ),
+            reverse('password-change', )+"?current-view=account",
             data={"old_password": PASSWORD, "new_password": self.new_password, "new_password_again": self.new_password[::-1]}
         )
 
@@ -278,7 +278,7 @@ class PasswordChangeTestCase(TestCase):
 
     def test_user_password_change_invalid_old_password(self):
         response = self.client.post(
-            reverse('password-change', ),
+            reverse('password-change', )+"?current-view=account",
             data={"old_password": "qwertzuiopoiuztrewq", "new_password": self.new_password, "new_password_again": self.new_password[::-1]}
         )
 
@@ -302,7 +302,7 @@ class AccountEditTestCase(TestCase):
         # case 1: User logged in -> effect!
         # assert as expected
         response = self.client.get(
-            reverse('account-edit', ),
+            reverse('account-edit', )+"?current-view=account",
         )
         self.assertEqual(response.status_code, 200, msg="We dosn't get the account edit view")
         self.assertTemplateUsed("views/account.html")
@@ -452,7 +452,7 @@ class SubscriptionTestCase(TestCase):
 
         """
         pre_count_subscriptions = Subscription.objects.all().count()
-        new_sub_path = reverse("subscription-new", args=('account', ))
+        new_sub_path = reverse("subscription-new", )+"?current-view=account"
         post_params = {
             "metadata": self.service_md.id,
             "notify_on_update": True,
@@ -498,7 +498,7 @@ class SubscriptionTestCase(TestCase):
             notify_on_metadata_edit=True,
             notify_on_access_edit=True,
         )
-        edit_sub_route = reverse("subscription-edit", args=(sub.id, 'account'))
+        edit_sub_route = reverse("subscription-edit", args=(sub.id, ))+"?current-view=account"
         post_params = {
             "metadata": self.service_md.id,
             "notify_on_update": "False",
@@ -549,7 +549,7 @@ class SubscriptionTestCase(TestCase):
             notify_on_access_edit=True,
         )
         pre_sub_count = Subscription.objects.all().count()
-        remove_sub_rote = reverse("subscription-remove", args=(sub.id, 'account'))
+        remove_sub_rote = reverse("subscription-remove", args=(sub.id,))+"?current-view=account"
         response = self.client.post(
             path=remove_sub_rote,
             data={'is_confirmed': 'True'}

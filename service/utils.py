@@ -7,12 +7,8 @@ Created on: 21.01.20
 """
 
 from django.http import HttpRequest
-from django_tables2 import RequestConfig
-
-from MrMap.consts import DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE
 from service.helper.enums import MetadataEnum
-from service.models import Metadata, Organization, Layer, FeatureType, MetadataRelation, Service
-from structure.models import MrMapUser
+from service.models import Metadata, Organization, Layer, FeatureType, MetadataRelation
 from service.filters import ChildLayerFilter, FeatureTypeFilter
 from service.tables import ChildLayerTable, FeatureTypeTable, CoupledMetadataTable
 
@@ -105,18 +101,16 @@ def collect_layer_data(md: Metadata, request: HttpRequest):
                              'title': child.metadata.title,
                              'sublayers_count': child_child_layers.count()}, )
 
-        child_layer_table = ChildLayerTable(data=children,
+        child_layer_table = ChildLayerTable(queryset=children,
                                             order_by='title',
-                                            request=None,)
-
-        child_layer_table.configure_pagination(request, 'cl-t')
+                                            request=request,)
 
         params['children'] = child_layer_table
 
     return params
 
 
-def collect_wms_root_data(md: Metadata):
+def collect_wms_root_data(md: Metadata, request: HttpRequest):
     params = {}
 
     # if there is a published_for organization it will be presented
@@ -142,10 +136,10 @@ def collect_wms_root_data(md: Metadata):
                   'title': layer.metadata.title,
                   'sublayers_count': child_child_layers.count()}]
 
-    sub_layer_table = ChildLayerTable(data=sub_layer,
+    sub_layer_table = ChildLayerTable(queryset=sub_layer,
                                       orderable=False,
                                       show_header=False,
-                                      request=None,)
+                                      request=request,)
 
     params['children'] = sub_layer_table
     params['fees'] = md.fees
@@ -179,11 +173,9 @@ def collect_wfs_root_data(md: Metadata, request: HttpRequest):
                              'title': child.metadata.title,
                              })
 
-    featuretype_table = FeatureTypeTable(data=featuretypes,
+    featuretype_table = FeatureTypeTable(queryset=featuretypes,
                                          order_by='title',
-                                         request=None,)
-    featuretype_table.configure_pagination(request, 'ft-t')
-    featuretype_table.filter = featuretypes_filtered
+                                         request=request,)
 
     params['featuretypes'] = featuretype_table
     params['bounding_box'] = md.bounding_geometry
@@ -215,12 +207,11 @@ def collect_metadata_related_objects(md: Metadata, request: HttpRequest,):
 
         # build django tables2 table
         related_metadata_table = CoupledMetadataTable(
-            data=metadatas_dict_array,
+            queryset=metadatas_dict_array,
             order_by='title',
             show_header=show_header,
-            request=None,)
-
-        related_metadata_table.configure_pagination(request, 'rm-t')
+            request=request,
+            param_lead='rm-t')
 
         params['related_metadata'] = related_metadata_table
 

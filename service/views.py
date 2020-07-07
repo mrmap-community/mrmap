@@ -24,7 +24,7 @@ from MrMap.messages import SERVICE_UPDATED, \
 from MrMap.responses import DefaultContext
 from service import tasks
 from service.helper import xml_helper, logger_helper
-from service.filters import MetadataWmsFilter, MetadataWfsFilter, ProxyLogTableFilter
+from service.filters import MetadataWmsFilter, MetadataWfsFilter, ProxyLogTableFilter, MetadataDatasetFilter
 from service.forms import RegisterNewServiceWizardPage1, \
     RegisterNewServiceWizardPage2, UpdateServiceCheckForm, UpdateOldToNewElementsForm
 from service.helper import service_helper, update_helper
@@ -34,8 +34,8 @@ from service.helper.logger_helper import prepare_proxy_log_filter
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
-from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
-    ProxyLogTable
+from service.tables import WmsTableWms, WmsLayerTableWms, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
+    ProxyLogTable, DatasetTable
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
@@ -90,19 +90,19 @@ def _prepare_wms_table(request: HttpRequest, current_view: str):
     ).order_by("title")
 
     if show_service:
-        wms_table = WmsServiceTable(request=request,
-                                    queryset=queryset,
-                                    filter_set_class=MetadataWmsFilter,
-                                    order_by_field='swms',  # swms = sort wms
-                                    current_view=current_view,
-                                    param_lead='wms-t',)
+        wms_table = WmsTableWms(request=request,
+                                queryset=queryset,
+                                filter_set_class=MetadataWmsFilter,
+                                order_by_field='swms',  # swms = sort wms
+                                current_view=current_view,
+                                param_lead='wms-t', )
     else:
-        wms_table = WmsLayerTable(request=request,
-                                  queryset=queryset,
-                                  filter_set_class=MetadataWmsFilter,
-                                  order_by_field='swms',  # swms = sort wms
-                                  current_view=current_view,
-                                  param_lead='wms-t',)
+        wms_table = WmsLayerTableWms(request=request,
+                                     queryset=queryset,
+                                     filter_set_class=MetadataWmsFilter,
+                                     order_by_field='swms',  # swms = sort wms
+                                     current_view=current_view,
+                                     param_lead='wms-t', )
 
     # add boolean field to filter.form; this is needed, cause the search form sends it if show layer dropdown is set
     # add it after table is created; otherwise we get a KeyError
@@ -140,6 +140,17 @@ def _prepare_wfs_table(request: HttpRequest, current_view: str):
 
     return {
         "wfs_table": wfs_table,
+    }
+
+
+def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, current_view: str):
+    dataset_table = DatasetTable(request=request,
+                                 filter_set_class=MetadataDatasetFilter,
+                                 queryset=user.get_datasets_as_qs(),
+                                 current_view=current_view,
+                                 param_lead='dataset-t',)
+    return {
+            "dataset_table": dataset_table,
     }
 
 
@@ -298,6 +309,7 @@ def index(request: HttpRequest, update_params: dict = None, status_code: int = 2
 
     params.update(_prepare_wms_table(request=request, current_view='service:index'))
     params.update(_prepare_wfs_table(request=request, current_view='service:index'))
+    params.update(_prepare_dataset_table(request=request, current_view='service:index', user=user))
 
     if update_params:
         params.update(update_params)
@@ -377,7 +389,7 @@ def remove(request: HttpRequest, metadata_id: int,):
             return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
         else:
             form.fade_modal = False
-            return form.render_view()
+            return form.render_view(status_code=422)
     else:
         return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
 
@@ -426,7 +438,7 @@ def activate(request: HttpRequest, service_id: int, ):
 
         else:
             form.fade_modal = False
-            return form.render_view()
+            return form.render_view(status_code=422)
 
         if 'current-view-arg' in request.GET:
             return HttpResponseRedirect(reverse(request.GET.get('current-view'), args=(md.id,)), status=303)
@@ -655,6 +667,7 @@ def _get_capabilities(request: HttpRequest, metadata_id: int):
 
     return HttpResponse(doc, content_type='application/xml')
 
+
 # Todo: public index view
 def get_metadata_html(request: HttpRequest, metadata_id: int):
     """ Returns the metadata as html rendered view
@@ -703,7 +716,7 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
     elif md.service.is_service_type(OGCServiceEnum.WMS):
         # wms root object
         base_template = 'metadata/base/wms/root_metadata_as_html.html'
-        params.update(collect_wms_root_data(md))
+        params.update(collect_wms_root_data(md, request))
 
     elif md.service.is_service_type(OGCServiceEnum.WFS):
         # wfs root object
@@ -742,6 +755,39 @@ def wms_index(request: HttpRequest, update_params: dict = None, status_code: int
     }
 
     params.update(_prepare_wms_table(request=request, current_view='service:wms-index'))
+
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=status_code)
+
+@login_required
+@check_permission(Permission(can_edit_metadata_service=True))
+def datasets_index(request: HttpRequest, update_params=None, status_code: int = 200, ):
+    """ The index view of the editor app.
+
+    Lists all datasets with information of custom set metadata.
+
+    Args:
+        request: The incoming request
+        update_params:
+        status_code:
+    Returns:
+    """
+    user = user_helper.get_user(request)
+
+    template = "views/datasets_index.html"
+
+    params = {
+        "current_view": 'service:datasets-index',
+    }
+    params.update(_prepare_dataset_table(request=request,
+                                         user=user,
+                                         current_view='service:datasets-index'),)
 
     if update_params:
         params.update(update_params)
@@ -846,16 +892,16 @@ def pending_update_service(request: HttpRequest, metadata_id: int, update_params
     for element in diff_elements.get("removed"):
         removed_elements_md.append(element.metadata)
 
-    updated_elements_table = UpdateServiceElements(data=updated_elements_md,
-                                                   order_by_field='updated',
-                                                   request=request)
-    updated_elements_table.configure_pagination(request=request,
-                                                param_lead='updated-t')
+    updated_elements_table = UpdateServiceElements(request=request,
+                                                   queryset=updated_elements_md,
+                                                   current_view="service:dismiss-pending-update",
+                                                   order_by_field='updated',)
 
-    removed_elements_table = UpdateServiceElements(data=removed_elements_md,
+    removed_elements_table = UpdateServiceElements(request=request,
+                                                   queryset=removed_elements_md,
+                                                   current_view="service:dismiss-pending-update",
                                                    order_by_field='removed',
-                                                   request=request)
-    removed_elements_table.configure_pagination(request=request, param_lead='removed-t')
+                                                   )
 
     params = {
         "current_service": current_service,
@@ -1059,7 +1105,7 @@ def detail(request: HttpRequest, object_id: int, update_params=None, status_code
 
     Args:
         request: The incoming request
-        metadata_id: The id of the selected metadata
+        object_id: The id of the selected metadata
         update_params: dict with params we will update before we return the context
         status_code
     Returns:

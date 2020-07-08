@@ -4,6 +4,8 @@ from django.forms import ModelForm
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+
+from MrMap.forms import MrMapModelForm, MrMapForm, MrMapConfirmForm
 from MrMap.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, REQUEST_ACTIVATION_TIMEOVER, \
@@ -22,17 +24,13 @@ class LoginForm(forms.Form):
     next = forms.CharField(max_length=255, show_hidden_initial=False, widget=forms.HiddenInput(), required=False)
 
 
-class GroupForm(ModelForm):
-    # this action_url must fill after this object is created,
-    # cause the action_url containing the id of the group, which is not present on building time;
-    # maybe we could fill it by the constructor
-    action_url = ''
-
+class GroupForm(MrMapModelForm):
     description = forms.CharField(
         widget=forms.Textarea(),
-        required=False,
-    )
-    role = forms.ModelChoiceField(queryset=Role.objects.all(), empty_label=None)
+        required=False, )
+    role = forms.ModelChoiceField(
+        queryset=Role.objects.all(),
+        empty_label=None, )
 
     class Meta:
         model = MrMapGroup
@@ -43,9 +41,7 @@ class GroupForm(ModelForm):
             "parent_group"
         ]
 
-    def __init__(self,  *args, **kwargs):
-        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
-        self.is_edit = False if 'is_edit' not in kwargs else kwargs.pop('is_edit')
+    def __init__(self, *args, **kwargs):
         super(GroupForm, self).__init__(*args, **kwargs)
 
         if 'instance' in kwargs:
@@ -60,11 +56,6 @@ class GroupForm(ModelForm):
                     group_ = group_.parent_group
 
             self.fields['parent_group'].queryset = MrMapGroup.objects.all().exclude(id__in=[o.id for o in exclusions])
-
-        if self.is_edit:
-            self.action_url = reverse('structure:edit-group', args=[self.instance.id])
-        else:
-            self.action_url = reverse('structure:new-group')
 
     def clean(self):
         cleaned_data = super(GroupForm, self).clean()
@@ -88,7 +79,7 @@ class GroupForm(ModelForm):
         return cleaned_data
 
 
-class PublisherForOrganizationForm(forms.Form):
+class PublisherForOrganizationForm(MrMapForm):
     action_url = ''
     organization_name = forms.CharField(max_length=500, label_suffix=" ", label=_("Organization"), disabled=True)
     group = forms.ModelChoiceField(queryset=None)
@@ -99,16 +90,12 @@ class PublisherForOrganizationForm(forms.Form):
         label_suffix=" ",
     )
 
-    def __init__(self, *args, **kwargs):
-        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
-        self.organization = None if 'organization' not in kwargs else kwargs.pop('organization')
+    def __init__(self, organization, *args, **kwargs):
+        self.organization = organization
         super(PublisherForOrganizationForm, self).__init__(*args, **kwargs)
 
-        if self.requesting_user is not None:
-            self.fields['group'].queryset = self.requesting_user.get_groups()
-
-        if self.organization is not None:
-            self.fields["organization_name"].initial = self.organization.organization_name
+        self.fields['group'].queryset = self.requesting_user.get_groups()
+        self.fields["organization_name"].initial = self.organization.organization_name
 
     def clean(self):
         cleaned_data = super(PublisherForOrganizationForm, self).clean()
@@ -128,17 +115,13 @@ class PublisherForOrganizationForm(forms.Form):
         return cleaned_data
 
 
-class OrganizationForm(ModelForm):
-    # this action_url must fill after this object is created,
-    # cause the action_url containing the id of the group, which is not present on building time;
-    # maybe we could fill it by the constructor
-    action_url = ''
-
+class OrganizationForm(MrMapModelForm):
     description = forms.CharField(
         widget=forms.Textarea(),
-        required=False,
-    )
-    person_name = forms.CharField(label=_("Contact person"), required=True)
+        required=False, )
+    person_name = forms.CharField(
+        label=_("Contact person"),
+        required=True, )
 
     field_order = ["organization_name", "description", "parent"]
 
@@ -148,8 +131,6 @@ class OrganizationForm(ModelForm):
         exclude = ["created_by", "address_type", "is_auto_generated"]
 
     def __init__(self, *args, **kwargs):
-        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
-        self.is_edit = False if 'is_edit' not in kwargs else kwargs.pop('is_edit')
         super(OrganizationForm, self).__init__(*args, **kwargs)
 
         if 'instance' in kwargs:
@@ -171,11 +152,6 @@ class OrganizationForm(ModelForm):
                     org_ = org_.parent
 
             self.fields['parent'].queryset = all_orgs_of_requesting_user.exclude(id__in=[o.id for o in exclusions])
-
-        if self.is_edit:
-            self.action_url = reverse('structure:edit-organization', args=[self.instance.id])
-        else:
-            self.action_url = reverse('structure:new-organization')
 
     def clean(self):
         cleaned_data = super(OrganizationForm, self).clean()
@@ -199,13 +175,10 @@ class OrganizationForm(ModelForm):
         return cleaned_data
 
 
-class RemoveGroupForm(forms.Form):
-    action_url = ''
-    is_confirmed = forms.BooleanField(label=_('Do you really want to remove this group?'))
+class RemoveGroupForm(MrMapConfirmForm):
 
-    def __init__(self, *args, **kwargs):
-        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
-        self.instance = None if 'instance' not in kwargs else kwargs.pop('instance')
+    def __init__(self, instance=None, *args, **kwargs):
+        self.instance = instance
         super(RemoveGroupForm, self).__init__(*args, **kwargs)
 
     def clean(self):
@@ -217,13 +190,9 @@ class RemoveGroupForm(forms.Form):
         return cleaned_data
 
 
-class RemoveOrganizationForm(forms.Form):
-    action_url = ''
-    is_confirmed = forms.BooleanField(label=_('Do you really want to remove this organization?'))
-
-    def __init__(self, *args, **kwargs):
-        self.requesting_user = None if 'requesting_user' not in kwargs else kwargs.pop('requesting_user')
-        self.instance = None if 'instance' not in kwargs else kwargs.pop('instance')
+class RemoveOrganizationForm(MrMapConfirmForm):
+    def __init__(self, instance=None, *args, **kwargs):
+        self.instance = instance
         super(RemoveOrganizationForm, self).__init__(*args, **kwargs)
 
     def clean(self):

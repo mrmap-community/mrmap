@@ -8,6 +8,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from MrMap.decorator import check_permission, check_ownership
+from MrMap.forms import MrMapConfirmForm
 from MrMap.messages import PUBLISH_REQUEST_SENT, \
     PUBLISH_REQUEST_ACCEPTED, PUBLISH_REQUEST_DENIED, \
     PUBLISH_PERMISSION_REMOVED, \
@@ -57,7 +58,7 @@ def _prepare_orgs_table(request: HttpRequest, user: MrMapUser, current_view: str
 
 
 @login_required
-def index(request: HttpRequest):
+def index(request: HttpRequest, update_params=None, status_code=None):
     """ Renders an overview of all groups and organizations
     Args:
         request (HttpRequest): The incoming request
@@ -67,20 +68,20 @@ def index(request: HttpRequest):
     template = "views/structure_index.html"
     user = user_helper.get_user(request)
 
-    group_form = GroupForm()
-    organization_form = OrganizationForm()
-
     params = {
-        "new_group_form": group_form,
-        "new_organization_form": organization_form,
         "current_view": 'structure:index',
     }
-
     params.update(_prepare_group_table(request=request, user=user, current_view='structure:index'))
     params.update(_prepare_orgs_table(request=request, user=user, current_view='structure:index'))
 
+    if update_params:
+        params.update(update_params)
+
     context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context())
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=200 if status_code is None else status_code)
 
 
 def remove_task(request: HttpRequest, task_id: int):
@@ -113,10 +114,8 @@ def groups_index(request: HttpRequest, update_params=None, status_code=None):
     """
     template = "views/groups_index.html"
     user = user_helper.get_user(request)
-    group_form = GroupForm()
 
     params = {
-        "new_group_form": group_form,
         "current_view": "structure:groups-index",
     }
     params.update(_prepare_group_table(request=request, user=user, current_view='structure:groups-index'))
@@ -145,10 +144,7 @@ def organizations_index(request: HttpRequest, update_params=None, status_code=No
     template = "views/organizations_index.html"
     user = user_helper.get_user(request)
 
-    organization_form = OrganizationForm()
-
     params = {
-        "new_organization_form": organization_form,
         "current_view": "structure:organizations-index",
     }
     params.update(_prepare_orgs_table(request=request, user=user, current_view='structure:organizations-index'))
@@ -242,24 +238,32 @@ def edit_org(request: HttpRequest, org_id: int):
     Returns:
          Rendered view
     """
-    user = user_helper.get_user(request)
     org = get_object_or_404(Organization, id=org_id)
 
-    if request.method == "POST":
-        form = OrganizationForm(request.POST, instance=org, requesting_user=user, is_edit=True)
+    form = OrganizationForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='structure:edit-organization',
+        reverse_args=[org_id, ],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        form_title=_(f"Edit organization <strong>{org}</strong>"),
+        instance=org,)
+
+    if request.method == 'GET':
+        return form.render_view()
+
+    if request.method == 'POST':
         if form.is_valid():
-            # save changes of group
+            # save changes of organization
             form.save()
             messages.success(request, message=ORGANIZATION_SUCCESSFULLY_EDITED.format(org.organization_name))
-            return HttpResponseRedirect(reverse("structure:detail-organization", args=(org_id,)), status=303)
+            return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
         else:
-            params = {
-                "edit_organization_form": form,
-                "show_edit_organization_form": True,
-            }
-            return detail_organizations(request=request, org_id=org_id, update_params=params, status_code=422)
+            form.fade_modal = False
+            return form.render_view(status_code=422)
     else:
-        return HttpResponseRedirect(reverse("structure:detail-organization", args=(org_id,)), status=303)
+        return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
 
 
 # TODO: update function documentation
@@ -275,25 +279,33 @@ def remove_org(request: HttpRequest, org_id: int):
     Returns:
         A rendered view
     """
-    user = user_helper.get_user(request)
     org = get_object_or_404(Organization, id=org_id)
+    form = RemoveOrganizationForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='structure:delete-organization',
+        reverse_args=[org_id, ],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        is_confirmed_label=_("Do you really want to remove this organization?"),
+        form_title=_(f"Remove organization <strong>{org}</strong>"),
+        instance=org, )
 
-    if request.method == "POST":
-        form = RemoveOrganizationForm(request.POST, instance=org, requesting_user=user)
+    if request.method == 'GET':
+        return form.render_view()
+
+    if request.method == 'POST':
         if form.is_valid():
             # remove group and all of the related content
             org_name = org.organization_name
             org.delete()
             messages.success(request, message=_('Organization {} successfully deleted.'.format(org_name)))
-            return HttpResponseRedirect(reverse("structure:organizations-index"), status=303)
+            return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
         else:
-            params = {
-                "delete_organization_form": form,
-                "show_delete_organization_form": True,
-            }
-            return detail_organizations(request=request, org_id=org_id, update_params=params, status_code=422)
+            form.fade_modal = False
+            return form.render_view(status_code=422)
     else:
-        return HttpResponseRedirect(reverse("structure:detail-organization", args=(org_id,)), status=303)
+        return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
 
 
 @login_required
@@ -306,8 +318,18 @@ def new_org(request: HttpRequest):
 
     """
     user = user_helper.get_user(request)
+    form = OrganizationForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='structure:new-organization',
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        form_title=_(f"Add new organization"), )
+
+    if request.method == 'GET':
+        return form.render_view()
+
     if request.method == "POST":
-        form = OrganizationForm(request.POST)
         if form.is_valid():
             # save changes of group
             org = form.save(commit=False)
@@ -315,15 +337,13 @@ def new_org(request: HttpRequest):
             org.is_auto_generated = False  # when the user creates an organization per form, it is not auto generated!
             org.save()
             messages.success(request, message=_('Organization {} successfully created.'.format(org.organization_name)))
-            return HttpResponseRedirect(reverse("structure:detail-organization", args=(org.id,)), status=303)
+
+            return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
         else:
-            params = {
-                "new_organization_form": form,
-                "show_new_organization_form": True,
-            }
-            return organizations_index(request=request, update_params=params, status_code=422)
+            form.fade_modal = False
+            return form.render_view(status_code=422)
     else:
-        return HttpResponseRedirect(reverse("structure:organizations-index", ), status=303)
+        return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
 
 
 @login_required
@@ -431,10 +451,22 @@ def publish_request(request: HttpRequest, org_id: int):
     Returns:
          A rendered view
     """
-    user = user_helper.get_user(request)
     org = get_object_or_404(Organization, id=org_id)
-    form = PublisherForOrganizationForm(request.POST, requesting_user=user, organization=org)
-    if request.method == 'POST':
+
+    form = PublisherForOrganizationForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='structure:publish-request',
+        reverse_args=[org_id,],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        form_title=_(f"Request to become publisher for organization <strong>{org}</strong>"),
+        organization=org)
+
+    if request.method == 'GET':
+        return form.render_view()
+
+    if request.method == "POST":
         if form.is_valid():
             publish_request_obj = PendingRequest()
             publish_request_obj.type = PENDING_REQUEST_TYPE_PUBLISHING
@@ -446,15 +478,12 @@ def publish_request(request: HttpRequest, org_id: int):
             publish_request_obj.save()
             # create pending publish request for organization!
             messages.success(request, message=PUBLISH_REQUEST_SENT)
-            return HttpResponseRedirect(reverse("structure:detail-organization", args=(org.id,)), status=303)
+            return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
         else:
-            params = {
-                "publisher_form": form,
-                "show_publisher_form": True,
-            }
-            return detail_organizations(request=request, org_id=org_id, update_params=params, status_code=422)
+            form.fade_modal = False
+            return form.render_view(status_code=422)
     else:
-        return HttpResponseRedirect(reverse("structure:detail-organization", args=(org_id,)), status=303)
+        return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
 
 
 @login_required
@@ -534,8 +563,18 @@ def new_group(request: HttpRequest):
          A view
     """
     user = user_helper.get_user(request)
+
+    form = GroupForm(data=request.POST or None,
+                     request=request,
+                     reverse_lookup='structure:new-group',
+                     # ToDo: after refactoring of all forms is done, show_modal can be removed
+                     show_modal=True,
+                     form_title=_(f"Add new group"), )
+
+    if request.method == 'GET':
+        return form.render_view()
+
     if request.method == "POST":
-        form = GroupForm(request.POST, requesting_user=user)
         if form.is_valid():
             # save changes of group
             group = form.save(commit=False)
@@ -545,15 +584,13 @@ def new_group(request: HttpRequest):
             group.save()
             group.user_set.add(user)
             messages.success(request, message=GROUP_SUCCESSFULLY_CREATED.format(group.name))
-            return HttpResponseRedirect(reverse("structure:detail-group", args=(group.id,)), status=303)
+
+            return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
         else:
-            params = {
-                "new_group_form": form,
-                "show_new_group_form": True,
-            }
-        return groups_index(request=request, update_params=params, status_code=422)
+            form.fade_modal = False
+            return form.render_view(status_code=422)
     else:
-        return HttpResponseRedirect(reverse("structure:groups-index", ), status=303)
+        return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
 
 
 @login_required
@@ -592,10 +629,22 @@ def remove_group(request: HttpRequest, group_id: int):
     Returns:
         A rendered view
     """
-    user = user_helper.get_user(request)
     group = get_object_or_404(MrMapGroup, id=group_id)
-    form = RemoveGroupForm(request.POST, instance=group, requesting_user=user)
-    if request.method == "POST":
+
+    form = RemoveGroupForm(data=request.POST or None,
+                           request=request,
+                           reverse_lookup='structure:delete-group',
+                           reverse_args=[group_id, ],
+                           # ToDo: after refactoring of all forms is done, show_modal can be removed
+                           show_modal=True,
+                           is_confirmed_label=_("Do you really want to remove this group?"),
+                           form_title=_(f"Remove group <strong>{group}</strong>"),
+                           instance=group,)
+
+    if request.method == 'GET':
+        return form.render_view()
+
+    if request.method == 'POST':
         if form.is_valid():
             # clean subgroups from parent
             sub_groups = MrMapGroup.objects.filter(
@@ -607,14 +656,12 @@ def remove_group(request: HttpRequest, group_id: int):
             # remove group and all of the related content
             group.delete()
             messages.success(request, message=GROUP_SUCCESSFULLY_DELETED.format(group.name))
-            return HttpResponseRedirect(reverse("structure:groups-index"), status=303)
+            return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
         else:
-            params = {
-                "remove_group_form": form,
-                "show_remove_group_form": True,
-            }
-        return detail_group(request=request, group_id=group_id, update_params=params, status_code=422)
-    return HttpResponseRedirect(reverse("structure:detail-group", args=(group_id,)), status=303)
+            form.fade_modal = False
+            return form.render_view(status_code=422)
+    else:
+        return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
 
 
 @login_required
@@ -629,23 +676,31 @@ def edit_group(request: HttpRequest, group_id: int):
     Returns:
          A View
     """
-    user = user_helper.get_user(request)
     group = get_object_or_404(MrMapGroup, id=group_id)
-    form = GroupForm(request.POST, requesting_user=user, instance=group, is_edit=True)
-    if request.method == "POST":
+
+    form = GroupForm(data=request.POST or None,
+                     request=request,
+                     reverse_lookup='structure:edit-group',
+                     reverse_args=[group_id, ],
+                     # ToDo: after refactoring of all forms is done, show_modal can be removed
+                     show_modal=True,
+                     form_title=_(f"Edit group <strong>{group}</strong>"),
+                     instance=group,)
+
+    if request.method == 'GET':
+        return form.render_view()
+
+    if request.method == 'POST':
         if form.is_valid():
             # save changes of group
             group.save()
             messages.success(request, message=GROUP_SUCCESSFULLY_EDITED.format(group.name))
-            return HttpResponseRedirect(reverse("structure:detail-group", args=(group.id,)), status=303)
+            return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
         else:
-            params = {
-                "edit_group_form": form,
-                "show_edit_group_form": True,
-            }
-        return detail_group(request=request, group_id=group_id, update_params=params, status_code=422)
+            form.fade_modal = False
+            return form.render_view(status_code=422)
     else:
-        return HttpResponseRedirect(reverse("structure:detail-group", args=(group.id,)), status=303)
+        return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
 
 
 def handler404(request: HttpRequest, exception=None):

@@ -212,7 +212,7 @@ class OrganizationTable(MrMapTable):
         url = reverse('structure:detail-organization', args=(record.id,))
         icon = ''
         tooltip = ''
-        if self.user.organization is not None and self.user.organization.organization_name == value:
+        if self.user.organization is not None and self.user.organization == record:
             icon = get_theme(self.user)['ICONS']['HOME']
             tooltip = _('This is your organization')
 

@@ -759,7 +759,7 @@ class OGCWebFeatureService(OGCWebService):
         service = Service()
         service_type = ServiceType.objects.get_or_create(
             name=self.service_type.value,
-            version=self.service_version.value
+            version=self.service_version.name
         )[0]
         service.service_type = service_type
         service.created_by = group

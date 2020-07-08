@@ -804,7 +804,7 @@ class OGCWebMapService(OGCWebService):
         ## Create ServiceType record if it doesn't exist yet
         service_type = ServiceType.objects.get_or_create(
             name=self.service_type.value,
-            version=self.service_version.value
+            version=self.service_version.name
         )[0]
         service = Service()
         service.availability = 0.0

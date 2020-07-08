@@ -1,11 +1,9 @@
 from django.urls import reverse
 from django.utils.html import format_html
 from MrMap.columns import MrMapColumn
-from MrMap.consts import URL_PATTERN
 from MrMap.tables import MrMapTable
 from django.utils.translation import gettext_lazy as _
-
-from MrMap.utils import get_theme, get_ok_nok_icon
+from MrMap.utils import get_ok_nok_icon, get_theme
 from structure.models import Permission
 from users.models import Subscription
 
@@ -41,7 +39,8 @@ class SubscriptionTable(MrMapTable):
         verbose_name=_('Actions'),
         tooltip=_('Actions to perform'),
         empty_values=[],
-        orderable=False
+        orderable=False,
+        attrs={"td": {"style": "white-space:nowrap;"}}
     )
 
     def __init__(self, *args, **kwargs):
@@ -70,17 +69,21 @@ class SubscriptionTable(MrMapTable):
         return get_ok_nok_icon(value)
 
     def render_actions(self, record):
-        edit_btn = format_html(self.get_edit_btn(
-            href=reverse('subscription-edit', args=(record.id, self.current_view)),
-            tooltip=format_html(_(f"Edit subscription <strong>{record.metadata.title} [{record.metadata.id}]</strong> dataset"),),
+        edit_btn = format_html(self.get_btn(
+            href=reverse('subscription-edit', args=(record.id,)) + f"?current-view={self.current_view}",
+            btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['EDIT'],
+            tooltip=format_html(_(f"Edit subscription for <strong>{record.metadata.title} [{record.metadata.id}]</strong>"), ),
             tooltip_placement='left',
-            permission=Permission()
+            permission=Permission(),
         ))
-        remove_btn = format_html(self.get_remove_btn(
-            href=reverse('subscription-remove', args=(record.id, self.current_view)),
-            tooltip=format_html(_(f"Remove subscription <strong>{record.metadata.title} [{record.metadata.id}]</strong> dataset"),),
+        remove_btn = format_html(self.get_btn(
+            href=reverse('subscription-remove', args=(record.id, )) + f"?current-view={self.current_view}",
+            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
+            tooltip=format_html(_(f"Remove subscription for <strong>{record.metadata.title} [{record.metadata.id}]</strong>"), ),
             tooltip_placement='left',
-            permission=Permission()
+            permission=Permission(),
         ))
 
         return format_html(f"{edit_btn} {remove_btn}")

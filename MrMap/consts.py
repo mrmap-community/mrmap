@@ -26,6 +26,7 @@ STRUCTURE_INDEX_ORGANIZATION = "structure:organizations-index"
 APP_XML = "application/xml"
 
 URL_PATTERN = "<a class={} href='{}'>{}</a>"
+URL_OPEN_IN_NEW_TAB_PATTERN = "<a class={} href='{}' target='_blank'>{}</a>"
 URL_BTN_PATTERN = "<a class='{} {} {}' href='{}'>{}</a>"
 URL_ICON_PATTERN = "<a class={} href='{}'>{}{}</a>"
 

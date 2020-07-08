@@ -11,7 +11,7 @@ from celery.result import AsyncResult
 from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
 from MrMap.utils import get_theme, get_ok_nok_icon
-from MrMap.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS
+from MrMap.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS, URL_OPEN_IN_NEW_TAB_PATTERN
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
@@ -428,7 +428,7 @@ class DatasetTable(MrMapTable):
 
     def render_dataset_title(self, value, record):
         url = reverse('service:get-metadata-html', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+        return format_html(URL_OPEN_IN_NEW_TAB_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
 
     def render_dataset_related_objects(self, record):
         relations = MetadataRelation.objects.filter(metadata_to=record)

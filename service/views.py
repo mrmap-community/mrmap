@@ -888,6 +888,7 @@ def run_update_service(request: HttpRequest, metadata_id):
         diff_elements = diff.get("layers", None) or diff.get("feature_types", {})
 
         # We need to extract the linkage of new->old elements from the request by hand
+        # key identifies the new element and it's identifier (not id!) and choice identifies the existing element's id!
         links = {}
         prefix = "new_elem_"
         for key, choice in request.POST.items():

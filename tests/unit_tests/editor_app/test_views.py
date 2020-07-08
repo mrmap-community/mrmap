@@ -12,7 +12,7 @@ from django.urls import reverse
 from MrMap.messages import METADATA_RESTORING_SUCCESS, METADATA_IS_ORIGINAL
 from editor.forms import MetadataEditorForm
 from editor.tables import WmsServiceTable, WfsServiceTable, DatasetTable
-from service.helper.enums import ResourceOriginEnum
+from service.helper.enums import ResourceOriginEnum, MetadataEnum
 from service.models import Metadata, MetadataRelation
 from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service, create_wfs_service, \
     create_public_organization
@@ -135,7 +135,9 @@ class EditorMetadataEditViewTestCase(TestCase):
         Returns:
 
         """
-        metadata = Metadata.objects.all().first()
+        metadata = Metadata.objects.filter(
+            metadata_type=MetadataEnum.SERVICE.value
+        ).first()
         response = self.client.get(
             reverse(EDITOR_METADATA_EDITOR_NAME, args=(str(metadata.id),)),
         )
@@ -175,7 +177,9 @@ class EditorAccessEditViewTestCase(TestCase):
         Returns:
 
         """
-        metadata = Metadata.objects.all().first()
+        metadata = Metadata.objects.filter(
+            metadata_type=MetadataEnum.SERVICE.value
+        ).first()
         response = self.client.get(
             reverse(EDITOR_ACCESS_GEOMETRY_EDITOR_NAME, args=(str(metadata.id),)),
         )

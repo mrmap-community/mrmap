@@ -30,8 +30,7 @@ class ServiceTaskTestCase(TestCase):
     def setUp(self):
         self.user = create_superadminuser()
         self.group = self.user.get_groups().first()
-        create_wms_service(self.group, how_much_services=10)
-        self.metadata = Metadata.objects.all().first()
+        self.metadata = create_wms_service(self.group, how_much_services=10)[0]
 
         # Declare timeout span
         self.timeout_delta = timedelta(seconds=10)

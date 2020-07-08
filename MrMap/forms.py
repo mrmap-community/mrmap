@@ -1,6 +1,6 @@
 from django.forms import ModelForm
 from django import forms
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponseRedirect
 from django.template.loader import render_to_string
 from django.urls import reverse, resolve
 from django.utils.html import format_html
@@ -10,6 +10,7 @@ from users.helper import user_helper
 import random
 import string
 
+CURRENT_VIEW_QUERY_PARAM = 'current-view'
 
 class MrMapModalForm:
     current_view_arg = None
@@ -41,14 +42,14 @@ class MrMapModalForm:
         self.default_context = default_context or DefaultContext(request, {}, self.requesting_user).context
         self.show_modal = show_modal
         self.fade_modal = fade_modal
-        self.current_view = self.request.GET.get('current-view', None)
+        self.current_view = self.request.GET.get(CURRENT_VIEW_QUERY_PARAM, None)
         current_view_arg = self.request.GET.get('current-view-arg', None)
         self.current_view_arg = current_view_arg
         if current_view_arg is not None and current_view_arg.isnumeric():
             self.current_view_arg = int(current_view_arg)
 
-        action_url_queryparams = f"?current-view={self.current_view}&current-view-arg={self.current_view_arg}" \
-                                 if self.current_view_arg else f"?current-view={self.current_view}"
+        action_url_queryparams = f"?{CURRENT_VIEW_QUERY_PARAM}={self.current_view}&current-view-arg={self.current_view_arg}" \
+                                 if self.current_view_arg else f"?{CURRENT_VIEW_QUERY_PARAM}={self.current_view}"
         self.action_url = reverse(self.reverse_lookup, args=self.reverse_args) + action_url_queryparams \
                           if self.reverse_lookup else action_url
 
@@ -58,8 +59,8 @@ class MrMapModalForm:
                                 template_name=self.template_name,
                                 context=self.default_context)
 
+    # ToDo: use process_request() and hide this function _
     def render_view(self, status_code: int = 200):
-
         view_function = resolve(reverse(viewname=self.current_view, )) if self.current_view_arg is None \
             else resolve(reverse(viewname=self.current_view, args=[self.current_view_arg, ]))
         if self.current_view_arg:
@@ -73,6 +74,22 @@ class MrMapModalForm:
                                       status_code=status_code,
                                       update_params={'current_view': self.current_view,
                                                      'rendered_modal': self._render_form_as_string()}, )
+
+    def process_request(self, valid_func):
+        if self.request.method == 'GET':
+            return self.render_view()
+
+        if self.request.method == 'POST':
+            if self.is_valid():
+                valid_func()
+            else:
+                self.fade_modal = False
+                return self.render_view(status_code=422)
+
+        if 'current-view-arg' in self.request.GET:
+            return HttpResponseRedirect(reverse(self.request.GET.get('current-view'), args=(self.request.GET.get('current-view-arg'),)), status=303)
+        else:
+            return HttpResponseRedirect(reverse(self.request.GET.get(CURRENT_VIEW_QUERY_PARAM, 'home'), ), status=303)
 
 
 class MrMapForm(forms.Form, MrMapModalForm):

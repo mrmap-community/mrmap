@@ -16,7 +16,6 @@ from MrMap import utils
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
 from MrMap.decorator import check_permission, log_proxy, check_ownership
-from MrMap.forms import MrMapConfirmForm
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
@@ -26,7 +25,8 @@ from service import tasks
 from service.helper import xml_helper, logger_helper
 from service.filters import MetadataWmsFilter, MetadataWfsFilter, ProxyLogTableFilter, MetadataDatasetFilter
 from service.forms import RegisterNewServiceWizardPage1, \
-    RegisterNewServiceWizardPage2, UpdateServiceCheckForm, UpdateOldToNewElementsForm
+    RegisterNewServiceWizardPage2, UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
+    ActivateServiceForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum, DocumentEnum
@@ -368,32 +368,19 @@ def remove(request: HttpRequest, metadata_id: int,):
     Returns:
         Redirect to service:index
     """
-    user = user_helper.get_user(request)
     metadata = get_object_or_404(Metadata, id=metadata_id)
+    form = RemoveServiceForm(data=request.POST or None,
+                             request=request,
+                             reverse_lookup='service:remove',
+                             reverse_args=[metadata_id, ],
+                             # ToDo: after refactoring of all forms is done, show_modal can be removed
+                             show_modal=True,
+                             is_confirmed_label=_("Do you really want to remove this service?"),
+                             form_title=_(f"Remove service <strong>{metadata}</strong>"),
+                             instance=metadata)
+    return form.process_request(valid_func=form.process_remove_service)
 
-    form = MrMapConfirmForm(data=request.POST or None,
-                            request=request,
-                            reverse_lookup='service:remove',
-                            reverse_args=[metadata_id, ],
-                            # ToDo: after refactoring of all forms is done, show_modal can be removed
-                            show_modal=True,
-                            is_confirmed_label=_("Do you really want to remove this service?"),
-                            form_title=_(f"Remove service <strong>{metadata}</strong>"))
 
-    if request.method == 'GET':
-        return form.render_view()
-
-    if request.method == 'POST':
-        if form.is_valid():
-            service_helper.remove_service(metadata, user)
-            return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
-        else:
-            form.fade_modal = False
-            return form.render_view(status_code=422)
-    else:
-        return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
-
-# Todo: form view
 @login_required
 @check_permission(Permission(can_activate_service=True))
 @check_ownership(Service, 'service_id')
@@ -406,44 +393,18 @@ def activate(request: HttpRequest, service_id: int, ):
     Returns:
          redirects to service:index
     """
-    user = user_helper.get_user(request)
-
     md = get_object_or_404(Metadata, service__id=service_id)
 
-    form = MrMapConfirmForm(data=request.POST or None,
-                            request=request,
-                            reverse_lookup='service:activate',
-                            reverse_args=[service_id, ],
-                            # ToDo: after refactoring of all forms is done, show_modal can be removed
-                            show_modal=True,
-                            form_title=_(f"{'Deactivate' if md.is_active else 'Activate'} service <strong>{md}</strong>"),
-                            is_confirmed_label=_(f"Do you really want to {'deactivate' if md.is_active else 'activate'} this service?"), )
-    if request.method == 'GET':
-        return form.render_view()
-
-    if request.method == 'POST':
-        if form.is_valid():
-            md.is_active = not md.is_active
-            md.save()
-
-            # run activation async!
-            tasks.async_activate_service.delay(service_id, user.id, md.is_active)
-
-            # If metadata WAS active, then it will be deactivated now
-            if md.is_active:
-                msg = SERVICE_ACTIVATED.format(md.title)
-            else:
-                msg = SERVICE_DEACTIVATED.format(md.title)
-            messages.success(request, msg)
-
-        else:
-            form.fade_modal = False
-            return form.render_view(status_code=422)
-
-        if 'current-view-arg' in request.GET:
-            return HttpResponseRedirect(reverse(request.GET.get('current-view'), args=(md.id,)), status=303)
-        else:
-            return HttpResponseRedirect(reverse(request.GET.get('current-view'), ), status=303)
+    form = ActivateServiceForm(data=request.POST or None,
+                               request=request,
+                               reverse_lookup='service:activate',
+                               reverse_args=[service_id, ],
+                               # ToDo: after refactoring of all forms is done, show_modal can be removed
+                               show_modal=True,
+                               form_title=_(f"{'Deactivate' if md.is_active else 'Activate'} service <strong>{md}</strong>"),
+                               is_confirmed_label=_(f"Do you really want to {'deactivate' if md.is_active else 'activate'} this service?"),
+                               instance=md,)
+    return form.process_request(valid_func=form.process_activate_service)
 
 
 def get_service_metadata(request: HttpRequest, metadata_id: int):

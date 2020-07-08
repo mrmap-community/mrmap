@@ -1,7 +1,6 @@
+import datetime
 from captcha.fields import CaptchaField
 from django import forms
-from django.forms import ModelForm
-from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 
@@ -9,13 +8,13 @@ from MrMap.forms import MrMapModelForm, MrMapForm, MrMapConfirmForm
 from MrMap.messages import ORGANIZATION_IS_OTHERS_PROPERTY, \
     GROUP_IS_OTHERS_PROPERTY, PUBLISH_REQUEST_ABORTED_IS_PENDING, \
     PUBLISH_REQUEST_ABORTED_OWN_ORG, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER, REQUEST_ACTIVATION_TIMEOVER, \
-    PUBLISH_PERMISSION_REMOVING_DENIED
+    ORGANIZATION_SUCCESSFULLY_EDITED, PUBLISH_REQUEST_SENT, GROUP_SUCCESSFULLY_CREATED, GROUP_SUCCESSFULLY_DELETED, \
+    GROUP_SUCCESSFULLY_EDITED
 from MrMap.settings import MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH
 from MrMap.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
 from structure.models import MrMapGroup, Organization, Role, PendingRequest
-from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING
-
-
+from structure.settings import PENDING_REQUEST_TYPE_PUBLISHING, PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW
+from django.contrib import messages
 
 
 class LoginForm(forms.Form):
@@ -78,6 +77,21 @@ class GroupForm(MrMapModelForm):
 
         return cleaned_data
 
+    def process_new_group(self):
+        # save changes of group
+        group = self.save(commit=False)
+        group.created_by = self.instance
+        if group.role is None:
+            group.role = Role.objects.get(name="_default_")
+        group.save()
+        group.user_set.add(self.instance)
+        messages.success(self.request, message=GROUP_SUCCESSFULLY_CREATED.format(group.name))
+
+    def process_edit_group(self):
+        # save changes of group
+        self.instance.save()
+        messages.success(self.request, message=GROUP_SUCCESSFULLY_EDITED.format(self.instance.name))
+
 
 class PublisherForOrganizationForm(MrMapForm):
     action_url = ''
@@ -113,6 +127,18 @@ class PublisherForOrganizationForm(MrMapForm):
                 self.add_error(None, PUBLISH_REQUEST_ABORTED_ALREADY_PUBLISHER)
 
         return cleaned_data
+
+    def process_new_publisher_request(self):
+        publish_request_obj = PendingRequest()
+        publish_request_obj.type = PENDING_REQUEST_TYPE_PUBLISHING
+        publish_request_obj.organization = self.organization
+        publish_request_obj.message = self.cleaned_data["request_msg"]
+        publish_request_obj.group = self.cleaned_data["group"]
+        publish_request_obj.activation_until = timezone.now() + datetime.timedelta(
+            hours=PUBLISH_REQUEST_ACTIVATION_TIME_WINDOW)
+        publish_request_obj.save()
+        # create pending publish request for organization!
+        messages.success(self.request, message=PUBLISH_REQUEST_SENT)
 
 
 class OrganizationForm(MrMapModelForm):
@@ -174,6 +200,19 @@ class OrganizationForm(MrMapModelForm):
 
         return cleaned_data
 
+    def process_edit_org(self):
+        # save changes of organization
+        self.save()
+        messages.success(self.request, message=ORGANIZATION_SUCCESSFULLY_EDITED.format(self.instance.organization_name))
+
+    def process_new_org(self):
+        # save changes of group
+        org = self.save(commit=False)
+        org.created_by = self.requesting_user
+        org.is_auto_generated = False  # when the user creates an organization per form, it is not auto generated!
+        org.save()
+        messages.success(self.request, message=_('Organization {} successfully created.'.format(org.organization_name)))
+
 
 class RemoveGroupForm(MrMapConfirmForm):
 
@@ -183,12 +222,22 @@ class RemoveGroupForm(MrMapConfirmForm):
 
     def clean(self):
         cleaned_data = super(RemoveGroupForm, self).clean()
-
         if self.instance.created_by is not None and self.instance.created_by != self.requesting_user:
             self.add_error(None, GROUP_IS_OTHERS_PROPERTY)
-
         return cleaned_data
 
+    def process_remove_group(self):
+        group_name = self.instance.name
+        # clean subgroups from parent
+        sub_groups = MrMapGroup.objects.filter(
+            parent_group=self.instance
+        )
+        for sub in sub_groups:
+            sub.parent = None
+            sub.save()
+        # remove group and all of the related content
+        self.instance.delete()
+        messages.success(self.request, message=GROUP_SUCCESSFULLY_DELETED.format(group_name))
 
 class RemoveOrganizationForm(MrMapConfirmForm):
     def __init__(self, instance=None, *args, **kwargs):
@@ -205,6 +254,11 @@ class RemoveOrganizationForm(MrMapConfirmForm):
             self.add_error('is_confirmed', _('You have to confirm the checkbox.'))
 
         return cleaned_data
+
+    def process_remove_org(self):
+        org_name = self.instance.organization_name
+        self.instance.delete()
+        messages.success(self.request, message=_('Organization {} successfully deleted.'.format(org_name)))
 
 
 class RegistrationForm(forms.Form):

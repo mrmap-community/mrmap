@@ -11,14 +11,16 @@ from django.urls import reverse_lazy
 from django.utils.html import format_html
 
 from MrMap.consts import SERVICE_ADD
-from MrMap.forms import MrMapForm
-from MrMap.messages import SERVICE_UPDATE_WRONG_TYPE
+from MrMap.forms import MrMapForm, MrMapConfirmForm
+from MrMap.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MrMap.validators import validate_get_request_uri
 from django.utils.translation import gettext_lazy as _
+from django.contrib import messages
 
 from service.helper import service_helper
 from service.helper.enums import OGCServiceEnum
-from service.models import Service, Document
+from service.models import Service
+from service import tasks
 
 
 class ServiceURIForm(forms.Form):
@@ -167,3 +169,32 @@ class UpdateOldToNewElementsForm(forms.Form):
         if choices is not None:
             for identifier, choice in choices.items():
                 self.fields['new_elem_{}'.format(identifier)].initial = choice
+
+
+class RemoveServiceForm(MrMapConfirmForm):
+    def __init__(self, instance, *args, **kwargs):
+        self.instance = instance
+        super(RemoveServiceForm, self).__init__(*args, **kwargs)
+
+    def process_remove_service(self):
+        service_helper.remove_service(self.instance, self.requesting_user)
+
+
+class ActivateServiceForm(MrMapConfirmForm):
+    def __init__(self, instance, *args, **kwargs):
+        self.instance = instance
+        super(ActivateServiceForm, self).__init__(*args, **kwargs)
+
+    def process_activate_service(self):
+        self.instance.is_active = not self.instance.is_active
+        self.instance.save()
+
+        # run activation async!
+        tasks.async_activate_service.delay(self.instance.id, self.requesting_user.id, self.instance.is_active)
+
+        # If metadata WAS active, then it will be deactivated now
+        if self.instance.is_active:
+            msg = SERVICE_ACTIVATED.format(self.instance.title)
+        else:
+            msg = SERVICE_DEACTIVATED.format(self.instance.title)
+        messages.success(self.request, msg)

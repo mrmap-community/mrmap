@@ -18,16 +18,13 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect, render, get_object_or_404
-from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from django.views.generic import CreateView
 
 from MrMap.messages import ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
     ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, \
     LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
-    RESOURCE_NOT_FOUND_OR_NOT_OWNER, FORM_INPUT_INVALID, SUBSCRIPTION_EDITING_SUCCESSFULL, \
-    SUBSCRIPTION_REMOVED_TEMPLATE, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, SUBSCRIPTION_EDITING_UNSUCCESSFULL
+    RESOURCE_NOT_FOUND_OR_NOT_OWNER
 from MrMap.responses import DefaultContext
 from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
 from MrMap.utils import print_debug_mode
@@ -160,9 +157,6 @@ def account(request: HttpRequest, update_params: dict = None, status_code: int =
     edit_account_form = UserForm(instance=user, initial={'theme': user.theme})
     edit_account_form.action_url = reverse('account-edit', )
 
-    password_change_form = PasswordChangeForm()
-    password_change_form.action_url = reverse('password-change', )
-
     user = user_helper.get_user(request)
 
     subscription_table = SubscriptionTable(request=request,
@@ -170,7 +164,6 @@ def account(request: HttpRequest, update_params: dict = None, status_code: int =
 
     params = {
         "edit_account_form": edit_account_form,
-        "password_change_form": password_change_form,
         "subscriptions": subscription_table,
         "current_view": 'account',
     }
@@ -191,25 +184,15 @@ def password_change(request: HttpRequest):
     Returns:
         A view
     """
+    form = PasswordChangeForm(data=request.POST or None,
+                              request=request,
+                              reverse_lookup='password-change',
+                              # ToDo: after refactoring of all forms is done, show_modal can be removed
+                              show_modal=True,
+                              form_title=_(f"Change password"),
+                              )
 
-    if request.method == 'POST':
-        user = user_helper.get_user(request)
-        form = PasswordChangeForm(request.POST or None, user=user)
-        if form.is_valid():
-            password = form.cleaned_data["new_password"]
-            user.set_password(password)
-            user.save()
-            login(request, user)
-            messages.add_message(request, messages.SUCCESS, PASSWORD_CHANGE_SUCCESS)
-        else:
-            return account(
-                request=request,
-                update_params={'password_change_form': form,
-                               'show_password_change_form': True,
-                               }
-            )
-
-    return redirect(reverse("home"))
+    return form.process_request(valid_func=form.process_change_password)
 
 
 @login_required
@@ -402,8 +385,6 @@ def subscription_new_view(request: HttpRequest, ):
     Returns:
          A rendered view
     """
-    user = user_helper.get_user(request)
-
     form = SubscriptionForm(data=request.POST or None,
                             request=request,
                             reverse_lookup='subscription-new',
@@ -411,31 +392,7 @@ def subscription_new_view(request: HttpRequest, ):
                             # ToDo: show_modal will be default True in future
                             show_modal=True,
                             )
-
-    if request.method == 'GET':
-        return form.render_view()
-
-    elif request.method == 'POST':
-        if form.is_valid():
-            subscription = form.save(commit=False)
-            subscription.user = user
-            # Check if the service is already subscribed by user
-            sub_already_exists = Subscription.objects.filter(
-                user=user,
-                metadata=subscription.metadata,
-            ).exists()
-            if sub_already_exists:
-                messages.info(request, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE.format(subscription.metadata.title))
-                del subscription
-            else:
-                subscription.save()
-                messages.success(request, SUBSCRIPTION_EDITING_SUCCESSFULL)
-                return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
-        else:
-            form.fade_modal = False
-            return form.render_view()
-
-    return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
+    return form.process_request(valid_func=form.process_new_subscription)
 
 
 @login_required
@@ -450,7 +407,6 @@ def subscription_edit_view(request: HttpRequest, subscription_id: str, ):
          A rendered view
     """
     user = user_helper.get_user(request)
-
     try:
         subscription = Subscription.objects.get(
             id=subscription_id,
@@ -465,29 +421,12 @@ def subscription_edit_view(request: HttpRequest, subscription_id: str, ):
                             is_edit=True,
                             request=request,
                             reverse_lookup='subscription-edit',
-                            reverse_args=[subscription_id,],
+                            reverse_args=[subscription_id, ],
                             form_title=_('New Subscription'),
                             # ToDo: show_modal will be default True in future
                             show_modal=True,
                             )
-
-    if request.method == 'GET':
-        return form.render_view()
-
-    elif request.method == 'POST':
-        # Post changes/new subscription
-        if form.is_valid():
-            # Make sure the related metadata has not been changed
-            form_subscription = form.save(commit=False)
-            if form_subscription.metadata != subscription.metadata:
-                messages.error(request, SUBSCRIPTION_EDITING_UNSUCCESSFULL)
-            else:
-                form_subscription.save()
-                messages.success(request, SUBSCRIPTION_EDITING_SUCCESSFULL)
-        else:
-            return form.render_view()
-
-    return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)
+    return form.process_request(valid_func=form.process_edit_subscription)
 
 
 @login_required
@@ -501,7 +440,6 @@ def subscription_remove(request: HttpRequest, subscription_id: str, ):
          A rendered view
     """
     user = user_helper.get_user(request)
-
     subscription = get_object_or_404(klass=Subscription,
                                      id=subscription_id,
                                      user=user)
@@ -513,19 +451,6 @@ def subscription_remove(request: HttpRequest, subscription_id: str, ):
                                   form_title=_(f'Remove Subscription for service <strong>{subscription.metadata}</strong>'),
                                   # ToDo: show_modal will be default True in future
                                   show_modal=True,
-                                  )
+                                  instance=subscription,)
+    return form.process_request(valid_func=form.process_remove_subscription)
 
-    if request.method == 'GET':
-        return form.render_view()
-
-    elif request.method == 'POST':
-        if form.is_valid():
-            try:
-                subscription.delete()
-                messages.success(request, SUBSCRIPTION_REMOVED_TEMPLATE.format(subscription.metadata.title))
-            except ObjectDoesNotExist:
-                messages.error(request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)
-        else:
-            return form.render_view()
-
-    return HttpResponseRedirect(reverse(request.GET.get('current-view', None), ), status=303)

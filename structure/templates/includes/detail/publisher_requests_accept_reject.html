@@ -14,15 +14,19 @@
     <div class="row text-center">
             {% if not remove_publisher %}
             <div class="col-sm p-0">
-                <button class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" type="submit" title="{% trans 'Accept' %}" name="is_accepted" value="{{ True }}" role="button">
-                    {% autoescape off %}{{THEME.ICONS.OK}}{% endautoescape %}
-                </button>
+                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Accept the request' %}">
+                    <button class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" type="submit" name="is_accepted" value="{{ True }}" role="button">
+                        {% autoescape off %}{{THEME.ICONS.OK}}{% endautoescape %}
+                    </button>
+                </span>
             </div>
             {% endif %}
             <div class="col-sm p-0">
-                <button class="btn {{THEME.CARD.BTN_DANGER_COLOR}}" type="submit" title="{% trans 'Remove' %}" name="is_accepted" value="{{ False }}" role="button">
-                    {% autoescape off %}{{THEME.ICONS.NOK}}{% endautoescape %}
-                </button>
+                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Deny the request' %}">
+                    <button class="btn {{THEME.CARD.BTN_DANGER_COLOR}}" type="submit" name="is_accepted" value="{{ False }}" role="button">
+                        {% autoescape off %}{{THEME.ICONS.NOK}}{% endautoescape %}
+                    </button>
+                </span>
             </div>
     </div>
 </form>

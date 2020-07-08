@@ -251,11 +251,11 @@ class WfsServiceTable(MrMapTable):
 
 class PendingTasksTable(MrMapTable):
     caption = _("Shows all currently running pending tasks.")
-    pt_status = tables.Column(verbose_name=_('Status'), empty_values=[], orderable=False, )
-    pt_service = tables.Column(verbose_name=_('Service'), empty_values=[], orderable=False,)
-    pt_phase = tables.Column(verbose_name=_('Phase'), empty_values=[], orderable=False,)
-    pt_progress = tables.Column(verbose_name=_('Progress'), empty_values=[], orderable=False,)
-    pt_actions = tables.Column(verbose_name=_('Cancle task'), empty_values=[], orderable=False, )
+    pt_status = tables.Column(verbose_name=_('Status'), empty_values=[], orderable=False, attrs={"th": {"class": "col-sm-1"}})
+    pt_service = tables.Column(verbose_name=_('Service'), empty_values=[], orderable=False, attrs={"th": {"class": "col-sm-3"}})
+    pt_phase = tables.Column(verbose_name=_('Phase'), empty_values=[], orderable=False, attrs={"th": {"class": "col-sm-4"}})
+    pt_progress = tables.Column(verbose_name=_('Progress'), empty_values=[], orderable=False, attrs={"th": {"class": "col-sm-3"}})
+    pt_actions = tables.Column(verbose_name=_('Cancle task'), empty_values=[], orderable=False, attrs={"td": {"style": "white-space:nowrap;"}, "th": {"class": "col-sm-1"}})
 
     def render_pt_actions(self, record):
         btns = ''

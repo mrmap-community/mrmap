@@ -69,7 +69,8 @@ class SubscriptionTable(MrMapTable):
         return get_ok_nok_icon(value)
 
     def render_actions(self, record):
-        edit_btn = format_html(self.get_btn(
+        btns = ''
+        btns += format_html(self.get_btn(
             href=reverse('subscription-edit', args=(record.id,)) + f"?current-view={self.current_view}",
             btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
             btn_value=get_theme(self.user)["ICONS"]['EDIT'],
@@ -77,7 +78,7 @@ class SubscriptionTable(MrMapTable):
             tooltip_placement='left',
             permission=Permission(),
         ))
-        remove_btn = format_html(self.get_btn(
+        btns += format_html(self.get_btn(
             href=reverse('subscription-remove', args=(record.id, )) + f"?current-view={self.current_view}",
             btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
             btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
@@ -86,4 +87,4 @@ class SubscriptionTable(MrMapTable):
             permission=Permission(),
         ))
 
-        return format_html(f"{edit_btn} {remove_btn}")
+        return format_html(btns)

@@ -2,6 +2,10 @@
 {% load i18n static %}
 {% block table %}
     <tr>
+        <th scope="row">{% trans 'Easy ID' %}</th>
+        <td>{{ service.metadata.public_id }}</td>
+    </tr>
+    <tr>
         <th scope="row">{% trans 'Identifier' %}</th>
         <td>{{ service.identifier }}</td>
     </tr>

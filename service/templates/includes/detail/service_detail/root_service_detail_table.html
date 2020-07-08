@@ -4,6 +4,10 @@
     <div class="col">
         {% block table %}
             <tr>
+                <th scope="row">{% trans 'Easy ID' %}</th>
+                <td>{{ service.metadata.public_id }}</td>
+            </tr>
+            <tr>
                 <th scope="row">{% trans 'Service type' %}</th>
                 <td>{{ service.service_type }}</td>
             </tr>

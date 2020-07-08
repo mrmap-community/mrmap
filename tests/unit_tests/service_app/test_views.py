@@ -13,6 +13,7 @@ from service.helper.enums import OGCServiceEnum
 from service.helper.ogc import operation_request_handler
 from service.helper.service_comparator import ServiceComparator
 from service.models import Layer, FeatureType, Service, Metadata
+from service.settings import NONE_UUID
 from service.tables import WmsServiceTable, WfsServiceTable, PendingTasksTable
 from service.tasks import async_activate_service
 from structure.models import PendingTask, GroupActivity
@@ -616,7 +617,7 @@ class RunUpdateServiceViewTestCase(TestCase):
 
         data = {}
         for element in new_elements:
-            data.update({'new_elem_{}'.format(element.metadata.identifier): ""})
+            data.update({'new_elem_{}'.format(element.metadata.identifier): NONE_UUID})
 
         response = self.client.post(
             reverse('service:run-update', args=(str(self.wms_metadata.id),)),
@@ -635,7 +636,7 @@ class RunUpdateServiceViewTestCase(TestCase):
 
         data = {}
         for element in new_elements:
-            data.update({'new_elem_{}'.format(element.metadata.identifier): -1})
+            data.update({'new_elem_{}'.format(element.metadata.identifier): NONE_UUID})
 
         response = self.client.post(
             reverse('service:run-update', args=(self.wms_metadata.id,)),
@@ -653,7 +654,7 @@ class RunUpdateServiceViewTestCase(TestCase):
 
         data = {}
         for element in new_elements:
-            data.update({'new_elem_{}'.format(element.metadata.identifier): ""})
+            data.update({'new_elem_{}'.format(element.metadata.identifier): NONE_UUID})
 
         response = self.client.post(
             reverse('service:run-update', args=(str(self.wfs_metadata.id),)),

@@ -2,10 +2,6 @@
 {% load i18n static %}
 {% block table %}
     <tr>
-        <th scope="row">{% trans 'Uuid' %}</th>
-        <td>{{ service.uuid }}</td>
-    </tr>
-    <tr>
         <th scope="row">{% trans 'Parent service' %}</th>
         <td>
             <a class="{{THEME.TABLE.LINK_COLOR}}" href="{% url 'service:detail' service.parent_service.metadata.id %}" title="{{ service.parent_service.metadata.uuid }}">
@@ -55,8 +51,8 @@
         <th scope="row">{% trans 'Bounding box' %}</th>
         <td>
             {% if service.bbox_lat_lon.area > 0.0 %}
-            <div id="{{ service.id }}_map" class="map-view" style="height: 40vh; min-height: 200px;"></div>
-            {% with id_map=service.id bbox=service.bbox_lat_lon  %}
+            <div id="{{ service.id.hex }}_map" class="map-view" style="height: 40vh; min-height: 200px;"></div>
+            {% with id_map=service.id.hex bbox=service.bbox_lat_lon  %}
                 {% include 'leaflet/leaflet-client.html' %}
                 <script type="text/javascript">
                     initializeLeafletClient();

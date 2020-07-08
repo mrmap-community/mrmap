@@ -18,6 +18,7 @@ from django.utils.translation import gettext_lazy as _
 from service.helper import service_helper
 from service.helper.enums import OGCServiceEnum
 from service.models import Service, Document
+from service.settings import NONE_UUID
 
 
 class ServiceURIForm(forms.Form):
@@ -84,7 +85,6 @@ class RegisterNewServiceWizardPage2(forms.Form):
             self.fields["password"].required = True
             self.fields["authentication_type"].disabled = False
             self.fields["authentication_type"].required = True
-
 
 
 class RemoveServiceForm(forms.Form):
@@ -156,7 +156,7 @@ class UpdateOldToNewElementsForm(forms.Form):
         super(UpdateOldToNewElementsForm, self).__init__(*args, **kwargs)
 
         # Prepare remove elements as choices
-        remove_elements_choices = [(-1, _("---"))]
+        remove_elements_choices = [(NONE_UUID, _("---"))]
         for elem in removed_elements:
             remove_elements_choices.append((elem.metadata.id, elem.metadata.identifier))
 

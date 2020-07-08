@@ -18,6 +18,7 @@ from MrMap.messages import NO_PERMISSION, SERVICE_NOT_FOUND, RESOURCE_IS_OWNED_B
     REQUESTING_USER_IS_NOT_MEMBER_OF_THE_GROUP, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION
 from MrMap.utils import get_dict_value_insensitive
 from service.models import Metadata, ProxyLog, Resource
+from service.settings import NONE_UUID
 from structure.models import Permission, MrMapUser, MrMapGroup, Organization
 from users.helper import user_helper
 
@@ -148,7 +149,7 @@ def resolve_metadata_public_id(function):
                     kwargs["metadata_id"] = str(md.id)
                 except ObjectDoesNotExist:
                     # No metadata could be found, we provide the empty uuid
-                    kwargs["metadata_id"] = "00000000-0000-0000-0000-000000000000"
+                    kwargs["metadata_id"] = NONE_UUID
         return function(request=request, *args, **kwargs)
 
     wrap.__doc__ = function.__doc__

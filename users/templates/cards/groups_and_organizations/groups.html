@@ -18,7 +18,11 @@
     {% trans 'Your groups' %}
 </p>
 <a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'structure:groups-index' %}" role="button">
-
     {% trans 'Show'%}
 </a>
+{% if 'can_create_group' in user_permissions %}
+<a class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" href="{% url 'structure:new-group' %}?current-view={{current_view}}" role="button">
+    {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New'%}
+</a>
+{% endif %}
 {% endblock %}

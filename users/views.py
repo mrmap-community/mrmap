@@ -98,7 +98,7 @@ def login_view(request: HttpRequest):
 
 
 @login_required
-def home_view(request: HttpRequest):
+def home_view(request: HttpRequest,  update_params=None, status_code=None):
     """ Renders the dashboard / home view of the user
 
     Args:
@@ -134,10 +134,17 @@ def home_view(request: HttpRequest):
         "requests": pending_requests,
         "group_activities": group_activities,
         "groups": user_groups,
-        "organizations": Organization.objects.filter(is_auto_generated=False)
+        "organizations": Organization.objects.filter(is_auto_generated=False),
+        "current_view": "home",
     }
+    if update_params:
+        params.update(update_params)
+
     context = DefaultContext(request, params, user)
-    return render(request, template, context.get_context())
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=200 if status_code is None else status_code)
 
 
 @login_required

@@ -88,7 +88,7 @@ class MrMapTable(tables.Table):
         else:
             return ''
 
-    def get_btn(self, href: str, btn_color: str, btn_value: str, tooltip: str, tooltip_placement: str, permission: Permission):
+    def get_btn(self, href: str, btn_color: str, btn_value: str, permission: Permission, tooltip: str = '', tooltip_placement: str = 'left',):
         if self.user.has_permission(permission):
             context = {
                 "btn_size": BTN_SM_CLASS,

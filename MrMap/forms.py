@@ -172,6 +172,7 @@ class MrMapWizardForm(forms.Form):
                  **kwargs):
         super(MrMapWizardForm, self).__init__(*args, **kwargs)
         self.request = request
+        self.requesting_user = user_helper.get_user(request)
         self.instance_id = instance_id
         self.has_autocomplete_fields = has_autocomplete_fields
 

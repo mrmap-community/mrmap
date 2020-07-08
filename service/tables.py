@@ -19,15 +19,6 @@ from service.models import MetadataRelation
 from structure.models import Permission
 
 
-def _get_close_button(url, user):
-    return format_html(URL_BTN_PATTERN,
-                       BTN_CLASS,
-                       BTN_SM_CLASS,
-                       get_theme(user)["TABLE"]["BTN_DANGER_COLOR"],
-                       url,
-                       format_html(get_theme(user)["ICONS"]['WINDOW_CLOSE']),)
-
-
 def _get_action_btns_for_service_table(table, record):
     btns = ''
     btns += table.get_btn(
@@ -260,16 +251,19 @@ class WfsServiceTable(MrMapTable):
 
 class PendingTasksTable(MrMapTable):
     caption = _("Shows all currently running pending tasks.")
-
-    pt_cancle = tables.Column(verbose_name=_(' '), empty_values=[], orderable=False, )
     pt_status = tables.Column(verbose_name=_('Status'), empty_values=[], orderable=False, )
     pt_service = tables.Column(verbose_name=_('Service'), empty_values=[], orderable=False,)
     pt_phase = tables.Column(verbose_name=_('Phase'), empty_values=[], orderable=False,)
     pt_progress = tables.Column(verbose_name=_('Progress'), empty_values=[], orderable=False,)
+    pt_actions = tables.Column(verbose_name=_('Cancle task'), empty_values=[], orderable=False, )
 
-    def render_pt_cancle(self, record):
-        url = reverse('structure:remove-task', args=(record.id,))
-        return _get_close_button(url, self.user)
+    def render_pt_actions(self, record):
+        btns = ''
+        btns += self.get_btn(href=reverse('structure:remove-task', args=(record.id,)),
+                             permission=Permission(),
+                             btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+                             btn_value=get_theme(self.user)["ICONS"]['WINDOW_CLOSE'], )
+        return format_html(btns)
 
     @staticmethod
     def render_pt_status():

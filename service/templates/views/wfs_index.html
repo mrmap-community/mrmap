@@ -30,15 +30,5 @@
         {% include 'includes/index/wfs.html' %}
     {% endif %}
 
-    {% if 'can_register_service' in user_permissions %}
-        {% with form=new_service_form %}
-            {% with 'new_service' as id_modal %}
-                {% with show_new_service_form as show_modal %}
-                    {% include 'modals/new_service.html' %}
-                {% endwith %}
-            {% endwith %}
-        {% endwith %}
-    {% endif %}
-
 </div>
 {% endblock %}

@@ -18,14 +18,11 @@ from MrMap.consts import *
 from MrMap.decorator import check_permission, log_proxy, check_ownership
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
-    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
-    SERVICE_ACTIVATED, SERVICE_DEACTIVATED
+    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
 from MrMap.responses import DefaultContext
-from service import tasks
-from service.helper import xml_helper, logger_helper
-from service.filters import MetadataWmsFilter, MetadataWfsFilter, ProxyLogTableFilter, MetadataDatasetFilter
-from service.forms import RegisterNewServiceWizardPage1, \
-    RegisterNewServiceWizardPage2, UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
+from service.helper import xml_helper
+from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter
+from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
     ActivateServiceForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
@@ -35,12 +32,13 @@ from service.helper.ogc.operation_request_handler import OGCOperationRequestHand
 from service.helper.service_comparator import ServiceComparator
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import WmsTableWms, WmsLayerTableWms, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
-    ProxyLogTable, DatasetTable
+     DatasetTable
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from structure.models import MrMapUser, Permission, PendingTask, MrMapGroup
+from service.wizards import NEW_SERVICE_WIZARD_FORMS, NewServiceWizard
+from structure.models import MrMapUser, Permission, PendingTask
 from users.helper import user_helper
 from django.urls import reverse
 from django import forms
@@ -154,109 +152,6 @@ def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, current_view: 
     }
 
 
-def _new_service_wizard_page1(request: HttpRequest):
-    # Page One is posted --> validate it
-    user = user_helper.get_user(request)
-    form = RegisterNewServiceWizardPage1(request.POST)
-    if form.is_valid():
-        # Form is valid --> response with initialed page 2
-        url_dict = service_helper.split_service_uri(form.cleaned_data['get_request_uri'])
-        init_data = {
-            'ogc_request': url_dict["request"],
-            'ogc_service': url_dict["service"].value,
-            'ogc_version': url_dict["version"],
-            'uri': url_dict["base_uri"],
-            'service_needs_authentication': False,
-        }
-
-        params = {
-            "new_service_form": RegisterNewServiceWizardPage2(
-                initial=init_data,
-                user=user,
-                selected_group=user.get_groups(
-                    {
-                        "is_public_group": False
-                    }
-                ).first()
-            ),
-            "show_new_service_form": True,
-        }
-        return index(request=request, update_params=params, status_code=202)
-    else:
-        # Form is not valid --> response with page 1 and show errors
-        params = {
-            "new_service_form": form,
-            "show_new_service_form": True,
-        }
-        return index(request=request, update_params=params, status_code=422)
-
-
-def _new_service_wizard_page2(request: HttpRequest):
-    # Page two is posted --> collect all data from post and initial the form
-    user = user_helper.get_user(request)
-    selected_group = MrMapGroup.objects.get(id=int(request.POST.get("registering_with_group")))
-
-    init_data = {'ogc_request': request.POST.get("ogc_request"),
-                 'ogc_service': request.POST.get("ogc_service"),
-                 'ogc_version': request.POST.get("ogc_version"),
-                 'uri': request.POST.get("uri"),
-                 'registering_with_group': request.POST.get("registering_with_group"),
-                 'service_needs_authentication': request.POST.get("service_needs_authentication") == 'on',
-                 'username': request.POST.get("username", None),
-                 'password': request.POST.get("password", None),
-                 }
-
-    is_auth_needed = True if request.POST.get("service_needs_authentication") == 'on' else False
-
-    # first check if it's just a update of the form
-    if request.POST.get("is_form_update") == 'True':
-        # reset update flag
-        form = RegisterNewServiceWizardPage2(initial=init_data,
-                                             user=user,
-                                             selected_group=selected_group,
-                                             service_needs_authentication=is_auth_needed,
-                                             )
-        # it's just a updated form state. return the new state as view
-        params = {
-            "new_service_form": form,
-            "show_new_service_form": True,
-        }
-        return index(request=request, update_params=params, )
-    else:
-        # it's not a update. we have to validate the fields now
-        # and if all is fine generate a new pending task object
-        form = RegisterNewServiceWizardPage2(request.POST,
-                                             initial=init_data,
-                                             user=user,
-                                             selected_group=selected_group,
-                                             service_needs_authentication=is_auth_needed)
-
-        if form.is_valid():
-            try:
-                # Run creation async!
-                # Function returns the pending task object
-                service_helper.create_new_service(form, user)
-
-                # everthing works well. Redirect to index page.
-                return HttpResponseRedirect(reverse("service:index", ), status=303)
-            except Exception as e:
-                # Form is not valid --> response with page 2 and show errors
-                form.add_error(None, e)
-                params = {
-                    "new_service_form": form,
-                    "show_new_service_form": True,
-                }
-                return index(request=request, update_params=params, status_code=422)
-        else:
-            # Form is not valid --> response with page 2 and show errors
-            params = {
-                "new_service_form": form,
-                "show_new_service_form": True,
-            }
-            return index(request=request, update_params=params, status_code=422)
-
-# Todo: form view
-# ToDo: refactor this with MrMapWizard
 @login_required
 @check_permission(Permission(can_register_service=True))
 def add(request: HttpRequest):
@@ -268,14 +163,12 @@ def add(request: HttpRequest):
         Returns:
              params (dict): The rendering parameter
     """
-    if request.method == 'POST':
-        page = int(request.POST.get("page"))
-        if page == 1:
-            return _new_service_wizard_page1(request)
-        if page == 2:
-            return _new_service_wizard_page2(request)
+    return NewServiceWizard.as_view(form_list=NEW_SERVICE_WIZARD_FORMS,
+                                    current_view=request.GET.get('current-view'),
+                                    title=_(format_html('<b>Add New Service</b>')),
+                                    id_wizard='add_new_service_wizard',
+                                    )(request=request)
 
-    return HttpResponseRedirect(reverse("service:index", ), status=303)
 
 # Todo: index view
 @login_required
@@ -302,8 +195,6 @@ def index(request: HttpRequest, update_params: dict = None, status_code: int = 2
 
     params = {
         "pt_table": pt_table,
-        "new_service_form": RegisterNewServiceWizardPage1(),
-        "user": user,
         "current_view": "service:index",
     }
 
@@ -342,7 +233,6 @@ def pending_tasks(request: HttpRequest, update_params: dict = None, status_code:
                                  request=request, )
     params = {
         "pt_table": pt_table,
-        "user": user,
         "current_view": "service:prending-tasks",
     }
 
@@ -710,8 +600,6 @@ def wms_index(request: HttpRequest, update_params: dict = None, status_code: int
 
     params = {
         "pt_table": pt_table,
-        "new_service_form": RegisterNewServiceWizardPage1(),
-        "user": user,
         "current_view": "service:wms-index",
     }
 
@@ -1024,8 +912,6 @@ def wfs_index(request: HttpRequest, update_params=None, status_code=None):
 
     params = {
         "pt_table": pt_table,
-        "new_service_form": RegisterNewServiceWizardPage1(),
-        "user": user,
         "current_view": "service:wfs-index"
     }
 

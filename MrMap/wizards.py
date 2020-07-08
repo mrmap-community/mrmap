@@ -19,6 +19,7 @@ class MrMapWizard(SessionWizardView, ABC):
     required_forms = None
 
     def __init__(self,
+                 action_url: str,
                  current_view: str,
                  instance_id: int = None,
                  ignore_uncomitted_forms: bool = False,
@@ -28,6 +29,7 @@ class MrMapWizard(SessionWizardView, ABC):
                  *args,
                  **kwargs):
         super(MrMapWizard, self).__init__(*args, **kwargs)
+        self.action_url = action_url
         self.current_view = current_view
         self.instance_id = instance_id
         self.ignore_uncomitted_forms = ignore_uncomitted_forms
@@ -40,9 +42,7 @@ class MrMapWizard(SessionWizardView, ABC):
         context.update({'id_modal': self.id_wizard,
                         'modal_title': self.title,
                         'THEME': get_theme(user_helper.get_user(self.request)),
-                        'action_url': reverse('editor:dataset-metadata-wizard-instance',
-                                              args=(self.instance_id,))+f"?current-view={self.current_view}"
-                        if self.instance_id else reverse('editor:dataset-metadata-wizard-new',)+f"?current-view={self.current_view}",
+                        'action_url': self.action_url,
                         'show_modal': True,
                         'fade_modal': True,
                         'current_view': self.current_view,
@@ -84,7 +84,7 @@ class MrMapWizard(SessionWizardView, ABC):
 
     def process_step(self, form):
         # we implement custom logic to ignore uncomitted forms,
-        # but if the uncomitted form is required, then we dont drop it
+        # but if the uncomitted form is required, then we don't drop it
         if self.ignore_uncomitted_forms and 'wizard_save' in self.request.POST:
             uncomitted_forms = []
             for form_key in self.get_form_list():

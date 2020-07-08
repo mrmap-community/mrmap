@@ -683,6 +683,30 @@ class Metadata(Resource):
             ret_val = self.featuretype
         return ret_val
 
+    def get_supported_formats(self):
+        """ Returns supported formats.
+
+        If no formats are set for the metadata, the subelement metadatas will be searched for valid formats
+
+        Returns:
+
+        """
+        formats = self.formats.all()
+        if formats.count() > 0:
+            return formats
+        sub_mds = self.get_subelements_metadatas()
+        for sub_md in sub_mds:
+            formats = formats.union(sub_md.formats.all())
+
+        # After union() usage filter() options are not possible anymore. Therefore we fetch the formats again from the
+        # db, since we have their ids now.
+        formats = [format.id for format in formats]
+        formats = MimeType.objects.filter(
+            id__in=formats
+        )
+        return formats
+
+
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.
 
@@ -1050,7 +1074,6 @@ class Metadata(Resource):
         else:
             # if we have one or less relations to this metadata record, we can remove it anyway
             super().delete(using, keep_parents)
-
 
     def get_service_type(self):
         """ Performs a check on which service type is described by the metadata record

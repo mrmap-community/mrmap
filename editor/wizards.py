@@ -31,13 +31,14 @@ DATASET_WIZARD_FORMS_REQUIRED = ['identification', 'classification', 'responsibl
 
 
 class DatasetWizard(MrMapWizard):
-    def __init__(self, current_view, instance_id=None, *args, **kwargs):
+    def __init__(self, current_view, current_view_arg=None, instance_id=None, *args, **kwargs):
         super(MrMapWizard, self).__init__(
             required_forms=DATASET_WIZARD_FORMS_REQUIRED,
             action_url=reverse('editor:dataset-metadata-wizard-instance',
                                args=(instance_id,))+f"?current-view={current_view}"
             if instance_id else reverse('editor:dataset-metadata-wizard-new',)+f"?current-view={current_view}",
             current_view=current_view,
+            current_view_arg=current_view_arg,
             instance_id=instance_id,
             *args,
             **kwargs)

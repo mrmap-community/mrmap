@@ -83,6 +83,7 @@ def edit_dataset_wizard(request, metadata_id: int):
     return DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
                                  ignore_uncomitted_forms=True,
                                  current_view=request.GET.get('current-view'),
+                                 current_view_arg=request.GET.get('current-view-arg', None),
                                  instance_id=metadata_id,
                                  title=_(format_html(f'<b>Edit</b> <i>{metadata.title}</i> <b>Dataset</b>')),
                                  id_wizard=f'edit_{metadata.id}_dataset_wizard',
@@ -256,8 +257,9 @@ def restore(request: HttpRequest, metadata_id: int, ):
                                reverse_args=[metadata_id, ],
                                # ToDo: after refactoring of all forms is done, show_modal can be removed
                                show_modal=True,
-                               is_confirmed_label=_("Do you really want to restore this dataset?"),
-                               form_title=_(f"Restore metadata <strong>{metadata.title}</strong>"),)
+                               is_confirmed_label=_("Do you really want to restore this metadata?"),
+                               form_title=_(f"Restore metadata <strong>{metadata.title}</strong>"),
+                               instance=metadata)
     return form.process_request(valid_func=form.process_restore_metadata)
 
 

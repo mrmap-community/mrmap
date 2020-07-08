@@ -13,7 +13,6 @@
         {% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %}
     {% endif %} <strong>{{ service_md.title }}</strong>
 </h4>
-<h6 style="display: inline;"><a href="{% url 'service:detail' service_md.id %}">{{THEME.ICONS.EXTERNAL_LINK}}</a></h6>
 {% endblock %}
 
 {% block card-header-title-right %}

@@ -6,7 +6,9 @@
     {% autoescape off %}{{THEME.ICONS.LAYER}}{% endautoescape %}
     <strong>{{ service.metadata.title }}</strong>
 </h4>
-<h6 style="display: inline;"><a href="{% url 'service:detail' service_md.id %}">{{THEME.ICONS.EXTERNAL_LINK}}</a></h6>
+<span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Open in new tab' %}">
+    <h6 style="display: inline;"><a href="{% url 'service:detail' service_md.id %}">{{THEME.ICONS.EXTERNAL_LINK}}</a></h6>
+</span>
 {% endblock %}
 {% block card-header-title-right %}
 
@@ -19,10 +21,10 @@
             {% if 'can_edit_metadata_service' in user_permissions %}
                 <div class="dropdown">
                   <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="id_edit_service_{{service.id}}_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit layer' %}
+                    {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit featuretype' %}
                   </button>
                   <div class="dropdown-menu" aria-labelledby="id_edit_service_{{service.id}}_dropdown">
-                    <a class="dropdown-item" href="{% url 'editor:edit' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}</a>
+                    <a class="dropdown-item" href="{% url 'editor:edit' service.metadata.id %}?current-view={{current_view}}&current-view-arg={{service.metadata.id}}">{% autoescape off %}{{THEME.ICONS.METADATA}}{% endautoescape %} {% trans 'Metadata' %}</a>
                     <a class="dropdown-item" href="{% url 'editor:edit_access' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.ACCESS}}{% endautoescape %} {% trans 'Access' %}</a>
                   </div>
                 </div>
@@ -37,7 +39,7 @@
                 <div class="dropdown-menu" aria-labelledby="id_dataset_metadata_dropdown">
                     <a class="dropdown-item" target="_blank" href="{% url 'service:get-metadata-html' has_dataset_metadata.metadata.id %}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
                     <a class="dropdown-item" target="_blank" href="{% url 'service:get-dataset-metadata' has_dataset_metadata.metadata.id %}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
-                    <a class="dropdown-item" target="_blank" href="{% url 'editor:edit' has_dataset_metadata.metadata.id %}">{% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit' %}</a>
+                    <a class="dropdown-item" href="{% url 'editor:dataset-metadata-wizard-instance' has_dataset_metadata.metadata.id %}?current-view={{current_view}}&current-view-arg={{service.metadata.id}}">{% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit' %}</a>
                 </div>
             </div>
                 </div><!--</col>-->
@@ -50,13 +52,12 @@
                   <div class="dropdown-menu" aria-labelledby="id_metadata_dropdown">
                       <a class="dropdown-item" target="_blank" href="{% url 'service:get-metadata-html' service_md.id %}">{% autoescape off %}{{THEME.ICONS.NEWSPAPER}}{% endautoescape %} {% trans 'HTML' %}</a>
                       <a class="dropdown-item" target="_blank" href="{% url 'service:get-service-metadata' service_md.id %}">{% autoescape off %}{{THEME.ICONS.CAPABILITIES}}{% endautoescape %} {% trans 'XML' %}</a>
-                      <a class="dropdown-item" target="_blank" href="{% url 'editor:edit' service_md.id %}">{% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit' %}</a>
                   </div>
                 </div>
             </div>
             <div class="col-sm mb-2 text-center">
             {% if 'can_edit_metadata_service' in user_permissions %}
-                <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service.metadata.id %}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
+                <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service.metadata.id %}?current-view={{current_view}}&current-view-arg={{service.metadata.id}}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
             {% endif %}
             </div><!--</col>-->
         </div><!--</row>-->

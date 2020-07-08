@@ -13,6 +13,7 @@ class MrMapWizard(SessionWizardView, ABC):
     template_name = "sceletons/modal-wizard-form.html"
     ignore_uncomitted_forms = False
     current_view = None
+    current_view_arg = None
     instance_id = None
     title = None
     id_wizard = None
@@ -21,6 +22,7 @@ class MrMapWizard(SessionWizardView, ABC):
     def __init__(self,
                  action_url: str,
                  current_view: str,
+                 current_view_arg: int,
                  instance_id: int = None,
                  ignore_uncomitted_forms: bool = False,
                  required_forms: list = None,
@@ -31,6 +33,7 @@ class MrMapWizard(SessionWizardView, ABC):
         super(MrMapWizard, self).__init__(*args, **kwargs)
         self.action_url = action_url
         self.current_view = current_view
+        self.current_view_arg = current_view_arg
         self.instance_id = instance_id
         self.ignore_uncomitted_forms = ignore_uncomitted_forms
         self.required_forms = required_forms
@@ -46,6 +49,7 @@ class MrMapWizard(SessionWizardView, ABC):
                         'show_modal': True,
                         'fade_modal': True,
                         'current_view': self.current_view,
+                        'current_view_arg': self.current_view_arg,
                         })
         context['wizard'].update({'ignore_uncomitted_forms': self.ignore_uncomitted_forms})
 
@@ -65,8 +69,13 @@ class MrMapWizard(SessionWizardView, ABC):
                                            template_name=self.template_name,
                                            context=context)
 
-        view_function = resolve(reverse(f"{self.current_view}", ))
-        return view_function.func(request=self.request, update_params={'rendered_modal': rendered_wizard})
+        if self.current_view_arg:
+            view_function = resolve(reverse(f"{self.current_view}", args=[self.current_view_arg, ]))
+            return view_function.func(request=self.request, update_params={'rendered_modal': rendered_wizard}, object_id=self.current_view_arg)
+
+        else:
+            view_function = resolve(reverse(f"{self.current_view}", ))
+            return view_function.func(request=self.request, update_params={'rendered_modal': rendered_wizard})
 
     def render_goto_step(self, goto_step, **kwargs):
         # 1. save current form, we doesn't matter for validation for now.

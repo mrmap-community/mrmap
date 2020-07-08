@@ -18,6 +18,9 @@
             $.get( '{% url 'structure:detail-organization' suborganization.id %}?no-base', function( data ) {
                 // Insert subelement detail table
                 $( "#id_content_organization_{{suborganization.id}}" ).html( data );
+                $(function () {
+                  $('[data-toggle="tooltip"]').tooltip()
+                })
             });
           }
         });

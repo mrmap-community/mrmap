@@ -616,7 +616,7 @@ class RunUpdateServiceViewTestCase(TestCase):
 
         data = {}
         for element in new_elements:
-            data.update({'new_elem_{}'.format(element.metadata.identifier): -1})
+            data.update({'new_elem_{}'.format(element.metadata.identifier): ""})
 
         response = self.client.post(
             reverse('service:run-update', args=(str(self.wms_metadata.id),)),
@@ -653,7 +653,7 @@ class RunUpdateServiceViewTestCase(TestCase):
 
         data = {}
         for element in new_elements:
-            data.update({'new_elem_{}'.format(element.metadata.identifier): -1})
+            data.update({'new_elem_{}'.format(element.metadata.identifier): ""})
 
         response = self.client.post(
             reverse('service:run-update', args=(str(self.wfs_metadata.id),)),

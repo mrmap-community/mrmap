@@ -6,6 +6,7 @@ Created on: 08.05.19
 
 """
 import json
+import uuid
 
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
@@ -138,18 +139,16 @@ def resolve_metadata_public_id(function):
     def wrap(request, *args, **kwargs):
         if 'metadata_id' in kwargs:
             try:
-                int(kwargs["metadata_id"])
-                # We could cast the id to an integer. This means a public integer has been provided. We need to redirect
-                # to the entry using the uuid
+                uuid.UUID(kwargs["metadata_id"])
+                # We could cast the id to an UUID. This means the regular integer has been provided. Nothing to do here
+            except ValueError:
+                # We could not create a uuid from the given metadata_id -> it might be a public_id
                 try:
                     md = Metadata.objects.get(public_id=kwargs["metadata_id"])
-                    request.path = request.path.replace("/{}".format(kwargs["metadata_id"]), "/{}".format(str(md.id)))
-                    return redirect(request.build_absolute_uri())
+                    kwargs["metadata_id"] = str(md.id)
                 except ObjectDoesNotExist:
-                    # This means there was an integer given but it can not be resolved to any public_id!
-                    pass
-            except ValueError:
-                pass
+                    # No metadata could be found, we provide the empty uuid
+                    kwargs["metadata_id"] = "00000000-0000-0000-0000-000000000000"
         return function(request=request, *args, **kwargs)
 
     wrap.__doc__ = function.__doc__

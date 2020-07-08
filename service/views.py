@@ -342,7 +342,7 @@ def pending_tasks(request: HttpRequest):
 @login_required
 @check_permission(Permission(can_remove_service=True))
 @check_ownership(Metadata, 'metadata_id')
-def remove(request: HttpRequest, metadata_id: int):
+def remove(request: HttpRequest, metadata_id):
     """ Renders the remove form for a service
 
     Args:
@@ -373,7 +373,7 @@ def remove(request: HttpRequest, metadata_id: int):
 @resolve_metadata_public_id
 @check_permission(Permission(can_activate_service=True))
 @check_ownership(Metadata, 'metadata_id')
-def activate(request: HttpRequest, metadata_id: int):
+def activate(request: HttpRequest, metadata_id):
     """ (De-)Activates a service and all of its layers
 
     Args:
@@ -402,11 +402,11 @@ def activate(request: HttpRequest, metadata_id: int):
 
 
 @resolve_metadata_public_id
-def get_service_metadata(request: HttpRequest, metadata_id: int):
+def get_service_metadata(request: HttpRequest, metadata_id):
     """ Returns the service metadata xml file for a given metadata id
 
     Args:
-        metadata_id (int): The metadata id
+        metadata_id: The metadata id
     Returns:
          A HttpResponse containing the xml file
     """
@@ -422,11 +422,11 @@ def get_service_metadata(request: HttpRequest, metadata_id: int):
 
 
 @resolve_metadata_public_id
-def get_dataset_metadata(request: HttpRequest, metadata_id: int):
+def get_dataset_metadata(request: HttpRequest, metadata_id):
     """ Returns the dataset metadata xml file for a given metadata id
 
     Args:
-        metadata_id (int): The metadata id
+        metadata_id: The metadata id
     Returns:
          A HttpResponse containing the xml file
     """
@@ -455,12 +455,12 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
 
 
 @resolve_metadata_public_id
-def get_service_preview(request: HttpRequest, metadata_id: int):
+def get_service_preview(request: HttpRequest, metadata_id):
     """ Returns the service metadata preview as png for a given metadata id
 
     Args:
         request (HttpRequest): The incoming request
-        metadata_id (int): The metadata id
+        metadata_id: The metadata id
     Returns:
          A HttpResponse containing the png preview
     """
@@ -538,12 +538,12 @@ def get_service_preview(request: HttpRequest, metadata_id: int):
 
 
 @resolve_metadata_public_id
-def _get_capabilities(request: HttpRequest, metadata_id: int):
+def _get_capabilities(request: HttpRequest, metadata_id):
     """ Returns the current capabilities xml file
 
     Args:
         request (HttpRequest): The incoming request
-        metadata_id (int): The metadata id
+        metadata_id : The metadata id
     Returns:
          A HttpResponse containing the xml file
     """
@@ -628,11 +628,11 @@ def _get_capabilities(request: HttpRequest, metadata_id: int):
 
 
 @resolve_metadata_public_id
-def get_metadata_html(request: HttpRequest, metadata_id: int):
+def get_metadata_html(request: HttpRequest, metadata_id):
     """ Returns the metadata as html rendered view
         Args:
             request (HttpRequest): The incoming request
-            metadata_id (int): The metadata id
+            metadata_id : The metadata id
         Returns:
              A HttpResponse containing the html formated metadata
     """
@@ -724,7 +724,7 @@ def wms_index(request: HttpRequest):
 @check_permission(Permission(can_update_service=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
-def new_pending_update_service(request: HttpRequest, metadata_id: int):
+def new_pending_update_service(request: HttpRequest, metadata_id):
     """ Compare old service with new service and collect differences
 
     Args:
@@ -772,7 +772,7 @@ def new_pending_update_service(request: HttpRequest, metadata_id: int):
 @check_permission(Permission(can_update_service=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
-def pending_update_service(request: HttpRequest, metadata_id: int, update_params=None, status_code=None):
+def pending_update_service(request: HttpRequest, metadata_id, update_params=None, status_code=None):
     template = "views/service_update.html"
     user = user_helper.get_user(request)
 
@@ -844,7 +844,7 @@ def pending_update_service(request: HttpRequest, metadata_id: int, update_params
 @check_permission(Permission(can_update_service=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
-def dismiss_pending_update_service(request: HttpRequest, metadata_id: int):
+def dismiss_pending_update_service(request: HttpRequest, metadata_id):
     user = user_helper.get_user(request)
     current_service = get_object_or_404(Service, metadata__id=metadata_id)
     new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
@@ -865,7 +865,7 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id: int):
 @check_permission(Permission(can_update_service=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
-def run_update_service(request: HttpRequest, metadata_id: int):
+def run_update_service(request: HttpRequest, metadata_id):
     user = user_helper.get_user(request)
 
     if request.method == 'POST':
@@ -892,7 +892,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
         prefix = "new_elem_"
         for key, choice in request.POST.items():
             if prefix in key:
-                links[key.replace(prefix, "")] = int(choice)
+                links[key.replace(prefix, "")] = choice
 
         update_confirmation_form = UpdateOldToNewElementsForm(request.POST,
                                                               new_elements=diff_elements.get("new"),
@@ -1010,7 +1010,7 @@ def _check_for_dataset_metadata(metadata: Metadata, ):
 
 @login_required
 @check_ownership(Metadata, 'metadata_id')
-def detail(request: HttpRequest, metadata_id: int, update_params=None, status_code=None):
+def detail(request: HttpRequest, metadata_id, update_params=None, status_code=None):
     """ Renders a detail view of the selected service
 
     Args:
@@ -1103,7 +1103,7 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
 @csrf_exempt
 @resolve_metadata_public_id
 @log_proxy
-def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id: int):
+def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
 
     Decides which operation will be handled by resolving a given 'request=' query parameter.
@@ -1113,7 +1113,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id:
     Args:
         request (HttpRequest): The incoming request
         proxy_log (ProxyLog): The logging object
-        metadata_id (int): The metadata id
+        metadata_id: The metadata id
     Returns:
          A redirect to the GetMap uri
     """
@@ -1194,14 +1194,15 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id:
         return HttpResponse(status=500, content=e)
 
 
-def get_metadata_legend(request: HttpRequest, metadata_id: int, style_id: int):
+@resolve_metadata_public_id
+def get_metadata_legend(request: HttpRequest, metadata_id, style_id: int):
     """ Calls the legend uri of a special style inside the metadata (<LegendURL> element) and returns the response to the user
 
     This function has to be public available (no check_session decorator)
 
     Args:
         request (HttpRequest): The incoming HttpRequest
-        metadata_id (int): The metadata id
+        metadata_id: The metadata id
         style_id (int): The style id
     Returns:
         HttpResponse

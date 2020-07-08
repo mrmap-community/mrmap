@@ -25,6 +25,7 @@ from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
 from MrMap.utils import print_debug_mode
+from MrMap.validators import not_uuid
 from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
@@ -39,7 +40,7 @@ from service.helper import xml_helper
 
 class Resource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    public_id = models.PositiveIntegerField(unique=True, validators=[MinValueValidator(1)], null=True, blank=True)
+    public_id = models.CharField(unique=True, max_length=255, validators=[not_uuid], null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(MrMapGroup, on_delete=models.SET_NULL, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)

@@ -15,7 +15,7 @@ from MrMap.forms import MrMapConfirmForm
 from MrMap.messages import EDITOR_ACCESS_RESTRICTED, \
     SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MrMap.responses import DefaultContext, BackendAjaxResponse
-from editor.forms import MetadataEditorForm, RemoveDatasetForm, RestoreMetadataForm
+from editor.forms import MetadataEditorForm, RemoveDatasetForm, RestoreMetadataForm, RestoreDatasetMetadata
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from editor.wizards import DATASET_WIZARD_FORMS, DatasetWizard
 from service.helper.enums import OGCServiceEnum, MetadataEnum
@@ -277,13 +277,13 @@ def restore_dataset_metadata(request: HttpRequest, metadata_id: int, ):
     """
     metadata = get_object_or_404(Metadata, id=metadata_id)
 
-    form = MrMapConfirmForm(data=request.POST or None,
-                            request=request,
-                            reverse_lookup='editor:restore-dataset-metadata',
-                            reverse_args=[metadata_id, ],
-                            # ToDo: after refactoring of all forms is done, show_modal can be removed
-                            show_modal=True,
-                            is_confirmed_label=_("Do you really want to restore this dataset?"),
-                            form_title=_(f"Restore dataset metadata <strong>{metadata.title}</strong>")
-                            )
+    form = RestoreDatasetMetadata(data=request.POST or None,
+                                  request=request,
+                                  reverse_lookup='editor:restore-dataset-metadata',
+                                  reverse_args=[metadata_id, ],
+                                  # ToDo: after refactoring of all forms is done, show_modal can be removed
+                                  show_modal=True,
+                                  is_confirmed_label=_("Do you really want to restore this dataset?"),
+                                  form_title=_(f"Restore dataset metadata <strong>{metadata.title}</strong>"),
+                                  instance=metadata)
     return form.process_request(valid_func=form.process_restore_dataset_metadata)

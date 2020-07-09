@@ -385,7 +385,7 @@ def accept_publish_request(request: HttpRequest, request_id: int):
         else:
             for error in form.non_field_errors():
                 messages.error(request, error)
-            return detail_organizations(request=request, org_id=pub_request.organization.id, status_code=422)
+            return detail_organizations(request=request, object_id=pub_request.organization.id, status_code=422)
     else:
         return HttpResponseRedirect(reverse("structure:detail-organization",
                                             args=(pub_request.organization.id,)),

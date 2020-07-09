@@ -66,6 +66,8 @@ def check_table_sorting(table: MrMapTable, url_path_name: str, sorting_parameter
             RequestConfig(request).configure(table)
 
             try:
+                if "actions" in column.accessor:
+                    break
                 # Check if correctly sorted
                 post_sorting = [utils.get_nested_attribute(row.record, column.accessor).__str__() for row in table.rows]
                 try:
@@ -103,6 +105,8 @@ def check_table_filtering(table: MrMapTable, filter_parameter: str, filter_class
     # Filter each row for each value in each column and check if only matching elements stay there
     for row in table.rows:
         for col in table.columns:
+            if "actions" in col.accessor:
+                break
             filter_for = utils.get_nested_attribute(row.record, col.accessor).__str__()
 
             # Generic approach to filter on various types of tables

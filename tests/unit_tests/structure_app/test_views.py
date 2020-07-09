@@ -59,9 +59,6 @@ class StructureIndexViewTestCase(TestCase):
         self.assertEqual(len(response.context['organizations'].rows), num_orgas)
         self.assertEqual(len(response.context['organizations'].page.object_list), 5)
 
-        self.assertIsInstance(response.context['new_group_form'], GroupForm)
-        self.assertIsInstance(response.context['new_organization_form'], OrganizationForm)
-
     def test_get_groups_index(self):
         response = self.client.get(
             reverse('structure:groups-index', ),
@@ -74,10 +71,6 @@ class StructureIndexViewTestCase(TestCase):
         self.assertEqual(len(response.context['groups'].rows), num_groups)
         self.assertEqual(len(response.context['groups'].page.object_list), 5)
 
-        self.assertIsInstance(response.context['new_group_form'], GroupForm)
-
-        # self.assertEqual(response.context['pub_requests_count'], 10)
-
     def test_get_organization_index(self):
         response = self.client.get(
             reverse('structure:organizations-index', ),
@@ -89,10 +82,6 @@ class StructureIndexViewTestCase(TestCase):
         num_orgas = Organization.objects.all().count()
         self.assertEqual(len(response.context['organizations'].rows), num_orgas)
         self.assertEqual(len(response.context['organizations'].page.object_list), 5)
-
-        self.assertIsInstance(response.context['new_organization_form'], OrganizationForm)
-
-        # self.assertEqual(response.context['pub_requests_count'], 10)
 
 
 class StructurePendingTaskViewTestCase(TestCase):
@@ -161,10 +150,6 @@ class StructureDetailOrganizationViewTestCase(TestCase):
         self.assertTemplateUsed(response=response, template_name="views/organizations_detail.html")
         self.assertIsInstance(response.context['organization'], Organization)
 
-        self.assertIsInstance(response.context['edit_organization_form'], OrganizationForm)
-        self.assertIsInstance(response.context['delete_organization_form'], RemoveOrganizationForm)
-        self.assertIsInstance(response.context['publisher_form'], PublisherForOrganizationForm)
-
         self.assertIsInstance(response.context['all_publisher_table'], PublisherTable)
         self.assertIsInstance(response.context['pub_requests_table'], PublisherRequestTable)
         self.assertEqual(len(response.context['pub_requests_table'].rows), 10)
@@ -230,12 +215,12 @@ class StructureEditOrganizationViewTestCase(TestCase):
 
         response = self.client.post(
             reverse('structure:edit-organization',
-                    args=(self.orgas[0].id,)),
+                    args=(self.orgas[0].id,))+"?current-view=structure:index",
             data=params,
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('structure:detail-organization', args=(self.orgas[0].id,)))
+        self.assertEqual(response.url, reverse('structure:index',))
 
 
 class StructureRemoveOrganizationViewTestCase(TestCase):
@@ -272,12 +257,11 @@ class StructureRemoveOrganizationViewTestCase(TestCase):
 
         response = self.client.get(
             reverse('structure:delete-organization',
-                    args=(self.orgas[0].id,)),
+                    args=(self.orgas[0].id,))+"?current-view=structure:index",
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
-        self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('structure:detail-organization', args=(self.orgas[0].id,)))
+        self.assertEqual(response.status_code, 200)
 
     def test_post_invalid_remove_organization(self):
         perm = self.user.get_groups()[0].role.permission
@@ -286,14 +270,12 @@ class StructureRemoveOrganizationViewTestCase(TestCase):
 
         response2 = self.client.post(
             reverse('structure:delete-organization',
-                    args=(self.orgas[0].id,)),
+                    args=(self.orgas[0].id,))+"?current-view=structure:index",
             data={},
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
         self.assertEqual(response2.status_code, 422)
-        self.assertTrue(response2.context['show_delete_organization_form'])
-        self.assertFormError(response2, 'delete_organization_form', 'is_confirmed', 'This field is required.')
 
     def test_post_valid_remove_organization(self):
         perm = self.user.get_groups()[0].role.permission
@@ -342,12 +324,11 @@ class StructureNewOrganizationViewTestCase(TestCase):
         perm.save()
 
         response = self.client.get(
-            reverse('structure:new-organization', ),
+            reverse('structure:new-organization', )+"?current-view=structure:index",
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
-        self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('structure:organizations-index'))
+        self.assertEqual(response.status_code, 200)
 
     def test_post_valid_new_organization(self):
         perm = self.user.get_groups()[0].role.permission
@@ -357,7 +338,7 @@ class StructureNewOrganizationViewTestCase(TestCase):
         post_params = {'organization_name': 'TestOrga', 'person_name': 'TestPerson'}
 
         response = self.client.post(
-            reverse('structure:new-organization', ),
+            reverse('structure:new-organization', )+"?current-view=structure:index",
             data=post_params,
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
@@ -365,7 +346,7 @@ class StructureNewOrganizationViewTestCase(TestCase):
         latest = Organization.objects.latest('id')
 
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('structure:detail-organization', args=(latest.id,)))
+        self.assertEqual(response.url, reverse('structure:index',))
         messages = [m.message for m in get_messages(response.wsgi_request)]
         self.assertIn('Organization {} successfully created.'.format('TestOrga'), messages)
 
@@ -376,14 +357,12 @@ class StructureNewOrganizationViewTestCase(TestCase):
 
         post_params = {'person_name': 'TestPerson'}
         response = self.client.post(
-            reverse('structure:new-organization'),
+            reverse('structure:new-organization')+"?current-view=structure:index",
             data=post_params,
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
         self.assertEqual(response.status_code, 422)
-        self.assertTrue(response.context['show_new_organization_form'])
-        self.assertFormError(response, 'new_organization_form', 'organization_name', 'This field is required.')
 
     def test_permission_new_organization(self):
         response = self.client.get(
@@ -429,8 +408,6 @@ class StructureDetailGroupViewTestCase(TestCase):
         self.assertTemplateUsed(response=response, template_name="views/groups_detail.html")
         self.assertIsInstance(response.context['group'], MrMapGroup)
 
-        self.assertIsInstance(response.context['edit_group_form'], GroupForm)
-        self.assertIsInstance(response.context['delete_group_form'], RemoveGroupForm)
         self.assertIsInstance(response.context['all_publisher_table'], PublishesForTable)
 
 
@@ -451,12 +428,12 @@ class StructureNewGroupViewTestCase(TestCase):
         perm.save()
 
         response = self.client.get(
-            reverse('structure:new-group', ),
+            reverse('structure:new-group', )+"?current-view=structure:index",
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
-        self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('structure:groups-index'))
+        self.assertEqual(response.status_code, 200)
+
 
     def test_post_valid_new_group(self):
         perm = self.user.get_groups()[0].role.permission
@@ -466,15 +443,13 @@ class StructureNewGroupViewTestCase(TestCase):
         post_params = {'name': 'TestGroup', 'role': Role.objects.latest('id').id}
 
         response = self.client.post(
-            reverse('structure:new-group', ),
+            reverse('structure:new-group', )+"?current-view=structure:index",
             data=post_params,
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
-        latest = MrMapGroup.objects.latest('id')
-
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('structure:detail-group', args=(latest.id,)))
+        self.assertEqual(response.url, reverse('structure:index',))
         messages = [m.message for m in get_messages(response.wsgi_request)]
         self.assertIn('Group {} successfully created.'.format('TestGroup'), messages)
 
@@ -485,14 +460,12 @@ class StructureNewGroupViewTestCase(TestCase):
 
         post_params = {}
         response = self.client.post(
-            reverse('structure:new-group'),
+            reverse('structure:new-group')+"?current-view=structure:index",
             data=post_params,
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
         self.assertEqual(response.status_code, 422)
-        self.assertTrue(response.context['show_new_group_form'])
-        self.assertFormError(response, 'new_group_form', 'name', 'This field is required.')
 
     def test_permission_new_group(self):
         response = self.client.get(
@@ -523,12 +496,11 @@ class StructureRemoveGroupViewTestCase(TestCase):
 
         response = self.client.get(
             reverse('structure:delete-group',
-                    args=(self.groups[0].id,)),
+                    args=(self.groups[0].id,))+"?current-view=structure:index",
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
-        self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('structure:detail-group', args=(self.groups[0].id,)))
+        self.assertEqual(response.status_code, 200)
 
     def test_post_invalid_remove_group(self):
         perm = self.user.get_groups()[0].role.permission
@@ -537,14 +509,12 @@ class StructureRemoveGroupViewTestCase(TestCase):
 
         response2 = self.client.post(
             reverse('structure:delete-group',
-                    args=(self.groups[0].id,)),
+                    args=(self.groups[0].id,))+"?current-view=structure:index",
             data={},
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
         self.assertEqual(response2.status_code, 422)
-        self.assertTrue(response2.context['show_remove_group_form'])
-        self.assertFormError(response2, 'remove_group_form', 'is_confirmed', 'This field is required.')
 
     def test_post_valid_remove_group(self):
         perm = self.user.get_groups()[0].role.permission
@@ -614,13 +584,13 @@ class StructureEditGroupViewTestCase(TestCase):
 
         response = self.client.post(
             reverse('structure:edit-group',
-                    args=(self.groups[0].id,)),
+                    args=(self.groups[0].id,))+"?current-view=structure:index",
             data=post_params,
             HTTP_REFERER=HTTP_OR_SSL + HOST_NAME
         )
 
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('structure:detail-group', args=(self.groups[0].id,)))
+        self.assertEqual(response.url, reverse('structure:index', ))
 
 
 class StructureAcceptPublishRequestViewTestCase(TestCase):

@@ -263,7 +263,7 @@ class PasswordChangeTestCase(TestCase):
             reverse('password-change', ),
             data={"old_password": PASSWORD, "new_password": self.new_password, "new_password_again": self.new_password}
         )
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 303)
         self.assertTrue(Client().login(username=self.user.username, password=self.new_password), msg="New password doesn't work.")
 
     def test_user_password_change_invalid_password_again(self):
@@ -272,9 +272,7 @@ class PasswordChangeTestCase(TestCase):
             data={"old_password": PASSWORD, "new_password": self.new_password, "new_password_again": self.new_password[::-1]}
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertIsInstance(response.context['password_change_form'], PasswordChangeForm)
-        self.assertTrue(response.context['show_password_change_form'])
+        self.assertEqual(response.status_code, 422)
 
     def test_user_password_change_invalid_old_password(self):
         response = self.client.post(
@@ -282,9 +280,7 @@ class PasswordChangeTestCase(TestCase):
             data={"old_password": "qwertzuiopoiuztrewq", "new_password": self.new_password, "new_password_again": self.new_password[::-1]}
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertIsInstance(response.context['password_change_form'], PasswordChangeForm)
-        self.assertTrue(response.context['show_password_change_form'])
+        self.assertEqual(response.status_code, 422)
 
 
 class AccountEditTestCase(TestCase):

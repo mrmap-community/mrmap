@@ -6,7 +6,7 @@ Created on: 23.03.2020
 
 """
 import logging
-from django.test import TestCase
+from django.test import TestCase, RequestFactory
 
 from tests.baker_recipes.db_setup import create_superadminuser
 from tests.test_data import get_password_data, get_username_data, get_account_data, get_email_data
@@ -67,84 +67,101 @@ class PasswordChangeFormTestCase(TestCase):
         self.params = {'old_password': 'qwertzuiop'}
         self.password_data = get_password_data()
 
+        user = create_superadminuser()
+        request_factory = RequestFactory()
+        # Create an instance of a GET request.
+        self.request = request_factory.get('/')
+        # Recall that middleware are not supported. You can simulate a
+        # logged-in user by setting request.user manually.
+        self.request.user = user
+        self.request.LANGUAGE_CODE = 'en'
+
     def test_valid_password(self):
         # case: Password with upper, lower, digit and more than 8 characters should be accepted.
 
         self.params.update({
+            'old_password': get_password_data().get('valid'),
             'new_password': self.password_data.get('valid'),
             'new_password_again': self.password_data.get('valid')
         })
-        form = PasswordChangeForm(data=self.params)
+        form = PasswordChangeForm(data=self.params, request=self.request)
         self.assertTrue(form.is_valid(), msg="Password should be accepted.")
 
     def test_invalid_password_without_upper(self):
         # case: Error behaviour for password without upper character, user will not be created
         self.params.update({
+            'old_password': get_password_data().get('valid'),
             'new_password': self.password_data.get('invalid_without_upper'),
             'new_password_again': self.password_data.get('invalid_without_upper')
         })
-        form = PasswordChangeForm(data=self.params)
+        form = PasswordChangeForm(data=self.params, request=self.request)
         self.assertFalse(form.is_valid(), msg="Password without upper character are accepted.")
 
     def test_invalid_password_without_lower(self):
         # case: Error behaviour for password without lower character, user will not be created
         self.params.update({
+            'old_password': get_password_data().get('valid'),
             'new_password': self.password_data.get('invalid_without_lower'),
             'new_password_again': self.password_data.get('invalid_without_lower')
         })
-        form = PasswordChangeForm(data=self.params)
+        form = PasswordChangeForm(data=self.params, request=self.request)
         self.assertFalse(form.is_valid(), msg="Password without lower character are accepted.")
 
     def test_invalid_password_without_digit(self):
         # case: Error behaviour for password without digit character, user will not be created
         self.params.update({
+            'old_password': get_password_data().get('valid'),
             'new_password': self.password_data.get('invalid_without_digit'),
             'new_password_again': self.password_data.get('invalid_without_digit')
         })
-        form = PasswordChangeForm(data=self.params)
+        form = PasswordChangeForm(data=self.params, request=self.request)
         self.assertFalse(form.is_valid(), msg="Password without digit character are accepted.")
 
     def test_invalid_password_with_less_as_9(self):
         # case: Error behaviour for password with less as 9 character, user will not be created
         self.params.update({
+            'old_password': get_password_data().get('valid'),
             'new_password': self.password_data.get('invalid_at_most_8'),
             'new_password_again': self.password_data.get('invalid_at_most_8')
         })
-        form = PasswordChangeForm(data=self.params)
+        form = PasswordChangeForm(data=self.params, request=self.request)
         self.assertFalse(form.is_valid(), msg="Password with less as 9 character are accepted.")
 
     def test_invalid_password_with_more_than_255(self):
         # case: Error behaviour for password with more than 255 character, user will not be created
         self.params.update({
+            'old_password': get_password_data().get('valid'),
             'new_password': self.password_data.get('invalid_more_than_255'),
             'new_password_again': self.password_data.get('invalid_more_than_255')
         })
-        form = PasswordChangeForm(data=self.params)
+        form = PasswordChangeForm(data=self.params, request=self.request)
         self.assertFalse(form.is_valid(), msg="Password with more than 255 character are accepted.")
 
     def test_valid_password_again(self):
         # case: Error behaviour for password without upper character, user will not be created
         self.params.update({
+            'old_password': get_password_data().get('valid'),
             'new_password': self.password_data.get('valid'),
             'new_password_again': self.password_data.get('valid')
         })
-        form = PasswordChangeForm(data=self.params)
+        form = PasswordChangeForm(data=self.params, request=self.request)
         self.assertTrue(form.is_valid(), msg="Repeat password and password Field wasn't accepted.")
 
     def test_invalid_password_again(self):
         # case: Error behaviour for password without upper character, user will not be created
         self.params.update({
+            'old_password': get_password_data().get('valid'),
             'new_password': self.password_data.get('valid'),
             'new_password_again': self.password_data.get('valid_2')
         })
-        form = PasswordChangeForm(data=self.params)
+        form = PasswordChangeForm(data=self.params, request=self.request)
         self.assertFalse(form.is_valid(), msg="Repeat password and password Field was accepted, but two different passwords where given.")
 
     def test_empty_password(self):
         self.params.update({
             'new_password_again': self.password_data.get('valid_2')
         })
-        form = PasswordChangeForm(data=self.params)
+        form = PasswordChangeForm(data=self.params, request=self.request)
         self.assertFalse(form.is_valid(),
                          msg="Password was empty but form was accepted.")
 
@@ -152,7 +169,7 @@ class PasswordChangeFormTestCase(TestCase):
         self.params.update({
             'new_password': self.password_data.get('valid'),
         })
-        form = PasswordChangeForm(data=self.params)
+        form = PasswordChangeForm(data=self.params, request=self.request)
         self.assertFalse(form.is_valid(),
                          msg="Password was empty but form was accepted.")
 

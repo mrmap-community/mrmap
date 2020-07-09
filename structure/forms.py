@@ -80,11 +80,11 @@ class GroupForm(MrMapModelForm):
     def process_new_group(self):
         # save changes of group
         group = self.save(commit=False)
-        group.created_by = self.instance
+        group.created_by = self.requesting_user
         if group.role is None:
             group.role = Role.objects.get(name="_default_")
         group.save()
-        group.user_set.add(self.instance)
+        group.user_set.add(self.requesting_user)
         messages.success(self.request, message=GROUP_SUCCESSFULLY_CREATED.format(group.name))
 
     def process_edit_group(self):

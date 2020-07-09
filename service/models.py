@@ -1111,7 +1111,7 @@ class Metadata(Resource):
             service = self.service
         service_version = service.service_type.version
         for v in OGCServiceVersionEnum:
-            if v.value == service_version:
+            if v.value == service_version or v.name == service_version:
                 return v
         return service_version
 

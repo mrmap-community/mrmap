@@ -7,7 +7,7 @@ class EnumChoice(Enum):
     """
     @classmethod
     def as_choices(cls):
-        choices = [(None, "---")] + [(enum.value, enum.name) for enum in cls]
+        choices = [(None, "---")] + [(enum.value, enum.value) for enum in cls]
         return choices
 
 

@@ -116,6 +116,11 @@
                                             </a>
                                         </span>
                                         {% elif '-' not in column.order_by_alias.next%}
+                                            {% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %}
+                                                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Reset current sorting to the default way' %}">
+                                                    <a class="{{table.context.THEME.TABLE.LINK_COLOR_INFO}}" href="{% querystring table.order_by_field='' %}">{% autoescape off %}{{table.context.THEME.ICONS.UNDO}}{% endautoescape %}</a>
+                                                </span>
+                                            {% endif %}
                                         <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table ascending by column ' %} <strong>{{ column.header }}</strong>">
                                             <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next%}"
                                             class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else %} {{table.context.THEME.TABLE.LINK_COLOR}} {% endif %}">
@@ -123,6 +128,11 @@
                                             </a>
                                         </span>
                                         {% else %}
+                                            {% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %}
+                                                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Reset current sorting to the default way' %}">
+                                                    <a class="{{table.context.THEME.TABLE.LINK_COLOR_INFO}}" href="{% querystring table.order_by_field='' %}">{% autoescape off %}{{table.context.THEME.ICONS.UNDO}}{% endautoescape %}</a>
+                                                </span>
+                                            {% endif %}
                                         <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table descending by column ' %} <strong>{{ column.header }}</strong>">
                                             <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
                                             class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else%} {{table.context.THEME.TABLE.LINK_COLOR}}  {% endif %}">

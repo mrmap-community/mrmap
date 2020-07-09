@@ -11,7 +11,7 @@ from celery.result import AsyncResult
 from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
 from MrMap.utils import get_theme, get_ok_nok_icon
-from MrMap.consts import URL_PATTERN, URL_BTN_PATTERN, BTN_CLASS, BTN_SM_CLASS, URL_OPEN_IN_NEW_TAB_PATTERN
+from MrMap.consts import construct_url
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
@@ -80,20 +80,67 @@ class WmsServiceTable(MrMapTable):
             "class": "align-middle",
         }
     }
-    wms_title = tables.Column(accessor='title', verbose_name=_('Title'), empty_values=[], attrs=attrs)
-    wms_active = tables.Column(accessor='is_active', verbose_name=_('Active'), attrs=attrs)
-    wms_secured_access = tables.Column(accessor='is_secured', verbose_name=_('Secured access'), attrs=attrs)
-    wms_secured_externally = tables.Column(accessor='external_authentication', verbose_name=_('Secured externally'), empty_values=[False,], attrs=attrs)
-    wms_version = tables.Column(accessor='service.service_type.version', verbose_name=_('Version'), attrs=attrs)
-    wms_data_provider = tables.Column(accessor='contact.organization_name', verbose_name=_('Data provider'), attrs=attrs)
-    wms_registered_by_group = tables.Column(accessor='service.created_by', verbose_name=_('Registered by group'), attrs=attrs)
-    wms_registered_for = tables.Column(accessor='service.published_for', verbose_name=_('Registered for'), attrs=attrs)
-    wms_created_on = tables.Column(accessor='created', verbose_name=_('Created on'), attrs=attrs)
-    wms_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False, attrs={"td": {"style": "white-space:nowrap;"}})
+    wms_title = MrMapColumn(
+        accessor='title',
+        verbose_name=_('Title'),
+        empty_values=[],
+        attrs=attrs,
+        tooltip=_('The title of the service'),)
+    wms_active = MrMapColumn(
+        accessor='is_active',
+        verbose_name=_('Active'),
+        attrs=attrs,
+        tooltip=_('The state of the service. If the service is deactivated, the service is not provided to external by Mr. Map.'))
+    wms_secured_access = MrMapColumn(
+        accessor='is_secured',
+        verbose_name=_('Secured access'),
+        attrs=attrs,
+        tooltip=_('If the service is secured, Mr. Map provides it only if the right credentials are provided by the requesting user.'),)
+    wms_secured_externally = MrMapColumn(
+        accessor='external_authentication',
+        verbose_name=_('Secured externally'),
+        empty_values=[False, ],
+        attrs=attrs,
+        tooltip=_('Shows if the service is secured by the external MapServer. Mr. Map can also secure the endpoint. See secured access for that.'),)
+    wms_version = MrMapColumn(
+        accessor='service.service_type.version',
+        verbose_name=_('Version'),
+        attrs=attrs,
+        tooltip=_('The version of the service'),)
+    wms_data_provider = MrMapColumn(
+        accessor='contact.organization_name',
+        verbose_name=_('Data provider'),
+        attrs=attrs,
+        tooltip=_('The organization which is liable for the service.'),)
+    wms_registered_by_group = MrMapColumn(
+        accessor='service.created_by',
+        verbose_name=_('Registered by group'),
+        attrs=attrs,
+        tooltip=_('The group which has registered the service'),)
+    wms_registered_for = MrMapColumn(
+        accessor='service.published_for',
+        verbose_name=_('Registered for'),
+        attrs=attrs,
+        tooltip=_('The organization for that the service is registered.'),)
+    wms_created_on = MrMapColumn(
+        accessor='created',
+        verbose_name=_('Created on'),
+        attrs=attrs,
+        tooltip=_('The date of creation of this service in our Mr. Map system.'),)
+    wms_actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        empty_values=[],
+        orderable=False,
+        tooltip=_('Actions you can perform'),
+        attrs={"td": {"style": "white-space:nowrap;"}})
 
     def render_wms_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
+        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                             href=url,
+                             content=value,
+                             tooltip=tooltip, )
 
     @staticmethod
     def render_wms_active(value):
@@ -109,16 +156,28 @@ class WmsServiceTable(MrMapTable):
 
     def render_wms_data_provider(self, value, record):
         url = reverse('structure:detail-organization', args=(record.contact.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
+        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                             href=url,
+                             content=value,
+                             tooltip=tooltip, )
 
     def render_wms_registered_by_group(self, value, record):
         url = reverse('structure:detail-group', args=(record.service.created_by.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
+        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                             href=url,
+                             content=value,
+                             tooltip=tooltip, )
 
     def render_wms_registered_for(self, value, record):
         if record.service.published_for is not None:
             url = reverse('structure:detail-organization', args=(record.service.published_for.id,))
-            return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+            tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
+            return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                                 href=url,
+                                 content=value,
+                                 tooltip=tooltip, )
         else:
             return value
 
@@ -156,7 +215,10 @@ class WmsTableWms(WmsServiceTable):
 
 
 class WmsLayerTableWms(WmsServiceTable):
-    wms_parent_service = tables.Column(verbose_name=_('Parent service'), empty_values=[], )
+    wms_parent_service = MrMapColumn(
+        verbose_name=_('Parent service'),
+        empty_values=[],
+        tooltip=_('The root service of this layer'), )
 
     caption = _("Shows all WMS sublayers which are configured in your Mr. Map environment.")
 
@@ -168,7 +230,11 @@ class WmsLayerTableWms(WmsServiceTable):
 
     def render_wms_parent_service(self, record):
         url = reverse('service:detail', args=(record.service.parent_service.metadata.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, record.service.parent_service.metadata.title)
+        tooltip = _(f'Click to open the detail view of <strong>{record.service.parent_service.metadata.title}</strong>.')
+        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                             href=url,
+                             content=record.service.parent_service.metadata.title,
+                             tooltip=tooltip, )
 
     @staticmethod
     def order_wms_parent_service(queryset, is_descending):
@@ -186,21 +252,60 @@ class WfsServiceTable(MrMapTable):
             "class": "text-center"
         }
 
-    wfs_title = tables.Column(accessor='title', verbose_name=_('Title'), )
-    wfs_featuretypes = tables.Column(verbose_name=_('Featuretypes'), empty_values=[], )
-    wfs_active = tables.Column(accessor='is_active', verbose_name=_('Active'), )
-    wfs_secured_access = tables.Column(accessor='is_secured', verbose_name=_('Secured access'), )
-    wfs_secured_externally = tables.Column(accessor='external_authentication', verbose_name=_('Secured externally'), empty_values=[False,], )
-    wfs_version = tables.Column(accessor='service.service_type.version', verbose_name=_('Version'), )
-    wfs_data_provider = tables.Column(accessor='contact.organization_name', verbose_name=_('Data provider'), )
-    wfs_registered_by_group = tables.Column(accessor='service.created_by', verbose_name=_('Registered by group'), )
-    wfs_registered_for = tables.Column(accessor='service.published_for', verbose_name=_('Registered for'), )
-    wfs_created_on = tables.Column(accessor='created', verbose_name=_('Created on'), )
-    wfs_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False, attrs={"td": {"style": "white-space:nowrap;"}})
+    wfs_title = MrMapColumn(
+        accessor='title',
+        verbose_name=_('Title'),
+        tooltip=_('The title of the service'),)
+    wfs_featuretypes = MrMapColumn(
+        verbose_name=_('Featuretypes'),
+        empty_values=[], )
+    wfs_active = MrMapColumn(
+        accessor='is_active',
+        verbose_name=_('Active'),
+        tooltip=_('The state of the service. If the service is deactivated, the service is not provided to external by Mr. Map.'),)
+    wfs_secured_access = MrMapColumn(
+        accessor='is_secured',
+        verbose_name=_('Secured access'),
+        tooltip=_('If the service is secured, Mr. Map provides it only if the right credentials are provided by the requesting user.'),)
+    wfs_secured_externally = MrMapColumn(
+        accessor='external_authentication',
+        verbose_name=_('Secured externally'),
+        empty_values=[False, ],
+        tooltip=_('Shows if the service is secured by the external MapServer. Mr. Map can also secure the endpoint. See secured access for that.'),)
+    wfs_version = MrMapColumn(
+        accessor='service.service_type.version',
+        verbose_name=_('Version'),
+        tooltip=_('The version of the service'),)
+    wfs_data_provider = MrMapColumn(
+        accessor='contact.organization_name',
+        verbose_name=_('Data provider'),
+        tooltip=_('The organization which is liable for the service.'),)
+    wfs_registered_by_group = MrMapColumn(
+        accessor='service.created_by',
+        verbose_name=_('Registered by group'),
+        tooltip=_('The group which has registered the service'),)
+    wfs_registered_for = MrMapColumn(
+        accessor='service.published_for',
+        verbose_name=_('Registered for'),
+        tooltip=_('The organization for that the service is registered.'),)
+    wfs_created_on = MrMapColumn(
+        accessor='created',
+        verbose_name=_('Created on'),
+        tooltip=_('The date of creation of this service in our Mr. Map system.'),)
+    wfs_actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        empty_values=[],
+        orderable=False,
+        tooltip=_('Actions you can perform'),
+        attrs={"td": {"style": "white-space:nowrap;"}})
 
     def render_wfs_title(self, value, record):
         url = reverse('service:detail', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
+        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                             href=url,
+                             content=value,
+                             tooltip=tooltip, )
 
     @staticmethod
     def render_wfs_featuretypes(record):
@@ -225,16 +330,28 @@ class WfsServiceTable(MrMapTable):
 
     def render_wfs_data_provider(self, value, record):
         url = reverse('structure:detail-organization', args=(record.contact.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
+        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                             href=url,
+                             content=value,
+                             tooltip=tooltip, )
 
     def render_wfs_registered_by_group(self, value, record):
         url = reverse('structure:detail-group', args=(record.service.created_by.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
+        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                             href=url,
+                             content=value,
+                             tooltip=tooltip, )
 
     def render_wfs_registered_for(self, value, record):
         if record.service.published_for is not None:
             url = reverse('structure:detail-organization', args=(record.service.published_for.id,))
-            return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+            tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
+            return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                                 href=url,
+                                 content=value,
+                                 tooltip=tooltip, )
         else:
             return value
 
@@ -421,21 +538,45 @@ class ProxyLogTable(MrMapTable):
 class DatasetTable(MrMapTable):
     caption = _("Shows all datasets which are configured in your Mr. Map environment. You can Edit them if you want.")
 
-    dataset_title = tables.Column(accessor='title', verbose_name=_('Title'), )
-    dataset_related_objects = tables.Column(verbose_name=_('Related objects'), empty_values=[])
-    dataset_origins = tables.Column(verbose_name=_('Origins'), empty_values=[])
-    dataset_actions = tables.Column(verbose_name=_('Actions'), empty_values=[], orderable=False, attrs={"td": {"style": "white-space:nowrap;"}})
+    dataset_title = MrMapColumn(
+        accessor='title',
+        verbose_name=_('Title'),
+        tooltip=_('The title of the dataset'),)
+    dataset_related_objects = MrMapColumn(
+        verbose_name=_('Related objects'),
+        empty_values=[],
+        tooltip=_('The related service from which this dataset is referenced'),)
+    dataset_origins = MrMapColumn(
+        verbose_name=_('Origins'),
+        empty_values=[],
+        tooltip=_('Tells us where the information\'s comes from. One item from column Related objects is referenced to one item in this column.'))
+    dataset_actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        empty_values=[],
+        orderable=False,
+        tooltip=_('Actions you can perform'),
+        attrs={"td": {"style": "white-space:nowrap;"}})
 
     def render_dataset_title(self, value, record):
         url = reverse('service:get-metadata-html', args=(record.id,))
-        return format_html(URL_OPEN_IN_NEW_TAB_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+        tooltip = _(f'Click to open the html view of dataset <strong>{value}</strong>')
+        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                             href=url,
+                             content=value,
+                             tooltip=tooltip,
+                             new_tab=True)
 
     def render_dataset_related_objects(self, record):
         relations = MetadataRelation.objects.filter(metadata_to=record)
         link_list = []
         for relation in relations:
             url = reverse('service:detail', args=(relation.metadata_from.id,))
-            link_list.append(format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, relation.metadata_from.title+' [{}]'.format(relation.metadata_from.id), ))
+            tooltip = _(f'Click to open the detail view of related service <strong>{relation.metadata_from.title} [{relation.metadata_from.id}]"</strong>')
+            link = construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                                 href=url,
+                                 content=f"{relation.metadata_from.title} [{relation.metadata_from.id}]",
+                                 tooltip=tooltip, )
+            link_list.append(link, )
         return format_html(', '.join(link_list))
 
     def render_dataset_origins(self, record):

@@ -34,8 +34,11 @@ BTN_CLASS = "btn"
 BTN_SM_CLASS = "btn-sm"
 
 
-def construct_url(classes: str, href: str, content: str, tooltip: str = None):
-    url = format_html(f"<a class={classes} href='{href}'>{content}</a>")
+def construct_url(classes: str, href: str, content: str, tooltip: str = None, new_tab: bool = False,):
+    if new_tab:
+        url = format_html(f"<a class={classes} href='{href}' target='_blank'>{content}</a>")
+    else:
+        url = format_html(f"<a class={classes} href='{href}'>{content}</a>")
     if tooltip:
         url = _construct_tooltip(tooltip=tooltip, content=url)
     return url
@@ -43,4 +46,4 @@ def construct_url(classes: str, href: str, content: str, tooltip: str = None):
 
 def _construct_tooltip(tooltip: str, content: str):
     return format_html(
-        f"<span class='d-inline-block' tabindex='0' data-toggle='tooltip' title='{tooltip}'>{content}</span>")
+        f"<span class='d-inline-block' tabindex='0' data-html='true' data-toggle='tooltip' title='{tooltip}'>{content}</span>")

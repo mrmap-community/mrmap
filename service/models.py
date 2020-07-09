@@ -14,7 +14,6 @@ from PIL import Image
 from dateutil.parser import parse
 from django.contrib.gis.geos import Polygon, GeometryCollection
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.validators import MinValueValidator
 from django.db import transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
@@ -705,7 +704,6 @@ class Metadata(Resource):
             id__in=formats
         )
         return formats
-
 
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.

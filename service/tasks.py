@@ -246,6 +246,14 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         if external_auth is not None:
             service.metadata.set_proxy(True)
 
+        # after metadata has been persisted, we can auto-generate all metadata public_id's
+        metadatas = service.metadata.get_subelements_metadatas()
+        metadatas = [service.metadata] + metadatas
+        for md in metadatas:
+            if md.public_id is None:
+                md.public_id = md.generate_public_id()
+                md.save()
+
         print_debug_mode(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
         user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
 

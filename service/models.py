@@ -1015,22 +1015,26 @@ class Metadata(Resource):
 
         self.save()
 
-    @classmethod
-    def generate_public_id(cls, stump: str = None):
+    def generate_public_id(self, stump: str = None):
         """ Generates a public_id for a Metadata entry.
+
+        If no stump was provided, the title attribute will be used as stump.
 
         Args:
             stump (str): The base string input, which will be incremented if already taken
         Returns:
              public_id (str): The generated public id
         """
-        public_id = slugify(stump)
+        if stump is None:
+            stump = self.title
+        slug_stump = slugify(stump)
         exists = Metadata.objects.filter(
-            public_id=stump
+            public_id=slug_stump
         ).exists()
         counter = 1
+        public_id = slug_stump
         while exists:
-            public_id = "{}-{}".format(stump, counter)
+            public_id = "{}-{}".format(slug_stump, counter)
             counter += 1
             exists = Metadata.objects.filter(
                 public_id=public_id
@@ -1048,10 +1052,6 @@ class Metadata(Resource):
         Returns:
             nothing
         """
-        if self.public_id is None:
-            # Autogenerate a first public_id / Easy ID
-            self.public_id = self.generate_public_id(self.title)
-
         super().save(*args, **kwargs)
 
         # Add created/updated object to the MonitoringSettings. Django does not add

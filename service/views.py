@@ -959,8 +959,8 @@ def _check_for_dataset_metadata(metadata: Metadata, ):
 
 # Todo: index view
 @login_required
-@check_ownership(Metadata, 'metadata_id')
-def detail(request: HttpRequest, metadata_id, update_params=None, status_code=None):
+@check_ownership(Metadata, 'object_id')
+def detail(request: HttpRequest, object_id, update_params=None, status_code=None):
     """ Renders a detail view of the selected service
 
     Args:
@@ -973,7 +973,7 @@ def detail(request: HttpRequest, metadata_id, update_params=None, status_code=No
     user = user_helper.get_user(request)
 
     template = "views/detail.html"
-    service_md = get_object_or_404(Metadata, id=metadata_id)
+    service_md = get_object_or_404(Metadata, id=object_id)
 
     if _is_updatecandidate(service_md):
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
@@ -1021,7 +1021,7 @@ def detail(request: HttpRequest, metadata_id, update_params=None, status_code=No
         "mime_types": mime_types,
         "leaflet_add_bbox": True,
         "current_view": "service:detail",
-        "current_view_arg": metadata_id,
+        "current_view_arg": object_id,
     })
 
     if update_params:

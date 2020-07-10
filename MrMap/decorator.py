@@ -138,18 +138,23 @@ def log_proxy(function):
 
 def resolve_metadata_public_id(function):
     def wrap(request, *args, **kwargs):
-        if 'metadata_id' in kwargs:
+        possible_parameter_names = [
+            "metadata_id",  # regular usage
+            "pk",  # usage in DjangoRestFramework (API)
+        ]
+        found_params = [p for p in possible_parameter_names if p in kwargs]
+        for param in found_params:
             try:
-                uuid.UUID(kwargs["metadata_id"])
+                uuid.UUID(kwargs[param])
                 # We could cast the id to an UUID. This means the regular integer has been provided. Nothing to do here
             except ValueError:
                 # We could not create a uuid from the given metadata_id -> it might be a public_id
                 try:
-                    md = Metadata.objects.get(public_id=kwargs["metadata_id"])
-                    kwargs["metadata_id"] = str(md.id)
+                    md = Metadata.objects.get(public_id=kwargs[param])
+                    kwargs[param] = str(md.id)
                 except ObjectDoesNotExist:
                     # No metadata could be found, we provide the empty uuid
-                    kwargs["metadata_id"] = NONE_UUID
+                    kwargs[param] = NONE_UUID
         return function(request=request, *args, **kwargs)
 
     wrap.__doc__ = function.__doc__

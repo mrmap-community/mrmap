@@ -481,20 +481,26 @@ def get_service_preview(request: HttpRequest, metadata_id):
     bbox = md.find_max_bounding_box()
     bbox = str(bbox.extent).replace("(", "").replace(")", "")  # this is a little dumb, you may choose something better
 
-    # Fetch a supported version of png
-    png_format = md.formats.filter(
-        mime_type__icontains="image/"
-    ).first()
-
     img_width = 200
     img_heigt = 200
+
+    try:
+        # Fetch a supported version of png
+        png_format = md.get_supported_formats().filter(
+            mime_type__icontains="image/"
+        ).first()
+        img_format = png_format.mime_type
+    except AttributeError:
+        # Act as fallback
+        img_format = "image/png"
+
     data = {
         "request": OGCOperationEnum.GET_MAP.value,
         "version": OGCServiceVersionEnum.V_1_1_1.value,
         "layers": layer,
         "srs": DEFAULT_SRS_STRING,
         "bbox": bbox,
-        "format": png_format.mime_type,
+        "format": img_format,
         "width": img_width,
         "height": img_heigt,
         "service": "wms",
@@ -503,7 +509,6 @@ def get_service_preview(request: HttpRequest, metadata_id):
     query_data = QueryDict('', mutable=True)
     query_data.update(data)
 
-    request_post = request.POST
     request.POST._mutable = True
     request.POST = query_data
     request.method = 'POST'

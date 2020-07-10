@@ -6,16 +6,14 @@ Created on: 15.08.19
 
 """
 from collections import OrderedDict, Iterable
-from time import time
 
 from django.db.models import QuerySet
+from django.urls import reverse
 from rest_framework import serializers
 
-from MrMap.settings import EXEC_TIME_PRINT
-from MrMap.utils import print_debug_mode
+from MrMap.settings import ROOT_URL
 from service.forms import RegisterNewServiceWizardPage2
 from service.helper import service_helper
-from service.helper.enums import MetadataEnum
 from service.models import ServiceType, Metadata, Category, Dimension
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import MrMapGroup, Role, Permission
@@ -142,6 +140,7 @@ class MetadataSerializer(serializers.Serializer):
 
     """
     id = serializers.UUIDField()
+    easy_id = serializers.CharField(source="public_id")
     metadata_type = serializers.CharField()
     identifier = serializers.CharField()
     title = serializers.CharField()
@@ -490,6 +489,7 @@ def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
 
     serialized = OrderedDict()
     serialized["id"] = md.id
+    serialized["easy_id"] = md.public_id
     serialized["identifier"] = md.identifier
     serialized["type"] = md.metadata_type
     serialized["title"] = md.title
@@ -498,6 +498,10 @@ def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
     serialized["capabilities_uri"] = md.capabilities_uri
     serialized["xml_metadata_uri"] = md.service_metadata_uri
     serialized["html_metadata_uri"] = md.html_metadata_uri
+    serialized["easy_capabilities_uri"] = md.capabilities_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None
+    serialized["easy_xml_metadata_uri"] = md.service_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None
+    serialized["easy_html_metadata_uri"] = md.html_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None
+    serialized["preview_uri"] = "{}{}".format(ROOT_URL, reverse("service:get-service-metadata-preview", args=(str(md.id),)))
     serialized["fees"] = md.fees
     serialized["access_constraints"] = md.access_constraints
     serialized["licence"] = serialize_licence(md)

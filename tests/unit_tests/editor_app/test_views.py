@@ -9,13 +9,13 @@ from django.contrib.messages import get_messages
 from django.test import TestCase, Client
 from django.urls import reverse
 
-from MrMap.messages import METADATA_RESTORING_SUCCESS, METADATA_IS_ORIGINAL
+from MrMap.messages import METADATA_IS_ORIGINAL
 from editor.forms import MetadataEditorForm
-from editor.tables import WmsServiceTable, WfsServiceTable, DatasetTable
+
 from service.helper.enums import ResourceOriginEnum, MetadataEnum
-from service.models import Metadata, MetadataRelation
-from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service, create_wfs_service, \
-    create_public_organization
+from service.models import Metadata
+from service.tables import DatasetTable
+from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service, create_public_organization
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 
 EDITOR_INDEX_NAME = 'editor:index'
@@ -30,93 +30,6 @@ EDITOR_DATASET_INDEX_NAME = 'editor:datasets-index'
 EDITOR_DATASET_WIZARD_NEW = 'editor:dataset-metadata-wizard-new'
 EDITOR_DATASET_WIZARD_EDIT = 'editor:dataset-metadata-wizard-instance'
 EDITOR_REMOVE_DATASET = 'editor:remove-dataset-metadata'
-
-
-class EditorIndexViewTestCase(TestCase):
-    """ Test case for basic index view of WMS and WFS editor
-
-    """
-    def setUp(self):
-        self.user = create_superadminuser()
-        self.client = Client()
-        self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
-        create_wfs_service(group=self.user.get_groups().first(), how_much_services=10)
-
-    def test_get_index_view(self):
-        """ Test for checking whether the view is correctly rendered or not
-
-        Returns:
-
-        """
-        response = self.client.get(
-            reverse(EDITOR_INDEX_NAME, ),
-        )
-        self.assertEqual(response.status_code, 200, )
-        self.assertTemplateUsed(response=response, template_name="views/editor_service_table_index.html")
-        self.assertIsInstance(response.context["wms_table"], WmsServiceTable)
-        self.assertEqual(len(response.context["wms_table"].rows), 10)
-        # see if paging is working... only 5 elements by default should be listed
-        self.assertEqual(len(response.context["wms_table"].page.object_list), 5)
-
-        self.assertIsInstance(response.context["wfs_table"], WfsServiceTable)
-        self.assertEqual(len(response.context["wfs_table"].rows), 10)
-        # see if paging is working... only 5 elements by default should be listed
-        self.assertEqual(len(response.context["wfs_table"].page.object_list), 5)
-
-
-class EditorWMSIndexViewTestCase(TestCase):
-    """ Test case for basic index view of WMS editor
-
-    """
-    def setUp(self):
-        self.user = create_superadminuser()
-        self.client = Client()
-        self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
-
-    def test_get_index_view(self):
-        """ Test for checking whether the view is correctly rendered or not
-
-        Returns:
-
-        """
-        response = self.client.get(
-            reverse(EDITOR_WMS_INDEX_NAME, ),
-        )
-        self.assertEqual(response.status_code, 200, )
-        self.assertTemplateUsed(response=response, template_name="views/editor_service_table_index_wms.html")
-        self.assertIsInstance(response.context["wms_table"], WmsServiceTable)
-        self.assertEqual(len(response.context["wms_table"].rows), 10)
-        # see if paging is working... only 5 elements by default should be listed
-        self.assertEqual(len(response.context["wms_table"].page.object_list), 5)
-
-
-class EditorWFSIndexViewTestCase(TestCase):
-    """ Test case for basic index view of WFS editor
-
-    """
-    def setUp(self):
-        self.user = create_superadminuser()
-        self.client = Client()
-        self.client.login(username=self.user.username, password=PASSWORD)
-        create_wfs_service(group=self.user.get_groups().first(), how_much_services=10)
-
-    def test_get_index_view(self):
-        """ Test for checking whether the view is correctly rendered or not
-
-        Returns:
-
-        """
-        response = self.client.get(
-            reverse(EDITOR_WFS_INDEX_NAME, ),
-        )
-        self.assertEqual(response.status_code, 200, )
-        self.assertTemplateUsed(response=response, template_name="views/editor_service_table_index_wfs.html")
-        self.assertIsInstance(response.context["wfs_table"], WfsServiceTable)
-        self.assertEqual(len(response.context["wfs_table"].rows), 10)
-        # see if paging is working... only 5 elements by default should be listed
-        self.assertEqual(len(response.context["wfs_table"].page.object_list), 5)
 
 
 class EditorMetadataEditViewTestCase(TestCase):
@@ -139,10 +52,9 @@ class EditorMetadataEditViewTestCase(TestCase):
             metadata_type=MetadataEnum.SERVICE.value
         ).first()
         response = self.client.get(
-            reverse(EDITOR_METADATA_EDITOR_NAME, args=(str(metadata.id),)),
+            reverse(EDITOR_METADATA_EDITOR_NAME, args=(str(metadata.id),))+"?current-view=service:index",
         )
         self.assertEqual(response.status_code, 200, )
-        self.assertTemplateUsed(response=response, template_name="views/editor_metadata_index.html")
         self.assertIsInstance(response.context["form"], MetadataEditorForm)
 
 
@@ -164,7 +76,7 @@ class EditorAccessEditViewTestCase(TestCase):
         """
         metadata = Metadata.objects.all().first()
         response = self.client.get(
-            reverse(EDITOR_ACCESS_EDITOR_NAME, args=(str(metadata.id),)),
+            reverse(EDITOR_ACCESS_EDITOR_NAME, args=(str(metadata.id),))+"?current-view=service:index",
         )
         self.assertEqual(response.status_code, 200, )
         self.assertTemplateUsed(response=response, template_name="views/editor_edit_access_index.html")
@@ -188,33 +100,6 @@ class EditorAccessEditViewTestCase(TestCase):
         # No form to test
 
 
-class EditorDatasetIndexViewTestCase(TestCase):
-    """ Test case for basic index view of WMS editor
-
-    """
-    def setUp(self):
-        self.user = create_superadminuser()
-        self.client = Client()
-        self.client.login(username=self.user.username, password=PASSWORD)
-        create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
-
-    def test_get_index_view(self):
-        """ Test for checking whether the view is correctly rendered or not
-
-        Returns:
-
-        """
-        response = self.client.get(
-            reverse(EDITOR_DATASET_INDEX_NAME, ),
-        )
-        self.assertEqual(response.status_code, 200, )
-        self.assertTemplateUsed(response=response, template_name="views/editor_service_table_index_datasets.html")
-        self.assertIsInstance(response.context["dataset_table"], DatasetTable)
-        self.assertEqual(len(response.context["dataset_table"].rows), 10)
-        # see if paging is working... only 5 elements by default should be listed
-        self.assertEqual(len(response.context["dataset_table"].page.object_list), 5)
-
-
 class EditorDatasetWizardNewViewTestCase(TestCase):
     """ Test case for basic index view of WMS editor
 
@@ -232,10 +117,10 @@ class EditorDatasetWizardNewViewTestCase(TestCase):
 
         """
         response = self.client.get(
-            reverse(EDITOR_DATASET_WIZARD_NEW, args=('editor:datasets-index', )),
+            reverse(EDITOR_DATASET_WIZARD_NEW,)+"?current-view=service:datasets-index",
         )
         self.assertEqual(response.status_code, 200, )
-        self.assertTemplateUsed(response=response, template_name="views/editor_service_table_index_datasets.html")
+        self.assertTemplateUsed(response=response, template_name="views/datasets_index.html")
         self.assertIsInstance(response.context["dataset_table"], DatasetTable)
         self.assertEqual(len(response.context["dataset_table"].rows), 10)
         # see if paging is working... only 5 elements by default should be listed
@@ -259,12 +144,12 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
 
         """
         datasets = self.user.get_datasets_as_qs()
-
+        url = reverse(EDITOR_DATASET_WIZARD_EDIT, args=[datasets[0].id])+"?current-view=service:datasets-index"
         response = self.client.get(
-            reverse(EDITOR_DATASET_WIZARD_EDIT, args=('editor:datasets-index', datasets[0].id)),
+            url,
         )
         self.assertEqual(response.status_code, 200, )
-        self.assertTemplateUsed(response=response, template_name="views/editor_service_table_index_datasets.html")
+        self.assertTemplateUsed(response=response, template_name="views/datasets_index.html")
         self.assertIsInstance(response.context["dataset_table"], DatasetTable)
         self.assertEqual(len(response.context["dataset_table"].rows), 10)
         # see if paging is working... only 5 elements by default should be listed
@@ -292,32 +177,31 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
                             "classification-is_form_update": "False",
                             "classification-keywords": [],
                             "wizard_save": "True"}
-
-        step_response = self.client.post(reverse('editor:dataset-metadata-wizard-instance',
-                                                 args=('editor:index', datasets[0].id)),
-                                         HTTP_REFERER=reverse('editor:index'),
+        url = reverse(EDITOR_DATASET_WIZARD_EDIT, args=[datasets[0].id])+"?current-view=service:datasets-index"
+        step_response = self.client.post(url,
+                                         HTTP_REFERER=reverse('service:datasets-index'),
                                          data=step_post_params,)
         self.assertEqual(step_response.status_code, 200, )
-        self.assertTrue('name="dataset_wizard-current_step" value="responsible party"' in step_response.context['new_dataset_wizard'], msg='The current step was not responsible party ')
-        self.assertTemplateUsed(response=step_response, template_name="views/editor_service_table_index.html")
+        self.assertTrue('name="dataset_wizard-current_step" value="responsible party"' in step_response.context['rendered_modal'], msg='The current step was not responsible party ')
+        self.assertTemplateUsed(response=step_response, template_name="views/datasets_index.html")
 
         step2_response = self.client.post(reverse('editor:dataset-metadata-wizard-instance',
-                                                  args=('editor:index', datasets[0].id)),
-                                          HTTP_REFERER=reverse('editor:index'),
+                                                  args=(datasets[0].id,))+"?current-view=service:datasets-index",
+                                          HTTP_REFERER=reverse('service:datasets-index'),
                                           data=step2_post_params,)
 
         self.assertEqual(step2_response.status_code, 200, )
-        self.assertTrue('name="dataset_wizard-current_step" value="classification"' in step2_response.context['new_dataset_wizard'], msg='The current step was not classification ')
-        self.assertTemplateUsed(response=step2_response, template_name="views/editor_service_table_index.html")
+        self.assertTrue('name="dataset_wizard-current_step" value="classification"' in step2_response.context['rendered_modal'], msg='The current step was not classification ')
+        self.assertTemplateUsed(response=step2_response, template_name="views/datasets_index.html")
 
         save_response = self.client.post(reverse('editor:dataset-metadata-wizard-instance',
-                                                 args=('editor:index', datasets[0].id)),
-                                         HTTP_REFERER=reverse('editor:index'),
+                                                 args=(datasets[0].id,))+"?current-view=service:datasets-index",
+                                         HTTP_REFERER=reverse('service:datasets-index'),
                                          data=save_post_params,)
 
         # 303 is returned due to the FormWizard
         self.assertEqual(save_response.status_code, 303, )
-        self.assertEqual('/editor/', save_response.url)
+        self.assertEqual('/service/datasets/', save_response.url)
 
 
 class EditorDatasetRemoveInstanceViewTestCase(TestCase):
@@ -341,7 +225,7 @@ class EditorDatasetRemoveInstanceViewTestCase(TestCase):
         post_data = {'is_confirmed': 'True'}
 
         response = self.client.post(
-            reverse('editor:remove-dataset-metadata', args=(datasets[0].id, )),
+            reverse('editor:remove-dataset-metadata', args=(datasets[0].id, ))+"?current-view=service:index",
             data=post_data
         )
 
@@ -365,11 +249,12 @@ class EditorRestoreDatasetViewTestCase(TestCase):
         """
         datasets = self.user.get_datasets_as_qs()
 
-        response = self.client.get(
-            reverse('editor:restore-dataset-metadata', args=(datasets[0].id,)),
-            HTTP_REFERER=reverse('editor:index'),
+        response = self.client.post(
+            reverse('editor:restore-dataset-metadata', args=(datasets[0].id,))+"?current-view=service:index",
+            HTTP_REFERER=reverse('service:index'),
+            data={'is_confirmed': 'True'},
         )
 
-        self.assertEqual(response.status_code, 302, )
+        self.assertEqual(response.status_code, 303, )
         messages = [m.message for m in get_messages(response.wsgi_request)]
         self.assertIn(METADATA_IS_ORIGINAL, messages)

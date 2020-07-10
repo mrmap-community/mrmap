@@ -39,18 +39,7 @@
                 <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
                     <a class="dropdown-item" href="{% url 'service:wms-index' %}">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %}</a>
                     <a class="dropdown-item" href="{% url 'service:wfs-index' %}">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %}</a>
-                </div>
-            </li>
-            <li class="nav-item dropdown {% if PATH == 'editor' %}active{% endif %}">
-                <a class="nav-link dropdown-toggle" href="{% url 'editor:index' %}" id="navbarEditorDropdown"
-                   role="button"
-                   aria-haspopup="true" aria-expanded="false">
-                    {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Editor' %}
-                </a>
-                <div class="dropdown-menu" aria-labelledby="navbarEditorDropdown">
-                    <a class="dropdown-item" href="{% url 'editor:wms-index' %}">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %}</a>
-                    <a class="dropdown-item" href="{% url 'editor:wfs-index' %}">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %}</a>
-                    <a class="dropdown-item" href="{% url 'editor:datasets-index' %}">{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} {% trans 'Datasets' %}</a>
+                    <a class="dropdown-item" href="{% url 'service:datasets-index' %}">{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} {% trans 'Datasets' %}</a>
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'api' %}active{% endif %}">

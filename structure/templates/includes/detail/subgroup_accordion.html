@@ -18,6 +18,9 @@
             $.get( '{% url 'structure:detail-group' subgroup.id %}?no-base', function( data ) {
                 // Insert subelement detail table
                 $( "#id_content_group_{{subgroup.id}}" ).html( data );
+                $(function () {
+                  $('[data-toggle="tooltip"]').tooltip()
+                })
             });
           }
         });

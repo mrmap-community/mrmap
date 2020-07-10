@@ -28,7 +28,7 @@ class OrganizationFilter(django_filters.FilterSet):
     # oiag = Organization is_auto_generated
     oiag = django_filters.BooleanFilter(field_name='is_auto_generated',
                                         method='filter_oiag',
-                                        widget=CheckboxInput(attrs={'class': 'ml-1'}),
+                                        widget=CheckboxInput(),
                                         label=_('Show all organizations')
                                         )
 

@@ -161,6 +161,7 @@ LIGHT_THEME = {
         'BOARDER': 'border border-dark rounded',
         'LINK_COLOR': 'text-primary',
         'LINK_COLOR_SUCCESS': 'text-success',
+        'LINK_COLOR_INFO': 'text-info',
         'BORDERED': 'table-bordered',
         'BTN_PRIMARY_COLOR': 'btn-primary',
         'BTN_SECONDARY_COLOR': 'btn-secondary',

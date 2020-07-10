@@ -6,16 +6,17 @@ Created on: 28.05.19
 
 """
 from django import forms
+from django.contrib.auth import login
 from django.core.exceptions import ObjectDoesNotExist
-from django.template.loader import render_to_string
-from django.urls import reverse, resolve
 from django.utils.translation import gettext_lazy as _
+from django.contrib import messages
 
-from MrMap.forms import MrMapForm, MrMapModelForm, MrMapConfirmForm
-from MrMap.messages import EMAIL_IS_UNKNOWN, PASSWORD_CHANGE_OLD_PASSWORD_WRONG
-from MrMap.responses import DefaultContext
+from MrMap.forms import MrMapModelForm, MrMapConfirmForm, MrMapForm
+from MrMap.messages import EMAIL_IS_UNKNOWN, PASSWORD_CHANGE_OLD_PASSWORD_WRONG, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, \
+    SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_EDITING_UNSUCCESSFULL, SUBSCRIPTION_REMOVED_TEMPLATE, \
+    RESOURCE_NOT_FOUND_OR_NOT_OWNER, PASSWORD_CHANGE_SUCCESS
 from MrMap.settings import MIN_PASSWORD_LENGTH
-from MrMap.validators import PASSWORD_VALIDATORS, USERNAME_VALIDATORS
+from MrMap.validators import PASSWORD_VALIDATORS
 from service.helper.enums import MetadataEnum
 from service.models import Metadata
 from structure.models import MrMapUser, Theme
@@ -36,9 +37,7 @@ class PasswordResetForm(forms.Form):
         return cleaned_data
 
 
-class PasswordChangeForm(forms.Form):
-    user = None
-
+class PasswordChangeForm(MrMapForm):
     old_password = forms.CharField(
         max_length=255,
         label=_("Old password"),
@@ -61,11 +60,6 @@ class PasswordChangeForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
-
-        # pop custom kwargs before invoke super constructor and hold them
-        self.user = None if 'user' not in kwargs else kwargs.pop('user')
-
-        # run super constructor to construct the form
         super(PasswordChangeForm, self).__init__(*args, **kwargs)
 
     def clean(self):
@@ -74,13 +68,20 @@ class PasswordChangeForm(forms.Form):
         password = cleaned_data.get("new_password")
         password_again = cleaned_data.get("new_password_again")
 
-        if self.user is not None and not self.user.check_password(old_password):
+        if self.requesting_user is not None and not self.requesting_user.check_password(old_password):
             self.add_error("old_password", forms.ValidationError(PASSWORD_CHANGE_OLD_PASSWORD_WRONG))
 
         if password != password_again:
             self.add_error("new_password_again", forms.ValidationError(_("Password and confirmed password does not match")))
 
         return cleaned_data
+
+    def process_change_password(self):
+        password = self.cleaned_data["new_password"]
+        self.requesting_user.set_password(password)
+        self.requesting_user.save()
+        login(self.request, self.requesting_user)
+        messages.add_message(self.request, messages.SUCCESS, PASSWORD_CHANGE_SUCCESS)
 
 
 class UserForm(forms.ModelForm):
@@ -134,7 +135,40 @@ class SubscriptionForm(MrMapModelForm):
             # Prevent user from changing the subscribed metadata itself
             self.fields['metadata'].disabled = True
 
+    def process_new_subscription(self):
+        subscription = self.save(commit=False)
+        subscription.user = self.requesting_user
+        # Check if the service is already subscribed by user
+        sub_already_exists = Subscription.objects.filter(
+            user=self.requesting_user,
+            metadata=subscription.metadata,
+        ).exists()
+        if sub_already_exists:
+            messages.info(self.request, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE.format(subscription.metadata.title))
+            del subscription
+        else:
+            subscription.save()
+            messages.success(self.request, SUBSCRIPTION_EDITING_SUCCESSFULL)
+
+    def process_edit_subscription(self):
+        # Make sure the related metadata has not been changed
+        form_subscription = self.save(commit=False)
+        if form_subscription.metadata != self.instance.metadata:
+            messages.error(self.request, SUBSCRIPTION_EDITING_UNSUCCESSFULL)
+        else:
+            form_subscription.save()
+            messages.success(self.request, SUBSCRIPTION_EDITING_SUCCESSFULL)
+
 
 class SubscriptionRemoveForm(MrMapConfirmForm):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, instance, *args, **kwargs):
+        self.instance = instance
         super().__init__(is_confirmed_label=_('Do you realy want to remove this subscription?'), *args, **kwargs)
+
+    def process_remove_subscription(self):
+        subscription_title = self.instance.metadata.title
+        try:
+            self.instance.delete()
+            messages.success(self.request, SUBSCRIPTION_REMOVED_TEMPLATE.format(subscription_title))
+        except ObjectDoesNotExist:
+            messages.error(self.request, RESOURCE_NOT_FOUND_OR_NOT_OWNER)

@@ -6,42 +6,91 @@ from django.urls import reverse
 from django.template.defaultfilters import escape
 
 
+class CategoryOriginAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'uri', )
+    search_fields = ['id', 'name', 'uri', ]
+
+
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('id', 'type', 'title_EN', 'online_link')
+    list_display = ('id', 'type', 'title_EN', 'online_link', )
+    list_filter = ('type', )
+    search_fields = ['id', 'type', 'title_EN', 'online_link', ]
 
 
 class DatasetAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'md_identifier_code')
+    list_display = ('id', 'metadata_link', 'date_stamp', 'md_identifier_code', 'created_by_link', 'last_modified', )
+    list_filter = ('language_code', 'character_set_code', 'update_frequency_code', 'legal_restriction_code', 'created_by')
+    search_fields = ['id', 'metadata__title', 'md_identifier_code', 'date_stamp', 'created_by__name', 'last_modified', ]
+
+    def metadata_link(self, obj):
+        return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata.id,)), escape(obj.metadata)))
+
+    metadata_link.allow_tags = True
+    metadata_link.short_description = "metadata"
+
+    def created_by_link(self, obj):
+        if obj.created_by:
+            return mark_safe('<a href="%s">%s</a>' % (reverse("admin:structure_mrmapgroup_change", args=(obj.created_by.id,)), escape(obj.created_by)))
+        else:
+            "-"
+    created_by_link.allow_tags = True
+    created_by_link.short_description = "created_by"
 
 
 class DimensionAdmin(admin.ModelAdmin):
-    list_display = ("id", "type", "extent")
+    list_display = ("id", "type", "extent", "custom_name")
+    list_filter = ('type', )
+    search_fields = ['id', 'type', 'extent', 'custom_name', ]
 
 
-class RequestOperationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'operation_name',)
+class DocumentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'metadata_link', 'uuid', 'document_type', 'is_original', 'is_active', 'created', 'created_by_link', 'last_modified')
+    list_filter = ('is_active', 'document_type', 'is_original', 'is_active', )
+    search_fields = ['id', 'metadata__id', 'metadata__title', 'uuid', 'last_modified']
+
+    def metadata_link(self, obj):
+        return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata.id,)), escape(obj.metadata)))
+
+    metadata_link.allow_tags = True
+    metadata_link.short_description = "metadata"
+
+    def created_by_link(self, obj):
+        if obj.created_by:
+            return mark_safe('<a href="%s">%s</a>' % (reverse("admin:structure_mrmapgroup_change", args=(obj.created_by.id,)), escape(obj.created_by)))
+        else:
+            "-"
+
+    created_by_link.allow_tags = True
+    created_by_link.short_description = "created_by"
 
 
-class SecuredOperationAdmin(admin.ModelAdmin):
-    list_display = ("id", 'secured_metadata', 'allowed_group', "operation")
+class ExternalAuthenticationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'metadata', 'auth_type')
+    list_filter = ('auth_type',)
+    search_fields = ['id', 'metadata__id', ]
 
 
-class ServiceTypeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'version')
+class FeatureTypeElementAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'type', 'uuid', 'created', 'created_by')
+    list_filter = ('created_by', )
+    search_fields = ['id', 'name', 'type', 'uuid', 'created', 'created_by__name', ]
 
 
-class ModuleAdmin(admin.ModelAdmin):
-    pass
+class FeatureTypeAdmin(admin.ModelAdmin):
+    list_display = ('id', 'metadata', 'uuid', 'parent_service', 'created', 'created_by', 'last_modified')
+    list_filter = ('created_by',)
+    search_fields = ['id', 'metadata__title', 'uuid', 'created', 'created_by__name', ]
 
 
 class KeywordAdmin(admin.ModelAdmin):
     list_display = ('id', "keyword")
+    search_fields = ['id', 'keyword', ]
 
 
-class DocumentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'document_type', 'is_original', 'is_active', 'created')
-    list_filter = ('is_active',)
-    search_fields = ['id', 'metadata__id', ]
+class LayerAdmin(admin.ModelAdmin):
+    list_display = ('id', 'metadata', 'identifier', 'uuid', 'parent_service', 'parent_layer', 'created', 'created_by', 'last_modified')
+    list_filter = ('created_by',)
+    search_fields = ['id', 'metadata__title', 'identifier', 'uuid', 'created', 'created_by__name', 'last_modified',]
 
 
 class MetadataAdmin(admin.ModelAdmin):
@@ -68,8 +117,95 @@ class MetadataRelationAdmin(admin.ModelAdmin):
     metadata_to_link.short_description = "metadata_to"
 
 
+class MetadataTypeAdmin(admin.ModelAdmin):
+    list_display = ('id', 'type',)
+    list_filter = ('type', )
+    search_fields = ['id', 'type',]
+
+
 class TermsOfUseAdmin(admin.ModelAdmin):
     list_display = ('identifier', 'name', 'is_open_data', 'is_active')
+
+    def service_link(self, obj):
+        if obj.service:
+            return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_service_change", args=(obj.service.id,)), escape(obj.service)))
+        else:
+            return ''
+    service_link.allow_tags = True
+    service_link.short_description = "service"
+
+
+class MimeTypeAdmin(admin.ModelAdmin):
+    list_display = ('id', 'operation', 'mime_type')
+    list_filter = ('operation', 'mime_type',)
+    search_fields = ['id', 'operation', 'mime_type', ]
+
+
+class ModuleAdmin(admin.ModelAdmin):
+    list_display = ('id', 'type', )
+    list_filter = ('type', )
+    search_fields = ['id', 'type', ]
+
+
+class NamespaceAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'uri', 'version')
+    list_filter = ('version',)
+    search_fields = ['id', 'name', 'uri', 'version', ]
+
+
+class ProxyLogAdmin(admin.ModelAdmin):
+    list_display = ('id', 'metadata', 'operation', 'user', 'response_wms_megapixel', 'response_wfs_num_features', 'timestamp')
+    list_filter = ('operation', )
+    search_fields = ['id', 'metadata__title', 'timestamp', ]
+
+
+class ReferenceSystemAdmin(admin.ModelAdmin):
+    list_display = ('id', 'code', 'prefix', 'version')
+    list_filter = ('version', 'prefix', 'code')
+    search_fields = ['id', 'code', 'prefix', 'version', ]
+
+
+class RequestOperationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'operation_name',)
+    list_filter = ('operation_name', )
+    search_fields = ['id', 'operation_name', ]
+
+
+class SecuredOperationAdmin(admin.ModelAdmin):
+    list_display = ("id", 'secured_metadata', 'allowed_group', "operation")
+    list_filter = ('operation', 'allowed_group')
+    search_fields = ['id', 'operation__operation_name', 'secured_metadata__title', 'allowed_group__name']
+
+
+class ServiceTypeAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'version')
+    list_filter = ('version', 'name', )
+    search_fields = ['id', 'version', 'name']
+
+
+class ServiceAdmin(admin.ModelAdmin):
+    list_display = ('id', 'is_active', 'is_deleted',  'service_type', 'metadata_link', 'parent_service_link', 'published_for', 'created_by')
+    list_filter = ('is_active', 'is_deleted', 'service_type', 'published_for')
+    search_fields = ['id', 'metadata__title']
+
+    def metadata_link(self, obj):
+        return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata.id,)), escape(obj.metadata)))
+
+    metadata_link.allow_tags = True
+    metadata_link.short_description = "metadata"
+
+    def parent_service_link(self, obj):
+        if obj.parent_service:
+            return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_service_change", args=(obj.parent_service.id,)), escape(obj.parent_service)))
+        else:
+            "-"
+    parent_service_link.allow_tags = True
+    parent_service_link.short_description = "parent_service"
+
+
+class StyleAdmin(admin.ModelAdmin):
+    list_display = ('id', 'layer',)
+    search_fields = ['id', 'layer__identifier']
 
 
 class LegalReportAdmin(admin.ModelAdmin):
@@ -78,48 +214,6 @@ class LegalReportAdmin(admin.ModelAdmin):
 
 class LegalDateAdmin(admin.ModelAdmin):
     list_display = ('id', 'date_type_code')
-
-
-class ServiceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'is_active', 'is_deleted',  'service_type', 'metadata', 'parent_service', 'published_for')
-    pass
-
-
-class ReferenceSystemAdmin(admin.ModelAdmin):
-    list_display = ('id', 'code', 'prefix', 'version')
-    pass
-
-
-class FeatureTypeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'parent_service')
-
-
-class FeatureTypeElementAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'type')
-
-
-class LayerAdmin(admin.ModelAdmin):
-    list_display = ('id', 'identifier', 'parent_service', 'parent_layer', 'last_modified')
-
-
-class MimeTypeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'operation', 'mime_type')
-
-
-class NamespaceAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'uri', 'version')
-
-
-class ProxyLogAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'operation', 'user', 'response_wms_megapixel', 'response_wfs_num_features', 'timestamp')
-
-
-class ExternalAuthenticationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'auth_type')
-
-
-class StyleAdmin(admin.ModelAdmin):
-    list_display = ('id', 'layer',)
 
 
 admin.site.register(Dimension, DimensionAdmin)

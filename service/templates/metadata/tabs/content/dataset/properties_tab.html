@@ -15,7 +15,7 @@
             {% for cat in dataset_metadata.categories.all %}
             <span class="badge {{THEME.TABLE.PILL_BADGE_INFO_COLOR}}">{{ cat }}</span>
             {% empty %}
-            {% trans 'No keywords provided!' %}
+            {% trans 'No categories provided!' %}
             {% endfor %}
         </td>
     </tr>

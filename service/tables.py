@@ -15,6 +15,7 @@ from MrMap.consts import construct_url
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
+from service.helper.enums import ResourceOriginEnum
 from service.models import MetadataRelation
 from structure.models import Permission
 
@@ -583,14 +584,14 @@ class DatasetTable(MrMapTable):
         relations = MetadataRelation.objects.filter(metadata_to=record)
         origin_list = []
         for relation in relations:
-            origin_list.append(relation.origin.name+' [{}]'.format(relation.metadata_from.id))
+            origin_list.append(f"{relation.origin} [{relation.metadata_from.id}]")
         return format_html(', '.join(origin_list))
 
     def render_dataset_actions(self, record):
         relations = MetadataRelation.objects.filter(metadata_to=record)
         is_mr_map_origin = True
         for relation in relations:
-            if relation.origin.name != "MrMap":
+            if relation.origin != ResourceOriginEnum.EDITOR:
                 is_mr_map_origin = False
                 break
 

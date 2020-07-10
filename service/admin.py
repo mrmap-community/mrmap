@@ -12,9 +12,9 @@ class CategoryOriginAdmin(admin.ModelAdmin):
 
 
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('id', 'type', 'title_EN', 'online_link', 'origin')
-    list_filter = ('type', 'origin',)
-    search_fields = ['id', 'type', 'title_EN', 'online_link', 'origin__name', ]
+    list_display = ('id', 'type', 'title_EN', 'online_link', )
+    list_filter = ('type', )
+    search_fields = ['id', 'type', 'title_EN', 'online_link', ]
 
 
 class DatasetAdmin(admin.ModelAdmin):

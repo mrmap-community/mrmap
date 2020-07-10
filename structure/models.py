@@ -198,16 +198,21 @@ class MrMapUser(AbstractUser):
                 md_list = md_list.filter(metadata_type=type.name.lower())
         return md_list
 
-    def get_datasets_as_qs(self, ):
+    def get_datasets_as_qs(self, user_groups=None):
         """ Returns all datasets which are related to the user
 
         Returns:
              md_list:
         """
         from service.models import Metadata
+        if user_groups is None:
+            user_groups = self.get_groups()
+
         md_list = Metadata.objects.filter(
             metadata_type=MetadataEnum.DATASET.value,
-            created_by__in=self.get_groups(),
+            created_by__in=user_groups,
+        ).prefetch_related(
+            "related_metadata"
         ).order_by("title")
         return md_list
 

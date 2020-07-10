@@ -62,7 +62,7 @@ def _is_updatecandidate(metadata: Metadata):
     return False
 
 
-def _prepare_wms_table(request: HttpRequest, current_view: str):
+def _prepare_wms_table(request: HttpRequest, current_view: str, user_groups):
     """ Collects all wms service data and prepares parameter for rendering
 
     Args:
@@ -72,8 +72,6 @@ def _prepare_wms_table(request: HttpRequest, current_view: str):
          params (dict): The rendering parameter
     """
     # whether whole services or single layers should be displayed
-    user = user_helper.get_user(request)
-
     if 'show_layers' in request.GET and request.GET.get("show_layers").lower() == 'on':
         show_service = False
     else:
@@ -82,7 +80,7 @@ def _prepare_wms_table(request: HttpRequest, current_view: str):
     queryset = Metadata.objects.filter(
         service__service_type__name=OGCServiceEnum.WMS.value,
         service__is_root=show_service,
-        created_by__in=user.get_groups(),
+        created_by__in=user_groups,
         is_deleted=False,
         service__is_update_candidate_for=None
     ).order_by("title")
@@ -112,7 +110,7 @@ def _prepare_wms_table(request: HttpRequest, current_view: str):
     }
 
 
-def _prepare_wfs_table(request: HttpRequest, current_view: str):
+def _prepare_wfs_table(request: HttpRequest, current_view: str, user_groups):
     """ Collects all wfs service data and prepares parameter for rendering
 
     Args:
@@ -121,10 +119,9 @@ def _prepare_wfs_table(request: HttpRequest, current_view: str):
     Returns:
          params (dict): The rendering parameter
     """
-    user = user_helper.get_user(request)
     queryset = Metadata.objects.filter(
         service__service_type__name=OGCServiceEnum.WFS.value,
-        created_by__in=user.get_groups(),
+        created_by__in=user_groups,
         is_deleted=False,
         service__is_update_candidate_for=None
     ).order_by("title")
@@ -141,10 +138,10 @@ def _prepare_wfs_table(request: HttpRequest, current_view: str):
     }
 
 
-def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, current_view: str):
+def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, current_view: str, user_groups):
     dataset_table = DatasetTable(request=request,
                                  filter_set_class=MetadataDatasetFilter,
-                                 queryset=user.get_datasets_as_qs(),
+                                 queryset=user.get_datasets_as_qs(user_groups=user_groups),
                                  current_view=current_view,
                                  param_lead='dataset-t',)
     return {
@@ -183,12 +180,13 @@ def index(request: HttpRequest, update_params: dict = None, status_code: int = 2
          A view
     """
     user = user_helper.get_user(request)
+    user_groups = user.get_groups()
 
     # Default content
     template = "views/index.html"
 
     # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user.get_groups())
+    pt = PendingTask.objects.filter(created_by__in=user_groups)
     pt_table = PendingTasksTable(data=pt,
                                  orderable=False,
                                  request=request, )
@@ -198,9 +196,9 @@ def index(request: HttpRequest, update_params: dict = None, status_code: int = 2
         "current_view": "service:index",
     }
 
-    params.update(_prepare_wms_table(request=request, current_view='service:index'))
-    params.update(_prepare_wfs_table(request=request, current_view='service:index'))
-    params.update(_prepare_dataset_table(request=request, current_view='service:index', user=user))
+    params.update(_prepare_wms_table(request=request, current_view='service:index', user_groups=user_groups))
+    params.update(_prepare_wfs_table(request=request, current_view='service:index', user_groups=user_groups))
+    params.update(_prepare_dataset_table(request=request, current_view='service:index', user=user, user_groups=user_groups))
 
     if update_params:
         params.update(update_params)
@@ -284,7 +282,7 @@ def activate(request: HttpRequest, metadata_id):
     Returns:
          redirects to service:index
     """
-    md = get_object_or_404(Metadata, metadata_id=metadata_id)
+    md = get_object_or_404(Metadata, id=metadata_id)
 
     form = ActivateServiceForm(data=request.POST or None,
                                request=request,
@@ -600,12 +598,13 @@ def wms_index(request: HttpRequest, update_params: dict = None, status_code: int
          A view
     """
     user = user_helper.get_user(request)
+    user_groups = user.get_groups()
 
     # Default content
     template = "views/wms_index.html"
 
     # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user.get_groups())
+    pt = PendingTask.objects.filter(created_by__in=user_groups)
     pt_table = PendingTasksTable(data=pt,
                                  orderable=False,
                                  request=request, )
@@ -615,7 +614,7 @@ def wms_index(request: HttpRequest, update_params: dict = None, status_code: int
         "current_view": "service:wms-index",
     }
 
-    params.update(_prepare_wms_table(request=request, current_view='service:wms-index'))
+    params.update(_prepare_wms_table(request=request, current_view='service:wms-index', user_groups=user_groups))
 
     if update_params:
         params.update(update_params)
@@ -640,15 +639,21 @@ def datasets_index(request: HttpRequest, update_params=None, status_code: int = 
     Returns:
     """
     user = user_helper.get_user(request)
+    user_groups = user.get_groups()
 
     template = "views/datasets_index.html"
 
     params = {
         "current_view": 'service:datasets-index',
     }
-    params.update(_prepare_dataset_table(request=request,
-                                         user=user,
-                                         current_view='service:datasets-index'),)
+    params.update(
+        _prepare_dataset_table(
+            request=request,
+            user=user,
+            current_view='service:datasets-index',
+            user_groups=user_groups
+        ),
+    )
 
     if update_params:
         params.update(update_params)
@@ -913,12 +918,13 @@ def wfs_index(request: HttpRequest, update_params=None, status_code=None):
          A view
     """
     user = user_helper.get_user(request)
+    user_groups = user.get_groups()
 
     # Default content
     template = "views/wfs_index.html"
 
     # get pending tasks
-    pending_tasks = PendingTask.objects.filter(created_by__in=user.get_groups())
+    pending_tasks = PendingTask.objects.filter(created_by__in=user_groups)
     pt_table = PendingTasksTable(data=pending_tasks,
                                  orderable=False,
                                  request=request, )
@@ -928,7 +934,7 @@ def wfs_index(request: HttpRequest, update_params=None, status_code=None):
         "current_view": "service:wfs-index"
     }
 
-    params.update(_prepare_wfs_table(request=request, current_view='service:wfs-indext'))
+    params.update(_prepare_wfs_table(request=request, current_view='service:wfs-indext', user_groups=user_groups))
 
     if update_params:
         params.update(update_params)

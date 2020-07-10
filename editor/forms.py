@@ -8,15 +8,25 @@ Created on: 09.07.19
 from dal import autocomplete
 from django.db.models import Q
 from django.forms import ModelMultipleChoiceField
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django import forms
-from MrMap.forms import MrMapModelForm, MrMapWizardForm, MrMapWizardModelForm
-from MrMap.widgets import BootstrapDateTimePickerInput, BootstrapDatePickerInput, LeafletGeometryInput
+from MrMap.cacher import PageCacher
+from MrMap.forms import MrMapConfirmForm
+from MrMap.messages import METADATA_EDITING_SUCCESS, SERVICE_MD_EDITED, METADATA_IS_ORIGINAL, \
+    METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED
+from api.settings import API_CACHE_KEY_PREFIX
+from editor.helper import editor_helper
+from service.helper.enums import OGCServiceEnum
+from MrMap.forms import MrMapModelForm, MrMapWizardForm
+from MrMap.widgets import BootstrapDatePickerInput, LeafletGeometryInput
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
 from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem, Licence
-from service.settings import ISO_19115_LANG_CHOICES, DEFAULT_SERVICE_BOUNDING_BOX
+from service.settings import ISO_19115_LANG_CHOICES
 from structure.models import Organization
 from users.helper import user_helper
+from django.contrib import messages
 
 
 class MetadataEditorForm(MrMapModelForm):
@@ -68,6 +78,37 @@ class MetadataEditorForm(MrMapModelForm):
                 },
             ),
         }
+
+    def process_edit_metadata(self):
+        custom_md = self.save(commit=False)
+        if not self.instance.is_root():
+            # this is for the case that we are working on a non root element which is not allowed to change the
+            # inheritance setting for the whole service -> we act like it didn't change
+            custom_md.use_proxy_uri = self.instance.use_proxy_uri
+
+            # Furthermore we remove a possibly existing current_capability_document for this element, since the metadata
+            # might have changed!
+            self.instance.clear_cached_documents()
+
+        editor_helper.resolve_iso_metadata_links(self.request, self.instance, self)
+        editor_helper.overwrite_metadata(self.instance, custom_md, self)
+
+        # Clear page cache for API, so the changes will be visible on the next cache
+        p_cacher = PageCacher()
+        p_cacher.remove_pages(API_CACHE_KEY_PREFIX)
+
+        messages.add_message(self.request, messages.SUCCESS, METADATA_EDITING_SUCCESS)
+
+        if self.instance.is_root():
+            parent_service = self.instance.service
+        else:
+            if self.instance.is_service_type(OGCServiceEnum.WMS):
+                parent_service = self.instance.service.parent_service
+            elif self.instance.is_service_type(OGCServiceEnum.WFS):
+                parent_service = self.instance.featuretype.parent_service
+
+        user_helper.create_group_activity(self.instance.created_by, self.requesting_user, SERVICE_MD_EDITED,
+                                          "{}: {}".format(parent_service.metadata.title, self.instance.title))
 
 
 class MetadataModelMultipleChoiceField(ModelMultipleChoiceField):
@@ -296,3 +337,73 @@ class DatasetResponsiblePartyForm(MrMapWizardForm):
         super(DatasetResponsiblePartyForm, self).__init__(*args, **kwargs)
 
         self.fields['organization'].queryset = organizations
+
+
+class RemoveDatasetForm(MrMapConfirmForm):
+    def __init__(self, instance, *args, **kwargs):
+        self.instance = instance
+        super(RemoveDatasetForm, self).__init__(*args, **kwargs)
+
+    def process_remove_dataset(self):
+        self.instance.delete(force=True)
+        messages.success(self.request, message=_("Dataset successfully deleted."))
+
+
+class RestoreMetadataForm(MrMapConfirmForm):
+    def __init__(self, instance, *args, **kwargs):
+        self.instance = instance
+        super(RestoreMetadataForm, self).__init__(*args, **kwargs)
+
+    def process_restore_metadata(self):
+        ext_auth = self.instance.get_external_authentication_object()
+        service_type = self.instance.get_service_type()
+        if service_type == 'wms':
+            children_md = Metadata.objects.filter(service__parent_service__metadata=self.instance, is_custom=True)
+        elif service_type == 'wfs':
+            children_md = Metadata.objects.filter(featuretype__parent_service__metadata=self.instance, is_custom=True)
+
+        if not self.instance.is_custom and len(children_md) == 0:
+            messages.add_message(self.request, messages.INFO, METADATA_IS_ORIGINAL)
+            return HttpResponseRedirect(reverse(self.request.GET.get('current-view', 'home')), status=303)
+
+        if self.instance.is_custom:
+            self.instance.restore(self.instance.identifier, external_auth=ext_auth)
+            self.instance.save()
+
+        for md in children_md:
+            md.restore(md.identifier)
+            md.save()
+        messages.add_message(self.request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
+        if not self.instance.is_root():
+            if service_type == 'wms':
+                parent_metadata = self.instance.service.parent_service.metadata
+            elif service_type == 'wfs':
+                parent_metadata = self.instance.featuretype.parent_service.metadata
+            else:
+                # This case is not important now
+                pass
+        else:
+            parent_metadata = self.instance
+        user_helper.create_group_activity(self.instance.created_by, self.requesting_user, SERVICE_MD_RESTORED,
+                                          "{}: {}".format(parent_metadata.title, self.instance.title))
+
+
+class RestoreDatasetMetadata(MrMapConfirmForm):
+    def __init__(self, instance, *args, **kwargs):
+        self.instance = instance
+        super(RestoreDatasetMetadata, self).__init__(*args, **kwargs)
+
+    def process_restore_dataset_metadata(self):
+        ext_auth = self.instance.get_external_authentication_object()
+
+        if not self.instance.is_custom:
+            messages.add_message(self.request, messages.INFO, METADATA_IS_ORIGINAL)
+            return HttpResponseRedirect(reverse(self.request.GET.get('current-view', 'home')), status=303)
+
+        if self.instance.is_custom:
+            self.instance.restore(self.instance.identifier, external_auth=ext_auth)
+            self.instance.save()
+
+        messages.add_message(self.request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
+        user_helper.create_group_activity(self.instance.created_by, self.requesting_user, SERVICE_MD_RESTORED,
+                                          "{}".format(self.instance.title, ))

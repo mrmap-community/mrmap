@@ -44,6 +44,7 @@ class Permission(models.Model):
     can_add_dataset_metadata = models.BooleanField(default=False)
     can_edit_dataset_metadata = models.BooleanField(default=False)
     can_remove_dataset_metadata = models.BooleanField(default=False)
+    can_restore_dataset_metadata = models.BooleanField(default=False)
 
     can_toggle_publish_requests = models.BooleanField(default=False)
 

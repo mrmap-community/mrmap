@@ -5,23 +5,25 @@
 {% load bootstrap4 %}
 {% load mr_map_filters %}
     <div class="row"><!--<t-head-->
-        {% if table.filter.form %}
+        {% if table.filter_set.form %}
         <div class="col-md-7 col-lg-9 col-xl-10"><!--filter-->
             <div id="id_filter_accordion_{{table.table_id}}">
                 <div class="card">
                     <div class="card-header" id="id_filter_card_header_{{table.table_id}}">
-                        <button id="id_filter_btn_{{table.table_id}}" class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}" data-toggle="collapse" data-target="#id_filter_collapse_{{table.table_id}}" aria-expanded="true" aria-controls="id_filter_collapse_{{table.table_id}}">
-                            {% autoescape off %}{{table.context.THEME.ICONS.FILTER}}{% endautoescape %} {% trans 'Filter table' %}
-                        </button>
+                        <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Click to open filter options' %}">
+                            <button id="id_filter_btn_{{table.table_id}}" class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}}" data-toggle="collapse" data-target="#id_filter_collapse_{{table.table_id}}" aria-expanded="true" aria-controls="id_filter_collapse_{{table.table_id}}">
+                                {% autoescape off %}{{table.context.THEME.ICONS.FILTER}}{% endautoescape %} {% trans 'Filter table' %}
+                            </button>
+                        </span>
                     </div>
-                        <div id="id_filter_collapse_{{table.table_id}}" class="collapse {% if table.filter.data %} show {% endif %}" aria-labelledby="id_filter_card_header_{{table.table_id}}" data-parent="#id_filter_accordion_{{table.table_id}}">
+                        <div id="id_filter_collapse_{{table.table_id}}" class="collapse {% if table.filter_set.data %} show {% endif %}" aria-labelledby="id_filter_card_header_{{table.table_id}}" data-parent="#id_filter_accordion_{{table.table_id}}">
                             <div class="card-body">
-                                <form action="" method="get" class="form {% if table.filter.inline %} form-inline {% endif %}">
+                                <form action="" method="get" class="form {% if table.filter_set.inline %} form-inline {% endif %}">
                                     <div class="col">
                                         <div class="row">
-                                            {% for field in table.filter.form %}
+                                            {% for field in table.filter_set.form %}
                                             <div class="col">
-                                                {% if table.filter.inline %}
+                                                {% if table.filter_set.inline %}
                                                     {% bootstrap_field field layout='horizontal' show_label='sr-only' %}
                                                 {% else %}
                                                     {% bootstrap_field field %}
@@ -57,9 +59,13 @@
             {% if table.pagination.page_size %}
                 <div class="dropdown d-inline-block">
                     {% trans 'Show' %}
-                    <button class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="wmsPagingButton"
-                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{ table.pagination.page_size }}
-                    </button>
+                        <button class="btn {{table.context.THEME.TABLE.BTN_INFO_COLOR}} dropdown-toggle" type="button" id="wmsPagingButton"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Switch the items per page' %}">
+                                {{ table.pagination.page_size }}
+                            </span>
+
+                        </button>
                     {% trans 'entries' %}
                     <div class="dropdown-menu" aria-labelledby="wmsPagingButton">
                         {% for page_size in table.pagination.page_size_options %}
@@ -111,6 +117,11 @@
                                             </a>
                                         </span>
                                         {% elif '-' not in column.order_by_alias.next%}
+                                            {% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %}
+                                                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Reset current sorting to the default way' %}">
+                                                    <a class="{{table.context.THEME.TABLE.LINK_COLOR_INFO}}" href="{% querystring table.order_by_field='' %}">{% autoescape off %}{{table.context.THEME.ICONS.UNDO}}{% endautoescape %}</a>
+                                                </span>
+                                            {% endif %}
                                         <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table ascending by column ' %} <strong>{{ column.header }}</strong>">
                                             <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next%}"
                                             class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else %} {{table.context.THEME.TABLE.LINK_COLOR}} {% endif %}">
@@ -118,6 +129,11 @@
                                             </a>
                                         </span>
                                         {% else %}
+                                            {% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %}
+                                                <span class="d-inline-block" tabindex="0" data-toggle="tooltip" title="{% trans 'Reset current sorting to the default way' %}">
+                                                    <a class="{{table.context.THEME.TABLE.LINK_COLOR_INFO}}" href="{% querystring table.order_by_field='' %}">{% autoescape off %}{{table.context.THEME.ICONS.UNDO}}{% endautoescape %}</a>
+                                                </span>
+                                            {% endif %}
                                         <span class="d-inline-block" tabindex="0" data-html="true" data-toggle="tooltip" title="{% trans 'Sort the table descending by column ' %} <strong>{{ column.header }}</strong>">
                                             <a href="{% querystring table.prefixed_order_by_field=column.order_by_alias.next %}"
                                             class="{% if column.order_by_alias|lower in request.GET|get_order_by_alias_from_request:table.order_by_field|lower %} {{table.context.THEME.TABLE.LINK_COLOR_SUCCESS}} {% else%} {{table.context.THEME.TABLE.LINK_COLOR}}  {% endif %}">

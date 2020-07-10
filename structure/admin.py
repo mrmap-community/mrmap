@@ -2,7 +2,10 @@ from django.contrib import admin
 
 # Register your models here.
 from django.contrib.auth.admin import UserAdmin
-from django.contrib.auth.forms import UserChangeForm
+from django.urls import reverse
+from django.utils.safestring import mark_safe
+from django.template.defaultfilters import escape
+
 
 from structure.models import *
 
@@ -12,11 +15,22 @@ class PendingTaskAdmin(admin.ModelAdmin):
 
 
 class RoleAdmin(admin.ModelAdmin):
-    list_display = [p.name for p in Role._meta.fields]
+    list_display = ('id', 'name', 'description', 'permission_link')
+    search_fields = ['id', 'name', 'description', ]
+
+    def permission_link(self, obj):
+        if obj.permission:
+            return mark_safe('<a href="%s">%s</a>' % (reverse("admin:structure_permission_change", args=(obj.permission.id,)), escape(obj.permission)))
+        else:
+            "-"
+    permission_link.allow_tags = True
+    permission_link.short_description = "permission"
 
 
 class OrganizationAdmin(admin.ModelAdmin):
     list_display = ['id', 'organization_name', 'is_auto_generated', 'country', 'city', 'postal_code']
+    list_filter = ('is_auto_generated', )
+    search_fields = ['id', 'organization_name', 'country', 'city', 'postal_code' ]
 
 
 class ThemeAdmin(admin.ModelAdmin):
@@ -24,11 +38,55 @@ class ThemeAdmin(admin.ModelAdmin):
 
 
 class GroupAdmin(admin.ModelAdmin):
-    list_display = [p.name for p in MrMapGroup._meta.fields]
+    list_display = ('id', 'name', 'description', 'parent_group_link', 'organization_link', 'role_link', 'created_by_link', 'is_public_group', )
+    list_filter = ('role', 'created_by', 'is_public_group' )
+    search_fields = ['id', 'name', 'description', 'parent_group__name', ]
+
+    def parent_group_link(self, obj):
+        if obj.parent_group:
+            return mark_safe('<a href="%s">%s</a>' % (reverse("admin:structure_mrmapgroup_change", args=(obj.parent_group.id,)), escape(obj.parent_group)))
+        else:
+            "-"
+    parent_group_link.allow_tags = True
+    parent_group_link.short_description = "parent_group"
+
+    def organization_link(self, obj):
+        if obj.organization:
+            return mark_safe('<a href="%s">%s</a>' % (reverse("admin:structure_organization_change", args=(obj.organization.id,)), escape(obj.organization)))
+        else:
+            "-"
+    organization_link.allow_tags = True
+    organization_link.short_description = "organization"
+
+    def role_link(self, obj):
+        if obj.role:
+            return mark_safe('<a href="%s">%s</a>' % (reverse("admin:structure_role_change", args=(obj.role.id,)), escape(obj.role)))
+        else:
+            "-"
+    role_link.allow_tags = True
+    role_link.short_description = "role"
+
+    def created_by_link(self, obj):
+        if obj.created_by:
+            return mark_safe('<a href="%s">%s</a>' % (reverse("admin:structure_mrmapgroup_change", args=(obj.created_by.id,)), escape(obj.created_by)))
+        else:
+            "-"
+    created_by_link.allow_tags = True
+    created_by_link.short_description = "role"
 
 
 class GroupActivityAdmin(admin.ModelAdmin):
-    list_display = [p.name for p in GroupActivity._meta.fields]
+    list_display = ('id', 'group_link', 'description', 'user', 'metadata', 'created_on')
+    list_filter = ('group', )
+    search_fields = ['id', 'user__username', 'metadata', 'group__name', ]
+
+    def group_link(self, obj):
+        if obj.group:
+            return mark_safe('<a href="%s">%s</a>' % (reverse("admin:structure_mrmapgroup_change", args=(obj.group.id,)), escape(obj.group)))
+        else:
+            "-"
+    group_link.allow_tags = True
+    group_link.short_description = "group"
 
 
 class PermissionAdmin(admin.ModelAdmin):

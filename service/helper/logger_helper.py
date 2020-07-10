@@ -13,7 +13,7 @@ from service.tables import ProxyLogTable
 from structure.models import MrMapUser
 
 
-def prepare_proxy_log_filter(request: HttpRequest, user: MrMapUser):
+def prepare_proxy_log_filter(request: HttpRequest, user: MrMapUser, current_view: str):
     """ Creates a ProxyLogTable object from filter parameters and a performing user
 
     Args:
@@ -25,13 +25,10 @@ def prepare_proxy_log_filter(request: HttpRequest, user: MrMapUser):
     user_groups = user.get_groups()
     group_metadatas = Metadata.objects.filter(created_by__in=user_groups)
 
-    proxy_logs = ProxyLog.objects.filter(metadata__in=group_metadatas)
+    queryset = ProxyLog.objects.filter(metadata__in=group_metadatas)
 
-    proxy_logs_filtered = ProxyLogTableFilter(data=request.GET, queryset=proxy_logs,)
-    proxy_log_table = ProxyLogTable(data=proxy_logs_filtered.qs,
-                                    request=request)
-    proxy_log_table.filter = proxy_logs_filtered
-    # TODO: # since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    proxy_log_table.configure_pagination(request, 'logs-t')
-
-    return proxy_log_table
+    return ProxyLogTable(request=request,
+                         queryset=queryset,
+                         filter_set_class=ProxyLogTableFilter,
+                         current_view=current_view,
+                         param_lead='logs-t',)

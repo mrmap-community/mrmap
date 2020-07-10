@@ -1,0 +1,10 @@
+<script type="application/javascript">
+    interval = setInterval(function(){
+        $.get( '{% url 'service:pending-tasks' %}', function( data ) {
+            $( "#id_pending_tasks_div" ).html( data );
+            $(function () {
+              $('[data-toggle="tooltip"]').tooltip()
+            })
+        });
+    }, 1000);
+</script>

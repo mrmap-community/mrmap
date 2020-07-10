@@ -28,8 +28,9 @@ urlpatterns = [
 
     path('wms/', wms_index, name='wms-index'),
     path('wfs/', wfs_index, name='wfs-index'),
+    path('datasets/', datasets_index, name='datasets-index'),
 
-    path('detail/<metadata_id>', detail, name='detail'),
+    path('detail/<object_id>', detail, name='detail'),
 
     path('logs/', logs_view, name='logs-view'),
     path('logs/download/', logs_download, name='logs-download'),

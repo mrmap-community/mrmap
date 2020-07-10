@@ -1,3 +1,5 @@
+import random
+import string
 from abc import ABC
 from django.template.loader import render_to_string
 from django.urls import reverse, resolve
@@ -11,23 +13,27 @@ class MrMapWizard(SessionWizardView, ABC):
     template_name = "sceletons/modal-wizard-form.html"
     ignore_uncomitted_forms = False
     current_view = None
+    current_view_arg = None
     instance_id = None
     title = None
     id_wizard = None
     required_forms = None
 
     def __init__(self,
+                 action_url: str,
                  current_view: str,
+                 current_view_arg: int,
                  instance_id: int = None,
                  ignore_uncomitted_forms: bool = False,
                  required_forms: list = None,
                  title: str = _('Wizard'),
-                 # ToDo: random id for wizard as default
-                 id_wizard: str = 'id_wizard',
+                 id_wizard: str = ''.join(random.choice(string.ascii_lowercase) for i in range(10)),
                  *args,
                  **kwargs):
         super(MrMapWizard, self).__init__(*args, **kwargs)
+        self.action_url = action_url
         self.current_view = current_view
+        self.current_view_arg = current_view_arg
         self.instance_id = instance_id
         self.ignore_uncomitted_forms = ignore_uncomitted_forms
         self.required_forms = required_forms
@@ -39,13 +45,11 @@ class MrMapWizard(SessionWizardView, ABC):
         context.update({'id_modal': self.id_wizard,
                         'modal_title': self.title,
                         'THEME': get_theme(user_helper.get_user(self.request)),
-                        'action_url': reverse('editor:dataset-metadata-wizard-instance',
-                                              args=(self.current_view, self.instance_id))
-                        if self.instance_id else reverse('editor:dataset-metadata-wizard-new',
-                                                         args=(self.current_view,)),
+                        'action_url': self.action_url,
                         'show_modal': True,
                         'fade_modal': True,
                         'current_view': self.current_view,
+                        'current_view_arg': self.current_view_arg,
                         })
         context['wizard'].update({'ignore_uncomitted_forms': self.ignore_uncomitted_forms})
 
@@ -65,8 +69,13 @@ class MrMapWizard(SessionWizardView, ABC):
                                            template_name=self.template_name,
                                            context=context)
 
-        view_function = resolve(reverse(f"{self.current_view}", ))
-        return view_function.func(request=self.request, rendered_wizard=rendered_wizard)
+        if self.current_view_arg:
+            view_function = resolve(reverse(f"{self.current_view}", args=[self.current_view_arg, ]))
+            return view_function.func(request=self.request, update_params={'rendered_modal': rendered_wizard}, object_id=self.current_view_arg)
+
+        else:
+            view_function = resolve(reverse(f"{self.current_view}", ))
+            return view_function.func(request=self.request, update_params={'rendered_modal': rendered_wizard})
 
     def render_goto_step(self, goto_step, **kwargs):
         # 1. save current form, we doesn't matter for validation for now.
@@ -84,7 +93,7 @@ class MrMapWizard(SessionWizardView, ABC):
 
     def process_step(self, form):
         # we implement custom logic to ignore uncomitted forms,
-        # but if the uncomitted form is required, then we dont drop it
+        # but if the uncomitted form is required, then we don't drop it
         if self.ignore_uncomitted_forms and 'wizard_save' in self.request.POST:
             uncomitted_forms = []
             for form_key in self.get_form_list():

@@ -18,27 +18,27 @@ from MrMap.consts import *
 from MrMap.decorator import check_permission, log_proxy, check_ownership
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
-    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE, \
-    SERVICE_ACTIVATED, SERVICE_DEACTIVATED
+    SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
 from MrMap.responses import DefaultContext
-from service import tasks
-from service.helper import xml_helper, logger_helper
-from service.filters import MetadataWmsFilter, MetadataWfsFilter
-from service.forms import RegisterNewServiceWizardPage1, \
-    RegisterNewServiceWizardPage2, RemoveServiceForm, UpdateServiceCheckForm, UpdateOldToNewElementsForm
+from service.helper import xml_helper
+from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter
+from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
+    ActivateServiceForm
 from service.helper import service_helper, update_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVersionEnum, MetadataEnum, DocumentEnum
+from service.helper.logger_helper import prepare_proxy_log_filter
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
-from service.tables import WmsServiceTable, WmsLayerTable, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
-    ProxyLogTable
+from service.tables import WmsTableWms, WmsLayerTableWms, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
+     DatasetTable
 from service.tasks import async_increase_hits
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from structure.models import MrMapUser, Permission, PendingTask, MrMapGroup
+from service.wizards import NEW_SERVICE_WIZARD_FORMS, NewServiceWizard
+from structure.models import MrMapUser, Permission, PendingTask
 from users.helper import user_helper
 from django.urls import reverse
 from django import forms
@@ -62,7 +62,7 @@ def _is_updatecandidate(metadata: Metadata):
     return False
 
 
-def _prepare_wms_table(request: HttpRequest):
+def _prepare_wms_table(request: HttpRequest, current_view: str):
     """ Collects all wms service data and prepares parameter for rendering
 
     Args:
@@ -79,7 +79,7 @@ def _prepare_wms_table(request: HttpRequest):
     else:
         show_service = True
 
-    md_list_wms = Metadata.objects.filter(
+    queryset = Metadata.objects.filter(
         service__service_type__name=OGCServiceEnum.WMS.value,
         service__is_root=show_service,
         created_by__in=user.get_groups(),
@@ -87,34 +87,32 @@ def _prepare_wms_table(request: HttpRequest):
         service__is_update_candidate_for=None
     ).order_by("title")
 
-    wms_table_filtered = MetadataWmsFilter(data=request.GET, queryset=md_list_wms)
-
     if show_service:
-        wms_table = WmsServiceTable(data=wms_table_filtered.qs,
-                                    order_by_field='swms',  # swms = sort wms
-                                    request=request, )
+        wms_table = WmsTableWms(request=request,
+                                queryset=queryset,
+                                filter_set_class=MetadataWmsFilter,
+                                order_by_field='swms',  # swms = sort wms
+                                current_view=current_view,
+                                param_lead='wms-t', )
     else:
-        wms_table = WmsLayerTable(data=wms_table_filtered.qs,
-                                  order_by_field='swms',  # swms = sort wms
-                                  request=request, )
+        wms_table = WmsLayerTableWms(request=request,
+                                     queryset=queryset,
+                                     filter_set_class=MetadataWmsFilter,
+                                     order_by_field='swms',  # swms = sort wms
+                                     current_view=current_view,
+                                     param_lead='wms-t', )
 
     # add boolean field to filter.form; this is needed, cause the search form sends it if show layer dropdown is set
     # add it after table is created; otherwise we get a KeyError
     show_layers_ = forms.BooleanField(required=False, initial=False)
-    wms_table_filtered.form.fields.update({'show_layers': show_layers_})
+    wms_table.filter_set.form.fields.update({'show_layers': show_layers_})
 
-    wms_table.filter = wms_table_filtered
-    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    wms_table.configure_pagination(request=request, param_lead='wms-t')
-
-    params = {
+    return {
         "wms_table": wms_table,
     }
 
-    return params
 
-
-def _prepare_wfs_table(request: HttpRequest):
+def _prepare_wfs_table(request: HttpRequest, current_view: str):
     """ Collects all wfs service data and prepares parameter for rendering
 
     Args:
@@ -124,129 +122,34 @@ def _prepare_wfs_table(request: HttpRequest):
          params (dict): The rendering parameter
     """
     user = user_helper.get_user(request)
-    md_list_wfs = Metadata.objects.filter(
+    queryset = Metadata.objects.filter(
         service__service_type__name=OGCServiceEnum.WFS.value,
         created_by__in=user.get_groups(),
         is_deleted=False,
         service__is_update_candidate_for=None
     ).order_by("title")
 
-    wfs_table_filtered = MetadataWfsFilter(data=request.GET, queryset=md_list_wfs)
-    wfs_table = WfsServiceTable(data=wfs_table_filtered.qs,
+    wfs_table = WfsServiceTable(request=request,
+                                queryset=queryset,
+                                filter_set_class=MetadataWfsFilter,
                                 order_by_field='swfs',  # swms = sort wms
-                                request=request, )
+                                current_view=current_view,
+                                param_lead='wfs-t',)
 
-    wfs_table.filter = wfs_table_filtered
-    # TODO: since parameters could be changed directly in the uri, we need to make sure to avoid problems
-    wfs_table.configure_pagination(request=request, param_lead='wfs-t')
-
-    params = {
+    return {
         "wfs_table": wfs_table,
     }
 
-    return params
 
-
-def _new_service_wizard_page1(request: HttpRequest):
-    # Page One is posted --> validate it
-    user = user_helper.get_user(request)
-    form = RegisterNewServiceWizardPage1(request.POST)
-    if form.is_valid():
-        # Form is valid --> response with initialed page 2
-        url_dict = service_helper.split_service_uri(form.cleaned_data['get_request_uri'])
-        init_data = {
-            'ogc_request': url_dict["request"],
-            'ogc_service': url_dict["service"].value,
-            'ogc_version': url_dict["version"],
-            'uri': url_dict["base_uri"],
-            'service_needs_authentication': False,
-        }
-
-        params = {
-            "new_service_form": RegisterNewServiceWizardPage2(
-                initial=init_data,
-                user=user,
-                selected_group=user.get_groups(
-                    {
-                        "is_public_group": False
-                    }
-                ).first()
-            ),
-            "show_new_service_form": True,
-        }
-        return index(request=request, update_params=params, status_code=202)
-    else:
-        # Form is not valid --> response with page 1 and show errors
-        params = {
-            "new_service_form": form,
-            "show_new_service_form": True,
-        }
-        return index(request=request, update_params=params, status_code=422)
-
-
-def _new_service_wizard_page2(request: HttpRequest):
-    # Page two is posted --> collect all data from post and initial the form
-    user = user_helper.get_user(request)
-    selected_group = MrMapGroup.objects.get(id=int(request.POST.get("registering_with_group")))
-
-    init_data = {'ogc_request': request.POST.get("ogc_request"),
-                 'ogc_service': request.POST.get("ogc_service"),
-                 'ogc_version': request.POST.get("ogc_version"),
-                 'uri': request.POST.get("uri"),
-                 'registering_with_group': request.POST.get("registering_with_group"),
-                 'service_needs_authentication': request.POST.get("service_needs_authentication") == 'on',
-                 'username': request.POST.get("username", None),
-                 'password': request.POST.get("password", None),
-                 }
-
-    is_auth_needed = True if request.POST.get("service_needs_authentication") == 'on' else False
-
-    # first check if it's just a update of the form
-    if request.POST.get("is_form_update") == 'True':
-        # reset update flag
-        form = RegisterNewServiceWizardPage2(initial=init_data,
-                                             user=user,
-                                             selected_group=selected_group,
-                                             service_needs_authentication=is_auth_needed,
-                                             )
-        # it's just a updated form state. return the new state as view
-        params = {
-            "new_service_form": form,
-            "show_new_service_form": True,
-        }
-        return index(request=request, update_params=params, )
-    else:
-        # it's not a update. we have to validate the fields now
-        # and if all is fine generate a new pending task object
-        form = RegisterNewServiceWizardPage2(request.POST,
-                                             initial=init_data,
-                                             user=user,
-                                             selected_group=selected_group,
-                                             service_needs_authentication=is_auth_needed)
-
-        if form.is_valid():
-            try:
-                # Run creation async!
-                # Function returns the pending task object
-                service_helper.create_new_service(form, user)
-
-                # everthing works well. Redirect to index page.
-                return HttpResponseRedirect(reverse("service:index", ), status=303)
-            except Exception as e:
-                # Form is not valid --> response with page 2 and show errors
-                form.add_error(None, e)
-                params = {
-                    "new_service_form": form,
-                    "show_new_service_form": True,
-                }
-                return index(request=request, update_params=params, status_code=422)
-        else:
-            # Form is not valid --> response with page 2 and show errors
-            params = {
-                "new_service_form": form,
-                "show_new_service_form": True,
-            }
-            return index(request=request, update_params=params, status_code=422)
+def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, current_view: str):
+    dataset_table = DatasetTable(request=request,
+                                 filter_set_class=MetadataDatasetFilter,
+                                 queryset=user.get_datasets_as_qs(),
+                                 current_view=current_view,
+                                 param_lead='dataset-t',)
+    return {
+            "dataset_table": dataset_table,
+    }
 
 
 @login_required
@@ -260,18 +163,16 @@ def add(request: HttpRequest):
         Returns:
              params (dict): The rendering parameter
     """
-    if request.method == 'POST':
-        page = int(request.POST.get("page"))
-        if page == 1:
-            return _new_service_wizard_page1(request)
-        if page == 2:
-            return _new_service_wizard_page2(request)
-
-    return HttpResponseRedirect(reverse("service:index", ), status=303)
+    return NewServiceWizard.as_view(form_list=NEW_SERVICE_WIZARD_FORMS,
+                                    current_view=request.GET.get('current-view'),
+                                    title=_(format_html('<b>Add New Service</b>')),
+                                    id_wizard='add_new_service_wizard',
+                                    )(request=request)
 
 
+# Todo: index view
 @login_required
-def index(request: HttpRequest, update_params=None, status_code=None):
+def index(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
     """ Renders an overview of all wms and wfs
 
     Args:
@@ -294,12 +195,12 @@ def index(request: HttpRequest, update_params=None, status_code=None):
 
     params = {
         "pt_table": pt_table,
-        "new_service_form": RegisterNewServiceWizardPage1(),
-        "user": user,
+        "current_view": "service:index",
     }
 
-    params.update(_prepare_wms_table(request))
-    params.update(_prepare_wfs_table(request))
+    params.update(_prepare_wms_table(request=request, current_view='service:index'))
+    params.update(_prepare_wfs_table(request=request, current_view='service:index'))
+    params.update(_prepare_dataset_table(request=request, current_view='service:index', user=user))
 
     if update_params:
         params.update(update_params)
@@ -308,11 +209,11 @@ def index(request: HttpRequest, update_params=None, status_code=None):
     return render(request=request,
                   template_name=template,
                   context=context.get_context(),
-                  status=200 if status_code is None else status_code)
+                  status=status_code)
 
-
+# Todo: index view
 @login_required
-def pending_tasks(request: HttpRequest):
+def pending_tasks(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
     """ Renders a table of all pending tasks
 
     Args:
@@ -332,17 +233,23 @@ def pending_tasks(request: HttpRequest):
                                  request=request, )
     params = {
         "pt_table": pt_table,
-        "user": user,
+        "current_view": "service:prending-tasks",
     }
 
+    if update_params:
+        params.update(update_params)
+
     context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context())
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=status_code)
 
 
 @login_required
 @check_permission(Permission(can_remove_service=True))
 @check_ownership(Metadata, 'metadata_id')
-def remove(request: HttpRequest, metadata_id: int):
+def remove(request: HttpRequest, metadata_id: int,):
     """ Renders the remove form for a service
 
     Args:
@@ -351,28 +258,23 @@ def remove(request: HttpRequest, metadata_id: int):
     Returns:
         Redirect to service:index
     """
-    user = user_helper.get_user(request)
     metadata = get_object_or_404(Metadata, id=metadata_id)
-    # ToDo: change this form to MrMapConfirmForm
-    remove_form = RemoveServiceForm(request.POST)
-    if request.method == 'POST':
-        if remove_form.is_valid() and request.POST.get("is_confirmed") == 'on':
-            service_helper.remove_service(metadata, user)
-            return HttpResponseRedirect(reverse("service:index", ), status=303)
-        else:
-            params = {
-                "remove_service_form": remove_form,
-                "show_modal": True,
-            }
-            return detail(request=request, metadata_id=metadata_id, update_params=params, status_code=422)
-    else:
-        return HttpResponseRedirect(reverse("service:index", ), status=303)
+    form = RemoveServiceForm(data=request.POST or None,
+                             request=request,
+                             reverse_lookup='service:remove',
+                             reverse_args=[metadata_id, ],
+                             # ToDo: after refactoring of all forms is done, show_modal can be removed
+                             show_modal=True,
+                             is_confirmed_label=_("Do you really want to remove this service?"),
+                             form_title=_(f"Remove service <strong>{metadata}</strong>"),
+                             instance=metadata)
+    return form.process_request(valid_func=form.process_remove_service)
 
 
 @login_required
 @check_permission(Permission(can_activate_service=True))
 @check_ownership(Service, 'service_id')
-def activate(request: HttpRequest, service_id: int):
+def activate(request: HttpRequest, service_id: int, ):
     """ (De-)Activates a service and all of its layers
 
     Args:
@@ -381,23 +283,18 @@ def activate(request: HttpRequest, service_id: int):
     Returns:
          redirects to service:index
     """
-    user = user_helper.get_user(request)
-
     md = get_object_or_404(Metadata, service__id=service_id)
-    md.is_active = not md.is_active
-    md.save()
 
-    # run activation async!
-    tasks.async_activate_service.delay(service_id, user.id, md.is_active)
-
-    # If metadata WAS active, then it will be deactivated now
-    if md.is_active:
-        msg = SERVICE_ACTIVATED.format(md.title)
-    else:
-        msg = SERVICE_DEACTIVATED.format(md.title)
-    messages.success(request, msg)
-
-    return HttpResponseRedirect(reverse("service:detail", args=(md.id,)), status=303)
+    form = ActivateServiceForm(data=request.POST or None,
+                               request=request,
+                               reverse_lookup='service:activate',
+                               reverse_args=[service_id, ],
+                               # ToDo: after refactoring of all forms is done, show_modal can be removed
+                               show_modal=True,
+                               form_title=_(f"{'Deactivate' if md.is_active else 'Activate'} service <strong>{md}</strong>"),
+                               is_confirmed_label=_(f"Do you really want to {'deactivate' if md.is_active else 'activate'} this service?"),
+                               instance=md,)
+    return form.process_request(valid_func=form.process_activate_service)
 
 
 def get_service_metadata(request: HttpRequest, metadata_id: int):
@@ -450,7 +347,7 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
         return HttpResponse(content=_("No dataset metadata found"), status=404)
     return HttpResponse(document, content_type='application/xml')
 
-
+# Todo: public index view
 def get_service_preview(request: HttpRequest, metadata_id: int):
     """ Returns the service metadata preview as png for a given metadata id
 
@@ -622,6 +519,7 @@ def _get_capabilities(request: HttpRequest, metadata_id: int):
     return HttpResponse(doc, content_type='application/xml')
 
 
+# Todo: public index view
 def get_metadata_html(request: HttpRequest, metadata_id: int):
     """ Returns the metadata as html rendered view
         Args:
@@ -671,7 +569,7 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
     elif md.service.is_service_type(OGCServiceEnum.WMS):
         # wms root object
         base_template = 'metadata/base/wms/root_metadata_as_html.html'
-        params.update(collect_wms_root_data(md))
+        params.update(collect_wms_root_data(md, request))
 
     elif md.service.is_service_type(OGCServiceEnum.WFS):
         # wfs root object
@@ -681,9 +579,9 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
     context = DefaultContext(request, params, None)
     return render(request=request, template_name=base_template, context=context.get_context())
 
-
+# Todo: index view
 @login_required
-def wms_index(request: HttpRequest):
+def wms_index(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
     """ Renders an overview of all wms
 
     Args:t
@@ -704,21 +602,58 @@ def wms_index(request: HttpRequest):
 
     params = {
         "pt_table": pt_table,
-        "new_service_form": RegisterNewServiceWizardPage1(),
-        "user": user,
+        "current_view": "service:wms-index",
     }
 
-    params.update(_prepare_wms_table(request))
+    params.update(_prepare_wms_table(request=request, current_view='service:wms-index'))
+
+    if update_params:
+        params.update(update_params)
 
     context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context())
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=status_code)
 
+@login_required
+@check_permission(Permission(can_edit_metadata_service=True))
+def datasets_index(request: HttpRequest, update_params=None, status_code: int = 200, ):
+    """ The index view of the editor app.
+
+    Lists all datasets with information of custom set metadata.
+
+    Args:
+        request: The incoming request
+        update_params:
+        status_code:
+    Returns:
+    """
+    user = user_helper.get_user(request)
+
+    template = "views/datasets_index.html"
+
+    params = {
+        "current_view": 'service:datasets-index',
+    }
+    params.update(_prepare_dataset_table(request=request,
+                                         user=user,
+                                         current_view='service:datasets-index'),)
+
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=status_code)
 
 @login_required
 @check_permission(Permission(can_update_service=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
-def new_pending_update_service(request: HttpRequest, metadata_id: int):
+def new_pending_update_service(request: HttpRequest, metadata_id: int,):
     """ Compare old service with new service and collect differences
 
     Args:
@@ -727,46 +662,51 @@ def new_pending_update_service(request: HttpRequest, metadata_id: int):
     Returns:
         A rendered view
     """
-    if request.method == 'POST':
-        current_service = get_object_or_404(Service, metadata__id=metadata_id)
-        user = user_helper.get_user(request)
+    current_service = get_object_or_404(Service, metadata__id=metadata_id)
+    user = user_helper.get_user(request)
 
-        # Update check form!
-        update_form = UpdateServiceCheckForm(request.POST,
-                                             current_service=current_service,
-                                             requesting_user=user)
+    form = UpdateServiceCheckForm(data=request.POST or None,
+                                  request=request,
+                                  reverse_lookup='service:new-pending-update',
+                                  reverse_args=[metadata_id, ],
+                                  # ToDo: after refactoring of all forms is done, show_modal can be removed
+                                  show_modal=True,
+                                  current_service=current_service,
+                                  requesting_user=user,
+                                  form_title=_(f'Update service: <strong>{current_service.metadata.title} [{current_service.metadata.id}]</strong>'))
+    if request.method == 'GET':
+        return form.render_view()
+
+    if request.method == 'POST':
         # Check if update form is valid
-        if update_form.is_valid():
+        if form.is_valid():
             # Create db model from new service information (no persisting, yet)
             new_service = service_helper.create_service(
-                service_type=update_form.url_dict.get("service"),
-                version=service_helper.resolve_version_enum(update_form.url_dict.get("version")),
-                base_uri=update_form.url_dict.get("base_uri"),
+                service_type=form.url_dict.get("service"),
+                version=service_helper.resolve_version_enum(form.url_dict.get("version")),
+                base_uri=form.url_dict.get("base_uri"),
                 user=user,
                 register_group=current_service.created_by,
                 is_update_candidate_for=current_service,
             )
             new_service.created_by_user = user
-            new_service.keep_custom_md = update_form.cleaned_data['keep_custom_md']
+            new_service.keep_custom_md = form.cleaned_data['keep_custom_md']
             new_service.metadata.is_update_candidate_for = current_service.metadata
             new_service.metadata.created_by_user = user
             new_service.save()
             return HttpResponseRedirect(reverse("service:pending-update", args=(metadata_id,)), status=303)
         else:
-            params = {
-                "update_service_form": update_form,
-                "show_update_form": True,
-            }
-            return detail(request=request, metadata_id=metadata_id, update_params=params, status_code=422)
+            form.fade_modal = False
+            return form.render_view(status_code=422)
 
-    return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
+    return HttpResponseRedirect(reverse(request.GET.get('current-view', None), args=(metadata_id,)), status=303)
 
-
+# Todo: wizard/form view?
 @login_required
 @check_permission(Permission(can_update_service=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
-def pending_update_service(request: HttpRequest, metadata_id: int, update_params=None, status_code=None):
+def pending_update_service(request: HttpRequest, metadata_id: int, update_params: dict = None, status_code: int = 200, ):
     template = "views/service_update.html"
     user = user_helper.get_user(request)
 
@@ -803,16 +743,16 @@ def pending_update_service(request: HttpRequest, metadata_id: int, update_params
     for element in diff_elements.get("removed"):
         removed_elements_md.append(element.metadata)
 
-    updated_elements_table = UpdateServiceElements(data=updated_elements_md,
-                                                   order_by_field='updated',
-                                                   request=request)
-    updated_elements_table.configure_pagination(request=request,
-                                                param_lead='updated-t')
+    updated_elements_table = UpdateServiceElements(request=request,
+                                                   queryset=updated_elements_md,
+                                                   current_view="service:dismiss-pending-update",
+                                                   order_by_field='updated',)
 
-    removed_elements_table = UpdateServiceElements(data=removed_elements_md,
+    removed_elements_table = UpdateServiceElements(request=request,
+                                                   queryset=removed_elements_md,
+                                                   current_view="service:dismiss-pending-update",
                                                    order_by_field='removed',
-                                                   request=request)
-    removed_elements_table.configure_pagination(request=request, param_lead='removed-t')
+                                                   )
 
     params = {
         "current_service": current_service,
@@ -831,7 +771,7 @@ def pending_update_service(request: HttpRequest, metadata_id: int, update_params
     return render(request=request,
                   template_name=template,
                   context=context.get_context(),
-                  status=200 if status_code is None else status_code)
+                  status=status_code)
 
 
 @login_required
@@ -953,7 +893,7 @@ def run_update_service(request: HttpRequest, metadata_id: int):
 
 
 @login_required
-def wfs_index(request: HttpRequest):
+def wfs_index(request: HttpRequest, update_params=None, status_code=None):
     """ Renders an overview of all wfs
 
     Args:
@@ -974,14 +914,19 @@ def wfs_index(request: HttpRequest):
 
     params = {
         "pt_table": pt_table,
-        "new_service_form": RegisterNewServiceWizardPage1(),
-        "user": user,
+        "current_view": "service:wfs-index"
     }
 
-    params.update(_prepare_wfs_table(request))
+    params.update(_prepare_wfs_table(request=request, current_view='service:wfs-indext'))
+
+    if update_params:
+        params.update(update_params)
 
     context = DefaultContext(request, params, user)
-    return render(request=request, template_name=template, context=context.get_context())
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=200 if status_code is None else status_code)
 
 
 def _check_for_dataset_metadata(metadata: Metadata, ):
@@ -1001,15 +946,15 @@ def _check_for_dataset_metadata(metadata: Metadata, ):
     except ObjectDoesNotExist:
         return None
 
-
+# Todo: index view
 @login_required
-@check_ownership(Metadata, 'metadata_id')
-def detail(request: HttpRequest, metadata_id: int, update_params=None, status_code=None):
+@check_ownership(Metadata, 'object_id')
+def detail(request: HttpRequest, object_id: int, update_params=None, status_code=None):
     """ Renders a detail view of the selected service
 
     Args:
         request: The incoming request
-        metadata_id: The id of the selected metadata
+        object_id: The id of the selected metadata
         update_params: dict with params we will update before we return the context
         status_code
     Returns:
@@ -1017,7 +962,7 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
     user = user_helper.get_user(request)
 
     template = "views/detail.html"
-    service_md = get_object_or_404(Metadata, id=metadata_id)
+    service_md = get_object_or_404(Metadata, id=object_id)
 
     if _is_updatecandidate(service_md):
         return HttpResponse(status=404, content=SERVICE_NOT_FOUND)
@@ -1058,30 +1003,14 @@ def detail(request: HttpRequest, metadata_id: int, update_params=None, status_co
         mi = {mime.operation: op}
         mime_types.update(mi)
 
-    remove_service_form = RemoveServiceForm(
-        initial={
-            'service_id': service.id,
-            'service_needs_authentication': False,
-        }
-    )
-    remove_service_form.action_url = reverse('service:remove', args=[metadata_id])
-
-    update_service_check_form = UpdateServiceCheckForm(
-        initial={
-            'service_id': service.id,
-            'service_needs_authentication': False,
-        }
-    )
-    update_service_check_form.action_url = reverse('service:new-pending-update', args=[metadata_id])
-
     params.update({
         "service_md": service_md,
         "service": service,
         "layers": layers_md_list,
         "mime_types": mime_types,
-        "update_service_form": update_service_check_form,
-        "remove_service_form": remove_service_form,
         "leaflet_add_bbox": True,
+        "current_view": "service:detail",
+        "current_view_arg": object_id,
     })
 
     if update_params:
@@ -1209,7 +1138,7 @@ def get_metadata_legend(request: HttpRequest, metadata_id: int, style_id: int):
 
 @login_required
 @check_permission(Permission(can_access_logs=True))
-def logs_view(request: HttpRequest):
+def logs_view(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
     """ Renders a view for the ProxyLog entries
 
     Possible parameters for log filtering are:
@@ -1227,13 +1156,17 @@ def logs_view(request: HttpRequest):
     template = "views/log_index.html"
     user = user_helper.get_user(request)
 
-    proxy_log_table = logger_helper.prepare_proxy_log_filter(request, user)
-
     params = {
-        "log_table": proxy_log_table
+        "log_table": prepare_proxy_log_filter(request=request,
+                                              user=user,
+                                              current_view='service:logs-view'),
+        "current_view": 'service:logs-view',
     }
-    context = DefaultContext(request, params, user).get_context()
-    return render(request=request, template_name=template, context=context)
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
 
 
 @login_required
@@ -1250,7 +1183,8 @@ def logs_download(request: HttpRequest):
     """
     user = user_helper.get_user(request)
     CSV = "text/csv"
-    proxy_log_table = logger_helper.prepare_proxy_log_filter(request, user)
+    # ToDo: current_view parameter should be dynamic
+    proxy_log_table = prepare_proxy_log_filter(request=request, user=user, current_view='service:logs-view')
 
     # Create empty response object and fill it with dynamic csv content
     stream = io.StringIO()

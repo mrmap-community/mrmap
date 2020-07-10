@@ -4,9 +4,9 @@
 {% block body %}
 <div class="container-fluid px-5">
     {% include 'sceletons/breadcrumb.html'%}
-    {% with 'WMS' as service_type %}
-        {% with wms_table as table %}
-                {% include 'includes/editor_service_table.html' %}
+    {% with 'Datasets' as service_type %}
+        {% with dataset_table as table %}
+                {% include 'includes/index/datasets.html' %}
         {% endwith %}
     {% endwith %}
 </div>

@@ -1,12 +1,14 @@
 import django_tables2 as tables
-from django.template.loader import render_to_string
 from django.utils.html import format_html
 from django.urls import reverse
 
+from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
 from MrMap.utils import get_theme, get_ok_nok_icon
-from MrMap.consts import URL_PATTERN, URL_ICON_PATTERN, construct_url
+from MrMap.consts import URL_PATTERN, construct_url
 from django.utils.translation import gettext_lazy as _
+
+from structure.models import Permission
 
 
 class PublisherTable(MrMapTable):
@@ -122,19 +124,35 @@ class PublisherRequestTable(MrMapTable):
 
 
 class GroupTable(MrMapTable):
-    groups_name = tables.Column(accessor='name', verbose_name=_('Name'), )
-    groups_description = tables.Column(accessor='description', verbose_name=_('Description'), )
-    groups_organization = tables.Column(accessor='organization.organization_name', verbose_name=_('Organization'), )
+    groups_name = MrMapColumn(
+        accessor='name',
+        verbose_name=_('Name'),
+        tooltip=_("The name of the group"),)
+    groups_description = MrMapColumn(
+        accessor='description',
+        verbose_name=_('Description'),
+        tooltip=_("The description of the group"),)
+    groups_organization = MrMapColumn(
+        accessor='organization.organization_name',
+        verbose_name=_('Organization'),
+        tooltip=_("The organization wich is the home organization of the group"),)
+    groups_actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        tooltip=_('Actions you can perform'),
+        empty_values=[],
+        orderable=False,
+        attrs={"td": {"style": "white-space:nowrap;"}}
+    )
 
     caption = _("Shows all groups which are configured in your Mr. Map environment.")
 
     def render_groups_name(self, value, record):
         url = reverse('structure:detail-group', args=(record.id,))
         icon = ''
-        tooltip = ''
+        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>')
         if value == 'Public':
             icon = get_theme(self.user)['ICONS']['PUBLIC']
-            tooltip = _('This is the anonymous public user group')
+            tooltip = _('This is the anonymous public user group.') + f" {tooltip}"
 
         return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
                              href=url,
@@ -143,24 +161,66 @@ class GroupTable(MrMapTable):
 
     def render_groups_organization(self, value, record):
         url = reverse('structure:detail-organization', args=(record.id,))
-        return format_html(URL_PATTERN, get_theme(self.user)["TABLE"]["LINK_COLOR"], url, value, )
+        tooltip = _('Click to open the detail view of the organization')
+        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                             href=url,
+                             content=value,
+                             tooltip=tooltip, )
+
+    def render_groups_actions(self, record):
+        btns = ''
+        btns += format_html(self.get_btn(
+            href=reverse('structure:edit-group', args=(record.id,)) + f"?current-view={self.current_view}",
+            btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['EDIT'],
+            tooltip=format_html(_(f"Edit <strong>{record.name} [{record.id}]</strong> group"), ),
+            tooltip_placement='left',
+            permission=Permission(can_edit_group=True),
+        ))
+        btns += format_html(self.get_btn(
+            href=reverse('structure:delete-group', args=(record.id,)) + f"?current-view={self.current_view}",
+            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
+            tooltip=format_html(_(f"Remove <strong>{record.name} [{record.id}]</strong> group"), ),
+            tooltip_placement='left',
+            permission=Permission(can_delete_group=True),
+        ))
+        return format_html(btns)
 
 
 class OrganizationTable(MrMapTable):
-    orgs_organization_name = tables.Column(accessor='organization_name', verbose_name=_('Name'), )
-    orgs_description = tables.Column(accessor='description', verbose_name=_('Description'), )
-    orgs_is_auto_generated = tables.Column(accessor='is_auto_generated', verbose_name=_('Real organization'), )
-    orgs_parent = tables.Column(accessor='parent', verbose_name=_('Parent'),)
+    orgs_organization_name = MrMapColumn(
+        accessor='organization_name',
+        verbose_name=_('Name'),
+        tooltip=_('Name of the given organizations'),)
+    orgs_description = MrMapColumn(
+        accessor='description',
+        verbose_name=_('Description'),
+        tooltip=_('Description of the given organizations'),)
+    orgs_is_auto_generated = MrMapColumn(
+        accessor='is_auto_generated',
+        verbose_name=_('Real organization'),
+        tooltip=_('If an organization comes from the capabilities, it will be marked as autogenerated'),)
+    orgs_parent = MrMapColumn(
+        accessor='parent',
+        verbose_name=_('Parent'),
+        tooltip=_('Parent organizations of the given organization'),)
+    orgs_actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        tooltip=_('Actions you can perform'),
+        empty_values=[],
+        orderable=False,
+        attrs={"td": {"style": "white-space:nowrap;"}},)
 
     caption = _("Shows all organizations which are configured in your Mr. Map environment.")
 
     def render_orgs_organization_name(self, value, record):
         url = reverse('structure:detail-organization', args=(record.id,))
         icon = ''
-        tooltip = ''
-        if self.user.organization is not None and self.user.organization.organization_name == value:
+        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
+        if self.user.organization is not None and self.user.organization == record:
             icon = get_theme(self.user)['ICONS']['HOME']
-            tooltip = _('This is your organization')
+            tooltip = _('This is your organization.') + f' {tooltip}'
 
         return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
                              href=url,
@@ -180,3 +240,32 @@ class OrganizationTable(MrMapTable):
         """
         val = not value
         return get_ok_nok_icon(val)
+
+    def render_orgs_actions(self, record):
+        btns = ''
+        btns += format_html(self.get_btn(
+            href=reverse('structure:edit-organization', args=(record.id,)) + f"?current-view={self.current_view}",
+            btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['EDIT'],
+            tooltip=format_html(_(f"Edit <strong>{record.organization_name} [{record.id}]</strong> organization"), ),
+            tooltip_placement='left',
+            permission=Permission(can_edit_organization=True),
+        ))
+        btns += format_html(self.get_btn(
+            href=reverse('structure:publish-request', args=(record.id,)) + f"?current-view={self.current_view}",
+            btn_color=get_theme(self.user)["TABLE"]["BTN_SECONDARY_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['PUBLISHER'],
+            tooltip=format_html(
+                _(f"Become publisher for organization <strong>{record.organization_name} [{record.id}]</strong>"), ),
+            tooltip_placement='left',
+            permission=Permission(can_request_to_become_publisher=True),
+        ))
+        btns += format_html(self.get_btn(
+            href=reverse('structure:delete-organization', args=(record.id,)) + f"?current-view={self.current_view}",
+            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
+            tooltip=format_html(_(f"Remove <strong>{record.organization_name} [{record.id}]</strong> organization"), ),
+            tooltip_placement='left',
+            permission=Permission(can_delete_organization=True),
+        ))
+        return format_html(btns)

@@ -59,9 +59,15 @@
                         <div class="container-fluid">
                         <div class="row">
                             <div class="col-sm">
+                                {% if current_view_arg %}
+                                    <a href="{% url current_view current_view_arg %}" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" role="button" aria-pressed="true">
+                                        {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss'%}
+                                    </a>
+                                {% else %}
                                 <a href="{% url current_view %}" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" role="button" aria-pressed="true">
                                     {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss'%}
                                 </a>
+                                {% endif %}
                             </div>
                             <div class="col-sm">
                                 <div class="mx-auto text-center">
@@ -84,7 +90,7 @@
                                         </span>
                                         {% endif %}
                                     {% endif %}
-                                    {% if wizard.ignore_uncomitted_forms %}
+                                    {% if wizard.ignore_uncomitted_forms or wizard.steps.last == wizard.steps.current %}
                                         <button name="wizard_save" value="True" type="submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">
                                             {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
                                         </button>

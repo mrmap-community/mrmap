@@ -21,7 +21,7 @@
                     {% endif %}
                 </div>
                 <div class="modal-footer">
-                    <a class="btn {{ THEME.MODAL.BTN_WARNING_COLOR }}" href="{% url form.current_view %}" role="button">
+                    <a class="btn {{ THEME.MODAL.BTN_WARNING_COLOR }}" href="{% if form.current_view_arg %}{% url form.current_view form.current_view_arg %}{% else %}{% url form.current_view %}{% endif %}" role="button">
                         {% autoescape off %}{{THEME.ICONS.REMOVE}}{% endautoescape %} {% trans 'Dismiss' %}
                     </a>
                     <button type="button submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">

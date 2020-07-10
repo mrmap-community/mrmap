@@ -7,24 +7,8 @@
         <div id="id_pending_tasks_div">
             {% include 'includes/pending_tasks.html' %}
         </div>
-        <script type="application/javascript">
-            interval = setInterval(function(){
-                $.get( '{% url 'service:pending-tasks' %}', function( data ) {
+        {% include 'includes/pending_task_table_refresh_script.html' %}
 
-                    $( "#id_pending_tasks_div" ).html( data );
-                });
-                // stop interval if table is empty and delete the pt_table
-                if( $("#id_pt_empty").length ) {
-                    clearInterval(interval);
-                    setTimeout(function() {
-                        $("#id_pending_tasks_div").remove();
-
-                        // reload current page
-                        location.reload();
-                    }, 1000);
-                };
-            }, 1000);
-        </script>
     {% endif %}
 
     {% if only_type == 'wms' or only_type is None %}
@@ -35,15 +19,11 @@
         {% include 'includes/index/wfs.html' %}
     {% endif %}
 
-    {% if 'can_register_service' in user_permissions %}
-        {% with form=new_service_form %}
-            {% with 'new_service' as id_modal %}
-                {% with show_new_service_form as show_modal %}
-                    {% include 'modals/new_service.html' %}
-                {% endwith %}
-            {% endwith %}
+    {% with 'Datasets' as service_type %}
+        {% with dataset_table as table %}
+                {% include 'includes/index/datasets.html' %}
         {% endwith %}
-    {% endif %}
+    {% endwith %}
 
 </div>
 {% endblock %}

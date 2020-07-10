@@ -15,6 +15,9 @@
           if ( accordionButton.hasClass('collapsed') ) {
             $.get( '{% url 'service:detail' featuretype.metadata.id %}?no-base', function( data ) {
                 $( "#id_content_service_{{featuretype.metadata.id}}" ).html( data );
+                $(function () {
+                  $('[data-toggle="tooltip"]').tooltip()
+                })
             });
           }
         });

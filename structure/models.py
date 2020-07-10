@@ -40,6 +40,7 @@ class Permission(models.Model):
     can_register_service = models.BooleanField(default=False)
     can_remove_service = models.BooleanField(default=False)
     can_edit_metadata_service = models.BooleanField(default=False)
+    can_edit_metadata_public_id = models.BooleanField(default=False)
 
     can_add_dataset_metadata = models.BooleanField(default=False)
     can_edit_dataset_metadata = models.BooleanField(default=False)

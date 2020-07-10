@@ -17,6 +17,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
+from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
 from MrMap.cacher import DocumentCacher
@@ -1014,6 +1015,28 @@ class Metadata(Resource):
 
         self.save()
 
+    @classmethod
+    def generate_public_id(cls, stump: str = None):
+        """ Generates a public_id for a Metadata entry.
+
+        Args:
+            stump (str): The base string input, which will be incremented if already taken
+        Returns:
+             public_id (str): The generated public id
+        """
+        public_id = slugify(stump)
+        exists = Metadata.objects.filter(
+            public_id=stump
+        ).exists()
+        counter = 1
+        while exists:
+            public_id = "{}-{}".format(stump, counter)
+            counter += 1
+            exists = Metadata.objects.filter(
+                public_id=public_id
+            ).exists()
+        return public_id
+
     def save(self, *args, **kwargs):
         """ Overwriting the regular save function
 
@@ -1025,6 +1048,10 @@ class Metadata(Resource):
         Returns:
             nothing
         """
+        if self.public_id is None:
+            # Autogenerate a first public_id / Easy ID
+            self.public_id = self.generate_public_id(self.title)
+
         super().save(*args, **kwargs)
 
         # Add created/updated object to the MonitoringSettings. Django does not add

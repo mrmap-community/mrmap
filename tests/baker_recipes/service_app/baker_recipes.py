@@ -1,30 +1,11 @@
 from datetime import datetime
 from model_bakery import seq
 from model_bakery.recipe import Recipe, foreign_key, related
-from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, DocumentEnum
-from service.models import Metadata, Service, ServiceType, MetadataType, Layer, FeatureType, Keyword, Category, \
-    Document, RequestOperation, MimeType, MetadataOrigin, ProxyLog, Dataset
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, DocumentEnum, ResourceOriginEnum
+from service.models import Metadata, Service, ServiceType, Layer, FeatureType, Keyword, Category, \
+    Document, RequestOperation, MimeType, ProxyLog, Dataset
 from tests.baker_recipes.structure_app.baker_recipes import superadmin_group, superadmin_orga
 
-layer_metadatatype = Recipe(
-    MetadataType,
-    type=MetadataEnum.LAYER.value
-)
-
-featuretype_metadatatype = Recipe(
-    MetadataType,
-    type=MetadataEnum.FEATURETYPE.value
-)
-
-service_metadatatype = Recipe(
-    MetadataType,
-    type=MetadataEnum.SERVICE.value
-)
-
-dataset_metadatatype = Recipe(
-    MetadataType,
-    type=MetadataEnum.DATASET.value
-)
 
 mimetype = Recipe(
     MimeType,
@@ -36,13 +17,13 @@ active_wms_service_metadata = Recipe(
     title=seq("metadata_wms_"),
     identifier=seq("metadata_wms"),
     is_active=True,
-    metadata_type=foreign_key(service_metadatatype),
+    metadata_type=MetadataEnum.SERVICE.value,
     created_by=foreign_key(superadmin_group),
     formats=related(mimetype),
 )
 
 active_wms_layer_metadata = active_wms_service_metadata.extend(
-    metadata_type=foreign_key(layer_metadatatype),
+    metadata_type=MetadataEnum.LAYER.value,
     identifier=seq("metadata_wms_layer"),
     formats=related(mimetype),
 )
@@ -53,13 +34,13 @@ active_wfs_service_metadata = Recipe(
     title=seq("metadata_wfs_"),
     identifier=seq("metadata_wfs"),
     is_active=True,
-    metadata_type=foreign_key(service_metadatatype),
+    metadata_type=MetadataEnum.SERVICE.value,
     created_by=foreign_key(superadmin_group),
     formats=related(mimetype),
 )
 
 active_wfs_featuretype_metadata = active_wfs_service_metadata.extend(
-    metadata_type=foreign_key(featuretype_metadatatype),
+    metadata_type=MetadataEnum.FEATURETYPE.value,
     identifier=seq("metadata_wfs_featuretype"),
     formats=related(mimetype),
 )
@@ -132,7 +113,7 @@ active_dataset_metadata = Recipe(
     title=seq("metadata_dataset_"),
     identifier=seq("metadata_dataset_"),
     is_active=True,
-    metadata_type=foreign_key(dataset_metadatatype),
+    metadata_type=MetadataEnum.DATASET.value,
     created_by=foreign_key(superadmin_group),
     contact=foreign_key(superadmin_orga),
 )
@@ -160,11 +141,6 @@ metadata_document = Recipe(
     content="<test></test>",
     is_original=True,
     document_type=DocumentEnum.METADATA.value,
-)
-
-metadata_origin = Recipe(
-    MetadataOrigin,
-    name="capabilities"
 )
 
 operation = Recipe(

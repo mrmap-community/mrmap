@@ -7,7 +7,8 @@ class EnumChoice(Enum):
     """
     @classmethod
     def as_choices(cls):
-        return [(enum.value, enum.name) for enum in cls]
+        choices = [(None, "---")] + [(enum.value, enum.name) for enum in cls]
+        return choices
 
 
 class ConnectionEnum(EnumChoice):
@@ -88,3 +89,27 @@ class DocumentEnum(EnumChoice):
     CAPABILITY = "Capability"
     METADATA = "Metadata"
 
+
+class ResourceOriginEnum(EnumChoice):
+    """ Defines origins from where a resource could be coming from
+
+    """
+    CAPABILITIES = "Capabilities"
+    UPLOAD = "Upload"
+    EDITOR = "Editor"
+
+
+class CategoryOriginEnum(EnumChoice):
+    """ Defines sources for categories
+
+    """
+    ISO = "iso"
+    INSPIRE = "inspire"
+
+    @classmethod
+    def all_values_as_list(cls):
+        return [enum.value for enum in cls]
+
+    @classmethod
+    def all_names_as_list(cls):
+        return [enum.name for enum in cls]

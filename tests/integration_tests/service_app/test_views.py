@@ -149,11 +149,9 @@ class ServiceTestCase(TestCase):
         cap_uri = service.metadata.capabilities_original_uri
         connector = CommonConnector(url=cap_uri)
         connector.load()
-        received_xml = connector.content
-        if isinstance(received_xml, bytes):
-            received_xml = received_xml.decode("UTF-8")
 
-        self.assertEqual(received_xml, cap_doc, msg="Received capabilities document does not match the persisted one!")
+        # Only check if the uri is valid and can be used to receive some data
+        self.assertEqual(connector.status_code, 200, msg="URL '{}' didn't respond with status code 200".format(cap_uri))
         for layer in layers:
             cap_uri_layer = layer.metadata.capabilities_original_uri
             if cap_uri == cap_uri_layer:
@@ -162,12 +160,10 @@ class ServiceTestCase(TestCase):
                 # should only be available using a unique uri - but you never know...
                 continue
             connector = CommonConnector(url=cap_uri)
-            connector.load()
-            received_xml = connector.content
-            self.assertEqual(received_xml, cap_doc,
-                             msg="Received capabilities document for layer '{}' does not match the persisted one"
-                             .format(layer.identifier)
-                             )
+            self.assertEqual(
+                connector.status_code, 200,
+                msg="URL '{}' didn't respond with status code 200".format(cap_uri)
+            )
 
     def test_new_service_check_describing_attributes(self):
         """ Tests whether the describing attributes, such as title or abstract, are correct.

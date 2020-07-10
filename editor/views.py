@@ -11,15 +11,14 @@ from django.http import HttpRequest, HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
 from MrMap import utils
 from MrMap.decorator import check_permission, check_ownership
-from MrMap.forms import MrMapConfirmForm
-from MrMap.messages import EDITOR_ACCESS_RESTRICTED, \
-    SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
+from MrMap.messages import EDITOR_ACCESS_RESTRICTED, SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MrMap.responses import DefaultContext, BackendAjaxResponse
 from editor.forms import MetadataEditorForm, RemoveDatasetForm, RestoreMetadataForm, RestoreDatasetMetadata
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from editor.wizards import DATASET_WIZARD_FORMS, DatasetWizard
-from service.helper.enums import OGCServiceEnum, MetadataEnum
-from service.models import RequestOperation, SecuredOperation, Metadata, MetadataRelation
+from service.models import MetadataRelation
+from service.helper.enums import OGCServiceEnum, MetadataEnum, ResourceOriginEnum
+from service.models import RequestOperation, SecuredOperation, Metadata
 from service.tasks import async_process_secure_operations_form
 from structure.models import Permission, MrMapGroup
 from users.helper import user_helper
@@ -39,14 +38,14 @@ def remove_dataset(request: HttpRequest, metadata_id: int, ):
         A rendered view
     """
     metadata = get_object_or_404(Metadata, id=metadata_id)
-    if metadata.metadata_type.type != 'dataset':
+    if metadata.metadata_type != MetadataEnum.DATASET.value:
         messages.success(request, message=_("You can't delete metadata record"))
         return HttpResponseRedirect(reverse(request.GET.get('current-view', 'home'), ), status=303)
 
     relations = MetadataRelation.objects.filter(metadata_to=metadata)
     is_mr_map_origin = True
     for relation in relations:
-        if relation.origin.name != "MrMap":
+        if relation.origin != ResourceOriginEnum.EDITOR.value:
             is_mr_map_origin = False
             break
     if is_mr_map_origin is not True:
@@ -105,7 +104,7 @@ def edit(request: HttpRequest, metadata_id: int,):
         A rendered view
     """
     metadata = get_object_or_404(Metadata, id=metadata_id)
-    if metadata.metadata_type.type == 'dataset':
+    if metadata.metadata_type == MetadataEnum.DATASET.value:
         return HttpResponseRedirect(reverse("editor:edit-dataset-metadata", args=(metadata_id,)), status=303)
 
     form = MetadataEditorForm(data=request.POST or None,

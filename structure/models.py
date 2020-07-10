@@ -192,9 +192,9 @@ class MrMapUser(AbstractUser):
                     ).order_by("title")
         if type is not None:
             if inverse_match:
-                md_list = md_list.all().exclude(metadata_type__type=type.name.lower())
+                md_list = md_list.all().exclude(metadata_type=type.name.lower())
             else:
-                md_list = md_list.filter(metadata_type__type=type.name.lower())
+                md_list = md_list.filter(metadata_type=type.name.lower())
         return md_list
 
     def get_datasets_as_qs(self, ):
@@ -205,7 +205,7 @@ class MrMapUser(AbstractUser):
         """
         from service.models import Metadata
         md_list = Metadata.objects.filter(
-            metadata_type__type='dataset',
+            metadata_type=MetadataEnum.DATASET.value,
             created_by__in=self.get_groups(),
         ).order_by("title")
         return md_list

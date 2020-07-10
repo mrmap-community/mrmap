@@ -23,7 +23,7 @@ from MrMap.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
 from MrMap import utils
 from MrMap.utils import execute_threads, print_debug_mode
 from service.helper.crypto_handler import CryptoHandler
-from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum
+from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, ResourceOriginEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
@@ -31,7 +31,7 @@ from service.helper.ogc.layer import OGCLayer
 
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
-    MetadataRelation, MetadataOrigin, MetadataType, Style, ExternalAuthentication
+    MetadataRelation, Style, ExternalAuthentication
 from service.settings import MD_RELATION_TYPE_VISUALIZES
 from structure.models import Organization, MrMapGroup
 from structure.models import MrMapUser
@@ -760,7 +760,7 @@ class OGCWebMapService(OGCWebService):
              metadata (Metadata): The persisted metadata record
         """
         metadata = Metadata()
-        md_type = MetadataType.objects.get_or_create(type=MetadataEnum.SERVICE.value)[0]
+        md_type = MetadataEnum.SERVICE.value
         metadata.metadata_type = md_type
         if self.service_file_iso_identifier is None:
             # We didn't found any file identifier in the document -> we create one
@@ -858,9 +858,7 @@ class OGCWebMapService(OGCWebService):
             md_relation = MetadataRelation()
             md_relation.metadata_from = metadata
             md_relation.metadata_to = service.linked_service_metadata
-            md_relation.origin = MetadataOrigin.objects.get_or_create(
-                name='capabilities'
-            )[0]
+            md_relation.origin = ResourceOriginEnum.CAPABILITIES.value
             md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
             md_relation.save()
 

@@ -438,7 +438,7 @@ class SubscriptionTestCase(TestCase):
         self.client.login(username=self.user.username, password=self.user_password)
         create_wms_service(group=self.user.get_groups().first(), how_much_services=10)
         self.service_md = Metadata.objects.filter(
-            metadata_type__type=MetadataEnum.SERVICE.value
+            metadata_type=MetadataEnum.SERVICE.value
         ).first()
 
     def test_new_subscription(self):
@@ -516,7 +516,7 @@ class SubscriptionTestCase(TestCase):
         # Check that a subscription's metadata can not be changed
         # Regular changes of notifications will be persisted
         post_params = {
-            "metadata": Metadata.objects.filter(metadata_type__type=MetadataEnum.SERVICE.value).exclude(id=self.service_md.id).first().id,
+            "metadata": Metadata.objects.filter(metadata_type=MetadataEnum.SERVICE.value).exclude(id=self.service_md.id).first().id,
             "notify_on_update": "True",
             "notify_on_metadata_edit": "True",
             "notify_on_access_edit": "True",

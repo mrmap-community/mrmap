@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from editor.forms import MetadataEditorForm
 from service.helper.enums import DocumentEnum
-from service.models import Service, Layer, FeatureType, Metadata, ReferenceSystem, MimeType, MetadataType, Document
+from service.models import Service, Layer, FeatureType, Metadata, ReferenceSystem, MimeType, Document
 
 
 @transaction.atomic
@@ -359,7 +359,7 @@ def update_wfs_elements(old: Service, new: Service, diff: dict, links: dict, kee
             feature_type.is_active = old.is_active
             md = feature_type.metadata
             md.is_active = old.is_active
-            md.metadata_type = MetadataType.objects.get_or_create(type=md.metadata_type.type)[0]
+            md.metadata_type = md.metadata_type
             md.save()
 
             transform_lists_to_m2m_collections(md)
@@ -426,7 +426,7 @@ def _update_wms_layers_recursive(old: Service, new: Service, new_layers: list, l
             new_layer.is_active = old.is_active
             md = new_layer.metadata
             md.is_active = old.is_active
-            md.metadata_type = MetadataType.objects.get_or_create(type=md.metadata_type.type)[0]
+            md.metadata_type = md.metadata_type
             md.save()
 
             transform_lists_to_m2m_collections(md)

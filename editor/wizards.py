@@ -11,11 +11,9 @@ from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
     DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm
 from django.utils.translation import gettext_lazy as _
 
-from editor.helper.editor_helper import overwrite_dataset_metadata_document
-from editor.settings import MR_MAP_DATASET_EDITOR_ORIGIN_NAME
-from service.helper.enums import MetadataEnum, DocumentEnum
+from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
-from service.models import Dataset, Metadata, MetadataRelation, MetadataOrigin, MetadataType, Document
+from service.models import Dataset, Metadata, MetadataRelation, Document
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, DEFAULT_SRS
 from structure.models import Organization, MrMapUser
 from users.helper import user_helper
@@ -70,9 +68,7 @@ class DatasetWizard(MrMapWizard):
             metadata = Metadata()
             metadata.uuid = uuid.uuid4()
             metadata.identifier = metadata.uuid
-            metadata.metadata_type = MetadataType.objects.get_or_create(
-                type=MetadataEnum.DATASET.value
-            )[0]
+            metadata.metadata_type = MetadataEnum.DATASET.value
             metadata.is_active = True
 
             dataset = Dataset()
@@ -160,16 +156,14 @@ class DatasetWizard(MrMapWizard):
             metadata.reference_system.add(ref_system)
 
         additional_related_objects = data.get("additional_related_objects", [])
-        metadata.related_metadata.filter(origin__name=MR_MAP_DATASET_EDITOR_ORIGIN_NAME).delete()
+        metadata.related_metadata.filter(origin=ResourceOriginEnum.EDITOR.value).delete()
         for additional_object in additional_related_objects:
             md_relation = MetadataRelation()
             md_relation.metadata_to = metadata
             md_relation.metadata_from = additional_object
             md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
             md_relation.internal = True
-            md_relation.origin = MetadataOrigin.objects.get_or_create(
-                name=MR_MAP_DATASET_EDITOR_ORIGIN_NAME
-            )[0]
+            md_relation.origin = ResourceOriginEnum.EDITOR.value
             md_relation.save()
             additional_object.related_metadata.add(md_relation)
             metadata.related_metadata.add(md_relation)
@@ -238,7 +232,7 @@ class DatasetWizard(MrMapWizard):
         Returns:
 
         """
-        metadata.terms_of_use = data.get("terms_of_use", None) or None
+        metadata.licence = data.get("licence", None)
         metadata.access_constraints = data.get("access_constraints", None)
 
     @staticmethod

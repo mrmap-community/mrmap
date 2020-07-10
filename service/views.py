@@ -328,7 +328,7 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
     if not md.is_active:
         return HttpResponse(content=SERVICE_DISABLED, status=423)
     try:
-        if md.metadata_type.type != OGCServiceEnum.DATASET.value:
+        if md.metadata_type != OGCServiceEnum.DATASET.value:
             # the user gave the metadata id of the service metadata, we must resolve this to the related dataset metadata
             md = md.get_related_dataset_metadata()
             if md is None:
@@ -554,6 +554,8 @@ def get_metadata_html(request: HttpRequest, metadata_id: int):
         params['contact'] = collect_contact_data(md.contact)
         params['bounding_box'] = md.bounding_geometry
         params['dataset_metadata'] = md
+        params['fees'] = md.fees
+        params['licence'] = md.licence
         params.update({'capabilities_uri': reverse('service:get-dataset-metadata', args=(md.id,))})
 
     elif md.is_metadata_type(MetadataEnum.FEATURETYPE):

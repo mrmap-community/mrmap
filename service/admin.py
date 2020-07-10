@@ -93,20 +93,14 @@ class LayerAdmin(admin.ModelAdmin):
     search_fields = ['id', 'metadata__title', 'identifier', 'uuid', 'created', 'created_by__name', 'last_modified',]
 
 
-class MetadataLanguageAdmin(admin.ModelAdmin):
-    list_display = ('id', 'language', 'iso_639_2_tlc',)
-    list_filter = ('language', 'iso_639_2_tlc',)
-    search_fields = ['id', 'language', 'iso_639_2_tlc', ]
-
-
-class MetadataOriginAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name',)
-    list_filter = ('name', )
-    search_fields = ['id', 'name', ]
+class MetadataAdmin(admin.ModelAdmin):
+    list_display = ('id', 'title', 'service', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact', 'uuid')
+    list_filter = ('metadata_type', 'is_active', 'is_broken')
+    search_fields = ['id', 'title', ]
 
 
 class MetadataRelationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata_from_link', 'relation_type', 'metadata_to_link', 'origin')
+    list_display = ('id', 'metadata_from_link', 'relation_type', 'metadata_to_link')
     list_filter = ('relation_type',)
     search_fields = ['metadata_from__title', 'metadata_to__title',]
 
@@ -129,10 +123,8 @@ class MetadataTypeAdmin(admin.ModelAdmin):
     search_fields = ['id', 'type',]
 
 
-class MetadataAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'service_link', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact', 'uuid')
-    list_filter = ('metadata_type', 'is_active', 'is_broken')
-    search_fields = ['id', 'title', ]
+class TermsOfUseAdmin(admin.ModelAdmin):
+    list_display = ('identifier', 'name', 'is_open_data', 'is_active')
 
     def service_link(self, obj):
         if obj.service:
@@ -216,10 +208,6 @@ class StyleAdmin(admin.ModelAdmin):
     search_fields = ['id', 'layer__identifier']
 
 
-class TermsOfUseAdmin(admin.ModelAdmin):
-    pass
-
-
 class LegalReportAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'explanation', 'date')
 
@@ -233,17 +221,13 @@ admin.site.register(Document, DocumentAdmin)
 admin.site.register(RequestOperation, RequestOperationAdmin)
 admin.site.register(SecuredOperation, SecuredOperationAdmin)
 admin.site.register(Category, CategoryAdmin)
-admin.site.register(CategoryOrigin, CategoryOriginAdmin)
 admin.site.register(ServiceType, ServiceTypeAdmin)
 admin.site.register(Module, ModuleAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(Keyword, KeywordAdmin)
-admin.site.register(MetadataLanguage, MetadataLanguageAdmin)
-admin.site.register(MetadataOrigin, MetadataOriginAdmin)
-admin.site.register(MetadataType, MetadataTypeAdmin)
 admin.site.register(Metadata, MetadataAdmin)
 admin.site.register(MetadataRelation, MetadataRelationAdmin)
-admin.site.register(TermsOfUse, TermsOfUseAdmin)
+admin.site.register(Licence, TermsOfUseAdmin)
 admin.site.register(ReferenceSystem, ReferenceSystemAdmin)
 admin.site.register(Service, ServiceAdmin)
 admin.site.register(MimeType, MimeTypeAdmin)

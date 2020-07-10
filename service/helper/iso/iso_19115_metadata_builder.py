@@ -202,7 +202,7 @@ class Iso19115MetadataBuilder:
         Returns:
              ret_elem (_Element): The requested xml element
         """
-        hierarchy_level = self.metadata.metadata_type.type
+        hierarchy_level = self.metadata.metadata_type
         hierarchy_level_list = "http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_ScopeCode"
         ret_elem = Element(
             self.gmd + "hierarchyLevel"

@@ -17,6 +17,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 from MrMap.cacher import DocumentCacher
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
@@ -25,7 +26,8 @@ from MrMap import utils
 from MrMap.utils import print_debug_mode
 from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
-from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum
+from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
+    ResourceOriginEnum, CategoryOriginEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
@@ -438,19 +440,12 @@ class SecuredOperation(models.Model):
         super().delete(using, keep_parents)
 
 
-class MetadataOrigin(models.Model):
-    name = models.CharField(max_length=255)
-
-    def __str__(self):
-        return self.name
-
-
 class MetadataRelation(models.Model):
     metadata_from = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_from")
     metadata_to = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_to")
     relation_type = models.CharField(max_length=255, null=True, blank=True)
     internal = models.BooleanField(default=False)
-    origin = models.ForeignKey(MetadataOrigin, on_delete=models.CASCADE)
+    origin = models.CharField(max_length=255, choices=ResourceOriginEnum.as_choices(), null=True, blank=True)
 
     def __str__(self):
         return "{} {} {}".format(self.metadata_from.title, self.relation_type, self.metadata_to.title)
@@ -533,16 +528,8 @@ class ExternalAuthentication(models.Model):
         self.username = crypto_handler.message.decode("ascii")
 
 
-class MetadataLanguage(models.Model):
-    language = models.CharField(max_length=255)
-    # ISO639-2/T three letter code
-    iso_639_2_tlc = models.CharField(max_length=3)
-
-    def __str__(self):
-        return self.language
-
-
 class Metadata(Resource):
+    from MrMap.validators import validate_metadata_enum_choices
     id = models.BigAutoField(primary_key=True,)
     identifier = models.CharField(max_length=255, null=True)
     title = models.CharField(max_length=255)
@@ -557,8 +544,8 @@ class Metadata(Resource):
 
     html_metadata_uri = models.CharField(max_length=500, blank=True, null=True)
 
-    contact = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, blank=True, null=True)
-    terms_of_use = models.ForeignKey('TermsOfUse', on_delete=models.DO_NOTHING, blank=True, null=True)
+    contact = models.ForeignKey(Organization, on_delete=models.SET_NULL, blank=True, null=True)
+    licence = models.ForeignKey('Licence', on_delete=models.SET_NULL, blank=True, null=True)
     access_constraints = models.TextField(null=True, blank=True)
     fees = models.TextField(null=True, blank=True)
 
@@ -587,22 +574,22 @@ class Metadata(Resource):
 
     # capabilities
     authority_url = models.CharField(max_length=255, null=True, blank=True)
-    metadata_url = models.CharField(max_length=255, null=True)
+    metadata_url = models.CharField(max_length=255, null=True, blank=True)
 
     # other
     keywords = models.ManyToManyField(Keyword)
     formats = models.ManyToManyField('MimeType', blank=True)
     categories = models.ManyToManyField('Category', blank=True)
-    reference_system = models.ManyToManyField('ReferenceSystem')
+    reference_system = models.ManyToManyField('ReferenceSystem', blank=True)
     dimensions = models.ManyToManyField('Dimension', blank=True)
-    metadata_type = models.ForeignKey('MetadataType', on_delete=models.DO_NOTHING, null=True, blank=True, choices=MetadataEnum.as_choices())
+    metadata_type = models.CharField(max_length=255, null=True, blank=True, choices=MetadataEnum.as_choices(), validators=[validate_metadata_enum_choices])
     legal_dates = models.ManyToManyField('LegalDate', blank=True)
     legal_reports = models.ManyToManyField('LegalReport', blank=True)
     hits = models.IntegerField(default=0)
 
     # Related metadata creates Relations between metadata records by using the MetadataRelation table.
     # Each MetadataRelation record might hold further information about the relation, e.g. 'describedBy', ...
-    related_metadata = models.ManyToManyField(MetadataRelation)
+    related_metadata = models.ManyToManyField(MetadataRelation, blank=True)
     language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
     origin = None
 
@@ -662,7 +649,7 @@ class Metadata(Resource):
         Returns:
              True if the metadata_type is equal, false otherwise
         """
-        return self.metadata_type.type == enum.value
+        return self.metadata_type == enum.value
 
     def is_service_type(self, enum: OGCServiceEnum):
         """ Returns whether the described service element of this metadata is of the given OGCServiceEnum
@@ -928,7 +915,7 @@ class Metadata(Resource):
         try:
             dataset_md = MetadataRelation.objects.get(
                 metadata_from=self,
-                metadata_to__metadata_type__type=OGCServiceEnum.DATASET.value
+                metadata_to__metadata_type=OGCServiceEnum.DATASET.value
             )
             dataset_md = dataset_md.metadata_to
             return dataset_md
@@ -1109,7 +1096,7 @@ class Metadata(Resource):
         Returns:
 
         """
-        if self.metadata_type.type == MetadataEnum.SERVICE.value:
+        if self.metadata_type == MetadataEnum.SERVICE.value:
             if self.service.service_type.name == OGCServiceEnum.WMS.value:
                 children = Layer.objects.filter(
                     parent_service__metadata=self
@@ -1118,7 +1105,7 @@ class Metadata(Resource):
                 children = FeatureType.objects.filter(
                     parent_service__metadata=self
                 )
-        elif self.metadata_type.type == MetadataEnum.LAYER.value:
+        elif self.metadata_type == MetadataEnum.LAYER.value:
             children = Layer.objects.filter(
                 parent_layer__metadata=self
             )
@@ -1466,11 +1453,22 @@ class Metadata(Resource):
 
         # change capabilities document if there is one (subelements may not have any documents yet)
         try:
-            root_md_doc = Document.objects.get(
+            root_md_doc = Document.objects.get_or_create(
                 metadata=root_md,
                 document_type=DocumentEnum.CAPABILITY.value,
                 is_original=False
-            )
+            )[0]
+
+            if root_md_doc.content is None:
+                # There is no content yet inside - we take it from the original one
+                orig_doc = Document.objects.get(
+                    metadata=root_md,
+                    document_type=DocumentEnum.CAPABILITY.value,
+                    is_original=True
+                )
+                root_md_doc.content = orig_doc.content
+                root_md_doc.is_active = orig_doc.is_active
+
             root_md_doc.set_proxy(use_proxy)
         except ObjectDoesNotExist:
             pass
@@ -1557,17 +1555,11 @@ class Metadata(Resource):
             sub.inform_subscriptor()
 
 
-class MetadataType(models.Model):
-    type = models.CharField(max_length=255, blank=True, null=True, unique=True)
-
-    def __str__(self):
-        return self.type
-
-
 class Document(Resource):
+    from MrMap.validators import validate_document_enum_choices
     id = models.BigAutoField(primary_key=True)
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name='documents')
-    document_type = models.CharField(max_length=255, null=True, choices=DocumentEnum.as_choices())
+    document_type = models.CharField(max_length=255, null=True, choices=DocumentEnum.as_choices(), validators=[validate_document_enum_choices])
     content = models.TextField(null=True, blank=True)
     is_original = models.BooleanField(default=False)
 
@@ -2184,7 +2176,9 @@ class Document(Resource):
             if not metadata_uri.startswith(own_uri_prefix):
                 # find metadata record which matches the metadata uri
                 try:
-                    dataset_md_record = Metadata.objects.get(metadata_url=metadata_uri)
+                    dataset_md_record = Metadata.objects.get(
+                        metadata_url=metadata_uri,
+                    )
                     uri = SERVICE_DATASET_URI_TEMPLATE.format(dataset_md_record.id)
                 except ObjectDoesNotExist:
                     # This is a bad situation... Only possible if the registered service has not been updated BUT the
@@ -2312,24 +2306,54 @@ class Document(Resource):
         self.save()
 
 
-class TermsOfUse(Resource):
-    name = models.CharField(max_length=100)
-    symbol_url = models.CharField(max_length=100)
-    description = models.TextField()
-    is_open_data = models.BooleanField(default=False)
-    fees = models.CharField(max_length=100)
-
-
-class CategoryOrigin(models.Model):
+class Licence(Resource):
     name = models.CharField(max_length=255)
-    uri = models.CharField(max_length=500)
+    identifier = models.CharField(max_length=255, unique=True)
+    symbol_url = models.URLField(null=True)
+    description = models.TextField()
+    description_url = models.URLField(null=True)
+    is_open_data = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.name
+        return "{} ({})".format(self.identifier, self.name)
+
+    @classmethod
+    def as_choices(cls):
+        """ Returns a list of (identifier, name) to be used as choices in a form
+
+        Returns:
+             tuple_list (list): As described above
+        """
+        return [(licence.identifier, licence.__str__()) for licence in Licence.objects.filter(is_active=True)]
+
+    @classmethod
+    def get_descriptions_help_text(cls):
+        """ Returns a string containing all active Licence records for rendering as help_text in a form
+
+        Returns:
+             string (str): As described above
+        """
+        from django.db.utils import ProgrammingError
+
+        try:
+            descrs = [
+                "<a href='{}' target='_blank'>{}</a>".format(
+                    licence.description_url, licence.identifier
+                ) for licence in Licence.objects.filter(
+                    is_active=True
+                )
+            ]
+            descr_str = "<br>".join(descrs)
+            descr_str = _("Explanations: <br>") + descr_str
+        except ProgrammingError:
+            # This will happen on an initial installation. The Licence table won't be created yet, but this function
+            # will be called on makemigrations.
+            descr_str = ""
+        return descr_str
 
 
 class Category(Resource):
-    type = models.CharField(max_length=255)
+    type = models.CharField(max_length=255, choices=CategoryOriginEnum.as_choices())
     title_locale_1 = models.CharField(max_length=255, null=True)
     title_locale_2 = models.CharField(max_length=255, null=True)
     title_EN = models.CharField(max_length=255, null=True)
@@ -2338,7 +2362,6 @@ class Category(Resource):
     description_EN = models.TextField(null=True)
     symbol = models.CharField(max_length=500, null=True)
     online_link = models.CharField(max_length=500, null=True)
-    origin = models.ForeignKey(CategoryOrigin, on_delete=models.DO_NOTHING, null=True)
 
     class Meta:
         ordering = ['-id']

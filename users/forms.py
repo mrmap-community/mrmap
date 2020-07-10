@@ -104,7 +104,7 @@ class SubscriptionForm(MrMapModelForm):
         label=_("Service"),
         help_text=_("Select the service you want to subscribe. When you edit an existing subscription, you can not change this selection."),
         queryset=Metadata.objects.filter(
-            metadata_type__type=MetadataEnum.SERVICE.value,
+            metadata_type=MetadataEnum.SERVICE.value,
             is_active=True,
         )
     )

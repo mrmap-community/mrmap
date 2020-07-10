@@ -93,6 +93,7 @@ class RoleSerializer(serializers.ModelSerializer):
 
     """
     permission = PermissionSerializer()
+
     class Meta:
         model = Role
         fields = [
@@ -121,7 +122,7 @@ class MetadataRelationMetadataSerializer(serializers.Serializer):
 
     """
     id = serializers.IntegerField(read_only=True)
-    type = serializers.CharField(read_only=True, source="metadata_type.type")
+    type = serializers.CharField(read_only=True, source="metadata_type")
     identifier = serializers.CharField(read_only=True)
 
     class Meta:
@@ -288,7 +289,7 @@ class CatalogueMetadataSerializer(serializers.Serializer):
     html_metadata_uri = serializers.CharField(read_only=True)
     fees = serializers.CharField(read_only=True)
     access_constraints = serializers.CharField(read_only=True)
-    terms_of_use = serializers.PrimaryKeyRelatedField(read_only=True)
+    licence = serializers.PrimaryKeyRelatedField(read_only=True)
     parent_service = serializers.IntegerField(read_only=True, source="service.parent_service.metadata.id")
     organization = OrganizationSerializer(read_only=True, source="contact")
     related_metadata = MetadataRelationSerializer(read_only=True, many=True)
@@ -325,7 +326,7 @@ class MonitoringSummarySerializer(serializers.Serializer):
     avg_availability_percent = serializers.FloatField()
 
 
-def serialize_metadata_relation(md: Metadata):
+def serialize_metadata_relation(md: Metadata) -> list:
     """ Serializes the related_metadata of a metadata element into a list of dict elements
 
     Faster version than using ModelSerializers
@@ -345,13 +346,13 @@ def serialize_metadata_relation(md: Metadata):
         rel_obj = OrderedDict()
         rel_obj["relation_from"] = {
             "id": md_from.id,
-            "type": md_from.metadata_type.type,
+            "type": md_from.metadata_type,
             "identifier": md_from.identifier
         }
         rel_obj["relation_type"] = rel.relation_type
         rel_obj["relation_to"] = {
             "id": md_to.id,
-            "type": md_to.metadata_type.type,
+            "type": md_to.metadata_type,
             "identifier": md_to.identifier
         }
 
@@ -360,7 +361,7 @@ def serialize_metadata_relation(md: Metadata):
     return relations
 
 
-def serialize_contact(md: Metadata):
+def serialize_contact(md: Metadata) -> OrderedDict:
     """ Serializes the contact of a metadata element into a dict element
 
     Faster version than using ModelSerializers
@@ -389,7 +390,7 @@ def serialize_contact(md: Metadata):
     return contact
 
 
-def serialize_dimensions(md: Metadata):
+def serialize_dimensions(md: Metadata) -> list:
     """ Serializes the dimensions of a metadata element into a list of dict elements
 
     Faster version than using ModelSerializers
@@ -414,7 +415,27 @@ def serialize_dimensions(md: Metadata):
     return dimensions
 
 
-def serialize_categories(md: Metadata):
+def serialize_licence(md: Metadata) -> OrderedDict:
+    """ Serializes the licence of a metadata element into a dict element
+
+    Args:
+        md (Metadata): The metadata element
+    Returns:
+         licence (OrderedDict): The serialized licence elements
+    """
+    licence = OrderedDict()
+    if md.licence is None:
+        return licence
+    licence["name"] = md.licence.name
+    licence["identifier"] = md.licence.identifier
+    licence["description"] = md.licence.description
+    licence["url"] = md.licence.description_url
+    licence["symbol_url"] = md.licence.symbol_url
+    licence["is_open_data"] = md.licence.is_open_data
+    return licence
+
+
+def serialize_categories(md: Metadata) -> list:
     """ Serializes the categories of a metadata element into a list of dict elements
 
     Faster version than using ModelSerializers
@@ -445,7 +466,7 @@ def serialize_categories(md: Metadata):
     return categories
 
 
-def perform_catalogue_entry_serialization(md: Metadata):
+def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
     """ Performs serialization for a single metadata object
 
     Args:
@@ -472,7 +493,7 @@ def perform_catalogue_entry_serialization(md: Metadata):
     serialized = OrderedDict()
     serialized["id"] = md.id
     serialized["identifier"] = md.identifier
-    serialized["type"] = md.metadata_type.type
+    serialized["type"] = md.metadata_type
     serialized["title"] = md.title
     serialized["abstract"] = md.abstract
     serialized["spatial_extent_geojson"] = bounding_geometry.geojson
@@ -481,7 +502,7 @@ def perform_catalogue_entry_serialization(md: Metadata):
     serialized["html_metadata_uri"] = md.html_metadata_uri
     serialized["fees"] = md.fees
     serialized["access_constraints"] = md.access_constraints
-    serialized["terms_of_use"] = md.terms_of_use
+    serialized["licence"] = serialize_licence(md)
     serialized["parent_service"] = parent_service
     serialized["keywords"] = [kw.keyword for kw in keywords]
     serialized["organization"] = serialize_contact(md)
@@ -492,7 +513,7 @@ def perform_catalogue_entry_serialization(md: Metadata):
     return serialized
 
 
-def serialize_catalogue_metadata(md_queryset: QuerySet):
+def serialize_catalogue_metadata(md_queryset: QuerySet) -> list:
     """ Serializes a metadata QuerySet into a list of dict elements
 
     Faster version than using ModelSerializers

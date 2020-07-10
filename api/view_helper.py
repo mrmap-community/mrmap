@@ -268,7 +268,7 @@ def filter_queryset_metadata_type(queryset, type: str):
         "service"
     ]
     if type in single_types:
-        filter_identifier = "metadata_type__type"
+        filter_identifier = "metadata_type"
     if type is not None:
         queryset = queryset.filter(
             **{filter_identifier: type},

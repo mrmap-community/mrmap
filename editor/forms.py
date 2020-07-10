@@ -12,16 +12,17 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django import forms
-
 from MrMap.cacher import PageCacher
-from MrMap.forms import MrMapModelForm, MrMapWizardForm, MrMapConfirmForm
+from MrMap.forms import MrMapConfirmForm
 from MrMap.messages import METADATA_EDITING_SUCCESS, SERVICE_MD_EDITED, METADATA_IS_ORIGINAL, \
     METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED
-from MrMap.widgets import BootstrapDatePickerInput, LeafletGeometryInput
 from api.settings import API_CACHE_KEY_PREFIX
 from editor.helper import editor_helper
-from service.helper.enums import MetadataEnum, OGCServiceEnum
-from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem, TermsOfUse
+from service.helper.enums import OGCServiceEnum
+from MrMap.forms import MrMapModelForm, MrMapWizardForm
+from MrMap.widgets import BootstrapDatePickerInput, LeafletGeometryInput
+from service.helper.enums import MetadataEnum, ResourceOriginEnum
+from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem, Licence
 from service.settings import ISO_19115_LANG_CHOICES
 from structure.models import Organization
 from users.helper import user_helper
@@ -34,7 +35,7 @@ class MetadataEditorForm(MrMapModelForm):
         super(MetadataEditorForm, self).__init__(*args, **kwargs)
 
         # there's a `fields` property now
-        self.fields['terms_of_use'].required = False
+        self.fields['licence'].required = False
         self.fields['categories'].required = False
         self.fields['keywords'].required = False
         self.has_autocomplete = True
@@ -45,7 +46,7 @@ class MetadataEditorForm(MrMapModelForm):
             "title",
             "abstract",
             "access_constraints",
-            "terms_of_use",
+            "licence",
             "keywords",
             "categories",
         ]
@@ -53,7 +54,7 @@ class MetadataEditorForm(MrMapModelForm):
             "title": _("Edit the title."),
             "abstract": _("Edit the description. Keep it short and simple."),
             "access_constraints": _("Edit the access constraints."),
-            "terms_of_use": _("Select another licence."),
+            "licence": Licence.get_descriptions_help_text(),
             "keywords": _(""),  # Since keywords are handled differently, this can be empty
             "categories": _("Select categories for this resource."),
         }
@@ -190,7 +191,7 @@ class DatasetIdentificationForm(MrMapWizardForm):
             metadata_relations = MetadataRelation.objects.filter(metadata_to=self.instance_id)
             additional_related_objects = []
             for metadata_relation in metadata_relations:
-                if metadata_relation.origin.name != 'capabilities':
+                if metadata_relation.origin != ResourceOriginEnum.CAPABILITIES.value:
                     additional_related_objects.append(metadata_relation.metadata_from)
             self.fields['additional_related_objects'].initial = additional_related_objects
 
@@ -236,9 +237,12 @@ class DatasetClassificationForm(MrMapWizardForm):
 
 
 class DatasetLicenseConstraintsForm(MrMapWizardForm):
-    terms_of_use = forms.ChoiceField(label=_('Terms of use'),
-                                     required=False,
-                                     choices=TermsOfUse.objects.all())
+    licence = forms.ModelChoiceField(
+        label=_('Terms of use'),
+        required=False,
+        queryset=Licence.objects.filter(is_active=True),
+        help_text=Licence.get_descriptions_help_text()
+    )
     access_constraints = forms.CharField(
         label=_('Access constraints'),
         required=False,
@@ -250,7 +254,7 @@ class DatasetLicenseConstraintsForm(MrMapWizardForm):
 
         if self.instance_id:
             metadata = Metadata.objects.get(id=self.instance_id)
-            self.fields['terms_of_use'].initial = metadata.terms_of_use
+            self.fields['licence'].initial = metadata.licence
             self.fields['access_constraints'].initial = metadata.access_constraints
 
 

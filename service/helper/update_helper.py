@@ -124,7 +124,6 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
     new.is_update_candidate_for = None
 
     # Save important persistance information
-    uuid = old.uuid
     _id = old.id
     created_by = old.created_by
     created_on = old.created
@@ -143,7 +142,6 @@ def update_metadata(old: Metadata, new: Metadata, keep_custom_md: bool):
     # Overwrite old information with new one
     old = deepcopy(new)
     old.id = _id
-    old.uuid = uuid
     old.created = created_on
     old.created_by = created_by
     old.is_active = activated
@@ -211,7 +209,6 @@ def update_service(old: Service, new: Service):
     new.is_update_candidate_for = None
 
     # save important persistance information
-    uuid = old.uuid
     _id = old.id
     created_by = old.created_by
     created_on = old.created
@@ -222,7 +219,6 @@ def update_service(old: Service, new: Service):
     # overwrite old information with new one
     old = deepcopy(new)
     old.id = _id
-    old.uuid = uuid
     old.created = created_on
     old.created_by = created_by
     old.published_for = published_for
@@ -247,7 +243,6 @@ def update_feature_type(old: FeatureType, new: FeatureType, keep_custom_metadata
          old (FeatureType): The overwritten metadata
     """
     # save important persistance information
-    uuid = old.uuid
     _id = old.id
     created_by = old.created_by
     created_on = old.created
@@ -257,7 +252,6 @@ def update_feature_type(old: FeatureType, new: FeatureType, keep_custom_metadata
     # overwrite old information with new one
     old = deepcopy(new)
     old.id = _id
-    old.uuid = uuid
     old.created = created_on
     old.created_by = created_by
     old.parent_service = service
@@ -281,7 +275,6 @@ def update_single_layer(old: Layer, new: Layer, keep_custom_metadata: bool = Fal
          old (Layer): The overwritten metadata
     """
     # save important persistance information
-    uuid = old.uuid
     _id = old.id
     created_by = old.created_by
     created_on = old.created
@@ -295,7 +288,6 @@ def update_single_layer(old: Layer, new: Layer, keep_custom_metadata: bool = Fal
 
     # Restore important information
     old.id = _id
-    old.uuid = uuid
     old.created = created_on
     old.created_by = created_by
     old.parent_service = parent_service

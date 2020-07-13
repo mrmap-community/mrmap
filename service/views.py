@@ -15,7 +15,7 @@ from requests.exceptions import ReadTimeout
 from MrMap import utils
 from MrMap.cacher import PreviewImageCacher
 from MrMap.consts import *
-from MrMap.decorator import check_permission, log_proxy, check_ownership
+from MrMap.decorator import check_permission, log_proxy, check_ownership, resolve_metadata_public_id
 from MrMap.messages import SERVICE_UPDATED, \
     SERVICE_NOT_FOUND, SECURITY_PROXY_ERROR_MISSING_REQUEST_TYPE, SERVICE_DISABLED, SERVICE_LAYER_NOT_FOUND, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
@@ -62,7 +62,7 @@ def _is_updatecandidate(metadata: Metadata):
     return False
 
 
-def _prepare_wms_table(request: HttpRequest, current_view: str):
+def _prepare_wms_table(request: HttpRequest, current_view: str, user_groups):
     """ Collects all wms service data and prepares parameter for rendering
 
     Args:
@@ -72,8 +72,6 @@ def _prepare_wms_table(request: HttpRequest, current_view: str):
          params (dict): The rendering parameter
     """
     # whether whole services or single layers should be displayed
-    user = user_helper.get_user(request)
-
     if 'show_layers' in request.GET and request.GET.get("show_layers").lower() == 'on':
         show_service = False
     else:
@@ -82,9 +80,13 @@ def _prepare_wms_table(request: HttpRequest, current_view: str):
     queryset = Metadata.objects.filter(
         service__service_type__name=OGCServiceEnum.WMS.value,
         service__is_root=show_service,
-        created_by__in=user.get_groups(),
+        created_by__in=user_groups,
         is_deleted=False,
         service__is_update_candidate_for=None
+    ).prefetch_related(
+        "contact",
+        "service",
+        "service__service_type",
     ).order_by("title")
 
     if show_service:
@@ -112,7 +114,7 @@ def _prepare_wms_table(request: HttpRequest, current_view: str):
     }
 
 
-def _prepare_wfs_table(request: HttpRequest, current_view: str):
+def _prepare_wfs_table(request: HttpRequest, current_view: str, user_groups):
     """ Collects all wfs service data and prepares parameter for rendering
 
     Args:
@@ -121,12 +123,15 @@ def _prepare_wfs_table(request: HttpRequest, current_view: str):
     Returns:
          params (dict): The rendering parameter
     """
-    user = user_helper.get_user(request)
     queryset = Metadata.objects.filter(
         service__service_type__name=OGCServiceEnum.WFS.value,
-        created_by__in=user.get_groups(),
+        created_by__in=user_groups,
         is_deleted=False,
         service__is_update_candidate_for=None
+    ).prefetch_related(
+        "contact",
+        "service",
+        "service__service_type",
     ).order_by("title")
 
     wfs_table = WfsServiceTable(request=request,
@@ -141,10 +146,10 @@ def _prepare_wfs_table(request: HttpRequest, current_view: str):
     }
 
 
-def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, current_view: str):
+def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, current_view: str, user_groups):
     dataset_table = DatasetTable(request=request,
                                  filter_set_class=MetadataDatasetFilter,
-                                 queryset=user.get_datasets_as_qs(),
+                                 queryset=user.get_datasets_as_qs(user_groups=user_groups),
                                  current_view=current_view,
                                  param_lead='dataset-t',)
     return {
@@ -183,12 +188,13 @@ def index(request: HttpRequest, update_params: dict = None, status_code: int = 2
          A view
     """
     user = user_helper.get_user(request)
+    user_groups = user.get_groups()
 
     # Default content
     template = "views/index.html"
 
     # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user.get_groups())
+    pt = PendingTask.objects.filter(created_by__in=user_groups)
     pt_table = PendingTasksTable(data=pt,
                                  orderable=False,
                                  request=request, )
@@ -198,9 +204,9 @@ def index(request: HttpRequest, update_params: dict = None, status_code: int = 2
         "current_view": "service:index",
     }
 
-    params.update(_prepare_wms_table(request=request, current_view='service:index'))
-    params.update(_prepare_wfs_table(request=request, current_view='service:index'))
-    params.update(_prepare_dataset_table(request=request, current_view='service:index', user=user))
+    params.update(_prepare_wms_table(request=request, current_view='service:index', user_groups=user_groups))
+    params.update(_prepare_wfs_table(request=request, current_view='service:index', user_groups=user_groups))
+    params.update(_prepare_dataset_table(request=request, current_view='service:index', user=user, user_groups=user_groups))
 
     if update_params:
         params.update(update_params)
@@ -249,7 +255,7 @@ def pending_tasks(request: HttpRequest, update_params: dict = None, status_code:
 @login_required
 @check_permission(Permission(can_remove_service=True))
 @check_ownership(Metadata, 'metadata_id')
-def remove(request: HttpRequest, metadata_id: int,):
+def remove(request: HttpRequest, metadata_id):
     """ Renders the remove form for a service
 
     Args:
@@ -272,23 +278,24 @@ def remove(request: HttpRequest, metadata_id: int,):
 
 
 @login_required
+@resolve_metadata_public_id
 @check_permission(Permission(can_activate_service=True))
-@check_ownership(Service, 'service_id')
-def activate(request: HttpRequest, service_id: int, ):
+@check_ownership(Metadata, 'metadata_id')
+def activate(request: HttpRequest, metadata_id):
     """ (De-)Activates a service and all of its layers
 
     Args:
-        service_id:
+        metadata_id:
         request:
     Returns:
          redirects to service:index
     """
-    md = get_object_or_404(Metadata, service__id=service_id)
+    md = get_object_or_404(Metadata, id=metadata_id)
 
     form = ActivateServiceForm(data=request.POST or None,
                                request=request,
                                reverse_lookup='service:activate',
-                               reverse_args=[service_id, ],
+                               reverse_args=[metadata_id, ],
                                # ToDo: after refactoring of all forms is done, show_modal can be removed
                                show_modal=True,
                                form_title=_(f"{'Deactivate' if md.is_active else 'Activate'} service <strong>{md}</strong>"),
@@ -297,11 +304,12 @@ def activate(request: HttpRequest, service_id: int, ):
     return form.process_request(valid_func=form.process_activate_service)
 
 
-def get_service_metadata(request: HttpRequest, metadata_id: int):
+@resolve_metadata_public_id
+def get_service_metadata(request: HttpRequest, metadata_id):
     """ Returns the service metadata xml file for a given metadata id
 
     Args:
-        metadata_id (int): The metadata id
+        metadata_id: The metadata id
     Returns:
          A HttpResponse containing the xml file
     """
@@ -316,11 +324,12 @@ def get_service_metadata(request: HttpRequest, metadata_id: int):
     return HttpResponse(doc, content_type=APP_XML)
 
 
-def get_dataset_metadata(request: HttpRequest, metadata_id: int):
+@resolve_metadata_public_id
+def get_dataset_metadata(request: HttpRequest, metadata_id):
     """ Returns the dataset metadata xml file for a given metadata id
 
     Args:
-        metadata_id (int): The metadata id
+        metadata_id: The metadata id
     Returns:
          A HttpResponse containing the xml file
     """
@@ -347,13 +356,14 @@ def get_dataset_metadata(request: HttpRequest, metadata_id: int):
         return HttpResponse(content=_("No dataset metadata found"), status=404)
     return HttpResponse(document, content_type='application/xml')
 
-# Todo: public index view
-def get_service_preview(request: HttpRequest, metadata_id: int):
+
+@resolve_metadata_public_id
+def get_service_preview(request: HttpRequest, metadata_id):
     """ Returns the service metadata preview as png for a given metadata id
 
     Args:
         request (HttpRequest): The incoming request
-        metadata_id (int): The metadata id
+        metadata_id: The metadata id
     Returns:
          A HttpResponse containing the png preview
     """
@@ -374,20 +384,26 @@ def get_service_preview(request: HttpRequest, metadata_id: int):
     bbox = md.find_max_bounding_box()
     bbox = str(bbox.extent).replace("(", "").replace(")", "")  # this is a little dumb, you may choose something better
 
-    # Fetch a supported version of png
-    png_format = md.formats.filter(
-        mime_type__icontains="image/"
-    ).first()
-
     img_width = 200
     img_heigt = 200
+
+    try:
+        # Fetch a supported version of png
+        png_format = md.get_supported_formats().filter(
+            mime_type__icontains="image/"
+        ).first()
+        img_format = png_format.mime_type
+    except AttributeError:
+        # Act as fallback
+        img_format = "image/png"
+
     data = {
         "request": OGCOperationEnum.GET_MAP.value,
         "version": OGCServiceVersionEnum.V_1_1_1.value,
         "layers": layer,
         "srs": DEFAULT_SRS_STRING,
         "bbox": bbox,
-        "format": png_format.mime_type,
+        "format": img_format,
         "width": img_width,
         "height": img_heigt,
         "service": "wms",
@@ -396,7 +412,6 @@ def get_service_preview(request: HttpRequest, metadata_id: int):
     query_data = QueryDict('', mutable=True)
     query_data.update(data)
 
-    request_post = request.POST
     request.POST._mutable = True
     request.POST = query_data
     request.method = 'POST'
@@ -430,12 +445,13 @@ def get_service_preview(request: HttpRequest, metadata_id: int):
     return HttpResponse(response, content_type=content_type)
 
 
-def _get_capabilities(request: HttpRequest, metadata_id: int):
+@resolve_metadata_public_id
+def _get_capabilities(request: HttpRequest, metadata_id):
     """ Returns the current capabilities xml file
 
     Args:
         request (HttpRequest): The incoming request
-        metadata_id (int): The metadata id
+        metadata_id : The metadata id
     Returns:
          A HttpResponse containing the xml file
     """
@@ -519,12 +535,12 @@ def _get_capabilities(request: HttpRequest, metadata_id: int):
     return HttpResponse(doc, content_type='application/xml')
 
 
-# Todo: public index view
-def get_metadata_html(request: HttpRequest, metadata_id: int):
+@resolve_metadata_public_id
+def get_metadata_html(request: HttpRequest, metadata_id):
     """ Returns the metadata as html rendered view
         Args:
             request (HttpRequest): The incoming request
-            metadata_id (int): The metadata id
+            metadata_id : The metadata id
         Returns:
              A HttpResponse containing the html formated metadata
     """
@@ -590,12 +606,13 @@ def wms_index(request: HttpRequest, update_params: dict = None, status_code: int
          A view
     """
     user = user_helper.get_user(request)
+    user_groups = user.get_groups()
 
     # Default content
     template = "views/wms_index.html"
 
     # get pending tasks
-    pt = PendingTask.objects.filter(created_by__in=user.get_groups())
+    pt = PendingTask.objects.filter(created_by__in=user_groups)
     pt_table = PendingTasksTable(data=pt,
                                  orderable=False,
                                  request=request, )
@@ -605,7 +622,7 @@ def wms_index(request: HttpRequest, update_params: dict = None, status_code: int
         "current_view": "service:wms-index",
     }
 
-    params.update(_prepare_wms_table(request=request, current_view='service:wms-index'))
+    params.update(_prepare_wms_table(request=request, current_view='service:wms-index', user_groups=user_groups))
 
     if update_params:
         params.update(update_params)
@@ -630,15 +647,21 @@ def datasets_index(request: HttpRequest, update_params=None, status_code: int = 
     Returns:
     """
     user = user_helper.get_user(request)
+    user_groups = user.get_groups()
 
     template = "views/datasets_index.html"
 
     params = {
         "current_view": 'service:datasets-index',
     }
-    params.update(_prepare_dataset_table(request=request,
-                                         user=user,
-                                         current_view='service:datasets-index'),)
+    params.update(
+        _prepare_dataset_table(
+            request=request,
+            user=user,
+            current_view='service:datasets-index',
+            user_groups=user_groups
+        ),
+    )
 
     if update_params:
         params.update(update_params)
@@ -653,7 +676,7 @@ def datasets_index(request: HttpRequest, update_params=None, status_code: int = 
 @check_permission(Permission(can_update_service=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
-def new_pending_update_service(request: HttpRequest, metadata_id: int,):
+def new_pending_update_service(request: HttpRequest, metadata_id):
     """ Compare old service with new service and collect differences
 
     Args:
@@ -706,7 +729,7 @@ def new_pending_update_service(request: HttpRequest, metadata_id: int,):
 @check_permission(Permission(can_update_service=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
-def pending_update_service(request: HttpRequest, metadata_id: int, update_params: dict = None, status_code: int = 200, ):
+def pending_update_service(request: HttpRequest, metadata_id, update_params: dict = None, status_code: int = 200, ):
     template = "views/service_update.html"
     user = user_helper.get_user(request)
 
@@ -778,7 +801,7 @@ def pending_update_service(request: HttpRequest, metadata_id: int, update_params
 @check_permission(Permission(can_update_service=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
-def dismiss_pending_update_service(request: HttpRequest, metadata_id: int):
+def dismiss_pending_update_service(request: HttpRequest, metadata_id):
     user = user_helper.get_user(request)
     current_service = get_object_or_404(Service, metadata__id=metadata_id)
     new_service = get_object_or_404(Service, is_update_candidate_for=current_service)
@@ -799,7 +822,7 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id: int):
 @check_permission(Permission(can_update_service=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
-def run_update_service(request: HttpRequest, metadata_id: int):
+def run_update_service(request: HttpRequest, metadata_id):
     user = user_helper.get_user(request)
 
     if request.method == 'POST':
@@ -822,11 +845,12 @@ def run_update_service(request: HttpRequest, metadata_id: int):
         diff_elements = diff.get("layers", None) or diff.get("feature_types", {})
 
         # We need to extract the linkage of new->old elements from the request by hand
+        # key identifies the new element and it's identifier (not id!) and choice identifies the existing element's id!
         links = {}
         prefix = "new_elem_"
         for key, choice in request.POST.items():
             if prefix in key:
-                links[key.replace(prefix, "")] = int(choice)
+                links[key.replace(prefix, "")] = choice
 
         update_confirmation_form = UpdateOldToNewElementsForm(request.POST,
                                                               new_elements=diff_elements.get("new"),
@@ -902,12 +926,13 @@ def wfs_index(request: HttpRequest, update_params=None, status_code=None):
          A view
     """
     user = user_helper.get_user(request)
+    user_groups = user.get_groups()
 
     # Default content
     template = "views/wfs_index.html"
 
     # get pending tasks
-    pending_tasks = PendingTask.objects.filter(created_by__in=user.get_groups())
+    pending_tasks = PendingTask.objects.filter(created_by__in=user_groups)
     pt_table = PendingTasksTable(data=pending_tasks,
                                  orderable=False,
                                  request=request, )
@@ -917,7 +942,7 @@ def wfs_index(request: HttpRequest, update_params=None, status_code=None):
         "current_view": "service:wfs-index"
     }
 
-    params.update(_prepare_wfs_table(request=request, current_view='service:wfs-indext'))
+    params.update(_prepare_wfs_table(request=request, current_view='service:wfs-indext', user_groups=user_groups))
 
     if update_params:
         params.update(update_params)
@@ -949,7 +974,7 @@ def _check_for_dataset_metadata(metadata: Metadata, ):
 # Todo: index view
 @login_required
 @check_ownership(Metadata, 'object_id')
-def detail(request: HttpRequest, object_id: int, update_params=None, status_code=None):
+def detail(request: HttpRequest, object_id, update_params=None, status_code=None):
     """ Renders a detail view of the selected service
 
     Args:
@@ -995,7 +1020,9 @@ def detail(request: HttpRequest, object_id: int, update_params=None, status_code
             params.update({'has_dataset_metadata': _check_for_dataset_metadata(service.metadata)})
 
     mime_types = {}
-    for mime in service_md.formats.all():
+
+    formats = service_md.formats.all()
+    for mime in formats:
         op = mime_types.get(mime.operation)
         if op is None:
             op = []
@@ -1024,8 +1051,9 @@ def detail(request: HttpRequest, object_id: int, update_params=None, status_code
 
 
 @csrf_exempt
+@resolve_metadata_public_id
 @log_proxy
-def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id: int):
+def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id):
     """ Checks whether the requested metadata is secured and resolves the operations uri for an allowed user - or not.
 
     Decides which operation will be handled by resolving a given 'request=' query parameter.
@@ -1035,7 +1063,7 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id:
     Args:
         request (HttpRequest): The incoming request
         proxy_log (ProxyLog): The logging object
-        metadata_id (int): The metadata id
+        metadata_id: The metadata id
     Returns:
          A redirect to the GetMap uri
     """
@@ -1116,14 +1144,15 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id:
         return HttpResponse(status=500, content=e)
 
 
-def get_metadata_legend(request: HttpRequest, metadata_id: int, style_id: int):
+@resolve_metadata_public_id
+def get_metadata_legend(request: HttpRequest, metadata_id, style_id: int):
     """ Calls the legend uri of a special style inside the metadata (<LegendURL> element) and returns the response to the user
 
     This function has to be public available (no check_session decorator)
 
     Args:
         request (HttpRequest): The incoming HttpRequest
-        metadata_id (int): The metadata id
+        metadata_id: The metadata id
         style_id (int): The style id
     Returns:
         HttpResponse

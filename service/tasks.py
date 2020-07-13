@@ -47,11 +47,11 @@ def async_increase_hits(metadata_id: int):
 
 @shared_task(name="async_activate_service")
 @transaction.atomic
-def async_activate_service(service_id: int, user_id: int, is_active: bool):
+def async_activate_service(metadata_id, user_id: int, is_active: bool):
     """ Async call for activating a service, its subelements and all of their related metadata
 
     Args:
-        service_id (int): The service parameter
+        metadata_id : The service parameter
         user_id (int): The user id of the performing user
 
     Returns:
@@ -60,7 +60,7 @@ def async_activate_service(service_id: int, user_id: int, is_active: bool):
     user = MrMapUser.objects.get(id=user_id)
 
     # get service and change status
-    service = Service.objects.get(id=service_id)
+    service = Service.objects.get(metadata__id=metadata_id)
 
     elements = service.subelements + [service]
     for element in elements:
@@ -245,6 +245,14 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
         # after service AND documents have been persisted, we can now set the service being secured if needed
         if external_auth is not None:
             service.metadata.set_proxy(True)
+
+        # after metadata has been persisted, we can auto-generate all metadata public_id's
+        metadatas = service.metadata.get_subelements_metadatas()
+        metadatas = [service.metadata] + metadatas
+        for md in metadatas:
+            if md.public_id is None:
+                md.public_id = md.generate_public_id()
+                md.save()
 
         print_debug_mode(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
         user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)

@@ -288,7 +288,7 @@ class ServiceTestCase(TestCase):
         """
         # activate service
         # since activating runs async as well, we need to call this function directly
-        tasks.async_activate_service(self.service_wms.id, self.user.id, not self.service_wms.metadata.is_active)
+        tasks.async_activate_service(self.service_wms.metadata.id, self.user.id, not self.service_wms.metadata.is_active)
         self.service_wms.refresh_from_db()
 
         service = self.service_wms

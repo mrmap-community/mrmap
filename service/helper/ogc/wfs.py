@@ -409,9 +409,7 @@ class OGCWebFeatureService(OGCWebService):
         md = Metadata()
         md_type = MetadataEnum.FEATURETYPE.value
         md.metadata_type = md_type
-        md.uuid = uuid.uuid4()
         f_t.metadata = md
-        f_t.uuid = uuid.uuid4()
         md.title = xml_helper.try_get_text_from_xml_element(
             xml_elem=feature_type,
             elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("Title")
@@ -722,7 +720,6 @@ class OGCWebFeatureService(OGCWebService):
         md.title = self.service_identification_title
         if self.service_file_identifier is None:
             self.service_file_identifier = uuid.uuid4()
-        md.uuid = self.service_file_identifier
         md.identifier = self.service_file_identifier
         md.abstract = self.service_identification_abstract
         md.online_resource = self.service_provider_onlineresource_linkage

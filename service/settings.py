@@ -154,3 +154,5 @@ DIMENSION_TYPE_CHOICES = [
     ("elevation", "elevation"),
     ("other", "other"),
 ]
+
+NONE_UUID = "00000000-0000-0000-0000-000000000000"

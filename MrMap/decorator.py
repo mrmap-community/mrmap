@@ -6,6 +6,7 @@ Created on: 08.05.19
 
 """
 import json
+import uuid
 
 from django.contrib import messages
 from django.core.exceptions import ObjectDoesNotExist
@@ -17,6 +18,7 @@ from MrMap.messages import NO_PERMISSION, SERVICE_NOT_FOUND, RESOURCE_IS_OWNED_B
     REQUESTING_USER_IS_NOT_MEMBER_OF_THE_GROUP, REQUESTING_USER_IS_NOT_MEMBER_OF_THE_ORGANIZATION
 from MrMap.utils import get_dict_value_insensitive
 from service.models import Metadata, ProxyLog, Resource
+from service.settings import NONE_UUID
 from structure.models import Permission, MrMapUser, MrMapGroup, Organization
 from users.helper import user_helper
 
@@ -32,12 +34,12 @@ def check_permission(permission_needed: Permission):
     def method_wrap(function):
         def wrap(request, *args, **kwargs):
             user = user_helper.get_user(request)
-            user_permissions = user.get_permissions()
-            perm_needed = permission_needed.get_permission_list()
-            for perm in perm_needed:
-                if perm not in user_permissions:
-                    messages.add_message(request, messages.ERROR, NO_PERMISSION)
-                    return redirect(request.META.get("HTTP_REFERER") if "HTTP_REFERER" in request.META else reverse('home'))
+            has_perm = user.has_permission(permission_needed)
+
+            if not has_perm:
+                messages.add_message(request, messages.ERROR, NO_PERMISSION)
+                return redirect(request.META.get("HTTP_REFERER") if "HTTP_REFERER" in request.META else reverse('home'))
+
             return function(request=request, *args, **kwargs)
 
         wrap.__doc__ = function.__doc__
@@ -128,6 +130,32 @@ def log_proxy(function):
             )
             proxy_log.save()
         return function(request=request, proxy_log=proxy_log, *args, **kwargs)
+
+    wrap.__doc__ = function.__doc__
+    wrap.__name__ = function.__name__
+    return wrap
+
+
+def resolve_metadata_public_id(function):
+    def wrap(request, *args, **kwargs):
+        possible_parameter_names = [
+            "metadata_id",  # regular usage
+            "pk",  # usage in DjangoRestFramework (API)
+        ]
+        found_params = [p for p in possible_parameter_names if p in kwargs]
+        for param in found_params:
+            try:
+                uuid.UUID(kwargs[param])
+                # We could cast the id to an UUID. This means the regular integer has been provided. Nothing to do here
+            except ValueError:
+                # We could not create a uuid from the given metadata_id -> it might be a public_id
+                try:
+                    md = Metadata.objects.get(public_id=kwargs[param])
+                    kwargs[param] = str(md.id)
+                except ObjectDoesNotExist:
+                    # No metadata could be found, we provide the empty uuid
+                    kwargs[param] = NONE_UUID
+        return function(request=request, *args, **kwargs)
 
     wrap.__doc__ = function.__doc__
     wrap.__name__ = function.__name__

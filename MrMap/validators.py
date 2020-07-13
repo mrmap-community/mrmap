@@ -1,3 +1,5 @@
+import uuid
+
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
@@ -159,3 +161,19 @@ def validate_choice(value, choices: list):
         raise ValidationError(
             "Given value '{}' is not matching possible choices!".format(value)
         )
+
+
+def not_uuid(value):
+    """ Validates a given value to not be a uuid
+
+    Args:
+        value: The value
+    Returns:
+
+    """
+    try:
+        uuid.UUID(value)
+        raise ValidationError("UUID not allowed!")
+    except ValueError:
+        # Could not create a uuid from string - all good!
+        pass

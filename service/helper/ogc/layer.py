@@ -116,7 +116,6 @@ class OGCLayer:
         md_type = MetadataEnum.LAYER.value
         metadata.metadata_type = md_type
         metadata.title = self.title
-        metadata.uuid = uuid.uuid4()
         metadata.abstract = self.abstract
         metadata.online_resource = parent_service.metadata.online_resource
         metadata.capabilities_original_uri = parent_service.metadata.capabilities_original_uri
@@ -161,7 +160,6 @@ class OGCLayer:
         """
         # Layer
         layer = Layer()
-        layer.uuid = uuid.uuid4()
         layer.metadata = metadata
         layer.identifier = self.identifier
         layer.service_type = parent_service.service_type

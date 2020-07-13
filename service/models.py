@@ -17,6 +17,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.contrib.gis.db import models
 from django.utils import timezone
+from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
 from MrMap.cacher import DocumentCacher
@@ -24,6 +25,7 @@ from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
 from MrMap.utils import print_debug_mode
+from MrMap.validators import not_uuid
 from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
@@ -37,7 +39,8 @@ from service.helper import xml_helper
 
 
 class Resource(models.Model):
-    uuid = models.CharField(max_length=255, default=uuid.uuid4())
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    public_id = models.CharField(unique=True, max_length=255, validators=[not_uuid], null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(MrMapGroup, on_delete=models.SET_NULL, null=True, blank=True)
     last_modified = models.DateTimeField(null=True)
@@ -530,7 +533,6 @@ class ExternalAuthentication(models.Model):
 
 class Metadata(Resource):
     from MrMap.validators import validate_metadata_enum_choices
-    id = models.BigAutoField(primary_key=True,)
     identifier = models.CharField(max_length=255, null=True)
     title = models.CharField(max_length=255)
     abstract = models.TextField(null=True, blank=True)
@@ -680,6 +682,29 @@ class Metadata(Resource):
         elif self.is_featuretype_metadata:
             ret_val = self.featuretype
         return ret_val
+
+    def get_supported_formats(self):
+        """ Returns supported formats.
+
+        If no formats are set for the metadata, the subelement metadatas will be searched for valid formats
+
+        Returns:
+
+        """
+        formats = self.formats.all()
+        if formats.count() > 0:
+            return formats
+        sub_mds = self.get_subelements_metadatas()
+        for sub_md in sub_mds:
+            formats = formats.union(sub_md.formats.all())
+
+        # After union() usage filter() options are not possible anymore. Therefore we fetch the formats again from the
+        # db, since we have their ids now.
+        formats = [format.id for format in formats]
+        formats = MimeType.objects.filter(
+            id__in=formats
+        )
+        return formats
 
     def clear_upper_element_capabilities(self, clear_self_too=False):
         """ Removes current_capability_document from upper element Document records.
@@ -990,6 +1015,32 @@ class Metadata(Resource):
 
         self.save()
 
+    def generate_public_id(self, stump: str = None):
+        """ Generates a public_id for a Metadata entry.
+
+        If no stump was provided, the title attribute will be used as stump.
+
+        Args:
+            stump (str): The base string input, which will be incremented if already taken
+        Returns:
+             public_id (str): The generated public id
+        """
+        if stump is None:
+            stump = self.title
+        slug_stump = slugify(stump)
+        exists = Metadata.objects.filter(
+            public_id=slug_stump
+        ).exists()
+        counter = 1
+        public_id = slug_stump
+        while exists:
+            public_id = "{}-{}".format(slug_stump, counter)
+            counter += 1
+            exists = Metadata.objects.filter(
+                public_id=public_id
+            ).exists()
+        return public_id
+
     def save(self, *args, **kwargs):
         """ Overwriting the regular save function
 
@@ -1049,7 +1100,6 @@ class Metadata(Resource):
             # if we have one or less relations to this metadata record, we can remove it anyway
             super().delete(using, keep_parents)
 
-
     def get_service_type(self):
         """ Performs a check on which service type is described by the metadata record
 
@@ -1086,7 +1136,7 @@ class Metadata(Resource):
             service = self.service
         service_version = service.service_type.version
         for v in OGCServiceVersionEnum:
-            if v.value == service_version:
+            if v.value == service_version or v.name == service_version:
                 return v
         return service_version
 
@@ -1557,7 +1607,6 @@ class Metadata(Resource):
 
 class Document(Resource):
     from MrMap.validators import validate_document_enum_choices
-    id = models.BigAutoField(primary_key=True)
     metadata = models.ForeignKey(Metadata, on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=255, null=True, choices=DocumentEnum.as_choices(), validators=[validate_document_enum_choices])
     content = models.TextField(null=True, blank=True)
@@ -2380,7 +2429,6 @@ class ServiceType(models.Model):
 
 
 class Service(Resource):
-    id = models.BigAutoField(primary_key=True)
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)

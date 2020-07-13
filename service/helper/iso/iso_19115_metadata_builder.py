@@ -148,7 +148,7 @@ class Iso19115MetadataBuilder:
         elem = Element(
             self.gco + "CharacterString"
         )
-        elem.text = self.metadata.uuid
+        elem.text = str(self.metadata.id)
         xml_helper.add_subelement(ret_elem, elem)
         return ret_elem
 

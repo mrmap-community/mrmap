@@ -1289,7 +1289,9 @@ class Metadata(Resource):
         self.use_proxy_uri = False
 
         cap_doc = Document.objects.get(
-            metadata=self
+            metadata=self,
+            document_type=DocumentEnum.CAPABILITY.value,
+            is_original=False,
         )
         cap_doc.restore()
 
@@ -1393,12 +1395,15 @@ class Metadata(Resource):
         self.dataset.lineage_statement = original_metadata_document.lineage
         self.dataset.character_set_code = original_metadata_document.character_set_code
 
-        doc = Document.objects.get_or_create(
+        doc = Document.objects.get(
             metadata=self,
             document_type=DocumentEnum.METADATA.value,
-            is_original=True,
-        )[0]
-        doc.content = doc.original_dataset_metadata_document
+            is_original=False,)
+
+        doc.content = Document.objects.get(
+            metadata=self,
+            document_type=DocumentEnum.METADATA.value,
+            is_original=True,).content
         doc.save()
 
     def restore(self, identifier: str = None, external_auth: ExternalAuthentication = None):

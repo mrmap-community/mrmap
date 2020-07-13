@@ -45,6 +45,7 @@ class MetadataEditorForm(MrMapModelForm):
         fields = [
             "title",
             "abstract",
+            "language_code",
             "access_constraints",
             "licence",
             "keywords",
@@ -53,6 +54,7 @@ class MetadataEditorForm(MrMapModelForm):
         help_texts = {
             "title": _("Edit the title."),
             "abstract": _("Edit the description. Keep it short and simple."),
+            "language_code": _("Edit the language which the metadata is represented."),
             "access_constraints": _("Edit the access constraints."),
             "licence": Licence.get_descriptions_help_text(),
             "keywords": _(""),  # Since keywords are handled differently, this can be empty

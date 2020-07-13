@@ -16,7 +16,6 @@ from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
 from service.helper.enums import ResourceOriginEnum
-from service.models import MetadataRelation
 from structure.models import Permission
 
 
@@ -568,7 +567,7 @@ class DatasetTable(MrMapTable):
                              new_tab=True)
 
     def render_dataset_related_objects(self, record):
-        relations = MetadataRelation.objects.filter(metadata_to=record)
+        relations = record.related_metadata.all()
         link_list = []
         for relation in relations:
             url = reverse('service:detail', args=(relation.metadata_from.id,))
@@ -581,14 +580,14 @@ class DatasetTable(MrMapTable):
         return format_html(', '.join(link_list))
 
     def render_dataset_origins(self, record):
-        relations = MetadataRelation.objects.filter(metadata_to=record)
+        relations = record.related_metadata.all()
         origin_list = []
         for relation in relations:
             origin_list.append(f"{relation.origin} [{relation.metadata_from.id}]")
         return format_html(', '.join(origin_list))
 
     def render_dataset_actions(self, record):
-        relations = MetadataRelation.objects.filter(metadata_to=record)
+        relations = record.related_metadata.all()
         is_mr_map_origin = True
         for relation in relations:
             if relation.origin != ResourceOriginEnum.EDITOR:

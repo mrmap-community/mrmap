@@ -44,9 +44,9 @@ class DimensionAdmin(admin.ModelAdmin):
 
 
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata_link', 'uuid', 'document_type', 'is_original', 'is_active', 'created', 'created_by_link', 'last_modified')
+    list_display = ('id', 'metadata_link', 'document_type', 'is_original', 'is_active', 'created', 'created_by_link', 'last_modified')
     list_filter = ('is_active', 'document_type', 'is_original', 'is_active', )
-    search_fields = ['id', 'metadata__id', 'metadata__title', 'uuid', 'last_modified']
+    search_fields = ['id', 'metadata__id', 'metadata__title', 'last_modified']
 
     def metadata_link(self, obj):
         return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata.id,)), escape(obj.metadata)))
@@ -71,15 +71,15 @@ class ExternalAuthenticationAdmin(admin.ModelAdmin):
 
 
 class FeatureTypeElementAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'type', 'uuid', 'created', 'created_by')
+    list_display = ('id', 'name', 'type', 'created', 'created_by')
     list_filter = ('created_by', )
-    search_fields = ['id', 'name', 'type', 'uuid', 'created', 'created_by__name', ]
+    search_fields = ['id', 'name', 'type', 'created', 'created_by__name', ]
 
 
 class FeatureTypeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'uuid', 'parent_service', 'created', 'created_by', 'last_modified')
+    list_display = ('id', 'metadata', 'parent_service', 'created', 'created_by', 'last_modified')
     list_filter = ('created_by',)
-    search_fields = ['id', 'metadata__title', 'uuid', 'created', 'created_by__name', ]
+    search_fields = ['id', 'metadata__title', 'created', 'created_by__name', ]
 
 
 class KeywordAdmin(admin.ModelAdmin):
@@ -88,13 +88,13 @@ class KeywordAdmin(admin.ModelAdmin):
 
 
 class LayerAdmin(admin.ModelAdmin):
-    list_display = ('id', 'metadata', 'identifier', 'uuid', 'parent_service', 'parent_layer', 'created', 'created_by', 'last_modified')
+    list_display = ('id', 'metadata', 'identifier', 'parent_service', 'parent_layer', 'created', 'created_by', 'last_modified')
     list_filter = ('created_by',)
-    search_fields = ['id', 'metadata__title', 'identifier', 'uuid', 'created', 'created_by__name', 'last_modified',]
+    search_fields = ['id', 'metadata__title', 'identifier', 'created', 'created_by__name', 'last_modified',]
 
 
 class MetadataAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'service', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact', 'uuid')
+    list_display = ('id', 'title', 'service', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact')
     list_filter = ('metadata_type', 'is_active', 'is_broken')
     search_fields = ['id', 'title', ]
 

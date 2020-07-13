@@ -11,7 +11,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from django.test import TestCase, Client, RequestFactory
 
-from MrMap.decorator import log_proxy, check_permission, check_ownership
+from MrMap.decorator import log_proxy, check_permission, check_ownership, resolve_metadata_public_id
 from service.models import Metadata, ProxyLog, Service
 from structure.models import Permission, MrMapGroup, Organization
 from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service, create_testuser, \
@@ -88,6 +88,10 @@ class DecoratorTestCase(TestCase):
         first_group = user_groups.first()
         first_group.role.permission.can_create_organization = True
         first_group.role.permission.save()
+
+        # Reset cached data
+        request.user.permissions_cache = None
+        request.user.groups_cache = None
 
         # Testuser permission check with permission must run
         # Mock the request
@@ -262,3 +266,29 @@ class DecoratorTestCase(TestCase):
         self.assertIsInstance(proxy_log, ProxyLog, msg="proxy_log record is not a ProxyLog instance")
         self.assertEqual(proxy_log.user, self.user, msg="Another user has been related to the ProxyLog record")
         self.assertEqual(proxy_log.uri, TEST_URI_LOG_STRING, msg="The uri has not been stored correctly into the ProxyLog record")
+
+    def test_resolve_metadata_public_id(self):
+        """ Tests whether the public_id of a metadata can be resolved into the regular one.
+
+        Returns:
+
+        """
+        # Mock the usage of the decorator
+        @resolve_metadata_public_id
+        def test_function(request, *args, **kwargs):
+            return HttpResponse(content=kwargs.get("metadata_id", None))
+
+        requested_md = self.metadata
+        request = self.request_factory.get(
+            "http://test.com/{}".format(requested_md.id),
+        )
+        request.user = self.default_user
+
+        # Add a public_id
+        self.metadata.public_id = "TEST_PUBLIC_ID"
+        self.metadata.save()
+
+        response = test_function(request, metadata_id=str(self.metadata.id))
+        self.assertEqual(response.content.decode("UTF-8"), str(self.metadata.id))
+        response = test_function(request, metadata_id=self.metadata.public_id)
+        self.assertEqual(response.content.decode("UTF-8"), str(self.metadata.id))

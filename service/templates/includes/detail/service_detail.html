@@ -23,11 +23,11 @@
     <div class="col-sm mb-2 text-center">
             {% if 'can_activate_service' in user_permissions %}
                     {% if service_md.is_active %}
-                        <a href="{% url 'service:activate' service.id %}?current-view={{current_view}}&current-view-arg={{current_view_arg}}" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" role="button">
+                        <a href="{% url 'service:activate' service_md.id %}?current-view={{current_view}}&current-view-arg={{current_view_arg}}" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" role="button">
                             {% autoescape off %}{{THEME.ICONS.NOK}}{% endautoescape %} {% trans 'Deactivate' %}
                         </a>
                     {% else %}
-                        <a href="{% url 'service:activate' service.id %}?current-view={{current_view}}&current-view-arg={{current_view_arg}}" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" role="button">
+                        <a href="{% url 'service:activate' service_md.id %}?current-view={{current_view}}&current-view-arg={{current_view_arg}}" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" role="button">
                             {% autoescape off %}{{THEME.ICONS.OK}}{% endautoescape %} {% trans 'Activate' %}
                         </a>
                 {% endif %}

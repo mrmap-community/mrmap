@@ -637,7 +637,7 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
                 contents.update({"{}" + key: ""})
 
         # Create xml elements
-        service_mime_types = service.metadata.formats.all()
+        service_mime_types = service.metadata.get_supported_formats()
         for key, val in contents.items():
             k = key.format(self.default_ns)
             elem = xml_helper.create_subelement(request_elem, k)

@@ -206,8 +206,11 @@ INSTALLED_APPS = [
     'query_parameters',
     'django_nose',
     'mathfilters',
-    'debug_toolbar',
 ]
+if DEBUG:
+    INSTALLED_APPS.append(
+        'debug_toolbar',
+    )
 
 TEMPLATE_LOADERS = (
     'django.template.loaders.structure.mr_map_filters.py',

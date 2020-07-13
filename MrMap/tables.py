@@ -36,6 +36,9 @@ class MrMapTable(tables.Table):
         self.user = user_helper.get_user(request)
         self.current_view = current_view
         self.param_lead = param_lead
+
+        self.permission_lookup = {}
+
         # He we set the data kw dynamic by the query_class and query_filter,
         # so we don't need to set the data kw in every view again and again
         # ToDo: it's a little bit messy... refactor this if/else
@@ -74,8 +77,17 @@ class MrMapTable(tables.Table):
         self.paginate(page=self.request.GET.get(self.pagination.get('page_name'), PAGE_DEFAULT),
                       per_page=self.request.GET.get(self.pagination.get('page_size_param'), PAGE_SIZE_DEFAULT))
 
+    def check_render_permission(self, permission: Permission):
+        perm_identifier = str(permission.get_permission_set())
+        has_perm = self.permission_lookup.get(perm_identifier, None)
+        if has_perm is None:
+            self.permission_lookup[perm_identifier] = self.user.has_permission(permission)
+            has_perm = self.permission_lookup[perm_identifier]
+        return has_perm
+
     def get_link(self, href: str, value: str, tooltip: str, tooltip_placement: str, permission: Permission):
-        if self.user.has_permission(permission):
+        has_perm = self.check_render_permission(permission)
+        if has_perm:
             context = {
                 "href": href,
                 "value": value,
@@ -89,7 +101,8 @@ class MrMapTable(tables.Table):
             return ''
 
     def get_btn(self, href: str, btn_color: str, btn_value: str, permission: Permission, tooltip: str = '', tooltip_placement: str = 'left',):
-        if self.user.has_permission(permission):
+        has_perm = self.check_render_permission(permission)
+        if has_perm:
             context = {
                 "btn_size": BTN_SM_CLASS,
                 "btn_color": btn_color,

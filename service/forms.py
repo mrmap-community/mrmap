@@ -19,9 +19,9 @@ from django.contrib import messages
 
 from service.helper import service_helper
 from service.helper.enums import OGCServiceEnum
-from service.models import Service
+from service.models import Service, MrMapGroup
 from service import tasks
-from structure.models import MrMapGroup
+from service.settings import NONE_UUID
 
 
 class ServiceURIForm(forms.Form):
@@ -148,7 +148,7 @@ class UpdateOldToNewElementsForm(forms.Form):
         super(UpdateOldToNewElementsForm, self).__init__(*args, **kwargs)
 
         # Prepare remove elements as choices
-        remove_elements_choices = [(-1, _("---"))]
+        remove_elements_choices = [(NONE_UUID, _("---"))]
         for elem in removed_elements:
             remove_elements_choices.append((elem.metadata.id, elem.metadata.identifier))
 

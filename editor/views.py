@@ -28,7 +28,7 @@ from editor.helper import editor_helper
 @login_required
 @check_permission(Permission(can_remove_dataset_metadata=True))
 @check_ownership(Metadata, 'metadata_id')
-def remove_dataset(request: HttpRequest, metadata_id: int, ):
+def remove_dataset(request: HttpRequest, metadata_id):
     """ The remove view for dataset metadata
 
     Args:
@@ -77,7 +77,7 @@ def add_new_dataset_wizard(request: HttpRequest, ):
 @login_required
 @check_permission(Permission(can_edit_dataset_metadata=True))
 @check_ownership(Metadata, 'metadata_id')
-def edit_dataset_wizard(request, metadata_id: int):
+def edit_dataset_wizard(request, metadata_id):
     metadata = get_object_or_404(Metadata, id=metadata_id)
     return DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
                                  ignore_uncomitted_forms=True,
@@ -92,7 +92,7 @@ def edit_dataset_wizard(request, metadata_id: int):
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
 @check_ownership(Metadata, 'metadata_id')
-def edit(request: HttpRequest, metadata_id: int,):
+def edit(request: HttpRequest, metadata_id):
     """ The edit view for metadata
 
     Provides editing functions for all elements which are described by Metadata objects
@@ -123,7 +123,7 @@ def edit(request: HttpRequest, metadata_id: int,):
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
 @check_ownership(Metadata, 'id')
-def edit_access(request: HttpRequest, id: int):
+def edit_access(request: HttpRequest, id):
     """ The edit view for the operations access
 
     Provides a form to set the access permissions for a metadata-related object.
@@ -193,7 +193,7 @@ def edit_access(request: HttpRequest, id: int):
 
 
 @login_required
-def access_geometry_form(request: HttpRequest, id: int):
+def access_geometry_form(request: HttpRequest, id):
     """ Renders the geometry form for the access editing
 
     Args:
@@ -220,7 +220,7 @@ def access_geometry_form(request: HttpRequest, id: int):
 
     if not md.is_root():
         messages.info(request, message=SECURITY_PROXY_WARNING_ONLY_FOR_ROOT)
-        return BackendAjaxResponse(html="", redirect=reverse('edit_access', args=(md.id,))).get_response()
+        return BackendAjaxResponse(html="", redirect=reverse('editor:edit_access', args=(md.id,))).get_response()
 
     service_bounding_geometry = md.find_max_bounding_box()
 
@@ -239,7 +239,7 @@ def access_geometry_form(request: HttpRequest, id: int):
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
 @check_ownership(Metadata, 'metadata_id')
-def restore(request: HttpRequest, metadata_id: int, ):
+def restore(request: HttpRequest, metadata_id):
     """ Drops custom metadata and load original metadata from capabilities and ISO metadata
 
     Args,
@@ -265,12 +265,12 @@ def restore(request: HttpRequest, metadata_id: int, ):
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
 @check_ownership(Metadata, 'metadata_id')
-def restore_dataset_metadata(request: HttpRequest, metadata_id: int, ):
+def restore_dataset_metadata(request: HttpRequest, metadata_id):
     """ Drops custom metadata and load original metadata from capabilities and ISO metadata
 
     Args,
         request: The incoming request
-        id: The metadata id
+        metadata_id: The metadata id
     Returns:
          Redirects back to edit view
     """

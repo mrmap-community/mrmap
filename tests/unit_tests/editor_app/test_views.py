@@ -9,10 +9,10 @@ from django.contrib.messages import get_messages
 from django.test import TestCase, Client
 from django.urls import reverse
 
-from MrMap.messages import METADATA_RESTORING_SUCCESS, METADATA_IS_ORIGINAL
+from MrMap.messages import METADATA_IS_ORIGINAL
 from editor.forms import MetadataEditorForm
 
-from service.helper.enums import ResourceOriginEnum
+from service.helper.enums import ResourceOriginEnum, MetadataEnum
 from service.models import Metadata
 from service.tables import DatasetTable
 from tests.baker_recipes.db_setup import create_superadminuser, create_wms_service, create_public_organization
@@ -48,9 +48,11 @@ class EditorMetadataEditViewTestCase(TestCase):
         Returns:
 
         """
-        metadata = Metadata.objects.all().first()
+        metadata = Metadata.objects.filter(
+            metadata_type=MetadataEnum.SERVICE.value
+        ).first()
         response = self.client.get(
-            reverse(EDITOR_METADATA_EDITOR_NAME, args=(metadata.id,))+"?current-view=service:index",
+            reverse(EDITOR_METADATA_EDITOR_NAME, args=(str(metadata.id),))+"?current-view=service:index",
         )
         self.assertEqual(response.status_code, 200, )
         self.assertIsInstance(response.context["form"], MetadataEditorForm)
@@ -74,7 +76,7 @@ class EditorAccessEditViewTestCase(TestCase):
         """
         metadata = Metadata.objects.all().first()
         response = self.client.get(
-            reverse(EDITOR_ACCESS_EDITOR_NAME, args=(metadata.id,))+"?current-view=service:index",
+            reverse(EDITOR_ACCESS_EDITOR_NAME, args=(str(metadata.id),))+"?current-view=service:index",
         )
         self.assertEqual(response.status_code, 200, )
         self.assertTemplateUsed(response=response, template_name="views/editor_edit_access_index.html")
@@ -87,9 +89,11 @@ class EditorAccessEditViewTestCase(TestCase):
         Returns:
 
         """
-        metadata = Metadata.objects.all().first()
+        metadata = Metadata.objects.filter(
+            metadata_type=MetadataEnum.SERVICE.value
+        ).first()
         response = self.client.get(
-            reverse(EDITOR_ACCESS_GEOMETRY_EDITOR_NAME, args=(metadata.id,)),
+            reverse(EDITOR_ACCESS_GEOMETRY_EDITOR_NAME, args=(str(metadata.id),)),
         )
         self.assertEqual(response.status_code, 200, )
         self.assertTemplateUsed(response=response, template_name="views/access_geometry_form.html")

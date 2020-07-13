@@ -83,6 +83,10 @@ def _prepare_wms_table(request: HttpRequest, current_view: str, user_groups):
         created_by__in=user_groups,
         is_deleted=False,
         service__is_update_candidate_for=None
+    ).prefetch_related(
+        "contact",
+        "service",
+        "service__service_type",
     ).order_by("title")
 
     if show_service:
@@ -124,6 +128,10 @@ def _prepare_wfs_table(request: HttpRequest, current_view: str, user_groups):
         created_by__in=user_groups,
         is_deleted=False,
         service__is_update_candidate_for=None
+    ).prefetch_related(
+        "contact",
+        "service",
+        "service__service_type",
     ).order_by("title")
 
     wfs_table = WfsServiceTable(request=request,

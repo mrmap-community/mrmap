@@ -239,6 +239,9 @@ class MrMapUser(AbstractUser):
             id__in=self.groups.all().values('id')
         ).filter(
             **filter_by
+        ).prefetch_related(
+            "role",
+            "role__permission",
         )
 
         # Hold these data for more actions so we do not need to fetch it again from the db

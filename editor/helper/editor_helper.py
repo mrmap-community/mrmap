@@ -129,12 +129,19 @@ def _overwrite_capabilities_data(xml_obj: _Element, metadata: Metadata):
     Returns:
 
     """
-
+    # Create licence appendix for AccessConstraints and Fees
+    licence = metadata.licence
+    licence_appendix = ""
+    if licence is not None:
+        licence_appendix = "\n {} ({}), \n {}, \n {}".format(licence.name, licence.identifier, licence.description,
+                                                     licence.description_url)
     elements = {
         "Title": metadata.title,
         "Abstract": metadata.abstract,
-        "AccessConstraints": metadata.access_constraints,
+        "AccessConstraints": "{}{}".format(metadata.access_constraints, licence_appendix),
+        "Fees": "{}{}".format(metadata.fees, licence_appendix),
     }
+
     for key, val in elements.items():
         try:
             # Check if element exists to change it

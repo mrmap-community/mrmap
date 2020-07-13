@@ -34,12 +34,12 @@ def check_permission(permission_needed: Permission):
     def method_wrap(function):
         def wrap(request, *args, **kwargs):
             user = user_helper.get_user(request)
-            user_permissions = user.get_permissions()
-            perm_needed = permission_needed.get_permission_list()
-            for perm in perm_needed:
-                if perm not in user_permissions:
-                    messages.add_message(request, messages.ERROR, NO_PERMISSION)
-                    return redirect(request.META.get("HTTP_REFERER") if "HTTP_REFERER" in request.META else reverse('home'))
+            has_perm = user.has_permission(permission_needed)
+
+            if not has_perm:
+                messages.add_message(request, messages.ERROR, NO_PERMISSION)
+                return redirect(request.META.get("HTTP_REFERER") if "HTTP_REFERER" in request.META else reverse('home'))
+
             return function(request=request, *args, **kwargs)
 
         wrap.__doc__ = function.__doc__

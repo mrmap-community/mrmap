@@ -1020,7 +1020,9 @@ def detail(request: HttpRequest, object_id, update_params=None, status_code=None
             params.update({'has_dataset_metadata': _check_for_dataset_metadata(service.metadata)})
 
     mime_types = {}
-    for mime in service_md.formats.all():
+
+    formats = service_md.formats.all()
+    for mime in formats:
         op = mime_types.get(mime.operation)
         if op is None:
             op = []

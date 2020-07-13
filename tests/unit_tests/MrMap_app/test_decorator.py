@@ -89,6 +89,10 @@ class DecoratorTestCase(TestCase):
         first_group.role.permission.can_create_organization = True
         first_group.role.permission.save()
 
+        # Reset cached data
+        request.user.permissions_cache = None
+        request.user.groups_cache = None
+
         # Testuser permission check with permission must run
         # Mock the request
         response = test_function(request)

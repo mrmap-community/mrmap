@@ -22,7 +22,7 @@ from structure.models import Permission
 def _get_action_btns_for_service_table(table, record):
     btns = ''
     btns += table.get_btn(
-        href=reverse('service:activate', args=(record.service.id, ))+f"?current-view={table.current_view}",
+        href=reverse('service:activate', args=(record.id, ))+f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR" if record.is_active else "BTN_SUCCESS_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]["NOK" if record.is_active else 'OK'],
         permission=Permission(can_edit_metadata_service=True),

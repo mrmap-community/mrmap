@@ -186,12 +186,23 @@ class UserFormTestCase(TestCase):
     """
 
     def setUp(self):
+        self.user = create_superadminuser()
+        self.request_factory = RequestFactory()
+
         self.account_data = get_account_data()
         self.username_data = get_username_data()
         self.logger = logging.getLogger('UserFormTestCase')
+        self.request = self.request_factory.get(
+            "/",
+        )
+        self.request.user = self.user
+        self.request.LANGUAGE_CODE = 'en'
+
 
     def test_valid_username(self):
-        form = UserForm(data=self.account_data)
+        form = UserForm(data=self.account_data,
+                        request=self.request,
+                        )
         is_valid = form.is_valid()
 
         if not is_valid:

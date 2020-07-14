@@ -162,20 +162,40 @@ def account(request: HttpRequest, update_params: dict = None, status_code: int =
          A rendered view
     """
     template = "views/account.html"
-
     user = user_helper.get_user(request)
-    edit_account_form = UserForm(instance=user, initial={'theme': user.theme})
-    edit_account_form.action_url = reverse('account-edit', )
+    subscriptions_count = Subscription.objects.all().count()
+    params = {
+        "subscriptions_count": subscriptions_count,
+        "current_view": 'account',
+    }
 
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
+
+
+@login_required
+def subscriptions(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
+    """ Renders an overview of the user's account information
+
+    Args:
+        request (HttpRequest): The incoming request
+        update_params:
+        status_code (MrMapUser): The user
+    Returns:
+         A rendered view
+    """
+    template = "views/subscriptions.html"
     user = user_helper.get_user(request)
 
     subscription_table = SubscriptionTable(request=request,
-                                           current_view='account')
+                                           current_view='subscriptions')
 
     params = {
-        "edit_account_form": edit_account_form,
         "subscriptions": subscription_table,
-        "current_view": 'account',
+        "current_view": 'subscriptions',
     }
 
     if update_params:
@@ -211,21 +231,19 @@ def account_edit(request: HttpRequest):
 
     Args:
         request (HttpRequest): The incoming request
-        user (MrMapUser): The user
     Returns:
         A view
     """
     user = user_helper.get_user(request)
-    form = UserForm(request.POST or None, instance=user)
-    if request.method == 'POST' and form.is_valid():
-        # save changes
-        user = form.save()
-        user.save()
-        messages.add_message(request, messages.SUCCESS, ACCOUNT_UPDATE_SUCCESS)
-        return redirect("account")
-
-    return account(request=request, update_params={"edit_account_form": form,
-                                                   "show_edit_account_form": True})
+    form = UserForm(data=request.POST or None,
+                    request=request,
+                    reverse_lookup='account-edit',
+                    # ToDo: after refactoring of all forms is done, show_modal can be removed
+                    show_modal=True,
+                    form_title=_(f"<strong>Edit your account information's</strong>"),
+                    instance=user,
+                    initial={'theme': user.theme},)
+    return form.process_request(form.process_account_change)
 
 
 def activate_user(request: HttpRequest, activation_hash: str):
@@ -365,7 +383,7 @@ def register(request: HttpRequest):
 
 
 @login_required
-def subscription_index_view(request: HttpRequest):
+def subscription_index_view(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
     """ Renders an overview of all subscriptions of the performing user
 
     Args:
@@ -373,16 +391,22 @@ def subscription_index_view(request: HttpRequest):
     Returns:
          A rendered view
     """
+    template = "views/subscriptions.html"
     user = user_helper.get_user(request)
-    subscriptions = Subscription.objects.filter(
-        user=user
-    )
+
+    subscription_table = SubscriptionTable(request=request,
+                                           current_view='subscriptions')
+
     params = {
-        "subscriptions": subscriptions
+        "subscriptions": subscription_table,
+        "current_view": 'subscriptions',
     }
+
+    if update_params:
+        params.update(update_params)
+
     context = DefaultContext(request, params, user)
-    # ToDo: Render template
-    return HttpResponse()
+    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
 
 
 @login_required

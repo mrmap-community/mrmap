@@ -481,24 +481,24 @@ class OGCOperationRequestHandler:
             operation_urls = service.operation_urls.all()
             secured_operation_uris = {
                 "GETFEATURE": {
-                    "get": operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Get").first(),
-                    "post": operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Post").first(),
+                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Get").first(), "url", None),
+                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Post").first(), "url", None),
                 },  # get_feature_info_uri_GET is reused in WFS for get_feature_uri
                 "TRANSACTION": {
-                    "get": operation_urls.filter(operation=OGCOperationEnum.TRANSACTION.value, method="Get").first(),
-                    "post": operation_urls.filter(operation=OGCOperationEnum.TRANSACTION.value, method="Post").first(),
+                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.TRANSACTION.value, method="Get").first(), "url", None),
+                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.TRANSACTION.value, method="Post").first(), "url", None),
                 },
             }
         else:
             operation_urls = metadata.service.operation_urls.all()
             secured_operation_uris = {
                 "GETMAP": {
-                    "get": operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(),
-                    "post": operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(),
+                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(), "url", None),
+                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(), "url", None),
                 },
                 "GETFEATUREINFO": {
-                    "get": operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Get").first(),
-                    "post": operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Post").first(),
+                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Get").first(), "url", None),
+                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Post").first(), "url", None),
                 },
             }
 
@@ -1396,10 +1396,11 @@ class OGCOperationRequestHandler:
         # Case 1: Only root layer is requested -> fast solution
         if layer_objs.count() == 1 and layer_objs[0].parent_layer is None:
             # Yes, only the root layer has been requested
+            # Order the sublayers by creation timestamp so the order of the layers in the request is correct (Top-Down)
             layers = Layer.objects.filter(
                 parent_service__metadata=metadata,
                 child_layers=None
-            ).order_by("id")
+            ).order_by("created")
             leaf_layers += layers.values_list("identifier", flat=True)
         else:
             # Multiple layers have been requested -> slower solution

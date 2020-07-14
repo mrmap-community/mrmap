@@ -9,10 +9,11 @@ from celery import Task
 
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper, task_helper, service_helper
-from service.helper.enums import OGCOperationEnum
+from service.helper.enums import OGCOperationEnum, MetadataEnum
 from service.helper.ogc.ows import OGCWebService
-from service.models import ExternalAuthentication
-from structure.models import MrMapUser
+from service.models import ExternalAuthentication, Metadata, MimeType, Keyword, Service, ServiceType
+from service.settings import SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE
+from structure.models import MrMapUser, Organization, MrMapGroup
 
 
 class OGCCatalogueService(OGCWebService):
@@ -43,6 +44,7 @@ class OGCCatalogueService(OGCWebService):
             "get": None,
             "post": None,
         }
+        self.formats_list = []
 
     def create_from_capabilities(self, metadata_only: bool = False, async_task: Task = None, external_auth: ExternalAuthentication = None):
         """ Load data from capabilities document
@@ -62,6 +64,27 @@ class OGCCatalogueService(OGCWebService):
         # Parse <OperationsMetadata>
         self.get_service_operations(xml_obj)
 
+    def _create_contact_organization_record(self):
+        """ Creates a contact record from the OGCWebFeatureService object
+
+        Returns:
+             contact (Contact): A persisted contact object
+        """
+        ## contact
+        contact = Organization.objects.get_or_create(
+            organization_name=self.service_provider_providername,
+            person_name=self.service_provider_responsibleparty_individualname,
+            email=self.service_provider_address_electronicmailaddress,
+            phone=self.service_provider_telephone_voice,
+            facsimile=self.service_provider_telephone_facsimile,
+            city=self.service_provider_address_city,
+            address=self.service_provider_address,
+            postal_code=self.service_provider_address_postalcode,
+            state_or_province=self.service_provider_address_state_or_province,
+            country=self.service_provider_address_country,
+        )[0]
+        return contact
+
     def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization, external_auth, is_update_candidate_for):
         """ Map all data from the OGCCatalogueService class to their database models
 
@@ -73,7 +96,81 @@ class OGCCatalogueService(OGCWebService):
         Returns:
              service (Service): Service instance, contains all information, ready for persisting!
         """
-        i = 0
+        md = Metadata()
+        md_type = MetadataEnum.CATALOGUE.value
+        md.metadata_type = md_type
+        md.title = self.service_identification_title
+        md.identifier = self.service_file_identifier
+        md.abstract = self.service_identification_abstract
+        md.online_resource = self.service_provider_onlineresource_linkage
+
+        md.contact = self._create_contact_organization_record()
+        md.authority_url = self.service_provider_url
+        md.access_constraints = self.service_identification_accessconstraints
+        md.fees = self.service_identification_fees
+        md.created_by = register_group
+        md.capabilities_original_uri = self.service_connect_url
+        md.capabilities_uri = self.service_connect_url
+        if self.service_bounding_box is not None:
+            md.bounding_geometry = self.service_bounding_box
+
+        # Save metadata record so we can use M2M or id of record later
+        md.save()
+
+        # Keywords
+        for kw in self.service_identification_keywords:
+            if kw is None:
+                continue
+            keyword = Keyword.objects.get_or_create(keyword=kw)[0]
+            md.keywords.add(keyword)
+
+        md.formats.add(*self.formats_list)
+
+        md.capabilities_uri = SERVICE_OPERATION_URI_TEMPLATE.format(md.id) + "request={}".format(OGCOperationEnum.GET_CAPABILITIES.value)
+        md.service_metadata_uri = SERVICE_METADATA_URI_TEMPLATE.format(md.id)
+        md.html_metadata_uri = HTML_METADATA_URI_TEMPLATE.format(md.id)
+        md.save()
+
+        service = self._create_service_record(register_group, register_for_organization, md, is_update_candidate_for)
+
+        return service
+
+    def _create_service_record(self, group: MrMapGroup, orga_published_for: Organization, md: Metadata, is_update_candidate_for: Service):
+        """ Creates a Service object from the OGCWebFeatureService object
+
+        Args:
+            group (MrMapGroup): The owner/creator group
+            orga_published_for (Organization): The organization for which the service is published
+            orga_publisher (Organization): THe organization that publishes
+            md (Metadata): The describing metadata
+        Returns:
+             service (Service): The persisted service object
+        """
+        service = Service()
+        service_type = ServiceType.objects.get_or_create(
+            name=self.service_type.value,
+            version=self.service_version.value
+        )[0]
+        service.service_type = service_type
+        service.created_by = group
+        service.published_for = orga_published_for
+
+        service.get_capabilities_uri_GET = self.get_capabilities_uri.get("get", None)
+        service.get_capabilities_uri_POST = self.get_capabilities_uri.get("post", None)
+
+        service.availability = 0.0
+        service.is_available = False
+        service.is_root = True
+        md.service = service
+        service.is_update_candidate_for = is_update_candidate_for
+
+        # Save record to enable M2M relations
+        service.save()
+
+        # Persist capabilities document
+        service.persist_capabilities_doc(self.service_capabilities_xml)
+
+        return service
 
     def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         """ Parse the capability document <Service> metadata into the self object
@@ -208,8 +305,12 @@ class OGCCatalogueService(OGCWebService):
             xml_obj
         )
 
+        # Parse Operation metadata
         self._parse_operations_metadata(upper_elem=operation_obj)
-        self._parse_parameter_metadata(upper_elem=operation_obj)
+
+        # Parse Service parameters
+        csw_parameters = self._parse_parameter_metadata(upper_elem=operation_obj)
+        self.service_version = csw_parameters.get("version", None)
 
     def _parse_operations_metadata(self, upper_elem):
         """ Parses the <Operation> elements inside of <OperationsMetadata>
@@ -252,16 +353,26 @@ class OGCCatalogueService(OGCWebService):
             uri_dict["get"] = get_uri
             uri_dict["post"] = post_uri
 
+            parameters = self._parse_parameter_metadata(operation)
+            output_format = parameters.get("outputFormat", None)
+            if output_format is not None:
+                self.formats_list.append(
+                    MimeType.objects.get_or_create(
+                        operation=operation_name,
+                        mime_type=output_format,
+                    )[0]
+                )
+
     def _parse_parameter_metadata(self, upper_elem):
         """ Parses the <Parameter> elements inside of <OperationsMetadata>
 
         Args:
             upper_elem (Element): The upper xml element
         Returns:
-
+            parameter_map (dict): Mapped parameters and values
         """
         parameter_objs = xml_helper.try_get_element_from_xml(
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Parameter"),
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("Parameter"),
             upper_elem
         )
         parameter_map = {}
@@ -277,3 +388,4 @@ class OGCCatalogueService(OGCWebService):
             parameter_map[param_name] = param_val
 
         self.service_version = parameter_map.get("version", None)
+        return parameter_map

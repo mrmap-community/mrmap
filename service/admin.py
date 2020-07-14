@@ -97,6 +97,7 @@ class MetadataAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'service', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact')
     list_filter = ('metadata_type', 'is_active', 'is_broken')
     search_fields = ['id', 'title', ]
+    ordering = ["-created"]
 
 
 class MetadataRelationAdmin(admin.ModelAdmin):

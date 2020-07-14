@@ -52,7 +52,7 @@ class EditorMetadataEditViewTestCase(TestCase):
             metadata_type=MetadataEnum.SERVICE.value
         ).first()
         response = self.client.get(
-            reverse(EDITOR_METADATA_EDITOR_NAME, args=(str(metadata.id),))+"?current-view=service:index",
+            reverse(EDITOR_METADATA_EDITOR_NAME, args=(str(metadata.id),))+"?current-view=resource:index",
         )
         self.assertEqual(response.status_code, 200, )
         self.assertIsInstance(response.context["form"], MetadataEditorForm)
@@ -76,7 +76,7 @@ class EditorAccessEditViewTestCase(TestCase):
         """
         metadata = Metadata.objects.all().first()
         response = self.client.get(
-            reverse(EDITOR_ACCESS_EDITOR_NAME, args=(str(metadata.id),))+"?current-view=service:index",
+            reverse(EDITOR_ACCESS_EDITOR_NAME, args=(str(metadata.id),))+"?current-view=resource:index",
         )
         self.assertEqual(response.status_code, 200, )
         self.assertTemplateUsed(response=response, template_name="views/editor_edit_access_index.html")
@@ -117,7 +117,7 @@ class EditorDatasetWizardNewViewTestCase(TestCase):
 
         """
         response = self.client.get(
-            reverse(EDITOR_DATASET_WIZARD_NEW,)+"?current-view=service:datasets-index",
+            reverse(EDITOR_DATASET_WIZARD_NEW,)+"?current-view=resource:datasets-index",
         )
         self.assertEqual(response.status_code, 200, )
         self.assertTemplateUsed(response=response, template_name="views/datasets_index.html")
@@ -144,7 +144,7 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
 
         """
         datasets = self.user.get_datasets_as_qs()
-        url = reverse(EDITOR_DATASET_WIZARD_EDIT, args=[datasets[0].id])+"?current-view=service:datasets-index"
+        url = reverse(EDITOR_DATASET_WIZARD_EDIT, args=[datasets[0].id])+"?current-view=resource:datasets-index"
         response = self.client.get(
             url,
         )
@@ -177,17 +177,17 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
                             "classification-is_form_update": "False",
                             "classification-keywords": [],
                             "wizard_save": "True"}
-        url = reverse(EDITOR_DATASET_WIZARD_EDIT, args=[datasets[0].id])+"?current-view=service:datasets-index"
+        url = reverse(EDITOR_DATASET_WIZARD_EDIT, args=[datasets[0].id])+"?current-view=resource:datasets-index"
         step_response = self.client.post(url,
-                                         HTTP_REFERER=reverse('service:datasets-index'),
+                                         HTTP_REFERER=reverse('resource:datasets-index'),
                                          data=step_post_params,)
         self.assertEqual(step_response.status_code, 200, )
         self.assertTrue('name="dataset_wizard-current_step" value="responsible party"' in step_response.context['rendered_modal'], msg='The current step was not responsible party ')
         self.assertTemplateUsed(response=step_response, template_name="views/datasets_index.html")
 
         step2_response = self.client.post(reverse('editor:dataset-metadata-wizard-instance',
-                                                  args=(datasets[0].id,))+"?current-view=service:datasets-index",
-                                          HTTP_REFERER=reverse('service:datasets-index'),
+                                                  args=(datasets[0].id,))+"?current-view=resource:datasets-index",
+                                          HTTP_REFERER=reverse('resource:datasets-index'),
                                           data=step2_post_params,)
 
         self.assertEqual(step2_response.status_code, 200, )
@@ -195,13 +195,13 @@ class EditorDatasetWizardInstanceViewTestCase(TestCase):
         self.assertTemplateUsed(response=step2_response, template_name="views/datasets_index.html")
 
         save_response = self.client.post(reverse('editor:dataset-metadata-wizard-instance',
-                                                 args=(datasets[0].id,))+"?current-view=service:datasets-index",
-                                         HTTP_REFERER=reverse('service:datasets-index'),
+                                                 args=(datasets[0].id,))+"?current-view=resource:datasets-index",
+                                         HTTP_REFERER=reverse('resource:datasets-index'),
                                          data=save_post_params,)
 
         # 303 is returned due to the FormWizard
         self.assertEqual(save_response.status_code, 303, )
-        self.assertEqual('/service/datasets/', save_response.url)
+        self.assertEqual('/resource/datasets/', save_response.url)
 
 
 class EditorDatasetRemoveInstanceViewTestCase(TestCase):
@@ -225,7 +225,7 @@ class EditorDatasetRemoveInstanceViewTestCase(TestCase):
         post_data = {'is_confirmed': 'True'}
 
         response = self.client.post(
-            reverse('editor:remove-dataset-metadata', args=(datasets[0].id, ))+"?current-view=service:index",
+            reverse('editor:remove-dataset-metadata', args=(datasets[0].id, ))+"?current-view=resource:index",
             data=post_data
         )
 
@@ -250,8 +250,8 @@ class EditorRestoreDatasetViewTestCase(TestCase):
         datasets = self.user.get_datasets_as_qs()
 
         response = self.client.post(
-            reverse('editor:restore-dataset-metadata', args=(datasets[0].id,))+"?current-view=service:index",
-            HTTP_REFERER=reverse('service:index'),
+            reverse('editor:restore-dataset-metadata', args=(datasets[0].id,))+"?current-view=resource:index",
+            HTTP_REFERER=reverse('resource:index'),
             data={'is_confirmed': 'True'},
         )
 

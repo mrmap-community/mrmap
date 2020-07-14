@@ -501,7 +501,7 @@ def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
     serialized["easy_capabilities_uri"] = md.capabilities_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None
     serialized["easy_xml_metadata_uri"] = md.service_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None
     serialized["easy_html_metadata_uri"] = md.html_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None
-    serialized["preview_uri"] = "{}{}".format(ROOT_URL, reverse("service:get-service-metadata-preview", args=(str(md.id),)))
+    serialized["preview_uri"] = "{}{}".format(ROOT_URL, reverse("resource:get-service-metadata-preview", args=(str(md.id),)))
     serialized["fees"] = md.fees
     serialized["access_constraints"] = md.access_constraints
     serialized["licence"] = serialize_licence(md)

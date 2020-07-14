@@ -33,9 +33,9 @@
             <div>
                 {% comment %} TODO: show "no preview" if no preview is available {% endcomment %}
                 <a itemprop="exampleOfWork" itemtype="https://schema.org/CreativeWork"
-                   href="{% url 'service:get-service-metadata-preview' md_id %}">
+                   href="{% url 'resource:get-service-metadata-preview' md_id %}">
                     <img itemprop="thumbnailUrl"
-                         src="{% url 'service:get-service-metadata-preview' md_id %}" alt="preview"
+                         src="{% url 'resource:get-service-metadata-preview' md_id %}" alt="preview"
                          class="img-thumbnail">
                 </a>
             </div>

@@ -12,7 +12,7 @@
     <tr>
         <th scope="row">{% trans 'Parent service' %}</th>
         <td>
-            <a class="{{THEME.TABLE.LINK_COLOR}}" href="{% url 'service:detail' service.parent_service.metadata.id %}" title="{{ service.parent_service.metadata.uuid }}">
+            <a class="{{THEME.TABLE.LINK_COLOR}}" href="{% url 'resource:detail' service.parent_service.metadata.id %}" title="{{ service.parent_service.metadata.uuid }}">
                 {{ service.parent_service.metadata.title }}
             </a>
         </td>

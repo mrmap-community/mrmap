@@ -23,7 +23,7 @@
 {% endblock %}
 
 {% block card-header-subtitle-right %}
-    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'service:detail' service_metadata.id %}">
+    <a class="{{THEME.CARD.LINK_COLOR}}" href="{% url 'resource:detail' service_metadata.id %}">
     <span style="white-space: nowrap;">{% autoescape off %}{{THEME.ICONS.RETURN}}{% endautoescape %} {% trans 'Service Detail View' %}</span>
     </a>
 {% endblock %}

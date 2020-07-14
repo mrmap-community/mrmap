@@ -37,9 +37,14 @@ class WfsHelper:
         Returns:
             str: URL for GetCapabilities request.
         """
-        uri = self.parent_service.get_capabilities_uri_GET
+        uri = self.parent_service.operation_urls.filter(
+            operation=OGCOperationEnum.GET_CAPABILITIES.value,
+            method="Get"
+        )
+        uri = uri.first()
         if uri is None:
             return
+        uri = uri.url
         request_type = OGCOperationEnum.GET_CAPABILITIES.value
         service_version = self.parent_service.service_type.version
         service_type = OGCServiceEnum.WFS.value
@@ -58,9 +63,13 @@ class WfsHelper:
         Returns:
             str: URL for ListStoredQueries request.
         """
-        uri = self.service.list_stored_queries_uri_GET
+        uri = self.service.operation_urls.filter(
+            operation=OGCOperationEnum.LIST_STORED_QUERIES.value,
+            method="Get"
+        ).first()
         if uri is None:
             return
+        uri = uri.url
         request_type = OGCOperationEnum.LIST_STORED_QUERIES.value
         service_version = self.service.service_type.version
         service_type = OGCServiceEnum.WFS.value
@@ -79,13 +88,17 @@ class WfsHelper:
         """
         uri = None
         try:
-            uri = self.parent_service.describe_feature_type_uri_GET
+            uri = self.parent_service.operation_urls.filter(
+                operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE,
+                method="Get"
+            ).first()
         except AttributeError:
             pass
         if uri is None:
             return
         if type_name is None:
             return
+        uri = uri.url
         request_type = OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value
         service_version = self.parent_service.service_type.version
         service_type = OGCServiceEnum.WFS.value
@@ -119,7 +132,10 @@ class WfsHelper:
         """
         uri = None
         try:
-            uri = self.parent_service.get_feature_type_uri_GET
+            uri = self.parent_service.operation_urls.filter(
+                operation=OGCOperationEnum.GET_FEATURE.value,
+                method="Get"
+            ).first()
         except AttributeError:
             pass
 
@@ -128,6 +144,7 @@ class WfsHelper:
         if type_name is None:
             return
 
+        uri = uri.url
         request_type = OGCOperationEnum.GET_FEATURE.value
         service_version = self.parent_service.service_type.version
         service_type = OGCServiceEnum.WFS.value

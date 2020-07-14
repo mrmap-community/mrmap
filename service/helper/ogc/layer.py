@@ -4,7 +4,8 @@ from django.contrib.gis.geos import Polygon
 
 from service.helper.enums import MetadataEnum, OGCOperationEnum
 from service.helper.epsg_api import EpsgApi
-from service.models import Service, Metadata, Layer, Keyword, ReferenceSystem, MetadataRelation, Dimension, MimeType
+from service.models import Service, Metadata, Layer, Keyword, ReferenceSystem, MetadataRelation, Dimension, MimeType, \
+    ServiceUrl
 from service.settings import SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE, \
     ALLOWED_SRS, MD_RELATION_TYPE_DESCRIBED_BY
 from structure.models import MrMapGroup, MrMapUser
@@ -176,21 +177,80 @@ class OGCLayer:
         layer.created_by = group
         layer.published_for = parent_service.published_for
         layer.parent_service = parent_service
-        layer.get_styles_uri_GET = self.get_styles_uri_GET
-        layer.get_styles_uri_POST = self.get_styles_uri_POST
-        layer.get_legend_graphic_uri_GET = self.get_legend_graphic_uri_GET
-        layer.get_legend_graphic_uri_POST = self.get_legend_graphic_uri_POST
-        layer.get_feature_info_uri_GET = self.get_feature_info_uri_GET
-        layer.get_feature_info_uri_POST = self.get_feature_info_uri_POST
-        layer.get_map_uri_GET = self.get_map_uri_GET
-        layer.get_map_uri_POST = self.get_map_uri_POST
-        layer.describe_layer_uri_GET = self.describe_layer_uri_GET
-        layer.describe_layer_uri_POST = self.describe_layer_uri_POST
-        layer.get_capabilities_uri_GET = self.get_capabilities_uri_GET
-        layer.get_capabilities_uri_POST = self.get_capabilities_uri_POST
 
         # Save model so M2M relations can be used
         layer.save()
+
+        operation_urls = [
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_CAPABILITIES.value,
+                url=self.get_capabilities_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_CAPABILITIES.value,
+                url=self.get_capabilities_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
+                url=self.get_feature_info_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
+                url=self.get_feature_info_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.DESCRIBE_LAYER.value,
+                url=self.describe_layer_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.DESCRIBE_LAYER.value,
+                url=self.describe_layer_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_STYLES.value,
+                url=self.get_styles_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_STYLES.value,
+                url=self.get_styles_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
+                url=self.get_legend_graphic_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
+                url=self.get_legend_graphic_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_MAP.value,
+                url=self.get_map_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_MAP.value,
+                url=self.get_map_uri_POST,
+                method="Post"
+            )[0],
+
+        ]
+
+        layer.operation_urls.add(*operation_urls)
 
         # If parent layer is a real layer, we add the current layer as a child to the parent layer
         if layer.parent_layer is not None:

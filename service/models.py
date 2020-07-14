@@ -106,6 +106,7 @@ class ProxyLog(models.Model):
             # For future implementation
             pass
         self.operation = request_param
+        self.operation = request_param
         self.save()
         print_debug_mode(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
 
@@ -1786,26 +1787,27 @@ class Document(Resource):
         )
         request_objs = request_objs.getchildren()
         service = self.metadata.service
+        operation_urls = service.operation_urls.all()
         op_uri_dict = {
             "GetMap": {
-                "Get": service.get_map_uri_GET,
-                "Post": service.get_map_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(),"url", None),
             },
             "GetFeatureInfo": {
-                "Get": service.get_feature_info_uri_GET,
-                "Post": service.get_feature_info_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Post").first(),"url", None),
             },
             "DescribeLayer": {
-                "Get": service.describe_layer_uri_GET,
-                "Post": service.describe_layer_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Post").first(),"url", None),
             },
             "GetLegendGraphic": {
-                "Get": service.get_legend_graphic_uri_GET,
-                "Post": service.get_legend_graphic_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Post").first(),"url", None),
             },
             "GetStyles": {
-                "Get": service.get_styles_uri_GET,
-                "Post": service.get_styles_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Post").first(),"url", None),
             },
         }
 
@@ -1823,7 +1825,7 @@ class Document(Resource):
                     ".//{}/".format(GENERIC_NAMESPACE_TEMPLATE.format(http_operation)) + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
                     , op
                 )
-
+                # Load url attribute from ServiceUrl object
                 if not is_secured:
                     # overwrite uri
                     uri = uri_dict.get(http_operation, "")
@@ -1856,32 +1858,34 @@ class Document(Resource):
             service = FeatureType.objects.get(
                 metadata=self.metadata
             ).parent_service
+        operation_urls = service.operation_urls.all()
         op_uri_dict = {
             OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: {
-                "Get": service.describe_feature_type_uri_GET,
-                "Post": service.describe_feature_type_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value, method="Post").first(),"url", None),
             },
             OGCOperationEnum.GET_FEATURE.value: {
-                "Get": service.get_feature_type_uri_GET,
-                "Post": service.get_feature_type_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Post").first(),"url", None),
             },
             OGCOperationEnum.GET_PROPERTY_VALUE.value: {
-                "Get": service.get_property_value_uri_GET,
-                "Post": service.get_property_value_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_PROPERTY_VALUE.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_PROPERTY_VALUE.value, method="Post").first(),"url", None),
             },
             OGCOperationEnum.LIST_STORED_QUERIES.value: {
-                "Get": service.list_stored_queries_uri_GET,
-                "Post": service.list_stored_queries_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.LIST_STORED_QUERIES.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.LIST_STORED_QUERIES.value, method="Post").first(),"url", None),
             },
             OGCOperationEnum.DESCRIBE_STORED_QUERIES.value: {
-                "Get": service.describe_stored_queries_uri_GET,
-                "Post": service.describe_stored_queries_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_STORED_QUERIES.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_STORED_QUERIES.value, method="Post").first(),"url", None),
             },
         }
 
         for op in operation_objs:
             # skip GetCapabilities - it is already set to another internal link
             name = op.tag
+
             if OGCOperationEnum.GET_CAPABILITIES.value in name:
                 continue
             if not is_secured:
@@ -1915,34 +1919,35 @@ class Document(Resource):
                 metadata=self.metadata
             ).parent_service
 
+        operation_urls = service.operation_urls.all()
         op_uri_dict = {
             "DescribeFeatureType": {
-                "Get": service.describe_feature_type_uri_GET,
-                "Post": service.describe_feature_type_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value, method="Get").first(), "url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value, method="Post").first(), "url", None),
             },
             "GetFeature": {
-                "Get": service.get_feature_type_uri_GET,
-                "Post": service.get_feature_type_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Get").first(), "url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Post").first(), "url", None),
             },
             "GetPropertyValue": {
-                "Get": service.get_property_value_uri_GET,
-                "Post": service.get_property_value_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_PROPERTY_VALUE.value, method="Get").first(), "url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_PROPERTY_VALUE.value, method="Post").first(), "url", None),
             },
             "ListStoredQueries": {
-                "Get": service.list_stored_queries_uri_GET,
-                "Post": service.list_stored_queries_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.LIST_STORED_QUERIES.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.LIST_STORED_QUERIES.value, method="Post").first(),"url", None),
             },
             "DescribeStoredQueries": {
-                "Get": service.describe_stored_queries_uri_GET,
-                "Post": service.describe_stored_queries_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_STORED_QUERIES.value, method="Get").first(), "url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_STORED_QUERIES.value, method="Post").first(), "url", None),
             },
             "GetGmlObject": {
-                "Get": service.get_gml_objct_uri_GET,
-                "Post": service.get_gml_objct_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_GML_OBJECT.value, method="Get").first(), "url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_GML_OBJECT.value, method="Post").first(), "url", None),
             },
         }
 
-        fallback_uri = service.get_feature_info_uri_GET
+        fallback_uri = getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Get").first(), "url", None)
 
         for op in operation_objs:
             # skip GetCapabilities - it is already set to another internal link
@@ -1983,26 +1988,27 @@ class Document(Resource):
         )
         request_objs = request_objs.getchildren()
         service = self.metadata.service
+        operation_urls = service.operation_urls.all()
         op_uri_dict = {
             "GetMap": {
-                "Get": service.get_map_uri_GET,
-                "Post": service.get_map_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(),"url", None),
             },
             "GetFeatureInfo": {
-                "Get": service.get_feature_info_uri_GET,
-                "Post": service.get_feature_info_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Post").first(),"url", None),
             },
             "DescribeLayer": {
-                "Get": service.describe_layer_uri_GET,
-                "Post": service.describe_layer_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Post").first(),"url", None),
             },
             "GetLegendGraphic": {
-                "Get": service.get_legend_graphic_uri_GET,
-                "Post": service.get_legend_graphic_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Post").first(),"url", None),
             },
             "GetStyles": {
-                "Get": service.get_styles_uri_GET,
-                "Post": service.get_styles_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Post").first(),"url", None),
             },
         }
 
@@ -2433,68 +2439,25 @@ class ServiceType(models.Model):
         return self.name
 
 
+class ServiceUrl(Resource):
+    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices())
+    method = models.CharField(max_length=255, choices=[("Get", "Get"), ("Post", "Post"),], blank=True)
+    url = models.URLField(blank=True, null=True)
+
+    def __str__(self):
+        return "{}: {} ({})".format(self.operation, self.url, self.method)
+
+
 class Service(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)
     service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
     categories = models.ManyToManyField(Category, blank=True)
+    operation_urls = models.ManyToManyField(ServiceUrl)
     is_root = models.BooleanField(default=False)
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
-
-    # WMS | WFS
-    get_capabilities_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_capabilities_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WMS
-    get_map_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_map_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WMS
-    get_feature_info_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_feature_info_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WMS
-    describe_layer_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    describe_layer_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WMS
-    get_legend_graphic_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_legend_graphic_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WMS
-    get_styles_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_styles_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WFS
-    get_feature_type_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_feature_type_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WFS
-    describe_feature_type_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    describe_feature_type_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WFS
-    transaction_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    transaction_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WFS
-    get_property_value_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_property_value_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WFS
-    list_stored_queries_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    list_stored_queries_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WFS
-    describe_stored_queries_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    describe_stored_queries_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WFS
-    get_gml_objct_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_gml_objct_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
     is_update_candidate_for = models.OneToOneField('self', on_delete=models.SET_NULL, related_name="has_update_candidate", null=True, default=None, blank=True)
     created_by_user = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True, blank=True)
     keep_custom_md = models.BooleanField(default=True)
@@ -2713,6 +2676,17 @@ class Service(Resource):
             feature_types = self.featuretypes.all()
             for f_t in feature_types:
                 self.delete_child_data(f_t)
+
+        # Remove ServiceURL entries if they are not used by other services
+        operation_urls = self.operation_urls.all()
+        for url in operation_urls:
+            other_services_exists = Service.objects.filter(
+                operation_urls=url
+            ).exclude(
+                id=self.id
+            ).exists()
+            if not other_services_exists:
+                url.delete()
 
         self.metadata.delete()
         super().delete()

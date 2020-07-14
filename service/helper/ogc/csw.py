@@ -155,8 +155,10 @@ class OGCCatalogueService(OGCWebService):
         service.created_by = group
         service.published_for = orga_published_for
 
-        service.get_capabilities_uri_GET = self.get_capabilities_uri.get("get", None)
-        service.get_capabilities_uri_POST = self.get_capabilities_uri.get("post", None)
+        operation_urls = [
+
+        ]
+        service.operation_urls.add(*operation_urls)
 
         service.availability = 0.0
         service.is_available = False

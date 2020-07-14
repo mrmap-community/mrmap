@@ -610,22 +610,23 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
             "{}GetFeatureInfo": "",
         })
 
+        operation_urls = service.operation_urls.all()
         additional_contents = OrderedDict({
             OGCOperationEnum.DESCRIBE_LAYER.value: {
-                "get": service.describe_layer_uri_GET,
-                "post": service.describe_layer_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.GET_LEGEND_GRAPHIC.value: {
-                "get": service.get_legend_graphic_uri_GET,
-                "post": service.get_legend_graphic_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.GET_STYLES.value: {
-                "get": service.get_styles_uri_GET,
-                "post": service.get_styles_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.PUT_STYLES.value: {
-                "get": "",  # ToDo: Implement putStyles in registration
-                "post": "",
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.PUT_STYLES.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.PUT_STYLES.value, method="Post").first(), "url", None),
             },
         })
 
@@ -656,34 +657,35 @@ class CapabilityWMSBuilder(CapabilityXMLBuilder):
         service = md.service
         tag = QName(operation_elem).localname
 
+        operation_urls = service.operation_urls.all()
         operations = OrderedDict({
             OGCOperationEnum.GET_CAPABILITIES.value: {
-                "get": service.get_capabilities_uri_GET,
-                "post": service.get_capabilities_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_CAPABILITIES.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_CAPABILITIES.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.GET_MAP.value: {
-                "get": service.get_map_uri_GET,
-                "post": service.get_map_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.GET_FEATURE_INFO.value: {
-                "get": service.get_feature_info_uri_GET,
-                "post": service.get_feature_info_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.DESCRIBE_LAYER.value: {
-                "get": service.describe_layer_uri_GET,
-                "post": service.describe_layer_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.GET_LEGEND_GRAPHIC.value: {
-                "get": service.get_legend_graphic_uri_GET,
-                "post": service.get_legend_graphic_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.GET_STYLES.value: {
-                "get": service.get_styles_uri_GET,
-                "post": service.get_styles_uri_POST,
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Post").first(), "url", None),
             },
             OGCOperationEnum.PUT_STYLES.value: {
-                "get": "",  # ToDo: Implement putStyles in registration
-                "post": "",
+                "get": getattr(operation_urls.filter(operation=OGCOperationEnum.PUT_STYLES.value, method="Get").first(), "url", None),
+                "post": getattr(operation_urls.filter(operation=OGCOperationEnum.PUT_STYLES.value, method="Post").first(), "url", None),
             },
         })
 

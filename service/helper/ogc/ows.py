@@ -1,12 +1,10 @@
 # common classes for handling of OWS (OGC Webservices)
 # for naming conventions see http://portal.opengeospatial.org/files/?artifact_id=38867
-import urllib
 from abc import abstractmethod
 from urllib.parse import urlencode
 
 from celery import Task
 from django.contrib.gis.geos import Polygon
-from django.db import transaction
 from lxml.etree import Element
 from requests.exceptions import ReadTimeout
 
@@ -107,7 +105,8 @@ class OGCWebService:
             "version": self.service_version.value if self.service_version is not None else "",
             "service": (self.service_type.value if self.service_type is not None else "").upper(),
         }
-        self.service_connect_url = self.service_connect_url + urlencode(params)
+        concat = "&" if self.service_connect_url[-1] != "&" else ""
+        self.service_connect_url = "{}{}{}".format(self.service_connect_url, concat, urlencode(params))
         ows_connector = CommonConnector(
             url=self.service_connect_url,
             external_auth=self.external_authentification,

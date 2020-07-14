@@ -478,25 +478,27 @@ class OGCOperationRequestHandler:
             )
             service = feature_type.parent_service
             metadata = service.metadata
+            operation_urls = service.operation_urls.all()
             secured_operation_uris = {
                 "GETFEATURE": {
-                    "get": service.get_feature_info_uri_GET,
-                    "post": service.get_feature_info_uri_POST,
+                    "get": operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Get").first(),
+                    "post": operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Post").first(),
                 },  # get_feature_info_uri_GET is reused in WFS for get_feature_uri
                 "TRANSACTION": {
-                    "get": service.transaction_uri_GET,
-                    "post": service.transaction_uri_POST,
+                    "get": operation_urls.filter(operation=OGCOperationEnum.TRANSACTION.value, method="Get").first(),
+                    "post": operation_urls.filter(operation=OGCOperationEnum.TRANSACTION.value, method="Post").first(),
                 },
             }
         else:
+            operation_urls = metadata.service.operation_urls.all()
             secured_operation_uris = {
                 "GETMAP": {
-                    "get": metadata.service.get_map_uri_GET,
-                    "post": metadata.service.get_map_uri_POST,
+                    "get": operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(),
+                    "post": operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(),
                 },
                 "GETFEATUREINFO": {
-                    "get": metadata.service.get_feature_info_uri_GET,
-                    "post": metadata.service.get_feature_info_uri_POST,
+                    "get": operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Get").first(),
+                    "post": operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Post").first(),
                 },
             }
 

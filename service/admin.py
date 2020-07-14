@@ -178,6 +178,11 @@ class SecuredOperationAdmin(admin.ModelAdmin):
     search_fields = ['id', 'operation__operation_name', 'secured_metadata__title', 'allowed_group__name']
 
 
+class ServiceUrlAdmin(admin.ModelAdmin):
+    list_display = ('operation', 'method', 'url')
+    search_fields = ['id', 'service__metadata__title']
+
+
 class ServiceTypeAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'version')
     list_filter = ('version', 'name', )
@@ -222,7 +227,6 @@ admin.site.register(Document, DocumentAdmin)
 admin.site.register(RequestOperation, RequestOperationAdmin)
 admin.site.register(SecuredOperation, SecuredOperationAdmin)
 admin.site.register(Category, CategoryAdmin)
-admin.site.register(ServiceType, ServiceTypeAdmin)
 admin.site.register(Module, ModuleAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(Keyword, KeywordAdmin)
@@ -244,3 +248,5 @@ admin.site.register(Style, StyleAdmin)
 
 #admin.site.register(LegalDate, LegalDateAdmin)
 #admin.site.register(LegalReport, LegalReportAdmin)
+#admin.site.register(ServiceType, ServiceTypeAdmin)
+#admin.site.register(ServiceUrl, ServiceUrlAdmin)

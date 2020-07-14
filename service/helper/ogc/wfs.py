@@ -26,7 +26,7 @@ from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
-    FeatureTypeElement, MetadataRelation, RequestOperation, ExternalAuthentication
+    FeatureTypeElement, MetadataRelation, RequestOperation, ExternalAuthentication, ServiceUrl
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
 from structure.models import Organization, MrMapUser, MrMapGroup, Contact
 
@@ -763,30 +763,6 @@ class OGCWebFeatureService(OGCWebService):
         service.created_by = group
         service.published_for = orga_published_for
 
-        service.get_capabilities_uri_GET = self.get_capabilities_uri.get("get", None)
-        service.get_capabilities_uri_POST = self.get_capabilities_uri.get("post", None)
-
-        service.describe_feature_type_uri_GET = self.describe_feature_type_uri.get("get", None)
-        service.describe_feature_type_uri_POST = self.describe_feature_type_uri.get("post", None)
-
-        service.get_feature_info_uri_GET = self.get_feature_uri.get("get", None)
-        service.get_feature_info_uri_POST = self.get_feature_uri.get("post", None)
-
-        service.transaction_uri_GET = self.transaction_uri.get("get", None)
-        service.transaction_uri_POST = self.transaction_uri.get("post", None)
-
-        service.get_property_value_uri_GET = self.get_property_value_uri.get("get", None)
-        service.get_property_value_uri_POST = self.get_property_value_uri.get("post", None)
-
-        service.list_stored_queries_uri_GET = self.list_stored_queries_uri.get("get", None)
-        service.list_stored_queries_uri_GET = self.list_stored_queries_uri.get("post", None)
-
-        service.describe_stored_queries_uri_GET = self.describe_stored_queries_uri.get("get", None)
-        service.describe_stored_queries_uri_POST = self.describe_stored_queries_uri.get("post", None)
-
-        service.get_gml_objct_uri_GET = self.get_gml_object_uri.get("get", None)
-        service.get_gml_objct_uri_POST = self.get_gml_object_uri.get("post", None)
-
         service.availability = 0.0
         service.is_available = False
         service.is_root = True
@@ -795,6 +771,98 @@ class OGCWebFeatureService(OGCWebService):
 
         # Save record to enable M2M relations
         service.save()
+
+        operation_urls = [
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_CAPABILITIES.value,
+                url=self.get_capabilities_uri.get("get", None),
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_CAPABILITIES.value,
+                url=self.get_capabilities_uri.get("post", None),
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
+                url=self.describe_feature_type_uri.get("get", None),
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value,
+                url=self.describe_feature_type_uri.get("post", None),
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_FEATURE.value,
+                url=self.get_feature_uri.get("get", None),
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_FEATURE.value,
+                url=self.get_feature_uri.get("post", None),
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.TRANSACTION.value,
+                url=self.transaction_uri.get("get", None),
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.TRANSACTION.value,
+                url=self.transaction_uri.get("post", None),
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_PROPERTY_VALUE.value,
+                url=self.get_property_value_uri.get("get", None),
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_PROPERTY_VALUE.value,
+                url=self.get_property_value_uri.get("post", None),
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.LIST_STORED_QUERIES.value,
+                url=self.list_stored_queries_uri.get("get", None),
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.LIST_STORED_QUERIES.value,
+                url=self.list_stored_queries_uri.get("post", None),
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.DESCRIBE_STORED_QUERIES.value,
+                url=self.describe_stored_queries_uri.get("get", None),
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.DESCRIBE_STORED_QUERIES.value,
+                url=self.describe_stored_queries_uri.get("post", None),
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_GML_OBJECT.value,
+                url=self.get_gml_object_uri.get("get", None),
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_GML_OBJECT.value,
+                url=self.get_gml_object_uri.get("post", None),
+                method="Post"
+            )[0],
+
+        ]
+        service.operation_urls.add(*operation_urls)
 
         # Persist capabilities document
         service.persist_capabilities_doc(self.service_capabilities_xml)

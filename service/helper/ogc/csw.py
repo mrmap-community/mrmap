@@ -62,8 +62,18 @@ class OGCCatalogueService(OGCWebService):
         # Parse <OperationsMetadata>
         self.get_service_operations(xml_obj)
 
-    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization):
-        pass
+    def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization, external_auth, is_update_candidate_for):
+        """ Map all data from the OGCCatalogueService class to their database models
+
+        Args:
+            user (MrMapUser): The user which performs the action
+            register_group (Group): The group which is used to register this service
+            register_for_organization (Organization): The organization for which this service is being registered
+            external_auth (ExternalAuthentication): The external authentication object
+        Returns:
+             service (Service): Service instance, contains all information, ready for persisting!
+        """
+        i = 0
 
     def get_service_metadata_from_capabilities(self, xml_obj, async_task: Task = None):
         """ Parse the capability document <Service> metadata into the self object
@@ -186,14 +196,32 @@ class OGCCatalogueService(OGCWebService):
         )
 
     def get_service_operations(self, xml_obj):
+        """ Parses
+
+        Args:
+            xml_obj (Element): The xml as parsable element
+        Returns:
+
+        """
         operation_obj = xml_helper.try_get_single_element_from_xml(
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("OperationsMetadata"),
             xml_obj
         )
 
+        self._parse_operations_metadata(upper_elem=operation_obj)
+        self._parse_parameter_metadata(upper_elem=operation_obj)
+
+    def _parse_operations_metadata(self, upper_elem):
+        """ Parses the <Operation> elements inside of <OperationsMetadata>
+
+        Args:
+            upper_elem (Element): The upper xml element
+        Returns:
+
+        """
         operations_objs = xml_helper.try_get_element_from_xml(
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Operation"),
-            operation_obj
+            upper_elem
         )
 
         operation_map = {
@@ -223,3 +251,29 @@ class OGCCatalogueService(OGCWebService):
             uri_dict = operation_map.get(operation_name, {})
             uri_dict["get"] = get_uri
             uri_dict["post"] = post_uri
+
+    def _parse_parameter_metadata(self, upper_elem):
+        """ Parses the <Parameter> elements inside of <OperationsMetadata>
+
+        Args:
+            upper_elem (Element): The upper xml element
+        Returns:
+
+        """
+        parameter_objs = xml_helper.try_get_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Parameter"),
+            upper_elem
+        )
+        parameter_map = {}
+        for parameter in parameter_objs:
+            param_name = xml_helper.try_get_attribute_from_xml_element(
+                parameter,
+                "name"
+            )
+            param_val = xml_helper.try_get_text_from_xml_element(
+                parameter,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("Value")
+            )
+            parameter_map[param_name] = param_val
+
+        self.service_version = parameter_map.get("version", None)

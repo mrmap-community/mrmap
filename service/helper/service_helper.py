@@ -200,7 +200,7 @@ def create_service(service_type, version, base_uri, user, register_group, regist
         # let it load it's capabilities
         csw.get_capabilities()
         csw.create_from_capabilities(async_task=async_task, external_auth=external_auth)
-        service = csw.create_from_capabilities(user, register_group, register_for_organization, external_auth, is_update_candidate_for)
+        service = csw.create_service_model_instance(user, register_group, register_for_organization, external_auth, is_update_candidate_for)
     else:
         # For future implementation
         pass

@@ -650,8 +650,6 @@ class OGCWebFeatureService(OGCWebService):
     def create_service_model_instance(self, user: MrMapUser, register_group, register_for_organization, external_auth: ExternalAuthentication, is_update_candidate_for: Service):
         """ Map all data from the WebFeatureService classes to their database models
 
-        This does not persist the models to the database!
-
         Args:
             user (MrMapUser): The user which performs the action
             register_group (Group): The group which is used to register this service

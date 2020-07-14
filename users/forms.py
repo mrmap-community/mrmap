@@ -14,7 +14,7 @@ from django.contrib import messages
 from MrMap.forms import MrMapModelForm, MrMapConfirmForm, MrMapForm
 from MrMap.messages import EMAIL_IS_UNKNOWN, PASSWORD_CHANGE_OLD_PASSWORD_WRONG, SUBSCRIPTION_ALREADY_EXISTS_TEMPLATE, \
     SUBSCRIPTION_EDITING_SUCCESSFULL, SUBSCRIPTION_EDITING_UNSUCCESSFULL, SUBSCRIPTION_REMOVED_TEMPLATE, \
-    RESOURCE_NOT_FOUND_OR_NOT_OWNER, PASSWORD_CHANGE_SUCCESS
+    RESOURCE_NOT_FOUND_OR_NOT_OWNER, PASSWORD_CHANGE_SUCCESS, ACCOUNT_UPDATE_SUCCESS
 from MrMap.settings import MIN_PASSWORD_LENGTH
 from MrMap.validators import PASSWORD_VALIDATORS
 from service.helper.enums import MetadataEnum
@@ -84,7 +84,7 @@ class PasswordChangeForm(MrMapForm):
         messages.add_message(self.request, messages.SUCCESS, PASSWORD_CHANGE_SUCCESS)
 
 
-class UserForm(forms.ModelForm):
+class UserForm(MrMapModelForm):
     theme = forms.ModelChoiceField(queryset=Theme.objects.all(), to_field_name='name', empty_label=None, required=False)
 
     class Meta:
@@ -97,6 +97,12 @@ class UserForm(forms.ModelForm):
             "confirmed_survey",
             "theme",
         ]
+
+    def process_account_change(self):
+        # save changes
+        user = self.save()
+        user.save()
+        messages.add_message(self.request, messages.SUCCESS, ACCOUNT_UPDATE_SUCCESS)
 
 
 class SubscriptionForm(MrMapModelForm):

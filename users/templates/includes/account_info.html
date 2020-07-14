@@ -5,9 +5,34 @@
 <h5 class="mb-1 mr-3">
     {% autoescape off %}{{THEME.ICONS.USER}}{% endautoescape %} <strong>{{user.username}}</strong>
 </h5>
-<p><small class="text-muted mb-1">{{user.email}}</small></p>
-<p><small class="text-muted">
-    {% trans 'joined on' %}
-    <strong>{{user.date_joined}}</strong>
-</small></p>
+<table class="table">
+    <tr>
+        <th scope="row"><small class="text-muted mb-1">{% trans 'firstname' %}</small></th>
+        <td class="text-lg-right"><small class="text-muted">{{user.first_name}}</small></td>
+    </tr>
+    <tr>
+        <th scope="row"><small class="text-muted mb-1">{% trans 'lastname' %}</small></th>
+        <td class="text-lg-right"><small class="text-muted">{{user.last_name}}</small></td>
+    </tr>
+    <tr>
+        <th scope="row"><small class="text-muted mb-1">{% trans 'email' %}</small></th>
+        <td class="text-lg-right"><small class="text-muted">{{user.email}}</small></td>
+    </tr>
+    <tr>
+        <th scope="row"><small class="text-muted">{% trans 'joined on' %}</small></th>
+        <td class="text-lg-right"><small class="text-muted"><strong>{{user.date_joined}}</strong></small></td>
+    </tr>
+    <tr>
+        <th scope="row"><small class="text-muted mb-1">{% trans 'Abonemented newsletters' %}</small></th>
+        <td class="text-lg-right"><small class="text-muted">{% if user.confirmed_newsletter %} {% autoescape off %}{{THEME.ICONS.OK}}{% endautoescape %} {% else %} {% autoescape off %}{{THEME.ICONS.NOK}}{% endautoescape %}{% endif %}</small></td>
+    </tr>
+    <tr>
+        <th scope="row"><small class="text-muted mb-1">{% trans 'Abonemented surveys' %}</small></th>
+        <td class="text-lg-right"><small class="text-muted">{% if user.confirmed_survey %} {% autoescape off %}{{THEME.ICONS.OK}}{% endautoescape %} {% else %} {% autoescape off %}{{THEME.ICONS.NOK}}{% endautoescape %}{% endif %}</small></td>
+    </tr>
+    <tr>
+        <th scope="row"><small class="text-muted mb-1">{% trans 'Subscriptions' %}</small></th>
+        <td class="text-lg-right"><span class="badge badge-secondary badge-pill">{{subscriptions_count}}</span></td>
+    </tr>
+</table>
 {% endblock %}

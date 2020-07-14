@@ -2,21 +2,26 @@
 {% load static i18n %}
 {% load bootstrap4 %}
 {% block card-header-title-left %}
-    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} <strong>{% trans 'Edit account' %}</strong></h4>
+    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.INFO}}{% endautoescape %} <strong>{% trans 'Details' %}</strong></h4>
 {% endblock %}
 {% block card-header-title-right %}
 
-<a role="button" class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'password-change' %}?current-view={{current_view}}">
-    {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Change password' %}
-</a>
-
 {% endblock %}
 {% block card-body %}
+<div class="list-group">
+    <a href="{% url 'password-change' %}?current-view={{current_view}}" class="list-group-item list-group-item-action">
+        {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Change password' %}
+    </a>
+    <a href="{% url 'account-edit' %}?current-view={{current_view}}" class="list-group-item list-group-item-action">
+        {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit account information\'s' %}
+    </a>
+    <a href="{% url 'subscription-index' %}" class="list-group-item list-group-item-action">
+            {% autoescape off %}{{THEME.ICONS.SUBSCRIPTION}}{% endautoescape %} {% trans 'See subscriptions\'s' %}
+            <span class="badge {{THEME.CARD.BADGE_COLOR}} badge-pill">{{subscriptions_count}}</span>
+    </a>
+</div>
 
-<form id="id_edit_account_form" action="{{edit_account_form.action_url}}" method="post">
-    {% csrf_token %}
-    {% bootstrap_form edit_account_form  %}
-    <button type="button submit" class="btn {{ THEME.MODAL.BTN_PRIMARY_COLOR }}">{% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}</button>
-</form>
+
+
 
 {% endblock %}

@@ -72,6 +72,11 @@ class OGCOperationEnum(EnumChoice):
     GET_PROPERTY_VALUE = "GetPropertyValue"
     DESCRIBE_STORED_QUERIES = "DescribeStoredQueries"
 
+    # CSW
+    GET_RECORDS = "GetRecords"
+    DESCRIBE_RECORD = "DescribeRecord"
+    GET_RECORD_BY_ID = "GetRecordById"
+
 
 class MetadataEnum(EnumChoice):
     """ Defines all metadata types

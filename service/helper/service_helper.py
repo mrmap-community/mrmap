@@ -16,6 +16,7 @@ from service import tasks
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum
 from service.helper.epsg_api import EpsgApi
+from service.helper.ogc.csw import OGCCatalogueService
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Service, ExternalAuthentication, Metadata, Layer, FeatureType
@@ -182,7 +183,7 @@ def create_service(service_type, version, base_uri, user, register_group, regist
         wms.get_capabilities()
         wms.create_from_capabilities(async_task=async_task)
         service = wms.create_service_model_instance(user, register_group, register_for_organization, external_auth, is_update_candidate_for)
-    else:
+    elif service_type is OGCServiceEnum.WFS:
         # create WFS object
         wfs_factory = OGCWebFeatureServiceFactory()
         wfs = wfs_factory.get_ogc_wfs(version=version, service_connect_url=base_uri, external_auth=external_auth)
@@ -192,6 +193,17 @@ def create_service(service_type, version, base_uri, user, register_group, regist
         # since we iterate through featuretypes, we can use async task here
         wfs.create_from_capabilities(async_task=async_task, external_auth=external_auth)
         service = wfs.create_service_model_instance(user, register_group, register_for_organization, external_auth, is_update_candidate_for)
+    elif service_type is OGCServiceEnum.CSW:
+        # create CSW object
+        # We need no factory pattern in here since we do not support different CSW versions
+        csw = OGCCatalogueService(service_connect_url=base_uri, service_version=version, external_auth=external_auth, service_type=service_type)
+        # let it load it's capabilities
+        csw.get_capabilities()
+        csw.create_from_capabilities(async_task=async_task, external_auth=external_auth)
+        service = csw.create_from_capabilities(user, register_group, register_for_organization, external_auth, is_update_candidate_for)
+    else:
+        # For future implementation
+        pass
     return service
 
 

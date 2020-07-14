@@ -5,6 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 05.05.20
 
 """
+from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 
 from django.views.decorators.cache import cache_page
@@ -18,6 +19,12 @@ from service.helper.ogc.ows import OWSException
 
 # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
 # Cache requested url for time t
+from service.helper.service_helper import split_service_uri
+from service.tasks import async_new_service
+from structure.models import MrMapUser
+from users.helper import user_helper
+
+
 @cache_page(CSW_CACHE_TIME, key_prefix=CSW_CACHE_PREFIX)
 def get_csw_results(request: HttpRequest):
     """ Wraps incoming csw request
@@ -39,3 +46,22 @@ def get_csw_results(request: HttpRequest):
         content_type = "application/xml"
 
     return HttpResponse(content, content_type=content_type)
+
+@login_required
+def add_new_catalogue(request: HttpRequest):
+    post_params = request.POST.dict()
+    user = user_helper.get_user(request)
+
+    csw_uri = post_params.get("uri", None)
+    if csw_uri is not None:
+        uri_dict = split_service_uri(csw_uri)
+        uri_dict["service"] = uri_dict["service"].value
+        async_new_service(
+            url_dict=uri_dict,
+            user_id=user.id,
+            register_group_id=1,
+            register_for_organization_id=None,
+            external_auth=None
+        )
+
+    return HttpResponse()

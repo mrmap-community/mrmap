@@ -43,6 +43,7 @@ class OGCServiceEnum(EnumChoice):
     WFS = "wfs"
     WMC = "wmc"
     DATASET = "dataset"
+    CSW = "csw"
 
 
 class OGCOperationEnum(EnumChoice):
@@ -80,6 +81,7 @@ class MetadataEnum(EnumChoice):
     SERVICE = "service"
     LAYER = "layer"
     FEATURETYPE = "featuretype"
+    CATALOGUE = "catalogue"
 
 
 class DocumentEnum(EnumChoice):
@@ -97,6 +99,7 @@ class ResourceOriginEnum(EnumChoice):
     CAPABILITIES = "Capabilities"
     UPLOAD = "Upload"
     EDITOR = "Editor"
+    CATALOGUE = "Catalogue"
 
 
 class CategoryOriginEnum(EnumChoice):

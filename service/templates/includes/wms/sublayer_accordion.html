@@ -15,7 +15,7 @@
 
         accordionButton.click(function() {
           if ( accordionButton.hasClass('collapsed') ) {
-            $.get( '{% url 'service:detail' layer.metadata.id %}?no-base', function( data ) {
+            $.get( '{% url 'resource:detail' layer.metadata.id %}?no-base', function( data ) {
                 // Insert subelement detail table
                 $( "#id_content_service_{{layer.metadata.id}}" ).html( data );
                 $(function () {

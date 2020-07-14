@@ -31,15 +31,15 @@
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'service' %}active{% endif %}">
-                <a class="nav-link dropdown-toggle" href="{% url 'service:index' %}" id="navbarServicesDropdown"
+                <a class="nav-link dropdown-toggle" href="{% url 'resource:index' %}" id="navbarServicesDropdown"
                    role="button"
                    aria-haspopup="true" aria-expanded="false">
                     {% autoescape off %}{{THEME.ICONS.BRAIN}}{% endautoescape %} {% trans 'Resources' %}
                 </a>
                 <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
-                    <a class="dropdown-item" href="{% url 'service:wms-index' %}">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %}</a>
-                    <a class="dropdown-item" href="{% url 'service:wfs-index' %}">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %}</a>
-                    <a class="dropdown-item" href="{% url 'service:datasets-index' %}">{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} {% trans 'Datasets' %}</a>
+                    <a class="dropdown-item" href="{% url 'resource:wms-index' %}">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %}</a>
+                    <a class="dropdown-item" href="{% url 'resource:wfs-index' %}">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %}</a>
+                    <a class="dropdown-item" href="{% url 'resource:datasets-index' %}">{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} {% trans 'Datasets' %}</a>
                 </div>
             </li>
             <li class="nav-item dropdown {% if PATH == 'api' %}active{% endif %}">
@@ -48,7 +48,7 @@
                 </a>
             </li>
             <li class="nav-item dropdown {% if PATH == 'logs' %}active{% endif %}">
-                <a class="nav-link" href="{% url 'service:logs-view' %}" title="{% trans 'Logs' %}">
+                <a class="nav-link" href="{% url 'resource:logs-view' %}" title="{% trans 'Logs' %}">
                     {% autoescape off %}{{THEME.ICONS.LOGS}}{% endautoescape %} {% trans 'Logs' %}
                 </a>
             </li>

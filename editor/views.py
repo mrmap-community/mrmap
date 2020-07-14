@@ -157,7 +157,7 @@ def edit_access(request: HttpRequest, id):
                 redirect_id = md.id
             else:
                 redirect_id = md.service.parent_service.metadata.id
-        return redirect("service:detail", redirect_id)
+        return redirect("resource:detail", redirect_id)
 
     else:
         # render form

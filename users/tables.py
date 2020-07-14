@@ -48,7 +48,7 @@ class SubscriptionTable(MrMapTable):
 
     def render_subscribed_services(self, record, value):
         return format_html(self.get_link(
-            href=reverse('service:detail', args=(record.metadata.id,)),
+            href=reverse('resource:detail', args=(record.metadata.id,)),
             value=value,
             tooltip=format_html(
                 _(f"Go to the detail view of service <strong>{record.metadata.title} [{record.metadata.id}]</strong>"), ),

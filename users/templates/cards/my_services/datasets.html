@@ -17,7 +17,7 @@
 <p class="card-text">
     {% trans 'Your metadata datasets.' %}
 </p>
-<a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'service:datasets-index' %}" role="button">
+<a class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}}" href="{% url 'resource:datasets-index' %}" role="button">
     {% trans 'Show'%}
 </a>
 {% if 'can_register_service' in user_permissions %}

@@ -80,7 +80,7 @@ class DatasetWizard(MrMapWizard):
             metadata.save()
             dataset.metadata = metadata
             dataset.save()
-            metadata.metadata_url = reverse("service:get-dataset-metadata", args=(dataset.id,))
+            metadata.metadata_url = reverse("resource:get-dataset-metadata", args=(dataset.id,))
 
         user = user_helper.get_user(request=self.request)
         self._fill_form_list(form_list, metadata, dataset, user)

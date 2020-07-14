@@ -32,7 +32,7 @@ class ServiceTestCase(TestCase):
                                 request=self.request, )
 
         for column in wms_table.columns.columns:
-            request = self.factory.get(reverse("service:wms-index") + '?{}={}'.format("swms", column))
+            request = self.factory.get(reverse("resource:wms-index") + '?{}={}'.format("swms", column))
             RequestConfig(request).configure(wms_table)
 
             exception = None
@@ -55,7 +55,7 @@ class ServiceTestCase(TestCase):
                                      request=self.request, )
 
         for column in wms_table.columns.columns:
-            request = self.factory.get(reverse("service:wms-index") + '?{}={}'.format("swms", column))
+            request = self.factory.get(reverse("resource:wms-index") + '?{}={}'.format("swms", column))
             RequestConfig(request).configure(wms_table)
 
             exception = None
@@ -78,7 +78,7 @@ class ServiceTestCase(TestCase):
                                     request=self.request, )
 
         for column in wfs_table.columns.columns:
-            request = self.factory.get(reverse("service:wfs-index") + '?{}={}'.format("swfs", column))
+            request = self.factory.get(reverse("resource:wfs-index") + '?{}={}'.format("swfs", column))
             RequestConfig(request).configure(wfs_table)
 
             exception = None
@@ -101,7 +101,7 @@ class ServiceTestCase(TestCase):
                                   request=self.request, )
 
         for column in table.columns.columns:
-            request = self.factory.get(reverse("service:pending-tasks") + '?{}={}'.format("sort", column))
+            request = self.factory.get(reverse("resource:pending-tasks") + '?{}={}'.format("sort", column))
             RequestConfig(request).configure(table)
 
             exception = None
@@ -125,7 +125,7 @@ class ServiceTestCase(TestCase):
 
         for column in table.columns.columns:
             # to match the reverse we use dummy id 1. It's ok, cause no request on views will be done
-            request = self.factory.get(reverse("service:get-metadata-html", args=(1,)) + '?{}={}'.format("sort", column))
+            request = self.factory.get(reverse("resource:get-metadata-html", args=(1,)) + '?{}={}'.format("sort", column))
             RequestConfig(request).configure(table)
 
             exception = None
@@ -149,7 +149,7 @@ class ServiceTestCase(TestCase):
 
         for column in table.columns.columns:
             # to match the reverse we use dummy id 1. It's ok, cause no request on views will be done
-            request = self.factory.get(reverse("service:get-metadata-html", args=(1,)) + '?{}={}'.format("sort", column))
+            request = self.factory.get(reverse("resource:get-metadata-html", args=(1,)) + '?{}={}'.format("sort", column))
             RequestConfig(request).configure(table)
 
             exception = None
@@ -173,7 +173,7 @@ class ServiceTestCase(TestCase):
 
         for column in table.columns.columns:
             # to match the reverse we use dummy id 1. It's ok, cause no request on views will be done
-            request = self.factory.get(reverse("service:get-metadata-html", args=(1,)) + '?{}={}'.format("sort", column))
+            request = self.factory.get(reverse("resource:get-metadata-html", args=(1,)) + '?{}={}'.format("sort", column))
             RequestConfig(request).configure(table)
 
             exception = None

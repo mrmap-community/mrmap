@@ -21,13 +21,13 @@
     </tr>
     <tr>
         <th scope="row">{% trans 'Parent Service' %}</th>
-        <td><a href="{% url 'service:get-metadata-html' parent_service.metadata.id %}">{{parent_service.metadata.title}}</a>
+        <td><a href="{% url 'resource:get-metadata-html' parent_service.metadata.id %}">{{parent_service.metadata.title}}</a>
         </td>
     </tr>
     {% if parent_layer%}
     <tr>
         <th scope="row">{% trans 'Parent Layer' %}</th>
-        <td><a href="{% url 'service:get-metadata-html' parent_layer.metadata.id %}">{{parent_layer.metadata.title}}</a>
+        <td><a href="{% url 'resource:get-metadata-html' parent_layer.metadata.id %}">{{parent_layer.metadata.title}}</a>
         </td>
     </tr>
     {% endif %}
@@ -41,9 +41,9 @@
             <div>
                 {% comment %} TODO: show "no preview" if no preview is available {% endcomment %}
                 <a itemprop="exampleOfWork" itemtype="https://schema.org/CreativeWork"
-                   href="{% url 'service:get-service-metadata-preview' md_id %}">
+                   href="{% url 'resource:get-service-metadata-preview' md_id %}">
                     <img itemprop="thumbnailUrl"
-                         src="{% url 'service:get-service-metadata-preview' md_id %}" alt="preview"
+                         src="{% url 'resource:get-service-metadata-preview' md_id %}" alt="preview"
                          class="img-thumbnail">
                 </a>
             </div>

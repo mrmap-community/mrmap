@@ -13,7 +13,7 @@ NEW_SERVICE_WIZARD_FORMS = [(_("Service url"), RegisterNewServiceWizardPage1),
 class NewServiceWizard(MrMapWizard):
     def __init__(self, current_view, *args, **kwargs):
         super(MrMapWizard, self).__init__(
-            action_url=reverse('service:add', ) + f"?current-view={current_view}",
+            action_url=reverse('resource:add', ) + f"?current-view={current_view}",
             current_view=current_view,
             *args,
             **kwargs)

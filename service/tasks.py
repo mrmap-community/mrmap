@@ -5,6 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 12.08.19
 
 """
+import base64
 import json
 import time
 
@@ -389,3 +390,16 @@ def async_process_secure_operations_form(post_params: dict, md_id: int):
     sub_mds = md.get_subelements_metadatas()
     for sub_md in sub_mds:
         sub_md.clear_cached_documents()
+
+
+@shared_task(name="async_log_response")
+def async_log_response(proxy_log_id: int, response: str, request_param: str, format_param: str):
+    response = base64.b64decode(response.encode("UTF-8"))
+    proxy_log = ProxyLog.objects.get(
+        id=proxy_log_id
+    )
+    proxy_log.log_response(
+        response,
+        request_param,
+        format_param
+    )

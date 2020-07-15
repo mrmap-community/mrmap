@@ -28,8 +28,8 @@ from MrMap import utils
 from MrMap.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
     SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY, SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY, \
     OPERATION_HANDLER_MULTIPLE_QUERIES_NOT_ALLOWED
-from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES, EXEC_TIME_PRINT
-from MrMap.utils import execute_threads, print_debug_mode
+from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
+from MrMap.utils import execute_threads
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
@@ -37,7 +37,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.request_builder import OGCRequestPOSTBuilder
-from service.models import Metadata, FeatureType, Layer, ProxyLog, SecuredOperation
+from service.models import Metadata, FeatureType, Layer, ProxyLog
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
@@ -1340,7 +1340,6 @@ class OGCOperationRequestHandler:
                 bg.paste(img, mask=img.split()[3])
                 bg.save(out_bytes_stream, img.format, quality=80)
                 img = out_bytes_stream.getvalue()
-
         return img
 
     def _filter_transaction_geometries(self, sec_ops: QueryDict):

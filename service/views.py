@@ -1,4 +1,4 @@
-
+import base64
 import io
 from datetime import datetime
 from io import BytesIO
@@ -33,7 +33,7 @@ from service.helper.service_comparator import ServiceComparator
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import WmsTableWms, WmsLayerTableWms, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
      DatasetTable
-from service.tasks import async_increase_hits
+from service.tasks import async_increase_hits, async_log_response
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
@@ -1103,7 +1103,6 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
             if layers_md.count() != len(layers):
                 # at least one requested layer could not be found in the database
                 return HttpResponse(status=404, content=SERVICE_LAYER_NOT_FOUND)
-
         if md_secured:
             response_dict = operation_handler.get_secured_operation_response(request, metadata, proxy_log=proxy_log)
         else:
@@ -1118,15 +1117,17 @@ def get_operation_result(request: HttpRequest, proxy_log: ProxyLog, metadata_id)
 
         # Log the response, if needed
         if proxy_log is not None:
-            proxy_log.log_response(
-                response,
+            response_encoded = base64.b64encode(response).decode("UTF-8")
+            async_log_response.delay(
+                proxy_log.id,
+                response_encoded,
                 operation_handler.request_param,
                 operation_handler.format_param,
             )
 
         len_response = len(response)
 
-        if len_response <= 50000:
+        if len_response <= 5000000:
             return HttpResponse(response, content_type=content_type)
         else:
             # data too big - we should stream it!

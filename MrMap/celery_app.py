@@ -25,3 +25,19 @@ app.conf.beat_scheduler = settings.CELERY_BEAT_SCHEDULER
 @app.task(bind=True)
 def debug_task(self):
     print('Request: {0!r}'.format(self.request))
+
+
+def get_number_active_workers():
+    """ Returns the amount of current celery workers
+
+    Returns:
+         active_workers (int):
+    """
+    i = app.control.inspect()
+    d = i.active()
+    try:
+        e = [v for k, v in d.items()][0]
+        active_workers = len(e)
+    except IndexError:
+        active_workers = 0
+    return active_workers

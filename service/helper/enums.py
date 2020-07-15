@@ -85,6 +85,7 @@ class MetadataEnum(EnumChoice):
     DATASET = "dataset"
     SERVICE = "service"
     LAYER = "layer"
+    TILE = "tile"
     FEATURETYPE = "featuretype"
     CATALOGUE = "catalogue"
 

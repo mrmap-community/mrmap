@@ -91,12 +91,16 @@ def harvest_catalogue(request: HttpRequest, metadata_id: str):
     Returns:
 
     """
+    user = user_helper.get_user(request)
+    harvesting_group = user.get_groups().filter(
+        is_public_group=False
+    ).first()
     try:
         md = Metadata.objects.get(
             id=metadata_id,
             metadata_type=MetadataEnum.CATALOGUE.value
         )
-        harvester = Harvester(md)
+        harvester = Harvester(md, harvesting_group)
         harvester.harvest()
     except ObjectDoesNotExist:
         return HttpResponse(RESOURCE_NOT_FOUND, status=404)

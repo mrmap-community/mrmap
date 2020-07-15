@@ -193,8 +193,8 @@ class ServiceAdmin(admin.ModelAdmin):
     list_display = ('id', 'is_active', 'is_deleted',  'service_type', 'metadata_link', 'parent_service_link', 'published_for', 'created_by')
     list_filter = ('is_active', 'is_deleted', 'service_type', 'published_for')
     search_fields = ['id', 'metadata__title']
-
     readonly_fields = ("operation_urls",)
+    ordering = ["-created"]
 
     def metadata_link(self, obj):
         return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata.id,)), escape(obj.metadata)))

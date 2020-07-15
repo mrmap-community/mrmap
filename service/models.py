@@ -1179,7 +1179,11 @@ class Metadata(Resource):
         Returns:
              is_root (bool): True if there is no parent service to the described service, False otherwise
         """
-        return self.is_metadata_type(MetadataEnum.SERVICE)
+        is_root = [
+            self.is_metadata_type(MetadataEnum.SERVICE),
+            self.is_metadata_type(MetadataEnum.CATALOGUE)
+        ]
+        return True in is_root
 
     def _restore_layer_md(self, service,):
         """ Private function for retrieving single layer metadata

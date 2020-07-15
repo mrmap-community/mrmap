@@ -11,7 +11,7 @@ from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from service.helper import xml_helper, task_helper, service_helper
 from service.helper.enums import OGCOperationEnum, MetadataEnum
 from service.helper.ogc.ows import OGCWebService
-from service.models import ExternalAuthentication, Metadata, MimeType, Keyword, Service, ServiceType
+from service.models import ExternalAuthentication, Metadata, MimeType, Keyword, Service, ServiceType, ServiceUrl
 from service.settings import SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, HTML_METADATA_URI_TEMPLATE
 from structure.models import MrMapUser, Organization, MrMapGroup
 
@@ -155,11 +155,6 @@ class OGCCatalogueService(OGCWebService):
         service.created_by = group
         service.published_for = orga_published_for
 
-        operation_urls = [
-
-        ]
-        service.operation_urls.add(*operation_urls)
-
         service.availability = 0.0
         service.is_available = False
         service.is_root = True
@@ -168,6 +163,50 @@ class OGCCatalogueService(OGCWebService):
 
         # Save record to enable M2M relations
         service.save()
+
+        operation_urls = [
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_CAPABILITIES.value,
+                method="Get",
+                url=self.get_capabilities_uri.get("get", None)
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_CAPABILITIES.value,
+                method="Post",
+                url=self.get_capabilities_uri.get("post", None)
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.DESCRIBE_RECORD.value,
+                method="Get",
+                url=self.describe_record_uri.get("get", None)
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.DESCRIBE_RECORD.value,
+                method="Post",
+                url=self.describe_record_uri.get("post", None)
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_RECORDS.value,
+                method="Get",
+                url=self.get_records_uri.get("get", None)
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_RECORDS.value,
+                method="Post",
+                url=self.get_records_uri.get("post", None)
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_RECORD_BY_ID.value,
+                method="Get",
+                url=self.get_record_by_id_uri.get("get", None)
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_RECORD_BY_ID.value,
+                method="Post",
+                url=self.get_record_by_id_uri.get("post", None)
+            )[0],
+        ]
+        service.operation_urls.add(*operation_urls)
 
         # Persist capabilities document
         service.persist_capabilities_doc(self.service_capabilities_xml)
@@ -302,6 +341,7 @@ class OGCCatalogueService(OGCWebService):
         Returns:
 
         """
+        from service.helper.service_helper import resolve_version_enum
         operation_obj = xml_helper.try_get_single_element_from_xml(
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("OperationsMetadata"),
             xml_obj
@@ -312,7 +352,7 @@ class OGCCatalogueService(OGCWebService):
 
         # Parse Service parameters
         csw_parameters = self._parse_parameter_metadata(upper_elem=operation_obj)
-        self.service_version = csw_parameters.get("version", None)
+        self.service_version = resolve_version_enum(csw_parameters.get("version", None))
 
     def _parse_operations_metadata(self, upper_elem):
         """ Parses the <Operation> elements inside of <OperationsMetadata>

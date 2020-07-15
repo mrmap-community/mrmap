@@ -47,6 +47,7 @@ def get_csw_results(request: HttpRequest):
 
     return HttpResponse(content, content_type=content_type)
 
+
 @login_required
 def add_new_catalogue(request: HttpRequest):
     post_params = request.POST.dict()

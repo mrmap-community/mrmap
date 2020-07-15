@@ -6,20 +6,26 @@ Created on: 05.05.20
 
 """
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest, HttpResponse
 
 from django.views.decorators.cache import cache_page
 
+from MrMap.decorator import resolve_metadata_public_id
+from MrMap.messages import RESOURCE_NOT_FOUND
 from csw.settings import CSW_CACHE_TIME, CSW_CACHE_PREFIX
+from csw.utils.harvester import Harvester
 from csw.utils.parameter import ParameterResolver
 
 from csw.utils.request_resolver import RequestResolver
+from service.helper.enums import MetadataEnum
 from service.helper.ogc.ows import OWSException
 
 
 # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
 # Cache requested url for time t
 from service.helper.service_helper import split_service_uri
+from service.models import Metadata
 from service.tasks import async_new_service
 from structure.models import MrMapUser
 from users.helper import user_helper
@@ -50,6 +56,13 @@ def get_csw_results(request: HttpRequest):
 
 @login_required
 def add_new_catalogue(request: HttpRequest):
+    """ Registration route for new CSW records
+
+    Args:
+        request (HttpRequest): The incoming request
+    Returns:
+
+    """
     post_params = request.POST.dict()
     user = user_helper.get_user(request)
 
@@ -65,4 +78,26 @@ def add_new_catalogue(request: HttpRequest):
             external_auth=None
         )
 
+    return HttpResponse()
+
+
+@login_required
+@resolve_metadata_public_id
+def harvest_catalogue(request: HttpRequest, metadata_id: str):
+    """ Starts harvesting procedure for catalogue
+
+    Args:
+        request (HttpRequest): The incoming request
+    Returns:
+
+    """
+    try:
+        md = Metadata.objects.get(
+            id=metadata_id,
+            metadata_type=MetadataEnum.CATALOGUE.value
+        )
+        harvester = Harvester(md)
+        harvester.harvest()
+    except ObjectDoesNotExist:
+        return HttpResponse(RESOURCE_NOT_FOUND, status=404)
     return HttpResponse()

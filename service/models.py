@@ -1116,7 +1116,7 @@ class Metadata(Resource):
             service_type = 'wfs'
         return service_type
 
-    def get_service_version(self):
+    def get_service_version(self) -> OGCServiceEnum:
         """ Returns the service version
 
         Returns:

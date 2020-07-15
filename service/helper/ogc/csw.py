@@ -351,8 +351,7 @@ class OGCCatalogueService(OGCWebService):
         self._parse_operations_metadata(upper_elem=operation_obj)
 
         # Parse Service parameters
-        csw_parameters = self._parse_parameter_metadata(upper_elem=operation_obj)
-        self.service_version = resolve_version_enum(csw_parameters.get("version", None))
+        self._parse_parameter_metadata(upper_elem=operation_obj)
 
     def _parse_operations_metadata(self, upper_elem):
         """ Parses the <Operation> elements inside of <OperationsMetadata>
@@ -429,5 +428,4 @@ class OGCCatalogueService(OGCWebService):
             )
             parameter_map[param_name] = param_val
 
-        self.service_version = parameter_map.get("version", None)
         return parameter_map

@@ -13,4 +13,5 @@ app_name = 'csw'
 urlpatterns = [
     path('', get_csw_results, name='get-csw-results'),
     path('new-catalogue/', add_new_catalogue, name='add-new-catalogue'),
+    path('harvest/<metadata_id>', harvest_catalogue, name='harvest-catalogue'),
 ]

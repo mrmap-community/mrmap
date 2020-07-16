@@ -6,15 +6,17 @@ Created on: 15.07.20
 
 """
 import json
-from time import sleep
+from concurrent.futures.thread import ThreadPoolExecutor
+from time import time
+import datetime
 
 import requests
 from django.contrib.gis.geos import Polygon, GEOSGeometry
+from django.db import connection, transaction
+from django.utils.translation import gettext_lazy as _
 from lxml.etree import Element
 
-from MrMap.celery_app import get_number_active_workers
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
-from csw.tasks import async_create_metadata_from_md_metadata
 from service.helper import xml_helper
 from service.helper.enums import OGCOperationEnum, MetadataEnum, ResourceOriginEnum
 from service.models import Metadata, Dataset, Keyword, Category
@@ -23,7 +25,7 @@ from structure.models import PendingTask, MrMapGroup
 
 
 class Harvester:
-    def __init__(self, metadata: Metadata, group: MrMapGroup):
+    def __init__(self, metadata: Metadata, group: MrMapGroup, num_threads: int = 10, max_records_per_request: int = 200):
         self.metadata = metadata
         self.harvesting_group = group
         self.harvest_url = metadata.service.operation_urls.filter(
@@ -33,14 +35,15 @@ class Harvester:
         ).first()
 
         self.version = self.metadata.get_service_version().value
-        self.max_records_per_request = 100
+        self.max_records_per_request = max_records_per_request
         self.start_position = 1
+        self.num_threads = num_threads
 
         self.method = self.harvest_url.method
 
         self.harvest_url = getattr(self.harvest_url, "url", None)
         if self.harvest_url is None:
-            raise ValueError("NO GET RECORDS URL AVAILABLE")
+            raise ValueError(_("No get records URL available"))
         self.output_format = getattr(
             self.metadata.formats.filter(
                 mime_type__icontains="xml"
@@ -50,7 +53,7 @@ class Harvester:
         )
 
         if self.output_format is None:
-            raise ValueError("NO XML OUTPUT FORMAT AVAILABLE")
+            raise ValueError(_("No XML output format available"))
 
         self.pending_task = None  # will be initialized in harvest()
 
@@ -108,42 +111,76 @@ class Harvester:
         # Create a pending task record for the database first!
         self.pending_task = PendingTask.objects.get_or_create(
             task_id=self.metadata.public_id,
-            description=json.dumps({
+        )
+        is_new = self.pending_task[1]
+        self.pending_task = self.pending_task[0]
+
+        if not is_new:
+            raise ProcessLookupError(_("Harvesting is currently performed. Remaining time: {}").format(self.pending_task.remaining_time))
+        else:
+            self.pending_task.description = json.dumps({
                 "service": self.metadata.title,
-                "phase": "Parsing",
-            }),
-            progress=0,
-        )[0]
+                "phase": "Loading Harvest...",
+            })
+            self.pending_task.progress = 0
+            self.pending_task.save()
 
         # Perform the initial "hits" request to get an overview of how many data will be fetched
         hits_response = self._get_harvest_response(result_type="hits")
         if hits_response.status_code != 200:
-            raise ConnectionError("HARVESTING FAILED: CODE {}\n{}".format(hits_response.status_code, hits_response.content))
+            raise ConnectionError(_("Harvest failed: Code {}\n{}").format(hits_response.status_code, hits_response.content))
         xml_response = xml_helper.parse_xml(hits_response.content)
 
         total_number_to_harvest = int(xml_helper.try_get_attribute_from_xml_element(
             xml_response,
             "numberOfRecordsMatched",
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
-        ))
+            ))
 
         progress_step_per_request = float(self.max_records_per_request / total_number_to_harvest) * 100
 
+        t_start = time()
         # Run as long as we can fetch data!
         while self.start_position != 0:
-            response = self._get_harvest_response(result_type="results")
-            next_record = self._process_harvest_response(response.content)
-            self.start_position = next_record
-            self._update_pending_task(next_record, total_number_to_harvest, progress_step_per_request)
+            t_start_run = time()
+            next_response = self._get_harvest_response(result_type="results")
+            next_record_position = self._process_harvest_response(next_response.content)
+            self.start_position = next_record_position
 
-    def _update_pending_task(self, next_record: int, total_records: int, progress_step: float):
+            # Calculate remaining time
+            duration = time() - t_start
+            estimated_time_for_all = datetime.timedelta(seconds=((total_number_to_harvest - next_record_position) * (duration / next_record_position)))
+            self._update_pending_task(next_record_position, total_number_to_harvest, progress_step_per_request, estimated_time_for_all)
+            print("Run took {}s for {} records".format(time() - t_start_run, self.max_records_per_request))
+
+        self.pending_task.delete()
+
+    def _update_pending_task(self, next_record: int, total_records: int, progress_step: float, remaining_time):
+        """ Updates the PendingTask object
+
+        Args:
+            next_record (int): The nextRecord value
+            total_records (int): The totalRecord value
+            progress_step (int): The increment for the next step
+            remaining_time: The timedelta for the remaining time
+        Returns:
+
+        """
         descr = json.loads(self.pending_task.description)
-        descr["phase"] = "Parsing {} of {}".format(next_record, total_records)
+        descr["phase"] = _("Harvesting {} of {}").format(next_record, total_records)
         self.pending_task.description = json.dumps(descr)
+        self.pending_task.remaining_time = remaining_time
         self.pending_task.progress += progress_step
         self.pending_task.save()
 
-    def _get_harvest_response(self, result_type: str = "results"):
+    def _get_harvest_response(self, result_type: str = "results", only_content: bool = False):
+        """ Fetch a response for the harvesting (GetRecords)
+
+        Args:
+            result_type (str): Which resultType should be used (hits|results)
+        Returns:
+             harvest_response (bytes): The response content
+        """
         harvest_response = None
         if self.method.upper() == "GET":
             params = {
@@ -166,29 +203,49 @@ class Harvester:
         else:
             raise NotImplementedError()
 
-        return harvest_response
+        return harvest_response if not only_content else harvest_response.content
 
     def _process_harvest_response(self, response: bytes):
+        """ Processes the harvest response content
+
+        Args:
+            response (bytes): The response as bytes
+        Returns:
+             next_record (int): The nextRecord value (used for next startPosition)
+        """
         xml_response = xml_helper.parse_xml(response)
 
-        next_record = int(xml_helper.try_get_attribute_from_xml_element(
+        next_record_position = int(xml_helper.try_get_attribute_from_xml_element(
             xml_response,
             "nextRecord",
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
         ))
 
-        active_workers = get_number_active_workers()
-        print(active_workers)
-        while active_workers >= 5:
-            print("Sleep!")
-            sleep(0.5)
-            active_workers = get_number_active_workers()
+        xml_response = xml_helper.parse_xml(response)
+        md_metadata_entries = xml_helper.try_get_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_Metadata"),
+            xml_response
+        )
+        with ThreadPoolExecutor(max_workers=None) as executor:
+            # Start multithreaded processing of harvest response
+            _from = 0
+            step = int(len(md_metadata_entries) / self.num_threads)
+            for i in range(0, self.num_threads):
+                executor.submit(self._multithread_create_metadata_from_md_metadata, md_metadata_entries[_from: (_from + step)], self.harvesting_group, i)
+                _from += step
 
-        async_create_metadata_from_md_metadata.delay(response.decode("UTF-8"), self.harvesting_group.id)
-        print(next_record)
-        return next_record
+        return next_record_position
 
-    def _create_metadata_from_md_metadata(self, md_metadata_entries: list):
+    @transaction.atomic
+    def _multithread_create_metadata_from_md_metadata(self, md_metadata_entries: list, harvesting_group: MrMapGroup, i):
+        """ Creates Metadata records from raw xml md_metadata data
+
+        Args:
+            md_metadata_entries (list): The list of xml objects
+            harvesting_group (MrMapGroup): The performing group
+        Returns:
+
+        """
         for md_metadata in md_metadata_entries:
             _id = xml_helper.try_get_text_from_xml_element(
                     md_metadata,
@@ -199,8 +256,7 @@ class Harvester:
                 id=_id,
                 identifier=_id,
             )[0]
-            print(metadata)
-            metadata.created_by = self.harvesting_group
+            metadata.created_by = harvesting_group
             metadata.origin = ResourceOriginEnum.CATALOGUE.value
             metadata.title = xml_helper.try_get_text_from_xml_element(
                 md_metadata,
@@ -253,7 +309,6 @@ class Harvester:
                 ).first()
                 if cat_obj is not None:
                     metadata.categories.add(cat_obj)
-
             extent = [
                 xml_helper.try_get_text_from_xml_element(
                     md_metadata,
@@ -279,75 +334,76 @@ class Harvester:
             metadata.bounding_geometry = GEOSGeometry(Polygon.from_bbox(bbox=extent), srid=DEFAULT_SRS)
             metadata.metadata_type = hierarchy_level
             metadata.save()
-
             # Load non-metadata data
             described_resource = None
             if hierarchy_level == MetadataEnum.DATASET.value:
                 described_resource = self._create_dataset_from_md_metadata(md_metadata, metadata)
                 described_resource.metadata = metadata
                 described_resource.save()
+        # To close threaded connections
+        connection.close()
 
-    @classmethod
-    def _create_dataset_from_md_metadata(cls, md_metadata: Element, metadata: Metadata) -> Dataset:
+
+    def _create_dataset_from_md_metadata(self, md_metadata: Element, metadata: Metadata) -> Dataset:
         """ Creates a Dataset record from xml data
 
         Args:
             md_metadata (Element): The xml element which holds the data
             metadata (Metadata): The related metadata element
         Returns:
-
+            dataset (Dataset): The dataset record
         """
-        described_resource = Dataset()
-        described_resource.language_code = metadata.language_code
-        described_resource.language_code_list_url = xml_helper.try_get_attribute_from_xml_element(
+        dataset = Dataset()
+        dataset.language_code = metadata.language_code
+        dataset.language_code_list_url = xml_helper.try_get_attribute_from_xml_element(
             md_metadata,
             "codeList",
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("language")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode")
         )
-        described_resource.character_set_code = xml_helper.try_get_text_from_xml_element(
+        dataset.character_set_code = xml_helper.try_get_text_from_xml_element(
             md_metadata,
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("characterSet")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("MD_CharacterSetCode")
         )
-        described_resource.character_set_code_list_url = xml_helper.try_get_attribute_from_xml_element(
+        dataset.character_set_code_list_url = xml_helper.try_get_attribute_from_xml_element(
             md_metadata,
             "codeList",
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("characterSet")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("MD_CharacterSetCode")
         )
-        described_resource.date_stamp = xml_helper.try_get_text_from_xml_element(
+        dataset.date_stamp = xml_helper.try_get_text_from_xml_element(
             md_metadata,
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Date")
         )
-        described_resource.metadata_standard_name = xml_helper.try_get_text_from_xml_element(
+        dataset.metadata_standard_name = xml_helper.try_get_text_from_xml_element(
             md_metadata,
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("metadataStandardName")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
         )
-        described_resource.metadata_standard_version = xml_helper.try_get_text_from_xml_element(
+        dataset.metadata_standard_version = xml_helper.try_get_text_from_xml_element(
             md_metadata,
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("metadataStandardVersion")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
         )
-        described_resource.update_frequency_code = xml_helper.try_get_text_from_xml_element(
+        dataset.update_frequency_code = xml_helper.try_get_text_from_xml_element(
             md_metadata,
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_MaintenanceFrequencyCode")
         )
-        described_resource.update_frequency_code_list_url = xml_helper.try_get_attribute_from_xml_element(
+        dataset.update_frequency_code_list_url = xml_helper.try_get_attribute_from_xml_element(
             md_metadata,
             "codeList",
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_MaintenanceFrequencyCode")
         )
-        described_resource.use_limitation = xml_helper.try_get_text_from_xml_element(
+        dataset.use_limitation = xml_helper.try_get_text_from_xml_element(
             md_metadata,
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("useLimitation")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
         )
-        described_resource.lineage_statement = xml_helper.try_get_text_from_xml_element(
+        dataset.lineage_statement = xml_helper.try_get_text_from_xml_element(
             md_metadata,
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("statement")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
         )
-        return described_resource
+        return dataset

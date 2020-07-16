@@ -25,7 +25,7 @@ from structure.models import PendingTask, MrMapGroup
 
 
 class Harvester:
-    def __init__(self, metadata: Metadata, group: MrMapGroup, num_threads: int = 10, max_records_per_request: int = 200):
+    def __init__(self, metadata: Metadata, group: MrMapGroup, max_records_per_request: int = 200):
         self.metadata = metadata
         self.harvesting_group = group
         self.harvest_url = metadata.service.operation_urls.filter(
@@ -37,7 +37,6 @@ class Harvester:
         self.version = self.metadata.get_service_version().value
         self.max_records_per_request = max_records_per_request
         self.start_position = 1
-        self.num_threads = num_threads
 
         self.method = self.harvest_url.method
 
@@ -231,22 +230,15 @@ class Harvester:
             xml_response
         )
 
-        with ThreadPoolExecutor(max_workers=None) as executor:
-            # Start multithreaded processing of harvest response
-            _from = 0
-            step = int(len(md_metadata_entries) / self.num_threads)
-            if step < 1:
-                # There are not enough elements in the list, that we should create multiple threads. A single one is enough
-                executor.submit(self._multithread_create_metadata_from_md_metadata, md_metadata_entries, self.harvesting_group)
-            else:
-                # We should create threads
-                for i in range(0, self.num_threads):
-                    executor.submit(self._multithread_create_metadata_from_md_metadata, md_metadata_entries[_from: (_from + step)], self.harvesting_group)
-                    _from += step
+        self._create_metadata_from_md_metadata(
+            md_metadata_entries,
+            self.harvesting_group
+        )
 
         return next_record_position
 
-    def _multithread_create_metadata_from_md_metadata(self, md_metadata_entries: list, harvesting_group: MrMapGroup):
+    @transaction.atomic
+    def _create_metadata_from_md_metadata(self, md_metadata_entries: list, harvesting_group: MrMapGroup):
         """ Creates Metadata records from raw xml md_metadata data
         Args:
             md_metadata_entries (list): The list of xml objects
@@ -254,107 +246,102 @@ class Harvester:
         Returns:
         """
         for md_metadata in md_metadata_entries:
-            with transaction.atomic():
-                _id = xml_helper.try_get_text_from_xml_element(
-                    md_metadata,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("fileIdentifier")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-                )
-                metadata = Metadata.objects.get_or_create(
-                    id=_id,
-                    identifier=_id,
+            _id = xml_helper.try_get_text_from_xml_element(
+                md_metadata,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("fileIdentifier")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            metadata = Metadata.objects.get_or_create(
+                id=_id,
+                identifier=_id,
+            )[0]
+            metadata.created_by = harvesting_group
+            metadata.origin = ResourceOriginEnum.CATALOGUE.value
+            metadata.title = xml_helper.try_get_text_from_xml_element(
+                md_metadata,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("citation")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Citation")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("title")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            metadata.language_code = xml_helper.try_get_text_from_xml_element(
+                md_metadata,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("language")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode")
+            )
+            hierarchy_level = xml_helper.try_get_text_from_xml_element(
+                md_metadata,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("hierarchyLevel")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("MD_ScopeCode")
+            )
+            metadata.metadata_type = hierarchy_level
+            metadata.abstract = xml_helper.try_get_text_from_xml_element(
+                md_metadata,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("abstract")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            keywords = xml_helper.try_get_element_from_xml(
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("keyword")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"),
+                md_metadata,
+                ) or []
+            keywords = [
+                Keyword.objects.get_or_create(
+                    keyword=xml_helper.try_get_text_from_xml_element(kw)
                 )[0]
-                metadata.created_by = harvesting_group
-                metadata.origin = ResourceOriginEnum.CATALOGUE.value
-                metadata.title = xml_helper.try_get_text_from_xml_element(
+                for kw in keywords
+            ]
+            metadata.keywords.add(*keywords)
+            metadata.access_constraints = xml_helper.try_get_text_from_xml_element(
+                md_metadata,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("otherConstraints")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            categories = xml_helper.try_get_element_from_xml(
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_TopicCategoryCode"),
+                md_metadata,
+                ) or []
+            for cat in categories:
+                cat_obj = Category.objects.filter(
+                    title_EN=xml_helper.try_get_text_from_xml_element(cat)
+                ).first()
+                if cat_obj is not None:
+                    metadata.categories.add(cat_obj)
+            extent = [
+                xml_helper.try_get_text_from_xml_element(
                     md_metadata,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("citation")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Citation")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("title")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-                )
-                metadata.language_code = xml_helper.try_get_text_from_xml_element(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("westBoundLongitude")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+                ),
+                xml_helper.try_get_text_from_xml_element(
                     md_metadata,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("language")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode")
-                )
-                hierarchy_level = xml_helper.try_get_text_from_xml_element(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("southBoundLatitude")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+                ),
+                xml_helper.try_get_text_from_xml_element(
                     md_metadata,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("hierarchyLevel")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("MD_ScopeCode")
-                )
-                metadata.metadata_type = hierarchy_level
-                metadata.abstract = xml_helper.try_get_text_from_xml_element(
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("eastBoundLongitude")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+                ),
+                xml_helper.try_get_text_from_xml_element(
                     md_metadata,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("abstract")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-                )
-                keywords = xml_helper.try_get_element_from_xml(
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("keyword")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"),
-                    md_metadata,
-                    ) or []
-                keywords = [
-                    Keyword.objects.get_or_create(
-                        keyword=xml_helper.try_get_text_from_xml_element(kw)
-                    )[0]
-                    for kw in keywords
-                ]
-                metadata.keywords.add(*keywords)
-                metadata.access_constraints = xml_helper.try_get_text_from_xml_element(
-                    md_metadata,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("otherConstraints")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-                )
-                categories = xml_helper.try_get_element_from_xml(
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_TopicCategoryCode"),
-                    md_metadata,
-                    ) or []
-                for cat in categories:
-                    cat_obj = Category.objects.filter(
-                        title_EN=xml_helper.try_get_text_from_xml_element(cat)
-                    ).first()
-                    if cat_obj is not None:
-                        metadata.categories.add(cat_obj)
-                extent = [
-                    xml_helper.try_get_text_from_xml_element(
-                        md_metadata,
-                        ".//" + GENERIC_NAMESPACE_TEMPLATE.format("westBoundLongitude")
-                        + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                    ),
-                    xml_helper.try_get_text_from_xml_element(
-                        md_metadata,
-                        ".//" + GENERIC_NAMESPACE_TEMPLATE.format("southBoundLatitude")
-                        + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                    ),
-                    xml_helper.try_get_text_from_xml_element(
-                        md_metadata,
-                        ".//" + GENERIC_NAMESPACE_TEMPLATE.format("eastBoundLongitude")
-                        + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                    ),
-                    xml_helper.try_get_text_from_xml_element(
-                        md_metadata,
-                        ".//" + GENERIC_NAMESPACE_TEMPLATE.format("northBoundLatitude")
-                        + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                    ),
-                ]
-                metadata.bounding_geometry = GEOSGeometry(Polygon.from_bbox(bbox=extent), srid=DEFAULT_SRS)
-                metadata.metadata_type = hierarchy_level
-                metadata.is_active = True
-                metadata.public_id = metadata.generate_public_id()
-                metadata.save()
-
-                # Load non-metadata data
-                described_resource = None
-                if hierarchy_level == MetadataEnum.DATASET.value:
-                    described_resource = self._create_dataset_from_md_metadata(md_metadata, metadata)
-                    described_resource.metadata = metadata
-                    described_resource.is_active = True
-                    described_resource.save()
-
-        # To close threaded connections
-        connection.close()
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("northBoundLatitude")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+                ),
+            ]
+            metadata.bounding_geometry = GEOSGeometry(Polygon.from_bbox(bbox=extent), srid=DEFAULT_SRS)
+            metadata.metadata_type = hierarchy_level
+            metadata.is_active = True
+            metadata.public_id = metadata.generate_public_id()
+            metadata.save()
+            # Load non-metadata data
+            described_resource = None
+            if hierarchy_level == MetadataEnum.DATASET.value:
+                described_resource = self._create_dataset_from_md_metadata(md_metadata, metadata)
+                described_resource.metadata = metadata
+                described_resource.is_active = True
+                described_resource.save()
 
     def _create_dataset_from_md_metadata(self, md_metadata: Element, metadata: Metadata) -> Dataset:
         """ Creates a Dataset record from xml data

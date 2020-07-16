@@ -30,4 +30,4 @@ def async_create_metadata_from_md_metadata(response: str, harvesting_group_id: i
     harvesting_group = MrMapGroup.objects.get(
         id=harvesting_group_id
     )
-    Harvester._multithread_create_metadata_from_md_metadata(md_metadata_entries, harvesting_group)
+    Harvester._create_metadata_from_md_metadata(md_metadata_entries, harvesting_group)

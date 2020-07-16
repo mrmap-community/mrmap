@@ -226,32 +226,30 @@ class Harvester:
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_Metadata"),
             xml_response
         )
+
         with ThreadPoolExecutor(max_workers=None) as executor:
             # Start multithreaded processing of harvest response
             _from = 0
             step = int(len(md_metadata_entries) / self.num_threads)
             for i in range(0, self.num_threads):
-                executor.submit(self._multithread_create_metadata_from_md_metadata, md_metadata_entries[_from: (_from + step)], self.harvesting_group, i)
+                executor.submit(self._multithread_create_metadata_from_md_metadata, md_metadata_entries[_from: (_from + step)], self.harvesting_group)
                 _from += step
 
         return next_record_position
 
-    @transaction.atomic
-    def _multithread_create_metadata_from_md_metadata(self, md_metadata_entries: list, harvesting_group: MrMapGroup, i):
+    def _multithread_create_metadata_from_md_metadata(self, md_metadata_entries: list, harvesting_group: MrMapGroup):
         """ Creates Metadata records from raw xml md_metadata data
-
         Args:
             md_metadata_entries (list): The list of xml objects
             harvesting_group (MrMapGroup): The performing group
         Returns:
-
         """
         for md_metadata in md_metadata_entries:
             _id = xml_helper.try_get_text_from_xml_element(
-                    md_metadata,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("fileIdentifier")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-                )
+                md_metadata,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("fileIdentifier")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
             metadata = Metadata.objects.get_or_create(
                 id=_id,
                 identifier=_id,
@@ -286,7 +284,7 @@ class Harvester:
                 ".//" + GENERIC_NAMESPACE_TEMPLATE.format("keyword")
                 + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"),
                 md_metadata,
-            ) or []
+                ) or []
             keywords = [
                 Keyword.objects.get_or_create(
                     keyword=xml_helper.try_get_text_from_xml_element(kw)
@@ -302,7 +300,7 @@ class Harvester:
             categories = xml_helper.try_get_element_from_xml(
                 ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_TopicCategoryCode"),
                 md_metadata,
-            ) or []
+                ) or []
             for cat in categories:
                 cat_obj = Category.objects.filter(
                     title_EN=xml_helper.try_get_text_from_xml_element(cat)
@@ -333,20 +331,24 @@ class Harvester:
             ]
             metadata.bounding_geometry = GEOSGeometry(Polygon.from_bbox(bbox=extent), srid=DEFAULT_SRS)
             metadata.metadata_type = hierarchy_level
+            metadata.is_active = True
+            metadata.public_id = metadata.generate_public_id()
             metadata.save()
+
             # Load non-metadata data
             described_resource = None
             if hierarchy_level == MetadataEnum.DATASET.value:
                 described_resource = self._create_dataset_from_md_metadata(md_metadata, metadata)
                 described_resource.metadata = metadata
+                described_resource.is_active = True
                 described_resource.save()
+
         # To close threaded connections
         connection.close()
 
 
     def _create_dataset_from_md_metadata(self, md_metadata: Element, metadata: Metadata) -> Dataset:
         """ Creates a Dataset record from xml data
-
         Args:
             md_metadata (Element): The xml element which holds the data
             metadata (Metadata): The related metadata element

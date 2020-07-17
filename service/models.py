@@ -67,6 +67,9 @@ class Keyword(models.Model):
 
     class Meta:
         ordering = ['-id']
+        indexes = [
+            models.Index(fields=["keyword"])
+        ]
 
 
 class ProxyLog(models.Model):
@@ -595,6 +598,17 @@ class Metadata(Resource):
     related_metadata = models.ManyToManyField(MetadataRelation, blank=True)
     language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
     origin = None
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=[
+                    "id",
+                    "public_id",
+                    "identifier"
+                ]
+            )
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

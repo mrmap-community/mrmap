@@ -6,21 +6,24 @@ Created on: 15.07.20
 
 """
 import json
-from concurrent.futures.thread import ThreadPoolExecutor
 from time import time
 import datetime
 
 import requests
 from django.contrib.gis.geos import Polygon, GEOSGeometry
-from django.db import connection, transaction
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction, connections
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from lxml.etree import Element
+from multiprocessing import Process
 
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
+from MrMap.utils import execute_threads
 from service.helper import xml_helper
-from service.helper.enums import OGCOperationEnum, MetadataEnum, ResourceOriginEnum
+from service.helper.enums import OGCOperationEnum, ResourceOriginEnum
 from service.models import Metadata, Dataset, Keyword, Category
-from service.settings import DEFAULT_SRS
+from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import PendingTask, MrMapGroup
 
 
@@ -55,6 +58,7 @@ class Harvester:
             raise ValueError(_("No XML output format available"))
 
         self.pending_task = None  # will be initialized in harvest()
+        self.next_response = None
 
     def _generate_request_POST_body(self, start_position: int, result_type: str = "results"):
         """ Creates a CSW POST body xml document for GetRecords
@@ -141,20 +145,19 @@ class Harvester:
         t_start = time()
         # Run as long as we can fetch data!
         while self.start_position != 0:
-            t_start_run = time()
-            next_response = self._get_harvest_response(result_type="results")
-            next_record_position = self._process_harvest_response(next_response.content)
-            self.start_position = next_record_position
+            # Get response
+            next_response = self._get_harvest_response(result_type="results", only_content=True)
+
+            self._process_harvest_response(next_response)
 
             # Calculate remaining time
             duration = time() - t_start
-            if next_record_position == 0:
+            if self.start_position == 0:
                 # We are done!
                 estimated_time_for_all = datetime.timedelta(seconds=0)
             else:
-                estimated_time_for_all = datetime.timedelta(seconds=((total_number_to_harvest - next_record_position) * (duration / next_record_position)))
-            self._update_pending_task(next_record_position, total_number_to_harvest, progress_step_per_request, estimated_time_for_all)
-            print("Run took {}s for {} records. Got {} of {}".format(time() - t_start_run, self.max_records_per_request, self.start_position, total_number_to_harvest))
+                estimated_time_for_all = datetime.timedelta(seconds=((total_number_to_harvest - self.start_position) * (duration / self.start_position)))
+            self._update_pending_task(self.start_position, total_number_to_harvest, progress_step_per_request, estimated_time_for_all)
 
         self.pending_task.delete()
 
@@ -184,7 +187,6 @@ class Harvester:
         Returns:
              harvest_response (bytes): The response content
         """
-        harvest_response = None
         if self.method.upper() == "GET":
             params = {
                 "service": "CSW",
@@ -206,142 +208,104 @@ class Harvester:
         else:
             raise NotImplementedError()
 
-        return harvest_response if not only_content else harvest_response.content
+        response = harvest_response if not only_content else harvest_response.content
+        return response
 
-    def _process_harvest_response(self, response: bytes):
+    def _process_harvest_response(self, next_response: bytes):
         """ Processes the harvest response content
+
+        While the last response is being processed, the next one is already loaded to decrease run time
 
         Args:
             response (bytes): The response as bytes
         Returns:
              next_record (int): The nextRecord value (used for next startPosition)
         """
-        xml_response = xml_helper.parse_xml(response)
-
+        xml_response = xml_helper.parse_xml(next_response)
+        md_metadata_entries = xml_helper.try_get_element_from_xml(
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_Metadata"),
+            xml_response
+        ) or []
         next_record_position = int(xml_helper.try_get_attribute_from_xml_element(
             xml_response,
             "nextRecord",
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
         ))
+        self.start_position = next_record_position
 
-        xml_response = xml_helper.parse_xml(response)
-        md_metadata_entries = xml_helper.try_get_element_from_xml(
-            "//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_Metadata"),
-            xml_response
-        )
+        # Delete response to free memory
+        del xml_response
 
-        self._create_metadata_from_md_metadata(
-            md_metadata_entries,
-            self.harvesting_group
-        )
+        # Process response via multiple processes
+        t_start = time()
+        num_threads = 10
+        index_step = int(len(md_metadata_entries)/num_threads)
+        start_index = 0
+        end_index = 0
+        self.resource_list = md_metadata_entries
+        process_list = []
+        for i in range(0, num_threads):
+            if index_step < 1:
+                end_index = -1
+            else:
+                end_index += index_step
+            p = Process(target=self._create_metadata_from_md_metadata, args=(start_index, end_index))
+            start_index += index_step
+            process_list.append(p)
+        # Close all connections to force each process to create a new one for itself
+        connections.close_all()
+        execute_threads(process_list)
 
-        return next_record_position
+        print("#### TOTAL TIME FOR MD CREATION: {}s ####".format(time() - t_start))
 
     @transaction.atomic
-    def _create_metadata_from_md_metadata(self, md_metadata_entries: list, harvesting_group: MrMapGroup):
+    def _create_metadata_from_md_metadata(self, start_index, end_index):
         """ Creates Metadata records from raw xml md_metadata data
         Args:
             md_metadata_entries (list): The list of xml objects
-            harvesting_group (MrMapGroup): The performing group
         Returns:
         """
-        for md_metadata in md_metadata_entries:
-            _id = xml_helper.try_get_text_from_xml_element(
-                md_metadata,
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("fileIdentifier")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-            )
-            metadata = Metadata.objects.get_or_create(
-                id=_id,
-                identifier=_id,
-            )[0]
-            metadata.created_by = harvesting_group
-            metadata.origin = ResourceOriginEnum.CATALOGUE.value
-            metadata.title = xml_helper.try_get_text_from_xml_element(
-                md_metadata,
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("citation")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Citation")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("title")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-            )
-            metadata.language_code = xml_helper.try_get_text_from_xml_element(
-                md_metadata,
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("language")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode")
-            )
-            hierarchy_level = xml_helper.try_get_text_from_xml_element(
-                md_metadata,
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("hierarchyLevel")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("MD_ScopeCode")
-            )
-            metadata.metadata_type = hierarchy_level
-            metadata.abstract = xml_helper.try_get_text_from_xml_element(
-                md_metadata,
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("abstract")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-            )
-            keywords = xml_helper.try_get_element_from_xml(
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("keyword")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"),
-                md_metadata,
-                ) or []
-            keywords = [
-                Keyword.objects.get_or_create(
-                    keyword=xml_helper.try_get_text_from_xml_element(kw)
-                )[0]
-                for kw in keywords
-            ]
-            metadata.keywords.add(*keywords)
-            metadata.access_constraints = xml_helper.try_get_text_from_xml_element(
-                md_metadata,
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("otherConstraints")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-            )
-            categories = xml_helper.try_get_element_from_xml(
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_TopicCategoryCode"),
-                md_metadata,
-                ) or []
-            for cat in categories:
-                cat_obj = Category.objects.filter(
-                    title_EN=xml_helper.try_get_text_from_xml_element(cat)
-                ).first()
-                if cat_obj is not None:
-                    metadata.categories.add(cat_obj)
-            extent = [
-                xml_helper.try_get_text_from_xml_element(
-                    md_metadata,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("westBoundLongitude")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ),
-                xml_helper.try_get_text_from_xml_element(
-                    md_metadata,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("southBoundLatitude")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ),
-                xml_helper.try_get_text_from_xml_element(
-                    md_metadata,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("eastBoundLongitude")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ),
-                xml_helper.try_get_text_from_xml_element(
-                    md_metadata,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("northBoundLatitude")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ),
-            ]
-            metadata.bounding_geometry = GEOSGeometry(Polygon.from_bbox(bbox=extent), srid=DEFAULT_SRS)
-            metadata.metadata_type = hierarchy_level
-            metadata.is_active = True
-            metadata.public_id = metadata.generate_public_id()
-            metadata.save()
-            # Load non-metadata data
-            described_resource = None
-            if hierarchy_level == MetadataEnum.DATASET.value:
-                described_resource = self._create_dataset_from_md_metadata(md_metadata, metadata)
-                described_resource.metadata = metadata
-                described_resource.is_active = True
-                described_resource.save()
+        if end_index < 0:
+            md_metadata_entries = self.resource_list
+        else:
+            md_metadata_entries = self.resource_list[start_index:end_index]
+        md_data = [self._md_metadata_parse_to_dict(md_metadata) for md_metadata in md_metadata_entries]
+
+        for md_data_entry in md_data:
+            try:
+                md = Metadata.objects.get(
+                    id=md_data_entry["id"],
+                    identifier=md_data_entry["id"],
+                )
+            except ObjectDoesNotExist:
+                md = Metadata(
+                    id=md_data_entry["id"],
+                    identifier=md_data_entry["id"]
+                )
+            md.access_constraints = md_data_entry.get("access_constraints", None)
+            md.created_by = self.harvesting_group
+            md.origin = ResourceOriginEnum.CATALOGUE.value
+            md.title = md_data_entry.get("title", None)
+            md.public_id = md.generate_public_id()
+            md.language_code = md_data_entry.get("language_code", None)
+            md.metadata_type = md_data_entry.get("metadata_type", None)
+            md.abstract = md_data_entry.get("abstract", None)
+            md.bounding_geometry = md_data_entry.get("bounding_geometry", None)
+            md.is_active = True
+            # Improve speed for keyword get-create by fetching (filter) all existing ones and only perform
+            # get_or_create on the ones that do not exist yet. Speed up by ~50% for large amount of data
+            existing_kws = Keyword.objects.filter(keyword__in=md_data_entry["keywords"])
+            existing_kws = [kw.keyword for kw in existing_kws]
+            new_kws = [kw for kw in md_data_entry["keywords"] if kw not in existing_kws]
+            [Keyword.objects.get_or_create(keyword=kw)[0] for kw in new_kws]
+            kws = Keyword.objects.filter(keyword__in=md_data_entry["keywords"])
+            q = Q()
+            for cat in md_data_entry["categories"]:
+                q |= Q(title_EN__iexact=cat)
+            categories = Category.objects.filter(q)
+            md.save(add_monitoring=False)
+            md.keywords.add(*kws)
+            md.categories.add(*categories)
 
     def _create_dataset_from_md_metadata(self, md_metadata: Element, metadata: Metadata) -> Dataset:
         """ Creates a Dataset record from xml data
@@ -405,3 +369,116 @@ class Harvester:
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
         )
         return dataset
+
+    def _md_metadata_parse_to_dict(self, md_metadata: Element) -> dict:
+        """ Read most important data from MD_Metadata xml element and return as a dict
+        Args:
+            md_metadata (Element): The xml element of MD_Metadata
+        Returns:
+             md_data_entry (dict): The dict containing data
+        """
+        md_data_entry = {}
+        _id = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("fileIdentifier")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        )
+        md_data_entry["id"] = _id
+        title = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("citation")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Citation")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("title")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        )
+        md_data_entry["title"] = title
+        language_code = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("language")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode")
+        )
+        md_data_entry["language_code"] = language_code
+        hierarchy_level = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("hierarchyLevel")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("MD_ScopeCode")
+        )
+        metadata_type = hierarchy_level
+        md_data_entry["metadata_type"] = metadata_type
+        abstract = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("abstract")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        )
+        md_data_entry["abstract"] = abstract
+        keywords = xml_helper.try_get_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("keyword")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"),
+            md_metadata,
+        ) or []
+        keywords = [
+            xml_helper.try_get_text_from_xml_element(
+                kw
+            )
+            for kw in keywords
+        ]
+        md_data_entry["keywords"] = keywords
+        access_constraints = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("otherConstraints")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        )
+        md_data_entry["access_constraints"] = access_constraints
+        categories = xml_helper.try_get_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_TopicCategoryCode"),
+            md_metadata,
+        ) or []
+        categories = [
+            xml_helper.try_get_text_from_xml_element(
+                cat
+            )
+            for cat in categories
+        ]
+        md_data_entry["categories"] = categories
+        bbox_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("EX_GeographicBoundingBox"),
+            md_metadata
+        )
+        if bbox_elem is not None:
+            extent = [
+                xml_helper.try_get_text_from_xml_element(
+                    bbox_elem,
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("westBoundLongitude")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+                ),
+                xml_helper.try_get_text_from_xml_element(
+                    bbox_elem,
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("southBoundLatitude")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+                ),
+                xml_helper.try_get_text_from_xml_element(
+                    bbox_elem,
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("eastBoundLongitude")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+                ),
+                xml_helper.try_get_text_from_xml_element(
+                    bbox_elem,
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("northBoundLatitude")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+                ),
+            ]
+            bounding_geometry = GEOSGeometry(Polygon.from_bbox(bbox=extent), srid=DEFAULT_SRS)
+        else:
+            bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
+        md_data_entry["bounding_geometry"] = bounding_geometry
+        # Load non-metadata data
+        # ToDo: Should harvesting persist non-metadata data?!
+        #described_resource = None
+        #metadata = None
+        #if hierarchy_level == MetadataEnum.DATASET.value:
+        #    described_resource = self._create_dataset_from_md_metadata(md_metadata, metadata)
+        #    described_resource.metadata = metadata
+        #    described_resource.is_active = True
+        #    described_resource.save()
+        return md_data_entry

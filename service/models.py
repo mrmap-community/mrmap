@@ -1056,7 +1056,7 @@ class Metadata(Resource):
             ).exists()
         return public_id
 
-    def save(self, *args, **kwargs):
+    def save(self, add_monitoring: bool = True, *args, **kwargs):
         """ Overwriting the regular save function
 
         Calls the regular save function without any changes and adds the created/updated
@@ -1072,10 +1072,11 @@ class Metadata(Resource):
         # Add created/updated object to the MonitoringSettings. Django does not add
         # the same instance twice, so we do not have to check for updating specifically.
         # NOTE: Since we do not have a clear handling for which setting to use, always use first (default) setting.
-        monitoring_setting = MonitoringSetting.objects.first()
-        if monitoring_setting is not None:
-            monitoring_setting.metadatas.add(self)
-            monitoring_setting.save()
+        if add_monitoring:
+            monitoring_setting = MonitoringSetting.objects.first()
+            if monitoring_setting is not None:
+                monitoring_setting.metadatas.add(self)
+                monitoring_setting.save()
 
     def delete(self, using=None, keep_parents=False, force=False):
         """ Overwriting of the regular delete function
@@ -2443,6 +2444,13 @@ class Category(Resource):
 
     class Meta:
         ordering = ['-id']
+        indexes = [
+            models.Index(
+                fields=[
+                    "title_EN"
+                ]
+            )
+        ]
 
     def __str__(self):
         return self.title_EN + " (" + self.type + ")"

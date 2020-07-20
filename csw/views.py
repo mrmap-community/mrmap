@@ -100,7 +100,7 @@ def harvest_catalogue(request: HttpRequest, metadata_id: str):
             id=metadata_id,
             metadata_type=MetadataEnum.CATALOGUE.value
         )
-        harvester = Harvester(md, harvesting_group, max_records_per_request=1000)
+        harvester = Harvester(md, harvesting_group, max_records_per_request=250)
         harvester.harvest()
     except ObjectDoesNotExist:
         return HttpResponse(RESOURCE_NOT_FOUND, status=404)

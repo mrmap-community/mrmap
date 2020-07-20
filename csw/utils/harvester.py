@@ -12,7 +12,7 @@ import datetime
 import requests
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import transaction, connections
+from django.db import transaction, connections, IntegrityError, DataError
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from lxml.etree import Element
@@ -91,13 +91,15 @@ class Harvester:
             related_metadata__metadata_to=self.metadata
         ).distinct()
         # Use a dict instead of list to increase lookup afterwards
-        self.deleted_metadata = {str(md.id): None for md in all_harvested_metadata}
+        self.deleted_metadata = {str(md.identifier): None for md in all_harvested_metadata}
 
         # Perform the initial "hits" request to get an overview of how many data will be fetched
         hits_response = self._get_harvest_response(result_type="hits")
         if hits_response.status_code != 200:
             raise ConnectionError(_("Harvest failed: Code {}\n{}").format(hits_response.status_code, hits_response.content))
         xml_response = xml_helper.parse_xml(hits_response.content)
+        if xml_response is None:
+            raise ConnectionError(_("Response is no proper xml: \n{}".format(hits_response.content)))
 
         total_number_to_harvest = int(xml_helper.try_get_attribute_from_xml_element(
             xml_response,
@@ -127,7 +129,7 @@ class Harvester:
         # Delete Metadata records which could not be found in the catalogue anymore
         deleted_metadata_ids = [k for k, v in self.deleted_metadata]
         deleted_metadatas = Metadata.objects.filter(
-            id__in=deleted_metadata_ids
+            identifier__in=deleted_metadata_ids
         )
         deleted_metadatas.delete()
 
@@ -243,6 +245,7 @@ class Harvester:
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_Metadata"),
             xml_response
         ) or []
+        print(self.start_position)
         next_record_position = int(xml_helper.try_get_attribute_from_xml_element(
             xml_response,
             "nextRecord",
@@ -300,13 +303,11 @@ class Harvester:
 
             try:
                 md = Metadata.objects.get(
-                    id=_id,
                     identifier=_id,
                 )
                 is_new = False
             except ObjectDoesNotExist:
                 md = Metadata(
-                    id=_id,
                     identifier=_id
                 )
                 is_new = True
@@ -332,27 +333,32 @@ class Harvester:
             kws = Keyword.objects.filter(keyword__in=md_data_entry["keywords"])
 
             with transaction.atomic():
-                q = Q()
-                for cat in md_data_entry["categories"]:
-                    q |= Q(title_EN__iexact=cat)
-                categories = Category.objects.filter(q)
+                try:
+                    q = Q()
+                    for cat in md_data_entry["categories"]:
+                        q |= Q(title_EN__iexact=cat)
+                    categories = Category.objects.filter(q)
 
-                md.save(add_monitoring=False)
-                md.keywords.add(*kws)
-                md.categories.add(*categories)
-                md.formats.add(*formats)
+                    md.save(add_monitoring=False)
+                    md.keywords.add(*kws)
+                    md.categories.add(*categories)
+                    md.formats.add(*formats)
 
-                # To reduce runtime, we only create a new MetadataRelation if we are sure there hasn't already been one.
-                # Using get_or_create increases runtime on existing metadata too much!
-                if is_new:
-                    md.related_metadata.add(
-                        MetadataRelation.objects.create(
-                            metadata_from=md,
-                            relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
-                            metadata_to=self.metadata,
-                            origin=ResourceOriginEnum.CATALOGUE.value
+                    # To reduce runtime, we only create a new MetadataRelation if we are sure there hasn't already been one.
+                    # Using get_or_create increases runtime on existing metadata too much!
+                    if is_new:
+                        md.related_metadata.add(
+                            MetadataRelation.objects.create(
+                                metadata_from=md,
+                                relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
+                                metadata_to=self.metadata,
+                                origin=ResourceOriginEnum.CATALOGUE.value
+                            )
                         )
-                    )
+                except (IntegrityError, DataError) as e:
+                    #print("IntegrityError on: {}".format(md_data_entry))
+                    # ToDo: Log malicious metadata
+                    pass
 
     def _md_metadata_parse_to_dict(self, md_metadata: Element) -> dict:
         """ Read most important data from MD_Metadata xml element and return as a dict
@@ -435,24 +441,28 @@ class Harvester:
                     bbox_elem,
                     ".//" + GENERIC_NAMESPACE_TEMPLATE.format("westBoundLongitude")
                     + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ),
+                ) or 0.0,
                 xml_helper.try_get_text_from_xml_element(
                     bbox_elem,
                     ".//" + GENERIC_NAMESPACE_TEMPLATE.format("southBoundLatitude")
                     + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ),
+                ) or 0.0,
                 xml_helper.try_get_text_from_xml_element(
                     bbox_elem,
                     ".//" + GENERIC_NAMESPACE_TEMPLATE.format("eastBoundLongitude")
                     + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ),
+                ) or 0.0,
                 xml_helper.try_get_text_from_xml_element(
                     bbox_elem,
                     ".//" + GENERIC_NAMESPACE_TEMPLATE.format("northBoundLatitude")
                     + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ),
+                ) or 0.0,
             ]
-            bounding_geometry = GEOSGeometry(Polygon.from_bbox(bbox=extent), srid=DEFAULT_SRS)
+            try:
+                bounding_geometry = GEOSGeometry(Polygon.from_bbox(bbox=extent), srid=DEFAULT_SRS)
+            except Exception:
+                # Log malicious extent!
+                bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
         else:
             bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
         md_data_entry["bounding_geometry"] = bounding_geometry

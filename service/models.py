@@ -538,8 +538,8 @@ class ExternalAuthentication(models.Model):
 
 class Metadata(Resource):
     from MrMap.validators import validate_metadata_enum_choices
-    identifier = models.CharField(max_length=255, null=True)
-    title = models.CharField(max_length=255)
+    identifier = models.CharField(max_length=500, null=True)
+    title = models.CharField(max_length=500)
     abstract = models.TextField(null=True, blank=True)
     online_resource = models.CharField(max_length=500, null=True, blank=True)  # where the service data can be found
 
@@ -589,7 +589,7 @@ class Metadata(Resource):
     categories = models.ManyToManyField('Category', blank=True)
     reference_system = models.ManyToManyField('ReferenceSystem', blank=True)
     dimensions = models.ManyToManyField('Dimension', blank=True)
-    metadata_type = models.CharField(max_length=255, null=True, blank=True, choices=MetadataEnum.as_choices(), validators=[validate_metadata_enum_choices])
+    metadata_type = models.CharField(max_length=500, null=True, blank=True, choices=MetadataEnum.as_choices(), validators=[validate_metadata_enum_choices])
     legal_dates = models.ManyToManyField('LegalDate', blank=True)
     legal_reports = models.ManyToManyField('LegalReport', blank=True)
     hits = models.IntegerField(default=0)

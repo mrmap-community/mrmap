@@ -29,7 +29,7 @@ from MrMap.validators import not_uuid
 from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
-    ResourceOriginEnum, CategoryOriginEnum
+    ResourceOriginEnum, CategoryOriginEnum, MetadataRelationEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
@@ -448,9 +448,10 @@ class SecuredOperation(models.Model):
 
 
 class MetadataRelation(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True)
     metadata_from = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_from")
     metadata_to = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_to")
-    relation_type = models.CharField(max_length=255, null=True, blank=True)
+    relation_type = models.CharField(max_length=255, null=True, blank=True, choices=MetadataRelationEnum.as_choices())
     internal = models.BooleanField(default=False)
     origin = models.CharField(max_length=255, choices=ResourceOriginEnum.as_choices(), null=True, blank=True)
 
@@ -3193,7 +3194,7 @@ class LegalDate(models.Model):
 
 
 class MimeType(Resource):
-    operation = models.CharField(max_length=255, null=True)
+    operation = models.CharField(max_length=255, null=True, choices=OGCOperationEnum.as_choices())
     mime_type = models.CharField(max_length=500)
 
     def __str__(self):

@@ -13,16 +13,13 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
 from lxml.etree import Element, QName
 
-from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE, HTTP_OR_SSL, HOST_NAME
+from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from MrMap.utils import print_debug_mode
 from service.helper import xml_helper
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, MetadataEnum, DocumentEnum
 from service.helper.epsg_api import EpsgApi
-from service.models import Service, Metadata, Layer, Document, FeatureType
-from service.settings import SERVICE_OPERATION_URI_TEMPLATE, MD_RELATION_TYPE_DESCRIBED_BY, \
-    SERVICE_DATASET_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE
-
-from structure.models import Contact
+from service.models import Metadata, Layer, Document, FeatureType
+from service.settings import SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE
 
 
 class CapabilityXMLBuilder:

@@ -26,10 +26,6 @@ ISO_19115_LANG_CHOICES = [
     ("eng", _("English")),
 ]
 
-# semantic relation types
-MD_RELATION_TYPE_VISUALIZES = "visualizes"
-MD_RELATION_TYPE_DESCRIBED_BY = "describedBy"
-
 SERVICE_OPERATION_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}" + "/operation?"
 SERVICE_DATASET_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "dataset/{}"
 SERVICE_METADATA_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}"

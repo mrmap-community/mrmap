@@ -7,19 +7,16 @@ import time
 
 from celery import Task
 from django.contrib.gis.geos import Polygon, GEOSGeometry
-from django.db import transaction
 from lxml.etree import _Element
 
-from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SRS, SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, \
     HTML_METADATA_URI_TEMPLATE
-from service.settings import MD_RELATION_TYPE_VISUALIZES, \
-    EXTERNAL_AUTHENTICATION_FILEPATH
 from MrMap.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
 from MrMap.messages import SERVICE_GENERIC_ERROR
 from MrMap.utils import execute_threads, print_debug_mode
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, ResourceOriginEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, ResourceOriginEnum, \
+    MetadataRelationEnum
 from service.helper.enums import MetadataEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
@@ -27,7 +24,7 @@ from service.helper.ogc.wms import OGCWebService
 from service.helper import service_helper, xml_helper, task_helper
 from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metadata, ServiceType, MimeType, Namespace, \
     FeatureTypeElement, MetadataRelation, RequestOperation, ExternalAuthentication, ServiceUrl
-from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
+from service.settings import ALLOWED_SRS
 from structure.models import Organization, MrMapUser, MrMapGroup, Contact
 
 
@@ -886,7 +883,7 @@ class OGCWebFeatureService(OGCWebService):
             md_relation.metadata_from = md
             md_relation.metadata_to = service.linked_service_metadata
             md_relation.origin = ResourceOriginEnum.CAPABILITIES.value
-            md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
+            md_relation.relation_type = MetadataRelationEnum.VISUALIZES.value
             md_relation.save()
 
         # Keywords
@@ -948,7 +945,7 @@ class OGCWebFeatureService(OGCWebService):
                 md_relation.metadata_to = dataset_record
                 origin = ResourceOriginEnum.CAPABILITIES.value
                 md_relation.origin = origin
-                md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
+                md_relation.relation_type = MetadataRelationEnum.DESCRIBED_BY.value
                 md_relation.save()
 
             # keywords of feature types

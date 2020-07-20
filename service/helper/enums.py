@@ -123,3 +123,12 @@ class CategoryOriginEnum(EnumChoice):
     @classmethod
     def all_names_as_list(cls):
         return [enum.name for enum in cls]
+
+
+class MetadataRelationEnum(EnumChoice):
+    """ Defines types of metadata relations for MetadataRelation model
+
+    """
+    VISUALIZES = "visualizes"
+    DESCRIBED_BY = "describedBy"
+    HARVESTED_THROUGH = "harvestedThrough"

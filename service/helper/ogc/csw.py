@@ -116,6 +116,7 @@ class OGCCatalogueService(OGCWebService):
 
         # Save metadata record so we can use M2M or id of record later
         md.save()
+        md.identifier = str(md.id) if md.identifier is None else md.identifier
 
         # Keywords
         for kw in self.service_identification_keywords:

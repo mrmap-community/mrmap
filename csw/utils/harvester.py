@@ -16,15 +16,15 @@ from django.db import transaction, connections
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from lxml.etree import Element
-from multiprocessing import Process
+from multiprocessing import Process, cpu_count
 
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from MrMap.utils import execute_threads
 from service.helper import xml_helper
-from service.helper.enums import OGCOperationEnum, ResourceOriginEnum
-from service.models import Metadata, Dataset, Keyword, Category
+from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
+from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType
 from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
-from structure.models import PendingTask, MrMapGroup
+from structure.models import PendingTask, MrMapGroup, Organization
 
 
 class Harvester:
@@ -58,7 +58,80 @@ class Harvester:
             raise ValueError(_("No XML output format available"))
 
         self.pending_task = None  # will be initialized in harvest()
-        self.next_response = None
+        self.deleted_metadata = {}
+
+    def harvest(self):
+        """ Starts harvesting procedure
+
+        Returns:
+
+        """
+        # Create a pending task record for the database first!
+        self.pending_task = PendingTask.objects.get_or_create(
+            task_id=self.metadata.public_id,
+        )
+        is_new = self.pending_task[1]
+        self.pending_task = self.pending_task[0]
+
+        if not is_new:
+            raise ProcessLookupError(_("Harvesting is currently performed. Remaining time: {}").format(self.pending_task.remaining_time))
+        else:
+            self.pending_task.description = json.dumps({
+                "service": self.metadata.title,
+                "phase": "Loading Harvest...",
+            })
+            self.pending_task.progress = 0
+            self.pending_task.save()
+
+        # Fill the deleted_metadata with all persisted metadata, so we can eliminate each entry if it is still provided by
+        # the catalogue. In the end we will have a list, which contains metadata IDs that are not found in the catalogue anymore.
+        all_harvested_metadata = Metadata.objects.filter(
+            related_metadata__origin=ResourceOriginEnum.CATALOGUE.value,
+            related_metadata__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
+            related_metadata__metadata_to=self.metadata
+        ).distinct()
+        # Use a dict instead of list to increase lookup afterwards
+        self.deleted_metadata = {str(md.id): None for md in all_harvested_metadata}
+
+        # Perform the initial "hits" request to get an overview of how many data will be fetched
+        hits_response = self._get_harvest_response(result_type="hits")
+        if hits_response.status_code != 200:
+            raise ConnectionError(_("Harvest failed: Code {}\n{}").format(hits_response.status_code, hits_response.content))
+        xml_response = xml_helper.parse_xml(hits_response.content)
+
+        total_number_to_harvest = int(xml_helper.try_get_attribute_from_xml_element(
+            xml_response,
+            "numberOfRecordsMatched",
+            "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
+            ))
+
+        progress_step_per_request = float(self.max_records_per_request / total_number_to_harvest) * 100
+
+        t_start = time()
+        # Run as long as we can fetch data!
+        while self.start_position != 0:
+            # Get response
+            next_response = self._get_harvest_response(result_type="results", only_content=True)
+
+            self._process_harvest_response(next_response)
+
+            # Calculate remaining time
+            duration = time() - t_start
+            if self.start_position == 0:
+                # We are done!
+                estimated_time_for_all = datetime.timedelta(seconds=0)
+            else:
+                estimated_time_for_all = datetime.timedelta(seconds=((total_number_to_harvest - self.start_position) * (duration / self.start_position)))
+            self._update_pending_task(self.start_position, total_number_to_harvest, progress_step_per_request, estimated_time_for_all)
+
+        # Delete Metadata records which could not be found in the catalogue anymore
+        deleted_metadata_ids = [k for k, v in self.deleted_metadata]
+        deleted_metadatas = Metadata.objects.filter(
+            id__in=deleted_metadata_ids
+        )
+        deleted_metadatas.delete()
+
+        self.pending_task.delete()
 
     def _generate_request_POST_body(self, start_position: int, result_type: str = "results"):
         """ Creates a CSW POST body xml document for GetRecords
@@ -104,62 +177,6 @@ class Harvester:
         )
 
         return xml_helper.xml_to_string(root_elem)
-
-    def harvest(self):
-        """ Starts harvesting procedure
-
-        Returns:
-
-        """
-        # Create a pending task record for the database first!
-        self.pending_task = PendingTask.objects.get_or_create(
-            task_id=self.metadata.public_id,
-        )
-        is_new = self.pending_task[1]
-        self.pending_task = self.pending_task[0]
-
-        if not is_new:
-            raise ProcessLookupError(_("Harvesting is currently performed. Remaining time: {}").format(self.pending_task.remaining_time))
-        else:
-            self.pending_task.description = json.dumps({
-                "service": self.metadata.title,
-                "phase": "Loading Harvest...",
-            })
-            self.pending_task.progress = 0
-            self.pending_task.save()
-
-        # Perform the initial "hits" request to get an overview of how many data will be fetched
-        hits_response = self._get_harvest_response(result_type="hits")
-        if hits_response.status_code != 200:
-            raise ConnectionError(_("Harvest failed: Code {}\n{}").format(hits_response.status_code, hits_response.content))
-        xml_response = xml_helper.parse_xml(hits_response.content)
-
-        total_number_to_harvest = int(xml_helper.try_get_attribute_from_xml_element(
-            xml_response,
-            "numberOfRecordsMatched",
-            "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
-            ))
-
-        progress_step_per_request = float(self.max_records_per_request / total_number_to_harvest) * 100
-
-        t_start = time()
-        # Run as long as we can fetch data!
-        while self.start_position != 0:
-            # Get response
-            next_response = self._get_harvest_response(result_type="results", only_content=True)
-
-            self._process_harvest_response(next_response)
-
-            # Calculate remaining time
-            duration = time() - t_start
-            if self.start_position == 0:
-                # We are done!
-                estimated_time_for_all = datetime.timedelta(seconds=0)
-            else:
-                estimated_time_for_all = datetime.timedelta(seconds=((total_number_to_harvest - self.start_position) * (duration / self.start_position)))
-            self._update_pending_task(self.start_position, total_number_to_harvest, progress_step_per_request, estimated_time_for_all)
-
-        self.pending_task.delete()
 
     def _update_pending_task(self, next_record: int, total_records: int, progress_step: float, remaining_time):
         """ Updates the PendingTask object
@@ -238,13 +255,13 @@ class Harvester:
 
         # Process response via multiple processes
         t_start = time()
-        num_threads = 10
-        index_step = int(len(md_metadata_entries)/num_threads)
+        num_processes = cpu_count()
+        index_step = int(len(md_metadata_entries)/num_processes)
         start_index = 0
         end_index = 0
         self.resource_list = md_metadata_entries
         process_list = []
-        for i in range(0, num_threads):
+        for i in range(0, num_processes):
             if index_step < 1:
                 end_index = -1
             else:
@@ -258,11 +275,15 @@ class Harvester:
 
         print("#### TOTAL TIME FOR MD CREATION: {}s ####".format(time() - t_start))
 
-    @transaction.atomic
     def _create_metadata_from_md_metadata(self, start_index, end_index):
-        """ Creates Metadata records from raw xml md_metadata data
+        """ Creates Metadata records from raw xml md_metadata data.
+
+        Runs multiprocessed. Therefore only a start_index and end_index is given, since each process reads from the
+        same parent process resource_list.
+
         Args:
-            md_metadata_entries (list): The list of xml objects
+            start_index (int): The start index
+            end_index (int): The end index
         Returns:
         """
         if end_index < 0:
@@ -272,26 +293,36 @@ class Harvester:
         md_data = [self._md_metadata_parse_to_dict(md_metadata) for md_metadata in md_metadata_entries]
 
         for md_data_entry in md_data:
+            _id = md_data_entry["id"]
+            # Check if id can be found in dict of metadata to be deleted. If so, it can be removed
+            if self.deleted_metadata.get(_id, None) is not None:
+                del self.deleted_metadata[_id]
+
             try:
                 md = Metadata.objects.get(
-                    id=md_data_entry["id"],
-                    identifier=md_data_entry["id"],
+                    id=_id,
+                    identifier=_id,
                 )
+                is_new = False
             except ObjectDoesNotExist:
                 md = Metadata(
-                    id=md_data_entry["id"],
-                    identifier=md_data_entry["id"]
+                    id=_id,
+                    identifier=_id
                 )
+                is_new = True
             md.access_constraints = md_data_entry.get("access_constraints", None)
             md.created_by = self.harvesting_group
             md.origin = ResourceOriginEnum.CATALOGUE.value
             md.title = md_data_entry.get("title", None)
             md.public_id = md.generate_public_id()
+            md.contact = md_data_entry.get("contact", None)
             md.language_code = md_data_entry.get("language_code", None)
             md.metadata_type = md_data_entry.get("metadata_type", None)
             md.abstract = md_data_entry.get("abstract", None)
             md.bounding_geometry = md_data_entry.get("bounding_geometry", None)
+            formats = md_data_entry.get("formats", [])
             md.is_active = True
+
             # Improve speed for keyword get-create by fetching (filter) all existing ones and only perform
             # get_or_create on the ones that do not exist yet. Speed up by ~50% for large amount of data
             existing_kws = Keyword.objects.filter(keyword__in=md_data_entry["keywords"])
@@ -299,76 +330,29 @@ class Harvester:
             new_kws = [kw for kw in md_data_entry["keywords"] if kw not in existing_kws]
             [Keyword.objects.get_or_create(keyword=kw)[0] for kw in new_kws]
             kws = Keyword.objects.filter(keyword__in=md_data_entry["keywords"])
-            q = Q()
-            for cat in md_data_entry["categories"]:
-                q |= Q(title_EN__iexact=cat)
-            categories = Category.objects.filter(q)
-            md.save(add_monitoring=False)
-            md.keywords.add(*kws)
-            md.categories.add(*categories)
 
-    def _create_dataset_from_md_metadata(self, md_metadata: Element, metadata: Metadata) -> Dataset:
-        """ Creates a Dataset record from xml data
-        Args:
-            md_metadata (Element): The xml element which holds the data
-            metadata (Metadata): The related metadata element
-        Returns:
-            dataset (Dataset): The dataset record
-        """
-        dataset = Dataset()
-        dataset.language_code = metadata.language_code
-        dataset.language_code_list_url = xml_helper.try_get_attribute_from_xml_element(
-            md_metadata,
-            "codeList",
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("language")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode")
-        )
-        dataset.character_set_code = xml_helper.try_get_text_from_xml_element(
-            md_metadata,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("characterSet")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("MD_CharacterSetCode")
-        )
-        dataset.character_set_code_list_url = xml_helper.try_get_attribute_from_xml_element(
-            md_metadata,
-            "codeList",
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("characterSet")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("MD_CharacterSetCode")
-        )
-        dataset.date_stamp = xml_helper.try_get_text_from_xml_element(
-            md_metadata,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Date")
-        )
-        dataset.metadata_standard_name = xml_helper.try_get_text_from_xml_element(
-            md_metadata,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("metadataStandardName")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-        )
-        dataset.metadata_standard_version = xml_helper.try_get_text_from_xml_element(
-            md_metadata,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("metadataStandardVersion")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-        )
-        dataset.update_frequency_code = xml_helper.try_get_text_from_xml_element(
-            md_metadata,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_MaintenanceFrequencyCode")
-        )
-        dataset.update_frequency_code_list_url = xml_helper.try_get_attribute_from_xml_element(
-            md_metadata,
-            "codeList",
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_MaintenanceFrequencyCode")
-        )
-        dataset.use_limitation = xml_helper.try_get_text_from_xml_element(
-            md_metadata,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("useLimitation")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-        )
-        dataset.lineage_statement = xml_helper.try_get_text_from_xml_element(
-            md_metadata,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("statement")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-        )
-        return dataset
+            with transaction.atomic():
+                q = Q()
+                for cat in md_data_entry["categories"]:
+                    q |= Q(title_EN__iexact=cat)
+                categories = Category.objects.filter(q)
+
+                md.save(add_monitoring=False)
+                md.keywords.add(*kws)
+                md.categories.add(*categories)
+                md.formats.add(*formats)
+
+                # To reduce runtime, we only create a new MetadataRelation if we are sure there hasn't already been one.
+                # Using get_or_create increases runtime on existing metadata too much!
+                if is_new:
+                    md.related_metadata.add(
+                        MetadataRelation.objects.create(
+                            metadata_from=md,
+                            relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
+                            metadata_to=self.metadata,
+                            origin=ResourceOriginEnum.CATALOGUE.value
+                        )
+                    )
 
     def _md_metadata_parse_to_dict(self, md_metadata: Element) -> dict:
         """ Read most important data from MD_Metadata xml element and return as a dict
@@ -472,6 +456,8 @@ class Harvester:
         else:
             bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
         md_data_entry["bounding_geometry"] = bounding_geometry
+        md_data_entry["contact"] = self._create_contact_from_md_metadata(md_metadata)
+        md_data_entry["formats"] = self._create_formats_from_md_metadata(md_metadata)
         # Load non-metadata data
         # ToDo: Should harvesting persist non-metadata data?!
         #described_resource = None
@@ -482,3 +468,206 @@ class Harvester:
         #    described_resource.is_active = True
         #    described_resource.save()
         return md_data_entry
+
+    def _create_dataset_from_md_metadata(self, md_metadata: Element, metadata: Metadata) -> Dataset:
+        """ Creates a Dataset record from xml data
+        Args:
+            md_metadata (Element): The xml element which holds the data
+            metadata (Metadata): The related metadata element
+        Returns:
+            dataset (Dataset): The dataset record
+        """
+        dataset = Dataset()
+        dataset.language_code = metadata.language_code
+        dataset.language_code_list_url = xml_helper.try_get_attribute_from_xml_element(
+            md_metadata,
+            "codeList",
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("language")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode")
+        )
+        dataset.character_set_code = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("characterSet")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("MD_CharacterSetCode")
+        )
+        dataset.character_set_code_list_url = xml_helper.try_get_attribute_from_xml_element(
+            md_metadata,
+            "codeList",
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("characterSet")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("MD_CharacterSetCode")
+        )
+        dataset.date_stamp = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Date")
+        )
+        dataset.metadata_standard_name = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("metadataStandardName")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        )
+        dataset.metadata_standard_version = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("metadataStandardVersion")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        )
+        dataset.update_frequency_code = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_MaintenanceFrequencyCode")
+        )
+        dataset.update_frequency_code_list_url = xml_helper.try_get_attribute_from_xml_element(
+            md_metadata,
+            "codeList",
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_MaintenanceFrequencyCode")
+        )
+        dataset.use_limitation = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("useLimitation")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        )
+        dataset.lineage_statement = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("statement")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        )
+        return dataset
+
+    def _create_formats_from_md_metadata(self, md_metadata: Element) -> list:
+        """ Creates a list of MimeType objects from MD_Metadata element
+
+        Args:
+            md_metadata (Element): The xml element
+        Returns:
+             formats (list)
+        """
+        formats = []
+        distribution_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("distributionFormat"),
+            md_metadata
+        )
+        if distribution_elem is None:
+            return formats
+        md_format_elems = xml_helper.try_get_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_Format"),
+            md_metadata
+        )
+        for md_format_elem in md_format_elems:
+            name = xml_helper.try_get_text_from_xml_element(
+                md_format_elem,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("name")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            if name is not None:
+                formats.append(name)
+        mime_types = []
+        for format in formats:
+            mime_types.append(
+                MimeType.objects.get_or_create(
+                    mime_type=format
+                )[0]
+            )
+        return mime_types
+
+    def _create_contact_from_md_metadata(self, md_metadata: Element) -> Organization:
+        """ Creates an Organization (Contact) instance from MD_Metadata.
+
+        Holds the basic information
+
+        Args:
+            md_metadata (Element): The xml element
+        Returns:
+             org (Organization): The organization element
+        """
+        resp_party_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_ResponsibleParty"),
+            md_metadata
+        )
+        if resp_party_elem is None:
+            return None
+
+        organization_name = xml_helper.try_get_text_from_xml_element(
+            resp_party_elem,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("organisationName")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        )
+        person_name = xml_helper.try_get_text_from_xml_element(
+            resp_party_elem,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("individualName")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        )
+        phone = xml_helper.try_get_text_from_xml_element(
+            resp_party_elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Telephone")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("voice")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        )
+        facsimile = xml_helper.try_get_text_from_xml_element(
+            resp_party_elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Telephone")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("facsimile")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+        )
+        # Parse address information, create fallback values
+        address = None
+        city = None
+        postal_code = None
+        country = None
+        email = None
+        state = None
+        address_elem = xml_helper.try_get_single_element_from_xml(
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Address"),
+            md_metadata
+        )
+        if address_elem is not None:
+            address = xml_helper.try_get_text_from_xml_element(
+                address_elem,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("deliveryPoint")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            city = xml_helper.try_get_text_from_xml_element(
+                address_elem,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("city")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            postal_code = xml_helper.try_get_text_from_xml_element(
+                address_elem,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("postalCode")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            country = xml_helper.try_get_text_from_xml_element(
+                address_elem,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("country")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            email = xml_helper.try_get_text_from_xml_element(
+                address_elem,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("electronicMailAddress")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            state = xml_helper.try_get_text_from_xml_element(
+                address_elem,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("administrativeArea")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+        is_auto_generated = True
+        description = xml_helper.try_get_text_from_xml_element(
+            resp_party_elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("CI_OnlineResource")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("linkage")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("URL")
+        )
+        org = Organization.objects.get_or_create(
+            person_name=person_name,
+            organization_name=organization_name,
+            phone=phone,
+            facsimile=facsimile,
+            address=address,
+            city=city,
+            postal_code=postal_code,
+            country=country,
+            email=email,
+            state_or_province=state,
+            is_auto_generated=is_auto_generated,
+            description=description,
+        )[0]
+        return org

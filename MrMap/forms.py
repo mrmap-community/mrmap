@@ -12,6 +12,7 @@ import string
 
 CURRENT_VIEW_QUERY_PARAM = 'current-view'
 
+
 class MrMapModalForm:
     current_view_arg = None
 

@@ -24,8 +24,8 @@ urlpatterns = [
     path('dataset/wizard/<metadata_id>', edit_dataset_wizard, name="dataset-metadata-wizard-instance"),
 
     path('dataset/remove/<metadata_id>', remove_dataset, name='remove-dataset-metadata'),
-    path('access/<id>', edit_access, name='edit_access'),
-    path('access/<id>/geometry-form/', access_geometry_form, name='access_geometry_form'),
+    path('access/<object_id>', edit_access, name='edit_access'),
+    path('access/<metadata_id>/<group_id>/geometry-form/', access_geometry_form, name='access_geometry_form'),
     path('restore/<metadata_id>', restore, name='restore'),
     path('restore-dataset-metadata/<metadata_id>', restore_dataset_metadata, name='restore-dataset-metadata'),
 ]

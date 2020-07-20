@@ -13,7 +13,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django import forms
 from MrMap.cacher import PageCacher
-from MrMap.forms import MrMapConfirmForm
+from MrMap.forms import MrMapConfirmForm, MrMapForm
 from MrMap.messages import METADATA_EDITING_SUCCESS, SERVICE_MD_EDITED, METADATA_IS_ORIGINAL, \
     METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED
 from api.settings import API_CACHE_KEY_PREFIX
@@ -409,3 +409,39 @@ class RestoreDatasetMetadata(MrMapConfirmForm):
         messages.add_message(self.request, messages.SUCCESS, METADATA_RESTORING_SUCCESS)
         user_helper.create_group_activity(self.instance.created_by, self.requesting_user, SERVICE_MD_RESTORED,
                                           "{}".format(self.instance.title, ))
+
+
+class RestrictAccessForm(MrMapForm):
+    use_proxy = forms.BooleanField(required=False, )
+    log_proxy = forms.BooleanField(required=False, )
+    restrict_access = forms.BooleanField(required=False, )
+
+    def __init__(self, is_root=True, *args, **kwargs):
+        super(RestrictAccessForm, self).__init__(*args, **kwargs)
+        if not is_root:
+            del self.fields['use_proxy']
+            del self.fields['log_proxy']
+
+    def clean(self):
+        cleaned_data = super(RestrictAccessForm, self).clean()
+        use_proxy = cleaned_data.get("use_proxy")
+        log_proxy = cleaned_data.get("log_proxy")
+        restrict_access = cleaned_data.get("restrict_access")
+
+        if log_proxy or restrict_access and not use_proxy:
+            self.add_error("use_proxy", forms.ValidationError(_('Log proxy or restrict access without using proxy is\'nt possible!')))
+
+        return cleaned_data
+
+
+class RestrictAccessSpatially(MrMapForm):
+    get_map = forms.BooleanField(required=False, )
+    get_feature_info = forms.BooleanField(required=False, )
+    spatial_restricted_area = forms.CharField(label=_('Bounding box'),
+                                              required=False,
+                                              widget=LeafletGeometryInput(),
+                                              help_text=_('Unfold the leaflet client by clicking on the polygon icon.'), )
+
+    def process_restict_access_spatially(self):
+        # ToDo:
+        pass

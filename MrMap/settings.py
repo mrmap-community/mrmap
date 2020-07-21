@@ -404,5 +404,53 @@ INTERNAL_IPS = [
     "127.0.0.1"
 ]
 
-## DEALER Settings
+# DEALER Settings
 DEALER_PATH = BASE_DIR
+
+# django logging settings
+LOG_DIR = BASE_DIR + '/logs'
+LOG_SUB_DIRS = {
+    'root': {'dir': '/root', 'log_file': 'root.log'},
+    'api': {'dir': '/api', 'log_file': 'api.log'},
+    'csw': {'dir': '/csw', 'log_file': 'csw.log'},
+    'editor': {'dir': '/editor', 'log_file': 'rooeditorog'},
+    'monitoring': {'dir': '/monitoring', 'log_file': 'monitoring.log'},
+    'service': {'dir': '/service', 'log_file': 'service.log'},
+    'structure': {'dir': '/structure', 'log_file': 'structure.log'},
+    'users': {'dir': '/users', 'log_file': 'users.log'},
+}
+LOG_FILE_MAX_SIZE = 1024*1024*20,  # 20 MB
+LOG_FILE_BACKUP_COUNT = 5
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d}: {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'MrMap.root.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': 1024*1024*20,
+            'backupCount': 5,
+            'filename': LOG_DIR + LOG_SUB_DIRS['root']['dir'] + '/' + LOG_SUB_DIRS['root']['log_file'],
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'MrMap.root': {
+            'handlers': ['MrMap.root.file', ],
+            'level': 'INFO',
+            'propagate': True,
+        },
+
+    },
+}

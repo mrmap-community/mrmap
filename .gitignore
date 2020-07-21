@@ -109,3 +109,4 @@ redis/
 # postgis
 postgis/postgresql_data/PyXB-1.2.6/
 PyXB-1.2.6/
+logs/

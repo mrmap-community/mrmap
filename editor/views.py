@@ -141,18 +141,30 @@ def edit_access(request: HttpRequest, object_id, update_params: dict = None, sta
     template = "views/editor_edit_access_index.html"
     user = user_helper.get_user(request)
     md = get_object_or_404(Metadata, id=object_id)
-    form = RestrictAccessForm(data=request.POST or None,
-                              request=request,
-                              action_url=reverse('editor:edit_access', args=[object_id, ], ),
-                              is_root=True if md.service.is_root else None)
+    form = RestrictAccessForm(
+        data=request.POST or None,
+        request=request,
+        action_url=reverse('editor:edit_access', args=[object_id, ], ),
+        metadata=md
+    )
 
-    all_groups = MrMapGroup.objects.all().order_by(Case(When(name='Public', then=0)), 'name')
+    all_groups = MrMapGroup.objects.all().order_by(
+        Case(
+            When(
+                name='Public',
+                then=0
+            )
+        ),
+        'name'
+    )
 
-    table = EditorAcessTable(request=request,
-                             queryset=all_groups,
-                             filter_set_class=EditorAcessFilter,
-                             current_view='editor:edit_access',
-                             related_metadata=md,)
+    table = EditorAcessTable(
+        request=request,
+        queryset=all_groups,
+        filter_set_class=EditorAcessFilter,
+        current_view='editor:edit_access',
+        related_metadata=md,
+    )
 
     params = {
         "restrict_access_form": form,
@@ -163,8 +175,7 @@ def edit_access(request: HttpRequest, object_id, update_params: dict = None, sta
     if request.method == 'POST':
         # Check if update form is valid
         if form.is_valid():
-            # ToDo: save the boolean flags of restrict_access_form
-            pass
+            form.process_securing_access(md)
 
     if update_params:
         params.update(update_params)
@@ -189,14 +200,16 @@ def access_geometry_form(request: HttpRequest, metadata_id, group_id):
     """
     get_object_or_404(Metadata, id=metadata_id)
     group = get_object_or_404(MrMapGroup, id=group_id)
-    form = RestrictAccessSpatially(data=request.POST or None,
-                                   request=request,
-                                   reverse_lookup='editor:access_geometry_form',
-                                   reverse_args=[metadata_id, group_id],
-                                   # ToDo: after refactoring of all forms is done, show_modal can be removed
-                                   show_modal=True,
-                                   form_title=_(f"Edit spatial area for group <strong>{group.name}</strong>"),
-                                   )
+    form = RestrictAccessSpatially(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='editor:access_geometry_form',
+        reverse_args=[metadata_id, group_id],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        form_title=_(f"Edit spatial area for group <strong>{group.name}</strong>"),
+        metadata_id=metadata_id
+    )
     return form.process_request(valid_func=form.process_restict_access_spatially)
 
 

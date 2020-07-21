@@ -15,7 +15,7 @@ from django import forms
 from MrMap.cacher import PageCacher
 from MrMap.forms import MrMapConfirmForm, MrMapForm
 from MrMap.messages import METADATA_EDITING_SUCCESS, SERVICE_MD_EDITED, METADATA_IS_ORIGINAL, \
-    METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED
+    METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
 from api.settings import API_CACHE_KEY_PREFIX
 from editor.helper import editor_helper
 from service.helper.enums import OGCServiceEnum
@@ -24,7 +24,7 @@ from MrMap.widgets import BootstrapDatePickerInput, LeafletGeometryInput
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
 from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem, Licence
 from service.settings import ISO_19115_LANG_CHOICES
-from structure.models import Organization
+from structure.models import Organization, MrMapUser
 from users.helper import user_helper
 from django.contrib import messages
 
@@ -416,11 +416,16 @@ class RestrictAccessForm(MrMapForm):
     log_proxy = forms.BooleanField(required=False, )
     restrict_access = forms.BooleanField(required=False, )
 
-    def __init__(self, is_root=True, *args, **kwargs):
+    def __init__(self, metadata: Metadata, *args, **kwargs):
         super(RestrictAccessForm, self).__init__(*args, **kwargs)
-        if not is_root:
+        self.metadata = metadata
+        if not metadata.is_root:
             del self.fields['use_proxy']
             del self.fields['log_proxy']
+        else:
+            self.fields["use_proxy"].initial = metadata.use_proxy_uri
+            self.fields["log_proxy"].initial = metadata.log_proxy_access
+        self.fields["restrict_access"].initial = metadata.is_secured
 
     def clean(self):
         cleaned_data = super(RestrictAccessForm, self).clean()
@@ -428,20 +433,65 @@ class RestrictAccessForm(MrMapForm):
         log_proxy = cleaned_data.get("log_proxy")
         restrict_access = cleaned_data.get("restrict_access")
 
-        if log_proxy or restrict_access and not use_proxy:
+        # log_proxy and restrict_access can only be activated in combination with use_proxy!
+        if log_proxy and not use_proxy or restrict_access and not use_proxy:
             self.add_error("use_proxy", forms.ValidationError(_('Log proxy or restrict access without using proxy is\'nt possible!')))
 
+        # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
+        if self.metadata.has_external_authentication() and not use_proxy:
+            raise AssertionError(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
+
         return cleaned_data
+
+    def process_securing_access(self, metadata: Metadata):
+        """ Call the metadata functions for proxying, logging and securing (access restricting)
+
+        Args:
+            metadata (Metadata):
+        Returns:
+
+        """
+        use_proxy = self.cleaned_data.get("use_proxy", False)
+        log_proxy = self.cleaned_data.get("log_proxy", False)
+        restrict_access = self.cleaned_data.get("restrict_access", False)
+
+        if metadata.use_proxy_uri != use_proxy:
+            metadata.set_proxy(use_proxy)
+
+        if metadata.log_proxy_access != log_proxy:
+            metadata.set_logging(log_proxy)
+
+        if metadata.is_secured != restrict_access:
+            metadata.set_secured(restrict_access)
 
 
 class RestrictAccessSpatially(MrMapForm):
     get_map = forms.BooleanField(required=False, )
     get_feature_info = forms.BooleanField(required=False, )
-    spatial_restricted_area = forms.CharField(label=_('Bounding box'),
-                                              required=False,
-                                              widget=LeafletGeometryInput(),
-                                              help_text=_('Unfold the leaflet client by clicking on the polygon icon.'), )
+    spatial_restricted_area = forms.CharField(
+        label=_('Bounding box'),
+        required=False,
+        widget=LeafletGeometryInput(),
+        help_text=_('Unfold the leaflet client by clicking on the polygon icon.'),
+    )
+
+    def __init__(self, metadata_id: int, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.metadata_id = metadata_id
 
     def process_restict_access_spatially(self):
-        # ToDo:
-        pass
+        operation_map = {
+            "get_map": None,
+            "get_feature_info": None,
+            "get_feature": None,
+        }
+        bounding_geometry = self.cleaned_data.get("spatial_restricted_area", None)
+        del self.cleaned_data["spatial_restricted_area"]
+        for k, v in self.cleaned_data.items():
+            try:
+                operation_map[k] = v
+            except KeyError:
+                pass
+        # Reduce operation_map on valid data
+        operation_map = {k: v for k, v in operation_map.items() if v is not None}
+        i = 0

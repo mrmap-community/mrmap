@@ -12,7 +12,7 @@ from tests.baker_recipes.db_setup import create_superadminuser
 from tests.baker_recipes.structure_app.baker_recipes import PASSWORD
 
 
-OPERATION_BASE_URI_TEMPLATE = "/service/metadata/{}/operation"
+OPERATION_BASE_URI_TEMPLATE = "/resource/metadata/{}/operation"
 EDIT_BASE_URI_TEMPLATE = "/editor/metadata/{}"
 
 class EditorTestCase(TestCase):

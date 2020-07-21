@@ -542,6 +542,8 @@ class RestrictAccessSpatially(MrMapForm):
                 # If no bounding geometry exists, we need to set feature_geojson to None,
                 # so it will be interpreted as empty geometry input
                 feature_geojson = None
+        else:
+            feature_geojson = None
 
         # Set initial fields
         self.fields["get_map"].initial = secured_operation_get_map

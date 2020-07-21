@@ -30,11 +30,11 @@ ISO_19115_LANG_CHOICES = [
 MD_RELATION_TYPE_VISUALIZES = "visualizes"
 MD_RELATION_TYPE_DESCRIBED_BY = "describedBy"
 
-SERVICE_OPERATION_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}" + "/operation?"
-SERVICE_DATASET_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "dataset/{}"
-SERVICE_METADATA_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}"
-HTML_METADATA_URI_TEMPLATE = "{}{}/service/metadata/html/".format(HTTP_OR_SSL, HOST_NAME) + "{}"
-SERVICE_LEGEND_URI_TEMPLATE = "{}{}/service/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}" + "/legend/" + "{}"
+SERVICE_OPERATION_URI_TEMPLATE = "{}{}/resource/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}" + "/operation?"
+SERVICE_DATASET_URI_TEMPLATE = "{}{}/resource/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "dataset/{}"
+SERVICE_METADATA_URI_TEMPLATE = "{}{}/resource/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}"
+HTML_METADATA_URI_TEMPLATE = "{}{}/resource/metadata/html/".format(HTTP_OR_SSL, HOST_NAME) + "{}"
+SERVICE_LEGEND_URI_TEMPLATE = "{}{}/resource/metadata/".format(HTTP_OR_SSL, HOST_NAME) + "{}" + "/legend/" + "{}"
 
 REQUEST_TIMEOUT = 100  # seconds
 

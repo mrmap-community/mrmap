@@ -202,7 +202,7 @@ def access_geometry_form(request: HttpRequest, metadata_id, group_id):
         show_modal=True,
         form_title=_(f"Edit spatial area for group <strong>{group.name}</strong>"),
         metadata_id=metadata_id,
-        group_id=group_id
+        group_id=group_id,
     )
     return form.process_request(valid_func=form.process_restict_access_spatially)
 

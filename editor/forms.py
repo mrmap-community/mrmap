@@ -5,6 +5,8 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 09.07.19
 
 """
+import json
+
 from dal import autocomplete
 from django.db.models import Q
 from django.forms import ModelMultipleChoiceField
@@ -495,6 +497,45 @@ class RestrictAccessSpatially(MrMapForm):
         self.metadata_id = metadata_id
         self.group_id = group_id
 
+        # Read initial data for fields
+        secured_operations = SecuredOperation.objects.filter(
+            secured_metadata__id=metadata_id
+        )
+        secured_operation_get_map = secured_operations.filter(
+            operation=OGCOperationEnum.GET_MAP.value
+        ).exists()
+        secured_operation_get_feature_info = secured_operations.filter(
+            operation=OGCOperationEnum.GET_FEATURE_INFO.value
+        ).exists()
+
+        # Since we persist geometries in GeometryCollections, containing Polygon obejcts, we need to use a little hack
+        # to force Leaflet to read this artifical FeatureCollection, which is filled by the persisted Polygon objects
+        feature_geojson = {
+            "type": "FeatureCollection",
+            "features": [],
+        }
+        secured_operations_bounding_geometry = secured_operations.first()
+        if secured_operations_bounding_geometry is not None:
+            secured_operations_bounding_geometry = secured_operations_bounding_geometry.bounding_geometry
+            if secured_operations_bounding_geometry is not None:
+                for geom in secured_operations_bounding_geometry:
+                    feature = {
+                        "type": "Feature",
+                        "properties": "{}",
+                        "geometry": json.loads(geom.geojson),
+                    }
+                    feature_geojson["features"].append(feature)
+                feature_geojson = json.dumps(feature_geojson)
+            else:
+                # If no bounding geometry exists, we need to set feature_geojson to None,
+                # so it will be interpreted as empty geometry input
+                feature_geojson = None
+
+        # Set initial fields
+        self.fields["get_map"].initial = secured_operation_get_map
+        self.fields["get_feature_info"].initial = secured_operation_get_feature_info
+        self.fields["spatial_restricted_area"].initial = feature_geojson
+
     def process_restict_access_spatially(self):
         """ Create SecuredOperations for metadata, according to form data
 
@@ -520,7 +561,7 @@ class RestrictAccessSpatially(MrMapForm):
                 pass
         # Reduce operation_map on valid data
         operations = [v for k, v in ogc_operation_map.items() if k in operation_map and operation_map[k] is True]
-        async_secure_service_task.delay(
+        async_secure_service_task(
             self.metadata_id,
             self.group_id,
             operations,

@@ -148,7 +148,7 @@ def async_secure_service_task(metadata_id: int, group_id: int, operations: list,
         bounding_geometry = GeometryCollection(
             geoms
         )
-    except Exception:
+    except Exception as e:
         bounding_geometry = None
 
     # Create list of parent metadata and all subelement metadatas
@@ -158,9 +158,19 @@ def async_secure_service_task(metadata_id: int, group_id: int, operations: list,
     with transaction.atomic():
         # Iterate over all metadatas to set the restricted geometry
         for md in metadatas:
+            # Create a list of objects, which shall be deleted if not found anymore in the new form data
+            to_be_deleted = md.secured_operations.filter(
+                allowed_group=group
+            )
+            to_be_deleted = {op.operation: op for op in to_be_deleted}
             # Then iterate over all operations, which shall be secured and create/update the bounding geometry
             for operation in operations:
-
+                try:
+                    # Since we are currently iterating through this operation, which shall be secured, we can delete
+                    # the entry from the list of entries which would be deleted in the end!
+                    del to_be_deleted[operation]
+                except KeyError:
+                    pass
                 secured_operation = md.secured_operations.filter(
                     operation=operation,
                     allowed_group=group,
@@ -179,6 +189,10 @@ def async_secure_service_task(metadata_id: int, group_id: int, operations: list,
                         bounding_geometry=bounding_geometry
                     )
                     md.secured_operations.add(sec_op)
+
+            # Delete the operations which are not present anymore in the form data!
+            for key, entry in to_be_deleted.items():
+                entry.delete()
 
 
 @shared_task(name="async_remove_service_task")

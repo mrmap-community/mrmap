@@ -1523,7 +1523,6 @@ class OGCOperationRequestHandler:
                     response = result
                 else:
                     mask = result
-                    mask.save("/home/michel/Schreibtisch/mask.png")
 
             img = response.get("response", "")
             img_format = response.get("response_type", "")

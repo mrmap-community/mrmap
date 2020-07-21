@@ -5,9 +5,10 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 
 from MrMap.decorator import check_permission, check_ownership
+from MrMap.messages import SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MrMap.responses import DefaultContext
 from editor.filters import EditorAcessFilter
 from editor.forms import MetadataEditorForm, RemoveDatasetForm, RestoreMetadataForm, RestoreDatasetMetadata, \
@@ -134,6 +135,8 @@ def edit_access(request: HttpRequest, object_id, update_params: dict = None, sta
     template = "views/editor_edit_access_index.html"
     user = user_helper.get_user(request)
     md = get_object_or_404(Metadata, id=object_id)
+    is_root = md.is_root()
+
     form = RestrictAccessForm(
         data=request.POST or None,
         request=request,
@@ -163,11 +166,14 @@ def edit_access(request: HttpRequest, object_id, update_params: dict = None, sta
         "restrict_access_form": form,
         "restrict_access_table": table,
         "service_metadata": md,
+        "is_root": is_root,
     }
 
     if request.method == 'POST':
-        # Check if update form is valid
-        if form.is_valid():
+        # Check if update form is valid or action is performed on a root metadata
+        if not is_root:
+            messages.info(request, SECURITY_PROXY_WARNING_ONLY_FOR_ROOT)
+        elif form.is_valid():
             form.process_securing_access(md)
 
     if update_params:

@@ -423,12 +423,8 @@ class RestrictAccessForm(MrMapForm):
     def __init__(self, metadata: Metadata, *args, **kwargs):
         super(RestrictAccessForm, self).__init__(*args, **kwargs)
         self.metadata = metadata
-        if not metadata.is_root:
-            del self.fields['use_proxy']
-            del self.fields['log_proxy']
-        else:
-            self.fields["use_proxy"].initial = metadata.use_proxy_uri
-            self.fields["log_proxy"].initial = metadata.log_proxy_access
+        self.fields["use_proxy"].initial = metadata.use_proxy_uri
+        self.fields["log_proxy"].initial = metadata.log_proxy_access
         self.fields["restrict_access"].initial = metadata.is_secured
 
     def clean(self):
@@ -509,6 +505,10 @@ class RestrictAccessSpatially(MrMapForm):
         self.metadata_id = metadata_id
         self.group_id = group_id
 
+        self.metadata = Metadata.objects.get(
+            id=metadata_id
+        )
+
         # Read initial data for fields
         secured_operations = SecuredOperation.objects.filter(
             secured_metadata__id=metadata_id
@@ -526,7 +526,13 @@ class RestrictAccessSpatially(MrMapForm):
             "type": "FeatureCollection",
             "features": [],
         }
-        secured_operations_bounding_geometry = secured_operations.first()
+
+        # If the metadata is not root, we are not allowed to create own geometries but we need to inherit the ones from
+        # the parent. Therefore we read it from the root in this case
+        if not self.metadata.is_root():
+            secured_operations_bounding_geometry = self.metadata.get_root_metadata().secured_operations.all().first()
+        else:
+            secured_operations_bounding_geometry = secured_operations.first()
         if secured_operations_bounding_geometry is not None:
             secured_operations_bounding_geometry = secured_operations_bounding_geometry.bounding_geometry
             if secured_operations_bounding_geometry is not None:
@@ -545,6 +551,10 @@ class RestrictAccessSpatially(MrMapForm):
         else:
             feature_geojson = None
 
+        # restricting via geometry is only allowed for root metadata, not for every single subelement
+        if not self.metadata.is_root():
+            self.fields["spatial_restricted_area"].widget = forms.HiddenInput()
+
         # Set initial fields
         self.fields["get_map"].initial = secured_operation_get_map
         self.fields["get_feature_info"].initial = secured_operation_get_feature_info
@@ -556,6 +566,17 @@ class RestrictAccessSpatially(MrMapForm):
         Returns:
 
         """
+        # Check if the metadata is already secured. If not, secure it!
+        if not self.metadata.is_secured:
+            self.metadata.set_secured(True)
+
+        bounding_geometry = self.cleaned_data.get("spatial_restricted_area", None)
+        try:
+            del self.cleaned_data["spatial_restricted_area"]
+        except KeyError:
+            # happens on a non-root service
+            pass
+
         ogc_operation_map = {
             "get_map": OGCOperationEnum.GET_MAP.value,
             "get_feature_info": OGCOperationEnum.GET_FEATURE_INFO.value,
@@ -566,8 +587,6 @@ class RestrictAccessSpatially(MrMapForm):
             "get_feature_info": None,
             "get_feature": None,
         }
-        bounding_geometry = self.cleaned_data.get("spatial_restricted_area", None)
-        del self.cleaned_data["spatial_restricted_area"]
         for k, v in self.cleaned_data.items():
             try:
                 operation_map[k] = v

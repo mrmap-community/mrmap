@@ -34,17 +34,18 @@
 
 {% block card-body %}
 
+{% if is_root %}
+    <form action="{{ restrict_access_form.action_url }}" method="post">
+        {% csrf_token %}
 
-<form action="{{ restrict_access_form.action_url }}" method="post">
-    {% csrf_token %}
+        {% bootstrap_form restrict_access_form  %}
 
-    {% bootstrap_form restrict_access_form  %}
-
-    <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}} secured-operations submit-button" data-id="{{ service_metadata.id }}">
-        {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
-    </button>
-</form>
-<hr>
+        <button type="submit" class="btn {{THEME.CARD.BTN_PRIMARY_COLOR}} secured-operations submit-button" data-id="{{ service_metadata.id }}">
+            {% autoescape off %}{{THEME.ICONS.SAVE}}{% endautoescape %} {% trans 'Save' %}
+        </button>
+    </form>
+    <hr>
+{% endif %}
 
 {% render_table restrict_access_table %}
 

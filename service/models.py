@@ -789,6 +789,22 @@ class Metadata(Resource):
 
         return ret_list
 
+    def get_root_metadata(self):
+        """ Returns the root metadata of the current metadata if there is one.
+
+        Returns the same metadata otherwise
+
+
+        Returns:
+             ret_list (list)
+        """
+        if self.service.parent_service is not None:
+            root_md = self.service.parent_service.metadata
+        else:
+            root_md = self
+
+        return root_md
+
     def get_service_metadata_xml(self):
         """ Getter for the service metadata.
 
@@ -2526,6 +2542,8 @@ class Service(Resource):
             if self.metadata.is_metadata_type(MetadataEnum.SERVICE):
                 qs = Layer.objects.filter(
                     parent_service=self
+                ).prefetch_related(
+                    "metadata"
                 )
                 ret_list = list(qs)
             else:
@@ -2536,6 +2554,8 @@ class Service(Resource):
         elif self.is_service_type(OGCServiceEnum.WFS):
             ret_list += FeatureType.objects.filter(
                 parent_service=self
+            ).prefetch_related(
+                "metadata"
             )
 
         return ret_list

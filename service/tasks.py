@@ -9,6 +9,7 @@ import json
 import time
 
 from celery import shared_task
+from django.contrib.gis.geos import GEOSGeometry, Polygon, GeometryCollection
 from django.db import transaction
 
 from lxml.etree import XMLSyntaxError, XPathEvalError
@@ -23,9 +24,9 @@ from MrMap.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
 from MrMap.utils import print_debug_mode
 from api.settings import API_CACHE_KEY_PREFIX
 from csw.settings import CSW_CACHE_PREFIX
-from service.helper.enums import MetadataEnum, OGCServiceEnum
-from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
-    MetadataRelation, ProxyLog
+from service.models import Service, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
+    MetadataRelation
+from service.settings import DEFAULT_SRS
 from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
@@ -111,8 +112,7 @@ def async_activate_service(metadata_id, user_id: int, is_active: bool):
 
 
 @shared_task(name="async_secure_service_task")
-@transaction.atomic
-def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int, operation_id: int, group_polygons: dict, secured_operation_id: int):
+def async_secure_service_task(metadata_id: int, group_id: int, operations: list, bounding_geometry: str):
     """ Async call for securing a service
 
     Since this is something that can happen in the background, we should push it to the background!
@@ -126,34 +126,69 @@ def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int,
          nothing
     """
     md = Metadata.objects.get(id=metadata_id)
-    if secured_operation_id is not None:
-        secured_operation = SecuredOperation.objects.get(
-            id=secured_operation_id
-        )
-    else:
-        secured_operation = None
+
+    # First get the MrMapGroup object
     if group_id is None:
         group = None
     else:
         group = MrMapGroup.objects.get(
             id=group_id
         )
-    if operation_id is not None:
-        operation = RequestOperation.objects.get(id=operation_id)
-    else:
-        operation = None
 
+    features = json.loads(bounding_geometry)
+    geoms = []
+    for feature in features["features"]:
+        feature_geom = feature["geometry"]
+        feature_coords = feature_geom["coordinates"]
+        for coord in feature_coords:
+            geom = GEOSGeometry(Polygon(coord), srid=DEFAULT_SRS)
+            geoms.append(geom)
+    # Create GeosGeometry from GeoJson
+    bounding_geometry = GeometryCollection(
+        geoms
+    )
+
+    # Create list of parent metadata and all subelement metadatas
+    metadatas = md.get_subelements_metadatas()
+    metadatas = [md] + metadatas
+
+    with transaction.atomic():
+        # Iterate over all metadatas to set the restricted geometry
+        for md in metadatas:
+            # Then iterate over all operations, which shall be secured and create/update the bounding geometry
+            for operation in operations:
+
+                secured_operation = md.secured_operations.filter(
+                    operation=operation,
+                    allowed_group=group,
+                )
+                if secured_operation.exists():
+                    # update
+                    secured_operation = secured_operation.first()
+                    secured_operation.bounding_geometry = bounding_geometry
+                    secured_operation.save()
+                else:
+                    # New!
+                    md.secured_operations.add(
+                        SecuredOperation.objects.create(
+                            secured_metadata=md,
+                            operation=operation,
+                            allowed_group=group,
+                            bounding_geometry=bounding_geometry
+                        )
+                    )
+    """
     # if whole service (wms AND wfs) shall be secured, create SecuredOperations for service object
     if md.is_metadata_type(MetadataEnum.SERVICE):
-        md.service.secure_access(is_secured, group, operation, group_polygons, secured_operation)
+        md.service.secure_access(is_secured, group, operations, group_polygons, secured_operation)
 
     # secure subelements afterwards
     if md.is_metadata_type(MetadataEnum.SERVICE) or md.is_metadata_type(MetadataEnum.LAYER):
-        md.service.secure_sub_elements(is_secured, group, operation, group_polygons, secured_operation)
+        md.service.secure_sub_elements(is_secured, group, operations, group_polygons, secured_operation)
 
     elif md.is_metadata_type(MetadataEnum.FEATURETYPE):
-        md.featuretype.secure_feature_type(is_secured, group, operation, group_polygons, secured_operation)
-
+        md.featuretype.secure_feature_type(is_secured, group, operations, group_polygons, secured_operation)
+    """
 
 @shared_task(name="async_remove_service_task")
 def async_remove_service_task(service_id: int):

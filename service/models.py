@@ -363,7 +363,7 @@ class RequestOperation(models.Model):
 
 
 class SecuredOperation(models.Model):
-    operation = models.ForeignKey(RequestOperation, on_delete=models.CASCADE, null=True, blank=True)
+    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), null=True, blank=True)
     allowed_group = models.ForeignKey(MrMapGroup, related_name="allowed_operations", on_delete=models.CASCADE, null=True, blank=True)
     bounding_geometry = models.GeometryCollectionField(blank=True, null=True)
     secured_metadata = models.ForeignKey('Metadata', related_name="secured_operations", on_delete=models.CASCADE, null=True, blank=True)

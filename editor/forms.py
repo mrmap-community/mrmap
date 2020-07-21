@@ -18,12 +18,14 @@ from MrMap.messages import METADATA_EDITING_SUCCESS, SERVICE_MD_EDITED, METADATA
     METADATA_RESTORING_SUCCESS, SERVICE_MD_RESTORED, SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
 from api.settings import API_CACHE_KEY_PREFIX
 from editor.helper import editor_helper
-from service.helper.enums import OGCServiceEnum
+from service.helper.enums import OGCServiceEnum, OGCOperationEnum
 from MrMap.forms import MrMapModelForm, MrMapWizardForm
 from MrMap.widgets import BootstrapDatePickerInput, LeafletGeometryInput
 from service.helper.enums import MetadataEnum, ResourceOriginEnum
-from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem, Licence
+from service.models import Metadata, MetadataRelation, Keyword, Category, Dataset, ReferenceSystem, Licence, \
+    SecuredOperation
 from service.settings import ISO_19115_LANG_CHOICES
+from service.tasks import async_secure_service_task
 from structure.models import Organization, MrMapUser
 from users.helper import user_helper
 from django.contrib import messages
@@ -463,6 +465,11 @@ class RestrictAccessForm(MrMapForm):
 
         if metadata.is_secured != restrict_access:
             metadata.set_secured(restrict_access)
+            if restrict_access is False:
+                metadatas = metadata.get_subelements_metadatas()
+                metadatas.append(metadata)
+                for md in metadatas:
+                    md.secured_operations.all().delete()
 
 
 class RestrictAccessSpatially(MrMapForm):
@@ -475,11 +482,17 @@ class RestrictAccessSpatially(MrMapForm):
         help_text=_('Unfold the leaflet client by clicking on the polygon icon.'),
     )
 
-    def __init__(self, metadata_id: int, *args, **kwargs):
+    def __init__(self, metadata_id: int, group_id: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.metadata_id = metadata_id
+        self.group_id = group_id
 
     def process_restict_access_spatially(self):
+        ogc_operation_map = {
+            "get_map": OGCOperationEnum.GET_MAP.value,
+            "get_feature_info": OGCOperationEnum.GET_FEATURE_INFO.value,
+            "get_feature": OGCOperationEnum.GET_FEATURE.value,
+        }
         operation_map = {
             "get_map": None,
             "get_feature_info": None,
@@ -493,5 +506,10 @@ class RestrictAccessSpatially(MrMapForm):
             except KeyError:
                 pass
         # Reduce operation_map on valid data
-        operation_map = {k: v for k, v in operation_map.items() if v is not None}
-        i = 0
+        operations = [v for k, v in ogc_operation_map.items() if k in operation_map and operation_map[k] is True]
+        async_secure_service_task(
+            self.metadata_id,
+            self.group_id,
+            operations,
+            bounding_geometry
+        )

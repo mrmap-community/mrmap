@@ -34,6 +34,9 @@
 
 {% block card-body %}
 
+<h5>
+    {% trans 'General settings' %}
+</h5>
 {% if is_root %}
     <form action="{{ restrict_access_form.action_url }}" method="post">
         {% csrf_token %}
@@ -47,6 +50,9 @@
     <hr>
 {% endif %}
 
+<h5>
+    {% trans 'Edit group access' %}
+</h5>
 {% render_table restrict_access_table %}
 
 {% endblock %}

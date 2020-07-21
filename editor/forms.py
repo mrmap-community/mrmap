@@ -416,9 +416,27 @@ class RestoreDatasetMetadata(MrMapConfirmForm):
 
 
 class RestrictAccessForm(MrMapForm):
-    use_proxy = forms.BooleanField(required=False, )
-    log_proxy = forms.BooleanField(required=False, )
-    restrict_access = forms.BooleanField(required=False, )
+    use_proxy = forms.BooleanField(
+        required=False,
+        label=_("Use proxy"),
+        help_text=_(
+            "Activate to reroute all traffic for this service on MrMap"
+        )
+    )
+    log_proxy = forms.BooleanField(
+        required=False,
+        label=_("Log proxy activity"),
+        help_text=_(
+            "Activate to log every traffic activity for this service"
+        )
+    )
+    restrict_access = forms.BooleanField(
+        required=False,
+        label=_("Restrict access"),
+        help_text=_(
+            "Activate to restrict access on this service"
+        )
+    )
 
     def __init__(self, metadata: Metadata, *args, **kwargs):
         super(RestrictAccessForm, self).__init__(*args, **kwargs)

@@ -441,23 +441,27 @@ class Harvester:
                     bbox_elem,
                     ".//" + GENERIC_NAMESPACE_TEMPLATE.format("westBoundLongitude")
                     + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ) or 0.0,
+                ) or "0.0",
                 xml_helper.try_get_text_from_xml_element(
                     bbox_elem,
                     ".//" + GENERIC_NAMESPACE_TEMPLATE.format("southBoundLatitude")
                     + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ) or 0.0,
+                ) or "0.0",
                 xml_helper.try_get_text_from_xml_element(
                     bbox_elem,
                     ".//" + GENERIC_NAMESPACE_TEMPLATE.format("eastBoundLongitude")
                     + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ) or 0.0,
+                ) or "0.0",
                 xml_helper.try_get_text_from_xml_element(
                     bbox_elem,
                     ".//" + GENERIC_NAMESPACE_TEMPLATE.format("northBoundLatitude")
                     + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ) or 0.0,
+                ) or "0.0",
             ]
+            # There are metadata with wrong vertex notations like 50,3 instead of 50.3
+            # We should just drop them, since they are not compatible with the specifications but in here, we make an
+            # exception and replace , since it's quite easy
+            extent = [vertex.replace(",", ".") for vertex in extent]
             try:
                 bounding_geometry = GEOSGeometry(Polygon.from_bbox(bbox=extent), srid=DEFAULT_SRS)
             except Exception:

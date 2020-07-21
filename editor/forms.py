@@ -483,10 +483,22 @@ class RestrictAccessForm(MrMapForm):
 
 
 class RestrictAccessSpatially(MrMapForm):
-    get_map = forms.BooleanField(required=False, )
-    get_feature_info = forms.BooleanField(required=False, )
+    get_map = forms.BooleanField(
+        required=False,
+        label=OGCOperationEnum.GET_MAP.value,
+        help_text=_(
+            "Activate to allow <strong>{}</strong> in the area defined in the map viewer below."
+        ).format(OGCOperationEnum.GET_MAP.value)
+    )
+    get_feature_info = forms.BooleanField(
+        required=False,
+        label=OGCOperationEnum.GET_FEATURE_INFO.value,
+        help_text=_(
+            "Activate to allow <strong>{}</strong> in the area defined in the map viewer below."
+        ).format(OGCOperationEnum.GET_FEATURE_INFO.value)
+    )
     spatial_restricted_area = forms.CharField(
-        label=_('Bounding box'),
+        label=_('Allowed area'),
         required=False,
         widget=LeafletGeometryInput(),
         help_text=_('Unfold the leaflet client by clicking on the polygon icon.'),

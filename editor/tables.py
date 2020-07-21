@@ -25,13 +25,13 @@ class EditorAcessTable(MrMapTable):
         tooltip=_('The organization for that the access is restricted or not.'), )
 
     editor_access_allowed = MrMapColumn(
-        accessor='allowed_operations',
+        accessor='id',
         verbose_name=_('Access allowed'),
         empty_values=[],
         tooltip=_('Boolean flag if the access is restricted or not.'), )
 
     editor_access_restricted_spatially = MrMapColumn(
-        accessor='allowed_operations',
+        accessor='id',
         verbose_name=_('Access restricted spatially'),
         empty_values=[],
         tooltip=_('Boolean flag if the access is spatially restricted or not.'), )
@@ -49,6 +49,7 @@ class EditorAcessTable(MrMapTable):
                  **kwargs):
 
         self.related_metadata = related_metadata
+        self.secured_operations = related_metadata.secured_operations.all()
         super(EditorAcessTable, self).__init__(*args, **kwargs)
 
     def render_editor_group_name(self, record):
@@ -75,23 +76,21 @@ class EditorAcessTable(MrMapTable):
         else:
             return '-'
 
-    @staticmethod
-    def render_editor_access_allowed(value):
-        allowed = False
-
-        if value:
-            # ToDo: check if the SecuredOperation Object is from type access allowed and set the allowed flag to True
-            pass
+    def render_editor_access_allowed(self, value):
+        group_access_on_metadata = self.secured_operations.filter(
+            allowed_group__id=value
+        )
+        allowed = group_access_on_metadata.exists()
 
         return get_ok_nok_icon(allowed)
 
-    @staticmethod
-    def render_editor_access_restricted_spatially(value):
-        allowed = False
-
-        if value:
-            # ToDo: check if the SecuredOperation Object is from type access spatially allowed and set the allowed flag to True
-            pass
+    def render_editor_access_restricted_spatially(self, value):
+        group_access_on_metadata = self.secured_operations.filter(
+            allowed_group__id=value
+        ).exclude(
+            bounding_geometry=None
+        )
+        allowed = group_access_on_metadata.exists()
 
         return get_ok_nok_icon(allowed)
 

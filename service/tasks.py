@@ -135,18 +135,21 @@ def async_secure_service_task(metadata_id: int, group_id: int, operations: list,
             id=group_id
         )
 
-    features = json.loads(bounding_geometry)
-    geoms = []
-    for feature in features["features"]:
-        feature_geom = feature["geometry"]
-        feature_coords = feature_geom["coordinates"]
-        for coord in feature_coords:
-            geom = GEOSGeometry(Polygon(coord), srid=DEFAULT_SRS)
-            geoms.append(geom)
-    # Create GeosGeometry from GeoJson
-    bounding_geometry = GeometryCollection(
-        geoms
-    )
+    try:
+        features = json.loads(bounding_geometry)
+        geoms = []
+        for feature in features["features"]:
+            feature_geom = feature["geometry"]
+            feature_coords = feature_geom["coordinates"]
+            for coord in feature_coords:
+                geom = GEOSGeometry(Polygon(coord), srid=DEFAULT_SRS)
+                geoms.append(geom)
+        # Create GeosGeometry from GeoJson
+        bounding_geometry = GeometryCollection(
+            geoms
+        )
+    except Exception:
+        bounding_geometry = None
 
     # Create list of parent metadata and all subelement metadatas
     metadatas = md.get_subelements_metadatas()
@@ -169,26 +172,14 @@ def async_secure_service_task(metadata_id: int, group_id: int, operations: list,
                     secured_operation.save()
                 else:
                     # New!
-                    md.secured_operations.add(
-                        SecuredOperation.objects.create(
-                            secured_metadata=md,
-                            operation=operation,
-                            allowed_group=group,
-                            bounding_geometry=bounding_geometry
-                        )
+                    sec_op = SecuredOperation.objects.create(
+                        secured_metadata=md,
+                        operation=operation,
+                        allowed_group=group,
+                        bounding_geometry=bounding_geometry
                     )
-    """
-    # if whole service (wms AND wfs) shall be secured, create SecuredOperations for service object
-    if md.is_metadata_type(MetadataEnum.SERVICE):
-        md.service.secure_access(is_secured, group, operations, group_polygons, secured_operation)
+                    md.secured_operations.add(sec_op)
 
-    # secure subelements afterwards
-    if md.is_metadata_type(MetadataEnum.SERVICE) or md.is_metadata_type(MetadataEnum.LAYER):
-        md.service.secure_sub_elements(is_secured, group, operations, group_polygons, secured_operation)
-
-    elif md.is_metadata_type(MetadataEnum.FEATURETYPE):
-        md.featuretype.secure_feature_type(is_secured, group, operations, group_polygons, secured_operation)
-    """
 
 @shared_task(name="async_remove_service_task")
 def async_remove_service_task(service_id: int):

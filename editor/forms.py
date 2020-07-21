@@ -457,6 +457,10 @@ class RestrictAccessForm(MrMapForm):
         log_proxy = self.cleaned_data.get("log_proxy", False)
         restrict_access = self.cleaned_data.get("restrict_access", False)
 
+        # Create list of main and sub metadatas for later use
+        metadatas = metadata.get_subelements_metadatas()
+        metadatas.append(metadata)
+
         if metadata.use_proxy_uri != use_proxy:
             metadata.set_proxy(use_proxy)
 
@@ -465,16 +469,15 @@ class RestrictAccessForm(MrMapForm):
 
         if metadata.is_secured != restrict_access:
             metadata.set_secured(restrict_access)
+
+        for md in metadatas:
             if restrict_access is False:
-                metadatas = metadata.get_subelements_metadatas()
-                metadatas.append(metadata)
-                for md in metadatas:
-                    md.secured_operations.all().delete()
-                    # Clear cached documents
-                    ## There might be the case, that a user requests a subelements capability document just before the securing is finished
-                    ## In this case we would have a cached document with non-secured links and stuff - therefore we clear again in the end
-                    ## just to make sure!
-                    md.clear_cached_documents()
+                md.secured_operations.all().delete()
+            # Clear cached documents
+            ## There might be the case, that a user requests a subelements capability document just before the securing is finished
+            ## In this case we would have a cached document with non-secured links and stuff - therefore we clear again in the end
+            ## just to make sure!
+            md.clear_cached_documents()
 
 
 class RestrictAccessSpatially(MrMapForm):

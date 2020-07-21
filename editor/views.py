@@ -1,6 +1,3 @@
-import json
-
-from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
@@ -8,24 +5,20 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect
-from django.shortcuts import render, redirect, get_object_or_404
-from MrMap import utils
+from django.shortcuts import render, get_object_or_404
+
 from MrMap.decorator import check_permission, check_ownership
-from MrMap.messages import EDITOR_ACCESS_RESTRICTED, SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
-from MrMap.responses import DefaultContext, BackendAjaxResponse
+from MrMap.responses import DefaultContext
 from editor.filters import EditorAcessFilter
 from editor.forms import MetadataEditorForm, RemoveDatasetForm, RestoreMetadataForm, RestoreDatasetMetadata, \
     RestrictAccessForm, RestrictAccessSpatially
-from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from editor.tables import EditorAcessTable
 from editor.wizards import DATASET_WIZARD_FORMS, DatasetWizard
 from service.models import MetadataRelation
-from service.helper.enums import OGCServiceEnum, MetadataEnum, ResourceOriginEnum
-from service.models import RequestOperation, SecuredOperation, Metadata
-from service.tasks import async_process_secure_operations_form
+from service.helper.enums import MetadataEnum, ResourceOriginEnum
+from service.models import Metadata
 from structure.models import Permission, MrMapGroup
 from users.helper import user_helper
-from editor.helper import editor_helper
 
 
 @login_required

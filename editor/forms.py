@@ -470,6 +470,11 @@ class RestrictAccessForm(MrMapForm):
                 metadatas.append(metadata)
                 for md in metadatas:
                     md.secured_operations.all().delete()
+                    # Clear cached documents
+                    ## There might be the case, that a user requests a subelements capability document just before the securing is finished
+                    ## In this case we would have a cached document with non-secured links and stuff - therefore we clear again in the end
+                    ## just to make sure!
+                    md.clear_cached_documents()
 
 
 class RestrictAccessSpatially(MrMapForm):
@@ -488,6 +493,11 @@ class RestrictAccessSpatially(MrMapForm):
         self.group_id = group_id
 
     def process_restict_access_spatially(self):
+        """ Create SecuredOperations for metadata, according to form data
+
+        Returns:
+
+        """
         ogc_operation_map = {
             "get_map": OGCOperationEnum.GET_MAP.value,
             "get_feature_info": OGCOperationEnum.GET_FEATURE_INFO.value,
@@ -507,7 +517,7 @@ class RestrictAccessSpatially(MrMapForm):
                 pass
         # Reduce operation_map on valid data
         operations = [v for k, v in ogc_operation_map.items() if k in operation_map and operation_map[k] is True]
-        async_secure_service_task(
+        async_secure_service_task.delay(
             self.metadata_id,
             self.group_id,
             operations,

@@ -48,7 +48,7 @@ def _get_action_btns_for_service_table(table, record):
     btns += table.get_btn(
         href=reverse('editor:edit_access', args=(record.id,)),
         btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR"],
-        btn_value=get_theme(table.user)["ICONS"]['EDIT'],
+        btn_value=get_theme(table.user)["ICONS"]['ACCESS'],
         permission=Permission(can_edit_metadata_service=True),
         tooltip=format_html(_(f"Edit access of <strong>{record.title} [{record.id}]</strong> service"), ),
         tooltip_placement='left', )

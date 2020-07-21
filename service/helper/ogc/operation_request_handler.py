@@ -1240,7 +1240,7 @@ class OGCOperationRequestHandler:
                     "bbox": self.axis_corrected_bbox_param,
                     "width": width,
                     "height": height,
-                    "keys": op.id,
+                    "keys": "'{}'".format(op.id),
                     "table": MAPSERVER_SECURITY_MASK_TABLE,
                     "key_column": MAPSERVER_SECURITY_MASK_KEY_COLUMN,
                     "geom_column": MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
@@ -1523,6 +1523,7 @@ class OGCOperationRequestHandler:
                     response = result
                 else:
                     mask = result
+                    mask.save("/home/michel/Schreibtisch/mask.png")
 
             img = response.get("response", "")
             img_format = response.get("response_type", "")

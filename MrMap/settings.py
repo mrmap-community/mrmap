@@ -419,7 +419,7 @@ LOG_SUB_DIRS = {
     'structure': {'dir': '/structure', 'log_file': 'structure.log'},
     'users': {'dir': '/users', 'log_file': 'users.log'},
 }
-LOG_FILE_MAX_SIZE = 1024*1024*20,  # 20 MB
+LOG_FILE_MAX_SIZE = 1024*1024*20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
 
 LOGGING = {
@@ -439,9 +439,65 @@ LOGGING = {
         'MrMap.root.file': {
             'level': 'DEBUG',
             'class': 'logging.handlers.RotatingFileHandler',
-            'maxBytes': 1024*1024*20,
-            'backupCount': 5,
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
             'filename': LOG_DIR + LOG_SUB_DIRS['root']['dir'] + '/' + LOG_SUB_DIRS['root']['log_file'],
+            'formatter': 'verbose',
+        },
+        'MrMap.api.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
+            'filename': LOG_DIR + LOG_SUB_DIRS['api']['dir'] + '/' + LOG_SUB_DIRS['api']['log_file'],
+            'formatter': 'verbose',
+        },
+        'MrMap.csw.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
+            'filename': LOG_DIR + LOG_SUB_DIRS['csw']['dir'] + '/' + LOG_SUB_DIRS['csw']['log_file'],
+            'formatter': 'verbose',
+        },
+        'MrMap.editor.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
+            'filename': LOG_DIR + LOG_SUB_DIRS['editor']['dir'] + '/' + LOG_SUB_DIRS['editor']['log_file'],
+            'formatter': 'verbose',
+        },
+        'MrMap.monitoring.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
+            'filename': LOG_DIR + LOG_SUB_DIRS['monitoring']['dir'] + '/' + LOG_SUB_DIRS['monitoring']['log_file'],
+            'formatter': 'verbose',
+        },
+        'MrMap.service.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
+            'filename': LOG_DIR + LOG_SUB_DIRS['service']['dir'] + '/' + LOG_SUB_DIRS['service']['log_file'],
+            'formatter': 'verbose',
+        },
+        'MrMap.structure.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
+            'filename': LOG_DIR + LOG_SUB_DIRS['structure']['dir'] + '/' + LOG_SUB_DIRS['structure']['log_file'],
+            'formatter': 'verbose',
+        },
+        'MrMap.users.file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': LOG_FILE_MAX_SIZE,
+            'backupCount': LOG_FILE_BACKUP_COUNT,
+            'filename': LOG_DIR + LOG_SUB_DIRS['users']['dir'] + '/' + LOG_SUB_DIRS['users']['log_file'],
             'formatter': 'verbose',
         },
     },
@@ -451,6 +507,40 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
-
+        'MrMap.api': {
+            'handlers': ['MrMap.api.file', ],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'MrMap.csw': {
+            'handlers': ['MrMap.csw.file', ],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'MrMap.editor': {
+            'handlers': ['MrMap.editor.file', ],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'MrMap.monitoring': {
+            'handlers': ['MrMap.monitoring.file', ],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'MrMap.service': {
+            'handlers': ['MrMap.service.file', ],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'MrMap.structure': {
+            'handlers': ['MrMap.structure.file', ],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'MrMap.users': {
+            'handlers': ['MrMap.users.file', ],
+            'level': 'INFO',
+            'propagate': True,
+        },
     },
 }

@@ -33,7 +33,7 @@ class ServiceIndexViewTestCase(TestCase):
 
     def test_get_index_view(self):
         response = self.client.get(
-            reverse('service:index', ),
+            reverse('resource:index', ),
         )
         self.assertEqual(response.status_code, 200, )
         self.assertTemplateUsed(response=response, template_name="views/index.html")
@@ -60,7 +60,7 @@ class ServiceWmsIndexViewTestCase(TestCase):
 
     def test_get_index_view(self):
         response = self.client.get(
-            reverse('service:wms-index', ),
+            reverse('resource:wms-index', ),
         )
         self.assertEqual(response.status_code, 200, )
         self.assertTemplateUsed(response=response, template_name="views/wms_index.html")
@@ -83,7 +83,7 @@ class ServiceWfsIndexViewTestCase(TestCase):
 
     def test_get_index_view(self):
         response = self.client.get(
-            reverse('service:wfs-index', ),
+            reverse('resource:wfs-index', ),
         )
         self.assertEqual(response.status_code, 200, )
         self.assertTemplateUsed(response=response, template_name="views/wfs_index.html")
@@ -110,7 +110,7 @@ class ServiceRemoveViewTestCase(TestCase):
             'is_confirmed': 'on'
         }
         metadata = self.wms_service_metadatas[0]
-        response = self.client.post(reverse('service:remove', args=[metadata.id])+"?current-view=service:index", data=post_data)
+        response = self.client.post(reverse('resource:remove', args=[metadata.id])+"?current-view=resource:index", data=post_data)
         self.assertEqual(response.status_code, 303)
 
         metadata.refresh_from_db()
@@ -128,7 +128,7 @@ class ServiceRemoveViewTestCase(TestCase):
             'is_confirmed': 'on'
         }
         metadata = self.wfs_service_metadatas[0]
-        response = self.client.post(reverse('service:remove', args=[self.wfs_service_metadatas[0].id])+"?current-view=service:index", data=post_data)
+        response = self.client.post(reverse('resource:remove', args=[self.wfs_service_metadatas[0].id])+"?current-view=resource:index", data=post_data)
         self.assertEqual(response.status_code, 303)
 
         metadata.refresh_from_db()
@@ -143,7 +143,7 @@ class ServiceRemoveViewTestCase(TestCase):
 
     def test_remove_service_invalid_form(self):
 
-        response = self.client.post(reverse('service:remove', args=[self.wms_service_metadatas[0].id])+"?current-view=service:index",)
+        response = self.client.post(reverse('resource:remove', args=[self.wms_service_metadatas[0].id])+"?current-view=resource:index",)
         self.assertEqual(response.status_code, 422)
 
     def test_permission_denied_remove(self):
@@ -155,11 +155,11 @@ class ServiceRemoveViewTestCase(TestCase):
 
         response = self.client.post(
             reverse(
-                'service:remove',
+                'resource:remove',
                 args=[str(self.wms_service_metadatas[0].id)]
             ),
             HTTP_REFERER=reverse(
-                'service:remove',
+                'resource:remove',
                 args=[str(self.wms_service_metadatas[0].id)]
             ),
         )
@@ -180,7 +180,7 @@ class ServiceActivateViewTestCase(TestCase):
     def test_activate_service(self):
 
         md = self.wms_service_metadatas[0]
-        response = self.client.post(reverse('service:activate', args=[md.id])+"?current-view=service:index",
+        response = self.client.post(reverse('resource:activate', args=[md.id])+"?current-view=resource:index",
                                     data={'is_confirmed': 'True'})
         self.assertEqual(response.status_code, 303)
         messages = [m.message for m in get_messages(response.wsgi_request)]
@@ -198,9 +198,9 @@ class ServiceActivateViewTestCase(TestCase):
         perm.save()
 
         md = self.wms_service_metadatas[0]
-        response = self.client.post(reverse('service:activate',
+        response = self.client.post(reverse('resource:activate',
                                             args=[str(md.id)]),
-                                    HTTP_REFERER=reverse('service:activate', args=[str(md.id)]), )
+                                    HTTP_REFERER=reverse('resource:activate', args=[str(md.id)]), )
         self.assertEqual(response.status_code, 302)
         messages = [m.message for m in get_messages(response.wsgi_request)]
         self.assertIn('You do not have permissions for this!', messages)
@@ -217,7 +217,7 @@ class ServiceDetailViewTestCase(TestCase):
         self.wfs_service_metadatas = create_wfs_service(group=self.user.get_groups().first(), how_much_services=1)
 
     def test_get_detail_wms(self):
-        response = self.client.get(reverse('service:detail', args=[self.wms_service_metadatas[0].id]), )
+        response = self.client.get(reverse('resource:detail', args=[self.wms_service_metadatas[0].id]), )
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, template_name="views/detail.html")
 
@@ -226,7 +226,7 @@ class ServiceDetailViewTestCase(TestCase):
         sublayer_services = Service.objects.filter(
             parent_service=service
         )
-        response = self.client.get(reverse('service:detail', args=[sublayer_services[0].metadata.id]), )
+        response = self.client.get(reverse('resource:detail', args=[sublayer_services[0].metadata.id]), )
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, template_name="views/sublayer_detail.html")
 
@@ -235,12 +235,12 @@ class ServiceDetailViewTestCase(TestCase):
         sublayer_services = Service.objects.filter(
             parent_service=service
         )
-        response = self.client.get(reverse('service:detail', args=[sublayer_services[0].metadata.id]) + '?no-base', )
+        response = self.client.get(reverse('resource:detail', args=[sublayer_services[0].metadata.id]) + '?no-base', )
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, template_name="views/sublayer_detail_no_base.html")
 
     def test_get_detail_wfs(self):
-        response = self.client.post(reverse('service:detail', args=[self.wfs_service_metadatas[0].id]), )
+        response = self.client.post(reverse('resource:detail', args=[self.wfs_service_metadatas[0].id]), )
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, template_name="views/detail.html")
 
@@ -249,7 +249,7 @@ class ServiceDetailViewTestCase(TestCase):
         featuretypes = FeatureType.objects.filter(
             parent_service=service
         )
-        response = self.client.get(reverse('service:detail', args=[featuretypes[0].metadata.id]), )
+        response = self.client.get(reverse('resource:detail', args=[featuretypes[0].metadata.id]), )
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, template_name="views/featuretype_detail.html")
 
@@ -258,16 +258,16 @@ class ServiceDetailViewTestCase(TestCase):
         featuretypes = FeatureType.objects.filter(
             parent_service=service
         )
-        response = self.client.get(reverse('service:detail', args=[featuretypes[0].metadata.id]) + '?no-base', )
+        response = self.client.get(reverse('resource:detail', args=[featuretypes[0].metadata.id]) + '?no-base', )
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, template_name="views/featuretype_detail_no_base.html")
 
     def test_get_detail_404(self):
-        response = self.client.post(reverse('service:detail', args=[uuid.uuid4()]), )
+        response = self.client.post(reverse('resource:detail', args=[uuid.uuid4()]), )
         self.assertEqual(response.status_code, 404)
 
     def test_get_detail_context(self):
-        response = self.client.get(reverse('service:detail', args=[self.wms_service_metadatas[0].id]), )
+        response = self.client.get(reverse('resource:detail', args=[self.wms_service_metadatas[0].id]), )
         self.assertIsInstance(response.context['service_md'], Metadata)
 
 
@@ -280,7 +280,7 @@ class ServicePendingTaskViewTestCase(TestCase):
 
     def test_get_pending_tasks_view(self):
         response = self.client.get(
-            reverse('service:pending-tasks', ),
+            reverse('resource:pending-tasks', ),
         )
         self.assertEqual(response.status_code, 200, )
         self.assertTemplateUsed(response=response, template_name="includes/pending_tasks.html")
@@ -298,7 +298,7 @@ class NewUpdateServiceViewTestCase(TestCase):
 
     def test_get_update_service_view(self):
         response = self.client.get(
-            reverse('service:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=service:index",
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=resource:index",
         )
         self.assertEqual(response.status_code, 200)
 
@@ -308,7 +308,7 @@ class NewUpdateServiceViewTestCase(TestCase):
             'get_capabilities_uri': get_capabilitites_url().get('valid'),
         }
         response = self.client.post(
-            reverse('service:new-pending-update', args=(self.wms_metadatas[0].id,)),
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,)),
             data=params
         )
         self.assertEqual(response.status_code, 303)
@@ -324,7 +324,7 @@ class NewUpdateServiceViewTestCase(TestCase):
         }
 
         response = self.client.post(
-            reverse('service:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=service:index",
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=resource:index",
             data=params
         )
 
@@ -337,7 +337,7 @@ class NewUpdateServiceViewTestCase(TestCase):
         }
 
         response = self.client.post(
-            reverse('service:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=service:index",
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=resource:index",
             data=params
         )
 
@@ -351,7 +351,7 @@ class NewUpdateServiceViewTestCase(TestCase):
         create_wms_service(is_update_candidate_for=self.wms_metadatas[0].service, group=self.user.get_groups()[0], user=self.user)
 
         response = self.client.post(
-            reverse('service:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=service:index",
+            reverse('resource:new-pending-update', args=(self.wms_metadatas[0].id,))+"?current-view=resource:index",
             data=params
         )
         self.assertEqual(response.status_code, 422)  # "There are still pending update requests from user '{}' for this service.".format(self.user)
@@ -371,7 +371,7 @@ class PendingUpdateServiceViewTestCase(TestCase):
 
     def test_get_pending_update_wms_service_view(self):
         response = self.client.get(
-            reverse('service:pending-update', args=(self.wms_metadata.id,)),
+            reverse('resource:pending-update', args=(self.wms_metadata.id,)),
         )
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response=response, template_name="views/service_update.html")
@@ -382,7 +382,7 @@ class PendingUpdateServiceViewTestCase(TestCase):
 
     def test_get_pending_update_wfs_service_view(self):
         response = self.client.get(
-            reverse('service:pending-update', args=(self.wfs_metadata.id,)),
+            reverse('resource:pending-update', args=(self.wfs_metadata.id,)),
         )
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response=response, template_name="views/service_update.html")
@@ -406,31 +406,31 @@ class DismissPendingUpdateServiceViewTestCase(TestCase):
 
     def test_get_dismiss_pending_update_wms_service_view(self):
         response = self.client.get(
-            reverse('service:dismiss-pending-update', args=(self.wms_metadata.id,)),
+            reverse('resource:dismiss-pending-update', args=(self.wms_metadata.id,)),
         )
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('service:pending-update', args=(self.wms_metadata.id,)))
+        self.assertEqual(response.url, reverse('resource:pending-update', args=(self.wms_metadata.id,)))
 
     def test_get_dismiss_pending_update_wfs_service_view(self):
         response = self.client.get(
-            reverse('service:dismiss-pending-update', args=(self.wfs_metadata.id,)),
+            reverse('resource:dismiss-pending-update', args=(self.wfs_metadata.id,)),
         )
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('service:pending-update', args=(self.wfs_metadata.id,)))
+        self.assertEqual(response.url, reverse('resource:pending-update', args=(self.wfs_metadata.id,)))
 
     def test_post_dismiss_pending_update_wms_service_view(self):
         response = self.client.post(
-            reverse('service:dismiss-pending-update', args=(self.wms_metadata.id,)),
+            reverse('resource:dismiss-pending-update', args=(self.wms_metadata.id,)),
         )
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('service:detail', args=(self.wms_metadata.id,)))
+        self.assertEqual(response.url, reverse('resource:detail', args=(self.wms_metadata.id,)))
 
     def test_post_dismiss_pending_update_wfs_service_view(self):
         response = self.client.post(
-            reverse('service:dismiss-pending-update', args=(self.wfs_metadata.id,)),
+            reverse('resource:dismiss-pending-update', args=(self.wfs_metadata.id,)),
         )
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('service:detail', args=(self.wfs_metadata.id,)))
+        self.assertEqual(response.url, reverse('resource:detail', args=(self.wfs_metadata.id,)))
 
 
 class RunUpdateServiceViewTestCase(TestCase):
@@ -447,18 +447,18 @@ class RunUpdateServiceViewTestCase(TestCase):
 
     def test_get_run_update_wms_service_view(self):
         response = self.client.get(
-            reverse('service:run-update', args=(self.wms_metadata.id,)),
+            reverse('resource:run-update', args=(self.wms_metadata.id,)),
         )
 
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('service:pending-update', args=(self.wms_metadata.id,)))
+        self.assertEqual(response.url, reverse('resource:pending-update', args=(self.wms_metadata.id,)))
 
     def test_get_run_update_wfs_service_view(self):
         response = self.client.get(
-            reverse('service:run-update', args=(self.wfs_metadata.id,)),
+            reverse('resource:run-update', args=(self.wfs_metadata.id,)),
         )
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('service:pending-update', args=(self.wfs_metadata.id,)))
+        self.assertEqual(response.url, reverse('resource:pending-update', args=(self.wfs_metadata.id,)))
 
     def test_post_run_update_wms_service_view(self):
         comparator = ServiceComparator(service_a=self.wms_update_candidate[0].service, service_b=self.wms_metadata.service)
@@ -471,12 +471,12 @@ class RunUpdateServiceViewTestCase(TestCase):
             data.update({'new_elem_{}'.format(element.metadata.identifier): NONE_UUID})
 
         response = self.client.post(
-            reverse('service:run-update', args=(str(self.wms_metadata.id),)),
+            reverse('resource:run-update', args=(str(self.wms_metadata.id),)),
             data=data,
         )
 
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('service:detail', args=(self.wms_metadata.id,)))
+        self.assertEqual(response.url, reverse('resource:detail', args=(self.wms_metadata.id,)))
 
     def test_post_invalid_run_update_wms_service_view(self):
         comparator = ServiceComparator(service_a=self.wms_update_candidate[0].service,
@@ -490,7 +490,7 @@ class RunUpdateServiceViewTestCase(TestCase):
             data.update({'new_elem_{}'.format(element.metadata.identifier): NONE_UUID})
 
         response = self.client.post(
-            reverse('service:run-update', args=(self.wms_metadata.id,)),
+            reverse('resource:run-update', args=(self.wms_metadata.id,)),
         )
 
         self.assertEqual(response.status_code, 422)
@@ -508,11 +508,11 @@ class RunUpdateServiceViewTestCase(TestCase):
             data.update({'new_elem_{}'.format(element.metadata.identifier): NONE_UUID})
 
         response = self.client.post(
-            reverse('service:run-update', args=(str(self.wfs_metadata.id),)),
+            reverse('resource:run-update', args=(str(self.wfs_metadata.id),)),
             data=data
         )
         self.assertEqual(response.status_code, 303)
-        self.assertEqual(response.url, reverse('service:detail', args=(self.wfs_metadata.id,)))
+        self.assertEqual(response.url, reverse('resource:detail', args=(self.wfs_metadata.id,)))
 
 
 class GetMetadataHtmlViewTestCase(TestCase):
@@ -528,19 +528,19 @@ class GetMetadataHtmlViewTestCase(TestCase):
 
     def test_get_metadata_html_for_wms(self):
         response = self.client.get(
-            reverse('service:get-metadata-html', args=(self.wms_metadata.id,))
+            reverse('resource:get-metadata-html', args=(self.wms_metadata.id,))
         )
         self.assertEqual(response.status_code, 200)
 
     def test_get_metadata_html_for_layer(self):
         response = self.client.get(
-            reverse('service:get-metadata-html', args=(self.wms_metadata.service.root_layer.metadata.id,))
+            reverse('resource:get-metadata-html', args=(self.wms_metadata.service.root_layer.metadata.id,))
         )
         self.assertEqual(response.status_code, 200)
 
     def test_get_metadata_html_for_wfs(self):
         response = self.client.get(
-            reverse('service:get-metadata-html', args=(self.wfs_metadata.id,))
+            reverse('resource:get-metadata-html', args=(self.wfs_metadata.id,))
         )
         self.assertEqual(response.status_code, 200)
 
@@ -549,7 +549,7 @@ class GetMetadataHtmlViewTestCase(TestCase):
             parent_service=self.wfs_metadata.service
         )
         response = self.client.get(
-            reverse('service:get-metadata-html', args=(featuretypes[0].metadata.id,))
+            reverse('resource:get-metadata-html', args=(featuretypes[0].metadata.id,))
         )
         self.assertEqual(response.status_code, 200)
 
@@ -569,7 +569,7 @@ class GetServicePreviewViewTestCase(TestCase):
         # ToDo: can't be tested as unit test cause of : img = operation_request_handler.get_operation_response(post_data=data)  # img is returned as a byte code
         return
         response = self.client.get(
-            reverse('service:get-service-metadata-preview', args=(self.wms_metadata.id,))
+            reverse('resource:get-service-metadata-preview', args=(self.wms_metadata.id,))
         )
         self.assertEqual(response.status_code, 200)
 
@@ -586,7 +586,7 @@ class GetDatasetMetadataViewTestCase(TestCase):
 
     def test_get_dataset_metadata_redirect_to_dataset(self):
         response = self.client.get(
-            reverse('service:get-dataset-metadata', args=(self.wms_metadata.id,))
+            reverse('resource:get-dataset-metadata', args=(self.wms_metadata.id,))
         )
         self.assertEqual(response.status_code, 302)
 
@@ -598,7 +598,7 @@ class GetDatasetMetadataViewTestCase(TestCase):
         dataset_md = dataset_md.metadata_to
 
         response = self.client.get(
-            reverse('service:get-dataset-metadata', args=(dataset_md.id,))
+            reverse('resource:get-dataset-metadata', args=(dataset_md.id,))
         )
         self.assertEqual(response.status_code, 200)
 
@@ -617,6 +617,6 @@ class GetServiceMetadataViewTestCase(TestCase):
 
     def test_get_service_metadata(self):
         response = self.client.get(
-            reverse('service:get-service-metadata', args=(self.wms_metadata.id,))
+            reverse('resource:get-service-metadata', args=(self.wms_metadata.id,))
         )
         self.assertEqual(response.status_code, 200)

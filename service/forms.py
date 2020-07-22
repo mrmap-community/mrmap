@@ -130,7 +130,7 @@ class UpdateServiceCheckForm(MrMapForm):
             if self.requesting_user == user:
                 self.add_error(None,
                                format_html("See your pending update request <a href={}>here.</a>",
-                                           reverse_lazy('service:pending-update',
+                                           reverse_lazy('resource:pending-update',
                                                         args=(self.current_service.metadata.id,))))
                 # ToDo: check if user is in group of created_by field of update_cadidate
 

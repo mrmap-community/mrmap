@@ -11,11 +11,11 @@ from django.utils.html import format_html
 
 DJANGO_TABLES2_BOOTSTRAP4_CUSTOM_TEMPLATE = "sceletons/django_tables2_bootstrap4_custom.html"
 
-SERVICE_INDEX = "service:index"
-SERVICE_DETAIL = "service:detail"
-SERVICE_ADD = "service:add"
+SERVICE_INDEX = "resource:index"
+SERVICE_DETAIL = "resource:detail"
+SERVICE_ADD = "resource:add"
 
-SERVICE_INDEX_LOG = "service:logs-view"
+SERVICE_INDEX_LOG = "resource:logs-view"
 
 STRUCTURE_DETAIL_GROUP = "structure:detail-group"
 STRUCTURE_INDEX_GROUP = "structure:groups-index"

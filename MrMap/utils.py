@@ -13,18 +13,6 @@ from structure.models import MrMapUser
 from MrMap.settings import DEBUG
 
 
-def print_debug_mode(string: str):
-    """ Only prints the string if the project runs in DEBUG mode (e.g. for development)
-
-    Args:
-        string (str): The string which shall be printed
-    Returns:
-
-    """
-    if DEBUG:
-        print(string)
-
-
 def execute_threads(thread_list):
     """ Executes a list of threads
 

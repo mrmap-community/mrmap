@@ -21,7 +21,7 @@ from service.settings import SERVICE_OPERATION_URI_TEMPLATE, \
 from MrMap.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
     PROGRESS_STATUS_AFTER_PARSING, XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 from MrMap import utils
-from MrMap.utils import execute_threads, print_debug_mode
+from MrMap.utils import execute_threads
 from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, ResourceOriginEnum, \
     MetadataRelationEnum
@@ -35,6 +35,8 @@ from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
     MetadataRelation, Style, ExternalAuthentication, ServiceUrl
 from structure.models import Organization, MrMapGroup
 from structure.models import MrMapUser
+import logging
+logger = logging.getLogger('MrMap.service')
 
 
 class OGCWebMapServiceFactory:
@@ -110,24 +112,24 @@ class OGCWebMapService(OGCWebService):
         if service_metadata_uri is not None:
             self.get_service_metadata(uri=service_metadata_uri, async_task=async_task)
 
-        print_debug_mode(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
+        logger.debug(EXEC_TIME_PRINT % ("service metadata", time.time() - start_time))
 
         # check possible operations on this service
         start_time = time.time()
         self.get_service_operations(xml_obj)
-        print_debug_mode(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
+        logger.debug(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
 
         # parse possible linked dataset metadata
         start_time = time.time()
         self.get_service_dataset_metadata(xml_obj=xml_obj)
-        print_debug_mode(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
+        logger.debug(EXEC_TIME_PRINT % ("service iso metadata", time.time() - start_time))
 
         self.get_version_specific_metadata(xml_obj=xml_obj)
 
         if not metadata_only:
             start_time = time.time()
             self._parse_layers(xml_obj=xml_obj, async_task=async_task)
-            print_debug_mode(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
+            logger.debug(EXEC_TIME_PRINT % ("layer metadata", time.time() - start_time))
 
     ### DATASET METADATA ###
     def parse_dataset_md(self, layer, layer_obj):
@@ -545,7 +547,7 @@ class OGCWebMapService(OGCWebService):
             # No division by zero!
             len_layers = 1
         step_size = float(PROGRESS_STATUS_AFTER_PARSING / len_layers)
-        print_debug_mode("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
+        logger.debug("Total number of layers: {}. Step size: {}".format(len_layers, step_size))
 
         self._parse_layers_recursive(layers, step_size=step_size, async_task=async_task)
 

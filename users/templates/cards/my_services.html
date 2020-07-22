@@ -3,7 +3,7 @@
 {% block card-header %}
 
 <div class="text-center">
-    <h4 class="card-title">{% trans 'Services' %}</h4>
+    <h4 class="card-title">{% autoescape off %}{{THEME.ICONS.BRAIN}}{% endautoescape %} {% trans 'Resources' %}</h4>
 </div>
 {% endblock %}
 {% block card-body %}
@@ -13,6 +13,9 @@
     </div>
     <div class="col-sm">
         {% include 'cards/my_services/wfs.html' %}
+    </div>
+    <div class="col-sm">
+        {% include 'cards/my_services/datasets.html' %}
     </div>
     <div class="col-sm">
         {% include 'cards/my_services/all_services.html' %}

@@ -20,7 +20,7 @@
     </tr>
     <tr>
         <th scope="row">{% trans 'Parent Service' %}</th>
-        <td><a href="{% url 'service:get-metadata-html' parent_service.metadata.id %}">{{ parent_service.metadata.title }}</a>
+        <td><a href="{% url 'resource:get-metadata-html' parent_service.metadata.id %}">{{ parent_service.metadata.title }}</a>
         </td>
     </tr>
     <tr>

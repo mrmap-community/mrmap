@@ -2,7 +2,7 @@ from django.urls import path
 
 from service.views import *
 
-app_name = 'service'
+app_name = 'resource'
 urlpatterns = [
     path('', index, name='index'),
 

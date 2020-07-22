@@ -201,12 +201,12 @@ def index(request: HttpRequest, update_params: dict = None, status_code: int = 2
 
     params = {
         "pt_table": pt_table,
-        "current_view": "service:index",
+        "current_view": "resource:index",
     }
 
-    params.update(_prepare_wms_table(request=request, current_view='service:index', user_groups=user_groups))
-    params.update(_prepare_wfs_table(request=request, current_view='service:index', user_groups=user_groups))
-    params.update(_prepare_dataset_table(request=request, current_view='service:index', user=user, user_groups=user_groups))
+    params.update(_prepare_wms_table(request=request, current_view='resource:index', user_groups=user_groups))
+    params.update(_prepare_wfs_table(request=request, current_view='resource:index', user_groups=user_groups))
+    params.update(_prepare_dataset_table(request=request, current_view='resource:index', user=user, user_groups=user_groups))
 
     if update_params:
         params.update(update_params)
@@ -239,7 +239,7 @@ def pending_tasks(request: HttpRequest, update_params: dict = None, status_code:
                                  request=request, )
     params = {
         "pt_table": pt_table,
-        "current_view": "service:prending-tasks",
+        "current_view": "resource:prending-tasks",
     }
 
     if update_params:
@@ -267,7 +267,7 @@ def remove(request: HttpRequest, metadata_id):
     metadata = get_object_or_404(Metadata, id=metadata_id)
     form = RemoveServiceForm(data=request.POST or None,
                              request=request,
-                             reverse_lookup='service:remove',
+                             reverse_lookup='resource:remove',
                              reverse_args=[metadata_id, ],
                              # ToDo: after refactoring of all forms is done, show_modal can be removed
                              show_modal=True,
@@ -294,7 +294,7 @@ def activate(request: HttpRequest, metadata_id):
 
     form = ActivateServiceForm(data=request.POST or None,
                                request=request,
-                               reverse_lookup='service:activate',
+                               reverse_lookup='resource:activate',
                                reverse_args=[metadata_id, ],
                                # ToDo: after refactoring of all forms is done, show_modal can be removed
                                show_modal=True,
@@ -342,7 +342,7 @@ def get_dataset_metadata(request: HttpRequest, metadata_id):
             md = md.get_related_dataset_metadata()
             if md is None:
                 raise ObjectDoesNotExist
-            return redirect("service:get-dataset-metadata", metadata_id=md.id)
+            return redirect("resource:get-dataset-metadata", metadata_id=md.id)
         documents = Document.objects.filter(
             metadata=md,
             document_type=DocumentEnum.METADATA.value,
@@ -558,7 +558,7 @@ def get_metadata_html(request: HttpRequest, metadata_id):
         'abstract': md.abstract,
         'access_constraints': md.access_constraints,
         'capabilities_original_uri': md.capabilities_original_uri,
-        'capabilities_uri': reverse('service:metadata-proxy-operation', args=(md.id,)) + '?request=GetCapabilities',
+        'capabilities_uri': reverse('resource:metadata-proxy-operation', args=(md.id,)) + '?request=GetCapabilities',
         'contact': collect_contact_data(md.contact)
     }
 
@@ -572,7 +572,7 @@ def get_metadata_html(request: HttpRequest, metadata_id):
         params['dataset_metadata'] = md
         params['fees'] = md.fees
         params['licence'] = md.licence
-        params.update({'capabilities_uri': reverse('service:get-dataset-metadata', args=(md.id,))})
+        params.update({'capabilities_uri': reverse('resource:get-dataset-metadata', args=(md.id,))})
 
     elif md.is_metadata_type(MetadataEnum.FEATURETYPE):
         base_template = 'metadata/base/wfs/featuretype_metadata_as_html.html'
@@ -619,10 +619,10 @@ def wms_index(request: HttpRequest, update_params: dict = None, status_code: int
 
     params = {
         "pt_table": pt_table,
-        "current_view": "service:wms-index",
+        "current_view": "resource:wms-index",
     }
 
-    params.update(_prepare_wms_table(request=request, current_view='service:wms-index', user_groups=user_groups))
+    params.update(_prepare_wms_table(request=request, current_view='resource:wms-index', user_groups=user_groups))
 
     if update_params:
         params.update(update_params)
@@ -652,13 +652,13 @@ def datasets_index(request: HttpRequest, update_params=None, status_code: int = 
     template = "views/datasets_index.html"
 
     params = {
-        "current_view": 'service:datasets-index',
+        "current_view": 'resource:datasets-index',
     }
     params.update(
         _prepare_dataset_table(
             request=request,
             user=user,
-            current_view='service:datasets-index',
+            current_view='resource:datasets-index',
             user_groups=user_groups
         ),
     )
@@ -690,7 +690,7 @@ def new_pending_update_service(request: HttpRequest, metadata_id):
 
     form = UpdateServiceCheckForm(data=request.POST or None,
                                   request=request,
-                                  reverse_lookup='service:new-pending-update',
+                                  reverse_lookup='resource:new-pending-update',
                                   reverse_args=[metadata_id, ],
                                   # ToDo: after refactoring of all forms is done, show_modal can be removed
                                   show_modal=True,
@@ -717,7 +717,7 @@ def new_pending_update_service(request: HttpRequest, metadata_id):
             new_service.metadata.is_update_candidate_for = current_service.metadata
             new_service.metadata.created_by_user = user
             new_service.save()
-            return HttpResponseRedirect(reverse("service:pending-update", args=(metadata_id,)), status=303)
+            return HttpResponseRedirect(reverse("resource:pending-update", args=(metadata_id,)), status=303)
         else:
             form.fade_modal = False
             return form.render_view(status_code=422)
@@ -740,7 +740,7 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
         messages.error(request, _("No updatecandidate was found."))
         # ToDo: make 7 dynamic
         messages.info(request, _("Update candidates will be deleted after 7 days."))
-        return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
+        return HttpResponseRedirect(reverse("resource:detail", args=(metadata_id,)), status=303)
 
     if current_service.is_service_type(OGCServiceEnum.WMS):
         current_service.root_layer = Layer.objects.get(parent_service=current_service, parent_layer=None)
@@ -756,7 +756,7 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
         removed_elements=diff_elements.get("removed"),
         current_service=current_service,
     )
-    update_confirmation_form.action_url = reverse("service:run-update", args=[metadata_id])
+    update_confirmation_form.action_url = reverse("resource:run-update", args=[metadata_id])
 
     updated_elements_md = []
     for element in diff_elements.get("updated"):
@@ -768,12 +768,12 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
 
     updated_elements_table = UpdateServiceElements(request=request,
                                                    queryset=updated_elements_md,
-                                                   current_view="service:dismiss-pending-update",
+                                                   current_view="resource:dismiss-pending-update",
                                                    order_by_field='updated',)
 
     removed_elements_table = UpdateServiceElements(request=request,
                                                    queryset=removed_elements_md,
-                                                   current_view="service:dismiss-pending-update",
+                                                   current_view="resource:dismiss-pending-update",
                                                    order_by_field='removed',
                                                    )
 
@@ -813,9 +813,9 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id):
         else:
             messages.error(request, _("You are not the owner of this pending update. Rejected!"))
 
-        return HttpResponseRedirect(reverse("service:detail", args=(current_service.metadata.id,)), status=303)
+        return HttpResponseRedirect(reverse("resource:detail", args=(current_service.metadata.id,)), status=303)
 
-    return HttpResponseRedirect(reverse("service:pending-update", args=(current_service.metadata.id,)), status=303)
+    return HttpResponseRedirect(reverse("resource:pending-update", args=(current_service.metadata.id,)), status=303)
 
 
 @login_required
@@ -858,7 +858,7 @@ def run_update_service(request: HttpRequest, metadata_id):
                                                               choices=links,
                                                               current_service=current_service,
                                                               )
-        update_confirmation_form.action_url = reverse("service:run-update", args=[metadata_id])
+        update_confirmation_form.action_url = reverse("resource:run-update", args=[metadata_id])
         if update_confirmation_form.is_valid():
             # UPDATE
             # First update the metadata of the whole service
@@ -905,7 +905,7 @@ def run_update_service(request: HttpRequest, metadata_id):
             new_service.delete()
 
             messages.success(request, SERVICE_UPDATED)
-            return HttpResponseRedirect(reverse("service:detail", args=(metadata_id,)), status=303)
+            return HttpResponseRedirect(reverse("resource:detail", args=(metadata_id,)), status=303)
         else:
             params = {"update_confirmation_form": update_confirmation_form, }
             return pending_update_service(request=request,
@@ -913,7 +913,7 @@ def run_update_service(request: HttpRequest, metadata_id):
                                           update_params=params,
                                           status_code=422)
     else:
-        return HttpResponseRedirect(reverse("service:pending-update", args=(metadata_id,)), status=303)
+        return HttpResponseRedirect(reverse("resource:pending-update", args=(metadata_id,)), status=303)
 
 
 @login_required
@@ -939,10 +939,10 @@ def wfs_index(request: HttpRequest, update_params=None, status_code=None):
 
     params = {
         "pt_table": pt_table,
-        "current_view": "service:wfs-index"
+        "current_view": "resource:wfs-index"
     }
 
-    params.update(_prepare_wfs_table(request=request, current_view='service:wfs-indext', user_groups=user_groups))
+    params.update(_prepare_wfs_table(request=request, current_view='resource:wfs-indext', user_groups=user_groups))
 
     if update_params:
         params.update(update_params)
@@ -1036,7 +1036,7 @@ def detail(request: HttpRequest, object_id, update_params=None, status_code=None
         "layers": layers_md_list,
         "mime_types": mime_types,
         "leaflet_add_bbox": True,
-        "current_view": "service:detail",
+        "current_view": "resource:detail",
         "current_view_arg": object_id,
     })
 
@@ -1189,8 +1189,8 @@ def logs_view(request: HttpRequest, update_params: dict = None, status_code: int
     params = {
         "log_table": prepare_proxy_log_filter(request=request,
                                               user=user,
-                                              current_view='service:logs-view'),
-        "current_view": 'service:logs-view',
+                                              current_view='resource:logs-view'),
+        "current_view": 'resource:logs-view',
     }
     if update_params:
         params.update(update_params)
@@ -1214,7 +1214,7 @@ def logs_download(request: HttpRequest):
     user = user_helper.get_user(request)
     CSV = "text/csv"
     # ToDo: current_view parameter should be dynamic
-    proxy_log_table = prepare_proxy_log_filter(request=request, user=user, current_view='service:logs-view')
+    proxy_log_table = prepare_proxy_log_filter(request=request, user=user, current_view='resource:logs-view')
 
     # Create empty response object and fill it with dynamic csv content
     stream = io.StringIO()

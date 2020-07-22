@@ -22,7 +22,7 @@ from structure.models import Permission
 def _get_action_btns_for_service_table(table, record):
     btns = ''
     btns += table.get_btn(
-        href=reverse('service:activate', args=(record.id, ))+f"?current-view={table.current_view}",
+        href=reverse('resource:activate', args=(record.id, ))+f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR" if record.is_active else "BTN_SUCCESS_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]["NOK" if record.is_active else 'OK'],
         permission=Permission(can_edit_metadata_service=True),
@@ -30,7 +30,7 @@ def _get_action_btns_for_service_table(table, record):
         tooltip_placement='left', )
 
     btns += table.get_btn(
-        href=reverse('service:new-pending-update', args=(record.id, ))+f"?current-view={table.current_view}",
+        href=reverse('resource:new-pending-update', args=(record.id, ))+f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_INFO_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['UPDATE'],
         permission=Permission(can_update_service=True),
@@ -63,7 +63,7 @@ def _get_action_btns_for_service_table(table, record):
     )
 
     btns += table.get_btn(
-        href=reverse('service:remove', args=(record.id,)) + f"?current-view={table.current_view}",
+        href=reverse('resource:remove', args=(record.id,)) + f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_DANGER_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['REMOVE'],
         permission=Permission(can_remove_service=True),
@@ -135,7 +135,7 @@ class WmsServiceTable(MrMapTable):
         attrs={"td": {"style": "white-space:nowrap;"}})
 
     def render_wms_title(self, value, record):
-        url = reverse('service:detail', args=(record.id,))
+        url = reverse('resource:detail', args=(record.id,))
         tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
         return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
                              href=url,
@@ -229,7 +229,7 @@ class WmsLayerTableWms(WmsServiceTable):
         }
 
     def render_wms_parent_service(self, record):
-        url = reverse('service:detail', args=(record.service.parent_service.metadata.id,))
+        url = reverse('resource:detail', args=(record.service.parent_service.metadata.id,))
         tooltip = _(f'Click to open the detail view of <strong>{record.service.parent_service.metadata.title}</strong>.')
         return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
                              href=url,
@@ -300,7 +300,7 @@ class WfsServiceTable(MrMapTable):
         attrs={"td": {"style": "white-space:nowrap;"}})
 
     def render_wfs_title(self, value, record):
-        url = reverse('service:detail', args=(record.id,))
+        url = reverse('resource:detail', args=(record.id,))
         tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
         return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
                              href=url,
@@ -431,7 +431,7 @@ class ChildLayerTable(MrMapTable):
 
     @staticmethod
     def render_child_layer_title(record):
-        url = reverse('service:get-metadata-html', args=(record['id'],))
+        url = reverse('resource:get-metadata-html', args=(record['id'],))
 
         if record['sublayers_count'] > 0:
             return format_html("<a href='{}'>{} <span class='badge badge-secondary'>{}</span></a>",
@@ -453,7 +453,7 @@ class FeatureTypeTable(MrMapTable):
 
     @staticmethod
     def render_featuretype_title(record):
-        url = reverse('service:get-metadata-html', args=(record['id'],))
+        url = reverse('resource:get-metadata-html', args=(record['id'],))
 
         return format_html("<a href='{}'>{}</a>",
                            url,
@@ -469,7 +469,7 @@ class CoupledMetadataTable(MrMapTable):
 
     @staticmethod
     def render_coupled_metadata_title(record):
-        url = reverse('service:get-metadata-html', args=(record['id'],))
+        url = reverse('resource:get-metadata-html', args=(record['id'],))
 
         return format_html("<a href='{}'>{}</a>",
                            url,
@@ -558,7 +558,7 @@ class DatasetTable(MrMapTable):
         attrs={"td": {"style": "white-space:nowrap;"}})
 
     def render_dataset_title(self, value, record):
-        url = reverse('service:get-metadata-html', args=(record.id,))
+        url = reverse('resource:get-metadata-html', args=(record.id,))
         tooltip = _(f'Click to open the html view of dataset <strong>{value}</strong>')
         return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
                              href=url,
@@ -570,7 +570,7 @@ class DatasetTable(MrMapTable):
         relations = record.related_metadata.all()
         link_list = []
         for relation in relations:
-            url = reverse('service:detail', args=(relation.metadata_from.id,))
+            url = reverse('resource:detail', args=(relation.metadata_from.id,))
             tooltip = _(f'Click to open the detail view of related service <strong>{relation.metadata_from.title} [{relation.metadata_from.id}]"</strong>')
             link = construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
                                  href=url,

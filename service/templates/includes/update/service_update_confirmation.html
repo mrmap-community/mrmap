@@ -161,7 +161,7 @@
             </form>
             <div class="row mt-2 mb-2">
                 <div class="col-auto">
-                    <form action="{% url 'service:dismiss-pending-update' current_service.metadata.id %}" method="post">
+                    <form action="{% url 'resource:dismiss-pending-update' current_service.metadata.id %}" method="post">
                         {% csrf_token %}
                         <button id="id_dismiss_update_service_btn" type="submit"
                                 class="btn {{THEME.CARD.BTN_WARNING_COLOR}}">{% trans 'Dismiss' %}

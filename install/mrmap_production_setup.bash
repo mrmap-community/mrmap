@@ -35,6 +35,9 @@ python -m pip install uwsgi flower
 python -m pip install -r /opt/MrMap/requirements.txt
 python /opt/MrMap/manage.py makemigrations service
 python /opt/MrMap/manage.py makemigrations structure
+python /opt/MrMap/manage.py makemigrations users
+python /opt/MrMap/manage.py makemigrations monitoring
+python /opt/MrMap/manage.py makemigrations editor
 python /opt/MrMap/manage.py migrate
 python /opt/MrMap/manage.py collectstatic
 

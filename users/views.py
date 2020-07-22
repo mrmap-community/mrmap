@@ -16,18 +16,17 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest
 from django.shortcuts import redirect, render, get_object_or_404
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from MrMap.messages import ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
-    ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, \
+from MrMap.messages import USERNAME_OR_PW_INVALID, \
+    ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, \
     LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
     RESOURCE_NOT_FOUND_OR_NOT_OWNER
 from MrMap.responses import DefaultContext
 from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
-from MrMap.utils import print_debug_mode
 from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
 from structure.forms import LoginForm, RegistrationForm
@@ -35,10 +34,12 @@ from structure.models import MrMapUser, UserActivation, PendingRequest, GroupAct
 from structure.settings import PUBLIC_GROUP_NAME
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm, SubscriptionForm, SubscriptionRemoveForm
 from users.helper import user_helper
-from django.urls import reverse, resolve
+from django.urls import reverse
 
 from users.models import Subscription
 from users.tables import SubscriptionTable
+import logging
+logger = logging.getLogger('MrMap.users')
 
 
 def login_view(request: HttpRequest):
@@ -123,6 +124,8 @@ def home_view(request: HttpRequest,  update_params=None, status_code=None):
         service__is_deleted=False,
     ).count()
 
+    datasets_count = user.get_datasets_as_qs(count=True)
+
     activities_since = timezone.now() - datetime.timedelta(days=LAST_ACTIVITY_DATE_RANGE)
     group_activities = GroupActivity.objects.filter(group__in=user_groups, created_on__gte=activities_since).order_by(
         "-created_on")
@@ -130,7 +133,8 @@ def home_view(request: HttpRequest,  update_params=None, status_code=None):
     params = {
         "wms_count": user_services_wms,
         "wfs_count": user_services_wfs,
-        "all_count": user_services_wms + user_services_wfs,
+        "datasets_count": datasets_count,
+        "all_count": user_services_wms + user_services_wfs + datasets_count,
         "requests": pending_requests,
         "group_activities": group_activities,
         "groups": user_groups,
@@ -159,20 +163,40 @@ def account(request: HttpRequest, update_params: dict = None, status_code: int =
          A rendered view
     """
     template = "views/account.html"
-
     user = user_helper.get_user(request)
-    edit_account_form = UserForm(instance=user, initial={'theme': user.theme})
-    edit_account_form.action_url = reverse('account-edit', )
+    subscriptions_count = Subscription.objects.all().count()
+    params = {
+        "subscriptions_count": subscriptions_count,
+        "current_view": 'account',
+    }
 
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
+
+
+@login_required
+def subscriptions(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
+    """ Renders an overview of the user's account information
+
+    Args:
+        request (HttpRequest): The incoming request
+        update_params:
+        status_code (MrMapUser): The user
+    Returns:
+         A rendered view
+    """
+    template = "views/subscriptions.html"
     user = user_helper.get_user(request)
 
     subscription_table = SubscriptionTable(request=request,
-                                           current_view='account')
+                                           current_view='subscriptions')
 
     params = {
-        "edit_account_form": edit_account_form,
         "subscriptions": subscription_table,
-        "current_view": 'account',
+        "current_view": 'subscriptions',
     }
 
     if update_params:
@@ -208,21 +232,19 @@ def account_edit(request: HttpRequest):
 
     Args:
         request (HttpRequest): The incoming request
-        user (MrMapUser): The user
     Returns:
         A view
     """
     user = user_helper.get_user(request)
-    form = UserForm(request.POST or None, instance=user)
-    if request.method == 'POST' and form.is_valid():
-        # save changes
-        user = form.save()
-        user.save()
-        messages.add_message(request, messages.SUCCESS, ACCOUNT_UPDATE_SUCCESS)
-        return redirect("account")
-
-    return account(request=request, update_params={"edit_account_form": form,
-                                                   "show_edit_account_form": True})
+    form = UserForm(data=request.POST or None,
+                    request=request,
+                    reverse_lookup='account-edit',
+                    # ToDo: after refactoring of all forms is done, show_modal can be removed
+                    show_modal=True,
+                    form_title=_(f"<strong>Edit your account information's</strong>"),
+                    instance=user,
+                    initial={'theme': user.theme},)
+    return form.process_request(form.process_account_change)
 
 
 def activate_user(request: HttpRequest, activation_hash: str):
@@ -298,7 +320,7 @@ def password_reset(request: HttpRequest):
         gen_pw = sec_handler.sha256(
             user.salt + str(timezone.now()) + str(random() * 10000)
         )[:7].upper()
-        print_debug_mode(gen_pw)
+        logger.debug(gen_pw)
         user.set_password(gen_pw)
         user.save()
         messages.add_message(request, messages.INFO, PASSWORD_SENT)
@@ -362,7 +384,7 @@ def register(request: HttpRequest):
 
 
 @login_required
-def subscription_index_view(request: HttpRequest):
+def subscription_index_view(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
     """ Renders an overview of all subscriptions of the performing user
 
     Args:
@@ -370,16 +392,22 @@ def subscription_index_view(request: HttpRequest):
     Returns:
          A rendered view
     """
+    template = "views/subscriptions.html"
     user = user_helper.get_user(request)
-    subscriptions = Subscription.objects.filter(
-        user=user
-    )
+
+    subscription_table = SubscriptionTable(request=request,
+                                           current_view='subscriptions')
+
     params = {
-        "subscriptions": subscriptions
+        "subscriptions": subscription_table,
+        "current_view": 'subscriptions',
     }
+
+    if update_params:
+        params.update(update_params)
+
     context = DefaultContext(request, params, user)
-    # ToDo: Render template
-    return HttpResponse()
+    return render(request=request, template_name=template, context=context.get_context(), status=status_code)
 
 
 @login_required

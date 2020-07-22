@@ -7,18 +7,15 @@ import time
 
 from celery import Task
 from django.contrib.gis.geos import Polygon, GEOSGeometry
-from django.db import transaction
 from lxml.etree import _Element
 
-from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SRS, SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, \
     HTML_METADATA_URI_TEMPLATE
-from service.settings import MD_RELATION_TYPE_VISUALIZES, \
-    EXTERNAL_AUTHENTICATION_FILEPATH
+from service.settings import MD_RELATION_TYPE_VISUALIZES
 from MrMap.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
 from MrMap.messages import SERVICE_GENERIC_ERROR
-from MrMap.utils import execute_threads, print_debug_mode
+from MrMap.utils import execute_threads
 from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum, ResourceOriginEnum
 from service.helper.enums import MetadataEnum
 from service.helper.epsg_api import EpsgApi
@@ -29,6 +26,8 @@ from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metad
     FeatureTypeElement, MetadataRelation, RequestOperation, ExternalAuthentication
 from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, ALLOWED_SRS
 from structure.models import Organization, MrMapUser, MrMapGroup, Contact
+import logging
+logger = logging.getLogger('MrMap.service')
 
 
 class OGCWebFeatureServiceFactory:
@@ -136,7 +135,7 @@ class OGCWebFeatureService(OGCWebService):
         # check possible operations on this service
         start_time = time.time()
         self.get_service_operations(xml_obj)
-        print_debug_mode(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
+        logger.debug(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
 
         # check if 'real' linked service metadata exist
         service_metadata_uri = xml_helper.try_get_text_from_xml_element(
@@ -152,7 +151,7 @@ class OGCWebFeatureService(OGCWebService):
         if not metadata_only:
             start_time = time.time()
             self.get_feature_type_metadata(xml_obj=xml_obj, async_task=async_task, external_auth=external_auth)
-            print_debug_mode(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
+            logger.debug(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
 
         # always execute version specific tasks AFTER multithreading
         # Otherwise we might face race conditions which lead to loss of data!

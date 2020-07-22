@@ -24,7 +24,6 @@ from MrMap.cacher import DocumentCacher
 from MrMap.messages import PARAMETER_ERROR, LOGGING_INVALID_OUTPUTFORMAT
 from MrMap.settings import HTTP_OR_SSL, HOST_NAME, GENERIC_NAMESPACE_TEMPLATE, ROOT_URL, EXEC_TIME_PRINT
 from MrMap import utils
-from MrMap.utils import print_debug_mode
 from MrMap.validators import not_uuid
 from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
@@ -36,6 +35,8 @@ from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATI
     LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES, DEFAULT_SRS
 from structure.models import MrMapGroup, Organization, MrMapUser
 from service.helper import xml_helper
+import logging
+logger = logging.getLogger('MrMap.service')
 
 
 class Resource(models.Model):
@@ -107,7 +108,7 @@ class ProxyLog(models.Model):
             pass
         self.operation = request_param
         self.save()
-        print_debug_mode(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
+        logger.debug(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
 
     def _log_wfs_response_xml(self, xml: str):
         """ Evaluate the wfs response.

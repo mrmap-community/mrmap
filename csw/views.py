@@ -13,7 +13,7 @@ from django.views.decorators.cache import cache_page
 
 from MrMap.decorator import resolve_metadata_public_id
 from MrMap.messages import RESOURCE_NOT_FOUND
-from csw.settings import CSW_CACHE_TIME, CSW_CACHE_PREFIX
+from csw.settings import CSW_CACHE_TIME, CSW_CACHE_PREFIX, csw_logger, CSW_GENERIC_ERROR_TEMPLATE
 from csw.utils.harvester import Harvester
 from csw.utils.parameter import ParameterResolver
 
@@ -91,6 +91,7 @@ def harvest_catalogue(request: HttpRequest, metadata_id: str):
     Returns:
 
     """
+    # ToDo: Nice Frontend here please!
     user = user_helper.get_user(request)
     harvesting_group = user.get_groups().filter(
         is_public_group=False
@@ -106,4 +107,10 @@ def harvest_catalogue(request: HttpRequest, metadata_id: str):
         return HttpResponse(RESOURCE_NOT_FOUND, status=404)
     except ProcessLookupError as e:
         return HttpResponse(e, status=400)
+    except Exception as e:
+        csw_logger.error(
+            CSW_GENERIC_ERROR_TEMPLATE.format(
+                e
+            )
+        )
     return HttpResponse()

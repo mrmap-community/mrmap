@@ -8,6 +8,12 @@ Created on: 05.05.20
 from MrMap.settings import ROOT_URL
 from csw.utils.parameter import RESULT_TYPE_CHOICES, ELEMENT_SET_CHOICES
 
+import logging
+csw_logger = logging.getLogger("MrMap.csw")
+CSW_ERROR_LOG_TEMPLATE = "Error on metadata with file identifier '{}' from catalogue '{}'. \nException: {}"
+CSW_EXTENT_WARNING_LOG_TEMPLATE = "Error on extent for metadata with file identifier '{}' from catalogue '{}'. \nFound extent data was '{}'. Could not parse correctly. Fallback to default extent."
+CSW_GENERIC_ERROR_TEMPLATE = "Error occured on catalogue '{}': \n{}"
+
 CSW_CACHE_TIME = 60 * 60  # 60 minutes (min * sec)
 CSW_CACHE_PREFIX = "csw"
 

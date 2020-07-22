@@ -20,9 +20,10 @@ from multiprocessing import Process, cpu_count
 
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from MrMap.utils import execute_threads
+from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE
 from service.helper import xml_helper
 from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
-from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType
+from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType, LegalDate
 from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import PendingTask, MrMapGroup, Organization
 
@@ -35,6 +36,8 @@ class Harvester:
             operation=OGCOperationEnum.GET_RECORDS.value,
         ).exclude(
             url=None
+        ).order_by(
+            "method"    # Prefer GET over POST
         ).first()
 
         self.version = self.metadata.get_service_version().value
@@ -245,7 +248,6 @@ class Harvester:
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_Metadata"),
             xml_response
         ) or []
-        print(self.start_position)
         next_record_position = int(xml_helper.try_get_attribute_from_xml_element(
             xml_response,
             "nextRecord",
@@ -276,7 +278,13 @@ class Harvester:
         connections.close_all()
         execute_threads(process_list)
 
-        print("#### TOTAL TIME FOR MD CREATION: {}s ####".format(time() - t_start))
+        csw_logger.debug(
+            "Harvesting '{}': runtime for {} metadata parsing: {}s ####".format(
+                self.metadata.title,
+                self.max_records_per_request,
+                time() - t_start
+            )
+        )
 
     def _create_metadata_from_md_metadata(self, start_index, end_index):
         """ Creates Metadata records from raw xml md_metadata data.
@@ -314,6 +322,7 @@ class Harvester:
             md.access_constraints = md_data_entry.get("access_constraints", None)
             md.created_by = self.harvesting_group
             md.origin = ResourceOriginEnum.CATALOGUE.value
+            md.last_modified = md_data_entry.get("date_stamp", None)
             md.title = md_data_entry.get("title", None)
             md.public_id = md.generate_public_id()
             md.contact = md_data_entry.get("contact", None)
@@ -356,9 +365,13 @@ class Harvester:
                             )
                         )
                 except (IntegrityError, DataError) as e:
-                    #print("IntegrityError on: {}".format(md_data_entry))
-                    # ToDo: Log malicious metadata
-                    pass
+                    csw_logger.error(
+                        CSW_ERROR_LOG_TEMPLATE.format(
+                            md.identifier,
+                            self.metadata.title,
+                            e
+                        )
+                    )
 
     def _md_metadata_parse_to_dict(self, md_metadata: Element) -> dict:
         """ Read most important data from MD_Metadata xml element and return as a dict
@@ -389,6 +402,12 @@ class Harvester:
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode")
         )
         md_data_entry["language_code"] = language_code
+        date_stamp = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Date")
+        )
+        md_data_entry["date_stamp"] = date_stamp
         hierarchy_level = xml_helper.try_get_text_from_xml_element(
             md_metadata,
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("hierarchyLevel")
@@ -466,6 +485,13 @@ class Harvester:
                 bounding_geometry = GEOSGeometry(Polygon.from_bbox(bbox=extent), srid=DEFAULT_SRS)
             except Exception:
                 # Log malicious extent!
+                csw_logger.warning(
+                    CSW_EXTENT_WARNING_LOG_TEMPLATE.format(
+                        _id,
+                        self.metadata.title,
+                        extent
+                    )
+                )
                 bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
         else:
             bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY

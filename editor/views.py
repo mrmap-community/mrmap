@@ -10,7 +10,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from MrMap.decorator import check_permission, check_ownership
 from MrMap.messages import SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MrMap.responses import DefaultContext
-from editor.filters import EditorAcessFilter
+from editor.filters import EditorAccessFilter
 from editor.forms import MetadataEditorForm, RemoveDatasetForm, RestoreMetadataForm, RestoreDatasetMetadata, \
     RestrictAccessForm, RestrictAccessSpatially
 from editor.tables import EditorAcessTable
@@ -157,7 +157,7 @@ def edit_access(request: HttpRequest, object_id, update_params: dict = None, sta
     table = EditorAcessTable(
         request=request,
         queryset=all_groups,
-        filter_set_class=EditorAcessFilter,
+        filter_set_class=EditorAccessFilter,
         current_view='editor:edit_access',
         related_metadata=md,
     )

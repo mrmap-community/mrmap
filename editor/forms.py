@@ -28,7 +28,7 @@ from service.models import Metadata, MetadataRelation, Keyword, Category, Datase
     SecuredOperation
 from service.settings import ISO_19115_LANG_CHOICES
 from service.tasks import async_secure_service_task
-from structure.models import Organization, MrMapUser
+from structure.models import Organization, MrMapUser, MrMapGroup
 from users.helper import user_helper
 from django.contrib import messages
 
@@ -497,26 +497,21 @@ class RestrictAccessForm(MrMapForm):
 
 
 class RestrictAccessSpatially(MrMapForm):
+    HELP_TXT_TEMPLATE = _("Activate to allow <strong>{}</strong> in the area defined in the map viewer below.\nIf you want to allow {} without spatial restriction (everywhere), just remove any restriction below.")
     get_map = forms.BooleanField(
         required=False,
         label=OGCOperationEnum.GET_MAP.value,
-        help_text=_(
-            "Activate to allow <strong>{}</strong> in the area defined in the map viewer below."
-        ).format(OGCOperationEnum.GET_MAP.value)
+        help_text=HELP_TXT_TEMPLATE.format(OGCOperationEnum.GET_MAP.value, OGCOperationEnum.GET_MAP.value)
     )
     get_feature_info = forms.BooleanField(
         required=False,
         label=OGCOperationEnum.GET_FEATURE_INFO.value,
-        help_text=_(
-            "Activate to allow <strong>{}</strong> in the area defined in the map viewer below."
-        ).format(OGCOperationEnum.GET_FEATURE_INFO.value)
+        help_text=HELP_TXT_TEMPLATE.format(OGCOperationEnum.GET_MAP.value, OGCOperationEnum.GET_MAP.value)
     )
     get_feature = forms.BooleanField(
         required=False,
         label=OGCOperationEnum.GET_FEATURE.value,
-        help_text=_(
-            "Activate to allow <strong>{}</strong> in the area defined in the map viewer below."
-        ).format(OGCOperationEnum.GET_FEATURE.value)
+        help_text=HELP_TXT_TEMPLATE.format(OGCOperationEnum.GET_MAP.value, OGCOperationEnum.GET_MAP.value)
     )
     spatial_restricted_area = forms.CharField(
         label=_('Allowed area'),
@@ -533,10 +528,12 @@ class RestrictAccessSpatially(MrMapForm):
         self.metadata = Metadata.objects.get(
             id=metadata_id
         )
+        md_is_root = self.metadata.is_root()
 
         # Read initial data for fields
         secured_operations = SecuredOperation.objects.filter(
-            secured_metadata__id=metadata_id
+            secured_metadata__id=metadata_id,
+            allowed_group__id=group_id
         )
         secured_operation_get_map = secured_operations.filter(
             operation=OGCOperationEnum.GET_MAP.value
@@ -557,7 +554,7 @@ class RestrictAccessSpatially(MrMapForm):
 
         # If the metadata is not root, we are not allowed to create own geometries but we need to inherit the ones from
         # the parent. Therefore we read it from the root in this case
-        if not self.metadata.is_root():
+        if not md_is_root:
             secured_operations_bounding_geometry = self.metadata.get_root_metadata().secured_operations.all().first()
         else:
             secured_operations_bounding_geometry = secured_operations.first()
@@ -580,7 +577,7 @@ class RestrictAccessSpatially(MrMapForm):
             feature_geojson = None
 
         # restricting via geometry is only allowed for root metadata, not for every single subelement
-        if not self.metadata.is_root():
+        if not md_is_root:
             self.fields["spatial_restricted_area"].widget = forms.HiddenInput()
 
         # Set initial fields
@@ -630,7 +627,9 @@ class RestrictAccessSpatially(MrMapForm):
                 pass
         # Reduce operation_map on valid data
         operations = [v for k, v in ogc_operation_map.items() if k in operation_map and operation_map[k] is True]
-        async_secure_service_task(
+
+        # Call persisting of new settings in background process
+        async_secure_service_task.delay(
             self.metadata_id,
             self.group_id,
             operations,

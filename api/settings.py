@@ -5,6 +5,9 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 12.09.19
 
 """
+import logging
+
+api_logger = logging.getLogger('MrMap.api')
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
@@ -21,7 +24,7 @@ REST_FRAMEWORK = {
 }
 
 API_CACHE_KEY_PREFIX = "REST_API_CACHE"
-API_CACHE_TIME = 60*60  # 60 minutes
+API_CACHE_TIME = 60 * 60  # 60 minutes
 API_ALLOWED_HTTP_METHODS = [
     "get",
     "post",
@@ -36,3 +39,5 @@ GROUP_DEFAULT_ORDER = "name"
 ORGANIZATION_DEFAULT_ORDER = "organization_name"
 
 SUGGESTIONS_MAX_RESULTS = 10
+
+

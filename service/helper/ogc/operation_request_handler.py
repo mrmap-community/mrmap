@@ -29,7 +29,7 @@ from MrMap.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
     SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY, SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY, \
     OPERATION_HANDLER_MULTIPLE_QUERIES_NOT_ALLOWED
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES, EXEC_TIME_PRINT
-from MrMap.utils import execute_threads, print_debug_mode
+from MrMap.utils import execute_threads
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector

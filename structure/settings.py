@@ -5,7 +5,9 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 07.06.19
 
 """
+import logging
 
+structure_logger = logging.getLogger('MrMap.structure')
 
 # In hours: how long an activation link is valid for a user
 USER_ACTIVATION_TIME_WINDOW = 24

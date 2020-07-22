@@ -37,7 +37,6 @@
 <h5>
     {% trans 'General settings' %}
 </h5>
-{% if is_root %}
     <form action="{{ restrict_access_form.action_url }}" method="post">
         {% csrf_token %}
 
@@ -48,11 +47,28 @@
         </button>
     </form>
     <hr>
-{% endif %}
 
 <h5>
     {% trans 'Edit group access' %}
 </h5>
-{% render_table restrict_access_table %}
+<div id="id_div_restrict_access_table" style="pointer-events: none; opacity: 0.4;">
+    {% render_table restrict_access_table %}
+</div>
+
+<script type="application/javascript">
+    $(':checkbox').change(function() {
+        if ( $('#id_log_proxy').prop('checked') == true || $('#id_restrict_access').prop('checked') == true ) {
+            $('#id_use_proxy').prop('checked', true);
+        }
+
+        if ( $('#id_restrict_access').prop('checked') == true ) {
+            $('#id_div_restrict_access_table').css('pointer-events', '');
+            $('#id_div_restrict_access_table').css('opacity', '');
+        } else {
+            $('#id_div_restrict_access_table').css('pointer-events', 'none');
+            $('#id_div_restrict_access_table').css('opacity', '0.4');
+        }
+    });
+</script>
 
 {% endblock %}

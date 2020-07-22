@@ -1,6 +1,15 @@
 #!/usr/bin/env python
 import os
 import sys
+# Get an instance of a logger
+from MrMap.settings import LOG_DIR, LOG_SUB_DIRS, root_logger
+
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
+for key, value in LOG_SUB_DIRS.items():
+    if not os.path.exists(LOG_DIR + value['dir']):
+        os.makedirs(LOG_DIR + value['dir'])
 
 if __name__ == '__main__':
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'MrMap.settings')
@@ -13,3 +22,5 @@ if __name__ == '__main__':
             "forget to activate a virtual environment?"
         ) from exc
     execute_from_command_line(sys.argv)
+    root_logger.warning('MrMap was stopped.')
+

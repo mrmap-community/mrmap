@@ -16,18 +16,17 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest
 from django.shortcuts import redirect, render, get_object_or_404
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from MrMap.messages import ACCOUNT_UPDATE_SUCCESS, USERNAME_OR_PW_INVALID, \
-    ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, PASSWORD_CHANGE_SUCCESS, \
+from MrMap.messages import USERNAME_OR_PW_INVALID, \
+    ACTIVATION_LINK_INVALID, ACCOUNT_NOT_ACTIVATED, \
     LOGOUT_SUCCESS, PASSWORD_SENT, ACTIVATION_LINK_SENT, ACTIVATION_LINK_EXPIRED, \
     RESOURCE_NOT_FOUND_OR_NOT_OWNER
 from MrMap.responses import DefaultContext
 from MrMap.settings import ROOT_URL, LAST_ACTIVITY_DATE_RANGE
-from MrMap.utils import print_debug_mode
 from service.helper.crypto_handler import CryptoHandler
 from service.models import Metadata
 from structure.forms import LoginForm, RegistrationForm
@@ -35,9 +34,10 @@ from structure.models import MrMapUser, UserActivation, PendingRequest, GroupAct
 from structure.settings import PUBLIC_GROUP_NAME
 from users.forms import PasswordResetForm, UserForm, PasswordChangeForm, SubscriptionForm, SubscriptionRemoveForm
 from users.helper import user_helper
-from django.urls import reverse, resolve
+from django.urls import reverse
 
 from users.models import Subscription
+from users.settings import users_logger
 from users.tables import SubscriptionTable
 
 
@@ -319,7 +319,7 @@ def password_reset(request: HttpRequest):
         gen_pw = sec_handler.sha256(
             user.salt + str(timezone.now()) + str(random() * 10000)
         )[:7].upper()
-        print_debug_mode(gen_pw)
+        users_logger.debug(gen_pw)
         user.set_password(gen_pw)
         user.save()
         messages.add_message(request, messages.INFO, PASSWORD_SENT)

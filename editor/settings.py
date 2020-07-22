@@ -5,7 +5,9 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 11.11.19
 
 """
+import logging
 
+editor_logger = logging.getLogger('MrMap.editor')
 
 """ WMS SECURED OPERATIONS
 

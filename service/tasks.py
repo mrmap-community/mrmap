@@ -20,12 +20,12 @@ from MrMap.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTI
     SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING, \
     SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
 from MrMap.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
-from MrMap.utils import print_debug_mode
 from api.settings import API_CACHE_KEY_PREFIX
 from csw.settings import CSW_CACHE_PREFIX
-from service.helper.enums import MetadataEnum, OGCServiceEnum
-from service.models import Service, Layer, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
-    MetadataRelation, ProxyLog
+from service.helper.enums import MetadataEnum
+from service.models import Service, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
+    MetadataRelation
+from service.settings import service_logger
 from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask
 
 from service.helper import service_helper, task_helper
@@ -253,8 +253,7 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             if md.public_id is None:
                 md.public_id = md.generate_public_id()
                 md.save()
-
-        print_debug_mode(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
+        service_logger.debug(EXEC_TIME_PRINT % ("total registration", time.time() - t_start))
         user_helper.create_group_activity(service.metadata.created_by, user, SERVICE_REGISTERED, service.metadata.title)
 
         if curr_task_id is not None:

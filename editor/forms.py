@@ -511,6 +511,13 @@ class RestrictAccessSpatially(MrMapForm):
             "Activate to allow <strong>{}</strong> in the area defined in the map viewer below."
         ).format(OGCOperationEnum.GET_FEATURE_INFO.value)
     )
+    get_feature = forms.BooleanField(
+        required=False,
+        label=OGCOperationEnum.GET_FEATURE.value,
+        help_text=_(
+            "Activate to allow <strong>{}</strong> in the area defined in the map viewer below."
+        ).format(OGCOperationEnum.GET_FEATURE.value)
+    )
     spatial_restricted_area = forms.CharField(
         label=_('Allowed area'),
         required=False,
@@ -536,6 +543,9 @@ class RestrictAccessSpatially(MrMapForm):
         ).exists()
         secured_operation_get_feature_info = secured_operations.filter(
             operation=OGCOperationEnum.GET_FEATURE_INFO.value
+        ).exists()
+        secured_operation_get_feature = secured_operations.filter(
+            operation=OGCOperationEnum.GET_FEATURE.value
         ).exists()
 
         # Since we persist geometries in GeometryCollections, containing Polygon obejcts, we need to use a little hack
@@ -574,8 +584,16 @@ class RestrictAccessSpatially(MrMapForm):
             self.fields["spatial_restricted_area"].widget = forms.HiddenInput()
 
         # Set initial fields
-        self.fields["get_map"].initial = secured_operation_get_map
-        self.fields["get_feature_info"].initial = secured_operation_get_feature_info
+        if self.metadata.service.is_wms:
+            self.fields["get_map"].initial = secured_operation_get_map
+            self.fields["get_feature_info"].initial = secured_operation_get_feature_info
+            del self.fields["get_feature"]
+        elif self.metadata.service.is_wfs:
+            self.fields["get_feature"].initial = secured_operation_get_feature
+            del self.fields["get_map"]
+            del self.fields["get_feature_info"]
+        else:
+            raise AssertionError("Wrong service type for spatial access form!")
         self.fields["spatial_restricted_area"].initial = feature_geojson
 
     def process_restict_access_spatially(self):

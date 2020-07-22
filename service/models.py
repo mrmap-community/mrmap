@@ -32,11 +32,10 @@ from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, Metadata
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
-    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES, DEFAULT_SRS
+    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES, DEFAULT_SRS, \
+    service_logger
 from structure.models import MrMapGroup, Organization, MrMapUser
 from service.helper import xml_helper
-import logging
-logger = logging.getLogger('MrMap.service')
 
 
 class Resource(models.Model):
@@ -108,7 +107,7 @@ class ProxyLog(models.Model):
             pass
         self.operation = request_param
         self.save()
-        logger.debug(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
+        service_logger.debug(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
 
     def _log_wfs_response_xml(self, xml: str):
         """ Evaluate the wfs response.

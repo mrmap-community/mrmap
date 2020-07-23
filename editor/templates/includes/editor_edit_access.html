@@ -51,7 +51,7 @@
 <h5>
     {% trans 'Edit group access' %}
 </h5>
-<div id="id_div_restrict_access_table" style="pointer-events: none; opacity: 0.4;">
+<div id="id_div_restrict_access_table" {% if not restrict_access_form.restrict_access.value %} style="pointer-events: none; opacity: 0.4;" {% endif %}>
     {% render_table restrict_access_table %}
 </div>
 

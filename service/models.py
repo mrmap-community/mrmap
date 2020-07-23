@@ -539,18 +539,18 @@ class ExternalAuthentication(models.Model):
 
 class Metadata(Resource):
     from MrMap.validators import validate_metadata_enum_choices
-    identifier = models.CharField(max_length=500, null=True)
-    title = models.CharField(max_length=500)
+    identifier = models.CharField(max_length=1000, null=True)
+    title = models.CharField(max_length=1000)
     abstract = models.TextField(null=True, blank=True)
-    online_resource = models.CharField(max_length=500, null=True, blank=True)  # where the service data can be found
+    online_resource = models.CharField(max_length=1000, null=True, blank=True)  # where the service data can be found
 
-    capabilities_original_uri = models.CharField(max_length=500, blank=True, null=True)
-    capabilities_uri = models.CharField(max_length=500, blank=True, null=True)
+    capabilities_original_uri = models.CharField(max_length=1000, blank=True, null=True)
+    capabilities_uri = models.CharField(max_length=1000, blank=True, null=True)
 
-    service_metadata_original_uri = models.CharField(max_length=500, blank=True, null=True)
-    service_metadata_uri = models.CharField(max_length=500, blank=True, null=True)
+    service_metadata_original_uri = models.CharField(max_length=1000, blank=True, null=True)
+    service_metadata_uri = models.CharField(max_length=1000, blank=True, null=True)
 
-    html_metadata_uri = models.CharField(max_length=500, blank=True, null=True)
+    html_metadata_uri = models.CharField(max_length=1000, blank=True, null=True)
 
     contact = models.ForeignKey(Organization, on_delete=models.SET_NULL, blank=True, null=True)
     licence = models.ForeignKey('Licence', on_delete=models.SET_NULL, blank=True, null=True)
@@ -1044,12 +1044,17 @@ class Metadata(Resource):
         """
         if stump is None:
             stump = self.title
+
         slug_stump = slugify(stump)
+        # To prevent too long public ids (keep them < 255 character)
+        # we need to make sure the stump itself isn't longer than 200 characters! So we have enough space left for numbers in the end
+        slug_stump = slug_stump[:200]
         exists = Metadata.objects.filter(
             public_id=slug_stump
         ).exists()
-        counter = 1
         public_id = slug_stump
+
+        counter = 1
         while exists:
             public_id = "{}-{}".format(slug_stump, counter)
             counter += 1
@@ -2468,8 +2473,8 @@ class ServiceType(models.Model):
 
 
 class ServiceUrl(Resource):
-    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices())
-    method = models.CharField(max_length=255, choices=[("Get", "Get"), ("Post", "Post"),], blank=True)
+    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), blank=True, null=True)
+    method = models.CharField(max_length=255, choices=[("Get", "Get"), ("Post", "Post"),], blank=True, null=True)
     url = models.URLField(blank=True, null=True)
 
     def __str__(self):

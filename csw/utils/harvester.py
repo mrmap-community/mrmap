@@ -10,10 +10,12 @@ from time import time
 import datetime
 
 import requests
+from dateutil.parser import parse
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction, connections, IntegrityError, DataError
 from django.db.models import Q
+from django.utils.timezone import utc
 from django.utils.translation import gettext_lazy as _
 from lxml.etree import Element
 from multiprocessing import Process, cpu_count
@@ -22,7 +24,7 @@ from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from MrMap.utils import execute_threads
 from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE
 from service.helper import xml_helper
-from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
+from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum, MetadataEnum
 from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType, LegalDate
 from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import PendingTask, MrMapGroup, Organization
@@ -36,8 +38,6 @@ class Harvester:
             operation=OGCOperationEnum.GET_RECORDS.value,
         ).exclude(
             url=None
-        ).order_by(
-            "method"    # Prefer GET over POST
         ).first()
 
         self.version = self.metadata.get_service_version().value
@@ -126,11 +126,12 @@ class Harvester:
                 # We are done!
                 estimated_time_for_all = datetime.timedelta(seconds=0)
             else:
-                estimated_time_for_all = datetime.timedelta(seconds=((total_number_to_harvest - self.start_position) * (duration / self.start_position)))
+                seconds_for_all = ((total_number_to_harvest - self.start_position) * (duration / self.start_position))
+                estimated_time_for_all = datetime.timedelta(seconds=seconds_for_all)
             self._update_pending_task(self.start_position, total_number_to_harvest, progress_step_per_request, estimated_time_for_all)
 
         # Delete Metadata records which could not be found in the catalogue anymore
-        deleted_metadata_ids = [k for k, v in self.deleted_metadata]
+        deleted_metadata_ids = [k for k, v in self.deleted_metadata.items()]
         deleted_metadatas = Metadata.objects.filter(
             identifier__in=deleted_metadata_ids
         )
@@ -147,6 +148,7 @@ class Harvester:
              xml (str): The GetRecords xml document
         """
         namespaces = {
+            "csw": "http://www.opengis.net/cat/csw/2.0.2",
             "apiso": "http://www.opengis.net/cat/csw/apiso/1.0",
             "ogc": "http://www.opengis.net/ogc",
             "gmd": "http://www.isotc211.org/2005/gmd",
@@ -158,9 +160,10 @@ class Harvester:
             "schemaLocation": "http://www.opengis.net/cat/csw/{}".format(self.version),
             None: "http://www.opengis.net/cat/csw/{}".format(self.version),
         }
+        csw_ns = "{" + namespaces["csw"] + "}"
 
         root_elem = Element(
-            OGCOperationEnum.GET_RECORDS.value,
+            "{}{}".format(csw_ns, OGCOperationEnum.GET_RECORDS.value),
             attrib={
                 "version": self.version,
                 "service": "CSW",
@@ -174,7 +177,7 @@ class Harvester:
         )
         xml_helper.create_subelement(
             root_elem,
-            "Query",
+            "{}Query".format(csw_ns),
             None,
             {
                 "typeNames": "gmd:MD_Metadata"
@@ -244,6 +247,18 @@ class Harvester:
              next_record (int): The nextRecord value (used for next startPosition)
         """
         xml_response = xml_helper.parse_xml(next_response)
+        if xml_response is None:
+            csw_logger.error(
+                "Response is no valid xml. catalogue: {}, startPosition: {}, maxRecords: {}".format(
+                    self.metadata.title,
+                    self.start_position,
+                    self.max_records_per_request
+                )
+            )
+            # Abort!
+            self.start_position = 0
+            return
+
         md_metadata_entries = xml_helper.try_get_element_from_xml(
             "//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_Metadata"),
             xml_response
@@ -314,6 +329,9 @@ class Harvester:
                     identifier=_id,
                 )
                 is_new = False
+                if md.last_remote_change == md_data_entry["date_stamp"]:
+                    # Nothing to do here!
+                    continue
             except ObjectDoesNotExist:
                 md = Metadata(
                     identifier=_id
@@ -322,7 +340,7 @@ class Harvester:
             md.access_constraints = md_data_entry.get("access_constraints", None)
             md.created_by = self.harvesting_group
             md.origin = ResourceOriginEnum.CATALOGUE.value
-            md.last_modified = md_data_entry.get("date_stamp", None)
+            md.last_remote_change = md_data_entry.get("date_stamp", None)
             md.title = md_data_entry.get("title", None)
             md.public_id = md.generate_public_id()
             md.contact = md_data_entry.get("contact", None)
@@ -330,6 +348,7 @@ class Harvester:
             md.metadata_type = md_data_entry.get("metadata_type", None)
             md.abstract = md_data_entry.get("abstract", None)
             md.bounding_geometry = md_data_entry.get("bounding_geometry", None)
+            md.online_resource = md_data_entry.get("link", None)
             formats = md_data_entry.get("formats", [])
             md.is_active = True
 
@@ -380,6 +399,8 @@ class Harvester:
         Returns:
              md_data_entry (dict): The dict containing data
         """
+        identifier = "MD_DataIdentification"
+
         md_data_entry = {}
         _id = xml_helper.try_get_text_from_xml_element(
             md_metadata,
@@ -387,40 +408,69 @@ class Harvester:
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
         )
         md_data_entry["id"] = _id
+
+        hierarchy_level = xml_helper.try_get_attribute_from_xml_element(
+            md_metadata,
+            "codeListValue",
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("hierarchyLevel")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("MD_ScopeCode")
+        )
+        metadata_type = hierarchy_level
+        md_data_entry["metadata_type"] = metadata_type
+        if hierarchy_level == MetadataEnum.SERVICE.value:
+            identifier = "SV_ServiceIdentification"
+
         title = xml_helper.try_get_text_from_xml_element(
             md_metadata,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DataIdentification")
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier)
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("citation")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Citation")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("title")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
         )
         md_data_entry["title"] = title
-        language_code = xml_helper.try_get_text_from_xml_element(
+        if title is None:
+            print(xml_helper.xml_to_string(md_metadata, pretty_print=True))
+
+        language_code = xml_helper.try_get_attribute_from_xml_element(
             md_metadata,
+            "codeListValue",
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("language")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode")
         )
         md_data_entry["language_code"] = language_code
+
         date_stamp = xml_helper.try_get_text_from_xml_element(
             md_metadata,
             "./" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Date")
-        )
-        md_data_entry["date_stamp"] = date_stamp
-        hierarchy_level = xml_helper.try_get_text_from_xml_element(
+        ) or xml_helper.try_get_text_from_xml_element(
             md_metadata,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("hierarchyLevel")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("MD_ScopeCode")
+            "./" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("DateTime")
         )
-        metadata_type = hierarchy_level
-        md_data_entry["metadata_type"] = metadata_type
+        try:
+            md_data_entry["date_stamp"] = parse(date_stamp).replace(tzinfo=utc)
+        except TypeError:
+            md_data_entry["date_stamp"] = None
+
         abstract = xml_helper.try_get_text_from_xml_element(
             md_metadata,
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("abstract")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
         )
         md_data_entry["abstract"] = abstract
+
+        resource_link = xml_helper.try_get_text_from_xml_element(
+            md_metadata,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DigitalTransferOptions")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("onLine")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_OnlineResource")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("linkage")
+            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("URL"),
+        )
+        md_data_entry["link"] = resource_link
+
         keywords = xml_helper.try_get_element_from_xml(
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("keyword")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"),
@@ -433,12 +483,14 @@ class Harvester:
             for kw in keywords
         ]
         md_data_entry["keywords"] = keywords
+
         access_constraints = xml_helper.try_get_text_from_xml_element(
             md_metadata,
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("otherConstraints")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
         )
         md_data_entry["access_constraints"] = access_constraints
+
         categories = xml_helper.try_get_element_from_xml(
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_TopicCategoryCode"),
             md_metadata,
@@ -450,6 +502,7 @@ class Harvester:
             for cat in categories
         ]
         md_data_entry["categories"] = categories
+
         bbox_elem = xml_helper.try_get_single_element_from_xml(
             ".//" + GENERIC_NAMESPACE_TEMPLATE.format("EX_GeographicBoundingBox"),
             md_metadata
@@ -495,6 +548,7 @@ class Harvester:
                 bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
         else:
             bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
+
         md_data_entry["bounding_geometry"] = bounding_geometry
         md_data_entry["contact"] = self._create_contact_from_md_metadata(md_metadata)
         md_data_entry["formats"] = self._create_formats_from_md_metadata(md_metadata)

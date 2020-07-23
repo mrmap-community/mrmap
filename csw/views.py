@@ -7,6 +7,7 @@ Created on: 05.05.20
 """
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import IntegrityError
 from django.http import HttpRequest, HttpResponse
 
 from django.views.decorators.cache import cache_page
@@ -101,15 +102,16 @@ def harvest_catalogue(request: HttpRequest, metadata_id: str):
             id=metadata_id,
             metadata_type=MetadataEnum.CATALOGUE.value
         )
-        harvester = Harvester(md, harvesting_group, max_records_per_request=250)
+        harvester = Harvester(md, harvesting_group, max_records_per_request=1000)
         harvester.harvest()
     except ObjectDoesNotExist:
         return HttpResponse(RESOURCE_NOT_FOUND, status=404)
     except ProcessLookupError as e:
         return HttpResponse(e, status=400)
-    except Exception as e:
+    except IntegrityError as e:
         csw_logger.error(
             CSW_GENERIC_ERROR_TEMPLATE.format(
+                md.title,
                 e
             )
         )

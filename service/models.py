@@ -1048,7 +1048,7 @@ class Metadata(Resource):
         slug_stump = slugify(stump)
         # To prevent too long public ids (keep them < 255 character)
         # we need to make sure the stump itself isn't longer than 200 characters! So we have enough space left for numbers in the end
-        slug_stump = slug_stump[:200]
+        slug_stump = slug_stump[:225]
         exists = Metadata.objects.filter(
             public_id=slug_stump
         ).exists()

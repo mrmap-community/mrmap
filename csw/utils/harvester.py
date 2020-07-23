@@ -113,6 +113,8 @@ class Harvester:
         progress_step_per_request = float(self.max_records_per_request / total_number_to_harvest) * 100
 
         t_start = time()
+        number_rest_to_harvest = total_number_to_harvest
+        number_of_harvested = 0
         # Run as long as we can fetch data!
         while self.start_position != 0:
             # Get response
@@ -120,14 +122,16 @@ class Harvester:
 
             self._process_harvest_response(next_response)
 
-            # Calculate remaining time
+            # Calculate time since loop started
             duration = time() - t_start
+            number_rest_to_harvest -= self.max_records_per_request
+            number_of_harvested += self.max_records_per_request
             if self.start_position == 0:
                 # We are done!
                 estimated_time_for_all = datetime.timedelta(seconds=0)
             else:
-                seconds_for_all = ((total_number_to_harvest - self.start_position) * (duration / self.start_position))
-                estimated_time_for_all = datetime.timedelta(seconds=seconds_for_all)
+                seconds_for_rest = (number_rest_to_harvest * (duration / number_of_harvested))
+                estimated_time_for_all = datetime.timedelta(seconds=seconds_for_rest)
             self._update_pending_task(self.start_position, total_number_to_harvest, progress_step_per_request, estimated_time_for_all)
 
         # Delete Metadata records which could not be found in the catalogue anymore
@@ -352,16 +356,23 @@ class Harvester:
             formats = md_data_entry.get("formats", [])
             md.is_active = True
 
-            # Improve speed for keyword get-create by fetching (filter) all existing ones and only perform
-            # get_or_create on the ones that do not exist yet. Speed up by ~50% for large amount of data
-            existing_kws = Keyword.objects.filter(keyword__in=md_data_entry["keywords"])
-            existing_kws = [kw.keyword for kw in existing_kws]
-            new_kws = [kw for kw in md_data_entry["keywords"] if kw not in existing_kws]
-            [Keyword.objects.get_or_create(keyword=kw)[0] for kw in new_kws]
-            kws = Keyword.objects.filter(keyword__in=md_data_entry["keywords"])
+            try:
+                # Improve speed for keyword get-create by fetching (filter) all existing ones and only perform
+                # get_or_create on the ones that do not exist yet. Speed up by ~50% for large amount of data
+                existing_kws = Keyword.objects.filter(keyword__in=md_data_entry["keywords"])
+                existing_kws = [kw.keyword for kw in existing_kws]
+                new_kws = [kw for kw in md_data_entry["keywords"] if kw not in existing_kws]
+                [Keyword.objects.get_or_create(keyword=kw)[0] for kw in new_kws]
+                kws = Keyword.objects.filter(keyword__in=md_data_entry["keywords"])
 
-            with transaction.atomic():
-                try:
+                # Same for MimeTypes
+                existing_formats = MimeType.objects.filter(mime_type__in=md_data_entry["formats"])
+                existing_formats = [_format.mime_type for _format in existing_formats]
+                new_formats = [_format for _format in md_data_entry["formats"] if _format not in existing_formats]
+                [MimeType.objects.get_or_create(mime_type=_format)[0] for _format in new_formats]
+                formats = MimeType.objects.filter(mime_type__in=md_data_entry["formats"])
+
+                with transaction.atomic():
                     q = Q()
                     for cat in md_data_entry["categories"]:
                         q |= Q(title_EN__iexact=cat)
@@ -383,14 +394,14 @@ class Harvester:
                                 origin=ResourceOriginEnum.CATALOGUE.value
                             )
                         )
-                except (IntegrityError, DataError) as e:
-                    csw_logger.error(
-                        CSW_ERROR_LOG_TEMPLATE.format(
-                            md.identifier,
-                            self.metadata.title,
-                            e
-                        )
+            except (IntegrityError, DataError) as e:
+                csw_logger.error(
+                    CSW_ERROR_LOG_TEMPLATE.format(
+                        md.identifier,
+                        self.metadata.title,
+                        e
                     )
+                )
 
     def _md_metadata_parse_to_dict(self, md_metadata: Element) -> dict:
         """ Read most important data from MD_Metadata xml element and return as a dict
@@ -399,8 +410,6 @@ class Harvester:
         Returns:
              md_data_entry (dict): The dict containing data
         """
-        identifier = "MD_DataIdentification"
-
         md_data_entry = {}
         _id = xml_helper.try_get_text_from_xml_element(
             md_metadata,
@@ -417,13 +426,19 @@ class Harvester:
         )
         metadata_type = hierarchy_level
         md_data_entry["metadata_type"] = metadata_type
-        if hierarchy_level == MetadataEnum.SERVICE.value:
-            identifier = "SV_ServiceIdentification"
 
+        # A workaround, so we do not need to check whether SV_ServiceIdentification or MD_DataIdentification is present
+        # in this metadata: Simply take the direct parent and perform a deeper nested search on the inside of this element.
+        # Yes, we could simply decide based on the hierarchyLevel attribute whether to search for SV_xxx or MD_yyy.
+        # No, there are metadata entries which do not follow these guidelines and have "service" with MD_yyy
+        # Yes, they are important since they can be found in the INSPIRE catalogue (07/2020)
+        identification_elem = xml_helper.try_get_single_element_from_xml(
+            xml_elem=md_metadata,
+            elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("identificationInfo")
+        )
         title = xml_helper.try_get_text_from_xml_element(
-            md_metadata,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format(identifier)
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("citation")
+            identification_elem,
+            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("citation")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Citation")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("title")
             + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
@@ -653,14 +668,7 @@ class Harvester:
             )
             if name is not None:
                 formats.append(name)
-        mime_types = []
-        for format in formats:
-            mime_types.append(
-                MimeType.objects.get_or_create(
-                    mime_type=format
-                )[0]
-            )
-        return mime_types
+        return formats
 
     def _create_contact_from_md_metadata(self, md_metadata: Element) -> Organization:
         """ Creates an Organization (Contact) instance from MD_Metadata.

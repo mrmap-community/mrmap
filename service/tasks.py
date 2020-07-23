@@ -9,6 +9,7 @@ import json
 import time
 
 from celery import shared_task
+from django.contrib.gis.geos import GEOSGeometry, Polygon, GeometryCollection
 from django.db import transaction
 
 from lxml.etree import XMLSyntaxError, XPathEvalError
@@ -16,18 +17,15 @@ from requests.exceptions import InvalidURL
 
 from MrMap import utils
 from MrMap.cacher import PageCacher
-from MrMap.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED, \
-    SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS, SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING, \
-    SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED
+from MrMap.messages import SERVICE_REGISTERED, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MrMap.settings import EXEC_TIME_PRINT, PROGRESS_STATUS_AFTER_PARSING
 from api.settings import API_CACHE_KEY_PREFIX
 from csw.settings import CSW_CACHE_PREFIX
-from service.helper.enums import MetadataEnum
-from service.models import Service, RequestOperation, Metadata, SecuredOperation, ExternalAuthentication, \
+from service.settings import DEFAULT_SRS
+from service.models import Service, Metadata, SecuredOperation, ExternalAuthentication, \
     MetadataRelation
 from service.settings import service_logger
 from structure.models import MrMapUser, MrMapGroup, Organization, PendingTask
-
 from service.helper import service_helper, task_helper
 from users.helper import user_helper
 
@@ -111,8 +109,7 @@ def async_activate_service(metadata_id, user_id: int, is_active: bool):
 
 
 @shared_task(name="async_secure_service_task")
-@transaction.atomic
-def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int, operation_id: int, group_polygons: dict, secured_operation_id: int):
+def async_secure_service_task(metadata_id: int, group_id: int, operations: list, bounding_geometry: str):
     """ Async call for securing a service
 
     Since this is something that can happen in the background, we should push it to the background!
@@ -126,33 +123,73 @@ def async_secure_service_task(metadata_id: int, is_secured: bool, group_id: int,
          nothing
     """
     md = Metadata.objects.get(id=metadata_id)
-    if secured_operation_id is not None:
-        secured_operation = SecuredOperation.objects.get(
-            id=secured_operation_id
-        )
-    else:
-        secured_operation = None
+
+    # First get the MrMapGroup object
     if group_id is None:
         group = None
     else:
         group = MrMapGroup.objects.get(
             id=group_id
         )
-    if operation_id is not None:
-        operation = RequestOperation.objects.get(id=operation_id)
-    else:
-        operation = None
 
-    # if whole service (wms AND wfs) shall be secured, create SecuredOperations for service object
-    if md.is_metadata_type(MetadataEnum.SERVICE):
-        md.service.secure_access(is_secured, group, operation, group_polygons, secured_operation)
+    try:
+        features = json.loads(bounding_geometry)
+        geoms = []
+        for feature in features["features"]:
+            feature_geom = feature["geometry"]
+            feature_coords = feature_geom["coordinates"]
+            for coord in feature_coords:
+                geom = GEOSGeometry(Polygon(coord), srid=DEFAULT_SRS)
+                geoms.append(geom)
+        # Create GeosGeometry from GeoJson
+        bounding_geometry = GeometryCollection(
+            geoms
+        )
+    except Exception as e:
+        bounding_geometry = None
 
-    # secure subelements afterwards
-    if md.is_metadata_type(MetadataEnum.SERVICE) or md.is_metadata_type(MetadataEnum.LAYER):
-        md.service.secure_sub_elements(is_secured, group, operation, group_polygons, secured_operation)
+    # Create list of parent metadata and all subelement metadatas
+    metadatas = md.get_subelements_metadatas()
+    metadatas = [md] + metadatas
 
-    elif md.is_metadata_type(MetadataEnum.FEATURETYPE):
-        md.featuretype.secure_feature_type(is_secured, group, operation, group_polygons, secured_operation)
+    with transaction.atomic():
+        # Iterate over all metadatas to set the restricted geometry
+        for md in metadatas:
+            # Create a list of objects, which shall be deleted if not found anymore in the new form data
+            to_be_deleted = md.secured_operations.filter(
+                allowed_group=group
+            )
+            to_be_deleted = {op.operation: op for op in to_be_deleted}
+            # Then iterate over all operations, which shall be secured and create/update the bounding geometry
+            for operation in operations:
+                try:
+                    # Since we are currently iterating through this operation, which shall be secured, we can delete
+                    # the entry from the list of entries which would be deleted in the end!
+                    del to_be_deleted[operation]
+                except KeyError:
+                    pass
+                secured_operation = md.secured_operations.filter(
+                    operation=operation,
+                    allowed_group=group,
+                )
+                if secured_operation.exists():
+                    # update
+                    secured_operation = secured_operation.first()
+                    secured_operation.bounding_geometry = bounding_geometry
+                    secured_operation.save()
+                else:
+                    # New!
+                    sec_op = SecuredOperation.objects.create(
+                        secured_metadata=md,
+                        operation=operation,
+                        allowed_group=group,
+                        bounding_geometry=bounding_geometry
+                    )
+                    md.secured_operations.add(sec_op)
+
+            # Delete the operations which are not present anymore in the form data!
+            for key, entry in to_be_deleted.items():
+                entry.delete()
 
 
 @shared_task(name="async_remove_service_task")
@@ -277,114 +314,3 @@ def async_new_service(url_dict: dict, user_id: int, register_group_id: int, regi
             })
             pending_task.save()
         raise e
-
-
-@shared_task(name="async_process_secure_operations_form")
-@transaction.atomic
-def async_process_secure_operations_form(post_params: dict, md_id: int):
-    """ Processes the secure-operations input from the access-editor form of a service.
-
-    Args:
-        post_params (dict): The dict which contains the POST parameter
-        md (Metadata): The metadata object of the edited object
-    Returns:
-         nothing - directly changes the database
-    """
-    md = Metadata.objects.get(id=md_id)
-
-    # process form input
-    sec_operations_groups = json.loads(post_params.get("secured-operation-groups", "{}"))
-    is_secured = post_params.get("is_secured", "")
-    is_secured = is_secured == "on"  # resolve True|False
-
-    log_proxy = post_params.get("log_proxy", "")
-    log_proxy = log_proxy == "on"  # resolve True|False
-
-    # only root metadata can toggle the use_proxy setting
-    if md.is_root():
-        use_proxy = post_params.get("use_proxy", "")
-        # use_proxy could be None in case of subelements, which are not able to toggle the proxy option
-        use_proxy = use_proxy == "on"  # resolve True|False
-    else:
-        use_proxy = None
-
-    # use_proxy=False and is_secured=True and metadata.is_secured=True is not allowed!
-    if use_proxy is not None:
-        if not use_proxy and is_secured and md.is_secured:
-            raise AssertionError(SECURITY_PROXY_MUST_BE_ENABLED_FOR_SECURED_ACCESS)
-
-    # use_proxy=False and log_proxy=True is not allowed!
-    # use_proxy=False and metadata.log_proxy_access is not allowed either!
-    if not use_proxy and log_proxy:
-        raise AssertionError(SECURITY_PROXY_MUST_BE_ENABLED_FOR_LOGGING)
-
-    # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
-    if md.has_external_authentication() and not use_proxy:
-        raise AssertionError(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
-
-    # set new metadata proxy value and iterate over all children
-    if use_proxy is not None and use_proxy != md.use_proxy_uri:
-        md.set_proxy(use_proxy)
-
-    # Set new log setting
-    if log_proxy != md.log_proxy_access:
-        md.set_logging(log_proxy)
-
-    # set new secured value and iterate over all children
-    if is_secured != md.is_secured:
-        md.set_secured(is_secured)
-
-    # If service is not secured (anymore), we have to remove all SecuredOperation records related to this metadata
-    if not is_secured:
-        # remove all secured settings
-        sec_ops = SecuredOperation.objects.filter(
-            secured_metadata=md
-        )
-        sec_ops.delete()
-
-        # remove all secured settings for subelements
-        async_secure_service_task(md.id, is_secured, None, None, None, None)
-
-    else:
-        # Create securing tasks for each group to speed up process
-        for item in sec_operations_groups:
-            group_items = item.get("groups", {})
-            for group_item in group_items:
-                item_sec_op_id = int(group_item.get("securedOperation", "-1"))
-                group_id = int(group_item.get("groupId", "-1"))
-                remove = group_item.get("remove", "false")
-                remove = utils.resolve_boolean_attribute_val(remove)
-                group_polygons = group_item.get("polygons", "{}")
-                group_polygons = utils.resolve_none_string(group_polygons)
-                if group_polygons is not None:
-                    group_polygons = json.loads(group_polygons)
-                else:
-                    group_polygons = []
-
-                operation = item.get("operation", None)
-
-                if remove:
-                    # remove this secured operation
-                    sec_op = SecuredOperation.objects.get(
-                        id=item_sec_op_id
-                    )
-                    sec_op.delete()
-                else:
-                    operation = RequestOperation.objects.get(
-                        operation_name=operation
-                    )
-                    if item_sec_op_id == -1:
-                        # create new setting
-                        async_secure_service_task(md.id, is_secured, group_id, operation.id, group_polygons, None)
-                    else:
-                        # edit existing one
-                        async_secure_service_task(md.id, is_secured, group_id, operation.id, group_polygons, item_sec_op_id)
-
-    # Clear cached documents
-    ## There might be the case, that a user requests a subelements capability document just before the securing is finished
-    ## In this case we would have a cached document with non-secured links and stuff - therefore we clear again in the end
-    ## just to make sure!
-    md.clear_cached_documents()
-    sub_mds = md.get_subelements_metadatas()
-    for sub_md in sub_mds:
-        sub_md.clear_cached_documents()

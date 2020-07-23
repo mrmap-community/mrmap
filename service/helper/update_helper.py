@@ -79,7 +79,7 @@ def transform_lists_to_m2m_collections(element):
 
 
 def update_capability_document(current_service: Service, new_capabilities: str):
-    """ Updates the Document object, related to the service/metadata
+    """ Updates the Document object, related to the resource/metadata
 
     Args:
         current_service (Service):

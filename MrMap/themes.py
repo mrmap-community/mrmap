@@ -61,6 +61,7 @@ FONT_AWESOME_ICONS = {
     'INFO': format_html(ICON_PATTERN, 'fas', 'fa-info', ),
     'EYE': format_html(ICON_PATTERN, 'fas', 'fa-eye', ),
     'SETTINGS': format_html(ICON_PATTERN, 'fas', 'fa-cogs', ),
+    'RESOURCE': format_html(ICON_PATTERN, 'fas', 'fa-database', ),
 }
 
 # dark theme settings

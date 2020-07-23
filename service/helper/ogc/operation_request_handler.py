@@ -335,7 +335,7 @@ class OGCOperationRequestHandler:
                 service__parent_service__metadata=md,
                 identifier__in=layer_identifiers,
                 secured_operations__allowed_group__in=self.user_groups,
-                secured_operations__operation__operation_name__iexact=self.request_param,
+                secured_operations__operation__iexact=self.request_param,
             )
             allowed_layers_identifier_list = [l.identifier for l in allowed_layers]
 
@@ -1240,7 +1240,7 @@ class OGCOperationRequestHandler:
                     "bbox": self.axis_corrected_bbox_param,
                     "width": width,
                     "height": height,
-                    "keys": op.id,
+                    "keys": "'{}'".format(op.id),
                     "table": MAPSERVER_SECURITY_MASK_TABLE,
                     "key_column": MAPSERVER_SECURITY_MASK_KEY_COLUMN,
                     "geom_column": MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN,
@@ -1397,7 +1397,7 @@ class OGCOperationRequestHandler:
             layers = Layer.objects.filter(
                 parent_service__metadata=metadata,
                 child_layers=None
-            ).order_by("id")
+            ).order_by("created")
             leaf_layers += layers.values_list("identifier", flat=True)
         else:
             # Multiple layers have been requested -> slower solution
@@ -1483,7 +1483,7 @@ class OGCOperationRequestHandler:
 
         # check if the metadata allows operation performing for certain groups
         sec_ops = metadata.secured_operations.filter(
-            operation__operation_name__iexact=self.request_param,
+            operation__iexact=self.request_param,
             allowed_group__in=self.user_groups,
         )
 

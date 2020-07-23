@@ -5,6 +5,7 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 04.05.20
 
 """
+import json
 from datetime import timedelta
 
 from django.contrib.gis.geos import GEOSGeometry, Polygon
@@ -132,35 +133,38 @@ class ServiceTaskTestCase(TestCase):
     def test_async_secure_service_task(self):
 
         pre_num_secured_oeprations = SecuredOperation.objects.all().count()
-        is_secured = True
-        polygons = [{
+        coordinates = [
+            [7.117939, 50.501822],
+            [7.117939, 50.542],
+            [7.194843, 50.542],
+            [7.194843, 50.501822],
+            [7.117939, 50.501822]
+        ]
+        polygons = {
+            "type": "FeatureCollection",
+            "features": [{
                 "type": "Feature",
                 "properties": {},
                 "geometry": {
                     "type": "Polygon",
                     "coordinates": [
-                        [
-                            [7.117939, 50.501822],
-                            [7.117939, 50.542],
-                            [7.194843, 50.542],
-                            [7.194843, 50.501822],
-                            [7.117939, 50.501822]
-                        ]
+                        coordinates
                     ]
                 }
             }]
-        geometry = Polygon(
-            polygons[0]["geometry"]["coordinates"][0]
-        )
+        }
+        geometry = Polygon(coordinates)
         geometry = GEOSGeometry(geometry, DEFAULT_SRS)
 
+        polygons = json.dumps(polygons)
+
         async_secure_service_task(
-            str(self.metadata.id),
-            is_secured,
+            self.metadata.id,
             self.group.id,
-            self.operation.id,
+            [
+                OGCOperationEnum.GET_MAP.value,
+            ],
             polygons,
-            None
         )
 
         fail_msg = "SecuredOperation was not created"
@@ -172,7 +176,7 @@ class ServiceTaskTestCase(TestCase):
             secured_operation = SecuredOperation.objects.get(
                 secured_metadata=self.metadata
             )
-            self.assertEqual(secured_operation.operation, self.operation, msg=fail_msg)
+            self.assertEqual(secured_operation.operation, OGCOperationEnum.GET_MAP.value, msg=fail_msg)
             self.assertEqual(secured_operation.bounding_geometry.area, geometry.area, msg=fail_msg)
             self.assertEqual(secured_operation.bounding_geometry.convex_hull, geometry.convex_hull, msg=fail_msg)
         except ObjectDoesNotExist:

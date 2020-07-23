@@ -21,7 +21,6 @@ from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, Category
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.1/howto/deployment/checklist/
 
@@ -171,7 +170,6 @@ ALLOWED_HOSTS = [
     HOST_NAME,
     "127.0.0.1",
 ]
-
 
 # Application definition
 
@@ -343,7 +341,6 @@ USE_L10N = True
 
 USE_TZ = True
 
-
 # CELERY SETTINGS
 BROKER_URL = 'redis://localhost:6379'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379'
@@ -356,6 +353,7 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # API
 from api.settings import REST_FRAMEWORK
+
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
 
 # Tests
@@ -372,7 +370,6 @@ NOSE_ARGS = [
     '--cover-xml-file=nosecover.xml',
 ]
 
-
 # Progress bar
 PROGRESS_STATUS_AFTER_PARSING = 90  # indicates at how much % status we are after the parsing
 
@@ -382,7 +379,7 @@ PROGRESS_STATUS_AFTER_PARSING = 90  # indicates at how much % status we are afte
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR + "/static/"
 STATICFILES_DIRS = [
-            BASE_DIR + '/MrMap/static',
+    BASE_DIR + '/MrMap/static',
 ]
 
 # define the message tags for bootstrap4
@@ -397,7 +394,6 @@ MESSAGE_TAGS = {
 MONITORING_TIME = "23:59:00"
 MONITORING_REQUEST_TIMEOUT = 30  # seconds
 
-
 # DJANGO DEBUG TOOLBAR
 # Add the IP for which the toolbar should be shown
 INTERNAL_IPS = [
@@ -408,6 +404,10 @@ INTERNAL_IPS = [
 DEALER_PATH = BASE_DIR
 
 # django logging settings
+import logging
+
+root_logger = logging.getLogger('MrMap.root')
+
 LOG_DIR = BASE_DIR + '/logs'
 LOG_SUB_DIRS = {
     'root': {'dir': '/root', 'log_file': 'root.log'},
@@ -419,7 +419,7 @@ LOG_SUB_DIRS = {
     'structure': {'dir': '/structure', 'log_file': 'structure.log'},
     'users': {'dir': '/users', 'log_file': 'users.log'},
 }
-LOG_FILE_MAX_SIZE = 1024*1024*20  # 20 MB
+LOG_FILE_MAX_SIZE = 1024 * 1024 * 20  # 20 MB
 LOG_FILE_BACKUP_COUNT = 5
 
 LOGGING = {

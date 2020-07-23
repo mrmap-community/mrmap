@@ -93,11 +93,9 @@ class EditorAccessEditViewTestCase(TestCase):
             metadata_type=MetadataEnum.SERVICE.value
         ).first()
         response = self.client.get(
-            reverse(EDITOR_ACCESS_GEOMETRY_EDITOR_NAME, args=(str(metadata.id),)),
+            reverse(EDITOR_ACCESS_GEOMETRY_EDITOR_NAME, args=(str(metadata.id), self.user.get_groups().first().id))+f'?current-view=editor:edit_access&current-view-arg={str(metadata.id)}',
         )
         self.assertEqual(response.status_code, 200, )
-        self.assertTemplateUsed(response=response, template_name="views/access_geometry_form.html")
-        # No form to test
 
 
 class EditorDatasetWizardNewViewTestCase(TestCase):

@@ -125,7 +125,7 @@ class LeafletGeometryInput(Textarea):
         context = super().get_context(name, value, attrs)
         context['widget']['leaflet_geometry_input_id'] = leaflet_geometry_input_id
         context['bbox'] = self.bbox
-        context['geojson'] = self.geojson
+        context['geojson'] = self.geojson or value
         context['THEME'] = get_theme(user_helper.get_user(request=self.request))
         context['activate_download'] = self.activate_download
         context['activate_upload'] = self.activate_upload

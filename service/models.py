@@ -32,11 +32,10 @@ from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, Metadata
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
-    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES, DEFAULT_SRS
+    LOGABLE_FEATURE_RESPONSE_FORMATS, DIMENSION_TYPE_CHOICES, DEFAULT_MD_LANGUAGE, ISO_19115_LANG_CHOICES, DEFAULT_SRS, \
+    service_logger
 from structure.models import MrMapGroup, Organization, MrMapUser
 from service.helper import xml_helper
-import logging
-logger = logging.getLogger('MrMap.service')
 
 
 class Resource(models.Model):
@@ -112,7 +111,7 @@ class ProxyLog(models.Model):
         self.operation = request_param
         self.operation = request_param
         self.save()
-        logger.debug(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
+        service_logger.debug(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
 
     def _log_wfs_response_xml(self, xml: str):
         """ Evaluate the wfs response.
@@ -368,7 +367,8 @@ class RequestOperation(models.Model):
 
 
 class SecuredOperation(models.Model):
-    operation = models.ForeignKey(RequestOperation, on_delete=models.CASCADE, null=True, blank=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), null=True, blank=True)
     allowed_group = models.ForeignKey(MrMapGroup, related_name="allowed_operations", on_delete=models.CASCADE, null=True, blank=True)
     bounding_geometry = models.GeometryCollectionField(blank=True, null=True)
     secured_metadata = models.ForeignKey('Metadata', related_name="secured_operations", on_delete=models.CASCADE, null=True, blank=True)
@@ -805,6 +805,22 @@ class Metadata(Resource):
             ret_list += list(subelement_metadatas)
 
         return ret_list
+
+    def get_root_metadata(self):
+        """ Returns the root metadata of the current metadata if there is one.
+
+        Returns the same metadata otherwise
+
+
+        Returns:
+             ret_list (list)
+        """
+        if self.service.parent_service is not None:
+            root_md = self.service.parent_service.metadata
+        else:
+            root_md = self
+
+        return root_md
 
     def get_service_metadata_xml(self):
         """ Getter for the service metadata.
@@ -2517,6 +2533,8 @@ class Service(Resource):
             if self.metadata.is_metadata_type(MetadataEnum.SERVICE):
                 qs = Layer.objects.filter(
                     parent_service=self
+                ).prefetch_related(
+                    "metadata"
                 )
                 ret_list = list(qs)
             else:
@@ -2527,6 +2545,8 @@ class Service(Resource):
         elif self.is_service_type(OGCServiceEnum.WFS):
             ret_list += FeatureType.objects.filter(
                 parent_service=self
+            ).prefetch_related(
+                "metadata"
             )
 
         return ret_list

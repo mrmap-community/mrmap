@@ -10,7 +10,7 @@ from django.contrib.gis.geos import Polygon, GEOSGeometry
 from lxml.etree import _Element
 
 from service.settings import DEFAULT_SRS, SERVICE_OPERATION_URI_TEMPLATE, SERVICE_METADATA_URI_TEMPLATE, \
-    HTML_METADATA_URI_TEMPLATE
+    HTML_METADATA_URI_TEMPLATE, service_logger
 from MrMap.settings import XML_NAMESPACES, EXEC_TIME_PRINT, \
     MULTITHREADING_THRESHOLD, PROGRESS_STATUS_AFTER_PARSING, GENERIC_NAMESPACE_TEMPLATE
 from MrMap.messages import SERVICE_GENERIC_ERROR
@@ -26,8 +26,6 @@ from service.models import FeatureType, Keyword, ReferenceSystem, Service, Metad
     FeatureTypeElement, MetadataRelation, RequestOperation, ExternalAuthentication, ServiceUrl
 from service.settings import ALLOWED_SRS
 from structure.models import Organization, MrMapUser, MrMapGroup, Contact
-import logging
-logger = logging.getLogger('MrMap.service')
 
 
 class OGCWebFeatureServiceFactory:
@@ -135,7 +133,7 @@ class OGCWebFeatureService(OGCWebService):
         # check possible operations on this service
         start_time = time.time()
         self.get_service_operations(xml_obj)
-        logger.debug(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
+        service_logger.debug(EXEC_TIME_PRINT % ("service operation checking", time.time() - start_time))
 
         # check if 'real' linked service metadata exist
         service_metadata_uri = xml_helper.try_get_text_from_xml_element(
@@ -151,7 +149,7 @@ class OGCWebFeatureService(OGCWebService):
         if not metadata_only:
             start_time = time.time()
             self.get_feature_type_metadata(xml_obj=xml_obj, async_task=async_task, external_auth=external_auth)
-            logger.debug(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
+            service_logger.debug(EXEC_TIME_PRINT % ("featuretype metadata", time.time() - start_time))
 
         # always execute version specific tasks AFTER multithreading
         # Otherwise we might face race conditions which lead to loss of data!

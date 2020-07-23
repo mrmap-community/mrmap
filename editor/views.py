@@ -1,6 +1,3 @@
-import json
-
-from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
@@ -8,21 +5,21 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect
-from django.shortcuts import render, redirect, get_object_or_404
-from MrMap import utils
+from django.shortcuts import render, get_object_or_404, redirect
+
 from MrMap.decorator import check_permission, check_ownership
-from MrMap.messages import EDITOR_ACCESS_RESTRICTED, SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
-from MrMap.responses import DefaultContext, BackendAjaxResponse
-from editor.forms import MetadataEditorForm, RemoveDatasetForm, RestoreMetadataForm, RestoreDatasetMetadata
-from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
+from MrMap.messages import SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
+from MrMap.responses import DefaultContext
+from editor.filters import EditorAccessFilter
+from editor.forms import MetadataEditorForm, RemoveDatasetForm, RestoreMetadataForm, RestoreDatasetMetadata, \
+    RestrictAccessForm, RestrictAccessSpatially
+from editor.tables import EditorAcessTable
 from editor.wizards import DATASET_WIZARD_FORMS, DatasetWizard
 from service.models import MetadataRelation
-from service.helper.enums import OGCServiceEnum, MetadataEnum, ResourceOriginEnum
-from service.models import RequestOperation, SecuredOperation, Metadata
-from service.tasks import async_process_secure_operations_form
+from service.helper.enums import MetadataEnum, ResourceOriginEnum
+from service.models import Metadata
 from structure.models import Permission, MrMapGroup
 from users.helper import user_helper
-from editor.helper import editor_helper
 
 
 @login_required
@@ -122,8 +119,8 @@ def edit(request: HttpRequest, metadata_id):
 
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))
-@check_ownership(Metadata, 'id')
-def edit_access(request: HttpRequest, id):
+@check_ownership(Metadata, 'object_id')
+def edit_access(request: HttpRequest, object_id, update_params: dict = None, status_code: int = 200,):
     """ The edit view for the operations access
 
     Provides a form to set the access permissions for a metadata-related object.
@@ -135,105 +132,85 @@ def edit_access(request: HttpRequest, id):
     Returns:
          A rendered view
     """
-    user = user_helper.get_user(request)
-
-    md = Metadata.objects.get(id=id)
     template = "views/editor_edit_access_index.html"
-    post_params = request.POST
+    user = user_helper.get_user(request)
+    md = get_object_or_404(Metadata, id=object_id)
+    is_root = md.is_root()
 
-    if request.method == "POST":
-        # process form input using async tasks
-        try:
-            async_process_secure_operations_form.delay(post_params, md.id)
-        except Exception as e:
-            messages.error(request, message=e)
-            return redirect("editor:edit_access", md.id)
-        messages.success(request, EDITOR_ACCESS_RESTRICTED.format(md.title))
-        md.save()
-        if md.is_metadata_type(MetadataEnum.FEATURETYPE):
-            redirect_id = md.featuretype.parent_service.metadata.id
-        else:
-            if md.service.is_root:
-                redirect_id = md.id
-            else:
-                redirect_id = md.service.parent_service.metadata.id
-        return redirect("resource:detail", redirect_id)
+    form = RestrictAccessForm(
+        data=request.POST or None,
+        request=request,
+        action_url=reverse('editor:edit_access', args=[object_id, ], ),
+        metadata=md
+    )
 
-    else:
-        # render form
-        secured_operations = []
-        if md.is_service_type(OGCServiceEnum.WMS):
-            secured_operations = WMS_SECURED_OPERATIONS
-        elif md.is_service_type(OGCServiceEnum.WFS):
-            secured_operations = WFS_SECURED_OPERATIONS
+    all_groups = MrMapGroup.objects.all().order_by(
+        Case(
+            When(
+                name='Public',
+                then=0
+            )
+        ),
+        'name'
+    )
 
-        operations = RequestOperation.objects.filter(
-            operation_name__in=secured_operations
-        )
-        sec_ops = SecuredOperation.objects.filter(
-            secured_metadata=md
-        )
-        all_groups = MrMapGroup.objects.all().order_by(Case(When(name='Public', then=0)), 'name')
-        tmp = editor_helper.prepare_secured_operations_groups(operations, sec_ops, all_groups, md)
+    table = EditorAcessTable(
+        request=request,
+        queryset=all_groups,
+        filter_set_class=EditorAccessFilter,
+        current_view='editor:edit_access',
+        related_metadata=md,
+    )
 
-        spatial_restrictable_operations = [
-            "GetMap",  # WMS
-            "GetFeature"  # WFS
-        ]
+    params = {
+        "restrict_access_form": form,
+        "restrict_access_table": table,
+        "service_metadata": md,
+        "is_root": is_root,
+    }
 
-        params = {
-            "service_metadata": md,
-            "has_ext_auth": md.has_external_authentication(),
-            "operations": tmp,
-            "spatial_restrictable_operations": spatial_restrictable_operations,
-        }
+    if request.method == 'POST':
+        # Check if update form is valid or action is performed on a root metadata
+        if not is_root:
+            messages.info(request, SECURITY_PROXY_WARNING_ONLY_FOR_ROOT)
+        elif form.is_valid():
+            form.process_securing_access(md)
 
-    context = DefaultContext(request, params, user).get_context()
-    return render(request, template, context)
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=status_code)
 
 
 @login_required
-def access_geometry_form(request: HttpRequest, id):
+def access_geometry_form(request: HttpRequest, metadata_id, group_id):
     """ Renders the geometry form for the access editing
 
     Args:
         request (HttpRequest): The incoming request
-        id (int): The id of the metadata object, which will be edited
+        metadata_id (int): The id of the metadata object, which will be edited
+        group_id:
     Returns:
-         BackendAjaxResponse
+
     """
-
-    user = user_helper.get_user(request)
-    template = "views/access_geometry_form.html"
-
-    GET_params = request.GET
-    operation = GET_params.get("operation", None)
-    group_id = GET_params.get("groupId", None)
-    polygons = utils.resolve_none_string(GET_params.get("polygons", 'None'))
-
-    if polygons is not None:
-        polygons = json.loads(polygons)
-        if not isinstance(polygons, list):
-            polygons = [polygons]
-
-    md = Metadata.objects.get(id=id)
-
-    if not md.is_root():
-        messages.info(request, message=SECURITY_PROXY_WARNING_ONLY_FOR_ROOT)
-        return BackendAjaxResponse(html="", redirect=reverse('editor:edit_access', args=(md.id,))).get_response()
-
-    service_bounding_geometry = md.find_max_bounding_box()
-
-    params = {
-        "action_url": reverse('editor:access_geometry_form', args=(md.id,)),
-        "bbox": service_bounding_geometry,
-        "group_id": group_id,
-        "operation": operation,
-        "polygons": polygons,
-    }
-    context = DefaultContext(request, params, user).get_context()
-    html = render_to_string(template_name=template, request=request, context=context)
-    return BackendAjaxResponse(html=html).get_response()
+    get_object_or_404(Metadata, id=metadata_id)
+    group = get_object_or_404(MrMapGroup, id=group_id)
+    form = RestrictAccessSpatially(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='editor:access_geometry_form',
+        reverse_args=[metadata_id, group_id],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        form_title=_(f"Edit spatial area for group <strong>{group.name}</strong>"),
+        metadata_id=metadata_id,
+        group_id=group_id,
+    )
+    return form.process_request(valid_func=form.process_restict_access_spatially)
 
 
 @login_required

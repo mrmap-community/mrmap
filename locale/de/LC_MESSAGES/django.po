@@ -3,13 +3,13 @@
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
-#: editor/forms.py:48
+#: editor/forms.py:64
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-07-01 09:12+0200\n"
+"POT-Creation-Date: 2020-07-22 11:00+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -19,13 +19,17 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MapSkinner/forms.py:72 MrMap/forms.py:97
-msgid "Check this field"
-msgstr "Feld prüfen"
+#: MrMap/forms.py:21 MrMap/forms.py:99 MrMap/forms.py:132
+msgid "Form"
+msgstr ""
 
-#: MrMap/forms.py:46
+#: MrMap/forms.py:163
 msgid "form update"
 msgstr "Formular aktualisieren"
+
+#: MrMap/forms.py:215
+msgid "Check this field"
+msgstr "Feld prüfen"
 
 #: MrMap/messages.py:15
 msgid "Publish request created"
@@ -190,28 +194,32 @@ msgstr ""
 msgid "The requested resource could not be found."
 msgstr "Die angeforderte Ressource konnte nicht gefunden werden."
 
-#: MrMap/messages.py:68
+#: MrMap/messages.py:67
+msgid "The requested resource does not exist or you are not the owner."
+msgstr "Die angeforderte Ressource existiert nicht oder gehört Ihnen nicht."
+
+#: MrMap/messages.py:69
 msgid "The request was not activated in time. Request was deleted."
 msgstr ""
 "Die Anfrage wurde nicht rechtzeitig bearbeitet. Anfrage wurde gelöscht."
 
-#: MrMap/messages.py:70
+#: MrMap/messages.py:71
 msgid "Publish request has been sent to the organization!"
 msgstr "Veröffentlichungsanfrage wurde an die Organisation geschickt!"
 
-#: MrMap/messages.py:71
+#: MrMap/messages.py:72
 msgid "Publisher request accepted for group '{}'"
 msgstr "Veröffentlichungsanfrage für Gruppe '{}' wurde akzeptiert"
 
-#: MrMap/messages.py:72
+#: MrMap/messages.py:73
 msgid "Publisher request denied for group '{}'"
 msgstr "Veröffentlichungsanfrage für Gruppe '{}' wurde abgelehnt"
 
-#: MrMap/messages.py:73
+#: MrMap/messages.py:74
 msgid "Your group already is a publisher for this organization!"
 msgstr "Ihre Gruppe kann bereits für diese Organisation veröffentlichen!"
 
-#: MrMap/messages.py:74
+#: MrMap/messages.py:75
 msgid ""
 "You cannot be a publisher to your group's own organization! You publish by "
 "default like this."
@@ -219,16 +227,16 @@ msgstr ""
 "Sie können keine Veröffentlichungsrechte für die Gruppe Ihrer Organisation "
 "beantragen. Sie veröffentlichen standardmäßig für diese Organisation."
 
-#: MrMap/messages.py:75
+#: MrMap/messages.py:76
 msgid "Your group already has sent a request. Please be patient!"
 msgstr ""
 "Ihre Gruppe hat bereits eine Anfrage gesendet. Bitte gedulden Sie sich!"
 
-#: MrMap/messages.py:77
+#: MrMap/messages.py:78
 msgid "Publishing permission of {} for {} removed."
 msgstr "Veröffentlichungsrechte von {} für {} entfernt."
 
-#: MrMap/messages.py:78
+#: MrMap/messages.py:79
 msgid ""
 "Publish permission removing denied. You are not a member of the organization "
 "nor a member of the publishing group!"
@@ -236,17 +244,13 @@ msgstr ""
 "Veröffentlichungsrechte Entferung abgelehnt. Sie sind weder Mitglied der "
 "Organisation, noch ein Mitglied der veröffentlichenden Gruppe"
 
-#: MrMap/messages.py:80
+#: MrMap/messages.py:81
 msgid "A group can not be parent to itself!"
 msgstr "Eine Gruppe kann sich nicht selbst untergeordnet sein!"
 
-#: MrMap/messages.py:81
+#: MrMap/messages.py:82
 msgid "This group is owned by another user. Action denied."
 msgstr "Diese Gruppe gehört einem anderen Nutzer. Aktion abgebrochen."
-
-#: MrMap/messages.py:82
-msgid "The form data was not valid."
-msgstr "Eine Eingabe ist ungültig"
 
 #: MrMap/messages.py:84
 msgid "Group '{}' successfully deleted."
@@ -260,30 +264,30 @@ msgstr "Gruppe '{}' erfolgreich bearbeitet."
 msgid "Group {} successfully created."
 msgstr "Gruppe '{}' erfolgreich erstellt."
 
-#: MrMap/messages.py:88
+#: MrMap/messages.py:87
 msgid "An organization can not be parent to itself!"
 msgstr "Eine Gruppe kann sich nicht selbst untergeordnet sein!"
 
-#: MrMap/messages.py:89
+#: MrMap/messages.py:88
 msgid "This organization is owned by another user. Action denied."
 msgstr "Diese Organisation gehört einem anderen Nutzer. Aktion abgebrochen."
 
-#: MrMap/messages.py:90
+#: MrMap/messages.py:89
 msgid "Organization '{}' successfully edited."
 msgstr "Organisation '{}' erfolgreich bearbeitet."
 
-#: MrMap/messages.py:92
+#: MrMap/messages.py:91
 msgid "The service registration for '{}' was canceled"
 msgstr "Die Diensteregistrierung für '{}' wurde abgebrochen."
 
-#: MrMap/messages.py:93
+#: MrMap/messages.py:92
 msgid ""
 "You tried to update a service to another service type. This is not possible!"
 msgstr ""
 "Sie versuchen einen Dienst auf einen anderen Diensttypen zu aktualisieren. "
 "Das ist nicht möglich!"
 
-#: MrMap/messages.py:94
+#: MrMap/messages.py:93
 msgid ""
 "The provided capabilities document is not different from the currently "
 "registered. Update canceled!"
@@ -291,7 +295,7 @@ msgstr ""
 "Das Capabilities Dokument unterscheidet sich nicht vom aktuell "
 "registrierten. Update abgebrochen!"
 
-#: MrMap/messages.py:95
+#: MrMap/messages.py:94
 msgid ""
 "The service could not be registered. Please check your metadata and contact "
 "an administrator."
@@ -299,19 +303,19 @@ msgstr ""
 "Der Dienst konnte nicht registriert werden. Bitte prüfen Sie die Metadaten "
 "und kontaktieren Sie einen Administrator."
 
-#: MrMap/messages.py:96
+#: MrMap/messages.py:95
 msgid "The requested layer could not be found."
 msgstr "Der angefragte Layer konnte nicht gefunden werden."
 
-#: MrMap/messages.py:97
+#: MrMap/messages.py:96
 msgid "The requested service could not be found."
 msgstr "Der angeforderte Dienst konnte nicht gefunden werden."
 
-#: MrMap/messages.py:98
+#: MrMap/messages.py:97
 msgid "423 - The requested resource is currently disabled."
 msgstr "423 - Die angeforderte Ressource ist aktuell deaktiviert."
 
-#: MrMap/messages.py:99
+#: MrMap/messages.py:98
 msgid ""
 "The requested capabilities are currently unavailable. Add 'fallback=true' to "
 "your query if you want a cached document."
@@ -320,11 +324,11 @@ msgstr ""
 "'fallback=true' zu Ihrem Request hinzu um ein alternatives Dokument zu "
 "erhalten."
 
-#: MrMap/messages.py:100
+#: MrMap/messages.py:99
 msgid "No root layer could be found for this service!"
 msgstr "Keine Root Ebene für diesen Dienst gefunden!"
 
-#: MrMap/messages.py:102
+#: MrMap/messages.py:101
 msgid ""
 "There are multiple secured operations for one metadata. Please contact an "
 "administator."
@@ -332,43 +336,43 @@ msgstr ""
 "Es existieren verschiedene abgesicherte Einstellungen für diesen Dienst. "
 "Kontaktieren Sie einen Administrator."
 
-#: MrMap/messages.py:103
+#: MrMap/messages.py:102
 msgid "You have no permission to access this resource."
 msgstr "Sie haben keine Berechtigung um auf diese Ressource zuzugreifen!"
 
-#: MrMap/messages.py:104
+#: MrMap/messages.py:103
 msgid "The resource is authenticated externally. Proxy can not be deactivated."
 msgstr ""
 "Die Ressource erfordert eine externe Authentifizierung. Der Proxy kann nicht "
 "deaktiviert werden."
 
-#: MrMap/messages.py:105
+#: MrMap/messages.py:104
 msgid "Proxy must be activated to be logged!"
 msgstr "Proxy muss aktiviert sein um protokollieren zu können!"
 
-#: MrMap/messages.py:106
+#: MrMap/messages.py:105
 msgid "Proxy must be enabled if service shall stay secured!"
 msgstr "Proxy muss aktiviert sein wenn der Dienst abgesichert bleiben soll!"
 
-#: MrMap/messages.py:107
+#: MrMap/messages.py:106
 msgid "The requested operation is not supported by this resource."
 msgstr "Diese Operation wird von der Ressource nicht unterstützt."
 
-#: MrMap/messages.py:108
+#: MrMap/messages.py:107
 msgid "The requested uri seems to be broken. Please inform an administrator."
 msgstr ""
 "Die angefragte URI scheint nicht defekt zu sein. Bitte informieren Sie einen "
 "Administrator."
 
-#: MrMap/messages.py:109
+#: MrMap/messages.py:108
 msgid "This setting is only available for the top level element."
 msgstr "Diese Einstellung ist nur für Elemente der obersten Ebene verfügbar."
 
-#: MrMap/messages.py:110
+#: MrMap/messages.py:109
 msgid "No 'request' parameter provided."
 msgstr "Kein 'request' Parameter."
 
-#: MrMap/messages.py:111
+#: MrMap/messages.py:110
 msgid ""
 "Login credentials for external authentication could not be decrypted. The "
 "key is missing. Please inform an administrator."
@@ -376,7 +380,7 @@ msgstr ""
 "Logindaten für externe Authentifizierung konnten nicht entschlüsselt werden. "
 "Der Schlüssel fehlt. Bitte informieren Sie einen Administrator"
 
-#: MrMap/messages.py:112
+#: MrMap/messages.py:111
 msgid ""
 "Login credentials for external authentication could not be decrypted. The "
 "key is wrong. Please inform an administrator."
@@ -384,7 +388,7 @@ msgstr ""
 "Logindaten für externe Authentifizierung konnten nicht entschlüsselt werden. "
 "Der Schlüssel ist falsch. Bitte informieren Sie einen Administrator"
 
-#: MrMap/messages.py:114
+#: MrMap/messages.py:113
 msgid ""
 "No logable outputformat given. Logable formats are {}. \n"
 "Alternatively remove the OUTPUTFORMAT parameter from your request."
@@ -392,7 +396,7 @@ msgstr ""
 "Kein protokollierbares Ausgabeformat angegeben. Mögliche Formate sind {}. \n"
 "Alternativ entfernen Sie den OUTPUTFORMAT Parameter aus Ihrem Request."
 
-#: MrMap/messages.py:116
+#: MrMap/messages.py:115
 msgid ""
 "Multiple feature queries in a single request detected. Please use one query "
 "per request."
@@ -400,7 +404,7 @@ msgstr ""
 "Mehrere Features in einer einzigen Abfrage entdeckt. Bitte fragen Sie genau "
 "ein Feature pro Request an."
 
-#: MrMap/messages.py:118
+#: MrMap/messages.py:117
 msgid ""
 "There are several service metadata documents for this service. Please "
 "contact an administrator."
@@ -408,27 +412,43 @@ msgstr ""
 "Es existieren mehrere Service Metadaten Dokumente für diesen Dienst. Keine "
 "Eindeutigkeit feststellbar. Kontaktieren Sie einen Administrator."
 
-#: MrMap/messages.py:120
+#: MrMap/messages.py:119
 msgid "'{}' was invalid."
 msgstr "'{}' ist ungültig."
 
-#: MrMap/messages.py:121
+#: MrMap/messages.py:120
 msgid "Access for '{}' changed successfully."
 msgstr "Zugang für '{}' erfolgreich bearbeitet!"
 
-#: MrMap/messages.py:123
+#: MrMap/messages.py:122
 msgid "2D-Points must hold two values for x and y."
 msgstr "2D-Punkte müssen zwei Werte, für x und y, haben."
 
-#: MrMap/messages.py:125
+#: MrMap/messages.py:124
 msgid "Inserted email address is unknown."
 msgstr "E-Mail Adresse ist unbekannt."
 
-#: MrMap/settings.py:257 service/settings.py:26
+#: MrMap/messages.py:126
+msgid "Subscription edited successfully."
+msgstr "Abonnement erfolgreich bearbeitet!"
+
+#: MrMap/messages.py:127
+msgid "Subscription could not be edited."
+msgstr ""
+
+#: MrMap/messages.py:128
+msgid "Subscription for '{}' was removed."
+msgstr "Abonnement für '{}' gelöscht."
+
+#: MrMap/messages.py:129
+msgid "'{}' already subscribed."
+msgstr "'{}' ist bereits abonniert."
+
+#: MrMap/settings.py:328 service/settings.py:26
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:258 service/settings.py:25
+#: MrMap/settings.py:329 service/settings.py:25
 msgid "German"
 msgstr "Deutsch"
 
@@ -448,36 +468,36 @@ msgstr "Passwort muss mindestens eine Ziffer haben."
 msgid "Special or non printable characters are not allowed"
 msgstr "Spezielle Symbole sind nicht erlaubt"
 
-#: MrMap/validators.py:66
+#: MrMap/validators.py:67
 msgid "The given requested method is not GetCapabilities."
 msgstr "Die angegebene Anfrage ist nicht GetCapabilities."
 
-#: MrMap/validators.py:70
+#: MrMap/validators.py:71
 msgid "The given uri is not valid cause there is no request parameter."
 msgstr "Die URI ist ungültig, da kein 'request' Parameter enthalten ist."
 
-#: MrMap/validators.py:91
+#: MrMap/validators.py:93
 msgid "The given service typ is not supported from Mr. Map."
 msgstr "Dieser Servicetyp wird von Mr. Map nicht unterstützt."
 
-#: MrMap/validators.py:101
+#: MrMap/validators.py:103
 msgid "The given {} version {} is not supported from Mr. Map."
 msgstr "Die {} Version {} wird von Mr. Map nicht unterstützt."
 
-#: MrMap/validators.py:106
+#: MrMap/validators.py:108
 msgid "The given uri is not valid cause there is no version parameter."
 msgstr "Die URI ist ungültig, da kein 'version' Parameter enthalten ist."
 
-#: MrMap/validators.py:115
+#: MrMap/validators.py:118
 msgid "The given uri is not valid cause there is no service parameter."
 msgstr "Die URI ist ungültig, da kein 'service' Parameter enthalten ist."
 
-#: MrMap/wizards.py:24
+#: MrMap/wizards.py:29
 msgid "Wizard"
 msgstr ""
 
-#: api/templates/includes/api_links.html:5 templates/includes/navbar.html:57
-#: templates/includes/navbar.html:58
+#: api/templates/includes/api_links.html:5 templates/includes/navbar.html:46
+#: templates/includes/navbar.html:47
 msgid "API"
 msgstr "API"
 
@@ -509,29 +529,33 @@ msgstr "Einen neuen Zugangstoken generieren und speichern"
 msgid "Generate"
 msgstr "Generieren"
 
-#: editor/forms.py:44
+#: editor/filters.py:8 service/filters.py:36 structure/filters.py:10
+#: structure/filters.py:26
+msgid "Search"
+msgstr "Suche"
+
+#: editor/forms.py:59
 msgid "Edit the title."
 msgstr "Titel bearbeiten."
 
-#: editor/forms.py:45
+#: editor/forms.py:60
 msgid "Edit the description. Keep it short and simple."
 msgstr "Beschreibung bearbeiten. Halten Sie sie konkret und knapp."
 
-#: editor/forms.py:46
+#: editor/forms.py:61
+msgid "Edit the language which the metadata is represented."
+msgstr ""
+
+#: editor/forms.py:62
 msgid "Edit the access constraints."
 msgstr "Zugangsbeschränkungen bearbeiten."
 
-#: editor/forms.py:47
-msgid "Select another licence."
-msgstr "Lizenz auswählen"
-
-#: editor/forms.py:49
+#: editor/forms.py:65
 msgid "Select categories for this resource."
 msgstr "Kategorien auswählen"
 
-#: editor/forms.py:92 editor/tables.py:44 editor/tables.py:103
-#: editor/tables.py:162 service/tables.py:34 service/tables.py:140
-#: service/tables.py:367
+#: editor/forms.py:139 service/tables.py:85 service/tables.py:257
+#: service/tables.py:516 service/tables.py:543
 #: service/templates/includes/wfs/featuretype_detail_table.html:17
 #: service/templates/includes/wms/child_layer_detail_table.html:21
 #: service/templates/metadata/tabs/content/dataset/overview_tab.html:9
@@ -542,7 +566,7 @@ msgstr "Kategorien auswählen"
 msgid "Title"
 msgstr "Titel"
 
-#: editor/forms.py:93
+#: editor/forms.py:140
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:27
 #: service/templates/includes/wfs/featuretype_detail_table.html:21
 #: service/templates/includes/wms/child_layer_detail_table.html:25
@@ -554,62 +578,63 @@ msgstr "Titel"
 msgid "Abstract"
 msgstr "Beschreibung"
 
-#: editor/forms.py:94
+#: editor/forms.py:141
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:7
 msgid "Language"
 msgstr "Sprache"
 
-#: editor/forms.py:95
+#: editor/forms.py:142
 msgid "Character Encoding"
 msgstr "Zeichenkodierung"
 
-#: editor/forms.py:96
+#: editor/forms.py:143
 msgid "Metadata creation date"
 msgstr "Erstelldatum der Metadaten"
 
-#: editor/forms.py:120
+#: editor/forms.py:167
 msgid "Create with group"
 msgstr "Erstelle mit Gruppe"
 
-#: editor/forms.py:160
+#: editor/forms.py:207
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:37
 #: service/templates/includes/wfs/featuretype_detail_table.html:25
 #: service/templates/includes/wms/child_layer_detail_table.html:29
 msgid "Keywords"
 msgstr "Schlüsselwörter"
 
-#: editor/forms.py:173
+#: editor/forms.py:220
 msgid "Categories"
 msgstr "Kategorien"
 
-#: editor/forms.py:199
+#: editor/forms.py:247
 msgid "Terms of use"
 msgstr "Nutzungsbedingungen"
 
-#: editor/forms.py:203
+#: editor/forms.py:253
+#: service/templates/metadata/tabs/content/dataset/terms_of_use_tab.html:7
 msgid "Access constraints"
 msgstr "Zugangsbeschränkungen"
 
-#: editor/forms.py:218
+#: editor/forms.py:268
 #: service/templates/includes/wfs/featuretype_detail_table.html:55
 #: service/templates/includes/wms/child_layer_detail_table.html:97
 msgid "Bounding box"
 msgstr "Räumliche Ausdehnung"
 
-#: editor/forms.py:221
+#: editor/forms.py:271 editor/forms.py:520
 msgid "Unfold the leaflet client by clicking on the polygon icon."
 msgstr ""
 "Öffnen Sie die interaktive Karte, indem Sie auf das Polygon Symbol klicken."
 
-#: editor/forms.py:248
+#: editor/forms.py:298
 msgid "Maintenance and update frequency"
 msgstr "Wartungs- und Aktualisierungshäufigkeit"
 
-#: editor/forms.py:252
+#: editor/forms.py:302
 msgid "Lineage Statement"
 msgstr "Infos zur Historie"
 
-#: editor/forms.py:269
+#: editor/forms.py:319 editor/tables.py:23
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:65
 #: service/templates/metadata/tabs/content/contact_tab.html:16
 #: service/templates/metadata/tabs/content/contact_tab.html:49
@@ -618,12 +643,12 @@ msgstr "Infos zur Historie"
 #: service/templates/metadata/tabs/content/wfs/root/overview_tab.html:23
 #: service/templates/metadata/tabs/content/wms/layer/overview_tab.html:54
 #: service/templates/metadata/tabs/content/wms/root/overview_tab.html:46
-#: structure/forms.py:93 structure/tables.py:62 structure/tables.py:139
+#: structure/forms.py:98 structure/tables.py:60 structure/tables.py:137
 #: structure/templates/includes/detail/groups_table.html:5
 msgid "Organization"
 msgstr "Organisation"
 
-#: editor/forms.py:272
+#: editor/forms.py:322
 msgid ""
 "Select an other Organization to overwrite the original. You can select your "
 "organization and the ones you are allowed to publish for."
@@ -632,220 +657,147 @@ msgstr ""
 "Sie können Ihre Organisation wählen sowie die, für welche Sie "
 "veröffentlichen dürfen."
 
-#: editor/tables.py:42
-msgid ""
-"Shows all WMS which are configured in your Mr. Map environment. You can Edit "
-"them if you want."
-msgstr ""
-"Listet alle WMS, die für Sie registriert sind. Sie können diese bearbeiten, "
-"wenn Sie wollen."
+#: editor/forms.py:355
+msgid "Dataset successfully deleted."
+msgstr "Datensatz erfolgreich gelöscht."
 
-#: editor/tables.py:45 editor/tables.py:104 service/tables.py:35
-#: service/tables.py:142
-msgid "Active"
-msgstr "Aktiv"
-
-#: editor/tables.py:46 editor/tables.py:105 service/tables.py:39
-#: service/tables.py:146
-msgid "Data provider"
-msgstr "Datenanbieter"
-
-#: editor/tables.py:47 editor/tables.py:106 service/tables.py:40
-#: service/tables.py:147
-msgid "Registered by group"
-msgstr "Registriert durch Gruppe"
-
-#: editor/tables.py:48 editor/tables.py:107
-msgid "Original metadata"
-msgstr "Originale Metadaten"
-
-#: editor/tables.py:49 editor/tables.py:108 service/tables.py:36
-#: service/tables.py:143
-msgid "Secured access"
-msgstr "Abgesicherter Zugriff"
-
-#: editor/tables.py:50 editor/tables.py:109
-msgid "Last modified"
-msgstr "Zuletzt geändert"
-
-#: editor/tables.py:51 editor/tables.py:110
-#: service/templates/includes/detail/service_detail.html:59
-#: service/templates/includes/wfs/featuretype_detail.html:40
-#: service/templates/includes/wfs/featuretype_detail.html:53
-#: service/templates/includes/wms/sublayer_detail.html:39
-#: service/templates/includes/wms/sublayer_detail.html:52
-#: structure/templates/modals/edit_group.html:5
-#: structure/templates/modals/edit_organization.html:5
-#: users/templates/modals/edit_account.html:5
-msgid "Edit"
-msgstr "Bearbeiten"
-
-#: editor/tables.py:52 editor/tables.py:111
-#: service/templates/includes/detail/service_detail.html:63
-#: service/templates/includes/wfs/featuretype_detail.html:26
-#: service/templates/includes/wms/sublayer_detail.html:25
-msgid "Access"
-msgstr "Zugriff"
-
-#: editor/tables.py:53 editor/tables.py:112
-msgid "Reset"
-msgstr "Zurücksetzen"
-
-#: editor/tables.py:101
-msgid ""
-"Shows all WFS which are configured in your Mr. Map environment. You can Edit "
-"them if you want."
-msgstr ""
-"Listet alle WFS, die für Sie registriert sind. Sie können diese bearbeiten, "
-"wenn Sie wollen."
-
-#: editor/tables.py:160
-msgid ""
-"Shows all datasets which are configured in your Mr. Map environment. You can "
-"Edit them if you want."
-msgstr ""
-"Listet alle Datensätze, die für Sie registriert sind. Sie können diese "
-"bearbeiten, wenn Sie wollen."
-
-#: editor/tables.py:163
-msgid "Related objects"
-msgstr "Gehört zu"
-
-#: editor/tables.py:164
-msgid "Origins"
-msgstr "Herkunft"
-
-#: editor/tables.py:165
-msgid "Actions"
-msgstr "Aktionen"
-
-#: editor/tables.py:200
-msgid "Edit {} [{}] dataset"
-msgstr "Bearbeite {} [{}] Datensatz"
-
-#: editor/tables.py:211
-msgid "Restore <strong>{} [{}]</strong> dataset"
-msgstr "Setze <strong>{} [{}]</strong> Datensatz zurück"
-
-#: editor/tables.py:220 editor/views.py:439
-msgid "Do you really want to restore this dataset?"
-msgstr "Wollen Sie diesen Datensatz wirklich zurücksetzen?"
-
-#: editor/tables.py:224
-msgid "Restore"
-msgstr "Zurücksetzen"
-
-#: editor/tables.py:236
-msgid "Remove <strong>{} [{}]</strong> dataset"
-msgstr "Lösche <strong>{} [{}]</strong> Datensatz"
-
-#: editor/tables.py:245 editor/views.py:197
-msgid "Do you really want to delete this dataset?"
-msgstr "Wollen Sie diesen Datensatz wirklich löschen?"
-
-#: editor/tables.py:249
-#: service/templates/includes/detail/service_detail.html:96
-#: service/templates/modals/remove_service.html:12
-#: structure/templates/includes/detail/publisher_requests_accept_reject.html:23
-msgid "Remove"
-msgstr "Löschen"
-
-#: editor/templates/includes/editor_edit_access.html:5
-msgid "Access Editor"
-msgstr "Zugriffs Editor"
-
-#: editor/templates/includes/editor_edit_access.html:11
-msgid "Service:"
-msgstr "Dienst: "
-
-#: editor/templates/includes/editor_edit_access.html:13
-msgid "Featuretype:"
-msgstr "Featuretype:"
-
-#: editor/templates/includes/editor_edit_access.html:15
-msgid "Layer:"
-msgstr "Ebene: "
-
-#: editor/templates/includes/editor_edit_access.html:27
-msgid "Service Detail View"
-msgstr "Dienst Detailansicht"
-
-#: editor/templates/includes/editor_edit_access.html:42
-msgid "You can not deactivate the proxy setting on this service!"
-msgstr "Der Proxy kann für diesen Dienst nicht deaktiviert werden!"
-
-#: editor/templates/includes/editor_edit_access.html:43
-msgid "Use proxy:"
-msgstr "Proxy verwenden:"
-
-#: editor/templates/includes/editor_edit_access.html:44
+#: editor/forms.py:421
 msgid "Use proxy"
 msgstr "Proxy verwenden"
 
-#: editor/templates/includes/editor_edit_access.html:47
-msgid "Log proxy:"
-msgstr "Proxy Protokollierung:"
+#: editor/forms.py:423
+msgid "Activate to reroute all traffic for this service on MrMap"
+msgstr ""
 
-#: editor/templates/includes/editor_edit_access.html:48
-msgid "Log proxy"
+#: editor/forms.py:428
+msgid "Log proxy activity"
 msgstr "Proxy Protokollierung"
 
-#: editor/templates/includes/editor_edit_access.html:51
-msgid "You can not deactivate the security setting on this service!"
+#: editor/forms.py:430
+msgid "Activate to log every traffic activity for this service"
 msgstr ""
-"Die Sicherheitseinstellungen für diesen Dienst können nicht deaktiviert "
-"werden."
 
-#: editor/templates/includes/editor_edit_access.html:52
-msgid "Restrict access:"
-msgstr "Zugriff beschränken:"
-
-#: editor/templates/includes/editor_edit_access.html:53
+#: editor/forms.py:435
 msgid "Restrict access"
 msgstr "Zugriff beschränken"
 
-#: editor/templates/includes/editor_edit_access.html:61
-msgid "Enter text to filter"
-msgstr "Filtern nach ..."
+#: editor/forms.py:437
+msgid "Activate to restrict access on this service"
+msgstr "Aktivieren um Zugriff auf diesen Dienst einzuschränken"
 
-#: editor/templates/includes/editor_edit_access.html:64
-msgid "Allow access"
-msgstr "Zugriff erlauben"
+#: editor/forms.py:456
+msgid "Log proxy or restrict access without using proxy is'nt possible!"
+msgstr "Proxy Protokollierung oder Einschränkung des Zugriffs nicht möglich ohne Proxy Aktivierung!"
 
-#: editor/templates/includes/editor_edit_access.html:65
-msgid "Group name"
+#: editor/forms.py:500
+msgid ""
+"Activate to allow <strong>{}</strong> in the area defined in the map viewer "
+"below.\n"
+"If you want to allow {} without spatial restriction (everywhere), just "
+"remove any restriction below."
+msgstr ""
+
+#: editor/forms.py:517
+msgid "Allowed area"
+msgstr "Erlaubte Bereiche"
+
+#: editor/tables.py:17
+msgid "Group Name"
 msgstr "Gruppenname"
 
-#: editor/templates/includes/editor_edit_access.html:66
+#: editor/tables.py:19
+msgid "The group for that the access is restricted or not."
+msgstr "Die Gruppe für welchen der Zugriff eingeschränkt werden kann"
+
+#: editor/tables.py:25
+msgid "The organization for that the access is restricted or not."
+msgstr ""
+
+#: editor/tables.py:29
+msgid "Access allowed"
+msgstr "Zugriff erlaubt"
+
+#: editor/tables.py:31
+msgid "Boolean flag if the access is restricted or not."
+msgstr "Zugriff eingeschränkt oder nicht"
+
+#: editor/tables.py:35
 msgid "Access restricted spatially"
 msgstr "Zugriff räumlich eingeschränkt"
 
-#: editor/templates/includes/editor_edit_access.html:67
-msgid "Edit spatial access"
-msgstr "Räumlichen Zugriff bearbeiten"
+#: editor/tables.py:37
+msgid "Boolean flag if the access is spatially restricted or not."
+msgstr "Zugriff räumlich beschränkt oder nicht"
 
-#: editor/templates/includes/editor_edit_access.html:86 structure/tables.py:153
-msgid "This is the anonymous public user group"
-msgstr "Dies ist die öffentliche Gruppe für extern."
+#: editor/tables.py:40 service/tables.py:131 service/tables.py:296
+#: service/tables.py:554 structure/tables.py:140 structure/tables.py:209
+#: users/tables.py:39
+msgid "Actions"
+msgstr "Aktionen"
 
-#: editor/templates/includes/editor_edit_access.html:108
-msgid "Edit access"
-msgstr "Zugriff bearbeiten"
+#: editor/tables.py:43 service/tables.py:134 service/tables.py:299
+#: service/tables.py:557 structure/tables.py:141 structure/tables.py:210
+msgid "Actions you can perform"
+msgstr "Ausführbare Aktionen"
 
-#: editor/templates/includes/editor_edit_access.html:123
+#: editor/tables.py:58
+#, python-brace-format
+msgid "Click to open the detail view of <strong>{record.name}</strong>"
+msgstr "Öffnet die Detailansicht von <strong>{record.name}</strong>"
+
+#: editor/tables.py:61 structure/tables.py:155
+msgid "This is the anonymous public user group."
+msgstr "Dies ist die öffentliche Gruppe für Nicht-MrMap Nutzer."
+
+#: editor/tables.py:71
+#, python-brace-format
+msgid ""
+"Click to open the detail view of <strong>{record.organization."
+"organization_name}</strong>."
+msgstr ""
+"Öffnet die Detailansicht von <strong>{record.organization."
+"organization_name}</strong>."
+
+#: editor/tables.py:105
+#, python-brace-format
+msgid "Edit access for group <strong>{record.name}</strong>"
+msgstr "Bearbeite Zugriff für Gruppe <strong>{record.name}</strong>"
+
+#: editor/templates/includes/editor_edit_access.html:8
+msgid "Access Editor"
+msgstr "Zugriffs Editor"
+
+#: editor/templates/includes/editor_edit_access.html:14
+msgid "Service:"
+msgstr "Dienst: "
+
+#: editor/templates/includes/editor_edit_access.html:16
+msgid "Featuretype:"
+msgstr "Featuretype:"
+
+#: editor/templates/includes/editor_edit_access.html:18
+msgid "Layer:"
+msgstr "Ebene: "
+
+#: editor/templates/includes/editor_edit_access.html:30
+msgid "Service Detail View"
+msgstr "Dienst Detailansicht"
+
+#: editor/templates/includes/editor_edit_access.html:38
+msgid "General settings"
+msgstr ""
+
+#: editor/templates/includes/editor_edit_access.html:47
 #: editor/templates/includes/editor_metadata.html:59
 #: editor/templates/modals/access_geometry_form.html:19
-#: structure/templates/modals/edit_group.html:10
-#: structure/templates/modals/edit_organization.html:10
-#: structure/templates/modals/new_group.html:12
-#: structure/templates/modals/new_organization.html:11
-#: structure/templates/modals/request_publishing_for_organization.html:10
-#: templates/sceletons/modal-wizard-form.html:89
-#: users/templates/includes/account.html:27
-#: users/templates/modals/change_password.html:10
-#: users/templates/modals/edit_account.html:10
+#: templates/sceletons/modal-wizard-form.html:95
+#: templates/skeletons/modal_form.html:28
 msgid "Save"
 msgstr "Speichern"
+
+#: editor/templates/includes/editor_edit_access.html:54
+msgid "Edit group access"
+msgstr "Gruppenzugriff bearbeiten"
 
 #: editor/templates/includes/editor_metadata.html:10
 msgid "Metadata editor"
@@ -856,15 +808,11 @@ msgid "Service detail view"
 msgstr "Dienst Detailansicht"
 
 #: editor/templates/includes/editor_metadata.html:43
-#: service/templates/includes/detail/service_detail.html:88
-#: service/templates/includes/wfs/featuretype_detail.html:59
-#: service/templates/includes/wms/sublayer_detail.html:58
+#: service/templates/includes/detail/service_detail.html:77
+#: service/templates/includes/wfs/featuretype_detail.html:60
+#: service/templates/includes/wms/sublayer_detail.html:59
 msgid "Restore metadata"
 msgstr "Metadaten wiederherstellen"
-
-#: editor/templates/includes/editor_service_table.html:16
-msgid "Add New Dataset"
-msgstr "Neuer Datensatz"
 
 #: editor/templates/modals/access_geometry_form.html:9
 msgid ""
@@ -872,22 +820,8 @@ msgid ""
 msgstr "Legen Sie den Bereich fest, für den diese Gruppe Daten erhalten kann."
 
 #: editor/templates/modals/access_geometry_form.html:23
-#: service/templates/modals/remove_service.html:10
-#: structure/templates/modals/delete_group.html:9
-#: structure/templates/modals/delete_organization.html:9
 msgid "Cancel"
 msgstr "Abbrechen"
-
-#: editor/templates/modals/confirm_modal.html:15
-#: structure/templates/modals/edit_group.html:9
-#: structure/templates/modals/edit_organization.html:9
-#: structure/templates/modals/new_group.html:11
-#: structure/templates/modals/new_organization.html:10
-#: structure/templates/modals/request_publishing_for_organization.html:9
-#: users/templates/modals/change_password.html:9
-#: users/templates/modals/edit_account.html:9
-msgid "Close"
-msgstr "Schließen"
 
 #: editor/templates/views/access_geometry_form.html:13
 #: templates/widgets/leaflet_geometry_input.html:26
@@ -904,41 +838,68 @@ msgstr "Geometrie laden"
 msgid "Export as GeoJSON"
 msgstr "Exportiere als GeoJSON"
 
-#: editor/views.py:182
+#: editor/views.py:39
 msgid "You can't delete metadata record"
 msgstr "Sie können diese Metadaten nicht löschen"
 
-#: editor/views.py:192
+#: editor/views.py:49
 msgid "You can't delete autogenerated datasets"
 msgstr "Sie können automatisch generierte Datensätze nicht löschen"
 
-#: editor/views.py:202
-msgid "Dataset successfully deleted."
-msgstr "Datensatz erfolgreich gelöscht."
+#: editor/views.py:58
+msgid "Do you really want to delete this dataset?"
+msgstr "Wollen Sie diesen Datensatz wirklich löschen?"
 
-#: editor/wizards.py:23
+#: editor/views.py:115
+#, python-brace-format
+msgid "Edit metadata <strong>{metadata.title}</strong>"
+msgstr ""
+
+#: editor/views.py:209
+#, python-brace-format
+msgid "Edit spatial area for group <strong>{group.name}</strong>"
+msgstr ""
+
+#: editor/views.py:236
+msgid "Do you really want to restore this metadata?"
+msgstr "Wollen Sie diesen Datensatz wirklich zurücksetzen?"
+
+#: editor/views.py:237
+msgid "Restore metadata <strong>{metadata.title}</strong>"
+msgstr "Setze <strong>{metadata.title}</strong> zurück"
+
+#: editor/views.py:262
+msgid "Do you really want to restore this dataset?"
+msgstr "Wollen Sie diesen Datensatz wirklich zurücksetzen?"
+
+#: editor/views.py:263
+#, python-brace-format
+msgid "Restore dataset metadata <strong>{metadata.title}</strong>"
+msgstr "Stelle <strong>{metadata.title}</strong> Datensatz zurück"
+
+#: editor/wizards.py:21
 msgid "identification"
 msgstr "Identifikation"
 
-#: editor/wizards.py:24
+#: editor/wizards.py:22
 msgid "classification"
 msgstr "Klassifikation"
 
-#: editor/wizards.py:25
+#: editor/wizards.py:23
 msgid "responsible party"
 msgstr "Verantwortliche Organisation"
 
-#: editor/wizards.py:26
+#: editor/wizards.py:24
 msgid "spatial extent"
 msgstr "Räumliche Ausdehnung"
 
-#: editor/wizards.py:27
+#: editor/wizards.py:25
 msgid "licenses/constraints"
 msgstr "Zugangsbeschränkungen"
 
-#: editor/wizards.py:28
-#: service/templates/metadata/tabs/header/default_header.html:26
-#: service/templates/metadata/tabs/header/wfs_root_header.html:22
+#: editor/wizards.py:26
+#: service/templates/metadata/tabs/header/default_header.html:44
+#: service/templates/metadata/tabs/header/wfs_root_header.html:36
 msgid "Quality"
 msgstr "Qualität"
 
@@ -950,11 +911,7 @@ msgstr "Ebenen Titel enthält"
 msgid "Featuretype tile contains"
 msgstr "Featuretype Titel enthält"
 
-#: service/filters.py:36 structure/filters.py:10 structure/filters.py:26
-msgid "Search"
-msgstr "Suche"
-
-#: service/filters.py:72 service/tables.py:349 service/tables.py:372
+#: service/filters.py:72 service/tables.py:502 service/tables.py:521
 msgid "Timestamp"
 msgstr "Zeitpunkt"
 
@@ -987,7 +944,7 @@ msgstr "Metadaten ID"
 msgid "Filter by the ID of the metadata (#123 in service title)."
 msgstr ""
 
-#: service/filters.py:98 service/tables.py:346 service/tables.py:368
+#: service/filters.py:98 service/tables.py:499 service/tables.py:517
 msgid "User"
 msgstr "Nutzer"
 
@@ -1003,238 +960,421 @@ msgstr "Gruppe"
 msgid "Filter by the ID of a group."
 msgstr "Nach Gruppen ID filtern."
 
-#: service/forms.py:24
+#: service/forms.py:28
 msgid "GetRequest URI"
 msgstr "GetRequest URI"
 
-#: service/forms.py:39
+#: service/forms.py:38
 msgid "OGC Request"
 msgstr "OGC Request"
 
-#: service/forms.py:40
+#: service/forms.py:39
 msgid "OGC Service"
 msgstr "OGC Dienst"
 
-#: service/forms.py:41
+#: service/forms.py:40
 msgid "OGC Version"
 msgstr "OGC Version"
 
-#: service/forms.py:42
+#: service/forms.py:41
 msgid "URI"
 msgstr "URI"
 
-#: service/forms.py:43
+#: service/forms.py:42
 msgid "Registration with group"
 msgstr "Registriert mit Gruppe"
 
-#: service/forms.py:46
+#: service/forms.py:45
 msgid "Registration for other organization"
 msgstr "Registriere für Organisation"
 
-#: service/forms.py:48
+#: service/forms.py:47
 msgid "No other"
 msgstr "Keine"
 
-#: service/forms.py:50
+#: service/forms.py:49
 msgid "Service needs authentication"
 msgstr "Dienst benötigt Authentifizierung"
 
-#: service/forms.py:52 structure/forms.py:20 structure/forms.py:246
+#: service/forms.py:51 structure/forms.py:21 structure/forms.py:269
 msgid "Username"
 msgstr "Nutzername"
 
-#: service/forms.py:53 structure/forms.py:21 structure/forms.py:253
+#: service/forms.py:52 structure/forms.py:22 structure/forms.py:276
 msgid "Password"
 msgstr "Passwort"
 
-#: service/forms.py:54
+#: service/forms.py:53
 msgid "Authentication type"
 msgstr "Authentifizierungstyp"
 
-#: service/forms.py:89
-msgid "Do you really want to remove this service?"
-msgstr "Wollen Sie diesen Dienst wirklich löschen?"
-
-#: service/forms.py:99
+#: service/forms.py:94
 msgid "Keep custom metadata"
 msgstr "Behalte benutzerdefinierte Metadaten"
 
-#: service/forms.py:133
+#: service/forms.py:128
 msgid ""
 "There are still pending update requests from user '{}' for this service."
 msgstr ""
 "Es läuft bereits eine Aktualisierung für diesen Dienst von Nutzer '{}'."
 
-#: service/forms.py:156
+#: service/forms.py:151
 msgid "---"
 msgstr "---"
 
-#: service/forms.py:165
+#: service/forms.py:160
 msgid "Select the old layer name, if this new layer was just renamed."
 msgstr ""
 "Wählen Sie den alten Elementnamen, falls diese neue Ebene nur umbenannt "
 "wurde."
 
-#: service/forms.py:167
+#: service/forms.py:162
 msgid ""
 "Select the old featuretype name, if this new featuretype was just renamed."
 msgstr ""
 "Wählen Sie den alten Elementnamen, falls dieses neue Feature nur umbenannt "
 "wurde."
 
-#: service/tables.py:37 service/tables.py:144
+#: service/models.py:2418
+msgid "Explanations: <br>"
+msgstr ""
+
+#: service/tables.py:29
+msgid ""
+"{'Deactivate' if record.is_active else 'Activate'} service <strong>{record."
+"title} [{record.id}]</strong>"
+msgstr ""
+
+#: service/tables.py:37
+#, python-brace-format
+msgid "Update service: <strong>{record.title} [{record.id}]</strong>"
+msgstr ""
+
+#: service/tables.py:45
+#, python-brace-format
+msgid "Edit metadata of <strong>{record.title} [{record.id}]</strong>"
+msgstr ""
+
+#: service/tables.py:53
+#, python-brace-format
+msgid "Edit access of <strong>{record.title} [{record.id}]</strong> service"
+msgstr ""
+
+#: service/tables.py:61
+msgid "Restore <strong>{record.title} [{record.id}]</strong> metadata"
+msgstr "Setze <strong>{} [{}]</strong> Datensatz zurück"
+
+#: service/tables.py:70
+msgid "Remove <strong>{record.title} [{record.id}]</strong> metadata"
+msgstr "Lösche <strong>{record.title} [{record.id}]</strong>"
+
+#: service/tables.py:88 service/tables.py:258
+msgid "The title of the service"
+msgstr "Der Titel des Dienstes"
+
+#: service/tables.py:91 service/tables.py:264
+msgid "Active"
+msgstr "Aktiv"
+
+#: service/tables.py:93 service/tables.py:265
+msgid ""
+"The state of the service. If the service is deactivated, the service is not "
+"provided to external by Mr. Map."
+msgstr ""
+"Der Status des Dienstes. Falls der Dienst deaktiviert ist, ist dieser "
+"nicht für extern verfügbar."
+
+#: service/tables.py:96 service/tables.py:268
+msgid "Secured access"
+msgstr "Abgesicherter Zugriff"
+
+#: service/tables.py:98 service/tables.py:269
+msgid ""
+"If the service is secured, Mr. Map provides it only if the right credentials "
+"are provided by the requesting user."
+msgstr ""
+"Falls der Dienst abgesichert ist, erlaubt Mr. Map den Zugriff nur mit den "
+"richtigen Logindaten."
+
+#: service/tables.py:101 service/tables.py:272
 msgid "Secured externally"
 msgstr "Extern abgesichert"
 
-#: service/tables.py:38 service/tables.py:145
+#: service/tables.py:104 service/tables.py:274
+msgid ""
+"Shows if the service is secured by the external MapServer. Mr. Map can also "
+"secure the endpoint. See secured access for that."
+msgstr ""
+"Zeigt an ob der Dienst extern zusätzlich abgesichert ist. "
+
+#: service/tables.py:107 service/tables.py:277
 msgid "Version"
 msgstr "Version"
 
-#: service/tables.py:41 service/tables.py:148
+#: service/tables.py:109 service/tables.py:278
+msgid "The version of the service"
+msgstr "Der Titel des zugehörigen Dienstes"
+
+#: service/tables.py:112 service/tables.py:281
+msgid "Data provider"
+msgstr "Datenanbieter"
+
+#: service/tables.py:114 service/tables.py:282
+msgid "The organization which is liable for the service."
+msgstr "Die Organisation, welche den Dienst anbietet."
+
+#: service/tables.py:117 service/tables.py:285
+msgid "Registered by group"
+msgstr "Registriert durch Gruppe"
+
+#: service/tables.py:119 service/tables.py:286
+msgid "The group which has registered the service"
+msgstr ""
+
+#: service/tables.py:122 service/tables.py:289
 msgid "Registered for"
 msgstr "Registriere für"
 
-#: service/tables.py:42 service/tables.py:149
+#: service/tables.py:124 service/tables.py:290
+msgid "The organization for that the service is registered."
+msgstr "Die Organisation für welche der Dienst registriert wurde."
+
+#: service/tables.py:127 service/tables.py:293
 msgid "Created on"
 msgstr "Erstellt am "
 
-#: service/tables.py:81
+#: service/tables.py:129 service/tables.py:294
+msgid "The date of creation of this service in our Mr. Map system."
+msgstr "Das Erstelldatum in Mr. Map"
+
+#: service/tables.py:139 service/tables.py:159 service/tables.py:167
+#: service/tables.py:176 service/tables.py:304 service/tables.py:333
+#: service/tables.py:341 service/tables.py:350 structure/tables.py:220
+#, python-brace-format
+msgid "Click to open the detail view of <strong>{value}</strong>."
+msgstr "Öffnet die Detailansicht für <strong>{value}</strong>."
+
+#: service/tables.py:189
 msgid "Shows all WMS which are configured in your Mr. Map environment."
 msgstr "Zeigt alle WMS, die für Sie registriert sind."
 
-#: service/tables.py:88
+#: service/tables.py:196
 msgid "Layers"
 msgstr "Ebenen"
 
-#: service/tables.py:110
-#: service/templates/includes/wfs/featuretype_detail_table.html:9
+#: service/tables.py:219
+#: service/templates/includes/wfs/featuretype_detail_table.html:5
 #: service/templates/includes/wms/child_layer_detail_table.html:13
 msgid "Parent service"
 msgstr "Übergeordneter Dienst"
 
-#: service/tables.py:112
+#: service/tables.py:221
+msgid "The root service of this layer"
+msgstr "Der zugehörige Dienst zu dieser Ebene"
+
+#: service/tables.py:223
 msgid ""
 "Shows all WMS sublayers which are configured in your Mr. Map environment."
 msgstr "Zeigt alle WMS Unterebenen, die für Sie registriert sind."
 
-#: service/tables.py:133
+#: service/tables.py:233
+#, python-brace-format
+msgid ""
+"Click to open the detail view of <strong>{record.service.parent_service."
+"metadata.title}</strong>."
+msgstr ""
+"Öffnet die Detailansicht von <strong>{record.service.parent_service.metadata.title}</strong>."
+
+#: service/tables.py:248
 msgid "Shows all WFS which are configured in your Mr. Map environment."
 msgstr "Zeigt alle WFS, die für Sie registriert sind."
 
-#: service/tables.py:141
+#: service/tables.py:260
 #: service/templates/metadata/tabs/content/wfs/root/overview_tab.html:37
 msgid "Featuretypes"
 msgstr "Featuretypen"
 
-#: service/tables.py:204
+#: service/tables.py:370
 msgid "Shows all currently running pending tasks."
 msgstr "Zeigt alle aktuell laufenden Prozesse."
 
-#: service/tables.py:206
-msgid " "
-msgstr " "
-
-#: service/tables.py:207
+#: service/tables.py:371
 #: service/templates/metadata/tabs/content/quality_tab.html:7
 msgid "Status"
 msgstr "Status"
 
-#: service/tables.py:208
+#: service/tables.py:372 users/forms.py:110
 msgid "Service"
 msgstr "Dienst"
 
-#: service/tables.py:209
+#: service/tables.py:373
 msgid "Phase"
 msgstr "Phase"
 
-#: service/tables.py:210
+#: service/tables.py:374
 msgid "Progress"
 msgstr "Fortschritt"
 
-#: service/tables.py:229 service/tables.py:234
+#: service/tables.py:375
+msgid "Cancle task"
+msgstr "Prozess abbrechen"
+
+#: service/tables.py:394 service/tables.py:399
 msgid "unknown"
 msgstr "unbekannt"
 
-#: service/tables.py:265
+#: service/tables.py:430
 msgid "Shows all child layer of current WMS."
 msgstr "Zeigt alle Unterebenen des aktuellen WMS."
 
-#: service/tables.py:291
+#: service/tables.py:452
 msgid "Shows all featuretypes of current WFS."
 msgstr "Zeigt alle Features des aktuellen WFS."
 
-#: service/tables.py:311
+#: service/tables.py:468
 msgid "Shows all coupled metadata of current service."
 msgstr "Zeigt alle verknüpften Metadaten des aktuellen Dienstes."
 
-#: service/tables.py:332
+#: service/tables.py:485
 msgid "Shows all logs for a service."
 msgstr "Zeigt alle Protokolle für einen Dienst."
 
-#: service/tables.py:340
+#: service/tables.py:493
 msgid "Log ID"
 msgstr "Protokoll ID"
 
-#: service/tables.py:341
+#: service/tables.py:494
 msgid "The id of the ProxyLog"
 msgstr "Die ID des ProxyLogs"
 
-#: service/tables.py:343
+#: service/tables.py:496
 msgid "Service Title"
 msgstr "Diensttitel"
 
-#: service/tables.py:344
+#: service/tables.py:497
 msgid "The title of the related service"
 msgstr "Der Titel des zugehörigen Dienstes"
 
-#: service/tables.py:347
+#: service/tables.py:500
 msgid "Name of the user which produced this log entry"
 msgstr "Protokollierter Nutzer"
 
-#: service/tables.py:350
+#: service/tables.py:503
 msgid "Timestamp when the entry was produced"
 msgstr "Zeitpunkt des Eintrags"
 
-#: service/tables.py:352
+#: service/tables.py:505
 msgid "Operation param of the request"
 msgstr "Verwendete Operation"
 
-#: service/tables.py:353 service/tables.py:369
+#: service/tables.py:506 service/tables.py:518
 msgid "Operation"
 msgstr "Operation"
 
-#: service/tables.py:366
+#: service/tables.py:515
 msgid "ID"
 msgstr "ID"
 
-#: service/tables.py:370
+#: service/tables.py:519
 msgid "Delivered Features (WFS)"
 msgstr "Ausgelieferte Features (WFS)"
 
-#: service/tables.py:371
+#: service/tables.py:520
 msgid "Delivered Megapixel (WMS)"
 msgstr "Ausgelieferte Megapixel (WMS)"
 
-#: service/templates/includes/detail/service_detail.html:29
+#: service/tables.py:539
+msgid ""
+"Shows all datasets which are configured in your Mr. Map environment. You can "
+"Edit them if you want."
+msgstr ""
+"Listet alle Datensätze, die für Sie registriert sind. Sie können diese "
+"bearbeiten, wenn Sie wollen."
+
+#: service/tables.py:544
+msgid "The title of the dataset"
+msgstr "Der Titel des Datensatzes"
+
+#: service/tables.py:546
+msgid "Related objects"
+msgstr "Gehört zu"
+
+#: service/tables.py:548
+msgid "The related service from which this dataset is referenced"
+msgstr "Der Dienst, zu dem dieser Datensatz gehört"
+
+#: service/tables.py:550
+msgid "Origins"
+msgstr "Herkunft"
+
+#: service/tables.py:552
+msgid ""
+"Tells us where the information's comes from. One item from column Related "
+"objects is referenced to one item in this column."
+msgstr ""
+"Beschreibt woher diese Daten kommen. Ein Eintrag der Spalte 'Zugehörige Objekte' gehört zu einem Eintrag in dieser Spalte."
+
+#: service/tables.py:562
+#, python-brace-format
+msgid "Click to open the html view of dataset <strong>{value}</strong>"
+msgstr "Öffnet die HTML Ansicht des Datensatzes <strong>{value}</strong>"
+
+#: service/tables.py:574
+#, python-brace-format
+msgid ""
+"Click to open the detail view of related service <strong>{relation."
+"metadata_from.title} [{relation.metadata_from.id}]\"</strong>"
+msgstr ""
+"Öffnet die Detailansicht des zugehörigen Dienstes <strong>{relation.metadata_from.title} [{relation.metadata_from.id}]</strong>"
+
+#: service/tables.py:600
+msgid "Edit <strong>{record.title} [{record.id}]</strong> dataset"
+msgstr "Setze <strong>{} [{}]</strong> Datensatz zurück"
+
+#: service/tables.py:607
+#, fuzzy, python-brace-format
+#| msgid "Restore <strong>{} [{}]</strong> dataset"
+msgid "Restore <strong>{record.title} [{record.id}]</strong> dataset"
+msgstr "Setze <strong>{} [{}]</strong> Datensatz zurück"
+
+#: service/tables.py:615
+#, fuzzy, python-brace-format
+#| msgid "Remove <strong>{} [{}]</strong> dataset"
+msgid "Remove <strong>{record.title} [{record.id}]</strong> dataset"
+msgstr "Lösche <strong>{} [{}]</strong> Datensatz"
+
+#: service/templates/includes/detail/service_detail.html:28
 msgid "Deactivate"
 msgstr "Deaktivieren"
 
-#: service/templates/includes/detail/service_detail.html:33
+#: service/templates/includes/detail/service_detail.html:32
 msgid "Activate"
 msgstr "Aktivieren"
 
-#: service/templates/includes/detail/service_detail.html:41
+#: service/templates/includes/detail/service_detail.html:40
 msgid "Update"
 msgstr "Aktualisieren"
 
-#: service/templates/includes/detail/service_detail.html:62
-#: service/templates/includes/detail/service_detail.html:83
-#: service/templates/includes/wfs/featuretype_detail.html:25
-#: service/templates/includes/wms/sublayer_detail.html:24
+#: service/templates/includes/detail/service_detail.html:48
+#: service/templates/includes/wfs/featuretype_detail.html:42
+#: service/templates/includes/wms/sublayer_detail.html:41
+msgid "Edit"
+msgstr "Bearbeiten"
+
+#: service/templates/includes/detail/service_detail.html:51
+#: service/templates/includes/detail/service_detail.html:72
+#: service/templates/includes/wfs/featuretype_detail.html:27
+#: service/templates/includes/wms/sublayer_detail.html:26
 msgid "Metadata"
 msgstr "Metadaten"
 
-#: service/templates/includes/detail/service_detail.html:72
+#: service/templates/includes/detail/service_detail.html:52
+#: service/templates/includes/wfs/featuretype_detail.html:28
+#: service/templates/includes/wms/sublayer_detail.html:27
+msgid "Access"
+msgstr "Zugriff"
+
+#: service/templates/includes/detail/service_detail.html:61
 #: service/templates/metadata/tabs/content/dataset/interfaces_tab.html:7
 #: service/templates/metadata/tabs/content/interfaces_tab.html:7
 #: service/templates/metadata/tabs/content/wfs/featuretype/interfaces_tab.html:7
@@ -1242,36 +1382,39 @@ msgstr "Metadaten"
 msgid "Capabilities"
 msgstr "Capabilities"
 
-#: service/templates/includes/detail/service_detail.html:75
+#: service/templates/includes/detail/service_detail.html:64
 msgid "Original"
 msgstr "Original"
 
-#: service/templates/includes/detail/service_detail.html:76
+#: service/templates/includes/detail/service_detail.html:65
 msgid "Current"
 msgstr "Aktuell"
 
-#: service/templates/includes/detail/service_detail.html:86
-#: service/templates/includes/wfs/featuretype_detail.html:38
-#: service/templates/includes/wfs/featuretype_detail.html:51
-#: service/templates/includes/wms/sublayer_detail.html:37
-#: service/templates/includes/wms/sublayer_detail.html:50
+#: service/templates/includes/detail/service_detail.html:75
+#: service/templates/includes/wfs/featuretype_detail.html:40
+#: service/templates/includes/wfs/featuretype_detail.html:53
+#: service/templates/includes/wms/sublayer_detail.html:39
+#: service/templates/includes/wms/sublayer_detail.html:52
 msgid "HTML"
 msgstr "HTML"
 
-#: service/templates/includes/detail/service_detail.html:87
-#: service/templates/includes/wfs/featuretype_detail.html:39
-#: service/templates/includes/wfs/featuretype_detail.html:52
-#: service/templates/includes/wms/sublayer_detail.html:38
-#: service/templates/includes/wms/sublayer_detail.html:51
+#: service/templates/includes/detail/service_detail.html:76
+#: service/templates/includes/wfs/featuretype_detail.html:41
+#: service/templates/includes/wfs/featuretype_detail.html:54
+#: service/templates/includes/wms/sublayer_detail.html:40
+#: service/templates/includes/wms/sublayer_detail.html:53
 msgid "XML"
 msgstr "XML"
 
+#: service/templates/includes/detail/service_detail.html:84
+msgid "Remove"
+msgstr "Löschen"
+
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:7
-#: service/templates/includes/wfs/element_accordion.html:10
-#: service/templates/includes/wfs/featuretype_detail_table.html:5
+#: service/templates/includes/wfs/featuretype_detail_table.html:13
 #: service/templates/includes/wms/child_layer_detail_table.html:5
-msgid "Uuid"
-msgstr "Uuid"
+msgid "Easy ID"
+msgstr ""
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:15
 msgid "Service type version"
@@ -1312,33 +1455,33 @@ msgid "Responsible Person"
 msgstr "Ansprechpartner"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:69
-#: structure/forms.py:274
+#: structure/forms.py:297
 #: structure/templates/includes/detail/organizations_table.html:13
 msgid "Phone"
 msgstr "Telefon"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:73
-#: structure/forms.py:275
+#: structure/forms.py:298
 #: structure/templates/includes/detail/organizations_table.html:17
 msgid "Facsimile"
 msgstr "Fax"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:77
 #: structure/templates/includes/detail/organizations_table.html:9
-#: users/forms.py:18
+#: users/forms.py:27
 msgid "E-Mail"
 msgstr "E-Mail"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:81
 #: service/templates/metadata/tabs/content/contact_tab.html:26
 #: service/templates/metadata/tabs/content/dataset/contact_tab.html:21
-#: structure/forms.py:271
+#: structure/forms.py:294
 #: structure/templates/includes/detail/organizations_table.html:21
 msgid "Address"
 msgstr "Adresse"
 
 #: service/templates/includes/detail/service_detail/root_service_detail_table.html:85
-#: structure/forms.py:273
+#: structure/forms.py:296
 #: structure/templates/includes/detail/organizations_table.html:29
 msgid "City"
 msgstr "Stadt"
@@ -1357,8 +1500,12 @@ msgstr "Bundesland"
 msgid "Country"
 msgstr "Land"
 
+#: service/templates/includes/index/datasets.html:16
+msgid "Add New Dataset"
+msgstr "Neuer Datensatz"
+
 #: service/templates/includes/index/logs.html:8
-#: templates/includes/navbar.html:62 templates/includes/navbar.html:63
+#: templates/includes/navbar.html:51 templates/includes/navbar.html:52
 msgid "Logs"
 msgstr "Protokolle"
 
@@ -1375,7 +1522,7 @@ msgid "CSV"
 msgstr "CSV"
 
 #: service/templates/includes/index/wfs.html:10
-#: templates/includes/navbar.html:41 templates/includes/navbar.html:52
+#: templates/includes/navbar.html:41
 #: users/templates/cards/my_services/wfs.html:9
 msgid "WFS"
 msgstr "WFS"
@@ -1386,7 +1533,7 @@ msgid "New Service"
 msgstr "Neuer Dienst"
 
 #: service/templates/includes/index/wms.html:8
-#: templates/includes/navbar.html:40 templates/includes/navbar.html:51
+#: templates/includes/navbar.html:40
 #: users/templates/cards/my_services/wms.html:9
 msgid "WMS"
 msgstr "WMS"
@@ -1455,10 +1602,11 @@ msgstr ""
 "einfach leer."
 
 #: service/templates/includes/update/service_update_confirmation.html:87
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:59
-#: users/templates/cards/groups_and_organizations/groups.html:22
+#: templates/sceletons/django_tables2_bootstrap4_custom.html:61
+#: users/templates/cards/groups_and_organizations/groups.html:21
 #: users/templates/cards/groups_and_organizations/organizations.html:21
 #: users/templates/cards/my_services/all_services.html:21
+#: users/templates/cards/my_services/datasets.html:21
 #: users/templates/cards/my_services/wfs.html:21
 #: users/templates/cards/my_services/wms.html:21
 msgid "Show"
@@ -1470,7 +1618,7 @@ msgid "all"
 msgstr "Alle"
 
 #: service/templates/includes/update/service_update_confirmation.html:92
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:63
+#: templates/sceletons/django_tables2_bootstrap4_custom.html:69
 msgid "entries"
 msgstr "Einträge"
 
@@ -1479,9 +1627,10 @@ msgid "Continue"
 msgstr "Weiter"
 
 #: service/templates/includes/update/service_update_confirmation.html:168
-#: service/templates/modals/new_service.html:10
 #: service/templates/modals/update_service.html:10
-#: templates/sceletons/modal-wizard-form.html:63
+#: templates/sceletons/modal-wizard-form.html:64
+#: templates/sceletons/modal-wizard-form.html:68
+#: templates/skeletons/modal_form.html:25
 msgid "Dismiss"
 msgstr "Verwerfen"
 
@@ -1506,28 +1655,34 @@ msgid "These elements still exist in the service and will be updated normally."
 msgstr ""
 "Diese Elemente existieren nach wie vor im Dienst und werden aktualisiert."
 
-#: service/templates/includes/wfs/element_accordion.html:14
-#: structure/tables.py:137 structure/tables.py:166
+#: service/templates/includes/wfs/element_accordion.html:10
+#: structure/tables.py:129 structure/tables.py:194
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:375
 msgid "Name"
 msgstr "Name"
 
-#: service/templates/includes/wfs/element_accordion.html:18
+#: service/templates/includes/wfs/element_accordion.html:14
 msgid "Type"
 msgstr "Typ"
 
-#: service/templates/includes/wfs/featuretype_detail.html:22
-#: service/templates/includes/wms/sublayer_detail.html:21
-msgid "Edit layer"
-msgstr "Ebene bearbeiten"
+#: service/templates/includes/wfs/featuretype_detail.html:9
+#: service/templates/includes/wms/sublayer_detail.html:9
+#, fuzzy
+#| msgid "Open original metadata in new tab"
+msgid "Open in new tab"
+msgstr "Öffne originale Metadaten in neuem Tab"
 
-#: service/templates/includes/wfs/featuretype_detail.html:35
-#: service/templates/includes/wms/sublayer_detail.html:34
+#: service/templates/includes/wfs/featuretype_detail.html:24
+msgid "Edit featuretype"
+msgstr "Featuretyp bearbeiten"
+
+#: service/templates/includes/wfs/featuretype_detail.html:37
+#: service/templates/includes/wms/sublayer_detail.html:36
 msgid "Dataset Metadata"
 msgstr "Datensatz Metadaten"
 
-#: service/templates/includes/wfs/featuretype_detail.html:48
-#: service/templates/includes/wms/sublayer_detail.html:47
+#: service/templates/includes/wfs/featuretype_detail.html:50
+#: service/templates/includes/wms/sublayer_detail.html:49
 msgid "Service Metadata"
 msgstr "Service Metadaten"
 
@@ -1607,6 +1762,10 @@ msgstr "Referenzsysteme:"
 msgid "Sublayers"
 msgstr "Zeige Unterebenen"
 
+#: service/templates/includes/wms/sublayer_detail.html:23
+msgid "Edit layer"
+msgstr "Ebene bearbeiten"
+
 #: service/templates/metadata/tabs/content/contact_tab.html:5
 msgid "Responsible organization for publishing"
 msgstr "Veröffentlichende Organisation"
@@ -1629,7 +1788,7 @@ msgid "Responsible organization for service for "
 msgstr "Verantwortlich für Dienst von"
 
 #: service/templates/metadata/tabs/content/contact_tab.html:53
-#: structure/forms.py:141
+#: structure/forms.py:149
 msgid "Contact person"
 msgstr "Ansprechpartner"
 
@@ -1714,13 +1873,18 @@ msgid "Topic category"
 msgstr "Kategorie"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:18
-#: service/templates/metadata/tabs/content/dataset/properties_tab.html:28
-msgid "No keywords provided!"
+#, fuzzy
+#| msgid "No keywords provided!"
+msgid "No categories provided!"
 msgstr "Keine Schlüsselwörter vorhanden!"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:23
 msgid "Keyword value"
 msgstr "Schlüsselwörter"
+
+#: service/templates/metadata/tabs/content/dataset/properties_tab.html:28
+msgid "No keywords provided!"
+msgstr "Keine Schlüsselwörter vorhanden!"
 
 #: service/templates/metadata/tabs/content/dataset/properties_tab.html:33
 msgid "Coordinate reference system"
@@ -1773,15 +1937,17 @@ msgstr "Zeichenkodierung"
 msgid "Terms of use of the dataset "
 msgstr "Nutzungsbedingungen für den Datensatz "
 
-#: service/templates/metadata/tabs/content/dataset/terms_of_use_tab.html:7
-#: service/templates/metadata/tabs/content/terms_of_use_tab.html:7
-msgid "Public access restrictions"
-msgstr "Einschränkung des öffentlichen Zugriffs"
-
 #: service/templates/metadata/tabs/content/dataset/terms_of_use_tab.html:11
-#: service/templates/metadata/tabs/content/terms_of_use_tab.html:11
-msgid "Information about costs/fees/licenses"
-msgstr "Kosten/Gebühren/Lizenzen"
+msgid "Fees"
+msgstr "Gebühren:"
+
+#: service/templates/metadata/tabs/content/dataset/terms_of_use_tab.html:17
+msgid "Licence"
+msgstr ""
+
+#: service/templates/metadata/tabs/content/dataset/terms_of_use_tab.html:22
+msgid "None"
+msgstr ""
 
 #: service/templates/metadata/tabs/content/interfaces_tab.html:4
 msgid "Interfaces informations for "
@@ -1807,6 +1973,14 @@ msgstr "Räumliche Ausdehnung"
 #: service/templates/metadata/tabs/content/terms_of_use_tab.html:4
 msgid "Terms of use informations for "
 msgstr "Nutzungsbedingungen für "
+
+#: service/templates/metadata/tabs/content/terms_of_use_tab.html:7
+msgid "Public access restrictions"
+msgstr "Einschränkung des öffentlichen Zugriffs"
+
+#: service/templates/metadata/tabs/content/terms_of_use_tab.html:11
+msgid "Information about costs/fees/licenses"
+msgstr "Kosten/Gebühren/Lizenzen"
 
 #: service/templates/metadata/tabs/content/wfs/featuretype/interfaces_tab.html:4
 msgid "Interfaces of the featuretype for "
@@ -1903,134 +2077,204 @@ msgstr "Rootebene"
 msgid "Properties of the wms for "
 msgstr "Eigenschaften des WMS für "
 
-#: service/templates/metadata/tabs/header/dataset_header.html:9
-#: service/templates/metadata/tabs/header/default_header.html:9
-#: service/templates/metadata/tabs/header/wfs_root_header.html:9
+#: service/templates/metadata/tabs/header/dataset_header.html:10
+#: service/templates/metadata/tabs/header/default_header.html:10
+#: service/templates/metadata/tabs/header/wfs_root_header.html:10
+msgid "Click to switch to overview tab"
+msgstr ""
+
+#: service/templates/metadata/tabs/header/dataset_header.html:11
+#: service/templates/metadata/tabs/header/default_header.html:11
+#: service/templates/metadata/tabs/header/wfs_root_header.html:11
 msgid "Overview"
 msgstr "Übersicht"
 
-#: service/templates/metadata/tabs/header/dataset_header.html:13
-#: service/templates/metadata/tabs/header/default_header.html:13
+#: service/templates/metadata/tabs/header/dataset_header.html:18
+#: service/templates/metadata/tabs/header/default_header.html:18
+msgid "Click to switch to properties tab"
+msgstr ""
+
+#: service/templates/metadata/tabs/header/dataset_header.html:19
+#: service/templates/metadata/tabs/header/default_header.html:19
 msgid "Properties"
 msgstr "Eigenschaften"
 
-#: service/templates/metadata/tabs/header/dataset_header.html:17
-#: service/templates/metadata/tabs/header/default_header.html:17
-#: service/templates/metadata/tabs/header/wfs_root_header.html:13
+#: service/templates/metadata/tabs/header/dataset_header.html:26
+#: service/templates/metadata/tabs/header/default_header.html:26
+#: service/templates/metadata/tabs/header/wfs_root_header.html:18
+msgid "Click to switch to contact tab"
+msgstr ""
+
+#: service/templates/metadata/tabs/header/dataset_header.html:27
+#: service/templates/metadata/tabs/header/default_header.html:27
+#: service/templates/metadata/tabs/header/wfs_root_header.html:19
 msgid "Contact"
 msgstr "Kontakt"
 
-#: service/templates/metadata/tabs/header/dataset_header.html:21
-#: service/templates/metadata/tabs/header/default_header.html:21
-#: service/templates/metadata/tabs/header/wfs_root_header.html:17
+#: service/templates/metadata/tabs/header/dataset_header.html:34
+#: service/templates/metadata/tabs/header/default_header.html:34
+#: service/templates/metadata/tabs/header/wfs_root_header.html:26
+msgid "Click to switch to terms of use tab"
+msgstr ""
+
+#: service/templates/metadata/tabs/header/dataset_header.html:35
+#: service/templates/metadata/tabs/header/default_header.html:35
+#: service/templates/metadata/tabs/header/wfs_root_header.html:27
 msgid "Terms Of Use"
 msgstr "Nutzungsbedingungen"
 
-#: service/templates/metadata/tabs/header/dataset_header.html:25
-#: service/templates/metadata/tabs/header/default_header.html:30
-#: service/templates/metadata/tabs/header/wfs_root_header.html:26
+#: service/templates/metadata/tabs/header/dataset_header.html:42
+msgid "Click to switch to interface tab"
+msgstr ""
+
+#: service/templates/metadata/tabs/header/dataset_header.html:43
+#: service/templates/metadata/tabs/header/default_header.html:52
+#: service/templates/metadata/tabs/header/wfs_root_header.html:44
 msgid "Interfaces"
 msgstr "Schnittstellen"
 
-#: service/templates/modals/new_service.html:6
-msgid "Add new service"
-msgstr "Dienst hinzufügen"
+#: service/templates/metadata/tabs/header/default_header.html:43
+#: service/templates/metadata/tabs/header/wfs_root_header.html:35
+msgid "Click to switch to quality tab"
+msgstr ""
 
-#: service/templates/modals/new_service.html:12
-#: service/templates/modals/update_service.html:16
-msgid "Next"
-msgstr "Weiter"
-
-#: service/templates/modals/remove_service.html:6
-msgid "Remove service"
-msgstr "Dienst entfernen"
+#: service/templates/metadata/tabs/header/default_header.html:51
+#: service/templates/metadata/tabs/header/wfs_root_header.html:43
+msgid "Click to switch to interfaces tab"
+msgstr ""
 
 #: service/templates/modals/update_service.html:6
 msgid "Update service"
 msgstr "Dienst aktualisieren"
 
-#: service/views.py:448
+#: service/templates/modals/update_service.html:16
+msgid "Next"
+msgstr "Weiter"
+
+#: service/views.py:274
+msgid "Do you really want to remove this service?"
+msgstr "Wollen Sie diesen Dienst wirklich löschen?"
+
+#: service/views.py:275
+#, fuzzy, python-brace-format
+#| msgid "Remove <strong>{} [{}]</strong> dataset"
+msgid "Remove service <strong>{metadata}</strong>"
+msgstr "Lösche <strong>{} [{}]</strong> Datensatz"
+
+#: service/views.py:301
+msgid ""
+"{'Deactivate' if md.is_active else 'Activate'} service <strong>{md}</strong>"
+msgstr ""
+
+#: service/views.py:302
+#, fuzzy
+#| msgid "Do you really want to remove this service?"
+msgid ""
+"Do you really want to {'deactivate' if md.is_active else 'activate'} this "
+"service?"
+msgstr "Wollen Sie diesen Dienst wirklich löschen?"
+
+#: service/views.py:356
 msgid "No dataset metadata found"
 msgstr "Keine Datensatz Metadaten gefunden"
 
-#: service/views.py:772
+#: service/views.py:699
+#, python-brace-format
+msgid ""
+"Update service: <strong>{current_service.metadata.title} [{current_service."
+"metadata.id}]</strong>"
+msgstr ""
+
+#: service/views.py:740
 msgid "No updatecandidate was found."
 msgstr "Kein Updatekandidat gefunden"
 
-#: service/views.py:774
+#: service/views.py:742
 msgid "Update candidates will be deleted after 7 days."
 msgstr "Updatekandidaten werden nach 7 Tagen gelöscht."
 
-#: service/views.py:842
+#: service/views.py:812
 msgid "Pending update successfully dismissed."
 msgstr "Ausstehendes Update abgebrochen."
 
-#: service/views.py:844
+#: service/views.py:814
 msgid "You are not the owner of this pending update. Rejected!"
 msgstr "Sie sind nicht der Eigentümer dieses Updates!"
 
-#: service/views.py:1021
+#: service/views.py:999
 msgid "Shows informations about the featuretype."
 msgstr "Zeigt Informationen über den Featuretype."
 
-#: service/views.py:1028
+#: service/views.py:1006
 msgid "Shows informations about the service."
 msgstr "Zeigt Informationen über den Dienst."
 
-#: service/views.py:1033
+#: service/views.py:1011
 msgid "Shows informations about the sublayer."
 msgstr "Zeigt Informationen über die Unterebene."
+
+#: service/wizards.py:9
+#, fuzzy
+#| msgid "Service"
+msgid "Service url"
+msgstr "Dienst"
+
+#: service/wizards.py:10
+#, fuzzy
+#| msgid "Overview"
+msgid "overview"
+msgstr "Übersicht"
 
 #: structure/filters.py:32
 msgid "Show all organizations"
 msgstr "Zeige alle Organisationen"
 
-#: structure/forms.py:98 structure/tables.py:97
+#: structure/forms.py:103 structure/tables.py:91
 msgid "Message"
 msgstr "Nachricht"
 
-#: structure/forms.py:204
-msgid "Do you really want to remove this group?"
-msgstr "Wollen Sie diese Gruppe wirklich löschen?"
+#: structure/forms.py:214
+msgid "Organization {} successfully created."
+msgstr "Organisation {} erstellt."
 
-#: structure/forms.py:222
-msgid "Do you really want to remove this organization?"
-msgstr "Wollen Sie diese Organisation wirklich löschen?"
-
-#: structure/forms.py:236
+#: structure/forms.py:254
 msgid "You have to confirm the checkbox."
 msgstr "Sie müssen die Checkbox anwählen."
 
-#: structure/forms.py:262
+#: structure/forms.py:261
+msgid "Organization {} successfully deleted."
+msgstr "Organisation {} gelöscht."
+
+#: structure/forms.py:285
 msgid "Password again"
 msgstr "Passwort wiederholen"
 
-#: structure/forms.py:268
+#: structure/forms.py:291
 msgid "First name"
 msgstr "Vorname"
 
-#: structure/forms.py:269
+#: structure/forms.py:292
 msgid "Last name"
 msgstr "Nachname"
 
-#: structure/forms.py:270
+#: structure/forms.py:293
 msgid "E-mail address"
 msgstr "E-Mail Adresse"
 
-#: structure/forms.py:272
+#: structure/forms.py:295
 #: structure/templates/includes/detail/organizations_table.html:25
 msgid "Postal code"
 msgstr "Postleitzahl"
 
-#: structure/forms.py:276
+#: structure/forms.py:299
 msgid "I want to sign up for the newsletter"
 msgstr "Ich möchte den Newsletter abonnieren"
 
-#: structure/forms.py:277
+#: structure/forms.py:300
 msgid "I want to participate in surveys"
 msgstr "Ich möchte an Umfragen teilnehmen"
 
-#: structure/forms.py:280
+#: structure/forms.py:303
 msgid ""
 "I understand and accept that my data will be automatically processed and "
 "securely stored, as it is stated in the general data protection regulation "
@@ -2039,68 +2283,152 @@ msgstr ""
 "Ich verstehe und akzeptiere, dass meine Daten automatisch verarbeitet und "
 "sichergespeichert werden. Es gilt die Datenschutzbestimmung."
 
-#: structure/forms.py:283
+#: structure/forms.py:306
 msgid "I'm not a robot"
 msgstr "Ich bin kein Roboter"
 
-#: structure/forms.py:291 users/forms.py:73
+#: structure/forms.py:314 users/forms.py:75
 msgid "Password and confirmed password does not match"
 msgstr "Passwörter stimmen nicht überein"
 
-#: structure/management/commands/setup.py:175
+#: structure/management/commands/setup.py:180
 msgid "The default role for all groups. Has no permissions."
 msgstr "Die Standardrolle für alle Gruppen. Hat keine Berechtigungen"
 
-#: structure/tables.py:17 structure/tables.py:95
+#: structure/tables.py:19 structure/tables.py:89
 msgid "Group"
 msgstr "Gruppen"
 
-#: structure/tables.py:18 structure/tables.py:96
+#: structure/tables.py:20 structure/tables.py:90
 msgid "Group organization"
 msgstr "Gruppen Organisation"
 
-#: structure/tables.py:21 structure/tables.py:65 structure/tables.py:101
+#: structure/tables.py:23 structure/tables.py:63 structure/tables.py:95
 msgid "Action"
 msgstr "Aktionen"
 
-#: structure/tables.py:98
+#: structure/tables.py:92
 msgid "Activation until"
 msgstr "Aktivierung bis"
 
-#: structure/tables.py:138 structure/tables.py:167
+#: structure/tables.py:130
+#, fuzzy
+#| msgid "The id of the ProxyLog"
+msgid "The name of the group"
+msgstr "Die ID des ProxyLogs"
+
+#: structure/tables.py:133 structure/tables.py:198
 #: structure/templates/includes/detail/groups_table.html:9
 #: venv/lib/python3.7/site-packages/django_celery_beat/models.py:517
 msgid "Description"
 msgstr "Beschreibung"
 
-#: structure/tables.py:141
+#: structure/tables.py:134
+#, fuzzy
+#| msgid "You are editing the group"
+msgid "The description of the group"
+msgstr "Sie bearbeiten die Gruppe"
+
+#: structure/tables.py:138
+msgid "The organization wich is the home organization of the group"
+msgstr ""
+
+#: structure/tables.py:147
 msgid "Shows all groups which are configured in your Mr. Map environment."
 msgstr "Zeigt alle Gruppen, zu denen Sie gehören."
 
-#: structure/tables.py:168
+#: structure/tables.py:152
+#, python-brace-format
+msgid "Click to open the detail view of <strong>{value}</strong>"
+msgstr ""
+
+#: structure/tables.py:164
+#, fuzzy
+#| msgid "You are editing the organization"
+msgid "Click to open the detail view of the organization"
+msgstr "Sie bearbeiten die Organisation"
+
+#: structure/tables.py:176
+#, python-brace-format
+msgid "Edit <strong>{record.name} [{record.id}]</strong> group"
+msgstr ""
+
+#: structure/tables.py:184
+#, fuzzy, python-brace-format
+#| msgid "Remove <strong>{} [{}]</strong> dataset"
+msgid "Remove <strong>{record.name} [{record.id}]</strong> group"
+msgstr "Lösche <strong>{} [{}]</strong> Datensatz"
+
+#: structure/tables.py:195
+#, fuzzy
+#| msgid "You are member of the following organizations:"
+msgid "Name of the given organizations"
+msgstr "Sie sind Mitglied der folgenden Organisationen:"
+
+#: structure/tables.py:199
+#, fuzzy
+#| msgid "Registration for other organization"
+msgid "Description of the given organizations"
+msgstr "Registriere für Organisation"
+
+#: structure/tables.py:202
 msgid "Real organization"
 msgstr "Echte Organisation"
 
-#: structure/tables.py:169
+#: structure/tables.py:203
+msgid ""
+"If an organization comes from the capabilities, it will be marked as "
+"autogenerated"
+msgstr ""
+
+#: structure/tables.py:206
 #: structure/templates/includes/detail/groups_table.html:21
 #: structure/templates/includes/detail/organizations_table.html:41
 msgid "Parent"
 msgstr "Gehört zu"
 
-#: structure/tables.py:171
+#: structure/tables.py:207
+#, fuzzy
+#| msgid "Registration for other organization"
+msgid "Parent organizations of the given organization"
+msgstr "Registriere für Organisation"
+
+#: structure/tables.py:215
 msgid ""
 "Shows all organizations which are configured in your Mr. Map environment."
 msgstr "Zeigt alle verfügbaren Organisationen."
 
-#: structure/tables.py:183
-msgid "This is your organization"
+#: structure/tables.py:223
+#, fuzzy
+#| msgid "This is your organization"
+msgid "This is your organization."
 msgstr "Ihre Organisation"
+
+#: structure/tables.py:250
+#, python-brace-format
+msgid ""
+"Edit <strong>{record.organization_name} [{record.id}]</strong> organization"
+msgstr ""
+
+#: structure/tables.py:259
+#, python-brace-format
+msgid ""
+"Become publisher for organization <strong>{record.organization_name} "
+"[{record.id}]</strong>"
+msgstr ""
+
+#: structure/tables.py:267
+#, fuzzy, python-brace-format
+#| msgid "Remove <strong>{} [{}]</strong> dataset"
+msgid ""
+"Remove <strong>{record.organization_name} [{record.id}]</strong> organization"
+msgstr "Lösche <strong>{} [{}]</strong> Datensatz"
 
 #: structure/templates/includes/detail/groups.html:21
 msgid "Edit group"
 msgstr "Bearbeite Gruppe"
 
-#: structure/templates/includes/detail/groups.html:35
+#: structure/templates/includes/detail/groups.html:29
 msgid "Delete group"
 msgstr "Lösche Gruppe"
 
@@ -2132,12 +2460,11 @@ msgstr "Veröffentlichungsanfragen"
 msgid "Edit organization"
 msgstr "Bearbeite Organisation"
 
-#: structure/templates/includes/detail/organizations.html:34
-#: structure/templates/modals/request_publishing_for_organization.html:5
+#: structure/templates/includes/detail/organizations.html:27
 msgid "Become publisher"
 msgstr "Veröffentlichungsrechte anfragen"
 
-#: structure/templates/includes/detail/organizations.html:49
+#: structure/templates/includes/detail/organizations.html:35
 msgid "Delete organization"
 msgstr "Organisation entfernen"
 
@@ -2154,8 +2481,14 @@ msgid "Person"
 msgstr "Person"
 
 #: structure/templates/includes/detail/publisher_requests_accept_reject.html:17
-msgid "Accept"
-msgstr "Akzeptieren"
+msgid "Accept the request"
+msgstr ""
+
+#: structure/templates/includes/detail/publisher_requests_accept_reject.html:25
+#, fuzzy
+#| msgid "Pending requests"
+msgid "Deny the request"
+msgstr "Ausstehende Anfragen"
 
 #: structure/templates/includes/detail/show_subgroup_accordion.html:6
 msgid "Subgroups"
@@ -2185,76 +2518,77 @@ msgstr "Organisationen"
 msgid "New organization"
 msgstr "Neue Organisation"
 
-#: structure/templates/includes/index/organizations.html:27
+#: structure/templates/includes/index/organizations.html:20
 msgid "Your organization:"
 msgstr "Ihre Organisation:"
 
-#: structure/templates/modals/delete_group.html:5
-#: structure/templates/modals/delete_organization.html:5
-msgid "Do you really want to delete"
-msgstr "Sind Sie sicher, dass Sie "
-
-#: structure/templates/modals/delete_group.html:5
-msgid "group?"
-msgstr "Gruppe löschen wollen?"
-
-#: structure/templates/modals/delete_group.html:10
-#: structure/templates/modals/delete_organization.html:10
-msgid "Yes, delete!"
-msgstr "Ja, lösche!"
-
-#: structure/templates/modals/delete_organization.html:5
-msgid "organization?"
-msgstr "Organisation löschen wollen?"
-
-#: structure/templates/modals/edit_group.html:5
-#: structure/templates/modals/request_publishing_for_organization.html:5
-msgid "group"
-msgstr "Gruppe"
-
-#: structure/templates/modals/edit_organization.html:5
-msgid "organization"
-msgstr "Organisation"
-
-#: structure/templates/modals/new_group.html:6
-msgid "Add new group"
-msgstr "Neue Gruppe hinzufügen"
-
-#: structure/templates/modals/new_organization.html:6
-msgid "Add new organization"
-msgstr "Neue Organisation hinzufügen"
-
-#: structure/views.py:220
+#: structure/views.py:180
 msgid "Shows informations about the organization."
 msgstr "Zeigt Informationen über die Organisation."
 
-#: structure/views.py:287
-msgid "Organization {} successfully deleted."
-msgstr "Organisation {} gelöscht."
+#: structure/views.py:240
+msgid "Shows informations about the group."
+msgstr "Zeigt Informationen über die Gruppe."
+
+#: structure/views.py:292
+#, python-brace-format
+msgid "Edit organization <strong>{org}</strong>"
+msgstr ""
 
 #: structure/views.py:317
-msgid "Organization {} successfully created."
-msgstr "Organisation {} erstellt."
+msgid "Do you really want to remove this organization?"
+msgstr "Wollen Sie diese Organisation wirklich löschen?"
 
-#: structure/views.py:354 structure/views.py:363 structure/views.py:406
+#: structure/views.py:318
+#, fuzzy, python-brace-format
+#| msgid "Remove <strong>{} [{}]</strong> dataset"
+msgid "Remove organization <strong>{org}</strong>"
+msgstr "Lösche <strong>{} [{}]</strong> Datensatz"
+
+#: structure/views.py:338
+msgid "Add new organization"
+msgstr "Neue Organisation hinzufügen"
+
+#: structure/views.py:367 structure/views.py:376 structure/views.py:419
 msgid "Publisher changed"
 msgstr "Veröffentlicher geändert"
 
-#: structure/views.py:355
+#: structure/views.py:368
 msgid "Group '{}' has been accepted as publisher for '{}'"
 msgstr "Gruppe '{}' wurde als Veröffentlicher für '{}' akzeptiert"
 
-#: structure/views.py:364
+#: structure/views.py:377
 msgid "Group '{}' has been rejected as publisher for '{}'"
 msgstr "Gruppe '{}' wurde als Veröffentlicher für '{}' abgelehnt"
 
-#: structure/views.py:407
+#: structure/views.py:420
 msgid "Group '{}' has been removed as publisher for '{}'."
 msgstr "Gruppe '{}' darf nicht mehr für '{}' veröffentlichen."
 
-#: structure/views.py:513
-msgid "Shows informations about the group."
-msgstr "Zeigt Informationen über die Gruppe."
+#: structure/views.py:456
+#, fuzzy, python-brace-format
+#| msgid "Request the permission to publish for this organization"
+msgid "Request to become publisher for organization <strong>{org}</strong>"
+msgstr "Veröffentlichungsanfrage an diese Organisation stellen"
+
+#: structure/views.py:476
+msgid "Add new group"
+msgstr "Neue Gruppe hinzufügen"
+
+#: structure/views.py:525
+msgid "Do you really want to remove this group?"
+msgstr "Wollen Sie diese Gruppe wirklich löschen?"
+
+#: structure/views.py:526
+#, fuzzy, python-brace-format
+#| msgid "Remove <strong>{} [{}]</strong> dataset"
+msgid "Remove group <strong>{group}</strong>"
+msgstr "Lösche <strong>{} [{}]</strong> Datensatz"
+
+#: structure/views.py:550
+#, python-brace-format
+msgid "Edit group <strong>{group}</strong>"
+msgstr ""
 
 #: templates/404.html:17
 msgid "Mr. Map can`t find the page you are looking for"
@@ -2315,7 +2649,7 @@ msgstr "Anmelden"
 
 #: templates/includes/navbar-sign-out.html:22
 #: users/templates/includes/login.html:56
-#: users/templates/includes/register.html:25 users/views.py:326
+#: users/templates/includes/register.html:25 users/views.py:347
 msgid "Sign up"
 msgstr "Registrieren"
 
@@ -2332,42 +2666,63 @@ msgid "Structure"
 msgstr "Struktur"
 
 #: templates/includes/navbar.html:37 users/templates/cards/my_services.html:6
-msgid "Services"
-msgstr "Dienste"
+#, fuzzy
+#| msgid "Online resources"
+msgid "Resources"
+msgstr "Onlineresource:"
 
-#: templates/includes/navbar.html:48
-msgid "Editor"
-msgstr "Editor"
-
-#: templates/includes/navbar.html:53
+#: templates/includes/navbar.html:42
+#: users/templates/cards/my_services/datasets.html:9
 msgid "Datasets"
 msgstr "Datensätze"
 
-#: templates/includes/navbar.html:68
+#: templates/includes/navbar.html:57
 msgid "Account"
 msgstr "Account"
 
-#: templates/includes/navbar.html:71
+#: templates/includes/navbar.html:60
 msgid "Logout"
 msgstr "Ausloggen"
 
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:14
+#: templates/sceletons/django_tables2_bootstrap4_custom.html:13
+msgid "Click to open filter options"
+msgstr ""
+
+#: templates/sceletons/django_tables2_bootstrap4_custom.html:15
 msgid "Filter table"
 msgstr "Tabelle filtern"
 
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:34
+#: templates/sceletons/django_tables2_bootstrap4_custom.html:36
 msgid "Filter the table"
 msgstr "Tabelle filtern"
 
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:39
+#: templates/sceletons/django_tables2_bootstrap4_custom.html:41
 msgid "Dismiss all filters"
 msgstr "Filter verwerfen"
 
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:181
+#: templates/sceletons/django_tables2_bootstrap4_custom.html:64
+msgid "Switch the items per page"
+msgstr ""
+
+#: templates/sceletons/django_tables2_bootstrap4_custom.html:113
+#: templates/sceletons/django_tables2_bootstrap4_custom.html:137
+msgid "Sort the table descending by column "
+msgstr ""
+
+#: templates/sceletons/django_tables2_bootstrap4_custom.html:121
+#: templates/sceletons/django_tables2_bootstrap4_custom.html:133
+msgid "Reset current sorting to the default way"
+msgstr ""
+
+#: templates/sceletons/django_tables2_bootstrap4_custom.html:125
+msgid "Sort the table ascending by column "
+msgstr ""
+
+#: templates/sceletons/django_tables2_bootstrap4_custom.html:203
 msgid "previous"
 msgstr "Zurück"
 
-#: templates/sceletons/django_tables2_bootstrap4_custom.html:201
+#: templates/sceletons/django_tables2_bootstrap4_custom.html:223
 msgid "next"
 msgstr "Nächste"
 
@@ -2375,19 +2730,19 @@ msgstr "Nächste"
 msgid "Go to step "
 msgstr "Gehe zu Schritt "
 
-#: templates/sceletons/modal-wizard-form.html:74
+#: templates/sceletons/modal-wizard-form.html:80
 msgid "Go to the first step"
 msgstr "Gehe zum ersten Schritt"
 
-#: templates/sceletons/modal-wizard-form.html:80
+#: templates/sceletons/modal-wizard-form.html:86
 msgid "Go one step backward"
 msgstr "Gehe einen Schritt zurück"
 
-#: templates/sceletons/modal-wizard-form.html:93
+#: templates/sceletons/modal-wizard-form.html:99
 msgid "Go to the next step"
 msgstr "Gehe zum nächsten Schritt"
 
-#: templates/sceletons/modal-wizard-form.html:100
+#: templates/sceletons/modal-wizard-form.html:106
 msgid "Go to the last step"
 msgstr "Gehe zum letzten Schritt"
 
@@ -2407,17 +2762,132 @@ msgstr "Klicken um die interaktive Karte zu öffnen"
 msgid "Leaflet client for field "
 msgstr "Interaktive Karte für Feld "
 
-#: users/forms.py:36
+#: users/forms.py:43
 msgid "Old password"
 msgstr "Altes Passwort"
 
-#: users/forms.py:43
+#: users/forms.py:50
 msgid "New password"
 msgstr "Neues Passwort"
 
-#: users/forms.py:50
+#: users/forms.py:57
 msgid "Confirm new Password"
 msgstr "Neues Passwort bestätigen"
+
+#: users/forms.py:111
+msgid ""
+"Select the service you want to subscribe. When you edit an existing "
+"subscription, you can not change this selection."
+msgstr ""
+
+#: users/forms.py:127
+msgid "Sends an e-mai if the service has been updated."
+msgstr ""
+
+#: users/forms.py:128
+msgid "Sends an e-mai if the service's access has been changed."
+msgstr ""
+
+#: users/forms.py:129
+msgid "Sends an e-mai if the service's metadata has been changed."
+msgstr ""
+
+#: users/forms.py:132
+#, fuzzy
+#| msgid "form update"
+msgid "Notify on update"
+msgstr "Formular aktualisieren"
+
+#: users/forms.py:133
+msgid "Notify on access changes"
+msgstr ""
+
+#: users/forms.py:134
+msgid "Notify on metadata changes"
+msgstr ""
+
+#: users/forms.py:172
+#, fuzzy
+#| msgid "Do you really want to remove this organization?"
+msgid "Do you realy want to remove this subscription?"
+msgstr "Wollen Sie diese Organisation wirklich löschen?"
+
+#: users/tables.py:12
+#, fuzzy
+#| msgid "Shows informations about the service."
+msgid "Shows your subscripted services."
+msgstr "Zeigt Informationen über den Dienst."
+
+#: users/tables.py:16
+msgid "Services"
+msgstr "Dienste"
+
+#: users/tables.py:17
+#, fuzzy
+#| msgid "Activate service"
+msgid "Subscribed services"
+msgstr "Dienst aktivieren"
+
+#: users/tables.py:21
+#, fuzzy
+#| msgid "identification"
+msgid "Update notification"
+msgstr "Identifikation"
+
+#: users/tables.py:22
+#, fuzzy
+#| msgid "Service updated"
+msgid "Notify on any service update"
+msgstr "Dienst aktualisiert"
+
+#: users/tables.py:27
+#, fuzzy
+#| msgid "identification"
+msgid "Change notification"
+msgstr "Identifikation"
+
+#: users/tables.py:28
+#, fuzzy
+#| msgid "Get service metadata"
+msgid "Notify on changed service metadata"
+msgstr "Öffne Service Metadaten"
+
+#: users/tables.py:33
+#, fuzzy
+#| msgid "identification"
+msgid "Access notification"
+msgstr "Identifikation"
+
+#: users/tables.py:34
+msgid "Notify on changed service access"
+msgstr ""
+
+#: users/tables.py:40
+#, fuzzy
+#| msgid "Activity performed by"
+msgid "Actions to perform"
+msgstr "Durchgeführt von "
+
+#: users/tables.py:54
+#, python-brace-format
+msgid ""
+"Go to the detail view of service <strong>{record.metadata.title} [{record."
+"metadata.id}]</strong>"
+msgstr ""
+
+#: users/tables.py:77
+#, python-brace-format
+msgid ""
+"Edit subscription for <strong>{record.metadata.title} [{record.metadata."
+"id}]</strong>"
+msgstr ""
+
+#: users/tables.py:85
+#, python-brace-format
+msgid ""
+"Remove subscription for <strong>{record.metadata.title} [{record.metadata."
+"id}]</strong>"
+msgstr ""
 
 #: users/templates/cards/groups_and_organizations.html:6
 msgid "Groups and organizations"
@@ -2426,6 +2896,16 @@ msgstr "Gruppen und Organisationen"
 #: users/templates/cards/groups_and_organizations/groups.html:18
 msgid "Your groups"
 msgstr "Ihre Gruppen"
+
+#: users/templates/cards/groups_and_organizations/groups.html:25
+#: users/templates/cards/groups_and_organizations/organizations.html:25
+#: users/templates/cards/my_services/datasets.html:25
+#: users/templates/cards/my_services/wfs.html:25
+#: users/templates/cards/my_services/wms.html:25
+#, fuzzy
+#| msgid "new"
+msgid "New"
+msgstr "neu"
 
 #: users/templates/cards/groups_and_organizations/organizations.html:18
 msgid "All known organizations."
@@ -2451,6 +2931,12 @@ msgstr "Alle"
 msgid "All registered Web Map and Web Feature Services."
 msgstr "Alle registrierten Web Map und Web Feature Services."
 
+#: users/templates/cards/my_services/datasets.html:18
+#, fuzzy
+#| msgid "Metadata date"
+msgid "Your metadata datasets."
+msgstr "Metadaten Datum"
+
 #: users/templates/cards/my_services/wfs.html:18
 msgid "Your registered Web Feature Services."
 msgstr "Ihre registrierten Web Feature Services."
@@ -2471,9 +2957,62 @@ msgstr "Keine Anfragen"
 msgid "Created on "
 msgstr "Erstellt am "
 
-#: users/templates/includes/account.html:10
+#: users/templates/includes/account_change.html:5
+msgid "Settings"
+msgstr ""
+
+#: users/templates/includes/account_change.html:13 users/views.py:222
 msgid "Change password"
 msgstr "Passwort ändern"
+
+#: users/templates/includes/account_change.html:16
+#, fuzzy
+#| msgid "Edit organization"
+msgid "Edit account information\\"
+msgstr "Bearbeite Organisation"
+
+#: users/templates/includes/account_change.html:19
+#, fuzzy
+#| msgid "Description"
+msgid "See subscriptions\\"
+msgstr "Beschreibung"
+
+#: users/templates/includes/account_info.html:10
+#, fuzzy
+#| msgid "First name"
+msgid "firstname"
+msgstr "Vorname"
+
+#: users/templates/includes/account_info.html:14
+#, fuzzy
+#| msgid "Last name"
+msgid "lastname"
+msgstr "Nachname"
+
+#: users/templates/includes/account_info.html:18
+#, fuzzy
+#| msgid "Email"
+msgid "email"
+msgstr "Email"
+
+#: users/templates/includes/account_info.html:22
+msgid "joined on"
+msgstr ""
+
+#: users/templates/includes/account_info.html:26
+msgid "Abonemented newsletters"
+msgstr ""
+
+#: users/templates/includes/account_info.html:30
+msgid "Abonemented surveys"
+msgstr ""
+
+#: users/templates/includes/account_info.html:34
+#: users/templates/includes/subscriptions.html:7
+#, fuzzy
+#| msgid "Description"
+msgid "Subscriptions"
+msgstr "Beschreibung"
 
 #: users/templates/includes/login.html:48
 msgid "Sign in"
@@ -2511,6 +3050,13 @@ msgstr ""
 msgid "Send password"
 msgstr "Passwort senden"
 
+#: users/templates/includes/subscriptions.html:12 users/views.py:425
+#: users/views.py:459
+#, fuzzy
+#| msgid "Description"
+msgid "New Subscription"
+msgstr "Beschreibung"
+
 #: users/templates/includes/user_activation.html:7
 msgid "Welcome"
 msgstr "Willkommen"
@@ -2529,20 +3075,11 @@ msgstr ""
 "nicht warten wollen klicken Sie einfach auf Mr. Map!\n"
 "        "
 
-#: users/templates/modals/change_password.html:5
-msgid "Change password for "
-msgstr "Passwort ändern für "
-
-#: users/templates/modals/change_password.html:5
-#: users/templates/modals/edit_account.html:5
-msgid "account"
-msgstr "Account"
-
-#: users/views.py:101
+#: users/views.py:90
 msgid "Sign in for Mr. Map"
 msgstr "Melden Sie sich für Mr. Map an"
 
-#: users/views.py:103 users/views.py:325
+#: users/views.py:92 users/views.py:346
 msgid ""
 "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy "
 "eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam "
@@ -2553,6 +3090,18 @@ msgid ""
 "diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet "
 "clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit "
 "amet. "
+msgstr ""
+
+#: users/views.py:243
+#, fuzzy
+#| msgid "You can update your account information using this form."
+msgid "<strong>Edit your account information's</strong>"
+msgstr "Sie können Ihre Accountinformationen hier ändern"
+
+#: users/views.py:485
+#, python-brace-format
+msgid ""
+"Remove Subscription for service <strong>{subscription.metadata}</strong>"
 msgstr ""
 
 #: venv/lib/python3.7/site-packages/bootstrap4/components.py:17
@@ -4220,6 +4769,109 @@ msgstr ""
 msgid "Unable to connect to qpid with SASL mechanism %s"
 msgstr ""
 
+#~ msgid "The form data was not valid."
+#~ msgstr "Eine Eingabe ist ungültig"
+
+#~ msgid "Select another licence."
+#~ msgstr "Lizenz auswählen"
+
+#~ msgid ""
+#~ "Shows all WMS which are configured in your Mr. Map environment. You can "
+#~ "Edit them if you want."
+#~ msgstr ""
+#~ "Listet alle WMS, die für Sie registriert sind. Sie können diese "
+#~ "bearbeiten, wenn Sie wollen."
+
+#~ msgid "Original metadata"
+#~ msgstr "Originale Metadaten"
+
+#~ msgid "Last modified"
+#~ msgstr "Zuletzt geändert"
+
+#~ msgid "Reset"
+#~ msgstr "Zurücksetzen"
+
+#~ msgid ""
+#~ "Shows all WFS which are configured in your Mr. Map environment. You can "
+#~ "Edit them if you want."
+#~ msgstr ""
+#~ "Listet alle WFS, die für Sie registriert sind. Sie können diese "
+#~ "bearbeiten, wenn Sie wollen."
+
+#~ msgid "Edit {} [{}] dataset"
+#~ msgstr "Bearbeite {} [{}] Datensatz"
+
+#~ msgid "Restore"
+#~ msgstr "Zurücksetzen"
+
+#~ msgid "You can not deactivate the proxy setting on this service!"
+#~ msgstr "Der Proxy kann für diesen Dienst nicht deaktiviert werden!"
+
+#~ msgid "Use proxy:"
+#~ msgstr "Proxy verwenden:"
+
+#~ msgid "Log proxy:"
+#~ msgstr "Proxy Protokollierung:"
+
+#~ msgid "You can not deactivate the security setting on this service!"
+#~ msgstr ""
+#~ "Die Sicherheitseinstellungen für diesen Dienst können nicht deaktiviert "
+#~ "werden."
+
+#~ msgid "Restrict access:"
+#~ msgstr "Zugriff beschränken:"
+
+#~ msgid "Enter text to filter"
+#~ msgstr "Filtern nach ..."
+
+#~ msgid "Edit spatial access"
+#~ msgstr "Räumlichen Zugriff bearbeiten"
+
+#~ msgid "Close"
+#~ msgstr "Schließen"
+
+#~ msgid " "
+#~ msgstr " "
+
+#~ msgid "Uuid"
+#~ msgstr "Uuid"
+
+#~ msgid "Add new service"
+#~ msgstr "Dienst hinzufügen"
+
+#~ msgid "Remove service"
+#~ msgstr "Dienst entfernen"
+
+#~ msgid "Accept"
+#~ msgstr "Akzeptieren"
+
+#~ msgid "Do you really want to delete"
+#~ msgstr "Sind Sie sicher, dass Sie "
+
+#~ msgid "group?"
+#~ msgstr "Gruppe löschen wollen?"
+
+#~ msgid "Yes, delete!"
+#~ msgstr "Ja, lösche!"
+
+#~ msgid "organization?"
+#~ msgstr "Organisation löschen wollen?"
+
+#~ msgid "group"
+#~ msgstr "Gruppe"
+
+#~ msgid "organization"
+#~ msgstr "Organisation"
+
+#~ msgid "Editor"
+#~ msgstr "Editor"
+
+#~ msgid "Change password for "
+#~ msgstr "Passwort ändern für "
+
+#~ msgid "account"
+#~ msgstr "Account"
+
 #~ msgid "No datasetId found in metadata!"
 #~ msgstr "Keine datasetId in den Metadaten gefunden!"
 
@@ -4260,12 +4912,6 @@ msgstr ""
 #~ msgid "Deactivate this service"
 #~ msgstr "Deaktiviere Service"
 
-#~ msgid "Activate this service"
-#~ msgstr "Aktiviere Dienst"
-
-#~ msgid "Activate service"
-#~ msgstr "Dienst aktivieren"
-
 #~ msgid "Update service using a new url"
 #~ msgstr "Aktualisiere Dienst über eine neue URL"
 
@@ -4280,12 +4926,6 @@ msgstr ""
 
 #~ msgid "Get different metadata documents"
 #~ msgstr "Weitere Metadatendokumente"
-
-#~ msgid "Get service metadata"
-#~ msgstr "Öffne Service Metadaten"
-
-#~ msgid "Open original metadata in new tab"
-#~ msgstr "Öffne originale Metadaten in neuem Tab"
 
 #~ msgid "No mime types provided"
 #~ msgstr "Keine Mime Typen verfügbar"
@@ -4330,12 +4970,6 @@ msgstr ""
 #~ "metadata."
 #~ msgstr ""
 #~ "Der Dienst wurde registriert. Es folgt ein Auszug aus den Metadaten."
-
-#~ msgid "Fees"
-#~ msgstr "Gebühren:"
-
-#~ msgid "Online resources"
-#~ msgstr "Onlineresource:"
 
 #~ msgid "Contact:"
 #~ msgstr "Kontakt:"
@@ -4461,9 +5095,6 @@ msgstr ""
 #~ msgid "Custom Metadata"
 #~ msgstr "Benutzerdefinierte Metadaten"
 
-#~ msgid "Edit featuretype"
-#~ msgstr "Featuretyp bearbeiten"
-
 #~ msgid "Register new"
 #~ msgstr "Neu registrieren"
 
@@ -4491,9 +5122,6 @@ msgstr ""
 #~ msgid "You are member of the following groups:"
 #~ msgstr "Sie sind Mitglied der folgenden Gruppen:"
 
-#~ msgid "You are member of the following organizations:"
-#~ msgstr "Sie sind Mitglied der folgenden Organisationen:"
-
 #~ msgid "New publish requests"
 #~ msgstr "Neue Veröffentlichungsanfragen"
 
@@ -4515,14 +5143,8 @@ msgstr ""
 #~ msgid "Remove publisher"
 #~ msgstr "Entferne Veröffentlicher"
 
-#~ msgid "Request the permission to publish for this organization"
-#~ msgstr "Veröffentlichungsanfrage an diese Organisation stellen"
-
 #~ msgid "Description:"
 #~ msgstr "Beschreibung:"
-
-#~ msgid "You are editing the organization"
-#~ msgstr "Sie bearbeiten die Organisation"
 
 #~ msgid ""
 #~ "You are creating a new organization. Please make sure the organization "
@@ -4548,9 +5170,6 @@ msgstr ""
 
 #~ msgid "You are creating a new group."
 #~ msgstr "Sie erstellen eine neue Gruppe."
-
-#~ msgid "You are editing the group"
-#~ msgstr "Sie bearbeiten die Gruppe"
 
 #~ msgid "Home"
 #~ msgstr "Home"
@@ -4585,6 +5204,3 @@ msgstr ""
 #~ msgstr ""
 #~ "Bitte geben Sie Ihr neues Passwort ein. Das Passwort muss den Vorgaben "
 #~ "entsprechen."
-
-#~ msgid "You can update your account information using this form."
-#~ msgstr "Sie können Ihre Accountinformationen hier ändern"

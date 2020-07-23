@@ -37,9 +37,8 @@ from users.helper import user_helper
 from django.urls import reverse
 
 from users.models import Subscription
+from users.settings import users_logger
 from users.tables import SubscriptionTable
-import logging
-logger = logging.getLogger('MrMap.users')
 
 
 def login_view(request: HttpRequest):
@@ -320,7 +319,7 @@ def password_reset(request: HttpRequest):
         gen_pw = sec_handler.sha256(
             user.salt + str(timezone.now()) + str(random() * 10000)
         )[:7].upper()
-        logger.debug(gen_pw)
+        users_logger.debug(gen_pw)
         user.set_password(gen_pw)
         user.save()
         messages.add_message(request, messages.INFO, PASSWORD_SENT)

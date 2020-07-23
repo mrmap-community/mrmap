@@ -1,7 +1,5 @@
-import random
-import string
+import uuid
 
-import django_filters
 from django.http import HttpRequest
 from django.template.loader import render_to_string
 from django_tables2 import tables, RequestConfig
@@ -29,7 +27,7 @@ class MrMapTable(tables.Table):
                  *args,
                  **kwargs):
         # Generate a random id for html template
-        self.table_id = ''.join(random.choice(string.ascii_lowercase) for i in range(10))
+        self.table_id = str(uuid.uuid4())
         self.request = request
         self.filter_set_class = filter_set_class
         self.queryset = queryset
@@ -117,13 +115,14 @@ class MrMapTable(tables.Table):
             return ''
 
     def prepare_table_pagination_settings(self, request: HttpRequest, param_lead: str):
-        return self.prepare_list_pagination_settings(request, list(self.rows), param_lead)
+        return self.prepare_list_pagination_settings(request, param_lead)
 
-    def prepare_list_pagination_settings(self, request: HttpRequest, l: list, param_lead: str):
-        page_size_options = list(filter(lambda item: item <= len(l), PAGE_SIZE_OPTIONS))
+    def prepare_list_pagination_settings(self, request: HttpRequest, param_lead: str):
+        len_rows = len(self.rows)
+        page_size_options = list(filter(lambda item: item <= len_rows, PAGE_SIZE_OPTIONS))
 
-        if not page_size_options.__contains__(len(l)):
-            page_size_options.append(len(l))
+        if len_rows not in page_size_options:
+            page_size_options.append(len_rows)
 
         page_size_options = list(filter(lambda item: item <= PAGE_SIZE_MAX, page_size_options))
 

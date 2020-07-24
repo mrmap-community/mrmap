@@ -5,30 +5,30 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 05.05.20
 
 """
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import IntegrityError
 from django.http import HttpRequest, HttpResponse
+from django.shortcuts import redirect
 
 from django.views.decorators.cache import cache_page
 
 from MrMap.decorator import resolve_metadata_public_id
 from MrMap.messages import RESOURCE_NOT_FOUND
-from csw.settings import CSW_CACHE_TIME, CSW_CACHE_PREFIX, csw_logger, CSW_GENERIC_ERROR_TEMPLATE
-from csw.utils.harvester import Harvester
+from csw.settings import CSW_CACHE_TIME, CSW_CACHE_PREFIX
+from csw.tasks import async_harvest
 from csw.utils.parameter import ParameterResolver
 
 from csw.utils.request_resolver import RequestResolver
 from service.helper.enums import MetadataEnum
 from service.helper.ogc.ows import OWSException
 
-
 # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
 # Cache requested url for time t
 from service.helper.service_helper import split_service_uri
 from service.models import Metadata
 from service.tasks import async_new_service
-from structure.models import MrMapUser
+from structure.models import PendingTask
 from users.helper import user_helper
 
 
@@ -97,22 +97,36 @@ def harvest_catalogue(request: HttpRequest, metadata_id: str):
     harvesting_group = user.get_groups().filter(
         is_public_group=False
     ).first()
+
+    # Check if the catalogue exists
     try:
         md = Metadata.objects.get(
             id=metadata_id,
             metadata_type=MetadataEnum.CATALOGUE.value
         )
-        harvester = Harvester(md, harvesting_group, max_records_per_request=1000)
-        harvester.harvest()
-    except ObjectDoesNotExist:
-        return HttpResponse(RESOURCE_NOT_FOUND, status=404)
-    except ProcessLookupError as e:
-        return HttpResponse(e, status=400)
-    except IntegrityError as e:
-        csw_logger.error(
-            CSW_GENERIC_ERROR_TEMPLATE.format(
-                md.title,
-                e
+        # Check for a running pending task on this catalogue!
+        try:
+            p_t = PendingTask.objects.get(
+                task_id=str(md.id)
             )
+            messages.info(
+                request,
+                "Harvesting is already running. Remaining time: {}".format(p_t.remaining_time)
+            )
+        except ObjectDoesNotExist:
+            # No pending task exists, so we can start a harvesting process!
+            async_harvest.delay(
+                metadata_id,
+                harvesting_group.id
+            )
+            messages.success(
+                request,
+                "Harvesting starts!"
+            )
+    except ObjectDoesNotExist:
+        messages.error(
+            request,
+            RESOURCE_NOT_FOUND
         )
-    return HttpResponse()
+
+    return redirect("resource:index")

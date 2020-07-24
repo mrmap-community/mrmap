@@ -10,6 +10,7 @@ from time import time
 import datetime
 
 import requests
+from billiard.context import Process
 from dateutil.parser import parse
 from django.contrib.gis.geos import Polygon, GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist
@@ -18,14 +19,14 @@ from django.db.models import Q
 from django.utils.timezone import utc
 from django.utils.translation import gettext_lazy as _
 from lxml.etree import Element
-from multiprocessing import Process, cpu_count
+from multiprocessing import cpu_count
 
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from MrMap.utils import execute_threads
 from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE
 from service.helper import xml_helper
-from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum, MetadataEnum
-from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType, LegalDate
+from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
+from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType
 from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import PendingTask, MrMapGroup, Organization
 
@@ -71,7 +72,7 @@ class Harvester:
         """
         # Create a pending task record for the database first!
         self.pending_task = PendingTask.objects.get_or_create(
-            task_id=self.metadata.public_id,
+            task_id=self.metadata.id,
         )
         is_new = self.pending_task[1]
         self.pending_task = self.pending_task[0]
@@ -279,7 +280,8 @@ class Harvester:
 
         # Process response via multiple processes
         t_start = time()
-        num_processes = cpu_count()
+        num_processes = int(cpu_count()/2)
+        num_processes = num_processes if num_processes >= 1 else 1
         index_step = int(len(md_metadata_entries)/num_processes)
         start_index = 0
         end_index = 0

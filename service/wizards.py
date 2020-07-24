@@ -3,14 +3,14 @@ from django.urls import reverse
 from MrMap.wizards import MrMapWizard
 from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
-from service.forms import RegisterNewServiceWizardPage1, RegisterNewServiceWizardPage2
+from service.forms import RegisterNewResourceWizardPage1, RegisterNewResourceWizardPage2
 from service.helper import service_helper
 
-NEW_SERVICE_WIZARD_FORMS = [(_("Service url"), RegisterNewServiceWizardPage1),
-                            (_("overview"), RegisterNewServiceWizardPage2), ]
+NEW_RESOURCE_WIZARD_FORMS = [(_("Service url"), RegisterNewResourceWizardPage1),
+                             (_("overview"), RegisterNewResourceWizardPage2), ]
 
 
-class NewServiceWizard(MrMapWizard):
+class NewResourceWizard(MrMapWizard):
     def __init__(self, current_view, *args, **kwargs):
         super(MrMapWizard, self).__init__(
             action_url=reverse('resource:add', ) + f"?current-view={current_view}",
@@ -22,7 +22,6 @@ class NewServiceWizard(MrMapWizard):
         initial = self.initial_dict.get(step, {})
 
         if step == "overview":
-            # Todo: init form
             service_url_data = self.storage.get_step_data('Service url')
             uri = service_url_data.get('Service url-get_request_uri')
             url_dict = service_helper.split_service_uri(uri)
@@ -45,7 +44,7 @@ class NewServiceWizard(MrMapWizard):
 
         """
         for form in form_list:
-            if isinstance(form, RegisterNewServiceWizardPage2):
+            if isinstance(form, RegisterNewResourceWizardPage2):
                 try:
                     # Run creation async!
                     # Function returns the pending task object

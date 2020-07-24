@@ -5,7 +5,7 @@
 {% load bootstrap4 %}
 
 {% block card-header-title-left %}
-    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %} {% trans 'WMS' %}</h4>
+    <h4 class="mb-1 mr-3">{% autoescape off %}{{THEME.ICONS.CSW}}{% endautoescape %} {% trans 'CSW' %}</h4>
 {% endblock %}
 
 {% block card-header-title-center%}
@@ -14,12 +14,12 @@
 {% block card-header-title-right %}
     {% if 'can_register_service' in user_permissions %}
         <a role="button" class="btn {{THEME.CARD.BTN_SUCCESS_COLOR}}" href="{% url 'resource:add' %}?current-view={{current_view}} ">
-            {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New resource' %}
+            {% autoescape off %}{{THEME.ICONS.ADD}}{% endautoescape %} {% trans 'New Resource' %}
         </a>
     {% endif %}
 {% endblock %}
 {% block card-body %}
 
-{% render_table wms_table %}
+{% render_table csw_table %}
 
 {% endblock %}

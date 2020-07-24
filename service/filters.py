@@ -67,6 +67,21 @@ class MetadataWfsFilter(django_filters.FilterSet):
         fields = []
 
 
+class MetadataCswFilter(django_filters.FilterSet):
+    wfs_search = django_filters.CharFilter(method='filter_search_over_all',
+                                           label='Search')
+
+    @staticmethod
+    def filter_search_over_all(queryset, name, value):  # parameter name is needed cause 3 values are expected
+
+        return queryset.filter(title__icontains=value) | \
+               queryset.filter(service__created_by__name__icontains=value)
+
+    class Meta:
+        model = Metadata
+        fields = []
+
+
 class ProxyLogTableFilter(MrMapFilterSet):
     dr = django_filters.DateTimeFromToRangeFilter(
         label=_("Timestamp"),

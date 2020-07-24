@@ -21,7 +21,7 @@ from MrMap.messages import SERVICE_UPDATED, \
     SECURITY_PROXY_NOT_ALLOWED, CONNECTION_TIMEOUT, PARAMETER_ERROR, SERVICE_CAPABILITIES_UNAVAILABLE
 from MrMap.responses import DefaultContext
 from service.helper import xml_helper
-from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter
+from service.filters import MetadataWmsFilter, MetadataWfsFilter, MetadataDatasetFilter, MetadataCswFilter
 from service.forms import UpdateServiceCheckForm, UpdateOldToNewElementsForm, RemoveServiceForm, \
     ActivateServiceForm
 from service.helper import service_helper, update_helper
@@ -32,12 +32,12 @@ from service.helper.ogc.operation_request_handler import OGCOperationRequestHand
 from service.helper.service_comparator import ServiceComparator
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import WmsTableWms, WmsLayerTableWms, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
-     DatasetTable
+    DatasetTable, CswTable
 from service.tasks import async_increase_hits, async_log_response
 from service.models import Metadata, Layer, Service, Document, Style, ProxyLog
 from service.utils import collect_contact_data, collect_metadata_related_objects, collect_featuretype_data, \
     collect_layer_data, collect_wms_root_data, collect_wfs_root_data
-from service.wizards import NEW_SERVICE_WIZARD_FORMS, NewServiceWizard
+from service.wizards import NEW_RESOURCE_WIZARD_FORMS, NewResourceWizard
 from structure.models import MrMapUser, Permission, PendingTask
 from users.helper import user_helper
 from django.urls import reverse
@@ -146,6 +146,38 @@ def _prepare_wfs_table(request: HttpRequest, current_view: str, user_groups):
     }
 
 
+def _prepare_csw_table(request: HttpRequest, current_view: str, user_groups):
+    """ Collects all wfs service data and prepares parameter for rendering
+
+    Args:
+        request (HttpRequest): The incoming request
+        user (MrMapUser): The performing user
+    Returns:
+         params (dict): The rendering parameter
+    """
+    queryset = Metadata.objects.filter(
+        metadata_type=MetadataEnum.CATALOGUE.value,
+        created_by__in=user_groups,
+        is_deleted=False,
+        service__is_update_candidate_for=None
+    ).prefetch_related(
+        "contact",
+        "service",
+        "service__service_type",
+    ).order_by("title")
+
+    table = CswTable(request=request,
+                     queryset=queryset,
+                     filter_set_class=MetadataCswFilter,
+                     order_by_field='scsw',  # scsw = sort csw
+                     current_view=current_view,
+                     param_lead='csw-t',)
+
+    return {
+        "csw_table": table,
+    }
+
+
 def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, current_view: str, user_groups):
     dataset_table = DatasetTable(request=request,
                                  filter_set_class=MetadataDatasetFilter,
@@ -168,14 +200,13 @@ def add(request: HttpRequest):
         Returns:
              params (dict): The rendering parameter
     """
-    return NewServiceWizard.as_view(form_list=NEW_SERVICE_WIZARD_FORMS,
-                                    current_view=request.GET.get('current-view'),
-                                    title=_(format_html('<b>Add New Service</b>')),
-                                    id_wizard='add_new_service_wizard',
-                                    )(request=request)
+    return NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,
+                                     current_view=request.GET.get('current-view'),
+                                     title=_(format_html('<b>Add New Resource</b>')),
+                                     id_wizard='add_new_resource_wizard',
+                                     )(request=request)
 
 
-# Todo: index view
 @login_required
 def index(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
     """ Renders an overview of all wms and wfs
@@ -206,6 +237,7 @@ def index(request: HttpRequest, update_params: dict = None, status_code: int = 2
 
     params.update(_prepare_wms_table(request=request, current_view='resource:index', user_groups=user_groups))
     params.update(_prepare_wfs_table(request=request, current_view='resource:index', user_groups=user_groups))
+    params.update(_prepare_csw_table(request=request, current_view='resource:index', user_groups=user_groups))
     params.update(_prepare_dataset_table(request=request, current_view='resource:index', user=user, user_groups=user_groups))
 
     if update_params:
@@ -217,7 +249,7 @@ def index(request: HttpRequest, update_params: dict = None, status_code: int = 2
                   context=context.get_context(),
                   status=status_code)
 
-# Todo: index view
+
 @login_required
 def pending_tasks(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
     """ Renders a table of all pending tasks
@@ -595,7 +627,7 @@ def get_metadata_html(request: HttpRequest, metadata_id):
     context = DefaultContext(request, params, None)
     return render(request=request, template_name=base_template, context=context.get_context())
 
-# Todo: index view
+
 @login_required
 def wms_index(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
     """ Renders an overview of all wms
@@ -632,6 +664,46 @@ def wms_index(request: HttpRequest, update_params: dict = None, status_code: int
                   template_name=template,
                   context=context.get_context(),
                   status=status_code)
+
+@login_required
+def csw_index(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
+    """ Renders an overview of all wms and wfs
+
+    Args:
+        request (HttpRequest): The incoming request
+        update_params: (Optional) the update_params dict
+        status_code:
+    Returns:
+         A view
+    """
+    user = user_helper.get_user(request)
+    user_groups = user.get_groups()
+
+    # Default content
+    template = "views/csw_index.html"
+
+    # get pending tasks
+    pt = PendingTask.objects.filter(created_by__in=user_groups)
+    pt_table = PendingTasksTable(data=pt,
+                                 orderable=False,
+                                 request=request, )
+
+    params = {
+        "pt_table": pt_table,
+        "current_view": "resource:csw-index",
+    }
+
+    params.update(_prepare_csw_table(request=request, current_view='resource:index', user_groups=user_groups))
+
+    if update_params:
+        params.update(update_params)
+
+    context = DefaultContext(request, params, user)
+    return render(request=request,
+                  template_name=template,
+                  context=context.get_context(),
+                  status=status_code)
+
 
 @login_required
 @check_permission(Permission(can_edit_metadata_service=True))

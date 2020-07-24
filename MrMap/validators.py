@@ -79,6 +79,8 @@ def _get_request_uri_has_no_version_parameter(value):
     # currently supported version for wfs 2.0.2, 2.0.0, 1.1.0, 1.0.0
     supported_wms_versions = ['1.3.0', '1.1.1', '1.1.0', '1.0.0']
     supported_wfs_versions = ['2.0.2', '2.0.0', '1.1.0', '1.0.0']
+    # Todo: append all versions
+    supported_csw_versions = ['2.0.2', ]
 
     if "version" in url_dict and url_dict["version"] is not None:
         if "service" in url_dict or url_dict["service"] is not None:
@@ -88,6 +90,9 @@ def _get_request_uri_has_no_version_parameter(value):
             elif url_dict["service"] == OGCServiceEnum.WFS:
                 service_type = OGCServiceEnum.WFS.value
                 supported_versions = supported_wfs_versions
+            elif url_dict["service"] == OGCServiceEnum.CSW:
+                service_type = OGCServiceEnum.CSW.value
+                supported_versions = supported_csw_versions
             else:
                 return ValidationError(
                     _('The given service typ is not supported from Mr. Map.'),

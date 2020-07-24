@@ -24,9 +24,9 @@ def _get_action_btns_for_service_table(table, record):
     btns += table.get_btn(
         href=reverse('resource:activate', args=(record.id, ))+f"?current-view={table.current_view}",
         btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR" if record.is_active else "BTN_SUCCESS_COLOR"],
-        btn_value=get_theme(table.user)["ICONS"]["NOK" if record.is_active else 'OK'],
+        btn_value=get_theme(table.user)["ICONS"]["POWER_OFF"],
         permission=Permission(can_edit_metadata_service=True),
-        tooltip=format_html(_(f"{'Deactivate' if record.is_active else 'Activate'} service <strong>{record.title} [{record.id}]</strong>"), ),
+        tooltip=format_html(_(f"{'Deactivate' if record.is_active else 'Activate'} resource <strong>{record.title} [{record.id}]</strong>"), ),
         tooltip_placement='left', )
 
     btns += table.get_btn(
@@ -255,7 +255,7 @@ class WfsServiceTable(MrMapTable):
     wfs_title = MrMapColumn(
         accessor='title',
         verbose_name=_('Title'),
-        tooltip=_('The title of the service'),)
+        tooltip=_('The title of the resource'),)
     wfs_featuretypes = MrMapColumn(
         verbose_name=_('Featuretypes'),
         empty_values=[], )
@@ -364,6 +364,88 @@ class WfsServiceTable(MrMapTable):
             count=Count("service__featuretypes")
         ).order_by(("-" if is_descending else "") + "count")
         return queryset, True
+
+
+class CswTable(MrMapTable):
+    csw_title = MrMapColumn(
+        accessor='title',
+        verbose_name=_('Title'),
+        tooltip=_('The title of the resource'), )
+
+    csw_version = MrMapColumn(
+        accessor='service.service_type.version',
+        verbose_name=_('Version'),
+        tooltip=_('The version of the service'), )
+
+    # Todo: accessor
+    csw_last_haverest = MrMapColumn(
+        accessor='service.service_type.version',
+        verbose_name=_('Last haverest'),
+        tooltip=_('Timestamp of the last haverest'), )
+
+    # Todo: accessor
+    csw_collected_haverest_records = MrMapColumn(
+        accessor='service.service_type.version',
+        verbose_name=_('Collected haverest records'),
+        tooltip=_('Count of all haverest records'), )
+
+    csw_registered_by_group = MrMapColumn(
+        accessor='service.created_by',
+        verbose_name=_('Registered by group'),
+        tooltip=_('The group which has registered the service'), )
+
+    csw_actions = MrMapColumn(
+        verbose_name=_('Actions'),
+        empty_values=[],
+        orderable=False,
+        tooltip=_('Actions you can perform'),
+        attrs={"td": {"style": "white-space:nowrap;"}})
+
+    def render_csw_title(self, value, record):
+        url = reverse('resource:detail', args=(record.id,))
+        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
+        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                             href=url,
+                             content=value,
+                             tooltip=tooltip, )
+
+    def render_csw_registered_by_group(self, value, record):
+        url = reverse('structure:detail-group', args=(record.service.created_by.id,))
+        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
+        return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
+                             href=url,
+                             content=value,
+                             tooltip=tooltip, )
+
+    def render_csw_actions(self, record):
+        btns = ''
+        btns += self.get_btn(
+            href=reverse('resource:activate', args=(record.id,)) + f"?current-view={self.current_view}",
+            btn_color=get_theme(self.user)["TABLE"]["BTN_WARNING_COLOR" if record.is_active else "BTN_SUCCESS_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]["POWER_OFF"],
+            permission=Permission(can_edit_metadata_service=True),
+            tooltip=format_html(_(
+                f"{'Deactivate' if record.is_active else 'Activate'} resource <strong>{record.title} [{record.id}]</strong>"), ),
+            tooltip_placement='left', )
+
+        btns += self.get_btn(
+            href=reverse('csw:harvest-catalogue', args=(record.id,)),
+            btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]["UPDATE"],
+            permission=Permission(can_edit_metadata_service=True),
+            tooltip=format_html(_(
+                f"Havest resource <strong>{record.title} [{record.id}]</strong>"), ),
+            tooltip_placement='left', )
+
+        btns += self.get_btn(
+            href=reverse('resource:remove', args=(record.id,)) + f"?current-view={self.current_view}",
+            btn_color=get_theme(self.user)["TABLE"]["BTN_DANGER_COLOR"],
+            btn_value=get_theme(self.user)["ICONS"]['REMOVE'],
+            permission=Permission(can_remove_service=True),
+            tooltip=format_html(_(f"Remove <strong>{record.title} [{record.id}]</strong>"), ),
+            tooltip_placement='left',
+        )
+        return format_html(btns)
 
 
 class PendingTasksTable(MrMapTable):

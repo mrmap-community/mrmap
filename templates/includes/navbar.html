@@ -39,6 +39,7 @@
                 <div class="dropdown-menu" aria-labelledby="navbarServicesDropdown">
                     <a class="dropdown-item" href="{% url 'resource:wms-index' %}">{% autoescape off %}{{THEME.ICONS.WMS}}{% endautoescape %}  {% trans 'WMS' %}</a>
                     <a class="dropdown-item" href="{% url 'resource:wfs-index' %}">{% autoescape off %}{{THEME.ICONS.WFS}}{% endautoescape %} {% trans 'WFS' %}</a>
+                    <a class="dropdown-item" href="{% url 'resource:csw-index' %}">{% autoescape off %}{{THEME.ICONS.CSW}}{% endautoescape %} {% trans 'CSW' %}</a>
                     <a class="dropdown-item" href="{% url 'resource:datasets-index' %}">{% autoescape off %}{{THEME.ICONS.DATASET}}{% endautoescape %} {% trans 'Datasets' %}</a>
                 </div>
             </li>

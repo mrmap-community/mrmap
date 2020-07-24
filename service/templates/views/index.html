@@ -11,13 +11,11 @@
 
     {% endif %}
 
-    {% if only_type == 'wms' or only_type is None %}
-        {% include 'includes/index/wms.html' %}
-    {% endif %}
+    {% include 'includes/index/wms.html' %}
 
-    {% if only_type == 'wfs' or only_type is None %}
-        {% include 'includes/index/wfs.html' %}
-    {% endif %}
+    {% include 'includes/index/wfs.html' %}
+
+    {% include 'includes/index/csw.html' %}
 
     {% with 'Datasets' as service_type %}
         {% with dataset_table as table %}

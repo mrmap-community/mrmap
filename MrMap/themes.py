@@ -6,6 +6,7 @@ FONT_AWESOME_ICONS = {
     'WMS': format_html(ICON_PATTERN, 'far', 'fa-map', ),
     'WMS_SOLID': format_html(ICON_PATTERN, 'fas', 'fa-map', ),
     'WFS': format_html(ICON_PATTERN, 'fas', 'fa-draw-polygon', ),
+    'CSW': format_html(ICON_PATTERN, 'fas', 'fa-book', ),
     'LAYER': format_html(ICON_PATTERN, 'fas', 'fa-layer-group', ),
     'DATASET': format_html(ICON_PATTERN, 'fas', 'fa-clipboard-list', ),
     'PENDINGTASKS': format_html(ICON_PATTERN, 'fas', 'fa-tasks', ),
@@ -62,6 +63,9 @@ FONT_AWESOME_ICONS = {
     'EYE': format_html(ICON_PATTERN, 'fas', 'fa-eye', ),
     'SETTINGS': format_html(ICON_PATTERN, 'fas', 'fa-cogs', ),
     'RESOURCE': format_html(ICON_PATTERN, 'fas', 'fa-database', ),
+    'ON': format_html(ICON_PATTERN, 'fas', 'fa-toggle-on', ),
+    'OFF': format_html(ICON_PATTERN, 'fas', 'fa-toggle-off', ),
+    'POWER_OFF': format_html(ICON_PATTERN, 'fas', 'fa-power-off')
 }
 
 # dark theme settings
@@ -170,8 +174,11 @@ LIGHT_THEME = {
         'BORDERED': 'table-bordered',
         'BTN_PRIMARY_COLOR': 'btn-primary',
         'BTN_SECONDARY_COLOR': 'btn-secondary',
+        'BTN_SECONDARY_OUTLINE_COLOR': 'btn-outline-secondary',
         'BTN_SUCCESS_COLOR': 'btn-success',
+        'BTN_SUCCESS_OUTLINE_COLOR': 'btn-outline-success',
         'BTN_DANGER_COLOR': 'btn-danger',
+        'BTN_DANGER_OUTLINE_COLOR': 'btn-outline-danger',
         'BTN_WARNING_COLOR': 'btn-warning',
         'BTN_INFO_COLOR': 'btn-info',
         'PILL_BADGE_INFO_COLOR': 'badge-pill badge-info',

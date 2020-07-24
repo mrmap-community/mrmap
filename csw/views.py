@@ -55,33 +55,6 @@ def get_csw_results(request: HttpRequest):
 
 
 @login_required
-def add_new_catalogue(request: HttpRequest):
-    """ Registration route for new CSW records
-
-    Args:
-        request (HttpRequest): The incoming request
-    Returns:
-
-    """
-    post_params = request.POST.dict()
-    user = user_helper.get_user(request)
-
-    csw_uri = post_params.get("uri", None)
-    if csw_uri is not None:
-        uri_dict = split_service_uri(csw_uri)
-        uri_dict["service"] = uri_dict["service"].value
-        async_new_service(
-            url_dict=uri_dict,
-            user_id=user.id,
-            register_group_id=1,
-            register_for_organization_id=None,
-            external_auth=None
-        )
-
-    return HttpResponse()
-
-
-@login_required
 @resolve_metadata_public_id
 def harvest_catalogue(request: HttpRequest, metadata_id: str):
     """ Starts harvesting procedure for catalogue

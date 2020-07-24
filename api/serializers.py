@@ -12,7 +12,7 @@ from django.urls import reverse
 from rest_framework import serializers
 
 from MrMap.settings import ROOT_URL
-from service.forms import RegisterNewServiceWizardPage2
+from service.forms import RegisterNewResourceWizardPage2
 from service.helper import service_helper
 from service.models import ServiceType, Metadata, Category, Dimension
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
@@ -207,7 +207,7 @@ class ServiceSerializer(serializers.Serializer):
         }
 
         # Use RegisterNewServiceWizardPage2 workflow as for frontend registration
-        form = RegisterNewServiceWizardPage2(
+        form = RegisterNewResourceWizardPage2(
             init_data,
             user=user
         )

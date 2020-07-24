@@ -2569,6 +2569,15 @@ class Service(Resource):
         """
         return self.is_service_type(enum=OGCServiceEnum.WFS)
 
+    @property
+    def is_csw(self):
+        """ Returns whether the service is a CSW or not
+
+        Returns:
+             True if CSW else False
+        """
+        return self.is_service_type(enum=OGCServiceEnum.CSW)
+
     def is_service_type(self, enum: OGCServiceEnum):
         """ Returns whether the service is of this ServiceEnum
 

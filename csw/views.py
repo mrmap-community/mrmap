@@ -13,7 +13,7 @@ from django.shortcuts import redirect
 
 from django.views.decorators.cache import cache_page
 
-from MrMap.decorator import resolve_metadata_public_id
+from MrMap.decorator import resolve_metadata_public_id, check_permission
 from MrMap.messages import RESOURCE_NOT_FOUND
 from csw.settings import CSW_CACHE_TIME, CSW_CACHE_PREFIX
 from csw.tasks import async_harvest
@@ -28,7 +28,7 @@ from service.helper.ogc.ows import OWSException
 from service.helper.service_helper import split_service_uri
 from service.models import Metadata
 from service.tasks import async_new_service
-from structure.models import PendingTask
+from structure.models import PendingTask, Permission
 from users.helper import user_helper
 
 
@@ -84,6 +84,11 @@ def add_new_catalogue(request: HttpRequest):
 
 @login_required
 @resolve_metadata_public_id
+@check_permission(
+    Permission(
+        can_harvest=True
+    )
+)
 def harvest_catalogue(request: HttpRequest, metadata_id: str):
     """ Starts harvesting procedure for catalogue
 

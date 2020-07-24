@@ -59,6 +59,8 @@ class Permission(models.Model):
 
     can_generate_api_token = models.BooleanField(default=False)
 
+    can_harvest = models.BooleanField(default=False)
+
     can_access_logs = models.BooleanField(default=False)
     can_download_logs = models.BooleanField(default=False)
 

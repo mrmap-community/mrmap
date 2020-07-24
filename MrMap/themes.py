@@ -65,7 +65,8 @@ FONT_AWESOME_ICONS = {
     'RESOURCE': format_html(ICON_PATTERN, 'fas', 'fa-database', ),
     'ON': format_html(ICON_PATTERN, 'fas', 'fa-toggle-on', ),
     'OFF': format_html(ICON_PATTERN, 'fas', 'fa-toggle-off', ),
-    'POWER_OFF': format_html(ICON_PATTERN, 'fas', 'fa-power-off')
+    'POWER_OFF': format_html(ICON_PATTERN, 'fas', 'fa-power-off'),
+    'HARVEST': format_html(ICON_PATTERN, 'fas', 'fa-level-down-alt'),
 }
 
 # dark theme settings

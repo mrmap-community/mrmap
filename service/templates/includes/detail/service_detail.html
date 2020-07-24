@@ -39,7 +39,7 @@
         {% if service.is_csw %}
             {% if 'can_update_service' in user_permissions %}
                 <a role="button" class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}}"  href="{% url 'csw:harvest-catalogue' service_md.id %}?current-view={{current_view}}&current-view-arg={{current_view_arg}}">
-                    {% autoescape off %}{{THEME.ICONS.UPDATE}}{% endautoescape %} {% trans 'Harvest' %}
+                    {% autoescape off %}{{THEME.ICONS.HARVEST}}{% endautoescape %} {% trans 'Harvest' %}
                 </a>
             {% endif %}
         {% else %}

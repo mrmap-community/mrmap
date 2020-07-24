@@ -431,7 +431,7 @@ class CswTable(MrMapTable):
         btns += self.get_btn(
             href=reverse('csw:harvest-catalogue', args=(record.id,)),
             btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
-            btn_value=get_theme(self.user)["ICONS"]["UPDATE"],
+            btn_value=get_theme(self.user)["ICONS"]["HARVEST"],
             permission=Permission(can_edit_metadata_service=True),
             tooltip=format_html(_(
                 f"Havest resource <strong>{record.title} [{record.id}]</strong>"), ),

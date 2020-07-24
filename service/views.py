@@ -665,6 +665,7 @@ def wms_index(request: HttpRequest, update_params: dict = None, status_code: int
                   context=context.get_context(),
                   status=status_code)
 
+
 @login_required
 def csw_index(request: HttpRequest, update_params: dict = None, status_code: int = 200, ):
     """ Renders an overview of all wms and wfs

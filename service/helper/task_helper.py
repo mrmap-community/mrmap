@@ -19,7 +19,8 @@ def update_service_description(task: Task, service: str, phase_descr: str):
 
     Args:
         task (Task): The asynchronous celery task object
-        step (float): The relative step
+        service (str): The new description 'service' value
+        phase_descr (str): The new description 'phase' value
     Returns:
         nothing
     """
@@ -66,6 +67,15 @@ def update_progress(task: Task, new_status: int):
     """
     if new_status < 0 or new_status > 100:
         raise ValueError("new_status must be in range [0, 100]")
+
+    try:
+        pending_task = PendingTask.objects.get(
+            task_id=task.request.id
+        )
+        pending_task.progress = new_status
+        pending_task.save()
+    except ObjectDoesNotExist:
+        pass
 
     task.update_state(
         state='PROGRESS',

@@ -8,6 +8,7 @@ Created on: 15.08.19
 from collections import OrderedDict, Iterable
 
 from django.db.models import QuerySet
+from django.http import HttpRequest
 from django.urls import reverse
 from rest_framework import serializers
 
@@ -19,6 +20,7 @@ from service.models import ServiceType, Metadata, Category, Dimension
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import MrMapGroup, Role, Permission
 from monitoring.models import Monitoring
+from users.helper import user_helper
 
 
 class ServiceTypeSerializer(serializers.ModelSerializer):
@@ -167,7 +169,7 @@ class ServiceSerializer(serializers.Serializer):
     is_root = serializers.BooleanField()
     service_type = ServiceTypeSerializer()
 
-    def create(self, validated_data):
+    def create(self, validated_data, request: HttpRequest = None):
         """ Creates a new service
 
         Starts the regular registration process
@@ -178,7 +180,7 @@ class ServiceSerializer(serializers.Serializer):
              pending_task (PendingTask) or None
         """
         # Writing of .get("xy", None) or None makes sure that empty strings will be mapped to None
-        user = validated_data.get("user", None)
+        user = user_helper.get_user(request=request)
         get_capabilities_uri = validated_data.get("uri", None) or None
         registering_with_group = validated_data.get("group", None) or None
         registering_for_org = validated_data.get("for-org", None) or None
@@ -210,8 +212,7 @@ class ServiceSerializer(serializers.Serializer):
         # Use RegisterNewResourceWizardPage2 workflow as for frontend registration
         form = RegisterNewResourceWizardPage2(
             data=init_data,
-            user=user,
-            # ToDo: add request parameter
+            request=request
         )
         if form.is_valid():
             pending_task = service_helper.create_new_service(form, user)

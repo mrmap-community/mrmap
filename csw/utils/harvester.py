@@ -87,6 +87,7 @@ class Harvester:
                 }),
                 progress=0,
                 remaining_time=None,
+                created_by=self.harvesting_group
             )
 
         # Fill the deleted_metadata with all persisted metadata, so we can eliminate each entry if it is still provided by

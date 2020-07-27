@@ -9,10 +9,39 @@ from MrMap.settings import ROOT_URL
 from csw.utils.parameter import RESULT_TYPE_CHOICES, ELEMENT_SET_CHOICES
 
 import logging
+
+from service.helper.enums import MetadataEnum
+
 csw_logger = logging.getLogger("MrMap.csw")
+
 CSW_ERROR_LOG_TEMPLATE = "Error on metadata with file identifier '{}' from catalogue '{}'. \nException: {}"
 CSW_EXTENT_WARNING_LOG_TEMPLATE = "Error on extent for metadata with file identifier '{}' from catalogue '{}'. \nFound extent data was '{}'. Could not parse correctly. Fallback to default extent."
 CSW_GENERIC_ERROR_TEMPLATE = "Error occured on catalogue '{}': \n{}"
+
+# Harvesting
+# Set the value to True or False to activate/deactivate the harvesting of these types of metadata.
+# "Types of metadata" is equivalent to MD_ScopeCode according to ISO19115
+HARVEST_METADATA_TYPES = {
+    MetadataEnum.DATASET.value: True,
+    MetadataEnum.SERVICE.value: True,
+    MetadataEnum.LAYER.value: True,
+    MetadataEnum.TILE.value: True,
+    MetadataEnum.SERIES.value: True,
+    MetadataEnum.FEATURETYPE.value: True,
+    MetadataEnum.CATALOGUE.value: True,
+    MetadataEnum.ATTRIBUTE.value: True,
+    MetadataEnum.ATTRIBUTETYPE.value: True,
+    MetadataEnum.COLLECTION_HARDWARE.value: True,
+    MetadataEnum.COLLECTION_SESSION.value: True,
+    MetadataEnum.NON_GEOGRAPHIC_DATASET.value: True,
+    MetadataEnum.DIMENSION_GROUP.value: True,
+    MetadataEnum.FEATURE.value: True,
+    MetadataEnum.PROPERTYTYPE.value: True,
+    MetadataEnum.FIELDSESSION.value: True,
+    MetadataEnum.SOFTWARE.value: True,
+    MetadataEnum.MODEL.value: True,
+}
+
 
 CSW_CACHE_TIME = 60 * 60  # 60 minutes (min * sec)
 CSW_CACHE_PREFIX = "csw"

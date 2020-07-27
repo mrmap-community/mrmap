@@ -12,7 +12,8 @@ from django.urls import reverse
 from rest_framework import serializers
 
 from MrMap.settings import ROOT_URL
-from service.forms import RegisterNewResourceWizardPage2
+from api.settings import API_EXCLUDE_METADATA_RELATIONS
+from service.forms import RegisterNewServiceWizardPage2
 from service.helper import service_helper
 from service.models import ServiceType, Metadata, Category, Dimension
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
@@ -334,7 +335,9 @@ def serialize_metadata_relation(md: Metadata) -> list:
          data_list (list): The list containing serialized dict elements
     """
     relations = []
-    md_relations = md.related_metadata.all()
+    md_relations = md.related_metadata.all().exclude(
+        **API_EXCLUDE_METADATA_RELATIONS
+    )
 
     for rel in md_relations:
         md_from = rel.metadata_from

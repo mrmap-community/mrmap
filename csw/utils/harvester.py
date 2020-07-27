@@ -23,10 +23,10 @@ from multiprocessing import cpu_count
 
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from MrMap.utils import execute_threads
-from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE
+from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE, HARVEST_METADATA_TYPES
 from service.helper import xml_helper
 from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
-from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType
+from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType, Service
 from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import PendingTask, MrMapGroup, Organization
 
@@ -63,29 +63,31 @@ class Harvester:
 
         self.pending_task = None  # will be initialized in harvest()
         self.deleted_metadata = {}
+        self.parent_child_map = {}
 
-    def harvest(self):
+    def harvest(self, task_id: str = None):
         """ Starts harvesting procedure
 
         Returns:
 
         """
         # Create a pending task record for the database first!
-        self.pending_task = PendingTask.objects.get_or_create(
-            task_id=self.metadata.id,
-        )
-        is_new = self.pending_task[1]
-        self.pending_task = self.pending_task[0]
-
-        if not is_new:
-            raise ProcessLookupError(_("Harvesting is currently performed. Remaining time: {}").format(self.pending_task.remaining_time))
+        task_exists = PendingTask.objects.filter(
+            description__icontains=self.metadata.title
+        ).exists()
+        if task_exists:
+            raise ProcessLookupError(_("Harvesting is currently performed"))
         else:
-            self.pending_task.description = json.dumps({
-                "service": self.metadata.title,
-                "phase": "Loading Harvest...",
-            })
-            self.pending_task.progress = 0
-            self.pending_task.save()
+            async_task_id = task_id or self.metadata.id
+            self.pending_task = PendingTask.objects.create(
+                task_id=async_task_id,
+                description=json.dumps({
+                    "service": self.metadata.title,
+                    "phase": "Loading Harvest...",
+                }),
+                progress=0,
+                remaining_time=None,
+            )
 
         # Fill the deleted_metadata with all persisted metadata, so we can eliminate each entry if it is still provided by
         # the catalogue. In the end we will have a list, which contains metadata IDs that are not found in the catalogue anymore.
@@ -322,263 +324,341 @@ class Harvester:
             md_metadata_entries = self.resource_list
         else:
             md_metadata_entries = self.resource_list[start_index:end_index]
-        md_data = [self._md_metadata_parse_to_dict(md_metadata) for md_metadata in md_metadata_entries]
+        md_data = self._md_metadata_parse_to_dict(md_metadata_entries)
 
         for md_data_entry in md_data:
-            _id = md_data_entry["id"]
-            # Check if id can be found in dict of metadata to be deleted. If so, it can be removed
-            if self.deleted_metadata.get(_id, None) is not None:
-                del self.deleted_metadata[_id]
+            self._persist_metadata(md_data_entry)
 
-            try:
-                md = Metadata.objects.get(
-                    identifier=_id,
-                )
-                is_new = False
-                if md.last_remote_change == md_data_entry["date_stamp"]:
-                    # Nothing to do here!
-                    continue
-            except ObjectDoesNotExist:
-                md = Metadata(
-                    identifier=_id
-                )
-                is_new = True
-            md.access_constraints = md_data_entry.get("access_constraints", None)
-            md.created_by = self.harvesting_group
-            md.origin = ResourceOriginEnum.CATALOGUE.value
-            md.last_remote_change = md_data_entry.get("date_stamp", None)
-            md.title = md_data_entry.get("title", None)
-            md.public_id = md.generate_public_id()
-            md.contact = md_data_entry.get("contact", None)
-            md.language_code = md_data_entry.get("language_code", None)
-            md.metadata_type = md_data_entry.get("metadata_type", None)
-            md.abstract = md_data_entry.get("abstract", None)
-            md.bounding_geometry = md_data_entry.get("bounding_geometry", None)
-            md.online_resource = md_data_entry.get("link", None)
-            formats = md_data_entry.get("formats", [])
-            md.is_active = True
+        self._persist_metadata_parent_relation()
 
-            try:
-                # Improve speed for keyword get-create by fetching (filter) all existing ones and only perform
-                # get_or_create on the ones that do not exist yet. Speed up by ~50% for large amount of data
-                existing_kws = Keyword.objects.filter(keyword__in=md_data_entry["keywords"])
-                existing_kws = [kw.keyword for kw in existing_kws]
-                new_kws = [kw for kw in md_data_entry["keywords"] if kw not in existing_kws]
-                [Keyword.objects.get_or_create(keyword=kw)[0] for kw in new_kws]
-                kws = Keyword.objects.filter(keyword__in=md_data_entry["keywords"])
+    def _persist_metadata(self, md_data_entry: dict):
+        """ Creates real Metadata model records from the parsed data
 
-                # Same for MimeTypes
-                existing_formats = MimeType.objects.filter(mime_type__in=md_data_entry["formats"])
-                existing_formats = [_format.mime_type for _format in existing_formats]
-                new_formats = [_format for _format in md_data_entry["formats"] if _format not in existing_formats]
-                [MimeType.objects.get_or_create(mime_type=_format)[0] for _format in new_formats]
-                formats = MimeType.objects.filter(mime_type__in=md_data_entry["formats"])
-
-                with transaction.atomic():
-                    q = Q()
-                    for cat in md_data_entry["categories"]:
-                        q |= Q(title_EN__iexact=cat)
-                    categories = Category.objects.filter(q)
-
-                    md.save(add_monitoring=False)
-                    md.keywords.add(*kws)
-                    md.categories.add(*categories)
-                    md.formats.add(*formats)
-
-                    # To reduce runtime, we only create a new MetadataRelation if we are sure there hasn't already been one.
-                    # Using get_or_create increases runtime on existing metadata too much!
-                    if is_new:
-                        md.related_metadata.add(
-                            MetadataRelation.objects.create(
-                                metadata_from=md,
-                                relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
-                                metadata_to=self.metadata,
-                                origin=ResourceOriginEnum.CATALOGUE.value
-                            )
-                        )
-            except (IntegrityError, DataError) as e:
-                csw_logger.error(
-                    CSW_ERROR_LOG_TEMPLATE.format(
-                        md.identifier,
-                        self.metadata.title,
-                        e
-                    )
-                )
-
-    def _md_metadata_parse_to_dict(self, md_metadata: Element) -> dict:
-        """ Read most important data from MD_Metadata xml element and return as a dict
         Args:
-            md_metadata (Element): The xml element of MD_Metadata
+            md_data_entry (dict):
         Returns:
-             md_data_entry (dict): The dict containing data
+             metadata (Metadata): The persisted metadata object
         """
-        md_data_entry = {}
-        _id = xml_helper.try_get_text_from_xml_element(
-            md_metadata,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("fileIdentifier")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-        )
-        md_data_entry["id"] = _id
+        _id = md_data_entry["id"]
+        # Check if id can be found in dict of metadata to be deleted. If so, it can be removed
+        if self.deleted_metadata.get(_id, None) is not None:
+            del self.deleted_metadata[_id]
 
-        hierarchy_level = xml_helper.try_get_attribute_from_xml_element(
-            md_metadata,
-            "codeListValue",
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("hierarchyLevel")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("MD_ScopeCode")
-        )
-        metadata_type = hierarchy_level
-        md_data_entry["metadata_type"] = metadata_type
-
-        # A workaround, so we do not need to check whether SV_ServiceIdentification or MD_DataIdentification is present
-        # in this metadata: Simply take the direct parent and perform a deeper nested search on the inside of this element.
-        # Yes, we could simply decide based on the hierarchyLevel attribute whether to search for SV_xxx or MD_yyy.
-        # No, there are metadata entries which do not follow these guidelines and have "service" with MD_yyy
-        # Yes, they are important since they can be found in the INSPIRE catalogue (07/2020)
-        identification_elem = xml_helper.try_get_single_element_from_xml(
-            xml_elem=md_metadata,
-            elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("identificationInfo")
-        )
-        title = xml_helper.try_get_text_from_xml_element(
-            identification_elem,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("citation")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Citation")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("title")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-        )
-        md_data_entry["title"] = title
-        if title is None:
-            print(xml_helper.xml_to_string(md_metadata, pretty_print=True))
-
-        language_code = xml_helper.try_get_attribute_from_xml_element(
-            md_metadata,
-            "codeListValue",
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("language")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode")
-        )
-        md_data_entry["language_code"] = language_code
-
-        date_stamp = xml_helper.try_get_text_from_xml_element(
-            md_metadata,
-            "./" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Date")
-        ) or xml_helper.try_get_text_from_xml_element(
-            md_metadata,
-            "./" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("DateTime")
-        )
         try:
-            md_data_entry["date_stamp"] = parse(date_stamp).replace(tzinfo=utc)
-        except TypeError:
-            md_data_entry["date_stamp"] = None
-
-        abstract = xml_helper.try_get_text_from_xml_element(
-            md_metadata,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("abstract")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-        )
-        md_data_entry["abstract"] = abstract
-
-        resource_link = xml_helper.try_get_text_from_xml_element(
-            md_metadata,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DigitalTransferOptions")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("onLine")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_OnlineResource")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("linkage")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("URL"),
-        )
-        md_data_entry["link"] = resource_link
-
-        keywords = xml_helper.try_get_element_from_xml(
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("keyword")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"),
-            md_metadata,
-        ) or []
-        keywords = [
-            xml_helper.try_get_text_from_xml_element(
-                kw
+            md = Metadata.objects.get(
+                identifier=_id,
             )
-            for kw in keywords
-        ]
-        md_data_entry["keywords"] = keywords
-
-        access_constraints = xml_helper.try_get_text_from_xml_element(
-            md_metadata,
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("otherConstraints")
-            + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
-        )
-        md_data_entry["access_constraints"] = access_constraints
-
-        categories = xml_helper.try_get_element_from_xml(
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_TopicCategoryCode"),
-            md_metadata,
-        ) or []
-        categories = [
-            xml_helper.try_get_text_from_xml_element(
-                cat
+            is_new = False
+            if md.last_remote_change == md_data_entry["date_stamp"]:
+                # Nothing to do here!
+                return
+        except ObjectDoesNotExist:
+            md = Metadata(
+                identifier=_id
             )
-            for cat in categories
-        ]
-        md_data_entry["categories"] = categories
+            is_new = True
+        md.access_constraints = md_data_entry.get("access_constraints", None)
+        md.created_by = self.harvesting_group
+        md.origin = ResourceOriginEnum.CATALOGUE.value
+        md.last_remote_change = md_data_entry.get("date_stamp", None)
+        md.title = md_data_entry.get("title", None)
+        md.public_id = md.generate_public_id()
+        md.contact = md_data_entry.get("contact", None)
+        md.language_code = md_data_entry.get("language_code", None)
+        md.metadata_type = md_data_entry.get("metadata_type", None)
+        md.abstract = md_data_entry.get("abstract", None)
+        md.bounding_geometry = md_data_entry.get("bounding_geometry", None)
+        md.online_resource = md_data_entry.get("link", None)
+        formats = md_data_entry.get("formats", [])
+        md.is_active = True
 
-        bbox_elem = xml_helper.try_get_single_element_from_xml(
-            ".//" + GENERIC_NAMESPACE_TEMPLATE.format("EX_GeographicBoundingBox"),
-            md_metadata
-        )
-        if bbox_elem is not None:
-            extent = [
-                xml_helper.try_get_text_from_xml_element(
-                    bbox_elem,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("westBoundLongitude")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ) or "0.0",
-                xml_helper.try_get_text_from_xml_element(
-                    bbox_elem,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("southBoundLatitude")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ) or "0.0",
-                xml_helper.try_get_text_from_xml_element(
-                    bbox_elem,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("eastBoundLongitude")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ) or "0.0",
-                xml_helper.try_get_text_from_xml_element(
-                    bbox_elem,
-                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("northBoundLatitude")
-                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
-                ) or "0.0",
-            ]
-            # There are metadata with wrong vertex notations like 50,3 instead of 50.3
-            # We should just drop them, since they are not compatible with the specifications but in here, we make an
-            # exception and replace , since it's quite easy
-            extent = [vertex.replace(",", ".") for vertex in extent]
-            try:
-                bounding_geometry = GEOSGeometry(Polygon.from_bbox(bbox=extent), srid=DEFAULT_SRS)
-            except Exception:
-                # Log malicious extent!
-                csw_logger.warning(
-                    CSW_EXTENT_WARNING_LOG_TEMPLATE.format(
-                        _id,
-                        self.metadata.title,
-                        extent
+        try:
+            # Improve speed for keyword get-create by fetching (filter) all existing ones and only perform
+            # get_or_create on the ones that do not exist yet. Speed up by ~50% for large amount of data
+            existing_kws = Keyword.objects.filter(keyword__in=md_data_entry["keywords"])
+            existing_kws = [kw.keyword for kw in existing_kws]
+            new_kws = [kw for kw in md_data_entry["keywords"] if kw not in existing_kws]
+            [Keyword.objects.get_or_create(keyword=kw)[0] for kw in new_kws]
+            kws = Keyword.objects.filter(keyword__in=md_data_entry["keywords"])
+
+            # Same for MimeTypes
+            existing_formats = MimeType.objects.filter(mime_type__in=md_data_entry["formats"])
+            existing_formats = [_format.mime_type for _format in existing_formats]
+            new_formats = [_format for _format in md_data_entry["formats"] if _format not in existing_formats]
+            [MimeType.objects.get_or_create(mime_type=_format)[0] for _format in new_formats]
+            formats = MimeType.objects.filter(mime_type__in=md_data_entry["formats"])
+
+            with transaction.atomic():
+                q = Q()
+                for cat in md_data_entry["categories"]:
+                    q |= Q(title_EN__iexact=cat)
+                categories = Category.objects.filter(q)
+
+                md.save(add_monitoring=False)
+                md.keywords.add(*kws)
+                md.categories.add(*categories)
+                md.formats.add(*formats)
+
+                # To reduce runtime, we only create a new MetadataRelation if we are sure there hasn't already been one.
+                # Using get_or_create increases runtime on existing metadata too much!
+                if is_new:
+                    md.related_metadata.add(
+                        MetadataRelation.objects.create(
+                            metadata_from=md,
+                            relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
+                            metadata_to=self.metadata,
+                            origin=ResourceOriginEnum.CATALOGUE.value
+                        )
                     )
-                )
-                bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
-        else:
-            bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 
-        md_data_entry["bounding_geometry"] = bounding_geometry
-        md_data_entry["contact"] = self._create_contact_from_md_metadata(md_metadata)
-        md_data_entry["formats"] = self._create_formats_from_md_metadata(md_metadata)
-        # Load non-metadata data
-        # ToDo: Should harvesting persist non-metadata data?!
-        #described_resource = None
-        #metadata = None
-        #if hierarchy_level == MetadataEnum.DATASET.value:
-        #    described_resource = self._create_dataset_from_md_metadata(md_metadata, metadata)
-        #    described_resource.metadata = metadata
-        #    described_resource.is_active = True
-        #    described_resource.save()
-        return md_data_entry
+            parent_id = md_data_entry["parent_id"]
+            # Add the found parent_id to the parent_child map!
+            if parent_id is not None:
+                if self.parent_child_map.get(parent_id, None) is None:
+                    self.parent_child_map[parent_id] = [md]
+                else:
+                    self.parent_child_map[parent_id].append(md)
+
+        except (IntegrityError, DataError) as e:
+            csw_logger.error(
+                CSW_ERROR_LOG_TEMPLATE.format(
+                    md.identifier,
+                    self.metadata.title,
+                    e
+                )
+            )
+
+    @transaction.atomic
+    def _persist_metadata_parent_relation(self):
+        """ Creates MetadataRelation records if there is information about a parent-child relation
+
+        Args:
+            md_data_entry (dict):
+        Returns:
+             metadata (Metadata): The persisted metadata object
+        """
+        # Make sure there is some kind of parent-subelement relation. We can not use the regular Service.parent_service
+        # model since there is not enough data from the CSW to use Service properly and we can not 100% determine which
+        # types of Servives we are dealing with (WFS/WMS). Therefore for harvesting, we need to use this workaround using
+        # MetadataRelation
+
+        for parent_id, children in self.parent_child_map.items():
+            try:
+                parent_md = Metadata.objects.get(
+                    identifier=parent_id
+                )
+            except ObjectDoesNotExist:
+                # it seems that this metadata has not been harvested yet - we keep it in the map for later!
+                continue
+            for child in children:
+                # Check if relation already exists - again a faster alternative to get_or_create
+                rel_exists = child.related_metadata.filter(
+                    metadata_to=parent_md,
+                    relation_type=MetadataRelationEnum.HARVESTED_PARENT.value,
+                    origin=ResourceOriginEnum.CATALOGUE.value,
+                ).exists()
+                if not rel_exists:
+                    md_relation = MetadataRelation.objects.create(
+                        metadata_from=child,
+                        relation_type=MetadataRelationEnum.HARVESTED_PARENT.value,
+                        metadata_to=parent_md,
+                        origin=ResourceOriginEnum.CATALOGUE.value
+                    )
+                    parent_md.related_metadata.add(md_relation)
+                    child.related_metadata.add(md_relation)
+
+            # clear children list of parent afterwards so we don't work on them again
+            self.parent_child_map[parent_id] = []
+
+    def _md_metadata_parse_to_dict(self, md_metadata_entries: list) -> list:
+        """ Read most important data from MD_Metadata xml element
+
+        Args:
+            md_metadata_entries (list): The xml MD_Metadata elements
+        Returns:
+             ret_list (list): The list containing dicts
+        """
+        ret_list = []
+        for md_metadata in md_metadata_entries:
+            md_data_entry = {}
+
+            # Check before anything else, whether this metadata type can be skipped!
+            hierarchy_level = xml_helper.try_get_attribute_from_xml_element(
+                md_metadata,
+                "codeListValue",
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("hierarchyLevel")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("MD_ScopeCode")
+            )
+            metadata_type = hierarchy_level
+            md_data_entry["metadata_type"] = metadata_type
+            if not HARVEST_METADATA_TYPES.get(metadata_type, False):
+                continue
+
+            _id = xml_helper.try_get_text_from_xml_element(
+                md_metadata,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("fileIdentifier")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            md_data_entry["id"] = _id
+
+            parent_id = xml_helper.try_get_text_from_xml_element(
+                md_metadata,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("parentIdentifier")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            md_data_entry["parent_id"] = parent_id
+
+            # A workaround, so we do not need to check whether SV_ServiceIdentification or MD_DataIdentification is present
+            # in this metadata: Simply take the direct parent and perform a deeper nested search on the inside of this element.
+            # Yes, we could simply decide based on the hierarchyLevel attribute whether to search for SV_xxx or MD_yyy.
+            # No, there are metadata entries which do not follow these guidelines and have "service" with MD_yyy
+            # Yes, they are important since they can be found in the INSPIRE catalogue (07/2020)
+            identification_elem = xml_helper.try_get_single_element_from_xml(
+                xml_elem=md_metadata,
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("identificationInfo")
+            )
+            title = xml_helper.try_get_text_from_xml_element(
+                identification_elem,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("citation")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_Citation")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("title")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            md_data_entry["title"] = title
+
+            language_code = xml_helper.try_get_attribute_from_xml_element(
+                md_metadata,
+                "codeListValue",
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("language")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("LanguageCode")
+            )
+            md_data_entry["language_code"] = language_code
+
+            date_stamp = xml_helper.try_get_text_from_xml_element(
+                md_metadata,
+                "./" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Date")
+            ) or xml_helper.try_get_text_from_xml_element(
+                md_metadata,
+                "./" + GENERIC_NAMESPACE_TEMPLATE.format("dateStamp")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("DateTime")
+            )
+            try:
+                md_data_entry["date_stamp"] = parse(date_stamp).replace(tzinfo=utc)
+            except TypeError:
+                md_data_entry["date_stamp"] = None
+
+            abstract = xml_helper.try_get_text_from_xml_element(
+                md_metadata,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("abstract")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            md_data_entry["abstract"] = abstract
+
+            resource_link = xml_helper.try_get_text_from_xml_element(
+                md_metadata,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DigitalTransferOptions")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("onLine")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_OnlineResource")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("linkage")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("URL"),
+            )
+            md_data_entry["link"] = resource_link
+
+            keywords = xml_helper.try_get_element_from_xml(
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("keyword")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString"),
+                md_metadata,
+            ) or []
+            keywords = [
+                xml_helper.try_get_text_from_xml_element(
+                    kw
+                )
+                for kw in keywords
+            ]
+            md_data_entry["keywords"] = keywords
+
+            access_constraints = xml_helper.try_get_text_from_xml_element(
+                md_metadata,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("otherConstraints")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            md_data_entry["access_constraints"] = access_constraints
+
+            categories = xml_helper.try_get_element_from_xml(
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_TopicCategoryCode"),
+                md_metadata,
+            ) or []
+            categories = [
+                xml_helper.try_get_text_from_xml_element(
+                    cat
+                )
+                for cat in categories
+            ]
+            md_data_entry["categories"] = categories
+
+            bbox_elem = xml_helper.try_get_single_element_from_xml(
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("EX_GeographicBoundingBox"),
+                md_metadata
+            )
+            if bbox_elem is not None:
+                extent = [
+                    xml_helper.try_get_text_from_xml_element(
+                        bbox_elem,
+                        ".//" + GENERIC_NAMESPACE_TEMPLATE.format("westBoundLongitude")
+                        + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+                    ) or "0.0",
+                    xml_helper.try_get_text_from_xml_element(
+                        bbox_elem,
+                        ".//" + GENERIC_NAMESPACE_TEMPLATE.format("southBoundLatitude")
+                        + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+                    ) or "0.0",
+                    xml_helper.try_get_text_from_xml_element(
+                        bbox_elem,
+                        ".//" + GENERIC_NAMESPACE_TEMPLATE.format("eastBoundLongitude")
+                        + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+                    ) or "0.0",
+                    xml_helper.try_get_text_from_xml_element(
+                        bbox_elem,
+                        ".//" + GENERIC_NAMESPACE_TEMPLATE.format("northBoundLatitude")
+                        + "/" + GENERIC_NAMESPACE_TEMPLATE.format("Decimal")
+                    ) or "0.0",
+                ]
+                # There are metadata with wrong vertex notations like 50,3 instead of 50.3
+                # We should just drop them, since they are not compatible with the specifications but in here, we make an
+                # exception and replace , since it's quite easy
+                extent = [vertex.replace(",", ".") for vertex in extent]
+                try:
+                    bounding_geometry = GEOSGeometry(Polygon.from_bbox(bbox=extent), srid=DEFAULT_SRS)
+                except Exception:
+                    # Log malicious extent!
+                    csw_logger.warning(
+                        CSW_EXTENT_WARNING_LOG_TEMPLATE.format(
+                            _id,
+                            self.metadata.title,
+                            extent
+                        )
+                    )
+                    bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
+            else:
+                bounding_geometry = DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
+
+            md_data_entry["bounding_geometry"] = bounding_geometry
+            md_data_entry["contact"] = self._create_contact_from_md_metadata(md_metadata)
+            md_data_entry["formats"] = self._create_formats_from_md_metadata(md_metadata)
+
+            # Load non-metadata data
+            # ToDo: Should harvesting persist non-metadata data?!
+            #described_resource = None
+            #metadata = None
+            #if hierarchy_level == MetadataEnum.DATASET.value:
+            #    described_resource = self._create_dataset_from_md_metadata(md_metadata, metadata)
+            #    described_resource.metadata = metadata
+            #    described_resource.is_active = True
+            #    described_resource.save()
+
+            ret_list.append(md_data_entry)
+        return ret_list
 
     def _create_dataset_from_md_metadata(self, md_metadata: Element, metadata: Metadata) -> Dataset:
         """ Creates a Dataset record from xml data

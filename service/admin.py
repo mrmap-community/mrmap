@@ -98,6 +98,9 @@ class MetadataAdmin(admin.ModelAdmin):
     list_filter = ('metadata_type', 'is_active', 'is_broken')
     search_fields = ['id', 'title', ]
     ordering = ["-created"]
+    readonly_fields = (
+        "related_metadata",
+    )
 
 
 class MetadataRelationAdmin(admin.ModelAdmin):

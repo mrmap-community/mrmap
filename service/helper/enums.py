@@ -87,8 +87,21 @@ class MetadataEnum(EnumChoice):
     LAYER = "layer"
     TILE = "tile"
     SERIES = "series"
-    FEATURETYPE = "featuretype"
+    FEATURETYPE = "featureType"
     CATALOGUE = "catalogue"
+
+    # Enums derived from MD_ScopeCode (ISO19115)
+    ATTRIBUTE = "attribute"
+    ATTRIBUTETYPE = "attributeType"
+    COLLECTION_HARDWARE = "collectionHardware"
+    COLLECTION_SESSION = "collectionSession"
+    NON_GEOGRAPHIC_DATASET = "nonGeographicDataset"
+    DIMENSION_GROUP = "dimensionGroup"
+    FEATURE = "feature"
+    PROPERTYTYPE = "propertyType"
+    FIELDSESSION = "fieldSession"
+    SOFTWARE = "software"
+    MODEL = "model"
 
 
 class DocumentEnum(EnumChoice):
@@ -132,3 +145,4 @@ class MetadataRelationEnum(EnumChoice):
     VISUALIZES = "visualizes"
     DESCRIBED_BY = "describedBy"
     HARVESTED_THROUGH = "harvestedThrough"
+    HARVESTED_PARENT = "harvestedParent"

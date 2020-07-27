@@ -31,7 +31,8 @@ def parse_xml(xml: str, encoding=None):
     else:
         xml_b = xml
     try:
-        xml_obj = etree.ElementTree(etree.fromstring(text=xml_b))
+        parser = etree.XMLParser(huge_tree=len(xml_b) > 10000000)
+        xml_obj = etree.ElementTree(etree.fromstring(text=xml_b, parser=parser))
         if encoding != xml_obj.docinfo.encoding:
             # there might be problems e.g. with german Umlaute ä,ö,ü, ...
             # try to parse again but with the correct encoding

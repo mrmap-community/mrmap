@@ -5,8 +5,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Case, When
 from django.http import HttpRequest, HttpResponseRedirect
-from django.shortcuts import render, get_object_or_404, redirect
-
+from django.shortcuts import render, get_object_or_404
+from django.db.models import Q
 from MrMap.decorator import check_permission, check_ownership
 from MrMap.messages import SECURITY_PROXY_WARNING_ONLY_FOR_ROOT
 from MrMap.responses import DefaultContext
@@ -75,7 +75,9 @@ def add_new_dataset_wizard(request: HttpRequest, ):
 @check_permission(Permission(can_edit_dataset_metadata=True))
 @check_ownership(Metadata, 'metadata_id')
 def edit_dataset_wizard(request, metadata_id):
-    metadata = get_object_or_404(Metadata, id=metadata_id)
+    metadata = get_object_or_404(Metadata,
+                                 ~Q(metadata_type=MetadataEnum.CATALOGUE.value),
+                                 id=metadata_id)
     return DatasetWizard.as_view(form_list=DATASET_WIZARD_FORMS,
                                  ignore_uncomitted_forms=True,
                                  current_view=request.GET.get('current-view'),
@@ -100,7 +102,9 @@ def edit(request: HttpRequest, metadata_id):
     Returns:
         A rendered view
     """
-    metadata = get_object_or_404(Metadata, id=metadata_id)
+    metadata = get_object_or_404(Metadata,
+                                 ~Q(metadata_type=MetadataEnum.CATALOGUE.value),
+                                 id=metadata_id,)
     if metadata.metadata_type == MetadataEnum.DATASET.value:
         return HttpResponseRedirect(reverse("editor:edit-dataset-metadata", args=(metadata_id,)), status=303)
 
@@ -134,7 +138,9 @@ def edit_access(request: HttpRequest, object_id, update_params: dict = None, sta
     """
     template = "views/editor_edit_access_index.html"
     user = user_helper.get_user(request)
-    md = get_object_or_404(Metadata, id=object_id)
+    md = get_object_or_404(Metadata,
+                           ~Q(metadata_type=MetadataEnum.CATALOGUE.value),
+                           id=object_id)
     is_root = md.is_root()
 
     form = RestrictAccessForm(
@@ -197,7 +203,9 @@ def access_geometry_form(request: HttpRequest, metadata_id, group_id):
     Returns:
 
     """
-    get_object_or_404(Metadata, id=metadata_id)
+    get_object_or_404(Metadata,
+                      ~Q(metadata_type=MetadataEnum.CATALOGUE.value),
+                      id=metadata_id)
     group = get_object_or_404(MrMapGroup, id=group_id)
     form = RestrictAccessSpatially(
         data=request.POST or None,
@@ -225,7 +233,9 @@ def restore(request: HttpRequest, metadata_id):
     Returns:
          Redirects back to edit view
     """
-    metadata = Metadata.objects.get(id=metadata_id)
+    metadata = get_object_or_404(Metadata,
+                                 ~Q(metadata_type=MetadataEnum.CATALOGUE.value),
+                                 id=metadata_id)
 
     form = RestoreMetadataForm(data=request.POST or None,
                                request=request,
@@ -251,7 +261,9 @@ def restore_dataset_metadata(request: HttpRequest, metadata_id):
     Returns:
          Redirects back to edit view
     """
-    metadata = get_object_or_404(Metadata, id=metadata_id)
+    metadata = get_object_or_404(Metadata,
+                                 ~Q(metadata_type=MetadataEnum.CATALOGUE.value),
+                                 id=metadata_id)
 
     form = RestoreDatasetMetadata(data=request.POST or None,
                                   request=request,

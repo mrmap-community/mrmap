@@ -1,11 +1,10 @@
 # common classes for handling of OWS (OGC Webservices)
 # for naming conventions see http://portal.opengeospatial.org/files/?artifact_id=38867
-
 from abc import abstractmethod
+from urllib.parse import urlencode
 
 from celery import Task
 from django.contrib.gis.geos import Polygon
-from django.db import transaction
 from lxml.etree import Element
 from requests.exceptions import ReadTimeout
 
@@ -14,7 +13,7 @@ from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
 from service.helper import xml_helper
 from service.helper.common_connector import CommonConnector
 from service.helper.crypto_handler import CryptoHandler
-from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, OGCServiceEnum
+from service.helper.enums import ConnectionEnum, OGCServiceVersionEnum, OGCServiceEnum, OGCOperationEnum
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.models import RequestOperation, ExternalAuthentication, Metadata
 from service.settings import EXTERNAL_AUTHENTICATION_FILEPATH
@@ -101,12 +100,18 @@ class OGCWebService:
         Returns:
              nothing
         """
-        self.service_connect_url = self.service_connect_url + \
-                                   '&REQUEST=GetCapabilities' + '&VERSION=' + self.service_version.value + \
-                                   '&SERVICE=' + self.service_type.value
-        ows_connector = CommonConnector(url=self.service_connect_url,
-                                        external_auth=self.external_authentification,
-                                        connection_type=ConnectionEnum.REQUESTS)
+        params = {
+            "request": OGCOperationEnum.GET_CAPABILITIES.value,
+            "version": self.service_version.value if self.service_version is not None else "",
+            "service": (self.service_type.value if self.service_type is not None else "").upper(),
+        }
+        concat = "&" if self.service_connect_url[-1] != "&" else ""
+        self.service_connect_url = "{}{}{}".format(self.service_connect_url, concat, urlencode(params))
+        ows_connector = CommonConnector(
+            url=self.service_connect_url,
+            external_auth=self.external_authentification,
+            connection_type=ConnectionEnum.REQUESTS
+        )
         ows_connector.http_method = 'GET'
         try:
             ows_connector.load()

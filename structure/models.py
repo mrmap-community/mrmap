@@ -14,6 +14,7 @@ class PendingTask(models.Model):
     task_id = models.CharField(max_length=500, null=True, blank=True)
     description = models.TextField()
     progress = models.FloatField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    remaining_time = models.DurationField(blank=True, null=True)
     is_finished = models.BooleanField(default=False)
     created_by = models.ForeignKey('MrMapGroup', null=True, blank=True, on_delete=models.DO_NOTHING)
 
@@ -57,6 +58,8 @@ class Permission(models.Model):
     can_request_to_become_publisher = models.BooleanField(default=False)
 
     can_generate_api_token = models.BooleanField(default=False)
+
+    can_harvest = models.BooleanField(default=False)
 
     can_access_logs = models.BooleanField(default=False)
     can_download_logs = models.BooleanField(default=False)

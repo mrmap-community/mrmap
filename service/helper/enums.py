@@ -43,6 +43,7 @@ class OGCServiceEnum(EnumChoice):
     WFS = "wfs"
     WMC = "wmc"
     DATASET = "dataset"
+    CSW = "csw"
 
 
 class OGCOperationEnum(EnumChoice):
@@ -71,6 +72,11 @@ class OGCOperationEnum(EnumChoice):
     GET_PROPERTY_VALUE = "GetPropertyValue"
     DESCRIBE_STORED_QUERIES = "DescribeStoredQueries"
 
+    # CSW
+    GET_RECORDS = "GetRecords"
+    DESCRIBE_RECORD = "DescribeRecord"
+    GET_RECORD_BY_ID = "GetRecordById"
+
 
 class MetadataEnum(EnumChoice):
     """ Defines all metadata types
@@ -79,7 +85,23 @@ class MetadataEnum(EnumChoice):
     DATASET = "dataset"
     SERVICE = "service"
     LAYER = "layer"
-    FEATURETYPE = "featuretype"
+    TILE = "tile"
+    SERIES = "series"
+    FEATURETYPE = "featureType"
+    CATALOGUE = "catalogue"
+
+    # Enums derived from MD_ScopeCode (ISO19115)
+    ATTRIBUTE = "attribute"
+    ATTRIBUTETYPE = "attributeType"
+    COLLECTION_HARDWARE = "collectionHardware"
+    COLLECTION_SESSION = "collectionSession"
+    NON_GEOGRAPHIC_DATASET = "nonGeographicDataset"
+    DIMENSION_GROUP = "dimensionGroup"
+    FEATURE = "feature"
+    PROPERTYTYPE = "propertyType"
+    FIELDSESSION = "fieldSession"
+    SOFTWARE = "software"
+    MODEL = "model"
 
 
 class DocumentEnum(EnumChoice):
@@ -97,6 +119,7 @@ class ResourceOriginEnum(EnumChoice):
     CAPABILITIES = "Capabilities"
     UPLOAD = "Upload"
     EDITOR = "Editor"
+    CATALOGUE = "Catalogue"
 
 
 class CategoryOriginEnum(EnumChoice):
@@ -113,3 +136,13 @@ class CategoryOriginEnum(EnumChoice):
     @classmethod
     def all_names_as_list(cls):
         return [enum.name for enum in cls]
+
+
+class MetadataRelationEnum(EnumChoice):
+    """ Defines types of metadata relations for MetadataRelation model
+
+    """
+    VISUALIZES = "visualizes"
+    DESCRIBED_BY = "describedBy"
+    HARVESTED_THROUGH = "harvestedThrough"
+    HARVESTED_PARENT = "harvestedParent"

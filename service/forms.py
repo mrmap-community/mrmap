@@ -10,7 +10,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse_lazy
 from django.utils.html import format_html
 
-from MrMap.consts import SERVICE_ADD
 from MrMap.forms import MrMapForm, MrMapConfirmForm, MrMapWizardForm
 from MrMap.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MrMap.validators import validate_get_request_uri
@@ -30,11 +29,11 @@ class ServiceURIForm(forms.Form):
     }))
 
 
-class RegisterNewServiceWizardPage1(MrMapWizardForm):
+class RegisterNewResourceWizardPage1(MrMapWizardForm):
     get_request_uri = forms.URLField(validators=[validate_get_request_uri])
 
 
-class RegisterNewServiceWizardPage2(MrMapWizardForm):
+class RegisterNewResourceWizardPage2(MrMapWizardForm):
     ogc_request = forms.CharField(label=_('OGC Request'), widget=forms.TextInput(attrs={'readonly': '', }))
     ogc_service = forms.CharField(label=_('OGC Service'), widget=forms.TextInput(attrs={'readonly': '', }))
     ogc_version = forms.CharField(label=_('OGC Version'), widget=forms.TextInput(attrs={'readonly': '', }))
@@ -54,7 +53,7 @@ class RegisterNewServiceWizardPage2(MrMapWizardForm):
                                             choices=(('http_digest', 'HTTP Digest'), ('http_basic', 'HTTP Basic')))
 
     def __init__(self,  *args, **kwargs):
-        super(RegisterNewServiceWizardPage2, self).__init__(*args, **kwargs)
+        super(RegisterNewResourceWizardPage2, self).__init__(*args, **kwargs)
         registering_with_group_key = self.prefix+"-registering_with_group" if self.prefix else "registering_with_group"
         selected_group = None
         if registering_with_group_key in self.request.POST:

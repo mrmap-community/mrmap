@@ -53,9 +53,13 @@ class WmsHelper:
         Returns:
             str: URL for getStyles request.
         """
-        uri = self.service.get_styles_uri_GET
+        uri = self.service.operation_urls.filter(
+            operation=OGCOperationEnum.GET_STYLES.value,
+            method="Get"
+        ).first()
         if uri is None:
             return
+        uri = uri.url
         service_version = OGCServiceVersionEnum.V_1_1_1.value
         service_type = OGCServiceEnum.WMS.value
         layers = self.layer.identifier
@@ -76,9 +80,13 @@ class WmsHelper:
         Returns:
             str: URL for getLegendGraphic request.
         """
-        uri = self.service.get_legend_graphic_uri_GET
+        uri = self.service.operation_urls.filter(
+            operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
+            method="Get"
+        ).first()
         if uri is None:
             return
+        uri = uri.url
         request_type = OGCOperationEnum.GET_LEGEND_GRAPHIC.value
         layer = self.layer.identifier
         service_format = str(self.service.metadata.formats.all()[0])
@@ -103,9 +111,13 @@ class WmsHelper:
         Returns:
             str: URL for DescribeLayer request.
         """
-        uri = self.service.describe_layer_uri_GET
+        uri = self.service.operation_urls.filter(
+            operation=OGCOperationEnum.DESCRIBE_LAYER.value,
+            method="Get"
+        ).first()
         if uri is None:
             return
+        uri = uri.url
         request_type = OGCOperationEnum.DESCRIBE_LAYER.value
         # make sure that version is describeLayer specific version 1.1.1 and not wms version 1.3.0
         service_version = OGCServiceVersionEnum.V_1_1_1.value
@@ -128,9 +140,13 @@ class WmsHelper:
         Returns:
             str: URL for getFeatureInfo request.
         """
-        uri = self.service.get_feature_info_uri_GET
+        uri = self.service.operation_urls.filter(
+            operation=OGCOperationEnum.GET_FEATURE_INFO.value,
+            method="Get"
+        ).first()
         if uri is None or not self.layer.is_queryable:
             return
+        uri = uri.url
         request_type = OGCOperationEnum.GET_FEATURE_INFO.value
         service_version = self.service.service_type.version
         service_type = OGCServiceEnum.WMS.value
@@ -170,10 +186,13 @@ class WmsHelper:
         Returns:
             str: URL for getMap request.
         """
-        uri = self.service.get_map_uri_GET
+        uri = self.service.operation_urls.filter(
+            operation=OGCOperationEnum.GET_MAP.value,
+            method="Get"
+        ).first()
         if uri is None:
             return
-
+        uri = uri.url
         # Fetch request parameters
         request_type = OGCOperationEnum.GET_MAP.value
         service_version = self.service.service_type.version
@@ -211,10 +230,15 @@ class WmsHelper:
         Returns:
             str: URL for getCapabilities request.
         """
-        uri = self.service.get_capabilities_uri_GET
+        uri = self.service.operation_urls.filter(
+            operation=OGCOperationEnum.GET_CAPABILITIES.value,
+            method="Get"
+        )
+        uri = uri.first()
         if uri is None:
             # Return None if uri is not defined so that service check fails
             return
+        uri = uri.url
         request_type = OGCOperationEnum.GET_CAPABILITIES.value
         service_version = self.service.service_type.version
         service_type = OGCServiceEnum.WMS.value

@@ -97,6 +97,10 @@ class MetadataAdmin(admin.ModelAdmin):
     list_display = ('id', 'title', 'service', 'identifier', 'metadata_type', 'is_active', 'is_broken', 'contact')
     list_filter = ('metadata_type', 'is_active', 'is_broken')
     search_fields = ['id', 'title', ]
+    ordering = ["-created"]
+    readonly_fields = (
+        "related_metadata",
+    )
 
 
 class MetadataRelationAdmin(admin.ModelAdmin):
@@ -177,6 +181,11 @@ class SecuredOperationAdmin(admin.ModelAdmin):
     search_fields = ['id', 'operation', 'secured_metadata__title', 'allowed_group__name']
 
 
+class ServiceUrlAdmin(admin.ModelAdmin):
+    list_display = ('operation', 'method', 'url')
+    search_fields = ['id', 'service__metadata__title']
+
+
 class ServiceTypeAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'version')
     list_filter = ('version', 'name', )
@@ -187,6 +196,8 @@ class ServiceAdmin(admin.ModelAdmin):
     list_display = ('id', 'is_active', 'is_deleted',  'service_type', 'metadata_link', 'parent_service_link', 'published_for', 'created_by')
     list_filter = ('is_active', 'is_deleted', 'service_type', 'published_for')
     search_fields = ['id', 'metadata__title']
+    readonly_fields = ("operation_urls",)
+    ordering = ["-created"]
 
     def metadata_link(self, obj):
         return mark_safe('<a href="%s">%s</a>' % (reverse("admin:service_metadata_change", args=(obj.metadata.id,)), escape(obj.metadata)))
@@ -221,7 +232,6 @@ admin.site.register(Document, DocumentAdmin)
 admin.site.register(RequestOperation, RequestOperationAdmin)
 admin.site.register(SecuredOperation, SecuredOperationAdmin)
 admin.site.register(Category, CategoryAdmin)
-admin.site.register(ServiceType, ServiceTypeAdmin)
 admin.site.register(Module, ModuleAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(Keyword, KeywordAdmin)
@@ -243,3 +253,5 @@ admin.site.register(Style, StyleAdmin)
 
 #admin.site.register(LegalDate, LegalDateAdmin)
 #admin.site.register(LegalReport, LegalReportAdmin)
+#admin.site.register(ServiceType, ServiceTypeAdmin)
+#admin.site.register(ServiceUrl, ServiceUrlAdmin)

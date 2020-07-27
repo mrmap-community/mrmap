@@ -8,16 +8,19 @@ Created on: 15.08.19
 from collections import OrderedDict, Iterable
 
 from django.db.models import QuerySet
+from django.http import HttpRequest
 from django.urls import reverse
 from rest_framework import serializers
 
 from MrMap.settings import ROOT_URL
-from service.forms import RegisterNewServiceWizardPage2
+from api.settings import API_EXCLUDE_METADATA_RELATIONS
+from service.forms import RegisterNewResourceWizardPage2
 from service.helper import service_helper
 from service.models import ServiceType, Metadata, Category, Dimension
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import MrMapGroup, Role, Permission
 from monitoring.models import Monitoring
+from users.helper import user_helper
 
 
 class ServiceTypeSerializer(serializers.ModelSerializer):
@@ -166,7 +169,7 @@ class ServiceSerializer(serializers.Serializer):
     is_root = serializers.BooleanField()
     service_type = ServiceTypeSerializer()
 
-    def create(self, validated_data):
+    def create(self, validated_data, request: HttpRequest = None):
         """ Creates a new service
 
         Starts the regular registration process
@@ -177,7 +180,7 @@ class ServiceSerializer(serializers.Serializer):
              pending_task (PendingTask) or None
         """
         # Writing of .get("xy", None) or None makes sure that empty strings will be mapped to None
-        user = validated_data.get("user", None)
+        user = user_helper.get_user(request=request)
         get_capabilities_uri = validated_data.get("uri", None) or None
         registering_with_group = validated_data.get("group", None) or None
         registering_for_org = validated_data.get("for-org", None) or None
@@ -206,10 +209,10 @@ class ServiceSerializer(serializers.Serializer):
             "authentication_type": ext_auth_type,
         }
 
-        # Use RegisterNewServiceWizardPage2 workflow as for frontend registration
-        form = RegisterNewServiceWizardPage2(
-            init_data,
-            user=user
+        # Use RegisterNewResourceWizardPage2 workflow as for frontend registration
+        form = RegisterNewResourceWizardPage2(
+            data=init_data,
+            request=request
         )
         if form.is_valid():
             pending_task = service_helper.create_new_service(form, user)
@@ -334,7 +337,9 @@ def serialize_metadata_relation(md: Metadata) -> list:
          data_list (list): The list containing serialized dict elements
     """
     relations = []
-    md_relations = md.related_metadata.all()
+    md_relations = md.related_metadata.all().exclude(
+        **API_EXCLUDE_METADATA_RELATIONS
+    )
 
     for rel in md_relations:
         md_from = rel.metadata_from
@@ -456,7 +461,6 @@ def serialize_categories(md: Metadata) -> list:
         category["description_locale_2"] = cat.description_locale_2
         category["symbol"] = cat.symbol
         category["online_link"] = cat.online_link
-        category["metadata_count"] = cat.metadata_count
 
         categories.append(category)
 
@@ -498,9 +502,9 @@ def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
     serialized["capabilities_uri"] = md.capabilities_uri
     serialized["xml_metadata_uri"] = md.service_metadata_uri
     serialized["html_metadata_uri"] = md.html_metadata_uri
-    serialized["easy_capabilities_uri"] = md.capabilities_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None
-    serialized["easy_xml_metadata_uri"] = md.service_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None
-    serialized["easy_html_metadata_uri"] = md.html_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None
+    serialized["easy_capabilities_uri"] = (md.capabilities_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.capabilities_uri is not None else ""
+    serialized["easy_xml_metadata_uri"] = (md.service_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.service_metadata_uri is not None else ""
+    serialized["easy_html_metadata_uri"] = (md.html_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.html_metadata_uri is not None else ""
     serialized["preview_uri"] = "{}{}".format(ROOT_URL, reverse("resource:get-service-metadata-preview", args=(str(md.id),)))
     serialized["fees"] = md.fees
     serialized["access_constraints"] = md.access_constraints

@@ -260,12 +260,8 @@ class ServiceViewSet(viewsets.GenericViewSet):
              response (Response)
         """
         service_serializer = ServiceSerializer()
-        user = user_helper.get_user(request)
-        params = {
-            "user": user
-        }
-        params.update(request.POST.dict())
-        pending_task = service_serializer.create(validated_data=params)
+        params = request.POST.dict()
+        pending_task = service_serializer.create(validated_data=params, request=request)
 
         response = APIResponse()
         response.data["success"] = pending_task is not None

@@ -28,7 +28,7 @@ from MrMap import utils
 from MrMap.messages import PARAMETER_ERROR, TD_POINT_HAS_NOT_ENOUGH_VALUES, \
     SECURITY_PROXY_ERROR_MISSING_EXT_AUTH_KEY, SECURITY_PROXY_ERROR_WRONG_EXT_AUTH_KEY, \
     OPERATION_HANDLER_MULTIPLE_QUERIES_NOT_ALLOWED
-from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES, EXEC_TIME_PRINT
+from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, XML_NAMESPACES
 from MrMap.utils import execute_threads
 from editor.settings import WMS_SECURED_OPERATIONS, WFS_SECURED_OPERATIONS
 from service.helper import xml_helper
@@ -37,7 +37,7 @@ from service.helper.crypto_handler import CryptoHandler
 from service.helper.enums import OGCOperationEnum, OGCServiceEnum, OGCServiceVersionEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.request_builder import OGCRequestPOSTBuilder
-from service.models import Metadata, FeatureType, Layer, ProxyLog, SecuredOperation
+from service.models import Metadata, FeatureType, Layer, ProxyLog
 from service.settings import ALLLOWED_FEATURE_TYPE_ELEMENT_GEOMETRY_IDENTIFIERS, DEFAULT_SRS, DEFAULT_SRS_STRING, \
     MAPSERVER_SECURITY_MASK_FILE_PATH, MAPSERVER_SECURITY_MASK_TABLE, MAPSERVER_SECURITY_MASK_KEY_COLUMN, \
     MAPSERVER_SECURITY_MASK_GEOMETRY_COLUMN, MAPSERVER_LOCAL_PATH, DEFAULT_SRS_FAMILY, MIN_FONT_SIZE, FONT_IMG_RATIO, \
@@ -478,25 +478,27 @@ class OGCOperationRequestHandler:
             )
             service = feature_type.parent_service
             metadata = service.metadata
+            operation_urls = service.operation_urls.all()
             secured_operation_uris = {
                 "GETFEATURE": {
-                    "get": service.get_feature_info_uri_GET,
-                    "post": service.get_feature_info_uri_POST,
+                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Get").first(), "url", None),
+                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Post").first(), "url", None),
                 },  # get_feature_info_uri_GET is reused in WFS for get_feature_uri
                 "TRANSACTION": {
-                    "get": service.transaction_uri_GET,
-                    "post": service.transaction_uri_POST,
+                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.TRANSACTION.value, method="Get").first(), "url", None),
+                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.TRANSACTION.value, method="Post").first(), "url", None),
                 },
             }
         else:
+            operation_urls = metadata.service.operation_urls.all()
             secured_operation_uris = {
                 "GETMAP": {
-                    "get": metadata.service.get_map_uri_GET,
-                    "post": metadata.service.get_map_uri_POST,
+                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(), "url", None),
+                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(), "url", None),
                 },
                 "GETFEATUREINFO": {
-                    "get": metadata.service.get_feature_info_uri_GET,
-                    "post": metadata.service.get_feature_info_uri_POST,
+                    "get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Get").first(), "url", None),
+                    "post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Post").first(), "url", None),
                 },
             }
 
@@ -1338,7 +1340,6 @@ class OGCOperationRequestHandler:
                 bg.paste(img, mask=img.split()[3])
                 bg.save(out_bytes_stream, img.format, quality=80)
                 img = out_bytes_stream.getvalue()
-
         return img
 
     def _filter_transaction_geometries(self, sec_ops: QueryDict):
@@ -1394,6 +1395,7 @@ class OGCOperationRequestHandler:
         # Case 1: Only root layer is requested -> fast solution
         if layer_objs.count() == 1 and layer_objs[0].parent_layer is None:
             # Yes, only the root layer has been requested
+            # Order the sublayers by creation timestamp so the order of the layers in the request is correct (Top-Down)
             layers = Layer.objects.filter(
                 parent_service__metadata=metadata,
                 child_layers=None

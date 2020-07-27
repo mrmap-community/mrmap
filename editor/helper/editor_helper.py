@@ -17,11 +17,11 @@ from service.helper.iso.iso19115.md_data_identification import _create_gmd_descr
 from MrMap.messages import EDITOR_INVALID_ISO_LINK
 from MrMap.settings import XML_NAMESPACES, GENERIC_NAMESPACE_TEMPLATE
 
-from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum, DocumentEnum, ResourceOriginEnum
+from service.helper.enums import OGCServiceVersionEnum, OGCServiceEnum, MetadataEnum, DocumentEnum, ResourceOriginEnum, \
+    MetadataRelationEnum
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.models import Metadata, Keyword, FeatureType, Document, MetadataRelation, SecuredOperation
 from service.helper import xml_helper
-from service.settings import MD_RELATION_TYPE_DESCRIBED_BY
 
 
 def _overwrite_capabilities_keywords(xml_obj: _Element, metadata: Metadata, _type: str):
@@ -385,7 +385,7 @@ def _add_iso_metadata(metadata: Metadata, md_links: list, existing_iso_links: li
         md_relation.metadata_from = metadata
         md_relation.metadata_to = iso_md
         md_relation.origin = iso_md.origin
-        md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
+        md_relation.relation_type = MetadataRelationEnum.DESCRIBED_BY.value
         md_relation.save()
 
 

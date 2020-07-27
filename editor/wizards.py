@@ -11,10 +11,10 @@ from editor.forms import DatasetIdentificationForm, DatasetClassificationForm, \
     DatasetLicenseConstraintsForm, DatasetSpatialExtentForm, DatasetQualityForm, DatasetResponsiblePartyForm
 from django.utils.translation import gettext_lazy as _
 
-from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum
+from service.helper.enums import MetadataEnum, DocumentEnum, ResourceOriginEnum, MetadataRelationEnum
 from service.helper.iso.iso_19115_metadata_builder import Iso19115MetadataBuilder
 from service.models import Dataset, Metadata, MetadataRelation, Document
-from service.settings import MD_RELATION_TYPE_DESCRIBED_BY, DEFAULT_SRS
+from service.settings import DEFAULT_SRS
 from structure.models import Organization, MrMapUser
 from users.helper import user_helper
 
@@ -160,7 +160,7 @@ class DatasetWizard(MrMapWizard):
             md_relation = MetadataRelation()
             md_relation.metadata_to = metadata
             md_relation.metadata_from = additional_object
-            md_relation.relation_type = MD_RELATION_TYPE_DESCRIBED_BY
+            md_relation.relation_type = MetadataRelationEnum.DESCRIBED_BY.value
             md_relation.internal = True
             md_relation.origin = ResourceOriginEnum.EDITOR.value
             md_relation.save()

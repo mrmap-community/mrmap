@@ -23,7 +23,8 @@ from MrMap.settings import EXEC_TIME_PRINT, MULTITHREADING_THRESHOLD, \
 from MrMap import utils
 from MrMap.utils import execute_threads
 from service.helper.crypto_handler import CryptoHandler
-from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, ResourceOriginEnum
+from service.helper.enums import OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, ResourceOriginEnum, \
+    MetadataRelationEnum
 from service.helper.epsg_api import EpsgApi
 from service.helper.iso.iso_19115_metadata_parser import ISOMetadata
 from service.helper.ogc.ows import OGCWebService
@@ -31,8 +32,7 @@ from service.helper.ogc.layer import OGCLayer
 
 from service.helper import xml_helper, task_helper
 from service.models import ServiceType, Service, Metadata, MimeType, Keyword, \
-    MetadataRelation, Style, ExternalAuthentication
-from service.settings import MD_RELATION_TYPE_VISUALIZES
+    MetadataRelation, Style, ExternalAuthentication, ServiceUrl
 from structure.models import Organization, MrMapGroup
 from structure.models import MrMapUser
 
@@ -64,6 +64,7 @@ class OGCWebMapService(OGCWebService):
     """Base class for OGC WebMapServices."""
 
     # define layers as array of OGCWebMapServiceLayer objects
+    # Using None here to avoid mutable appending of infinite layers (python specific)
     # Using None here to avoid mutable appending of infinite layers (python specific)
     # For further details read: http://effbot.org/zone/default-values.htm
     layers = None
@@ -812,18 +813,76 @@ class OGCWebMapService(OGCWebService):
         service.service_type = service_type
         service.published_for = orga_published_for
         service.created_by = group
-        service.get_capabilities_uri_GET = self.get_capabilities_uri_GET
-        service.get_capabilities_uri_POST = self.get_capabilities_uri_POST
-        service.get_feature_info_uri_GET = self.get_feature_info_uri_GET
-        service.get_feature_info_uri_POST = self.get_feature_info_uri_POST
-        service.describe_layer_uri_GET = self.describe_layer_uri_GET
-        service.describe_layer_uri_POST = self.describe_layer_uri_POST
-        service.get_styles_uri_GET = self.get_styles_uri_GET
-        service.get_styles_uri_POST = self.get_styles_uri_POST
-        service.get_legend_graphic_uri_GET = self.get_legend_graphic_uri_GET
-        service.get_legend_graphic_uri_POST = self.get_legend_graphic_uri_POST
-        service.get_map_uri_GET = self.get_map_uri_GET
-        service.get_map_uri_POST = self.get_map_uri_POST
+        operation_urls = [
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_CAPABILITIES.value,
+                url=self.get_capabilities_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_CAPABILITIES.value,
+                url=self.get_capabilities_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
+                url=self.get_feature_info_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
+                url=self.get_feature_info_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.DESCRIBE_LAYER.value,
+                url=self.describe_layer_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.DESCRIBE_LAYER.value,
+                url=self.describe_layer_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_STYLES.value,
+                url=self.get_styles_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_STYLES.value,
+                url=self.get_styles_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
+                url=self.get_legend_graphic_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value,
+                url=self.get_legend_graphic_uri_POST,
+                method="Post"
+            )[0],
+
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_MAP.value,
+                url=self.get_map_uri_GET,
+                method="Get"
+            )[0],
+            ServiceUrl.objects.get_or_create(
+                operation=OGCOperationEnum.GET_MAP.value,
+                url=self.get_map_uri_POST,
+                method="Post"
+            )[0],
+
+        ]
+
+        service.operation_urls.add(*operation_urls)
         service.metadata = metadata
         service.is_root = True
         service.is_update_candidate_for=is_update_candidate_for
@@ -858,7 +917,7 @@ class OGCWebMapService(OGCWebService):
             md_relation.metadata_from = metadata
             md_relation.metadata_to = service.linked_service_metadata
             md_relation.origin = ResourceOriginEnum.CAPABILITIES.value
-            md_relation.relation_type = MD_RELATION_TYPE_VISUALIZES
+            md_relation.relation_type = MetadataRelationEnum.VISUALIZES.value
             md_relation.save()
 
 

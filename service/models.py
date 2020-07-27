@@ -28,7 +28,7 @@ from MrMap.validators import not_uuid
 from monitoring.models import MonitoringSetting
 from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, OGCServiceVersionEnum, MetadataEnum, OGCOperationEnum, DocumentEnum, \
-    ResourceOriginEnum, CategoryOriginEnum
+    ResourceOriginEnum, CategoryOriginEnum, MetadataRelationEnum
 from service.helper.crypto_handler import CryptoHandler
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX, EXTERNAL_AUTHENTICATION_FILEPATH, \
     SERVICE_OPERATION_URI_TEMPLATE, SERVICE_LEGEND_URI_TEMPLATE, SERVICE_DATASET_URI_TEMPLATE, COUNT_DATA_PIXELS_ONLY, \
@@ -67,6 +67,9 @@ class Keyword(models.Model):
 
     class Meta:
         ordering = ['-id']
+        indexes = [
+            models.Index(fields=["keyword"])
+        ]
 
 
 class ProxyLog(models.Model):
@@ -105,6 +108,7 @@ class ProxyLog(models.Model):
         else:
             # For future implementation
             pass
+        self.operation = request_param
         self.operation = request_param
         self.save()
         service_logger.debug(EXEC_TIME_PRINT % ("logging response", time.time() - start_time))
@@ -445,9 +449,10 @@ class SecuredOperation(models.Model):
 
 
 class MetadataRelation(models.Model):
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True)
     metadata_from = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_from")
     metadata_to = models.ForeignKey('Metadata', on_delete=models.CASCADE, related_name="related_metadata_to")
-    relation_type = models.CharField(max_length=255, null=True, blank=True)
+    relation_type = models.CharField(max_length=255, null=True, blank=True, choices=MetadataRelationEnum.as_choices())
     internal = models.BooleanField(default=False)
     origin = models.CharField(max_length=255, choices=ResourceOriginEnum.as_choices(), null=True, blank=True)
 
@@ -534,18 +539,18 @@ class ExternalAuthentication(models.Model):
 
 class Metadata(Resource):
     from MrMap.validators import validate_metadata_enum_choices
-    identifier = models.CharField(max_length=255, null=True)
-    title = models.CharField(max_length=255)
+    identifier = models.CharField(max_length=1000, null=True)
+    title = models.CharField(max_length=1000)
     abstract = models.TextField(null=True, blank=True)
-    online_resource = models.CharField(max_length=500, null=True, blank=True)  # where the service data can be found
+    online_resource = models.CharField(max_length=1000, null=True, blank=True)  # where the service data can be found
 
-    capabilities_original_uri = models.CharField(max_length=500, blank=True, null=True)
-    capabilities_uri = models.CharField(max_length=500, blank=True, null=True)
+    capabilities_original_uri = models.CharField(max_length=1000, blank=True, null=True)
+    capabilities_uri = models.CharField(max_length=1000, blank=True, null=True)
 
-    service_metadata_original_uri = models.CharField(max_length=500, blank=True, null=True)
-    service_metadata_uri = models.CharField(max_length=500, blank=True, null=True)
+    service_metadata_original_uri = models.CharField(max_length=1000, blank=True, null=True)
+    service_metadata_uri = models.CharField(max_length=1000, blank=True, null=True)
 
-    html_metadata_uri = models.CharField(max_length=500, blank=True, null=True)
+    html_metadata_uri = models.CharField(max_length=1000, blank=True, null=True)
 
     contact = models.ForeignKey(Organization, on_delete=models.SET_NULL, blank=True, null=True)
     licence = models.ForeignKey('Licence', on_delete=models.SET_NULL, blank=True, null=True)
@@ -585,7 +590,7 @@ class Metadata(Resource):
     categories = models.ManyToManyField('Category', blank=True)
     reference_system = models.ManyToManyField('ReferenceSystem', blank=True)
     dimensions = models.ManyToManyField('Dimension', blank=True)
-    metadata_type = models.CharField(max_length=255, null=True, blank=True, choices=MetadataEnum.as_choices(), validators=[validate_metadata_enum_choices])
+    metadata_type = models.CharField(max_length=500, null=True, blank=True, choices=MetadataEnum.as_choices(), validators=[validate_metadata_enum_choices])
     legal_dates = models.ManyToManyField('LegalDate', blank=True)
     legal_reports = models.ManyToManyField('LegalReport', blank=True)
     hits = models.IntegerField(default=0)
@@ -595,6 +600,17 @@ class Metadata(Resource):
     related_metadata = models.ManyToManyField(MetadataRelation, blank=True)
     language_code = models.CharField(max_length=100, choices=ISO_19115_LANG_CHOICES, default=DEFAULT_MD_LANGUAGE)
     origin = None
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=[
+                    "id",
+                    "public_id",
+                    "identifier"
+                ]
+            )
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1044,12 +1060,17 @@ class Metadata(Resource):
         """
         if stump is None:
             stump = self.title
+
         slug_stump = slugify(stump)
+        # To prevent too long public ids (keep them < 255 character)
+        # we need to make sure the stump itself isn't longer than 200 characters! So we have enough space left for numbers in the end
+        slug_stump = slug_stump[:225]
         exists = Metadata.objects.filter(
             public_id=slug_stump
         ).exists()
-        counter = 1
         public_id = slug_stump
+
+        counter = 1
         while exists:
             public_id = "{}-{}".format(slug_stump, counter)
             counter += 1
@@ -1058,7 +1079,7 @@ class Metadata(Resource):
             ).exists()
         return public_id
 
-    def save(self, *args, **kwargs):
+    def save(self, add_monitoring: bool = True, *args, **kwargs):
         """ Overwriting the regular save function
 
         Calls the regular save function without any changes and adds the created/updated
@@ -1074,10 +1095,11 @@ class Metadata(Resource):
         # Add created/updated object to the MonitoringSettings. Django does not add
         # the same instance twice, so we do not have to check for updating specifically.
         # NOTE: Since we do not have a clear handling for which setting to use, always use first (default) setting.
-        monitoring_setting = MonitoringSetting.objects.first()
-        if monitoring_setting is not None:
-            monitoring_setting.metadatas.add(self)
-            monitoring_setting.save()
+        if add_monitoring:
+            monitoring_setting = MonitoringSetting.objects.first()
+            if monitoring_setting is not None:
+                monitoring_setting.metadatas.add(self)
+                monitoring_setting.save()
 
     def delete(self, using=None, keep_parents=False, force=False):
         """ Overwriting of the regular delete function
@@ -1132,7 +1154,7 @@ class Metadata(Resource):
             service_type = 'wfs'
         return service_type
 
-    def get_service_version(self):
+    def get_service_version(self) -> OGCServiceEnum:
         """ Returns the service version
 
         Returns:
@@ -1195,7 +1217,11 @@ class Metadata(Resource):
         Returns:
              is_root (bool): True if there is no parent service to the described service, False otherwise
         """
-        return self.is_metadata_type(MetadataEnum.SERVICE)
+        is_root = [
+            self.is_metadata_type(MetadataEnum.SERVICE),
+            self.is_metadata_type(MetadataEnum.CATALOGUE)
+        ]
+        return True in is_root
 
     def _restore_layer_md(self, service,):
         """ Private function for retrieving single layer metadata
@@ -1803,26 +1829,27 @@ class Document(Resource):
         )
         request_objs = request_objs.getchildren()
         service = self.metadata.service
+        operation_urls = service.operation_urls.all()
         op_uri_dict = {
             "GetMap": {
-                "Get": service.get_map_uri_GET,
-                "Post": service.get_map_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(),"url", None),
             },
             "GetFeatureInfo": {
-                "Get": service.get_feature_info_uri_GET,
-                "Post": service.get_feature_info_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Post").first(),"url", None),
             },
             "DescribeLayer": {
-                "Get": service.describe_layer_uri_GET,
-                "Post": service.describe_layer_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Post").first(),"url", None),
             },
             "GetLegendGraphic": {
-                "Get": service.get_legend_graphic_uri_GET,
-                "Post": service.get_legend_graphic_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Post").first(),"url", None),
             },
             "GetStyles": {
-                "Get": service.get_styles_uri_GET,
-                "Post": service.get_styles_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Post").first(),"url", None),
             },
         }
 
@@ -1840,7 +1867,7 @@ class Document(Resource):
                     ".//{}/".format(GENERIC_NAMESPACE_TEMPLATE.format(http_operation)) + GENERIC_NAMESPACE_TEMPLATE.format("OnlineResource")
                     , op
                 )
-
+                # Load url attribute from ServiceUrl object
                 if not is_secured:
                     # overwrite uri
                     uri = uri_dict.get(http_operation, "")
@@ -1873,32 +1900,34 @@ class Document(Resource):
             service = FeatureType.objects.get(
                 metadata=self.metadata
             ).parent_service
+        operation_urls = service.operation_urls.all()
         op_uri_dict = {
             OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value: {
-                "Get": service.describe_feature_type_uri_GET,
-                "Post": service.describe_feature_type_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value, method="Post").first(),"url", None),
             },
             OGCOperationEnum.GET_FEATURE.value: {
-                "Get": service.get_feature_type_uri_GET,
-                "Post": service.get_feature_type_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Post").first(),"url", None),
             },
             OGCOperationEnum.GET_PROPERTY_VALUE.value: {
-                "Get": service.get_property_value_uri_GET,
-                "Post": service.get_property_value_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_PROPERTY_VALUE.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_PROPERTY_VALUE.value, method="Post").first(),"url", None),
             },
             OGCOperationEnum.LIST_STORED_QUERIES.value: {
-                "Get": service.list_stored_queries_uri_GET,
-                "Post": service.list_stored_queries_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.LIST_STORED_QUERIES.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.LIST_STORED_QUERIES.value, method="Post").first(),"url", None),
             },
             OGCOperationEnum.DESCRIBE_STORED_QUERIES.value: {
-                "Get": service.describe_stored_queries_uri_GET,
-                "Post": service.describe_stored_queries_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_STORED_QUERIES.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_STORED_QUERIES.value, method="Post").first(),"url", None),
             },
         }
 
         for op in operation_objs:
             # skip GetCapabilities - it is already set to another internal link
             name = op.tag
+
             if OGCOperationEnum.GET_CAPABILITIES.value in name:
                 continue
             if not is_secured:
@@ -1932,34 +1961,35 @@ class Document(Resource):
                 metadata=self.metadata
             ).parent_service
 
+        operation_urls = service.operation_urls.all()
         op_uri_dict = {
             "DescribeFeatureType": {
-                "Get": service.describe_feature_type_uri_GET,
-                "Post": service.describe_feature_type_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value, method="Get").first(), "url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_FEATURE_TYPE.value, method="Post").first(), "url", None),
             },
             "GetFeature": {
-                "Get": service.get_feature_type_uri_GET,
-                "Post": service.get_feature_type_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Get").first(), "url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Post").first(), "url", None),
             },
             "GetPropertyValue": {
-                "Get": service.get_property_value_uri_GET,
-                "Post": service.get_property_value_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_PROPERTY_VALUE.value, method="Get").first(), "url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_PROPERTY_VALUE.value, method="Post").first(), "url", None),
             },
             "ListStoredQueries": {
-                "Get": service.list_stored_queries_uri_GET,
-                "Post": service.list_stored_queries_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.LIST_STORED_QUERIES.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.LIST_STORED_QUERIES.value, method="Post").first(),"url", None),
             },
             "DescribeStoredQueries": {
-                "Get": service.describe_stored_queries_uri_GET,
-                "Post": service.describe_stored_queries_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_STORED_QUERIES.value, method="Get").first(), "url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_STORED_QUERIES.value, method="Post").first(), "url", None),
             },
             "GetGmlObject": {
-                "Get": service.get_gml_objct_uri_GET,
-                "Post": service.get_gml_objct_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_GML_OBJECT.value, method="Get").first(), "url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_GML_OBJECT.value, method="Post").first(), "url", None),
             },
         }
 
-        fallback_uri = service.get_feature_info_uri_GET
+        fallback_uri = getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE.value, method="Get").first(), "url", None)
 
         for op in operation_objs:
             # skip GetCapabilities - it is already set to another internal link
@@ -2000,26 +2030,27 @@ class Document(Resource):
         )
         request_objs = request_objs.getchildren()
         service = self.metadata.service
+        operation_urls = service.operation_urls.all()
         op_uri_dict = {
             "GetMap": {
-                "Get": service.get_map_uri_GET,
-                "Post": service.get_map_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_MAP.value, method="Post").first(),"url", None),
             },
             "GetFeatureInfo": {
-                "Get": service.get_feature_info_uri_GET,
-                "Post": service.get_feature_info_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_FEATURE_INFO.value, method="Post").first(),"url", None),
             },
             "DescribeLayer": {
-                "Get": service.describe_layer_uri_GET,
-                "Post": service.describe_layer_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.DESCRIBE_LAYER.value, method="Post").first(),"url", None),
             },
             "GetLegendGraphic": {
-                "Get": service.get_legend_graphic_uri_GET,
-                "Post": service.get_legend_graphic_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_LEGEND_GRAPHIC.value, method="Post").first(),"url", None),
             },
             "GetStyles": {
-                "Get": service.get_styles_uri_GET,
-                "Post": service.get_styles_uri_POST,
+                "Get": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Get").first(),"url", None),
+                "Post": getattr(operation_urls.filter(operation=OGCOperationEnum.GET_STYLES.value, method="Post").first(),"url", None),
             },
         }
 
@@ -2436,6 +2467,13 @@ class Category(Resource):
 
     class Meta:
         ordering = ['-id']
+        indexes = [
+            models.Index(
+                fields=[
+                    "title_EN"
+                ]
+            )
+        ]
 
     def __str__(self):
         return self.title_EN + " (" + self.type + ")"
@@ -2450,68 +2488,25 @@ class ServiceType(models.Model):
         return self.name
 
 
+class ServiceUrl(Resource):
+    operation = models.CharField(max_length=255, choices=OGCOperationEnum.as_choices(), blank=True, null=True)
+    method = models.CharField(max_length=255, choices=[("Get", "Get"), ("Post", "Post"),], blank=True, null=True)
+    url = models.URLField(blank=True, null=True)
+
+    def __str__(self):
+        return "{}: {} ({})".format(self.operation, self.url, self.method)
+
+
 class Service(Resource):
     metadata = models.OneToOneField(Metadata, on_delete=models.CASCADE, related_name="service")
     parent_service = models.ForeignKey('self', on_delete=models.CASCADE, related_name="child_service", null=True, default=None, blank=True)
     published_for = models.ForeignKey(Organization, on_delete=models.DO_NOTHING, related_name="published_for", null=True, default=None, blank=True)
     service_type = models.ForeignKey(ServiceType, on_delete=models.DO_NOTHING, blank=True)
     categories = models.ManyToManyField(Category, blank=True)
+    operation_urls = models.ManyToManyField(ServiceUrl)
     is_root = models.BooleanField(default=False)
     availability = models.DecimalField(decimal_places=2, max_digits=4, default=0.0)
     is_available = models.BooleanField(default=False)
-
-    # WMS | WFS
-    get_capabilities_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_capabilities_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WMS
-    get_map_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_map_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WMS
-    get_feature_info_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_feature_info_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WMS
-    describe_layer_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    describe_layer_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WMS
-    get_legend_graphic_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_legend_graphic_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WMS
-    get_styles_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_styles_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WFS
-    get_feature_type_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_feature_type_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WFS
-    describe_feature_type_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    describe_feature_type_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WFS
-    transaction_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    transaction_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WFS
-    get_property_value_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_property_value_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WFS
-    list_stored_queries_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    list_stored_queries_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WFS
-    describe_stored_queries_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    describe_stored_queries_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
-    # WFS
-    get_gml_objct_uri_GET = models.CharField(max_length=1000, null=True, blank=True)
-    get_gml_objct_uri_POST = models.CharField(max_length=1000, null=True, blank=True)
-
     is_update_candidate_for = models.OneToOneField('self', on_delete=models.SET_NULL, related_name="has_update_candidate", null=True, default=None, blank=True)
     created_by_user = models.ForeignKey(MrMapUser, on_delete=models.SET_NULL, null=True, blank=True)
     keep_custom_md = models.BooleanField(default=True)
@@ -2578,6 +2573,15 @@ class Service(Resource):
              True if WMS else False
         """
         return self.is_service_type(enum=OGCServiceEnum.WFS)
+
+    @property
+    def is_csw(self):
+        """ Returns whether the service is a CSW or not
+
+        Returns:
+             True if CSW else False
+        """
+        return self.is_service_type(enum=OGCServiceEnum.CSW)
 
     def is_service_type(self, enum: OGCServiceEnum):
         """ Returns whether the service is of this ServiceEnum
@@ -2734,6 +2738,17 @@ class Service(Resource):
             feature_types = self.featuretypes.all()
             for f_t in feature_types:
                 self.delete_child_data(f_t)
+
+        # Remove ServiceURL entries if they are not used by other services
+        operation_urls = self.operation_urls.all()
+        for url in operation_urls:
+            other_services_exists = Service.objects.filter(
+                operation_urls=url
+            ).exclude(
+                id=self.id
+            ).exists()
+            if not other_services_exists:
+                url.delete()
 
         self.metadata.delete()
         super().delete()
@@ -3214,7 +3229,7 @@ class LegalDate(models.Model):
 
 
 class MimeType(Resource):
-    operation = models.CharField(max_length=255, null=True)
+    operation = models.CharField(max_length=255, null=True, choices=OGCOperationEnum.as_choices())
     mime_type = models.CharField(max_length=500)
 
     def __str__(self):

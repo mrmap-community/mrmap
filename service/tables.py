@@ -429,7 +429,7 @@ class CswTable(MrMapTable):
             tooltip_placement='left', )
 
         btns += self.get_btn(
-            href=reverse('csw:harvest-catalogue', args=(record.id,)),
+            href=reverse('csw:harvest-catalogue', args=(record.id,)) + f"?current-view={self.current_view}",
             btn_color=get_theme(self.user)["TABLE"]["BTN_INFO_COLOR"],
             btn_value=get_theme(self.user)["ICONS"]["HARVEST"],
             permission=Permission(can_edit_metadata_service=True),

@@ -5,31 +5,19 @@ Contact: michel.peltriaux@vermkv.rlp.de
 Created on: 05.05.20
 
 """
-from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import redirect
-
+from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import cache_page
-
 from MrMap.decorator import resolve_metadata_public_id, check_permission
-from MrMap.messages import RESOURCE_NOT_FOUND
+from csw.forms import HarvestGroupForm
 from csw.settings import CSW_CACHE_TIME, CSW_CACHE_PREFIX
-from csw.tasks import async_harvest
 from csw.utils.parameter import ParameterResolver
-
 from csw.utils.request_resolver import RequestResolver
-from service.helper.enums import MetadataEnum
 from service.helper.ogc.ows import OWSException
-
-# https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
-# Cache requested url for time t
-from service.helper.service_helper import split_service_uri
 from service.models import Metadata
-from service.tasks import async_new_service
-from structure.models import PendingTask, Permission
-from users.helper import user_helper
+from structure.models import Permission
 
 
 @cache_page(CSW_CACHE_TIME, key_prefix=CSW_CACHE_PREFIX)
@@ -67,44 +55,17 @@ def harvest_catalogue(request: HttpRequest, metadata_id: str):
 
     Args:
         request (HttpRequest): The incoming request
+        metadata_id:
     Returns:
 
     """
-    # ToDo: Nice Frontend here please!
-    user = user_helper.get_user(request)
-    harvesting_group = user.get_groups().filter(
-        is_public_group=False
-    ).first()
-
-    # Check if the catalogue exists
-    try:
-        md = Metadata.objects.get(
-            id=metadata_id,
-            metadata_type=MetadataEnum.CATALOGUE.value
-        )
-        # Check for a running pending task on this catalogue!
-        try:
-            p_t = PendingTask.objects.get(
-                task_id=str(md.id)
-            )
-            messages.info(
-                request,
-                "Harvesting is already running. Remaining time: {}".format(p_t.remaining_time)
-            )
-        except ObjectDoesNotExist:
-            # No pending task exists, so we can start a harvesting process!
-            async_harvest.delay(
-                metadata_id,
-                harvesting_group.id
-            )
-            messages.success(
-                request,
-                "Harvesting starts!"
-            )
-    except ObjectDoesNotExist:
-        messages.error(
-            request,
-            RESOURCE_NOT_FOUND
-        )
-
-    return redirect("resource:index")
+    metadata = get_object_or_404(Metadata, id=metadata_id)
+    form = HarvestGroupForm(data=request.POST or None,
+                            request=request,
+                            reverse_lookup='csw:harvest-catalogue',
+                            reverse_args=[metadata_id, ],
+                            # ToDo: after refactoring of all forms is done, show_modal can be removed
+                            show_modal=True,
+                            form_title=_(f"Harvest <strong>{metadata}</strong>"),
+                            instance=metadata)
+    return form.process_request(valid_func=form.process_harvest_catalogue)

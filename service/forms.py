@@ -10,7 +10,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.urls import reverse_lazy
 from django.utils.html import format_html
 
-from MrMap.consts import SERVICE_ADD
 from MrMap.forms import MrMapForm, MrMapConfirmForm, MrMapWizardForm
 from MrMap.messages import SERVICE_UPDATE_WRONG_TYPE, SERVICE_ACTIVATED, SERVICE_DEACTIVATED
 from MrMap.validators import validate_get_request_uri

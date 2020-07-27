@@ -25,7 +25,7 @@ HARVEST_METADATA_TYPES = {
     MetadataEnum.DATASET.value: True,
     MetadataEnum.SERVICE.value: True,
     MetadataEnum.LAYER.value: True,
-    MetadataEnum.TILE.value: False,
+    MetadataEnum.TILE.value: True,
     MetadataEnum.SERIES.value: True,
     MetadataEnum.FEATURETYPE.value: True,
     MetadataEnum.CATALOGUE.value: True,

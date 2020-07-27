@@ -13,7 +13,7 @@ from rest_framework import serializers
 
 from MrMap.settings import ROOT_URL
 from api.settings import API_EXCLUDE_METADATA_RELATIONS
-from service.forms import RegisterNewServiceWizardPage2
+from service.forms import RegisterNewResourceWizardPage2
 from service.helper import service_helper
 from service.models import ServiceType, Metadata, Category, Dimension
 from service.settings import DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
@@ -207,10 +207,11 @@ class ServiceSerializer(serializers.Serializer):
             "authentication_type": ext_auth_type,
         }
 
-        # Use RegisterNewServiceWizardPage2 workflow as for frontend registration
+        # Use RegisterNewResourceWizardPage2 workflow as for frontend registration
         form = RegisterNewResourceWizardPage2(
-            init_data,
-            user=user
+            data=init_data,
+            user=user,
+            # ToDo: add request parameter
         )
         if form.is_valid():
             pending_task = service_helper.create_new_service(form, user)

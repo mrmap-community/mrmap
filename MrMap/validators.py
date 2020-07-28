@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.utils.translation import gettext_lazy as _
 
+from service.helper.common_connector import CommonConnector
 from service.helper.enums import OGCServiceEnum, DocumentEnum, MetadataEnum
 
 password_has_lower_case_letter = RegexValidator(
@@ -54,6 +55,30 @@ def validate_username_has_special_characters(value):
 
 
 USERNAME_VALIDATORS = [validate_username_has_special_characters]
+
+
+def check_uri_is_reachable(value):
+    """ Performs a check on the URL.
+
+    Returns whether it's reachable or not
+
+    Args:
+        value: The url to be checked
+    Returns:
+         reachable (bool)
+    """
+    connector = CommonConnector(
+        url=value
+    )
+    is_reachable, status_code = connector.url_is_reachable()
+    if not is_reachable:
+        if status_code < 0:
+            # Not even callable!
+            msg_suffix = "URL could not be resolved to a server. Please check your input!"
+        else:
+            msg_suffix = "Status code was {}".format(status_code)
+        return ValidationError(message="URL not valid! {}".format(msg_suffix))
+    return is_reachable
 
 
 def _get_request_uri_has_no_request_parameter(value):
@@ -125,20 +150,26 @@ def _get_request_uri_has_no_service_parameter(value):
 
 
 def validate_get_request_uri(value):
+    """ Validates a GetRequest URI
 
+    Args:
+        value: The given value (an URL)
+    Returns:
+
+    """
     validation_errors = []
 
-    return_value = _get_request_uri_has_no_request_parameter(value)
-    if isinstance(return_value, ValidationError):
-        validation_errors.append(return_value)
+    validate_funcs = [
+        check_uri_is_reachable,
+        _get_request_uri_has_no_request_parameter,
+        _get_request_uri_has_no_service_parameter,
+        _get_request_uri_has_no_version_parameter,
+    ]
 
-    return_value = _get_request_uri_has_no_service_parameter(value)
-    if isinstance(return_value, ValidationError):
-        validation_errors.append(return_value)
-
-    return_value = _get_request_uri_has_no_version_parameter(value)
-    if isinstance(return_value, ValidationError):
-        validation_errors.append(return_value)
+    for func in validate_funcs:
+        val = func(value)
+        if isinstance(val, ValidationError):
+            validation_errors.append(val)
 
     if len(validation_errors) > 0:
         raise ValidationError(validation_errors)

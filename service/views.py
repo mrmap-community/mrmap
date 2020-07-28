@@ -190,7 +190,7 @@ def _prepare_dataset_table(request: HttpRequest, user: MrMapUser, current_view: 
 
 
 @login_required
-@check_permission(Permission(can_register_service=True))
+@check_permission(Permission(can_register_resource=True))
 def add(request: HttpRequest):
     """ Renders wizard page configuration for service registration
 
@@ -285,7 +285,7 @@ def pending_tasks(request: HttpRequest, update_params: dict = None, status_code:
 
 
 @login_required
-@check_permission(Permission(can_remove_service=True))
+@check_permission(Permission(can_remove_resource=True))
 @check_ownership(Metadata, 'metadata_id')
 def remove(request: HttpRequest, metadata_id):
     """ Renders the remove form for a service
@@ -311,7 +311,7 @@ def remove(request: HttpRequest, metadata_id):
 
 @login_required
 @resolve_metadata_public_id
-@check_permission(Permission(can_activate_service=True))
+@check_permission(Permission(can_activate_resource=True))
 @check_ownership(Metadata, 'metadata_id')
 def activate(request: HttpRequest, metadata_id):
     """ (De-)Activates a service and all of its layers
@@ -707,7 +707,7 @@ def csw_index(request: HttpRequest, update_params: dict = None, status_code: int
 
 
 @login_required
-@check_permission(Permission(can_edit_metadata_service=True))
+@check_permission(Permission(can_edit_metadata=True))
 def datasets_index(request: HttpRequest, update_params=None, status_code: int = 200, ):
     """ The index view of the editor app.
 
@@ -746,7 +746,7 @@ def datasets_index(request: HttpRequest, update_params=None, status_code: int = 
                   status=status_code)
 
 @login_required
-@check_permission(Permission(can_update_service=True))
+@check_permission(Permission(can_update_resource=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
 def new_pending_update_service(request: HttpRequest, metadata_id):
@@ -799,7 +799,7 @@ def new_pending_update_service(request: HttpRequest, metadata_id):
 
 # Todo: wizard/form view?
 @login_required
-@check_permission(Permission(can_update_service=True))
+@check_permission(Permission(can_update_resource=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
 def pending_update_service(request: HttpRequest, metadata_id, update_params: dict = None, status_code: int = 200, ):
@@ -871,7 +871,7 @@ def pending_update_service(request: HttpRequest, metadata_id, update_params: dic
 
 
 @login_required
-@check_permission(Permission(can_update_service=True))
+@check_permission(Permission(can_update_resource=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
 def dismiss_pending_update_service(request: HttpRequest, metadata_id):
@@ -892,7 +892,7 @@ def dismiss_pending_update_service(request: HttpRequest, metadata_id):
 
 
 @login_required
-@check_permission(Permission(can_update_service=True))
+@check_permission(Permission(can_update_resource=True))
 @check_ownership(Metadata, 'metadata_id')
 @transaction.atomic
 def run_update_service(request: HttpRequest, metadata_id):

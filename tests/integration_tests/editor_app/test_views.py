@@ -149,7 +149,7 @@ class EditorTestCase(TestCase):
         client = self._get_logged_in_client()
 
         # manipulate user permissions
-        self.perm.can_edit_metadata_service = False
+        self.perm.can_edit_metadata = False
         self.perm.save()
 
         self._run_request(params, EDIT_BASE_URI_TEMPLATE.format(self.service_wms.metadata.id), "post", client)
@@ -159,7 +159,7 @@ class EditorTestCase(TestCase):
         self.assertNotEqual(self.service_wms.metadata.access_constraints, test_access_constraints, msg="Metadata access constraints could be edited by user without permission!")
 
         # restore user permissions
-        self.perm.can_edit_metadata_service = True
+        self.perm.can_edit_metadata = True
         self.perm.save()
 
         ## case 1.2: User logged in -> tries to edit -> success
@@ -199,7 +199,7 @@ class EditorTestCase(TestCase):
         client = self._get_logged_in_client()
 
         # manipulate user permissions
-        self.perm.can_edit_metadata_service = False
+        self.perm.can_edit_metadata = False
         self.perm.save()
 
         url = "/editor/restore/{}".format(self.service_wms.metadata.id)
@@ -210,7 +210,7 @@ class EditorTestCase(TestCase):
         self.assertEqual(self.service_wms.metadata.keywords.count(), 0, msg="Metadata was restored by a user without permission!")
 
         # restore permissions
-        self.perm.can_edit_metadata_service = True
+        self.perm.can_edit_metadata = True
         self.perm.save()
 
         ## case 1.2: User logged in -> tries to restore -> success

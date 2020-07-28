@@ -25,7 +25,7 @@ class CanRegisterService(BasePermission):
         if view.action == "create":
             user = user_helper.get_user(request)
             needed_perm = Permission(
-                can_register_service=True
+                can_register_resource=True
             )
             has_perm = user.has_permission(permission_needed=needed_perm)
             return has_perm
@@ -47,7 +47,7 @@ class CanRemoveService(BasePermission):
         if view.action == "destroy":
             user = user_helper.get_user(request)
             needed_perm = Permission(
-                can_remove_service=True
+                can_remove_resource=True
             )
             has_perm = user.has_permission(permission_needed=needed_perm)
             return has_perm
@@ -69,7 +69,7 @@ class CanActivateService(BasePermission):
         if view.action == "active_state":
             user = user_helper.get_user(request)
             needed_perm = Permission(
-                can_activate_service=True
+                can_activate_resource=True
             )
             has_perm = user.has_permission(permission_needed=needed_perm)
             return has_perm

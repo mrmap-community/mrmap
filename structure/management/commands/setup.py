@@ -15,6 +15,7 @@ from django.utils.translation import gettext_lazy as _
 
 from MrMap.settings import MONITORING_REQUEST_TIMEOUT, MONITORING_TIME, LICENCES
 from service.models import Licence
+from structure.management.commands.setup_settings import DEFAULT_GROUPS
 from structure.models import MrMapGroup, Role, Permission, Organization, MrMapUser, Theme
 from structure.settings import PUBLIC_ROLE_NAME, PUBLIC_GROUP_NAME, SUPERUSER_GROUP_NAME, SUPERUSER_ROLE_NAME
 from monitoring.models import MonitoringSetting
@@ -44,7 +45,7 @@ class Command(BaseCommand):
              nothing
         """
         # Check if superuser already exists
-        name = input("Enter a username:")
+        name = input("Enter a username: ")
 
         if MrMapUser.objects.filter(username=name).exists():
             self.stdout.write(self.style.NOTICE("User with that name already exists!"))
@@ -85,6 +86,16 @@ class Command(BaseCommand):
         group.user_set.add(superuser)
         group.save()
 
+        # handle default groups
+        for setting in DEFAULT_GROUPS:
+            try:
+                group = self._create_group_from_default_setting(setting, superuser)
+                msg = "Group '{}' created!".format(group.name)
+                self.stdout.write(self.style.SUCCESS(msg))
+            except AttributeError as e:
+                msg = "Group creation error for '{}':{}".format(setting["name"], e)
+                self.stdout.write(self.style.ERROR(msg))
+
         # handle root organization
         orga = self._create_default_organization()
         superuser.organization = orga
@@ -100,6 +111,37 @@ class Command(BaseCommand):
             f"timeout {MONITORING_REQUEST_TIMEOUT} was created successfully"
         )
         self.stdout.write(self.style.SUCCESS(str(msg)))
+
+    @staticmethod
+    def _create_group_from_default_setting(setting: dict, user: MrMapUser):
+        """ Creates default groups besides of Superuser group and Public group
+
+        Args:
+            setting (dict): The DEFAULT_GROUP setting
+        Returns:
+             group (MrMapGroup): The created group object
+        """
+        group_name = setting["name"]
+        group_permissions = setting["permissions"]
+        parent_group = MrMapGroup.objects.filter(
+            name=setting["parent_group"]
+        ).first()
+        permission = Permission()
+        for perm in group_permissions:
+            perm_name = perm.field.attname
+            setattr(permission, perm_name, True)
+        permission.save()
+        role = Role.objects.get_or_create(
+            name=group_name,
+            permission=permission,
+        )[0]
+        group = MrMapGroup.objects.get_or_create(
+            name=group_name,
+            parent_group=parent_group,
+            role=role,
+            created_by=user
+        )[0]
+        return group
 
     @staticmethod
     def _create_themes():

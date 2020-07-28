@@ -191,11 +191,11 @@ def subscriptions(request: HttpRequest, update_params: dict = None, status_code:
     user = user_helper.get_user(request)
 
     subscription_table = SubscriptionTable(request=request,
-                                           current_view='subscriptions')
+                                           current_view='subscription-index')
 
     params = {
         "subscriptions": subscription_table,
-        "current_view": 'subscriptions',
+        "current_view": 'subscription-index',
     }
 
     if update_params:
@@ -395,11 +395,11 @@ def subscription_index_view(request: HttpRequest, update_params: dict = None, st
     user = user_helper.get_user(request)
 
     subscription_table = SubscriptionTable(request=request,
-                                           current_view='subscriptions')
+                                           current_view='subscription-index')
 
     params = {
         "subscriptions": subscription_table,
-        "current_view": 'subscriptions',
+        "current_view": 'subscription-index',
     }
 
     if update_params:

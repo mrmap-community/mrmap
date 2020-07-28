@@ -17,7 +17,7 @@
 {% block card-body %}
     <div class="row">
         <div class="col-sm mb-2 text-center">
-            {% if 'can_edit_metadata_service' in user_permissions %}
+            {% if 'can_edit_metadata' in user_permissions %}
                 <div class="dropdown">
                   <button class="btn {{THEME.CARD.BTN_SECONDARY_COLOR}} dropdown-toggle" type="button" id="id_edit_service_{{service.id}}_dropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     {% autoescape off %}{{THEME.ICONS.EDIT}}{% endautoescape %} {% trans 'Edit layer' %}
@@ -55,7 +55,7 @@
             </div>
         </div>
         <div class="col-sm mb-2 text-center">
-            {% if 'can_edit_metadata_service' in user_permissions %}
+            {% if 'can_edit_metadata' in user_permissions %}
                 <a class="btn {{THEME.CARD.BTN_WARNING_COLOR}}" href="{% url 'editor:restore' service.metadata.id %}?current-view={{current_view}}&current-view-arg={{service_md.id}}">{% autoescape off %}{{THEME.ICONS.UNDO}}{% endautoescape %} {% trans 'Restore metadata' %}</a>
             {% endif %}
         </div><!--</col>-->

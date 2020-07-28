@@ -17,7 +17,9 @@
 {% endblock %}
 
 {% block card-header-subtitle-left %}
-<p class="{{THEME.CARD.TXT_SUBTITLE_COLOR}}">{% trans 'Your organization:' %} <a href="{% url 'structure:detail-organization' user.organization.id%}" class="{{THEME.CARD.LINK_COLOR}}">{% autoescape off %}{{THEME.ICONS.HOME}}{% endautoescape %} {{user.organization}}</a></p>
+{% if user.organization is not None %}
+    <p class="{{THEME.CARD.TXT_SUBTITLE_COLOR}}">{% trans 'Your organization:' %} <a href="{% url 'structure:detail-organization' user.organization.id%}" class="{{THEME.CARD.LINK_COLOR}}">{% autoescape off %}{{THEME.ICONS.HOME}}{% endautoescape %} {{user.organization}}</a></p>
+{% endif %}
 {% endblock %}
 
 {% block card-body %}

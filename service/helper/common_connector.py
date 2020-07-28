@@ -67,6 +67,26 @@ class CommonConnector:
             self.is_local_request = True
         self._url = url
 
+    def url_is_reachable(self, url: str = None) -> (bool, int):
+        """ Performs a HEAD request on the given url to check whether it's reachable or not.
+
+        Returns a tuple of
+        0 -> status_code == 200
+        1 -> status_code
+
+        Args:
+            url (str): An url to be used instead of the member attribute
+        Returns:
+
+        """
+        if url is None:
+            url = self._url
+        try:
+            response = requests.head(url)
+        except requests.exceptions.ConnectionError:
+            return False, -1
+        return response.status_code == 200, response.status_code
+
     def load(self, params: dict = None):
         self.init_time = time.time()
         if self.connection_type is ConnectionEnum.CURL:

@@ -72,7 +72,7 @@ class GroupAdmin(admin.ModelAdmin):
         else:
             "-"
     created_by_link.allow_tags = True
-    created_by_link.short_description = "role"
+    created_by_link.short_description = "Created by"
 
 
 class GroupActivityAdmin(admin.ModelAdmin):

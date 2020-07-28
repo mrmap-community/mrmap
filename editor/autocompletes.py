@@ -49,7 +49,7 @@ class KeywordAutocomplete(autocomplete.Select2QuerySetView):
         user = get_user(request)
 
         perm = Permission(
-            can_edit_metadata_service=True
+            can_edit_metadata=True
         )
         is_editor = user.has_permission(perm)
         return user is not None and is_editor

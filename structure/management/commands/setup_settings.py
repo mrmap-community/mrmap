@@ -39,10 +39,9 @@ DEFAULT_GROUPS = [
         "name": "Editor",
         "parent_group": None,
         "permissions": [
-            Permission.can_activate_service,
-            Permission.can_edit_metadata_service,
-            Permission.can_edit_dataset_metadata,
-            Permission.can_restore_dataset_metadata,
+            Permission.can_activate_resource,
+            Permission.can_edit_metadata,
+            Permission.can_edit_metadata,
         ]
     },
     {
@@ -58,10 +57,10 @@ DEFAULT_GROUPS = [
         "name": "Resource Administrator",
         "parent_group": "Editor",
         "permissions": [
-            Permission.can_activate_service,
-            Permission.can_update_service,
-            Permission.can_register_service,
-            Permission.can_remove_service,
+            Permission.can_activate_resource,
+            Permission.can_update_resource,
+            Permission.can_register_resource,
+            Permission.can_remove_resource,
             Permission.can_add_dataset_metadata,
             Permission.can_remove_dataset_metadata,
             Permission.can_toggle_publish_requests,

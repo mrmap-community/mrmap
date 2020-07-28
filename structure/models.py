@@ -36,23 +36,16 @@ class Permission(models.Model):
 
     can_edit_group_role = models.BooleanField(default=False)
 
-    can_activate_service = models.BooleanField(default=False)
-    can_update_service = models.BooleanField(default=False)
-    can_register_service = models.BooleanField(default=False)
-    can_remove_service = models.BooleanField(default=False)
-    can_edit_metadata_service = models.BooleanField(default=False)
-    can_edit_metadata_public_id = models.BooleanField(default=False)
+    can_edit_metadata = models.BooleanField(default=False)
+    can_activate_resource = models.BooleanField(default=False)
+    can_update_resource = models.BooleanField(default=False)
+    can_register_resource = models.BooleanField(default=False)
+    can_remove_resource = models.BooleanField(default=False)
 
     can_add_dataset_metadata = models.BooleanField(default=False)
-    can_edit_dataset_metadata = models.BooleanField(default=False)
     can_remove_dataset_metadata = models.BooleanField(default=False)
-    can_restore_dataset_metadata = models.BooleanField(default=False)
 
     can_toggle_publish_requests = models.BooleanField(default=False)
-
-    can_create_monitoring_setting = models.BooleanField(default=False)
-    can_edit_monitoring_setting = models.BooleanField(default=False)
-    can_delete_monitoring_setting = models.BooleanField(default=False)
 
     can_remove_publisher = models.BooleanField(default=False)
     can_request_to_become_publisher = models.BooleanField(default=False)

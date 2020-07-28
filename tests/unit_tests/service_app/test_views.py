@@ -150,7 +150,7 @@ class ServiceRemoveViewTestCase(TestCase):
 
         # remove permission to remove services
         perm = self.user.get_groups()[0].role.permission
-        perm.can_remove_service = False
+        perm.can_remove_resource = False
         perm.save()
 
         response = self.client.post(
@@ -194,7 +194,7 @@ class ServiceActivateViewTestCase(TestCase):
     def test_permission_denied_activate_service(self):
         # remove permission to remove services
         perm = self.user.get_groups()[0].role.permission
-        perm.can_activate_service = False
+        perm.can_activate_resource = False
         perm.save()
 
         md = self.wms_service_metadatas[0]

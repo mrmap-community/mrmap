@@ -105,7 +105,7 @@ Please try not only to explain what you are doing (which is obvious in most case
 ```python
 
 
-@check_permission(Permission(can_update_service=True))
+@check_permission(Permission(can_update_resource=True))
 @transaction.atomic
 def update_service(request: HttpRequest, id: int):
     """ Compare old service with new service and collect differences

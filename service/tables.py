@@ -380,13 +380,13 @@ class CswTable(MrMapTable):
     # Todo: accessor
     csw_last_haverest = MrMapColumn(
         accessor='service.service_type.version',
-        verbose_name=_('Last haverest'),
-        tooltip=_('Timestamp of the last haverest'), )
+        verbose_name=_('Last harvest'),
+        tooltip=_('Timestamp of the last harvest'), )
 
     # Todo: accessor
     csw_collected_haverest_records = MrMapColumn(
         accessor='service.service_type.version',
-        verbose_name=_('Collected haverest records'),
+        verbose_name=_('Collected harvest records'),
         tooltip=_('Count of all haverest records'), )
 
     csw_registered_by_group = MrMapColumn(

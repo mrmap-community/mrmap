@@ -41,6 +41,9 @@ class GroupAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'description', 'parent_group_link', 'organization_link', 'role_link', 'created_by_link', 'is_public_group', )
     list_filter = ('role', 'created_by', 'is_public_group' )
     search_fields = ['id', 'name', 'description', 'parent_group__name', ]
+    readonly_fields = (
+        "permissions",  # prevent accidental changing of permissions. Permissions are managed by Roles
+    )
 
     def parent_group_link(self, obj):
         if obj.parent_group:
@@ -111,7 +114,11 @@ class MrMapUserAdmin(UserAdmin):
              }
              ),
     ) + UserAdmin.fieldsets
-    readonly_fields = ("confirmed_dsgvo",)
+    readonly_fields = (
+        "confirmed_dsgvo",
+        "user_permissions",  # Prevent accidental changes on user_permissions (inherited from AbstractUser) since groups manage permissions!
+    )
+
 
 
 class UserActivationAdmin(admin.ModelAdmin):

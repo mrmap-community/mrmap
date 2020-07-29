@@ -1,13 +1,18 @@
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from MrMap.wizards import MrMapWizard
-from django.utils.translation import gettext_lazy as _
 from django.contrib import messages
+from django.utils.translation import gettext_lazy as _
 from service.forms import RegisterNewResourceWizardPage1, RegisterNewResourceWizardPage2
 from service.helper import service_helper
 
-NEW_RESOURCE_WIZARD_FORMS = [(_("Service url"), RegisterNewResourceWizardPage1),
-                             (_("overview"), RegisterNewResourceWizardPage2), ]
+FIRST_STEP_ID = _("URL")
+SECOND_STEP_ID = _("Overview")
+
+NEW_RESOURCE_WIZARD_FORMS = [
+    (FIRST_STEP_ID, RegisterNewResourceWizardPage1),
+    (SECOND_STEP_ID, RegisterNewResourceWizardPage2),
+]
 
 
 class NewResourceWizard(MrMapWizard):
@@ -21,9 +26,9 @@ class NewResourceWizard(MrMapWizard):
     def get_form_initial(self, step):
         initial = self.initial_dict.get(step, {})
 
-        if step == "overview":
-            service_url_data = self.storage.get_step_data('Service url')
-            uri = service_url_data.get('Service url-get_request_uri')
+        if step == SECOND_STEP_ID:
+            service_url_data = self.storage.get_step_data(FIRST_STEP_ID)
+            uri = service_url_data.get('{}-get_request_uri'.format(FIRST_STEP_ID))
             url_dict = service_helper.split_service_uri(uri)
             initial.update({
                 'ogc_request': url_dict["request"],

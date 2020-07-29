@@ -200,11 +200,12 @@ def add(request: HttpRequest):
         Returns:
              params (dict): The rendering parameter
     """
-    return NewResourceWizard.as_view(form_list=NEW_RESOURCE_WIZARD_FORMS,
-                                     current_view=request.GET.get('current-view'),
-                                     title=_(format_html('<b>Add New Resource</b>')),
-                                     id_wizard='add_new_resource_wizard',
-                                     )(request=request)
+    return NewResourceWizard.as_view(
+        form_list=NEW_RESOURCE_WIZARD_FORMS,
+        current_view=request.GET.get('current-view'),
+        title=_(format_html('<b>Add New Resource</b>')),
+        id_wizard='add_new_resource_wizard',
+    )(request=request)
 
 
 @login_required

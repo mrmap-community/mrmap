@@ -30,7 +30,11 @@ class ServiceURIForm(forms.Form):
 
 
 class RegisterNewResourceWizardPage1(MrMapWizardForm):
-    get_request_uri = forms.URLField(validators=[validate_get_request_uri])
+    get_request_uri = forms.URLField(
+        validators=[validate_get_request_uri],
+        label=_("Resource URL"),
+        help_text=_("In case of a OGC service you may provide the GetCapabilities url.")
+    )
 
 
 class RegisterNewResourceWizardPage2(MrMapWizardForm):

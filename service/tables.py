@@ -603,26 +603,41 @@ class ProxyLogTable(MrMapTable):
         row_attrs = {
             "class": "text-center"
         }
-
-    id = MrMapColumn(accessor='id',
-                     verbose_name=_('Log ID'),
-                     tooltip=_("The id of the ProxyLog"))
-    metadata_title = MrMapColumn(accessor='metadata.title',
-                                 verbose_name=_('Service Title'),
-                                 tooltip=_("The title of the related service"))
-    user_name = MrMapColumn(accessor='user',
-                            verbose_name=_('User'),
-                            tooltip=_("Name of the user which produced this log entry"))
-    timestamp = MrMapColumn(accessor='timestamp',
-                            verbose_name=_('Timestamp'),
-                            tooltip=_("Timestamp when the entry was produced"))
-    operation = MrMapColumn(accessor='operation',
-                            tooltip=_("Operation param of the request"),
-                            verbose_name=_('Operation'), )
-
-    @staticmethod
-    def render_metadata_title(record):
-        return "{} #{}".format(record.metadata.title, record.metadata.id)
+    metadata_id = MrMapColumn(
+        accessor='metadata.id',
+        verbose_name=_('Service ID'),
+        tooltip=_("The title of the related service")
+    )
+    metadata_title = MrMapColumn(
+        accessor='metadata.title',
+        verbose_name=_('Service Title'),
+        tooltip=_("The title of the related service")
+    )
+    user_name = MrMapColumn(
+        accessor='user',
+        verbose_name=_('User'),
+        tooltip=_("Name of the user which produced this log entry")
+    )
+    timestamp = MrMapColumn(
+        accessor='timestamp',
+        verbose_name=_('Timestamp'),
+        tooltip=_("Timestamp when the entry was produced")
+    )
+    operation = MrMapColumn(
+        accessor='operation',
+        tooltip=_("Operation param of the request"),
+        verbose_name=_('Operation'),
+    )
+    megapixel = MrMapColumn(
+        accessor='response_wms_megapixel',
+        tooltip=_("Delivered megapixel of map material"),
+        verbose_name=_('Response megapixel'),
+    )
+    features = MrMapColumn(
+        accessor='response_wfs_num_features',
+        tooltip=_("Delivered number of features"),
+        verbose_name=_('Response features'),
+    )
 
     def fill_csv_response(self, stream):
         csv_writer = csv.writer(stream)
@@ -638,7 +653,7 @@ class ProxyLogTable(MrMapTable):
         for log in self.data.data:
             csv_writer.writerow(
                 [
-                    log.id,
+                    log.metadata.id,
                     log.metadata.title,
                     log.user,
                     log.operation,

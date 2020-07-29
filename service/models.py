@@ -83,6 +83,11 @@ class ProxyLog(models.Model):
     response_wfs_num_features = models.IntegerField(null=True, blank=True)
     response_wms_megapixel = models.FloatField(null=True, blank=True)
 
+    class Meta:
+        ordering = [
+            "-timestamp"
+        ]
+
     def __str__(self):
         return str(self.id)
 

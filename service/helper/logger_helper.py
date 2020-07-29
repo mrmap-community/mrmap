@@ -25,7 +25,11 @@ def prepare_proxy_log_filter(request: HttpRequest, user: MrMapUser, current_view
     user_groups = user.get_groups()
     group_metadatas = Metadata.objects.filter(created_by__in=user_groups)
 
-    queryset = ProxyLog.objects.filter(metadata__in=group_metadatas)
+    queryset = ProxyLog.objects.filter(
+        metadata__in=group_metadatas
+    ).prefetch_related(
+        "metadata"
+    )
 
     return ProxyLogTable(request=request,
                          queryset=queryset,

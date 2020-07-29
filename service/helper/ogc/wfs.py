@@ -196,7 +196,7 @@ class OGCWebFeatureService(OGCWebService):
             xml_elem=service_xml,
             elem="./" + GENERIC_NAMESPACE_TEMPLATE.format("Keywords") +
                  "/" + GENERIC_NAMESPACE_TEMPLATE.format("Keyword")
-        )
+        ) or []
         kw = []
         for keyword in keywords:
             text = keyword.text

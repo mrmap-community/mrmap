@@ -55,6 +55,15 @@ class MetadataEditorForm(MrMapModelForm):
             "keywords",
             "categories",
         ]
+        labels = {
+            "title": _("Title"),
+            "abstract": _("Abstract"),
+            "language_code": _("Language Code"),
+            "access_constraints": _("Access Constraints"),
+            "licence": _("Licence"),
+            "keywords": _("Keywords"),
+            "categories": _("Categories"),
+        }
         help_texts = {
             "title": _("Edit the title."),
             "abstract": _("Edit the description. Keep it short and simple."),
@@ -68,9 +77,8 @@ class MetadataEditorForm(MrMapModelForm):
             "categories": autocomplete.ModelSelect2Multiple(
                 url='editor:category-autocomplete',
                 attrs={
-                    "data-containercss": {
-                        "height": "3em",
-                        "width": "3em",
+                    "select2-container-css-style": {
+                        "height": "auto",
                     },
                 },
             ),

@@ -325,15 +325,17 @@ def activate(request: HttpRequest, metadata_id):
     """
     md = get_object_or_404(Metadata, id=metadata_id)
 
-    form = ActivateServiceForm(data=request.POST or None,
-                               request=request,
-                               reverse_lookup='resource:activate',
-                               reverse_args=[metadata_id, ],
-                               # ToDo: after refactoring of all forms is done, show_modal can be removed
-                               show_modal=True,
-                               form_title=_(f"{'Deactivate' if md.is_active else 'Activate'} service <strong>{md}</strong>"),
-                               is_confirmed_label=_(f"Do you really want to {'deactivate' if md.is_active else 'activate'} this service?"),
-                               instance=md,)
+    form = ActivateServiceForm(
+        data=request.POST or None,
+        request=request,
+        reverse_lookup='resource:activate',
+        reverse_args=[metadata_id, ],
+        # ToDo: after refactoring of all forms is done, show_modal can be removed
+        show_modal=True,
+        form_title=_("Deactivate resource \n<strong>{}</strong>").format(md.title) if md.is_active else _("Activate resource \n<strong>{}</strong>").format(md.title),
+        is_confirmed_label=_("Do you really want to deactivate this resource?") if md.is_active else _("Do you really want to activate this resource?"),
+        instance=md,
+    )
     return form.process_request(valid_func=form.process_activate_service)
 
 

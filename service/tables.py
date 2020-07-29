@@ -1,5 +1,4 @@
 import csv
-from time import time
 
 import django_tables2 as tables
 from django.db.models.functions import Length

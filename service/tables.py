@@ -26,7 +26,7 @@ def _get_action_btns_for_service_table(table, record):
         btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR" if record.is_active else "BTN_SUCCESS_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]["POWER_OFF"],
         permission=Permission(can_edit_metadata=True),
-        tooltip=format_html(_(f"{'Deactivate' if record.is_active else 'Activate'} resource <strong>{record.title} [{record.id}]</strong>"), ),
+        tooltip=format_html(_("Deactivate") if record.is_active else _("Activate")),
         tooltip_placement='left', )
 
     btns += table.get_btn(
@@ -34,7 +34,7 @@ def _get_action_btns_for_service_table(table, record):
         btn_color=get_theme(table.user)["TABLE"]["BTN_INFO_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['UPDATE'],
         permission=Permission(can_update_resource=True),
-        tooltip=format_html(_(f"Update service: <strong>{record.title} [{record.id}]</strong>"), ),
+        tooltip=format_html(_("Update"), ),
         tooltip_placement='left', )
 
     btns += table.get_btn(
@@ -42,7 +42,7 @@ def _get_action_btns_for_service_table(table, record):
         btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['EDIT'],
         permission=Permission(can_edit_metadata=True),
-        tooltip=format_html(_(f"Edit metadata of <strong>{record.title} [{record.id}]</strong>"), ),
+        tooltip=format_html(_("Edit metadata"), ),
         tooltip_placement='left', )
 
     btns += table.get_btn(
@@ -50,7 +50,7 @@ def _get_action_btns_for_service_table(table, record):
         btn_color=get_theme(table.user)["TABLE"]["BTN_WARNING_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['ACCESS'],
         permission=Permission(can_edit_metadata=True),
-        tooltip=format_html(_(f"Edit access of <strong>{record.title} [{record.id}]</strong> service"), ),
+        tooltip=format_html(_("Edit access"), ),
         tooltip_placement='left', )
 
     btns += table.get_btn(
@@ -58,7 +58,7 @@ def _get_action_btns_for_service_table(table, record):
         btn_color=get_theme(table.user)["TABLE"]["BTN_DANGER_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['UNDO'],
         permission=Permission(can_edit_metadata=True),
-        tooltip=format_html(_(f"Restore <strong>{record.title} [{record.id}]</strong> metadata"), ),
+        tooltip=format_html(_("Restore metadata"), ),
         tooltip_placement='left',
     )
 
@@ -67,10 +67,22 @@ def _get_action_btns_for_service_table(table, record):
         btn_color=get_theme(table.user)["TABLE"]["BTN_DANGER_COLOR"],
         btn_value=get_theme(table.user)["ICONS"]['REMOVE'],
         permission=Permission(can_remove_resource=True),
-        tooltip=format_html(_(f"Remove <strong>{record.title} [{record.id}]</strong> metadata"), ),
+        tooltip=format_html(_("Remove"), ),
         tooltip_placement='left',
     )
     return format_html(btns)
+
+
+TOOLTIP_TITLE = _('The resource title')
+TOOLTIP_ACTIVE = _('Shows whether the resource is active or not.')
+TOOLTIP_SECURED_ACCESS = _('Shows whether the resource is only accessible for certain groups and/or in certain areas.')
+TOOLTIP_SECURED_EXTERNALLY = _('Shows whether the resource needs authentication to its origin server.')
+TOOLTIP_VERSION = _('The resource version')
+TOOLTIP_DATA_PROVIDER = _('The organization which provides the resource.')
+TOOLTIP_REGISTERED_BY_GROUP = _('The group which registered the resource.')
+TOOLTIP_REGISTERED_FOR = _('The organization for which the resource is registered.')
+TOOLTIP_CREATED_ON = _('The registration date.')
+TOOLTIP_ACTIONS = _('Performable Actions')
 
 
 class WmsServiceTable(MrMapTable):
@@ -85,58 +97,68 @@ class WmsServiceTable(MrMapTable):
         verbose_name=_('Title'),
         empty_values=[],
         attrs=attrs,
-        tooltip=_('The title of the service'),)
+        tooltip=TOOLTIP_TITLE,
+    )
     wms_active = MrMapColumn(
         accessor='is_active',
         verbose_name=_('Active'),
         attrs=attrs,
-        tooltip=_('The state of the service. If the service is deactivated, the service is not provided to external by Mr. Map.'))
+        tooltip=TOOLTIP_ACTIVE
+    )
     wms_secured_access = MrMapColumn(
         accessor='is_secured',
         verbose_name=_('Secured access'),
         attrs=attrs,
-        tooltip=_('If the service is secured, Mr. Map provides it only if the right credentials are provided by the requesting user.'),)
+        tooltip=TOOLTIP_SECURED_ACCESS,
+    )
     wms_secured_externally = MrMapColumn(
         accessor='external_authentication',
         verbose_name=_('Secured externally'),
         empty_values=[False, ],
         attrs=attrs,
-        tooltip=_('Shows if the service is secured by the external MapServer. Mr. Map can also secure the endpoint. See secured access for that.'),)
+        tooltip=TOOLTIP_SECURED_EXTERNALLY,
+    )
     wms_version = MrMapColumn(
         accessor='service.service_type.version',
         verbose_name=_('Version'),
         attrs=attrs,
-        tooltip=_('The version of the service'),)
+        tooltip=TOOLTIP_VERSION,
+    )
     wms_data_provider = MrMapColumn(
         accessor='contact.organization_name',
         verbose_name=_('Data provider'),
         attrs=attrs,
-        tooltip=_('The organization which is liable for the service.'),)
+        tooltip=TOOLTIP_DATA_PROVIDER,
+    )
     wms_registered_by_group = MrMapColumn(
         accessor='service.created_by',
         verbose_name=_('Registered by group'),
         attrs=attrs,
-        tooltip=_('The group which has registered the service'),)
+        tooltip=TOOLTIP_REGISTERED_BY_GROUP,
+    )
     wms_registered_for = MrMapColumn(
         accessor='service.published_for',
         verbose_name=_('Registered for'),
         attrs=attrs,
-        tooltip=_('The organization for that the service is registered.'),)
+        tooltip=TOOLTIP_REGISTERED_FOR,
+    )
     wms_created_on = MrMapColumn(
         accessor='created',
         verbose_name=_('Created on'),
         attrs=attrs,
-        tooltip=_('The date of creation of this service in our Mr. Map system.'),)
+        tooltip=TOOLTIP_CREATED_ON,
+    )
     wms_actions = MrMapColumn(
         verbose_name=_('Actions'),
         empty_values=[],
         orderable=False,
-        tooltip=_('Actions you can perform'),
-        attrs={"td": {"style": "white-space:nowrap;"}})
+        tooltip=TOOLTIP_ACTIONS,
+        attrs={"td": {"style": "white-space:nowrap;"}}
+    )
 
     def render_wms_title(self, value, record):
         url = reverse('resource:detail', args=(record.id,))
-        tooltip = _(f'Click to open the detail view of <strong>{value}</strong>.')
+        tooltip = _('Click to open the detail view of <strong>{}</strong>.'.format(value))
         return construct_url(classes=get_theme(self.user)["TABLE"]["LINK_COLOR"],
                              href=url,
                              content=value,
@@ -186,7 +208,7 @@ class WmsServiceTable(MrMapTable):
 
 
 class WmsTableWms(WmsServiceTable):
-    caption = _("Shows all WMS which are configured in your Mr. Map environment.")
+    caption = _("Shows all registered WMS.")
 
     attrs = {
         "th": {
@@ -220,7 +242,7 @@ class WmsLayerTableWms(WmsServiceTable):
         empty_values=[],
         tooltip=_('The root service of this layer'), )
 
-    caption = _("Shows all WMS sublayers which are configured in your Mr. Map environment.")
+    caption = _("Shows all registered WMS sublayers.")
 
     class Meta:
         sequence = ("wms_title", "wms_parent_service", "...")
@@ -245,7 +267,7 @@ class WmsLayerTableWms(WmsServiceTable):
 
 
 class WfsServiceTable(MrMapTable):
-    caption = _("Shows all WFS which are configured in your Mr. Map environment.")
+    caption = _("Shows all registered WFS.")
 
     class Meta:
         row_attrs = {
@@ -255,49 +277,59 @@ class WfsServiceTable(MrMapTable):
     wfs_title = MrMapColumn(
         accessor='title',
         verbose_name=_('Title'),
-        tooltip=_('The title of the resource'),)
+        tooltip=TOOLTIP_TITLE,
+    )
     wfs_featuretypes = MrMapColumn(
         verbose_name=_('Featuretypes'),
         empty_values=[], )
     wfs_active = MrMapColumn(
         accessor='is_active',
         verbose_name=_('Active'),
-        tooltip=_('The state of the service. If the service is deactivated, the service is not provided to external by Mr. Map.'),)
+        tooltip=TOOLTIP_ACTIVE,
+    )
     wfs_secured_access = MrMapColumn(
         accessor='is_secured',
         verbose_name=_('Secured access'),
-        tooltip=_('If the service is secured, Mr. Map provides it only if the right credentials are provided by the requesting user.'),)
+        tooltip=TOOLTIP_SECURED_ACCESS,
+    )
     wfs_secured_externally = MrMapColumn(
         accessor='external_authentication',
         verbose_name=_('Secured externally'),
         empty_values=[False, ],
-        tooltip=_('Shows if the service is secured by the external MapServer. Mr. Map can also secure the endpoint. See secured access for that.'),)
+        tooltip=TOOLTIP_SECURED_EXTERNALLY,
+    )
     wfs_version = MrMapColumn(
         accessor='service.service_type.version',
         verbose_name=_('Version'),
-        tooltip=_('The version of the service'),)
+        tooltip=TOOLTIP_VERSION,
+    )
     wfs_data_provider = MrMapColumn(
         accessor='contact.organization_name',
         verbose_name=_('Data provider'),
-        tooltip=_('The organization which is liable for the service.'),)
+        tooltip=TOOLTIP_DATA_PROVIDER,
+    )
     wfs_registered_by_group = MrMapColumn(
         accessor='service.created_by',
         verbose_name=_('Registered by group'),
-        tooltip=_('The group which has registered the service'),)
+        tooltip=TOOLTIP_REGISTERED_BY_GROUP,
+    )
     wfs_registered_for = MrMapColumn(
         accessor='service.published_for',
         verbose_name=_('Registered for'),
-        tooltip=_('The organization for that the service is registered.'),)
+        tooltip=TOOLTIP_REGISTERED_FOR,
+    )
     wfs_created_on = MrMapColumn(
         accessor='created',
         verbose_name=_('Created on'),
-        tooltip=_('The date of creation of this service in our Mr. Map system.'),)
+        tooltip=TOOLTIP_CREATED_ON,
+    )
     wfs_actions = MrMapColumn(
         verbose_name=_('Actions'),
         empty_values=[],
         orderable=False,
-        tooltip=_('Actions you can perform'),
-        attrs={"td": {"style": "white-space:nowrap;"}})
+        tooltip=TOOLTIP_ACTIONS,
+        attrs={"td": {"style": "white-space:nowrap;"}}
+    )
 
     def render_wfs_title(self, value, record):
         url = reverse('resource:detail', args=(record.id,))
@@ -370,36 +402,37 @@ class CswTable(MrMapTable):
     csw_title = MrMapColumn(
         accessor='title',
         verbose_name=_('Title'),
-        tooltip=_('The title of the resource'), )
-
+        tooltip=TOOLTIP_TITLE,
+    )
     csw_version = MrMapColumn(
         accessor='service.service_type.version',
         verbose_name=_('Version'),
-        tooltip=_('The version of the service'), )
-
+        tooltip=TOOLTIP_VERSION,
+    )
     # Todo: accessor
     csw_last_haverest = MrMapColumn(
         accessor='service.service_type.version',
         verbose_name=_('Last harvest'),
-        tooltip=_('Timestamp of the last harvest'), )
-
+        tooltip=_('Timestamp of the last harvest'),
+    )
     # Todo: accessor
     csw_collected_haverest_records = MrMapColumn(
         accessor='service.service_type.version',
         verbose_name=_('Collected harvest records'),
-        tooltip=_('Count of all haverest records'), )
-
+        tooltip=_('Count of all haverest records'),
+    )
     csw_registered_by_group = MrMapColumn(
         accessor='service.created_by',
         verbose_name=_('Registered by group'),
-        tooltip=_('The group which has registered the service'), )
-
+        tooltip=TOOLTIP_REGISTERED_BY_GROUP,
+    )
     csw_actions = MrMapColumn(
         verbose_name=_('Actions'),
         empty_values=[],
         orderable=False,
-        tooltip=_('Actions you can perform'),
-        attrs={"td": {"style": "white-space:nowrap;"}})
+        tooltip=TOOLTIP_ACTIONS,
+        attrs={"td": {"style": "white-space:nowrap;"}}
+    )
 
     def render_csw_title(self, value, record):
         url = reverse('resource:detail', args=(record.id,))
@@ -623,7 +656,8 @@ class DatasetTable(MrMapTable):
     dataset_title = MrMapColumn(
         accessor='title',
         verbose_name=_('Title'),
-        tooltip=_('The title of the dataset'),)
+        tooltip=TOOLTIP_TITLE,
+    )
     dataset_related_objects = MrMapColumn(
         verbose_name=_('Related objects'),
         empty_values=[],
@@ -631,12 +665,12 @@ class DatasetTable(MrMapTable):
     dataset_origins = MrMapColumn(
         verbose_name=_('Origins'),
         empty_values=[],
-        tooltip=_('Tells us where the information\'s comes from. One item from column Related objects is referenced to one item in this column.'))
+        tooltip=_('How the resource got into the system.'))
     dataset_actions = MrMapColumn(
         verbose_name=_('Actions'),
         empty_values=[],
         orderable=False,
-        tooltip=_('Actions you can perform'),
+        tooltip=TOOLTIP_ACTIONS,
         attrs={"td": {"style": "white-space:nowrap;"}})
 
     def render_dataset_title(self, value, record):

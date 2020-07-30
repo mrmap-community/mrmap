@@ -70,6 +70,10 @@ def _get_action_btns_for_service_table(table, record):
         tooltip=format_html(_("Remove"), ),
         tooltip_placement='left',
     )
+
+    if len(btns) == 0:
+        # User has no permission for anything!
+        btns = _("No permissions!")
     return format_html(btns)
 
 

@@ -86,7 +86,12 @@ def _prepare_wms_table(request: HttpRequest, current_view: str, user_groups):
     ).prefetch_related(
         "contact",
         "service",
+        "service__created_by",
+        "service__published_for",
         "service__service_type",
+        "external_authentication",
+        "service__parent_service__metadata",
+        "service__parent_service__metadata__external_authentication",
     ).order_by("title")
 
     if show_service:

@@ -29,7 +29,7 @@ from service.models import Metadata, MetadataRelation, Keyword, Category, Datase
     SecuredOperation
 from service.settings import ISO_19115_LANG_CHOICES
 from service.tasks import async_secure_service_task
-from structure.models import Organization, MrMapUser, MrMapGroup
+from structure.models import Organization
 from users.helper import user_helper
 from django.contrib import messages
 

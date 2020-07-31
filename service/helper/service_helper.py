@@ -24,7 +24,6 @@ from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
 from service.models import Service, ExternalAuthentication, Metadata, Document
 from service.helper.crypto_handler import CryptoHandler
-from service.tasks import async_increase_hits
 from structure.models import PendingTask, MrMapGroup, MrMapUser
 from users.helper import user_helper
 
@@ -332,6 +331,7 @@ def get_resource_capabilities(request: HttpRequest, md: Metadata):
     Returns:
 
     """
+    from service.tasks import async_increase_hits
     stored_version = md.get_service_version().value
     # move increasing hits to background process to speed up response time!
     async_increase_hits.delay(md.id)

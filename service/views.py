@@ -136,7 +136,12 @@ def _prepare_wfs_table(request: HttpRequest, current_view: str, user_groups):
     ).prefetch_related(
         "contact",
         "service",
+        "service__created_by",
+        "service__published_for",
         "service__service_type",
+        "external_authentication",
+        "service__parent_service__metadata",
+        "service__parent_service__metadata__external_authentication",
     ).order_by("title")
 
     wfs_table = WfsServiceTable(request=request,
@@ -168,7 +173,10 @@ def _prepare_csw_table(request: HttpRequest, current_view: str, user_groups):
     ).prefetch_related(
         "contact",
         "service",
+        "service__created_by",
+        "service__published_for",
         "service__service_type",
+        "external_authentication",
     ).order_by("title")
 
     table = CswTable(request=request,
@@ -1268,9 +1276,11 @@ def logs_view(request: HttpRequest, update_params: dict = None, status_code: int
     user = user_helper.get_user(request)
 
     params = {
-        "log_table": prepare_proxy_log_filter(request=request,
-                                              user=user,
-                                              current_view='resource:logs-view'),
+        "log_table": prepare_proxy_log_filter(
+            request=request,
+            user=user,
+            current_view='resource:logs-view'
+        ),
         "current_view": 'resource:logs-view',
     }
     if update_params:

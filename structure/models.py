@@ -216,7 +216,9 @@ class MrMapUser(AbstractUser):
                 metadata_type=MetadataEnum.DATASET.value,
                 created_by__in=user_groups,
             ).prefetch_related(
-                "related_metadata"
+                "related_metadata",
+                "related_metadata__metadata_from",
+                "related_metadata__metadata_to",
             ).order_by("title")
         return md_list
 

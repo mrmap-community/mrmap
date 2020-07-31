@@ -57,7 +57,7 @@ def validate_username_has_special_characters(value):
 USERNAME_VALIDATORS = [validate_username_has_special_characters]
 
 
-def check_uri_is_reachable(value):
+def check_uri_is_reachable(value) -> (bool, bool):
     """ Performs a check on the URL.
 
     Returns whether it's reachable or not
@@ -71,14 +71,18 @@ def check_uri_is_reachable(value):
         url=value
     )
     is_reachable, status_code = connector.url_is_reachable()
+    needs_authentication = False
     if not is_reachable:
         if status_code < 0:
             # Not even callable!
             msg_suffix = "URL could not be resolved to a server. Please check your input!"
+            return ValidationError(message="URL not valid! {}".format(msg_suffix))
+        elif status_code == 401:
+            needs_authentication = True
         else:
             msg_suffix = "Status code was {}".format(status_code)
-        return ValidationError(message="URL not valid! {}".format(msg_suffix))
-    return is_reachable
+            return ValidationError(message="URL not valid! {}".format(msg_suffix))
+    return is_reachable, needs_authentication
 
 
 def _get_request_uri_has_no_request_parameter(value):

@@ -1,5 +1,7 @@
 from django.http import HttpResponseRedirect
 from django.urls import reverse
+
+from MrMap.validators import check_uri_is_reachable
 from MrMap.wizards import MrMapWizard
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
@@ -30,12 +32,13 @@ class NewResourceWizard(MrMapWizard):
             service_url_data = self.storage.get_step_data(FIRST_STEP_ID)
             uri = service_url_data.get('{}-get_request_uri'.format(FIRST_STEP_ID))
             url_dict = service_helper.split_service_uri(uri)
+            needs_authentication = check_uri_is_reachable(uri)[1]
             initial.update({
                 'ogc_request': url_dict["request"],
                 'ogc_service': url_dict["service"].value,
                 'ogc_version': url_dict["version"],
                 'uri': url_dict["base_uri"],
-                'service_needs_authentication': False,
+                'service_needs_authentication': needs_authentication,
             })
         return initial
 

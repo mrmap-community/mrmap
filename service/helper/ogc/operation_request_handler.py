@@ -1463,6 +1463,8 @@ class OGCOperationRequestHandler:
                 xml_helper.add_subelement(request_filter_elem, add_elem)
             _filter = xml_helper.xml_to_string(request_filter_elem)
 
+        if len(_filter) == 0:
+            _filter = None
         self.filter_param = _filter
         self.new_params_dict["FILTER"] = self.filter_param
 

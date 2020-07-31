@@ -30,6 +30,7 @@ from service.helper.enums import OGCServiceEnum, OGCOperationEnum, OGCServiceVer
 from service.helper.logger_helper import prepare_proxy_log_filter
 from service.helper.ogc.operation_request_handler import OGCOperationRequestHandler
 from service.helper.service_comparator import ServiceComparator
+from service.helper.service_helper import get_resource_capabilities
 from service.settings import DEFAULT_SRS_STRING, PREVIEW_MIME_TYPE_DEFAULT, PLACEHOLDER_IMG_PATH
 from service.tables import WmsTableWms, WmsLayerTableWms, WfsServiceTable, PendingTasksTable, UpdateServiceElements, \
     DatasetTable, CswTable
@@ -505,81 +506,11 @@ def _get_capabilities(request: HttpRequest, metadata_id):
     """
 
     md = get_object_or_404(Metadata, id=metadata_id)
-    stored_version = md.get_service_version().value
-    # move increasing hits to background process to speed up response time!
-    async_increase_hits.delay(metadata_id)
-
-    if not md.is_active:
-        return HttpResponse(content=SERVICE_DISABLED, status=423)
-
-    # check that we have the requested version in our database
-    version_param = None
-    version_tag = None
-
-    request_param = None
-    request_tag = None
-
-    use_fallback = None
-
-    for k, v in request.GET.dict().items():
-        if k.upper() == "VERSION":
-            version_param = v
-            version_tag = k
-        elif k.upper() == "REQUEST":
-            request_param = v
-            request_tag = k
-        elif k.upper() == "FALLBACK":
-            use_fallback = utils.resolve_boolean_attribute_val(v)
-
-    # No version parameter has been provided by the request - we simply use the one we have.
-    if version_param is None or len(version_param) == 0:
-        version_param = stored_version
-
-    if version_param not in [data.value for data in OGCServiceVersionEnum]:
-        # version number not valid
-        return HttpResponse(content=PARAMETER_ERROR.format(version_tag), status=404)
-
-    elif request_param is not None and request_param != OGCOperationEnum.GET_CAPABILITIES.value:
-        # request not valid
-        return HttpResponse(content=PARAMETER_ERROR.format(request_tag), status=404)
-
-    else:
-        pass
-
-    if stored_version == version_param or use_fallback is True or not md.is_root():
-        # This is the case if
-        # 1) a version is requested, which we have in our database
-        # 2) the fallback parameter is set explicitly
-        # 3) a subelement is requested, which normally do not have capability documents
-
-        # We can check the cache for this document or we need to generate it!
-        doc = md.get_current_capability_xml(version_param)
-    else:
-        # we have to fetch the remote document
-        try:
-            # fetch the requested capabilities document from remote - we do not provide this as our default (registered) one
-            xml = md.get_remote_original_capabilities_document(version_param)
-
-            tmp = xml_helper.parse_xml(xml)
-            if tmp is None:
-                raise ValueError("No xml document was retrieved. Content was :'{}'".format(xml))
-
-            # we fake the persisted service version, so the document setters will change the correct elements in the xml
-            # md.service.service_type.version = version_param
-            doc = Document(
-                content=xml,
-                metadata=md,
-                document_type=DocumentEnum.CAPABILITY.value,
-                is_original=True
-            )
-            doc.set_capabilities_secured(auto_save=False)
-            if md.use_proxy_uri:
-                doc.set_proxy(True, auto_save=False, force_version=version_param)
-            doc = doc.content
-        except (ReadTimeout, TimeoutError, ConnectionError) as e:
-            # the remote server does not respond - we must deliver our stored capabilities document, which is not the requested version
-            return HttpResponse(content=SERVICE_CAPABILITIES_UNAVAILABLE)
-
+    try:
+        doc = get_resource_capabilities(request, md)
+    except (ReadTimeout, TimeoutError, ConnectionError) as e:
+        # the remote server does not respond - we must deliver our stored capabilities document, which is not the requested version
+        return HttpResponse(content=SERVICE_CAPABILITIES_UNAVAILABLE)
     return HttpResponse(doc, content_type='application/xml')
 
 

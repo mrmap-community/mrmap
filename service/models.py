@@ -995,7 +995,7 @@ class Metadata(Resource):
             raise ValueError()
 
         doc = None
-        if self.has_external_authentication():
+        if self.has_external_authentication:
             ext_auth = self.external_authentication
             crypto_handler = CryptoHandler()
             key = crypto_handler.get_key_from_file(self.id)
@@ -1013,6 +1013,7 @@ class Metadata(Resource):
             raise ConnectionError()
         return doc
 
+    @property
     def has_external_authentication(self):
         """ Checks whether the metadata has a related ExternalAuthentication set
 

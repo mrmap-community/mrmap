@@ -465,7 +465,7 @@ class RestrictAccessForm(MrMapForm):
             self.add_error("use_proxy", forms.ValidationError(_('Log proxy or restrict access without using proxy is\'nt possible!')))
 
         # raise Exception if user tries to deactivate an external authenticated service -> not allowed!
-        if self.metadata.has_external_authentication() and not use_proxy:
+        if self.metadata.has_external_authentication and not use_proxy:
             raise AssertionError(SECURITY_PROXY_DEACTIVATING_NOT_ALLOWED)
 
         return cleaned_data

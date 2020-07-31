@@ -19,7 +19,7 @@ from service.helper.epsg_api import EpsgApi
 from service.helper.ogc.csw import OGCCatalogueService
 from service.helper.ogc.wfs import OGCWebFeatureServiceFactory
 from service.helper.ogc.wms import OGCWebMapServiceFactory
-from service.models import Service, ExternalAuthentication, Metadata, Layer, FeatureType
+from service.models import Service, ExternalAuthentication, Metadata
 from service.helper.crypto_handler import CryptoHandler
 from structure.models import PendingTask, MrMapGroup, MrMapUser
 from users.helper import user_helper

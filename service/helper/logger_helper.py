@@ -32,8 +32,10 @@ def prepare_proxy_log_filter(request: HttpRequest, user: MrMapUser, current_view
         "user"
     )
 
-    return ProxyLogTable(request=request,
-                         queryset=queryset,
-                         filter_set_class=ProxyLogTableFilter,
-                         current_view=current_view,
-                         param_lead='logs-t',)
+    return ProxyLogTable(
+        request=request,
+        queryset=queryset,
+        filter_set_class=ProxyLogTableFilter,
+        current_view=current_view,
+        param_lead='logs-t',
+    )

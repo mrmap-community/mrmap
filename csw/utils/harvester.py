@@ -21,7 +21,7 @@ from django.utils.translation import gettext_lazy as _
 from lxml.etree import Element
 from multiprocessing import cpu_count
 
-from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
+from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, PROXIES
 from MrMap.utils import execute_threads
 from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE, HARVEST_METADATA_TYPES
 from service.helper import xml_helper
@@ -233,7 +233,8 @@ class Harvester:
             }
             harvest_response = requests.get(
                 url=self.harvest_url,
-                params=params
+                params=params,
+                proxies=PROXIES
             )
         elif self.method.upper() == "POST":
             post_body = self._generate_request_POST_body(self.start_position, result_type=result_type)

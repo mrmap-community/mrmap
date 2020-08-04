@@ -519,22 +519,12 @@ class PendingTasksTable(MrMapTable):
 
     @staticmethod
     def render_pt_progress(record):
-        task = AsyncResult(record.task_id, app=app)
+        progress = str(int(record.progress))
         try:
-            info_dict = task.info
-
-            if info_dict is not None:
-                if task.info['current'] is None:
-                    progress_value = '1'  # 1 % to show something ¯\_(ツ)_/¯
-                else:
-                    progress_value = str(int(task.info['current']))
-            else:
-                progress_value = '1' # 1 % to show something ¯\_(ツ)_/¯
-
             return format_html('<div class="progress">' \
                                '<div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" ' \
-                               'aria-valuenow="' + progress_value + '" aria-valuemin="0" aria-valuemax="100" ' \
-                                                                    'style="width: ' + progress_value + '%">'+ progress_value + \
+                               'aria-valuenow="' + progress + '" aria-valuemin="0" aria-valuemax="100" ' \
+                                                                    'style="width: ' + progress + '%">'+ progress + \
                                                                                                         ' %</div>' \
                                                                                                         '</div>')
         except Exception as e:

@@ -119,8 +119,8 @@ class Harvester:
         t_start = time()
         number_rest_to_harvest = total_number_to_harvest
         number_of_harvested = 0
-        # Run as long as we can fetch data!
-        while self.start_position != 0:
+        # Run as long as we can fetch data and as long as the user does not abort the pending task!
+        while self.start_position != 0 and self.pending_task is not None:
             # Get response
             next_response = self._get_harvest_response(result_type="results", only_content=True)
 
@@ -139,13 +139,15 @@ class Harvester:
             self._update_pending_task(self.start_position, total_number_to_harvest, progress_step_per_request, estimated_time_for_all)
 
         # Delete Metadata records which could not be found in the catalogue anymore
-        deleted_metadata_ids = [k for k, v in self.deleted_metadata.items()]
-        deleted_metadatas = Metadata.objects.filter(
-            identifier__in=deleted_metadata_ids
-        )
-        deleted_metadatas.delete()
+        # This has to be done if the harvesting run completely. Skip this part if the user aborted the harvest!
+        if self.pending_task is not None:
+            deleted_metadata_ids = [k for k, v in self.deleted_metadata.items()]
+            deleted_metadatas = Metadata.objects.filter(
+                identifier__in=deleted_metadata_ids
+            )
+            deleted_metadatas.delete()
+            self.pending_task.delete()
 
-        self.pending_task.delete()
 
     def _generate_request_POST_body(self, start_position: int, result_type: str = "results"):
         """ Creates a CSW POST body xml document for GetRecords
@@ -205,12 +207,16 @@ class Harvester:
         Returns:
 
         """
-        descr = json.loads(self.pending_task.description)
-        descr["phase"] = _("Harvesting {} of {}").format(next_record, total_records)
-        self.pending_task.description = json.dumps(descr)
-        self.pending_task.remaining_time = remaining_time
-        self.pending_task.progress += progress_step
-        self.pending_task.save()
+        try:
+            self.pending_task.refresh_from_db()
+            descr = json.loads(self.pending_task.description)
+            descr["phase"] = _("Harvesting {} of {}").format(next_record, total_records)
+            self.pending_task.description = json.dumps(descr)
+            self.pending_task.remaining_time = remaining_time
+            self.pending_task.progress += progress_step
+            self.pending_task.save()
+        except ObjectDoesNotExist:
+            self.pending_task = None
 
     def _get_harvest_response(self, result_type: str = "results", only_content: bool = False):
         """ Fetch a response for the harvesting (GetRecords)

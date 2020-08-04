@@ -5,8 +5,6 @@ from django.db.models.functions import Length
 from django.utils.html import format_html
 from django.urls import reverse
 import json
-from MrMap.celery_app import app
-from celery.result import AsyncResult
 
 from MrMap.columns import MrMapColumn
 from MrMap.tables import MrMapTable
@@ -15,6 +13,7 @@ from MrMap.consts import construct_url
 from django.db.models import Count
 from django.utils.translation import gettext_lazy as _
 
+from csw.models import HarvestResult
 from service.helper.enums import ResourceOriginEnum
 from structure.models import Permission
 
@@ -413,15 +412,13 @@ class CswTable(MrMapTable):
         verbose_name=_('Version'),
         tooltip=TOOLTIP_VERSION,
     )
-    # Todo: accessor
     csw_last_haverest = MrMapColumn(
-        accessor='',
+        accessor='service',
         verbose_name=_('Last harvest'),
         tooltip=_('Timestamp of the last harvest'),
     )
-    # Todo: accessor
     csw_collected_haverest_records = MrMapColumn(
-        accessor='',
+        accessor='service',
         verbose_name=_('Collected harvest records'),
         tooltip=_('Count of all haverest records'),
     )
@@ -437,6 +434,25 @@ class CswTable(MrMapTable):
         tooltip=TOOLTIP_ACTIONS,
         attrs={"td": {"style": "white-space:nowrap;"}}
     )
+
+    @staticmethod
+    def render_csw_last_haverest(value, record):
+        harvest_result = HarvestResult.objects.filter(
+            service=value
+        ).order_by(
+            "-created"
+        ).first()
+
+        return harvest_result.timestamp_start if harvest_result is not None else None
+
+    @staticmethod
+    def render_csw_collected_haverest_records(value, record):
+        harvest_result = HarvestResult.objects.filter(
+            service=value
+        ).order_by(
+            "-created"
+        ).first()
+        return harvest_result.number_results if harvest_result is not None else None
 
     def render_csw_title(self, value, record):
         url = reverse('resource:detail', args=(record.id,))

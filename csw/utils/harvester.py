@@ -9,6 +9,7 @@ import json
 from time import time
 import datetime
 
+import pytz
 from billiard.context import Process
 from dateutil.parser import parse
 from django.contrib.gis.geos import Polygon, GEOSGeometry
@@ -22,6 +23,7 @@ from multiprocessing import cpu_count
 
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from MrMap.utils import execute_threads
+from csw.models import HarvestResult
 from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE, HARVEST_METADATA_TYPES
 from service.helper import xml_helper
 from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
@@ -45,6 +47,8 @@ class Harvester:
         self.start_position = 1
 
         self.method = self.harvest_url.method
+
+        self.harvest_result = HarvestResult(service=self.metadata.service)
 
         self.harvest_url = getattr(self.harvest_url, "url", None)
         if self.harvest_url is None:
@@ -134,6 +138,8 @@ class Harvester:
         t_start = time()
         number_rest_to_harvest = total_number_to_harvest
         number_of_harvested = 0
+        self.harvest_result.timestamp_start = datetime.datetime.now(pytz.utc)
+        self.harvest_result.save()
 
         # Run as long as we can fetch data and as long as the user does not abort the pending task!
         while self.pending_task is not None:
@@ -141,12 +147,14 @@ class Harvester:
             # Get response
             next_response, status_code = self._get_harvest_response(result_type="results")
 
-            self._process_harvest_response(next_response)
+            found_entries = self._process_harvest_response(next_response)
 
             # Calculate time since loop started
             duration = time() - t_start
             number_rest_to_harvest -= self.max_records_per_request
-            number_of_harvested += self.max_records_per_request
+            number_of_harvested += found_entries
+            self.harvest_result.number_results = number_of_harvested
+            self.harvest_result.save()
 
             if self.start_position == 0 or self.start_position in processed_start_positions:
                 # We are done!
@@ -157,6 +165,11 @@ class Harvester:
                 estimated_time_for_all = datetime.timedelta(seconds=seconds_for_rest)
 
             self._update_pending_task(self.start_position, total_number_to_harvest, progress_step_per_request, estimated_time_for_all)
+
+        # Add HarvestResult infos
+        self.harvest_result.timestamp_end = datetime.datetime.now(pytz.utc)
+        self.harvest_result.number_results = number_of_harvested
+        self.harvest_result.save()
 
         # Delete Metadata records which could not be found in the catalogue anymore
         # This has to be done if the harvesting run completely. Skip this part if the user aborted the harvest!
@@ -273,7 +286,7 @@ class Harvester:
 
         return harvest_response, connector.status_code
 
-    def _process_harvest_response(self, next_response: bytes):
+    def _process_harvest_response(self, next_response: bytes) -> int:
         """ Processes the harvest response content
 
         While the last response is being processed, the next one is already loaded to decrease run time
@@ -281,7 +294,7 @@ class Harvester:
         Args:
             response (bytes): The response as bytes
         Returns:
-             next_record (int): The nextRecord value (used for next startPosition)
+             number_found_entries (int): The amount of found metadata records in this response
         """
         xml_response = xml_helper.parse_xml(next_response)
         if xml_response is None:
@@ -350,6 +363,7 @@ class Harvester:
                 time() - t_start
             )
         )
+        return len(md_metadata_entries)
 
     def _create_metadata_from_md_metadata(self, start_index, end_index):
         """ Creates Metadata records from raw xml md_metadata data.

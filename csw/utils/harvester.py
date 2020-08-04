@@ -61,7 +61,13 @@ class Harvester:
             raise ValueError(_("No XML output format available"))
 
         self.pending_task = None  # will be initialized in harvest()
-        self.deleted_metadata = {}
+
+        # used for generating a list of already persisted metadata -
+        # will be decreased each time the metadata is found during harvest.
+        # In the end we have a list of metadata that can be removed from the db
+        self.deleted_metadata = set()
+
+        # Used to map parent results of a csw to it's children
         self.parent_child_map = {}
 
     def harvest(self, task_id: str = None):
@@ -91,13 +97,14 @@ class Harvester:
 
         # Fill the deleted_metadata with all persisted metadata, so we can eliminate each entry if it is still provided by
         # the catalogue. In the end we will have a list, which contains metadata IDs that are not found in the catalogue anymore.
-        all_harvested_metadata = Metadata.objects.filter(
-            related_metadata__origin=ResourceOriginEnum.CATALOGUE.value,
-            related_metadata__relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
-            related_metadata__metadata_to=self.metadata
-        ).distinct()
-        # Use a dict instead of list to increase lookup afterwards
-        self.deleted_metadata = {str(md.identifier): None for md in all_harvested_metadata}
+        all_persisted_metadata_identifiers = self.metadata.related_metadata.filter(
+            relation_type=MetadataRelationEnum.HARVESTED_THROUGH.value,
+            metadata_to=self.metadata
+        ).values_list(
+            "metadata_from__identifier", flat=True
+        )
+        # Use a set instead of list to increase lookup afterwards
+        self.deleted_metadata.update(all_persisted_metadata_identifiers)
 
         # Perform the initial "hits" request to get an overview of how many data will be fetched
         hits_response, status_code = self._get_harvest_response(result_type="hits")
@@ -119,12 +126,18 @@ class Harvester:
 
         progress_step_per_request = float(self.max_records_per_request / total_number_to_harvest) * 100
 
+        # There are wongly configured CSW, which do not return nextRecord=0 on the last page but instead continue on
+        # nextRecord=1. We need to prevent endless loops by checking whether, we already worked on these positions and
+        # simply end it there!
+        processed_start_positions = set()
+
         t_start = time()
         number_rest_to_harvest = total_number_to_harvest
         number_of_harvested = 0
 
         # Run as long as we can fetch data and as long as the user does not abort the pending task!
         while self.pending_task is not None:
+            processed_start_positions.add(self.start_position)
             # Get response
             next_response, status_code = self._get_harvest_response(result_type="results")
 
@@ -134,21 +147,22 @@ class Harvester:
             duration = time() - t_start
             number_rest_to_harvest -= self.max_records_per_request
             number_of_harvested += self.max_records_per_request
-            if self.start_position == 0:
+
+            if self.start_position == 0 or self.start_position in processed_start_positions:
                 # We are done!
                 estimated_time_for_all = datetime.timedelta(seconds=0)
                 break
             else:
                 seconds_for_rest = (number_rest_to_harvest * (duration / number_of_harvested))
                 estimated_time_for_all = datetime.timedelta(seconds=seconds_for_rest)
+
             self._update_pending_task(self.start_position, total_number_to_harvest, progress_step_per_request, estimated_time_for_all)
 
         # Delete Metadata records which could not be found in the catalogue anymore
         # This has to be done if the harvesting run completely. Skip this part if the user aborted the harvest!
         if self.pending_task is not None:
-            deleted_metadata_ids = [k for k, v in self.deleted_metadata.items()]
             deleted_metadatas = Metadata.objects.filter(
-                identifier__in=deleted_metadata_ids
+                identifier__in=self.deleted_metadata
             )
             deleted_metadatas.delete()
             self.pending_task.delete()
@@ -356,9 +370,11 @@ class Harvester:
              metadata (Metadata): The persisted metadata object
         """
         _id = md_data_entry["id"]
-        # Check if id can be found in dict of metadata to be deleted. If so, it can be removed
-        if self.deleted_metadata.get(_id, None) is not None:
-            del self.deleted_metadata[_id]
+        # Remove this id from the set of metadata which shall be deleted in the end.
+        try:
+            self.deleted_metadata.remove(_id)
+        except KeyError:
+            pass
 
         try:
             md = Metadata.objects.get(

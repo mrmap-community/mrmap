@@ -433,10 +433,13 @@ class Harvester:
             formats = MimeType.objects.filter(mime_type__in=md_data_entry["formats"])
 
             with transaction.atomic():
-                q = Q()
-                for cat in md_data_entry["categories"]:
-                    q |= Q(title_EN__iexact=cat)
-                categories = Category.objects.filter(q)
+                if len(md_data_entry["categories"]) > 0:
+                    q = Q()
+                    for cat in md_data_entry["categories"]:
+                        q |= Q(title_EN__iexact=cat)
+                    categories = Category.objects.filter(q)
+                else:
+                    categories = []
 
                 md.save(add_monitoring=False)
                 md.keywords.add(*kws)

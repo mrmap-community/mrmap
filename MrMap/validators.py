@@ -57,7 +57,7 @@ def validate_username_has_special_characters(value):
 USERNAME_VALIDATORS = [validate_username_has_special_characters]
 
 
-def check_uri_is_reachable(value) -> (bool, bool):
+def check_uri_is_reachable(value) -> (bool, bool, int):
     """ Performs a check on the URL.
 
     Returns whether it's reachable or not
@@ -66,6 +66,8 @@ def check_uri_is_reachable(value) -> (bool, bool):
         value: The url to be checked
     Returns:
          reachable (bool)
+         needs_authentication (bool)
+         status_code (int)
     """
     connector = CommonConnector(
         url=value
@@ -82,7 +84,7 @@ def check_uri_is_reachable(value) -> (bool, bool):
         else:
             msg_suffix = "Status code was {}".format(status_code)
             return ValidationError(message="URL not valid! {}".format(msg_suffix))
-    return is_reachable, needs_authentication
+    return is_reachable, needs_authentication, status_code
 
 
 def _get_request_uri_has_no_request_parameter(value):

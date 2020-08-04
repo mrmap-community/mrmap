@@ -85,7 +85,7 @@ class CommonConnector:
             response = requests.head(url=url, proxies=PROXIES)
         except requests.exceptions.ConnectionError as e:
             return False, -1
-        return response.status_code == 200, response.status_code
+        return True, response.status_code
 
     def load(self, params: dict = None):
         self.init_time = time.time()

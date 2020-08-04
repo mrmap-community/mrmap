@@ -32,7 +32,7 @@ class NewResourceWizard(MrMapWizard):
             service_url_data = self.storage.get_step_data(FIRST_STEP_ID)
             uri = service_url_data.get('{}-get_request_uri'.format(FIRST_STEP_ID))
             url_dict = service_helper.split_service_uri(uri)
-            needs_authentication = check_uri_is_reachable(uri)[1]
+            is_reachable, needs_authentication, status_code = check_uri_is_reachable(uri)
             initial.update({
                 'ogc_request': url_dict["request"],
                 'ogc_service': url_dict["service"].value,

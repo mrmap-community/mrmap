@@ -307,6 +307,18 @@ class Harvester:
         ))
         self.start_position = next_record_position
 
+        # Fetch found identifiers in parent process, so self.deleted_metadata can be edited easily
+        for md_identifier in md_metadata_entries:
+            id = xml_helper.try_get_text_from_xml_element(
+                md_identifier,
+                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("fileIdentifier")
+                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+            )
+            try:
+                self.deleted_metadata.remove(id)
+            except KeyError:
+                pass
+
         # Delete response to free memory
         del xml_response
 

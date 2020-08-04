@@ -9,7 +9,6 @@ import json
 from time import time
 import datetime
 
-import requests
 from billiard.context import Process
 from dateutil.parser import parse
 from django.contrib.gis.geos import Polygon, GEOSGeometry
@@ -21,12 +20,12 @@ from django.utils.translation import gettext_lazy as _
 from lxml.etree import Element
 from multiprocessing import cpu_count
 
-from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE, PROXIES
+from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from MrMap.utils import execute_threads
 from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE, HARVEST_METADATA_TYPES
 from service.helper import xml_helper
 from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
-from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType, Service
+from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType
 from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import PendingTask, MrMapGroup, Organization
 
@@ -101,28 +100,33 @@ class Harvester:
         self.deleted_metadata = {str(md.identifier): None for md in all_harvested_metadata}
 
         # Perform the initial "hits" request to get an overview of how many data will be fetched
-        hits_response = self._get_harvest_response(result_type="hits")
-        if hits_response.status_code != 200:
-            raise ConnectionError(_("Harvest failed: Code {}\n{}").format(hits_response.status_code, hits_response.content))
-        xml_response = xml_helper.parse_xml(hits_response.content)
+        hits_response, status_code = self._get_harvest_response(result_type="hits")
+        if status_code != 200:
+            raise ConnectionError(_("Harvest failed: Code {}\n{}").format(status_code, hits_response))
+        xml_response = xml_helper.parse_xml(hits_response)
         if xml_response is None:
-            raise ConnectionError(_("Response is no proper xml: \n{}".format(hits_response.content)))
+            raise ConnectionError(_("Response is no proper xml: \n{}".format(hits_response)))
 
-        total_number_to_harvest = int(xml_helper.try_get_attribute_from_xml_element(
-            xml_response,
-            "numberOfRecordsMatched",
-            "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
-            ))
+        try:
+            total_number_to_harvest = int(xml_helper.try_get_attribute_from_xml_element(
+                xml_response,
+                "numberOfRecordsMatched",
+                "//" + GENERIC_NAMESPACE_TEMPLATE.format("SearchResults"),
+                ))
+        except TypeError:
+            csw_logger.error("Malicious Harvest response: {}".format(hits_response))
+            raise AttributeError(_("Harvest response is missing important data!"))
 
         progress_step_per_request = float(self.max_records_per_request / total_number_to_harvest) * 100
 
         t_start = time()
         number_rest_to_harvest = total_number_to_harvest
         number_of_harvested = 0
+
         # Run as long as we can fetch data and as long as the user does not abort the pending task!
-        while self.start_position != 0 and self.pending_task is not None:
+        while self.pending_task is not None:
             # Get response
-            next_response = self._get_harvest_response(result_type="results", only_content=True)
+            next_response, status_code = self._get_harvest_response(result_type="results")
 
             self._process_harvest_response(next_response)
 
@@ -133,6 +137,7 @@ class Harvester:
             if self.start_position == 0:
                 # We are done!
                 estimated_time_for_all = datetime.timedelta(seconds=0)
+                break
             else:
                 seconds_for_rest = (number_rest_to_harvest * (duration / number_of_harvested))
                 estimated_time_for_all = datetime.timedelta(seconds=seconds_for_rest)
@@ -147,7 +152,6 @@ class Harvester:
             )
             deleted_metadatas.delete()
             self.pending_task.delete()
-
 
     def _generate_request_POST_body(self, start_position: int, result_type: str = "results"):
         """ Creates a CSW POST body xml document for GetRecords
@@ -193,8 +197,8 @@ class Harvester:
                 "typeNames": "gmd:MD_Metadata"
             }
         )
-
-        return xml_helper.xml_to_string(root_elem)
+        post_content = xml_helper.xml_to_string(root_elem)
+        return post_content
 
     def _update_pending_task(self, next_record: int, total_records: int, progress_step: float, remaining_time):
         """ Updates the PendingTask object
@@ -218,14 +222,19 @@ class Harvester:
         except ObjectDoesNotExist:
             self.pending_task = None
 
-    def _get_harvest_response(self, result_type: str = "results", only_content: bool = False):
+    def _get_harvest_response(self, result_type: str = "results") -> (bytes, int):
         """ Fetch a response for the harvesting (GetRecords)
 
         Args:
             result_type (str): Which resultType should be used (hits|results)
         Returns:
              harvest_response (bytes): The response content
+             status_code (int): The response status code
         """
+        from service.helper.common_connector import CommonConnector
+        connector = CommonConnector(
+            url=self.harvest_url
+        )
         if self.method.upper() == "GET":
             params = {
                 "service": "CSW",
@@ -237,19 +246,18 @@ class Harvester:
                 "version": self.version,
                 "request": OGCOperationEnum.GET_RECORDS.value,
             }
-            harvest_response = requests.get(
-                url=self.harvest_url,
-                params=params,
-                proxies=PROXIES
-            )
+            connector.load(params=params)
+            harvest_response = connector.content
         elif self.method.upper() == "POST":
             post_body = self._generate_request_POST_body(self.start_position, result_type=result_type)
-            harvest_response = requests.post(self.harvest_url, data=post_body)
+            connector.post(
+                data=post_body
+            )
+            harvest_response = connector.content
         else:
             raise NotImplementedError()
 
-        response = harvest_response if not only_content else harvest_response.content
-        return response
+        return harvest_response, connector.status_code
 
     def _process_harvest_response(self, next_response: bytes):
         """ Processes the harvest response content

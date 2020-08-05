@@ -337,9 +337,13 @@ def serialize_metadata_relation(md: Metadata) -> list:
          data_list (list): The list containing serialized dict elements
     """
     relations = []
-    md_relations = md.related_metadata.all().exclude(
-        **API_EXCLUDE_METADATA_RELATIONS
-    )
+    md_relations = md.related_metadata.all()
+
+    # Exclude harvested relations for a csw. It would be way too much without giving useful information
+    if md.is_catalogue_metadata:
+        md_relations = md_relations.exclude(
+            **API_EXCLUDE_METADATA_RELATIONS
+        )
 
     for rel in md_relations:
         md_from = rel.metadata_from
@@ -349,13 +353,13 @@ def serialize_metadata_relation(md: Metadata) -> list:
         rel_obj["relation_from"] = {
             "id": md_from.id,
             "type": md_from.metadata_type,
-            "identifier": md_from.identifier
+            "file_identifier": md_from.identifier
         }
         rel_obj["relation_type"] = rel.relation_type
         rel_obj["relation_to"] = {
             "id": md_to.id,
             "type": md_to.metadata_type,
-            "identifier": md_to.identifier
+            "file_identifier": md_to.identifier
         }
 
         relations.append(rel_obj)
@@ -491,21 +495,25 @@ def perform_catalogue_entry_serialization(md: Metadata) -> OrderedDict:
     except Exception:
         parent_service = None
 
+    can_have_preview = md.is_service_metadata or md.is_featuretype_metadata or md.is_layer_metadata
+
     serialized = OrderedDict()
     serialized["id"] = md.id
     serialized["easy_id"] = md.public_id
-    serialized["identifier"] = md.identifier
+    serialized["file_identifier"] = md.identifier
     serialized["type"] = md.metadata_type
     serialized["title"] = md.title
     serialized["abstract"] = md.abstract
     serialized["spatial_extent_geojson"] = bounding_geometry.geojson
+    serialized["online_resource_uri"] = md.online_resource
     serialized["capabilities_uri"] = md.capabilities_uri
     serialized["xml_metadata_uri"] = md.service_metadata_uri
     serialized["html_metadata_uri"] = md.html_metadata_uri
-    serialized["easy_capabilities_uri"] = (md.capabilities_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.capabilities_uri is not None else ""
-    serialized["easy_xml_metadata_uri"] = (md.service_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.service_metadata_uri is not None else ""
-    serialized["easy_html_metadata_uri"] = (md.html_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.html_metadata_uri is not None else ""
-    serialized["preview_uri"] = "{}{}".format(ROOT_URL, reverse("resource:get-service-metadata-preview", args=(str(md.id),)))
+    serialized["easy_capabilities_uri"] = (md.capabilities_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.capabilities_uri is not None else None
+    serialized["easy_xml_metadata_uri"] = (md.service_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.service_metadata_uri is not None else None
+    serialized["easy_html_metadata_uri"] = (md.html_metadata_uri.replace(str(md.id), md.public_id) if md.public_id is not None else None) if md.html_metadata_uri is not None else None
+    serialized["additional_uris"] = [{uri.url: uri.description} for uri in md.additional_urls.all()]
+    serialized["preview_uri"] = "{}{}".format(ROOT_URL, reverse("resource:get-service-metadata-preview", args=(str(md.id),))) if can_have_preview else None
     serialized["fees"] = md.fees
     serialized["access_constraints"] = md.access_constraints
     serialized["licence"] = serialize_licence(md)

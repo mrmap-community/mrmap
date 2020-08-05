@@ -8,6 +8,7 @@ Created on: 15.07.20
 import json
 from time import time
 import datetime
+from urllib.parse import urlparse, parse_qs
 
 import pytz
 from billiard.context import Process
@@ -30,7 +31,8 @@ from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_
     CSW_CACHE_PREFIX
 from service.helper import xml_helper
 from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
-from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType
+from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType, \
+    GenericUrl
 from service.settings import DEFAULT_SRS, DEFAULT_SERVICE_BOUNDING_BOX_EMPTY
 from structure.models import PendingTask, MrMapGroup, Organization
 
@@ -434,9 +436,10 @@ class Harvester:
         md.metadata_type = md_data_entry.get("metadata_type", None)
         md.abstract = md_data_entry.get("abstract", None)
         md.bounding_geometry = md_data_entry.get("bounding_geometry", None)
-        md.online_resource = md_data_entry.get("link", None)
         formats = md_data_entry.get("formats", [])
         md.is_active = True
+        md.capabilities_original_uri = md_data_entry.get("capabilities_original_url", None)
+        md.capabilities_uri = md_data_entry.get("capabilities_original_url", None)
 
         try:
             # Improve speed for keyword get-create by fetching (filter) all existing ones and only perform
@@ -462,6 +465,17 @@ class Harvester:
                     categories = Category.objects.filter(q)
                 else:
                     categories = []
+
+                for link in md_data_entry.get("links", []):
+                    url = link.get("link", None)
+                    if url is None:
+                        continue
+                    generic_url = GenericUrl()
+                    generic_url.description = "[HARVESTED URL] \n{}".format(link.get("description", ""))
+                    generic_url.method = "Get"
+                    generic_url.url = url
+                    generic_url.save()
+                    md.additional_urls.add(generic_url)
 
                 md.save(add_monitoring=False)
                 md.keywords.add(*kws)
@@ -624,15 +638,43 @@ class Harvester:
             )
             md_data_entry["abstract"] = abstract
 
-            resource_link = xml_helper.try_get_text_from_xml_element(
-                md_metadata,
-                ".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DigitalTransferOptions")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("onLine")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_OnlineResource")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("linkage")
-                + "/" + GENERIC_NAMESPACE_TEMPLATE.format("URL"),
+            digital_transfer_elements = xml_helper.try_get_element_from_xml(
+                xml_elem=md_metadata,
+                elem=".//" + GENERIC_NAMESPACE_TEMPLATE.format("MD_DigitalTransferOptions")
             )
-            md_data_entry["link"] = resource_link
+            links = []
+            for elem in digital_transfer_elements:
+                links_entry = {}
+                resource_link = xml_helper.try_get_text_from_xml_element(
+                    elem,
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("onLine")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_OnlineResource")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("linkage")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("URL"),
+                )
+                descr = xml_helper.try_get_text_from_xml_element(
+                    elem,
+                    ".//" + GENERIC_NAMESPACE_TEMPLATE.format("onLine")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CI_OnlineResource")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("description")
+                    + "/" + GENERIC_NAMESPACE_TEMPLATE.format("CharacterString")
+                )
+                links_entry["link"] = resource_link
+                links_entry["description"] = descr
+
+                if resource_link is not None:
+                    # Check on the type of online_resource we found -> could be GetCapabilities
+                    query_params = parse_qs(urlparse(resource_link.lower()).query)
+                    if OGCOperationEnum.GET_CAPABILITIES.value.lower() in query_params.get("request", []):
+                        # Parse all possibly relevant data from the dict
+                        version = query_params.get("version", [None])
+                        service_type = query_params.get("service", [None])
+                        md_data_entry["capabilities_original_url"] = resource_link
+                        md_data_entry["service_type"] = service_type[0]
+                        md_data_entry["version"] = version[0]
+                links.append(links_entry)
+
+            md_data_entry["links"] = links
 
             keywords = xml_helper.try_get_element_from_xml(
                 ".//" + GENERIC_NAMESPACE_TEMPLATE.format("keyword")

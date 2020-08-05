@@ -869,7 +869,11 @@ class SuggestionViewSet(viewsets.GenericViewSet):
         # Prefilter search on database access to reduce amount of work
         query = self.request.query_params.get("q", None)
         filter = view_helper.create_keyword_query_filter(query)
-        max_results = self.request.query_params.get("max", SUGGESTIONS_MAX_RESULTS)
+        try:
+            max_results = int(self.request.query_params.get("max", SUGGESTIONS_MAX_RESULTS))
+        except ValueError:
+            # Happens if non-numeric value has been given. Use fallback!
+            max_results = SUGGESTIONS_MAX_RESULTS
 
         # Get matching keywords, count the number of relations to metadata records and order accordingly (most on top)
         self.queryset = Keyword.objects.filter(
@@ -884,14 +888,14 @@ class SuggestionViewSet(viewsets.GenericViewSet):
 
     # https://docs.djangoproject.com/en/dev/topics/cache/#the-per-view-cache
     # Cache requested url for time t
-    @method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
+    #@method_decorator(cache_page(API_CACHE_TIME, key_prefix=API_CACHE_KEY_PREFIX))
     def list(self, request):
         tmp = self.paginate_queryset(self.get_queryset())
         data = {
             "suggestions":
-                [
-                    result.keyword for result in tmp
-                ]
+                {
+                    result.keyword: result.metadata_count for result in tmp
+                }
         }
         data = OrderedDict(data)
         return self.get_paginated_response(data)

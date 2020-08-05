@@ -21,10 +21,13 @@ from django.utils.translation import gettext_lazy as _
 from lxml.etree import Element
 from multiprocessing import cpu_count
 
+from MrMap.cacher import PageCacher
 from MrMap.settings import GENERIC_NAMESPACE_TEMPLATE
 from MrMap.utils import execute_threads
+from api.settings import API_CACHE_KEY_PREFIX
 from csw.models import HarvestResult
-from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE, HARVEST_METADATA_TYPES
+from csw.settings import csw_logger, CSW_ERROR_LOG_TEMPLATE, CSW_EXTENT_WARNING_LOG_TEMPLATE, HARVEST_METADATA_TYPES, \
+    CSW_CACHE_PREFIX
 from service.helper import xml_helper
 from service.helper.enums import OGCOperationEnum, ResourceOriginEnum, MetadataRelationEnum
 from service.models import Metadata, Dataset, Keyword, Category, MetadataRelation, MimeType
@@ -179,6 +182,11 @@ class Harvester:
             )
             deleted_metadatas.delete()
             self.pending_task.delete()
+
+        # Remove cached pages of API and CSW
+        page_cacher = PageCacher()
+        page_cacher.remove_pages(API_CACHE_KEY_PREFIX)
+        page_cacher.remove_pages(CSW_CACHE_PREFIX)
 
     def _generate_request_POST_body(self, start_position: int, result_type: str = "results"):
         """ Creates a CSW POST body xml document for GetRecords

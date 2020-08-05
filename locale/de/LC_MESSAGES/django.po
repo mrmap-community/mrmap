@@ -1303,7 +1303,7 @@ msgid "Progress"
 msgstr "Fortschritt"
 
 #: service/tables.py:494
-msgid "Cancle task"
+msgid "Cancel task"
 msgstr "Prozess abbrechen"
 
 #: service/tables.py:513 service/tables.py:518
